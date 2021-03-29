@@ -15,6 +15,7 @@ locals {
   instance_profile_path          = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
   lambda_zip                     = var.lambda_zip == null ? "${path.module}/lambdas/runners/runners.zip" : var.lambda_zip
   userdata_template              = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
+  userdata_template_windows      = var.userdata_template == "${path.module}/templates/user-data.ps1"
   userdata_arm_patch             = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner = "${path.module}/templates/install-config-runner.sh"
 }
@@ -33,8 +34,64 @@ data "aws_ami" "runner" {
   owners = var.ami_owners
 }
 
-resource "aws_launch_template" "runner" {
-  name = "${var.environment}-action-runner"
+resource "aws_launch_template" "linux_runner" {
+  name = "${var.environment}-action-linux-runner"
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.runner.name
+  }
+
+  instance_initiated_shutdown_behavior = "terminate"
+
+  instance_market_options {
+    market_type = var.market_options
+  }
+
+  image_id      = data.aws_ami.runner.id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  vpc_security_group_ids = compact(concat(
+    [aws_security_group.runner_sg.id],
+    var.runner_additional_security_group_ids,
+  ))
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+
+  user_data = base64encode(templatefile(local.userdata_template, {
+    environment                     = var.environment
+    pre_install                     = var.userdata_pre_install
+    post_install                    = var.userdata_post_install
+    enable_cloudwatch_agent         = var.enable_cloudwatch_agent
+    ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner[0].name : ""
+    ghes_url                        = var.ghes_url
+    install_config_runner           = local.install_config_runner
+  }))
+
+  tags = local.tags
+}
+
+resource "aws_launch_template" "windows_runner" {
+  name = "${var.environment}-action-windows-runner"
 
   dynamic "block_device_mappings" {
     for_each = [var.block_device_mappings]
@@ -91,7 +148,7 @@ resource "aws_launch_template" "runner" {
   }
 
 
-  user_data = base64encode(templatefile(local.userdata_template, {
+  user_data = base64encode(templatefile(local.userdata_template_windows, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install

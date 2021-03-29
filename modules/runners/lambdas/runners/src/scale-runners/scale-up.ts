@@ -90,6 +90,24 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
         disk_size: 100,
         runnerTypeName: 'linuxGpu',
       },
+      windowsCpu: {
+        instance_type: 'c5.2xlarge',
+        os: 'windows',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'windowsCpu',
+      },
+      windowsGpu: {
+        instance_type: 'c5.2xlarge',
+        os: 'windows',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'windowsGpu',
+      },
     }
 
     for (const runnerType in runnerTypes) {

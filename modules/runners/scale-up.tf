@@ -28,20 +28,22 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      ENABLE_ORGANIZATION_RUNNERS = var.enable_organization_runners
-      ENVIRONMENT                 = var.environment
-      GHES_URL                    = var.ghes_url
-      GITHUB_APP_CLIENT_ID        = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET    = local.github_app_client_secret
-      GITHUB_APP_ID               = var.github_app.id
-      GITHUB_APP_KEY_BASE64       = local.github_app_key_base64
-      KMS_KEY_ID                  = var.encryption.kms_key_id
-      RUNNER_EXTRA_LABELS         = var.runner_extra_labels
-      RUNNER_GROUP_NAME           = var.runner_group_name
-      RUNNERS_MAXIMUM_COUNT       = var.runners_maximum_count
-      LAUNCH_TEMPLATE_NAME        = aws_launch_template.runner.name
-      LAUNCH_TEMPLATE_VERSION     = aws_launch_template.runner.latest_version
-      SUBNET_IDS                  = join(",", var.subnet_ids)
+      ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
+      ENVIRONMENT                     = var.environment
+      GHES_URL                        = var.ghes_url
+      GITHUB_APP_CLIENT_ID            = var.github_app.client_id
+      GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
+      GITHUB_APP_ID                   = var.github_app.id
+      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
+      KMS_KEY_ID                      = var.encryption.kms_key_id
+      RUNNER_EXTRA_LABELS             = var.runner_extra_labels
+      RUNNER_GROUP_NAME               = var.runner_group_name
+      RUNNERS_MAXIMUM_COUNT           = var.runners_maximum_count
+      LAUNCH_TEMPLATE_NAME_LINUX      = aws_launch_template.linux_runner.name
+      LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
+      LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
+      LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
+      SUBNET_IDS                      = join(",", var.subnet_ids)
     }
   }
 

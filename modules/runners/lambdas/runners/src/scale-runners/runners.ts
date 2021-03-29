@@ -80,8 +80,10 @@ export async function terminateRunner(runner: RunnerInfo): Promise<void> {
 }
 
 export async function createRunner(runnerParameters: RunnerInputParameters): Promise<void> {
-  const launchTemplateName = process.env.LAUNCH_TEMPLATE_NAME as string;
-  const launchTemplateVersion = process.env.LAUNCH_TEMPLATE_VERSION as string;
+  const launchTemplateNameLinux = process.env.LAUNCH_TEMPLATE_NAME_LINUX as string;
+  const launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX as string;
+  const launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS as string;
+  const launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS as string;
 
   const subnets = (process.env.SUBNET_IDS as string).split(',');
   const randomSubnet = subnets[Math.floor(Math.random() * subnets.length)];
@@ -92,16 +94,19 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       MaxCount: 1,
       MinCount: 1,
       LaunchTemplate: {
-        LaunchTemplateName: launchTemplateName,
-        Version: launchTemplateVersion,
+        LaunchTemplateName: runnerParameters.runnerType.os === "linux" ? launchTemplateNameLinux : launchTemplateNameWindows,
+        Version: runnerParameters.runnerType.os === "linux" ? launchTemplateVersionLinux : launchTemplateVersionWindows,
       },
       ImageId: runnerParameters.runnerType.ami,
       InstanceType: runnerParameters.runnerType.instance_type,
       BlockDeviceMappings: [
         {
-          DeviceName: "/dev/sdh",
+          DeviceName: "/dev/xvda",
           Ebs: {
-            VolumeSize: runnerParameters.runnerType.disk_size
+            VolumeSize: runnerParameters.runnerType.disk_size,
+            VolumeType: "gp3",
+            Encrypted: true,
+            DeleteOnTermination: true
           }
         }
       ],
