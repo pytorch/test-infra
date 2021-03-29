@@ -72,7 +72,6 @@ module "runners" {
   block_device_mappings = var.block_device_mappings
 
   runner_architecture = local.runner_architecture
-  ami_filter          = local.ami_filter
   ami_owners          = var.ami_owners
 
   sqs_build_queue                      = aws_sqs_queue.queued_builds
