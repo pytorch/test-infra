@@ -135,6 +135,15 @@ describe('create runner', () => {
       environment: 'unit-test-env',
       repoName: 'SomeAwesomeCoder/some-amazing-library',
       orgName: undefined,
+      runnerType: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+      }
     });
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
@@ -159,6 +168,15 @@ describe('create runner', () => {
       environment: 'unit-test-env',
       repoName: undefined,
       orgName: 'SomeAwesomeCoder',
+      runnerType: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+      }
     });
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
@@ -183,6 +201,15 @@ describe('create runner', () => {
       environment: 'unit-test-env',
       repoName: undefined,
       orgName: 'SomeAwesomeCoder',
+      runnerType: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+      }
     });
     expect(mockSSM.putParameter).toBeCalledWith({
       Name: 'unit-test-env-i-1234',
@@ -200,6 +227,15 @@ describe('create runner', () => {
       environment: 'unit-test-env',
       repoName: undefined,
       orgName: 'SomeAwesomeCoder',
+      runnerType: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+      }
     });
     expect(mockSSM.putParameter).not.toBeCalled();
   });

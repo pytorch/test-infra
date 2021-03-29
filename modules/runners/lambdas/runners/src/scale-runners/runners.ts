@@ -5,12 +5,23 @@ export interface RunnerInfo {
   launchTime: Date | undefined;
   repo: string | undefined;
   org: string | undefined;
+  runnerType: string | undefined;
 }
 
 export interface ListRunnerFilters {
   repoName?: string;
   orgName?: string;
   environment?: string;
+}
+
+export interface RunnerType {
+  instance_type: string,
+  os: string,
+  ami: string,
+  max_available: number,
+  min_available: number,
+  disk_size: number,
+  runnerTypeName: string,
 }
 
 export async function listRunners(filters: ListRunnerFilters | undefined = undefined): Promise<RunnerInfo[]> {
@@ -41,6 +52,7 @@ export async function listRunners(filters: ListRunnerFilters | undefined = undef
             launchTime: i.LaunchTime,
             repo: i.Tags?.find((e) => e.Key === 'Repo')?.Value,
             org: i.Tags?.find((e) => e.Key === 'Org')?.Value,
+            runnerType: i.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
           });
         }
       }
@@ -54,6 +66,7 @@ export interface RunnerInputParameters {
   environment: string;
   repoName?: string;
   orgName?: string;
+  runnerType: RunnerType;
 }
 
 export async function terminateRunner(runner: RunnerInfo): Promise<void> {
@@ -82,6 +95,16 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         LaunchTemplateName: launchTemplateName,
         Version: launchTemplateVersion,
       },
+      ImageId: runnerParameters.runnerType.ami,
+      InstanceType: runnerParameters.runnerType.instance_type,
+      BlockDeviceMappings: [
+        {
+          DeviceName: "/dev/sdh",
+          Ebs: {
+            VolumeSize: runnerParameters.runnerType.disk_size
+          }
+        }
+      ],
       SubnetId: randomSubnet,
       TagSpecifications: [
         {
@@ -92,6 +115,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
               Key: runnerParameters.orgName ? 'Org' : 'Repo',
               Value: runnerParameters.orgName ? runnerParameters.orgName : runnerParameters.repoName,
             },
+            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName }
           ],
         },
       ],

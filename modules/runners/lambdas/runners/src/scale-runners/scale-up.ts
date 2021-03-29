@@ -1,4 +1,4 @@
-import { listRunners, createRunner } from './runners';
+import { listRunners, createRunner, RunnerType } from './runners';
 import { createOctoClient, createGithubAuth } from './gh-auth';
 import yn from 'yn';
 
@@ -8,6 +8,10 @@ export interface ActionRequestMessage {
   repositoryName: string;
   repositoryOwner: string;
   installationId: number;
+}
+
+export interface Dictionary<T> {
+  [Key: string]: T;
 }
 
 export const scaleUp = async (eventSource: string, payload: ActionRequestMessage): Promise<void> => {
@@ -30,16 +34,16 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
     const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
     installationId = enableOrgLevel
       ? (
-          await githubClient.apps.getOrgInstallation({
-            org: payload.repositoryOwner,
-          })
-        ).data.id
+        await githubClient.apps.getOrgInstallation({
+          org: payload.repositoryOwner,
+        })
+      ).data.id
       : (
-          await githubClient.apps.getRepoInstallation({
-            owner: payload.repositoryOwner,
-            repo: payload.repositoryName,
-          })
-        ).data.id;
+        await githubClient.apps.getRepoInstallation({
+          owner: payload.repositoryOwner,
+          repo: payload.repositoryName,
+        })
+      ).data.id;
   }
 
 
@@ -66,30 +70,65 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
       } has ${currentRunners.length}/${maximumRunners} runners`,
     );
 
-    if (currentRunners.length < maximumRunners) {
-      // create token
-      const registrationToken = enableOrgLevel
-        ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
-        : await githubInstallationClient.actions.createRegistrationTokenForRepo({
-          owner: payload.repositoryOwner,
-          repo: payload.repositoryName,
-        });
-      const token = registrationToken.data.token;
+    // const runnerTypes = GetRunnerTypes();
+    const runnerTypes: Dictionary<RunnerType> = {
+      linuxCpu: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+      },
+      linuxGpu: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        ami: 'ami-123',
+        max_available: 200,
+        min_available: 10,
+        disk_size: 100,
+        runnerTypeName: 'linuxGpu',
+      },
+    }
 
-      const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerExtraLabels}` : '';
-      const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
-      const configBaseUrl = ghesBaseUrl ? ghesBaseUrl : 'https://github.com';
-      await createRunner({
-        environment: environment,
-        runnerConfig: enableOrgLevel
-          ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument}`
-          : `--url ${configBaseUrl}/${payload.repositoryOwner}/${payload.repositoryName} ` +
-          `--token ${token} ${labelsArgument}`,
-        orgName: orgName,
-        repoName: repoName,
-      });
-    } else {
-      console.info('No runner will be created, maximum number of runners reached.');
+    for (const runnerType in runnerTypes) {
+      const currentRunnerCount = currentRunners.filter(x => x.runnerType === runnerType).length;
+
+      if (currentRunnerCount < runnerTypes[runnerType].max_available) {
+        // check if all runners are busy
+        if (allRunnersBusy(runnerType)) {
+          // create token
+          const registrationToken = enableOrgLevel
+            ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
+            : await githubInstallationClient.actions.createRegistrationTokenForRepo({
+              owner: payload.repositoryOwner,
+              repo: payload.repositoryName,
+            });
+          const token = registrationToken.data.token;
+
+          const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerExtraLabels}` : '';
+          const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
+          const configBaseUrl = ghesBaseUrl ? ghesBaseUrl : 'https://github.com';
+          await createRunner({
+            environment: environment,
+            runnerConfig: enableOrgLevel
+              ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument}`
+              : `--url ${configBaseUrl}/${payload.repositoryOwner}/${payload.repositoryName} ` +
+              `--token ${token} ${labelsArgument}`,
+            orgName: orgName,
+            repoName: repoName,
+            runnerType: runnerTypes[runnerType],
+          });
+        } else {
+          console.info('No runner will be created, maximum number of runners reached.');
+        }
+      }
     }
   }
 };
+
+function allRunnersBusy(runnerType: string) {
+  return true;
+}
+

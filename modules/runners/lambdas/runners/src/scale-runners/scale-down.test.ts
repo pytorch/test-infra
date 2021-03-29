@@ -45,6 +45,7 @@ const DEFAULT_RUNNERS = [
       .toDate(),
     repo: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
     org: undefined,
+    runnerType: 'linuxCpu',
   },
   {
     instanceId: 'i-oldest-idle-102',
@@ -53,12 +54,14 @@ const DEFAULT_RUNNERS = [
       .toDate(),
     repo: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
     org: undefined,
+    runnerType: 'linuxCpu',
   },
   {
     instanceId: 'i-running-103',
     launchTime: moment(new Date()).subtract(25, 'minutes').toDate(),
     repo: `doe/another-repo`,
     org: undefined,
+    runnerType: 'linuxCpu',
   },
   {
     instanceId: 'i-orphan-104',
@@ -67,6 +70,7 @@ const DEFAULT_RUNNERS = [
       .toDate(),
     repo: `doe/another-repo`,
     org: undefined,
+    runnerType: 'linuxCpu',
   },
   {
     instanceId: 'i-not-registered-105',
@@ -75,6 +79,7 @@ const DEFAULT_RUNNERS = [
       .toDate(),
     repo: `doe/another-repo`,
     org: undefined,
+    runnerType: 'linuxCpu',
   },
 ];
 
