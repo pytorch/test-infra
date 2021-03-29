@@ -21,6 +21,6 @@ RUN --mount=type=cache,target=/lambda/node_modules,id=webhook \
         yarn install && yarn dist
 
 FROM scratch as final
-COPY --from=runner-binaries-syncer /lambda/runner-binaries-syncer.zip /runner-binaries-syncer.zip
-COPY --from=runners                /lambda/runners.zip                /runners.zip
-COPY --from=webhook                /lambda/webhook.zip                /webhook.zip
+COPY --from=runner-binaries-syncer /lambda/runner-binaries-syncer.zip /modules/runner-binaries-syncer/lambdas/runner-binaries-syncer/runner-binaries-syncer.zip
+COPY --from=runners                /lambda/runners.zip                /modules/runners/lambdas/runners/runners.zip
+COPY --from=webhook                /lambda/webhook.zip                /modules/webhook/lambdas/webhook/webhook.zip
