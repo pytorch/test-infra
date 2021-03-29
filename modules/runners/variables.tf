@@ -63,12 +63,21 @@ variable "instance_type" {
   default     = "m5.large"
 }
 
-variable "ami_filter" {
+variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
 
   default = {
     name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
+  }
+}
+
+variable "ami_filter_windows" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
+
+  default = {
+    name = ["Windows*2019*"]
   }
 }
 

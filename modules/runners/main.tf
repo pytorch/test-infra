@@ -20,11 +20,25 @@ locals {
   userdata_install_config_runner = "${path.module}/templates/install-config-runner.sh"
 }
 
-data "aws_ami" "runner" {
+data "aws_ami" "runner_ami_linux" {
   most_recent = "true"
 
   dynamic "filter" {
-    for_each = var.ami_filter
+    for_each = var.ami_filter_linux
+    content {
+      name   = filter.key
+      values = filter.value
+    }
+  }
+
+  owners = var.ami_owners
+}
+
+data "aws_ami" "runner_ami_windows" {
+  most_recent = "true"
+
+  dynamic "filter" {
+    for_each = var.ami_filter_windows
     content {
       name   = filter.key
       values = filter.value
@@ -47,7 +61,7 @@ resource "aws_launch_template" "linux_runner" {
     market_type = var.market_options
   }
 
-  image_id      = data.aws_ami.runner.id
+  image_id      = data.aws_ami.runner_ami_linux.id
   instance_type = var.instance_type
   key_name      = var.key_name
 
@@ -118,7 +132,7 @@ resource "aws_launch_template" "windows_runner" {
     market_type = var.market_options
   }
 
-  image_id      = data.aws_ami.runner.id
+  image_id      = data.aws_ami.runner_ami_windows.id
   instance_type = var.instance_type
   key_name      = var.key_name
 
