@@ -15,7 +15,7 @@ locals {
   instance_profile_path          = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
   lambda_zip                     = var.lambda_zip == null ? "${path.module}/lambdas/runners/runners.zip" : var.lambda_zip
   userdata_template              = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
-  userdata_template_windows      = var.userdata_template == "${path.module}/templates/user-data.ps1"
+  userdata_template_windows      = "${path.module}/templates/user-data.ps1"
   userdata_arm_patch             = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner = "${path.module}/templates/install-config-runner.sh"
 }
