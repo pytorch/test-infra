@@ -97,7 +97,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         LaunchTemplateName: runnerParameters.runnerType.os === "linux" ? launchTemplateNameLinux : launchTemplateNameWindows,
         Version: runnerParameters.runnerType.os === "linux" ? launchTemplateVersionLinux : launchTemplateVersionWindows,
       },
-      ImageId: runnerParameters.runnerType.ami,
       InstanceType: runnerParameters.runnerType.instance_type,
       BlockDeviceMappings: [
         {
