@@ -1,13 +1,16 @@
 output "runners" {
   value = {
-    launch_template_name    = module.runners.launch_template.name
-    launch_template_id      = module.runners.launch_template.id
-    launch_template_version = module.runners.launch_template.latest_version
-    lambda_up               = module.runners.lambda_scale_up
-    lambda_down             = module.runners.lambda_scale_down
-    role_runner             = module.runners.role_runner
-    role_scale_up           = module.runners.role_scale_up
-    role_scale_down         = module.runners.role_scale_down
+    launch_template_name_linux      = module.runners.launch_template_linux.name
+    launch_template_id_linux        = module.runners.launch_template_linux.id
+    launch_template_version_linux   = module.runners.launch_template_linux.latest_version
+    launch_template_name_windows    = module.runners.launch_template_windows.name
+    launch_template_id_windows      = module.runners.launch_template_windows.id
+    launch_template_version_windows = module.runners.launch_template_windows.latest_version
+    lambda_up                       = module.runners.lambda_scale_up
+    lambda_down                     = module.runners.lambda_scale_down
+    role_runner                     = module.runners.role_runner
+    role_scale_up                   = module.runners.role_scale_up
+    role_scale_down                 = module.runners.role_scale_down
   }
 }
 

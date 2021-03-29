@@ -1,9 +1,9 @@
 output "launch_template_linux" {
-  value = aws_launch_template.runner_linux
+  value = aws_launch_template.linux_runner
 }
 
 output "launch_template_windows" {
-  value = aws_launch_template.runner_windows
+  value = aws_launch_template.windows_runner
 }
 
 output "role_runner" {
