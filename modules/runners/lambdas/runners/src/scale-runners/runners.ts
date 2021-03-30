@@ -1,4 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
+import { Octokit } from '@octokit/rest';
+import { createOctoClient, createGithubAuth } from './gh-auth';
 
 export interface RunnerInfo {
   instanceId: string;
@@ -137,4 +139,94 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       })
       .promise();
   });
+}
+
+export interface Repo {
+  repoName: string;
+  repoOwner: string;
+}
+
+export function getRepo(org: string | undefined, repo: string | undefined, orgLevel: boolean): Repo {
+  return orgLevel
+    ? { repoOwner: org as string, repoName: '' }
+    : { repoOwner: repo?.split('/')[0] as string, repoName: repo?.split('/')[1] as string };
+}
+
+export function createGitHubClientForRunnerFactory(): (org: string | undefined, repo: string | undefined, orgLevel: boolean) => Promise<Octokit> {
+  const cache: Map<string, Octokit> = new Map();
+
+  return async (org: string | undefined, repo: string | undefined, orgLevel: boolean) => {
+    const ghesBaseUrl = process.env.GHES_URL as string;
+    let ghesApiUrl = '';
+    if (ghesBaseUrl) {
+      ghesApiUrl = `${ghesBaseUrl}/api/v3`;
+    }
+    const ghAuth = await createGithubAuth(undefined, 'app', ghesApiUrl);
+    const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
+    const repository = getRepo(org, repo, orgLevel);
+    const key = orgLevel ? repository.repoOwner : repository.repoOwner + repository.repoName;
+    const cachedOctokit = cache.get(key);
+
+    if (cachedOctokit) {
+      console.debug(`[createGitHubClientForRunner] Cache hit for ${key}`);
+      return cachedOctokit;
+    }
+
+    console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
+    const installationId = orgLevel
+      ? (
+        await githubClient.apps.getOrgInstallation({
+          org: repository.repoOwner,
+        })
+      ).data.id
+      : (
+        await githubClient.apps.getRepoInstallation({
+          owner: repository.repoOwner,
+          repo: repository.repoName,
+        })
+      ).data.id;
+    const ghAuth2 = await createGithubAuth(installationId, 'installation', ghesApiUrl);
+    const octokit = await createOctoClient(ghAuth2.token, ghesApiUrl);
+    cache.set(key, octokit);
+
+    return octokit;
+  };
+}
+
+/**
+ * Extract the inner type of a promise if any
+ */
+export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
+
+export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
+
+export function listGithubRunnersFactory(): (
+  client: Octokit,
+  org: string | undefined,
+  repo: string | undefined,
+  enableOrgLevel: boolean,
+) => Promise<GhRunners> {
+  const cache: Map<string, GhRunners> = new Map();
+  return async (client: Octokit, org: string | undefined, repo: string | undefined, enableOrgLevel: boolean) => {
+    const repository = getRepo(org, repo, enableOrgLevel);
+    const key = enableOrgLevel ? repository.repoOwner : repository.repoOwner + repository.repoName;
+    const cachedRunners = cache.get(key);
+    if (cachedRunners) {
+      console.debug(`[listGithubRunners] Cache hit for ${key}`);
+      return cachedRunners;
+    }
+
+    console.debug(`[listGithubRunners] Cache miss for ${key}`);
+    const runners = enableOrgLevel
+      ? await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
+        org: repository.repoOwner,
+      })
+      : await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
+        owner: repository.repoOwner,
+        repo: repository.repoName,
+      });
+    cache.set(key, runners);
+
+    return runners;
+  };
 }

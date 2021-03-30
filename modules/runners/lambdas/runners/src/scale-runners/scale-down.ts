@@ -1,98 +1,8 @@
 import { Octokit } from '@octokit/rest';
 import moment from 'moment';
 import yn from 'yn';
-import { listRunners, RunnerInfo, terminateRunner } from './runners';
+import { listRunners, RunnerInfo, terminateRunner, Repo, createGitHubClientForRunnerFactory, listGithubRunnersFactory, getRepo } from './runners';
 import { getIdleRunnerCount, ScalingDownConfig } from './scale-down-config';
-import { createOctoClient, createGithubAuth } from './gh-auth';
-
-interface Repo {
-  repoName: string;
-  repoOwner: string;
-}
-
-function getRepo(runner: RunnerInfo, orgLevel: boolean): Repo {
-  return orgLevel
-    ? { repoOwner: runner.org as string, repoName: '' }
-    : { repoOwner: runner.repo?.split('/')[0] as string, repoName: runner.repo?.split('/')[1] as string };
-}
-
-function createGitHubClientForRunnerFactory(): (runner: RunnerInfo, orgLevel: boolean) => Promise<Octokit> {
-  const cache: Map<string, Octokit> = new Map();
-
-  return async (runner: RunnerInfo, orgLevel: boolean) => {
-    const ghesBaseUrl = process.env.GHES_URL as string;
-    let ghesApiUrl = '';
-    if (ghesBaseUrl) {
-      ghesApiUrl = `${ghesBaseUrl}/api/v3`;
-    }
-    const ghAuth = await createGithubAuth(undefined, 'app', ghesApiUrl);
-    const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
-    const repo = getRepo(runner, orgLevel);
-    const key = orgLevel ? repo.repoOwner : repo.repoOwner + repo.repoName;
-    const cachedOctokit = cache.get(key);
-
-    if (cachedOctokit) {
-      console.debug(`[createGitHubClientForRunner] Cache hit for ${key}`);
-      return cachedOctokit;
-    }
-
-    console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
-    const installationId = orgLevel
-      ? (
-        await githubClient.apps.getOrgInstallation({
-          org: repo.repoOwner,
-        })
-      ).data.id
-      : (
-        await githubClient.apps.getRepoInstallation({
-          owner: repo.repoOwner,
-          repo: repo.repoName,
-        })
-      ).data.id;
-    const ghAuth2 = await createGithubAuth(installationId, 'installation', ghesApiUrl);
-    const octokit = await createOctoClient(ghAuth2.token, ghesApiUrl);
-    cache.set(key, octokit);
-
-    return octokit;
-  };
-}
-
-/**
- * Extract the inner type of a promise if any
- */
-export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
-
-type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
-
-function listGithubRunnersFactory(): (
-  client: Octokit,
-  runner: RunnerInfo,
-  enableOrgLevel: boolean,
-) => Promise<GhRunners> {
-  const cache: Map<string, GhRunners> = new Map();
-  return async (client: Octokit, runner: RunnerInfo, enableOrgLevel: boolean) => {
-    const repo = getRepo(runner, enableOrgLevel);
-    const key = enableOrgLevel ? repo.repoOwner : repo.repoOwner + repo.repoName;
-    const cachedRunners = cache.get(key);
-    if (cachedRunners) {
-      console.debug(`[listGithubRunners] Cache hit for ${key}`);
-      return cachedRunners;
-    }
-
-    console.debug(`[listGithubRunners] Cache miss for ${key}`);
-    const runners = enableOrgLevel
-      ? await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
-        org: repo.repoOwner,
-      })
-      : await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-        owner: repo.repoOwner,
-        repo: repo.repoName,
-      });
-    cache.set(key, runners);
-
-    return runners;
-  };
-}
 
 function runnerMinimumTimeExceeded(runner: RunnerInfo, minimumRunningTimeInMinutes: string): boolean {
   const launchTimePlusMinimum = moment(runner.launchTime).utc().add(minimumRunningTimeInMinutes, 'minutes');
@@ -162,10 +72,10 @@ export async function scaleDown(): Promise<void> {
       continue;
     }
 
-    const githubAppClient = await createGitHubClientForRunner(ec2runner, enableOrgLevel);
+    const githubAppClient = await createGitHubClientForRunner(ec2runner.org, ec2runner.repo, enableOrgLevel);
 
-    const repo = getRepo(ec2runner, enableOrgLevel);
-    const ghRunners = await listGithubRunners(githubAppClient, ec2runner, enableOrgLevel);
+    const repo = getRepo(ec2runner.org, ec2runner.repo, enableOrgLevel);
+    const ghRunners = await listGithubRunners(githubAppClient, ec2runner.org, ec2runner.repo, enableOrgLevel);
     let orphanEc2Runner = true;
     for (const ghRunner of ghRunners) {
       const runnerName = ghRunner.name as string;

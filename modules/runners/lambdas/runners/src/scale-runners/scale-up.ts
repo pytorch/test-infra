@@ -1,4 +1,4 @@
-import { listRunners, createRunner, RunnerType } from './runners';
+import { listRunners, createRunner, RunnerType, createGitHubClientForRunnerFactory, listGithubRunnersFactory } from './runners';
 import { createOctoClient, createGithubAuth } from './gh-auth';
 import yn from 'yn';
 
@@ -115,7 +115,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 
       if (currentRunnerCount < runnerTypes[runnerType].max_available) {
         // check if all runners are busy
-        if (allRunnersBusy(runnerType)) {
+        if (allRunnersBusy(runnerType, payload.repositoryOwner, payload.repositoryName, enableOrgLevel)) {
           // create token
           const registrationToken = enableOrgLevel
             ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
@@ -125,7 +125,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
             });
           const token = registrationToken.data.token;
 
-          const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerExtraLabels}` : '';
+          const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerType},${runnerExtraLabels}` : `--labels ${runnerType}`;
           const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
           const configBaseUrl = ghesBaseUrl ? ghesBaseUrl : 'https://github.com';
           await createRunner({
@@ -146,7 +146,17 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
   }
 };
 
-function allRunnersBusy(runnerType: string) {
-  return true;
-}
+async function allRunnersBusy(runnerType: string, org: string, repo: string, enableOrgLevel: boolean): Promise<boolean> {
+  const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
+  const listGithubRunners = listGithubRunnersFactory();
+  
+  const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
+  const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
 
+  const runnersWithLabel = ghRunners.filter(x => x.labels.some(y => y.name === runnerType) && x.status !== "offline");
+  const busyCount = ghRunners.filter(x => x.busy).length;
+
+  console.info(`Found ${runnersWithLabel.length} matching GitHub runners, ${busyCount} are busy`);
+
+  return runnersWithLabel.every(x => x.busy);
+}
