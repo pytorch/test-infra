@@ -115,7 +115,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 
       if (currentRunnerCount < runnerTypes[runnerType].max_available) {
         // check if all runners are busy
-        if (allRunnersBusy(runnerType, payload.repositoryOwner, payload.repositoryName, enableOrgLevel)) {
+        if (allRunnersBusy(runnerType, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
           // create token
           const registrationToken = enableOrgLevel
             ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
@@ -149,7 +149,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 async function allRunnersBusy(runnerType: string, org: string, repo: string, enableOrgLevel: boolean): Promise<boolean> {
   const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
   const listGithubRunners = listGithubRunnersFactory();
-  
+
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
   const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
 
