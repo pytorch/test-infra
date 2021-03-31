@@ -36,9 +36,6 @@ resource "aws_lambda_function" "scale_up" {
       GITHUB_APP_ID                   = var.github_app.id
       GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
-      RUNNER_EXTRA_LABELS             = var.runner_extra_labels
-      RUNNER_GROUP_NAME               = var.runner_group_name
-      RUNNERS_MAXIMUM_COUNT           = var.runners_maximum_count
       LAUNCH_TEMPLATE_NAME_LINUX      = aws_launch_template.linux_runner.name
       LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
