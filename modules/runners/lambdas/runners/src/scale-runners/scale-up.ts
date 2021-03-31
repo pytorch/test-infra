@@ -107,7 +107,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 
       if (currentRunnerCount < runnerTypes[runnerType].max_available) {
         // check if all runners are busy
-        if (allRunnersBusy(runnerType, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
+        if (await allRunnersBusy(runnerType, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
           // create token
           const registrationToken = enableOrgLevel
             ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
@@ -148,7 +148,8 @@ async function allRunnersBusy(runnerType: string, org: string, repo: string, ena
   const runnersWithLabel = ghRunners.filter(x => x.labels.some(y => y.name === runnerType) && x.status !== "offline");
   const busyCount = ghRunners.filter(x => x.busy).length;
 
-  console.info(`Found ${runnersWithLabel.length} matching GitHub runners, ${busyCount} are busy`);
+  console.info(`Found ${runnersWithLabel.length} matching GitHub runners [${runnerType}], ${busyCount} are busy`);
+  console.info(`allRunnersBusy returns ${runnersWithLabel.every(x => x.busy)}`);
 
   return runnersWithLabel.every(x => x.busy);
 }

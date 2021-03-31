@@ -125,7 +125,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       ],
     })
     .promise();
-  console.info('Created instance(s): ', runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','));
+  console.info(`Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `, runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','));
 
   const ssm = new SSM();
   runInstancesResponse.Instances?.forEach(async (i: EC2.Instance) => {
