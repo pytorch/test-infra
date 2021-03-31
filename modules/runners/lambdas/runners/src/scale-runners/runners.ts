@@ -19,9 +19,7 @@ export interface ListRunnerFilters {
 export interface RunnerType {
   instance_type: string,
   os: string,
-  ami: string,
   max_available: number,
-  min_available: number,
   disk_size: number,
   runnerTypeName: string,
 }
