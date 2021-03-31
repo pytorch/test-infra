@@ -72,33 +72,33 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 
     // const runnerTypes = GetRunnerTypes();
     const runnerTypes: Dictionary<RunnerType> = {
-      linuxCpu: {
-        instance_type: 'c5.2xlarge',
+      "linux.2xlarge": {
+        instance_type: "c5.2xlarge",
         os: 'linux',
         max_available: 200,
         disk_size: 100,
-        runnerTypeName: 'linuxCpu',
+        runnerTypeName: "linux.2xlarge",
       },
-      linuxGpu: {
-        instance_type: 'c5.2xlarge',
+      "linux.8xlarge.nvidia.gpu": {
+        instance_type: "g3.8xlarge",
         os: 'linux',
         max_available: 200,
         disk_size: 100,
-        runnerTypeName: 'linuxGpu',
+        runnerTypeName: "linux.8xlarge.nvidia.gpu",
       },
-      windowsCpu: {
+      "win.2xlarge": {
         instance_type: 'c5.2xlarge',
         os: 'windows',
-        max_available: 200,
+        max_available: 50,
         disk_size: 100,
-        runnerTypeName: 'windowsCpu',
+        runnerTypeName: "win.2xlarge",
       },
-      windowsGpu: {
-        instance_type: 'c5.2xlarge',
+      "win.8xlarge.nvidia.gpu": {
+        instance_type: "g3.8xlarge",
         os: 'windows',
-        max_available: 200,
+        max_available: 30,
         disk_size: 100,
-        runnerTypeName: 'windowsGpu',
+        runnerTypeName: "win.8xlarge.nvidia.gpu",
       },
     }
 
