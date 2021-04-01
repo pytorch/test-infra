@@ -11,14 +11,9 @@ export interface ActionRequestMessage {
   installationId: number;
 }
 
-export interface Dictionary<T> {
-  [Key: string]: T;
-}
-
 export const scaleUp = async (eventSource: string, payload: ActionRequestMessage): Promise<void> => {
   if (eventSource !== 'aws:sqs') throw Error('Cannot handle non-SQS events!');
   const enableOrgLevel = yn(process.env.ENABLE_ORGANIZATION_RUNNERS, { default: true });
-  const maximumRunners = parseInt(process.env.RUNNERS_MAXIMUM_COUNT || '3');
   const runnerExtraLabels = process.env.RUNNER_EXTRA_LABELS;
   const runnerGroup = process.env.RUNNER_GROUP_NAME;
   const environment = process.env.ENVIRONMENT as string;
