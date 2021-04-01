@@ -68,7 +68,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
       `${enableOrgLevel
         ? `Organization ${payload.repositoryOwner}`
         : `Repo ${payload.repositoryOwner}/${payload.repositoryName}`
-      } has ${currentRunners.length}/${maximumRunners} runners`,
+      } has ${currentRunners.length} runners`,
     );
 
     const runnerTypes = await GetRunnerTypes(payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel);
@@ -102,8 +102,10 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
             runnerType: runnerType,
           });
         } else {
-          console.info('No runner will be created, maximum number of runners reached.');
+          console.info('There are available runners, no new runners will be created');
         }
+      } else {
+        console.info('No runner will be created, maximum number of runners reached.');
       }
     }
   }
