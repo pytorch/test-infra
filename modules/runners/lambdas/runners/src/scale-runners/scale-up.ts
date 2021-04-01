@@ -120,7 +120,6 @@ async function allRunnersBusy(runnerType: string, org: string, repo: string, ena
   const busyCount = ghRunners.filter(x => x.busy).length;
 
   console.info(`Found ${runnersWithLabel.length} matching GitHub runners [${runnerType}], ${busyCount} are busy`);
-  console.info(`allRunnersBusy returns ${runnersWithLabel.every(x => x.busy)}`);
 
   return runnersWithLabel.every(x => x.busy);
 }
