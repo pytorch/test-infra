@@ -1,6 +1,7 @@
 import { listRunners, createRunner, RunnerType, createGitHubClientForRunnerFactory, listGithubRunnersFactory } from './runners';
 import { createOctoClient, createGithubAuth } from './gh-auth';
 import yn from 'yn';
+import YAML from 'yaml'
 
 export interface ActionRequestMessage {
   id: number;
@@ -70,44 +71,14 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
       } has ${currentRunners.length}/${maximumRunners} runners`,
     );
 
-    // const runnerTypes = GetRunnerTypes();
-    const runnerTypes: Dictionary<RunnerType> = {
-      "linux.2xlarge": {
-        instance_type: "c5.2xlarge",
-        os: 'linux',
-        max_available: 200,
-        disk_size: 100,
-        runnerTypeName: "linux.2xlarge",
-      },
-      "linux.8xlarge.nvidia.gpu": {
-        instance_type: "g3.8xlarge",
-        os: 'linux',
-        max_available: 200,
-        disk_size: 100,
-        runnerTypeName: "linux.8xlarge.nvidia.gpu",
-      },
-      "win.2xlarge": {
-        instance_type: 'c5.2xlarge',
-        os: 'windows',
-        max_available: 50,
-        disk_size: 100,
-        runnerTypeName: "win.2xlarge",
-      },
-      "win.8xlarge.nvidia.gpu": {
-        instance_type: "g3.8xlarge",
-        os: 'windows',
-        max_available: 30,
-        disk_size: 100,
-        runnerTypeName: "win.8xlarge.nvidia.gpu",
-      },
-    }
+    const runnerTypes = await GetRunnerTypes(payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel);
 
-    for (const runnerType in runnerTypes) {
-      const currentRunnerCount = currentRunners.filter(x => x.runnerType === runnerType).length;
+    for (const runnerType of runnerTypes) {
+      const currentRunnerCount = currentRunners.filter(x => x.runnerType === runnerType.runnerTypeName).length;
 
-      if (currentRunnerCount < runnerTypes[runnerType].max_available) {
+      if (currentRunnerCount < runnerType.max_available) {
         // check if all runners are busy
-        if (await allRunnersBusy(runnerType, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
+        if (await allRunnersBusy(runnerType.runnerTypeName, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
           // create token
           const registrationToken = enableOrgLevel
             ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
@@ -117,7 +88,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
             });
           const token = registrationToken.data.token;
 
-          const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerType},${runnerExtraLabels}` : `--labels ${runnerType}`;
+          const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}` : `--labels ${runnerType.runnerTypeName}`;
           const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
           const configBaseUrl = ghesBaseUrl ? ghesBaseUrl : 'https://github.com';
           await createRunner({
@@ -128,7 +99,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
               `--token ${token} ${labelsArgument}`,
             orgName: orgName,
             repoName: repoName,
-            runnerType: runnerTypes[runnerType],
+            runnerType: runnerType,
           });
         } else {
           console.info('No runner will be created, maximum number of runners reached.');
@@ -145,7 +116,7 @@ async function allRunnersBusy(runnerType: string, org: string, repo: string, ena
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
   const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
 
-  const runnersWithLabel = ghRunners.filter(x => x.labels.some(y => y.name === runnerType) && x.status !== "offline");
+  const runnersWithLabel = ghRunners.filter(x => x.labels.some(y => y.name === runnerType) && x.status.toLowerCase() !== "offline");
   const busyCount = ghRunners.filter(x => x.busy).length;
 
   console.info(`Found ${runnersWithLabel.length} matching GitHub runners [${runnerType}], ${busyCount} are busy`);
@@ -153,3 +124,46 @@ async function allRunnersBusy(runnerType: string, org: string, repo: string, ena
 
   return runnersWithLabel.every(x => x.busy);
 }
+
+async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean): Promise<RunnerType[]> {
+  const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
+
+  const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
+
+  const response = (await githubAppClient.repos.getContent({
+    owner: org,
+    repo: repo.split('/')[1],
+    path: '.github/scale-config.yml',
+  }));
+
+  const { content } = { ...response.data };
+
+  if (!content) {
+    throw Error('Could not retrieve .github/scale-config.yml');
+  }
+
+  const buff = Buffer.from(content, 'base64');
+  const configYml = buff.toString('ascii');
+
+  console.debug(`scale-config.yml contents: ${configYml}`);
+
+  let config = YAML.parse(configYml);
+  let result: RunnerType[] = [];
+
+  for (const prop in config.runner_types) {
+    let runnerType: RunnerType = {
+      runnerTypeName: prop,
+      instance_type: config.runner_types[prop].instance_type,
+      os: config.runner_types[prop].os,
+      max_available: config.runner_types[prop].max_available,
+      disk_size: config.runner_types[prop].disk_size,
+    };
+
+    result.push(runnerType);
+  }
+
+  console.debug(`configuration: ${JSON.stringify(result)}`);
+
+  return result;
+}
+
