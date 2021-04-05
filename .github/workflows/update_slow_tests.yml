@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-slow-list:
+  update-slow-stats:
     runs-on: ubuntu-18.04
     steps:
       - name: Setup Python
@@ -40,6 +40,7 @@ jobs:
           source_file: '.pytorch-slow-tests'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
+          destination_branch: master
           user_email: 'test-infra@pytorch.org'
           user_name: 'PyTorch Test Infra'
           commit_message: 'Updating slow tests stats'
