@@ -40,6 +40,6 @@ jobs:
           source_file: '.pytorch-slow-tests'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
-          user_email: 'janeyx@fb.com'
-          user_name: 'janeyx99'
+          user_email: 'test-infra@pytorch.org'
+          user_name: 'PyTorch Test Infra'
           commit_message: 'Updating slow tests stats'
