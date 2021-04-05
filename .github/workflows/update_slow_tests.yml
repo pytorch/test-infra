@@ -1,0 +1,45 @@
+name: Update slow tests
+
+on:
+  schedule:
+    # Every day at 5:05pm EDT
+    - cron: "5 21 * * *"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+jobs:
+  update-slow-list:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.x
+          architecture: x64
+      - name: Checkout PyTorch
+        uses: actions/checkout@v2
+        with:
+          repository: pytorch/pytorch
+          fetch-depth: 0 # deep clone, to allow us to use git log
+      - name: Install dependencies
+        # mypy and boto3 versions copied from
+        # .circleci/docker/common/install_conda.sh
+        run: |
+          set -eux
+          pip install -r requirements.txt
+          pip install boto3==1.16.34 mypy==0.770
+      - name: Generate new slow test stats
+        run: |
+          export PYTHONPATH=$PWD
+          python tools/export_slow_tests.py -f .pytorch-slow-tests
+      - name: Push file to this repository
+        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        env:
+           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: '.pytorch-slow-tests'
+          destination_repo: 'pytorch/test-infra'
+          destination_folder: 'stats'
+          user_email: 'test-infra@pytorch.org'
+          user_name: 'PyTorch Test Infra'
+          commit_message: 'Updating slow tests stats'
