@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Download all available lambas from default region
+# Download AWS lambas from all regions
 import boto3
 import os
 import tempfile
