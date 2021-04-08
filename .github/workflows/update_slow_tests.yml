@@ -4,7 +4,7 @@ on:
   schedule:
     # Every day at 5:05pm EDT
     - cron: "5 21 * * *"
-  # Have the ability to trigger this job manually through the API
+  # Have the ability to trigger this job manually
   workflow_dispatch:
 
 jobs:
@@ -31,13 +31,13 @@ jobs:
       - name: Generate new slow test stats
         run: |
           export PYTHONPATH=$PWD
-          python tools/export_slow_tests.py -f .pytorch-slow-tests
+          python tools/export_slow_tests.py -f slow-tests.json
       - name: Push file to this repository
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
            API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: '.pytorch-slow-tests'
+          source_file: 'slow-tests.json'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
           destination_branch: master
