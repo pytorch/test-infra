@@ -1,3 +1,4 @@
+# Copyright (c) 2019-present, Facebook, Inc.
 import json
 import boto3  # type: ignore
 import botocore # type: ignore

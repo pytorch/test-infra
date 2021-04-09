@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Download AWS lambas from all regions
+# Copyright (c) 2021-present, Facebook, Inc.
 import boto3
 import os
 import tempfile
