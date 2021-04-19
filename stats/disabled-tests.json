@@ -186,6 +186,92 @@
       "score": 0.0
     },
     {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/55382",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/55382",
+      "id": 851498028,
+      "node_id": "MDU6SXNzdWU4NTE0OTgwMjg=",
+      "number": 55382,
+      "title": "DISABLED test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn)",
+      "user": {
+        "login": "mrshenli",
+        "id": 16999635,
+        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/mrshenli",
+        "html_url": "https://github.com/mrshenli",
+        "followers_url": "https://api.github.com/users/mrshenli/followers",
+        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
+        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
+        "repos_url": "https://api.github.com/users/mrshenli/repos",
+        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 1301397902,
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
+          "name": "module: flaky-tests",
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI"
+        },
+        {
+          "id": 1536612774,
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc",
+          "name": "module: rpc",
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer"
+        },
+        {
+          "id": 679953883,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
+          "name": "oncall: distributed",
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue"
+        },
+        {
+          "id": 1301347167,
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
+          "name": "triaged",
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2021-04-06T14:41:25Z",
+      "updated_at": "2021-04-06T14:41:38Z",
+      "closed_at": null,
+      "author_association": "CONTRIBUTOR",
+      "active_lock_reason": null,
+      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/296644/workflows/4b8369cf-a402-4ed0-9107-0a9692173dd0/jobs/12146109/steps\r\n\r\n```\r\nApr 06 10:13:15 ======================================================================\r\nApr 06 10:13:15 ERROR [2.751s]: test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn)\r\nApr 06 10:13:15 ----------------------------------------------------------------------\r\nApr 06 10:13:15 Traceback (most recent call last):\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 321, in wrapper\r\nApr 06 10:13:15     self._join_processes(fn)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 514, in _join_processes\r\nApr 06 10:13:15     self._check_return_codes(elapsed_time)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 557, in _check_return_codes\r\nApr 06 10:13:15     raise RuntimeError(error)\r\nApr 06 10:13:15 RuntimeError: Process 2 exited with error code 10 and exception:\r\nApr 06 10:13:15 Traceback (most recent call last):\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:13:15     getattr(self, test_name)()\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:13:15     fn()\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:13:15     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2726, in test_rref_context_debug_info\r\nApr 06 10:13:15     self.assertEqual(2, int(info[\"num_owner_rrefs\"]))\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1320, in assertEqual\r\nApr 06 10:13:15     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nApr 06 10:13:15     raise self.failureException(msg)\r\nApr 06 10:13:15 AssertionError: False is not true : Scalars failed to compare as equal! Comparing 2 and 3 gives a difference of 1, but the allowed difference with rtol=0 and atol=0 is only 0!\r\nApr 06 10:13:15 \r\nApr 06 10:13:15 \r\n```\r\n\r\n```\r\nApr 06 10:09:05   test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn) ... WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2726, in test_rref_context_debug_info\r\nApr 06 10:09:06     self.assertEqual(2, int(info[\"num_owner_rrefs\"]))\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1320, in assertEqual\r\nApr 06 10:09:06     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nApr 06 10:09:06     raise self.failureException(msg)\r\nApr 06 10:09:06 AssertionError: False is not true : Scalars failed to compare as equal! Comparing 2 and 3 gives a difference of 1, but the allowed difference with rtol=0 and atol=0 is only 0!\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:51084\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:51344\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:29621\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 Process 2 terminated with exit code 10, terminating remaining processes.\r\nApr 06 10:09:06 ERROR (2.751s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @gqchen @aazzolini @rohan-varma @jjlilley @osalpekar @jiayisuse @mrzzd @agolynski @SciPioneer @H-Huang @cbalioglu",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/53287",
       "repository_url": "https://api.github.com/repos/pytorch/pytorch",
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/53287/labels{/name}",
@@ -297,92 +383,6 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "Not disabling the test yet to collect more instances. \r\n\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/280939/workflows/2729b18f-c934-47d8-bd37-e9d784abaca4/jobs/11306771/steps\r\n\r\n```\r\nMar 04 14:12:40 ======================================================================\r\nMar 04 14:12:40 ERROR [5.437s]: test_device_maps_gpu (__main__.TensorPipeTensorPipeAgentRpcTestWithSpawn)\r\nMar 04 14:12:40 ----------------------------------------------------------------------\r\nMar 04 14:12:40 Traceback (most recent call last):\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 286, in wrapper\r\nMar 04 14:12:40     self._join_processes(fn)\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 418, in _join_processes\r\nMar 04 14:12:40     self._check_return_codes(elapsed_time)\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 461, in _check_return_codes\r\nMar 04 14:12:40     raise RuntimeError(error)\r\nMar 04 14:12:40 RuntimeError: Process 3 exited with error code 10 and exception:\r\nMar 04 14:12:40 Traceback (most recent call last):\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 366, in run_test\r\nMar 04 14:12:40     getattr(self, test_name)()\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 288, in wrapper\r\nMar 04 14:12:40     fn()\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 99, in wrapper\r\nMar 04 14:12:40     return func(*args, **kwargs)\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4709, in test_device_maps_gpu\r\nMar 04 14:12:40     self.assertEqual(ret, (torch.zeros(2) + torch.ones(2)).to(1))\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1189, in assertEqual\r\nMar 04 14:12:40     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nMar 04 14:12:40   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nMar 04 14:12:40     raise self.failureException(msg)\r\nMar 04 14:12:40 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=1.3e-06 and atol=1e-05, found 2 element(s) (out of 2) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.0 (0.0 vs. 1.0), which occurred at index 0.\r\nMar 04 14:12:40 \r\nMar 04 14:12:40 \r\nMar 04 14:12:40 \r\nMar 04 14:12:41 ----------------------------------------------------------------------\r\n```\r\n\r\n```\r\nMar 04 14:10:33   test_device_maps_gpu (__main__.TensorPipeTensorPipeAgentRpcTestWithSpawn) ... ERROR:root:Caught exception: \r\nMar 04 14:10:33 Traceback (most recent call last):\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 366, in run_test\r\nMar 04 14:10:33     getattr(self, test_name)()\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 288, in wrapper\r\nMar 04 14:10:33     fn()\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 99, in wrapper\r\nMar 04 14:10:33     return func(*args, **kwargs)\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4709, in test_device_maps_gpu\r\nMar 04 14:10:33     self.assertEqual(ret, (torch.zeros(2) + torch.ones(2)).to(1))\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1189, in assertEqual\r\nMar 04 14:10:33     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nMar 04 14:10:33   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nMar 04 14:10:33     raise self.failureException(msg)\r\nMar 04 14:10:33 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=1.3e-06 and atol=1e-05, found 2 element(s) (out of 2) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.0 (0.0 vs. 1.0), which occurred at index 0.\r\nMar 04 14:10:33 exiting process with exit code: 10\r\nMar 04 14:10:33 Process 3 terminated with exit code 10, terminating remaining processes.\r\nMar 04 14:10:33 ERROR (5.437s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/55382",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/55382/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/55382",
-      "id": 851498028,
-      "node_id": "MDU6SXNzdWU4NTE0OTgwMjg=",
-      "number": 55382,
-      "title": "DISABLED test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn)",
-      "user": {
-        "login": "mrshenli",
-        "id": 16999635,
-        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mrshenli",
-        "html_url": "https://github.com/mrshenli",
-        "followers_url": "https://api.github.com/users/mrshenli/followers",
-        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
-        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
-        "repos_url": "https://api.github.com/users/mrshenli/repos",
-        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 1301397902,
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
-          "name": "module: flaky-tests",
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI"
-        },
-        {
-          "id": 1536612774,
-          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc",
-          "name": "module: rpc",
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer"
-        },
-        {
-          "id": 679953883,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
-          "name": "oncall: distributed",
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 0,
-      "created_at": "2021-04-06T14:41:25Z",
-      "updated_at": "2021-04-06T14:41:38Z",
-      "closed_at": null,
-      "author_association": "CONTRIBUTOR",
-      "active_lock_reason": null,
-      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/296644/workflows/4b8369cf-a402-4ed0-9107-0a9692173dd0/jobs/12146109/steps\r\n\r\n```\r\nApr 06 10:13:15 ======================================================================\r\nApr 06 10:13:15 ERROR [2.751s]: test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn)\r\nApr 06 10:13:15 ----------------------------------------------------------------------\r\nApr 06 10:13:15 Traceback (most recent call last):\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 321, in wrapper\r\nApr 06 10:13:15     self._join_processes(fn)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 514, in _join_processes\r\nApr 06 10:13:15     self._check_return_codes(elapsed_time)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 557, in _check_return_codes\r\nApr 06 10:13:15     raise RuntimeError(error)\r\nApr 06 10:13:15 RuntimeError: Process 2 exited with error code 10 and exception:\r\nApr 06 10:13:15 Traceback (most recent call last):\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:13:15     getattr(self, test_name)()\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:13:15     fn()\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:13:15     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2726, in test_rref_context_debug_info\r\nApr 06 10:13:15     self.assertEqual(2, int(info[\"num_owner_rrefs\"]))\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1320, in assertEqual\r\nApr 06 10:13:15     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nApr 06 10:13:15   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nApr 06 10:13:15     raise self.failureException(msg)\r\nApr 06 10:13:15 AssertionError: False is not true : Scalars failed to compare as equal! Comparing 2 and 3 gives a difference of 1, but the allowed difference with rtol=0 and atol=0 is only 0!\r\nApr 06 10:13:15 \r\nApr 06 10:13:15 \r\n```\r\n\r\n```\r\nApr 06 10:09:05   test_rref_context_debug_info (__main__.TensorPipeRpcTestWithSpawn) ... WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:05 WARNING:root:This caffe2 python run failed to load cuda module:No module named 'caffe2.python.caffe2_pybind11_state_gpu',and AMD hip module:No module named 'caffe2.python.caffe2_pybind11_state_hip'.Will run in CPU only mode.\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2726, in test_rref_context_debug_info\r\nApr 06 10:09:06     self.assertEqual(2, int(info[\"num_owner_rrefs\"]))\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1320, in assertEqual\r\nApr 06 10:09:06     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\nApr 06 10:09:06     raise self.failureException(msg)\r\nApr 06 10:09:06 AssertionError: False is not true : Scalars failed to compare as equal! Comparing 2 and 3 gives a difference of 1, but the allowed difference with rtol=0 and atol=0 is only 0!\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:51084\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:51344\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 ERROR:torch.testing._internal.common_distributed:Caught exception: \r\nApr 06 10:09:06 Traceback (most recent call last):\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 440, in run_test\r\nApr 06 10:09:06     getattr(self, test_name)()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 323, in wrapper\r\nApr 06 10:09:06     fn()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 91, in new_test_method\r\nApr 06 10:09:06     return_value = old_test_method(self, *arg, **kwargs)\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2731, in test_rref_context_debug_info\r\nApr 06 10:09:06     dist.barrier()\r\nApr 06 10:09:06   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2477, in barrier\r\nApr 06 10:09:06     work.wait()\r\nApr 06 10:09:06 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:29621\r\nApr 06 10:09:06  exiting process with exit code: {MultiProcessTestCase.TEST_ERROR_EXIT_CODE}\r\nApr 06 10:09:06 Process 2 terminated with exit code 10, terminating remaining processes.\r\nApr 06 10:09:06 ERROR (2.751s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @gqchen @aazzolini @rohan-varma @jjlilley @osalpekar @jiayisuse @mrzzd @agolynski @SciPioneer @H-Huang @cbalioglu",
       "performed_via_github_app": null,
       "score": 0.0
     },
