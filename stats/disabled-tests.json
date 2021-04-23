@@ -1696,83 +1696,6 @@
       "score": 0.0
     },
     {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/47645",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/47645",
-      "id": 739496947,
-      "node_id": "MDU6SXNzdWU3Mzk0OTY5NDc=",
-      "number": 47645,
-      "title": "DISABLED test_broadcast_cuda (__main__.TestDistBackendWithFork)",
-      "user": {
-        "login": "malfet",
-        "id": 2453524,
-        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/malfet",
-        "html_url": "https://github.com/malfet",
-        "followers_url": "https://api.github.com/users/malfet/followers",
-        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
-        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
-        "organizations_url": "https://api.github.com/users/malfet/orgs",
-        "repos_url": "https://api.github.com/users/malfet/repos",
-        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/malfet/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 1301397902,
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
-          "name": "module: flaky-tests",
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI"
-        },
-        {
-          "id": 679953883,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
-          "name": "oncall: distributed",
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 0,
-      "created_at": "2020-11-10T01:37:18Z",
-      "updated_at": "2020-11-13T15:49:38Z",
-      "closed_at": null,
-      "author_association": "CONTRIBUTOR",
-      "active_lock_reason": null,
-      "body": "Started to fail pretty consistently sometime after https://github.com/pytorch/pytorch/tree/4a2fb3404215c774fdf2805ba8d495bb7dc1bbbf \r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/236917/workflows/7f73ea98-2cfa-4a7c-b26e-2eaca2661f34/jobs/8801912/steps\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/50702",
       "repository_url": "https://api.github.com/repos/pytorch/pytorch",
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/50702/labels{/name}",
@@ -1875,6 +1798,83 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/260892/workflows/49f4393a-1751-4d51-9d0f-88a63100cc6f/jobs/10205398/steps\r\n\r\n```\r\nJan 16 02:56:08 ======================================================================\r\nJan 16 02:56:08 ERROR [61.704s]: test_stress_heavy_rpc_torchscript (__main__.ProcessGroupRpcTestWithSpawn)\r\nJan 16 02:56:08 ----------------------------------------------------------------------\r\nJan 16 02:56:08 Traceback (most recent call last):\r\nJan 16 02:56:08   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 300, in wrapper\r\nJan 16 02:56:08     self._join_processes(fn)\r\nJan 16 02:56:08   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 417, in _join_processes\r\nJan 16 02:56:08     self._check_return_codes(elapsed_time)\r\nJan 16 02:56:08   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 453, in _check_return_codes\r\nJan 16 02:56:08     raise RuntimeError(error)\r\nJan 16 02:56:08 RuntimeError: Processes 0 exited with error code 10\r\nJan 16 02:56:08 \r\nJan 16 02:56:08 ----------------------------------------------------------------------\r\n```\r\n\r\n```\r\nJan 16 02:54:22   test_stress_heavy_rpc_torchscript (__main__.ProcessGroupRpcTestWithSpawn) ... RPC was initialized with the PROCESS_GROUP backend which is deprecated and slated to be removed and superseded by the TENSORPIPE backend. It is recommended to migrate to the TENSORPIPE backend.\r\nJan 16 02:54:22 RPC was initialized with the PROCESS_GROUP backend which is deprecated and slated to be removed and superseded by the TENSORPIPE backend. It is recommended to migrate to the TENSORPIPE backend.\r\nJan 16 02:54:22 RPC was initialized with the PROCESS_GROUP backend which is deprecated and slated to be removed and superseded by the TENSORPIPE backend. It is recommended to migrate to the TENSORPIPE backend.\r\nJan 16 02:54:22 RPC was initialized with the PROCESS_GROUP backend which is deprecated and slated to be removed and superseded by the TENSORPIPE backend. It is recommended to migrate to the TENSORPIPE backend.\r\nJan 16 02:54:23 [E thread_pool.cpp:112] Exception in thread pool task: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:566] Read error [172.17.0.2]:51631: Connection reset by peer\r\nJan 16 02:54:23 [E thread_pool.cpp:112] Exception in thread pool task: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:566] Read error [172.17.0.2]:51631: Connection reset by peer\r\nJan 16 02:55:22 ERROR:root:Caught exception: \r\nJan 16 02:55:22 Traceback (most recent call last):\r\nJan 16 02:55:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 303, in wrapper\r\nJan 16 02:55:22     fn()\r\nJan 16 02:55:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 90, in new_test_method\r\nJan 16 02:55:22     return_value = old_test_method(self, *arg, **kwargs)\r\nJan 16 02:55:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2067, in test_stress_heavy_rpc_torchscript\r\nJan 16 02:55:22     self._stress_test_rpc(heavy_rpc_torchscript, repeat=20, args=(torch.ones(100, 100),))\r\nJan 16 02:55:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 2048, in _stress_test_rpc\r\nJan 16 02:55:22     for val in torch.futures.wait_all(futs):\r\nJan 16 02:55:22   File \"/opt/conda/lib/python3.6/site-packages/torch/futures/__init__.py\", line 196, in wait_all\r\nJan 16 02:55:22     return [fut.wait() for fut in torch._C._collect_all(cast(List[torch._C.Future], futures)).wait()]\r\nJan 16 02:55:22 RuntimeError: RPCErr:1:RPC ran for more than set timeout (60000 ms) and will now be marked with an error\r\nJan 16 02:55:22 exiting process with exit code: 10\r\nJan 16 02:55:23 Process 0 terminated with exit code 10, terminating remaining processes.\r\nJan 16 02:55:23 ERROR (61.704s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @gmagogsfm",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/47645",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/47645",
+      "id": 739496947,
+      "node_id": "MDU6SXNzdWU3Mzk0OTY5NDc=",
+      "number": 47645,
+      "title": "DISABLED test_broadcast_cuda (__main__.TestDistBackendWithFork)",
+      "user": {
+        "login": "malfet",
+        "id": 2453524,
+        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/malfet",
+        "html_url": "https://github.com/malfet",
+        "followers_url": "https://api.github.com/users/malfet/followers",
+        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
+        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
+        "organizations_url": "https://api.github.com/users/malfet/orgs",
+        "repos_url": "https://api.github.com/users/malfet/repos",
+        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/malfet/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 1301397902,
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
+          "name": "module: flaky-tests",
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI"
+        },
+        {
+          "id": 679953883,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
+          "name": "oncall: distributed",
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue"
+        },
+        {
+          "id": 1301347167,
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
+          "name": "triaged",
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2020-11-10T01:37:18Z",
+      "updated_at": "2020-11-13T15:49:38Z",
+      "closed_at": null,
+      "author_association": "CONTRIBUTOR",
+      "active_lock_reason": null,
+      "body": "Started to fail pretty consistently sometime after https://github.com/pytorch/pytorch/tree/4a2fb3404215c774fdf2805ba8d495bb7dc1bbbf \r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/236917/workflows/7f73ea98-2cfa-4a7c-b26e-2eaca2661f34/jobs/8801912/steps\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd",
       "performed_via_github_app": null,
       "score": 0.0
     },
