@@ -32,7 +32,7 @@ def is_branch_important(branch: str) -> bool:
 def handle_commits(commits, ref) -> None:
     branch_name = get_branch_name(ref)
     if not is_branch_important(branch_name):
-        print("Discarding unimportant push event to {branch_name}")
+        print(f"Discarding unimportant push event to {branch_name}")
         return
     print(f"Handling {branch_name} push event")
     status_index = s3_get_json(bucket_name, f'{branch_name}/index.json', [])
