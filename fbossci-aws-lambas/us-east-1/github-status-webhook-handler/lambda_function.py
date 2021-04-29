@@ -42,12 +42,23 @@ def handle_commits(commits, ref) -> None:
     print(f"Updated commit index for {branch_name}")
 
 
+# as of 2021-04-29, this lambda is triggered by the following GitHub
+# webhook events on the pytorch/pytorch repo, and by nothing else:
+# - check_run
+# - push
+# - status
+#
+# see this page for information on what the payloads look like:
+# https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads
 def lambda_handler(event, context):
     body = json.loads(event["body"])
+
+    # push
     if 'commits' in body:
         handle_commits(body['commits'], body['ref'])
         return
 
+    # check_run
     if "check_run" in body:
         commitId = body["check_run"]["head_sha"]
         build_url = body["check_run"]["details_url"]
@@ -56,6 +67,8 @@ def lambda_handler(event, context):
         committer = body["sender"]["login"]
         # For some reason actions aren't facebook-github-bot..
         is_master = body["check_run"]["check_suite"]["head_branch"] == "master"
+
+    # status
     else:
         commitId = body["sha"]
         build_url = body["target_url"]
@@ -72,6 +85,7 @@ def lambda_handler(event, context):
             committer = "(unknown)"
         # master commits are always made by facebook-github-bot
         is_master = committer == "facebook-github-bot"
+
     print("commitId: ", commitId)
     print("build_url: ", build_url)
     print("job_name: ", job_name)
