@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+    paths:
+      - '.github/workflows/deploy_lambda.yml'
+      - 'fbossci-aws-lambas/us-east-1/github-status-webhook-handler/**'
 
 jobs:
   deploy:
