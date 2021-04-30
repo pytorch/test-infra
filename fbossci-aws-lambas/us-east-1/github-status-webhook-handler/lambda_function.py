@@ -1,7 +1,7 @@
 # Copyright (c) 2019-present, Facebook, Inc.
 
 import json
-from typing import Any, Dict, List
+import os
 from urllib.request import Request, urlopen
 
 import boto3  # type: ignore
@@ -46,32 +46,24 @@ def handle_commits(commits, ref) -> None:
     print(f"Updated commit index for {branch_name}")
 
 
-# these next two functions are from here:
-# https://gist.github.com/malfet/d34d3ef57c535696384246bbc79775c5#file-gh-get-milestone-issues-py-L159-L175
-
-def fetch_json(url: str, params: Dict[str, Any] = {}) -> List[Dict[str, Any]]:
+def fetch_json(url):
     headers = {'Accept': 'application/vnd.github.v3+json'}
-    if len(params) >0:
-        url += '?' + '&'.join(f"{name}={val}" for name, val in params.items())
+    token = os.environ.get('gh_pat')
+    if token:
+        headers['Authorization'] = f'token {token}'
     with urlopen(Request(url, headers=headers)) as data:
         return json.load(data)
 
 
-def fetch_multipage_json(url: str, params: Dict[str, Any] = dict()) -> List[Dict[str, Any]]:
-    assert "page" not in params
-    page_idx, rc, prev_len, params = 1, [], -1, params.copy()
-    while len(rc) > prev_len:
-        prev_len = len(rc)
-        params["page"] = page_idx
-        page_idx += 1
-        rc += fetch_json(url, params)
-    return rc
-
-
 def get_workflow_name(job_id):
     url_prefix = 'https://api.github.com/repos/pytorch/pytorch/actions/'
-    run_id = json.loads(fetch_multipage_json(f'{url_prefix}jobs/{job_id}'))['run_id']
-    return json.loads(fetch_multipage_json(f'{url_prefix}runs/{run_id}'))['name']
+    try:
+        run_id = fetch_json(f'{url_prefix}jobs/{job_id}').get('run_id')
+        if run_id:
+            return fetch_json(f'{url_prefix}runs/{run_id}').get('name')
+    except Exception:
+        pass
+    return None
 
 
 # as of 2021-04-29, this lambda is triggered by the following GitHub
