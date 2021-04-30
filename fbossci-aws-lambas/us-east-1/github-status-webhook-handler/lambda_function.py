@@ -1,5 +1,9 @@
 # Copyright (c) 2019-present, Facebook, Inc.
+
 import json
+import os
+from urllib.request import Request, urlopen
+
 import boto3  # type: ignore
 import botocore # type: ignore
 
@@ -42,6 +46,26 @@ def handle_commits(commits, ref) -> None:
     print(f"Updated commit index for {branch_name}")
 
 
+def fetch_json(url):
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    token = os.environ.get('gh_pat')
+    if token:
+        headers['Authorization'] = f'token {token}'
+    with urlopen(Request(url, headers=headers)) as data:
+        return json.load(data)
+
+
+def get_workflow_name(job_id):
+    url_prefix = 'https://api.github.com/repos/pytorch/pytorch/actions/'
+    try:
+        run_id = fetch_json(f'{url_prefix}jobs/{job_id}').get('run_id')
+        if run_id:
+            return fetch_json(f'{url_prefix}runs/{run_id}').get('name')
+    except Exception:
+        pass
+    return None
+
+
 # as of 2021-04-29, this lambda is triggered by the following GitHub
 # webhook events on the pytorch/pytorch repo, and by nothing else:
 # - check_run
@@ -62,7 +86,11 @@ def lambda_handler(event, context):
     if "check_run" in body:
         commitId = body["check_run"]["head_sha"]
         build_url = body["check_run"]["details_url"]
-        job_name = body["check_run"]["name"]
+        workflow_name = get_workflow_name(body["check_run"]["id"])
+        if workflow_name:
+            job_name = f'{workflow_name} / {body["check_run"]["name"]}'
+        else:
+            job_name = body["check_run"]["name"]
         status = body["check_run"]["conclusion"]
         committer = body["sender"]["login"]
         # For some reason actions aren't facebook-github-bot..
