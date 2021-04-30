@@ -16,6 +16,6 @@ jobs:
         with:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws_region: ${{ secrets.AWS_REGION }}
+          aws_region: us-east-1
           function_name: github-status-webhook-handler
           source: fbossci-aws-lambas/us-east-1/github-status-webhook-handler/lambda_function.py
