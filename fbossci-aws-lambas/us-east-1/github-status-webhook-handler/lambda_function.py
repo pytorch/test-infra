@@ -71,9 +71,10 @@ def get_workflow_name(job_id):
 # - check_run
 # - push
 # - status
-#
+
 # see this page for information on what the payloads look like:
 # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads
+
 def lambda_handler(event, context):
     body = json.loads(event["body"])
 
