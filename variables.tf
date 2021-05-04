@@ -234,6 +234,7 @@ variable "ami_owners" {
   type        = list(string)
   default     = ["amazon"]
 }
+
 variable "lambda_s3_bucket" {
   description = "S3 bucket from which to specify lambda functions. This is an alternative to providing local files directly."
   default     = null

@@ -71,6 +71,8 @@ module "runners" {
 
   runner_architecture = local.runner_architecture
   ami_owners          = var.ami_owners
+  ami_filter_linux    = var.ami_filter_linux
+  ami_filter_windows  = var.ami_filter_windows
 
   sqs_build_queue                      = aws_sqs_queue.queued_builds
   github_app                           = var.github_app
