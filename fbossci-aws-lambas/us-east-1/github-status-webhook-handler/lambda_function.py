@@ -3,6 +3,7 @@
 import json
 import os
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 import boto3  # type: ignore
 import botocore  # type: ignore
@@ -61,6 +62,10 @@ def get_workflow_name(job_id):
         run_id = fetch_json(f'{url_prefix}jobs/{job_id}').get('run_id')
         if run_id:
             return fetch_json(f'{url_prefix}runs/{run_id}').get('name')
+    except HTTPError as err:
+        if err.code == 403 and all(key in err.headers for key in ['X-RateLimit-Limit', 'X-RateLimit-Used']):
+            print(f"Rate limit exceeded: {err.headers['X-RateLimit-Used']}/{err.headers['X-RateLimit-Limit']}")
+        pass
     except Exception:
         pass
     return None
