@@ -5,7 +5,7 @@ import os
 from urllib.request import Request, urlopen
 
 import boto3  # type: ignore
-import botocore # type: ignore
+import botocore  # type: ignore
 
 s3 = boto3.resource('s3')
 
@@ -15,7 +15,7 @@ bucket_name = 'ossci-job-status'
 def s3_get_json(bucket, path, empty_obj):
     try:
         return json.loads(s3.Object(bucket, path).get()['Body'].read().decode('utf-8'))
-    except botocore.exceptions.ClientError as e:
+    except botocore.exceptions.ClientError:
         return empty_obj
 
 
