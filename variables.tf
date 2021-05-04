@@ -211,12 +211,24 @@ variable "block_device_mappings" {
   default     = {}
 }
 
-variable "ami_filter" {
-  description = "List of maps used to create the AMI filter for the action runner AMI. By default amazon linux 2 is used."
+variable "ami_filter_linux" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
 
-  default = {}
+  default = {
+    name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
+  }
 }
+
+variable "ami_filter_windows" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
+
+  default = {
+    name = ["Windows*2019*"]
+  }
+}
+
 variable "ami_owners" {
   description = "The list of owners used to select the AMI of action runner instances."
   type        = list(string)
