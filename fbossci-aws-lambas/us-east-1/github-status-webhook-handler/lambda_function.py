@@ -96,7 +96,7 @@ def lambda_handler(event, context):
         if workflow_name:
             job_name = f'{workflow_name} / {body["check_run"]["name"]}'
         else:
-            job_name = body["check_run"]["name"]
+            return
         status = body["check_run"]["conclusion"]
         committer = body["sender"]["login"]
         # For some reason actions aren't facebook-github-bot..
