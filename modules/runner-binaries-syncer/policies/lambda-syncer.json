@@ -9,7 +9,7 @@
         "s3:PutObject*",
         "s3:RequestObjectTag*"
       ],
-      "Resource": ["${s3_resource_arn}"]
+      "Resource": ["${s3_resource_arn_linux}", "${s3_resource_arn_windows}"]
     }
   ]
 }

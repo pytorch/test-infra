@@ -16,9 +16,10 @@ output "runners" {
 
 output "binaries_syncer" {
   value = {
-    lambda      = module.runner_binaries.lambda
-    lambda_role = module.runner_binaries.lambda_role
-    location    = local.s3_action_runner_url
+    lambda           = module.runner_binaries.lambda
+    lambda_role      = module.runner_binaries.lambda_role
+    location_linux   = local.s3_action_runner_url_linux
+    location_windows = local.s3_action_runner_url_windows
   }
 }
 

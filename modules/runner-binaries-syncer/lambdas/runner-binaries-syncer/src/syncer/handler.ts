@@ -32,7 +32,8 @@ interface ReleaseAsset {
   downloadUrl: string;
 }
 
-async function getLinuxReleaseAsset(
+async function getReleaseAsset(
+  runnerOS = 'linux',
   runnerArch = 'x64',
   fetchPrereleaseBinaries = false,
 ): Promise<ReleaseAsset | undefined> {
@@ -56,10 +57,10 @@ async function getLinuxReleaseAsset(
   } else {
     return undefined;
   }
-  const linuxAssets = asset.assets?.filter((a) => a.name?.includes(`actions-runner-linux-${runnerArch}-`));
+  const assets = asset.assets?.filter((a) => a.name?.includes(`actions-runner-${runnerOS}-${runnerArch}-`));
 
-  return linuxAssets?.length === 1
-    ? { name: linuxAssets[0].name, downloadUrl: linuxAssets[0].browser_download_url }
+  return assets?.length === 1
+    ? { name: assets[0].name, downloadUrl: assets[0].browser_download_url }
     : undefined;
 }
 
@@ -92,27 +93,40 @@ async function uploadToS3(s3: S3, cacheObject: CacheObject, actionRunnerReleaseA
 export const handle = async (): Promise<void> => {
   const s3 = new AWS.S3();
 
-  const runnerArch = process.env.GITHUB_RUNNER_ARCHITECTURE || 'x64';
   const fetchPrereleaseBinaries = yn(process.env.GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES, { default: false });
+  const distributions = [
+    {
+      runnerOS: "linux",
+      runnerArch: "x86",
+      s3Key: process.env.S3_OBJECT_KEY_LINUX
+    },
+    {
+      runnerOS: "windows",
+      runnerArch: "x86",
+      s3Key: process.env.S3_OBJECT_KEY_WINDOWS
+    }
+  ]
+  for(const distribution of distributions) {
+    const cacheObject: CacheObject = {
+      bucket: process.env.S3_BUCKET_NAME as string,
+      key: distribution.s3Key as string,
+    };
+    if (!cacheObject.bucket || !cacheObject.key) {
+      throw Error('Please check all mandatory variables are set.');
+    }
+    const actionRunnerReleaseAsset = await getReleaseAsset(
+      distribution.runnerOS, distribution.runnerArch, fetchPrereleaseBinaries
+    );
+    if (actionRunnerReleaseAsset === undefined) {
+      throw Error('Cannot find GitHub release asset.');
+    }
 
-  const cacheObject: CacheObject = {
-    bucket: process.env.S3_BUCKET_NAME as string,
-    key: process.env.S3_OBJECT_KEY as string,
-  };
-  if (!cacheObject.bucket || !cacheObject.key) {
-    throw Error('Please check all mandatory variables are set.');
-  }
-
-  const actionRunnerReleaseAsset = await getLinuxReleaseAsset(runnerArch, fetchPrereleaseBinaries);
-  if (actionRunnerReleaseAsset === undefined) {
-    throw Error('Cannot find GitHub release asset.');
-  }
-
-  const currentVersion = await getCachedVersion(s3, cacheObject);
-  console.debug('latest: ' + currentVersion);
-  if (currentVersion === undefined || currentVersion != actionRunnerReleaseAsset.name) {
-    uploadToS3(s3, cacheObject, actionRunnerReleaseAsset);
-  } else {
-    console.debug('Distribution is up-to-date, no action.');
+    const currentVersion = await getCachedVersion(s3, cacheObject);
+    console.debug('latest: ' + currentVersion);
+    if (currentVersion === undefined || currentVersion != actionRunnerReleaseAsset.name) {
+      uploadToS3(s3, cacheObject, actionRunnerReleaseAsset);
+    } else {
+      console.debug('Distribution is up-to-date, no action.');
+    }
   }
 };

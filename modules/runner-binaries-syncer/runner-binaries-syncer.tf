@@ -18,8 +18,8 @@ resource "aws_lambda_function" "syncer" {
   environment {
     variables = {
       S3_BUCKET_NAME                          = aws_s3_bucket.action_dist.id
-      S3_OBJECT_KEY                           = local.action_runner_distribution_object_key
-      GITHUB_RUNNER_ARCHITECTURE              = var.runner_architecture
+      S3_OBJECT_KEY_LINUX                     = local.action_runner_distribution_object_key_linux
+      S3_OBJECT_KEY_WINDOWS                   = local.action_runner_distribution_object_key_windows
       GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES = var.runner_allow_prerelease_binaries
     }
   }
@@ -74,7 +74,8 @@ resource "aws_iam_role_policy" "syncer" {
   role = aws_iam_role.syncer_lambda.id
 
   policy = templatefile("${path.module}/policies/lambda-syncer.json", {
-    s3_resource_arn = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key}"
+    s3_resource_arn_linux   = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_linux}"
+    s3_resource_arn_windows = "${aws_s3_bucket.action_dist.arn}/${local.action_runner_distribution_object_key_windows}"
   })
 }
 
