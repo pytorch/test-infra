@@ -101,12 +101,13 @@ export const handle = async (): Promise<void> => {
       s3Key: process.env.S3_OBJECT_KEY_LINUX
     },
     {
-      runnerOS: "windows",
+      runnerOS: "win",
       runnerArch: "x86",
       s3Key: process.env.S3_OBJECT_KEY_WINDOWS
     }
   ]
   for(const distribution of distributions) {
+    console.log(`Looking for ${distribution}`)
     const cacheObject: CacheObject = {
       bucket: process.env.S3_BUCKET_NAME as string,
       key: distribution.s3Key as string,
