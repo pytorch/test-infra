@@ -102,7 +102,7 @@ variable "runner_binaries_syncer_lambda_zip" {
 variable "runner_binaries_syncer_lambda_timeout" {
   description = "Time out of the binaries sync lambda in seconds."
   type        = number
-  default     = 300
+  default     = 900
 }
 
 variable "role_permissions_boundary" {

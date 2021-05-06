@@ -5,7 +5,6 @@ locals {
 
 resource "aws_lambda_function" "syncer" {
   s3_bucket         = var.lambda_s3_bucket != null ? var.lambda_s3_bucket : null
-  s3_key            = var.syncer_lambda_s3_key != null ? var.syncer_lambda_s3_key : null
   s3_object_version = var.syncer_lambda_s3_object_version != null ? var.syncer_lambda_s3_object_version : null
   filename          = var.lambda_s3_bucket == null ? local.lambda_zip : null
   source_code_hash  = var.lambda_s3_bucket == null ? filebase64sha256(local.lambda_zip) : null

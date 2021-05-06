@@ -57,6 +57,7 @@ async function getReleaseAsset(
   } else {
     return undefined;
   }
+  console.log(`Looking for actions-runner-${runnerOS}-${runnerArch}`)
   const assets = asset.assets?.filter((a) => a.name?.includes(`actions-runner-${runnerOS}-${runnerArch}-`));
 
   return assets?.length === 1
@@ -97,17 +98,17 @@ export const handle = async (): Promise<void> => {
   const distributions = [
     {
       runnerOS: "linux",
-      runnerArch: "x86",
+      runnerArch: "x64",
       s3Key: process.env.S3_OBJECT_KEY_LINUX
     },
     {
       runnerOS: "win",
-      runnerArch: "x86",
+      runnerArch: "x64",
       s3Key: process.env.S3_OBJECT_KEY_WINDOWS
     }
   ]
   for(const distribution of distributions) {
-    console.log(`Looking for ${distribution}`)
+    console.log({distribution})
     const cacheObject: CacheObject = {
       bucket: process.env.S3_BUCKET_NAME as string,
       key: distribution.s3Key as string,

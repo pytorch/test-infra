@@ -34,7 +34,7 @@ variable "lambda_zip" {
 variable "lambda_timeout" {
   description = "Time out of the lambda in seconds."
   type        = number
-  default     = 300
+  default     = 900
 }
 
 variable "role_permissions_boundary" {
