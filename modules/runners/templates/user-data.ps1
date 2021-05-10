@@ -25,7 +25,6 @@ Set-Content -Path "$PsHome\Microsoft.PowerShell_profile.ps1" -Value $ChocoProfil
 # Source it
 . "$PsHome\Microsoft.PowerShell_profile.ps1"
 
-Set-PSDebug -trace 1
 Write-Host "Installing curl..."
 choco install curl -y
 
@@ -46,7 +45,7 @@ Remove-Item C:\amazon-cloudwatch-agent.msi
 
 # Install dependent tools
 Write-Host "Installing additional development tools"
-choco install jq awscli archiver -y
+choco install jq awscli archiver 7zip.install -y
 choco install git --params "/GitAndUnixToolsOnPath" -y
 refreshenv
 
