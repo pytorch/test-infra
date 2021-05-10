@@ -22,4 +22,5 @@ do {
 aws ssm delete-parameter --name "${environment}-$InstanceId" --region $REGION
 
 $configCmd = ".\config.cmd --unattended --runasservice --name $InstanceId --work `"_work`" $config"
+Write-Host "Invoking config command..."
 Invoke-Expression $configCmd
