@@ -46,7 +46,7 @@ Remove-Item C:\amazon-cloudwatch-agent.msi
 
 # Install dependent tools
 Write-Host "Installing additional development tools"
-choco install git jq awscli archiver mingw -y
+choco install git jq awscli archiver mingw msys2 -y
 refreshenv
 
 ${install_config_runner}
