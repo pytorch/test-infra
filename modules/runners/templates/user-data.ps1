@@ -25,6 +25,7 @@ Set-Content -Path "$PsHome\Microsoft.PowerShell_profile.ps1" -Value $ChocoProfil
 # Source it
 . "$PsHome\Microsoft.PowerShell_profile.ps1"
 
+Set-PSDebug -trace 1
 Write-Host "Installing curl..."
 choco install curl -y
 
