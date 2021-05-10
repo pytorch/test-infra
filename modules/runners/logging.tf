@@ -1,19 +1,19 @@
 locals {
   runner_log_files_linux = [
     {
-      "log_group_name" : "messages",
+      "log_group_name" : "linux_messages",
       "prefix_log_group" : true,
       "file_path" : "/var/log/messages",
       "log_stream_name" : "{instance_id}"
     },
     {
-      "log_group_name" : "user_data",
+      "log_group_name" : "linux_user_data",
       "prefix_log_group" : true,
       "file_path" : "/var/log/user-data.log",
       "log_stream_name" : "{instance_id}"
     },
     {
-      "log_group_name" : "runner",
+      "log_group_name" : "linux_runner",
       "prefix_log_group" : true,
       "file_path" : "/home/ec2-user/actions-runner/_diag/Runner_**.log",
       "log_stream_name" : "{instance_id}"
@@ -29,19 +29,19 @@ locals {
 
   runner_log_files_windows = [
     {
-      "log_group_name" : "messages",
+      "log_group_name" : "windows_messages",
       "prefix_log_group" : true,
       "file_path" : "/var/log/messages",
       "log_stream_name" : "{instance_id}"
     },
     {
-      "log_group_name" : "user_data",
+      "log_group_name" : "windows_user_data",
       "prefix_log_group" : true,
       "file_path" : "C:/UserData.log",
       "log_stream_name" : "{instance_id}"
     },
     {
-      "log_group_name" : "runner",
+      "log_group_name" : "windows_runner",
       "prefix_log_group" : true,
       "file_path" : "C:/actions-runner/_diag/Runner_*.log",
       "log_stream_name" : "{instance_id}"
