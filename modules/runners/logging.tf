@@ -19,7 +19,7 @@ locals {
       "log_stream_name" : "{instance_id}"
     }
   ]
-  logfiles_linux = var.enable_cloudwatch_agent ? [for l in var.runner_log_files : {
+  logfiles_linux = var.enable_cloudwatch_agent ? [for l in local.runner_log_files_linux : {
     "log_group_name" : l.prefix_log_group ? "/github-self-hosted-runners/${var.environment}/${l.log_group_name}" : "/${l.log_group_name}"
     "log_stream_name" : l.log_stream_name
     "file_path" : l.file_path
@@ -47,7 +47,7 @@ locals {
       "log_stream_name" : "{instance_id}"
     }
   ]
-  logfiles_windows = var.enable_cloudwatch_agent ? [for l in var.runner_log_files : {
+  logfiles_windows = var.enable_cloudwatch_agent ? [for l in local.runner_log_files_windows : {
     "log_group_name" : l.prefix_log_group ? "/github-self-hosted-runners/${var.environment}/${l.log_group_name}" : "/${l.log_group_name}"
     "log_stream_name" : l.log_stream_name
     "file_path" : l.file_path
