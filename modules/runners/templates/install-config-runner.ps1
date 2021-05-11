@@ -52,6 +52,7 @@ Write-Host "Invoking config command..."
 Invoke-Expression $configCmd
 
 Write-Host "Scheduling runner daemon to run as runneruser..."
-$action = New-ScheduledTaskAction -WorkingDirectory "$runnerLocation" -Execute "run.cmd"
+$pwd = Get-Location
+$action = New-ScheduledTaskAction -WorkingDirectory "$pwd" -Execute "run.cmd"
 $trigger = Get-CimClass "MSFT_TaskRegistrationTrigger" -Namespace "Root/Microsoft/Windows/TaskScheduler"
 Register-ScheduledTask -TaskName "runnertask" -Action $action -Trigger $trigger -User $username -Password $password -RunLevel Highest -Force
