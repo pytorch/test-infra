@@ -82,7 +82,7 @@ variable "ami_filter_windows" {
   type        = map(list(string))
 
   default = {
-    name = ["Windows*2019*"]
+    name = ["Windows_Server-2019-English-Full-ContainersLatest-*"]
   }
 }
 
