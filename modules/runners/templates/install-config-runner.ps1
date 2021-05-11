@@ -21,6 +21,37 @@ do {
 
 aws ssm delete-parameter --name "${environment}-$InstanceId" --region $REGION
 
-$configCmd = ".\config.cmd --unattended --runasservice --name $InstanceId --work `"_work`" $config"
+# Create or update user
+Add-Type -AssemblyName "System.Web"
+$password = [System.Web.Security.Membership]::GeneratePassword(24, 4)
+$securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+$username = "runneruser"
+if (!(Get-LocalUser -Name $username -ErrorAction Ignore)) {
+    New-LocalUser -Name $username -Password $securePassword
+    Write-Host "Created $username"
+}
+else {
+    Set-LocalUser -Name $username -Password $securePassword
+    Write-Host "Changed password for $username"
+}
+# Add user to groups
+foreach ($group in @("Administrators", "docker-users")) {
+    if ((Get-LocalGroup -Name "$group" -ErrorAction Ignore) -and
+        !(Get-LocalGroupMember -Group "$group" -Member $username -ErrorAction Ignore)) {
+        Add-LocalGroupMember -Group "$group" -Member $username
+        Write-Host "Added $username to $group group"
+    }
+}
+
+# Disable User Access Control (UAC)
+Set-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0 -Force
+Write-Host "Disabled User Access Control (UAC)"
+
+$configCmd = ".\config.cmd --unattended --name $InstanceId --work `"_work`" $config"
 Write-Host "Invoking config command..."
 Invoke-Expression $configCmd
+
+Write-Host "Scheduling runner daemon to run as runneruser..."
+$action = New-ScheduledTaskAction -WorkingDirectory "$runnerLocation" -Execute "run.cmd"
+$trigger = Get-CimClass "MSFT_TaskRegistrationTrigger" -Namespace "Root/Microsoft/Windows/TaskScheduler"
+Register-ScheduledTask -TaskName "runnertask" -Action $action -Trigger $trigger -User $username -Password $password -RunLevel Highest -Force
