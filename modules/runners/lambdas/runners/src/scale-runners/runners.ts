@@ -89,6 +89,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   const randomSubnet = subnets[Math.floor(Math.random() * subnets.length)];
   console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
   const ec2 = new EC2();
+  const storageDeviceName = runnerParameters.runnerType.os === "linux" ? "/dev/xvda" : "/dev/sda1"
   const runInstancesResponse = await ec2
     .runInstances({
       MaxCount: 1,
@@ -100,7 +101,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       InstanceType: runnerParameters.runnerType.instance_type,
       BlockDeviceMappings: [
         {
-          DeviceName: "/dev/xvda",
+          DeviceName: storageDeviceName,
           Ebs: {
             VolumeSize: runnerParameters.runnerType.disk_size,
             VolumeType: "gp3",
