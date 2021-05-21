@@ -21,6 +21,8 @@ function check_requirements() {
 function clone_llvm() {
   info "cloing llvm"
   git clone https://github.com/llvm/llvm-project.git &&
+  git fetch --all --tags &&
+  git checkout -b tags/llvmorg-11.0.0 &&
   success
 }
 
