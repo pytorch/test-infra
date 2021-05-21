@@ -120,18 +120,22 @@ def lambda_handler(event, context):
         # master commits are always made by facebook-github-bot
         is_master = committer == "facebook-github-bot"
 
-    print("commitId: ", commitId)
-    print("build_url: ", build_url)
-    print("job_name: ", job_name)
-    print("status: ", status)
-    print("committer: ", committer)
     commit_source = ''
     if is_master:
-        print("Status update is from master commit.")
         commit_source = 'master'
     else:
-        print("Status update is from PR commit.")
         commit_source = 'pr'
+
+    print(json.dumps({
+        "commitId": commitId,
+        "build_url": build_url,
+        "job_name": job_name,
+        "status": status,
+        "committer": committer,
+        "commit_source": commit_source,
+        "bucket": "ossci-job-status",
+    }))
+
     status_file_name = commitId+'.json'
     job_statuses = s3_get_json(bucket_name, f'{commit_source}/{status_file_name}', {})
     combined_job_statuses = s3_get_json(bucket_name, f'combined/{status_file_name}', {})
@@ -139,5 +143,4 @@ def lambda_handler(event, context):
     combined_job_statuses[job_name] = {'status': status, 'build_url': build_url}
     s3.Object(bucket_name, f'{commit_source}/{status_file_name}').put(Body=json_dumps(job_statuses))
     s3.Object(bucket_name, f'combined/{status_file_name}').put(Body=json_dumps(combined_job_statuses))
-    print("Status update is saved to ossci-job-status bucket.")
     return {"statusCode": 200, "body": "update processed"}
