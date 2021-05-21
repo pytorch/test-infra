@@ -1,0 +1,3051 @@
+diff --git a/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp b/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
+index b6b3b1944d0e..ce966df15579 100644
+--- a/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
++++ b/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
+@@ -32,3 +32,4 @@ void FloatLoopCounter::check(const MatchFinder::MatchResult &Result) {
+ } // namespace cert
+ } // namespace tidy
+ } // namespace clang
++
+diff --git a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
+index 880b7aacdc65..b4cc2bcda831 100644
+--- a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
++++ b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
+@@ -11,6 +11,7 @@ add_clang_library(clangTidyMiscModule
+   NoRecursionCheck.cpp
+   NonCopyableObjects.cpp
+   NonPrivateMemberVariablesInClassesCheck.cpp
++  PotentialUnboundedLoopCheck.cpp
+   RedundantExpressionCheck.cpp
+   StaticAssertCheck.cpp
+   ThrowByValueCatchByReferenceCheck.cpp
+diff --git a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
+index e06768c548bd..72dc89e8519e 100644
+--- a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
++++ b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
+@@ -15,6 +15,7 @@
+ #include "NoRecursionCheck.h"
+ #include "NonCopyableObjects.h"
+ #include "NonPrivateMemberVariablesInClassesCheck.h"
++#include "PotentialUnboundedLoopCheck.h"
+ #include "RedundantExpressionCheck.h"
+ #include "StaticAssertCheck.h"
+ #include "ThrowByValueCatchByReferenceCheck.h"
+@@ -41,6 +42,8 @@ public:
+         "misc-non-copyable-objects");
+     CheckFactories.registerCheck<NonPrivateMemberVariablesInClassesCheck>(
+         "misc-non-private-member-variables-in-classes");
++    CheckFactories.registerCheck<PotentialUnboundedLoopCheck>(
++        "misc-potential-unbounded-loop");
+     CheckFactories.registerCheck<RedundantExpressionCheck>(
+         "misc-redundant-expression");
+     CheckFactories.registerCheck<StaticAssertCheck>("misc-static-assert");
+diff --git a/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp
+new file mode 100644
+index 000000000000..b00c0525ef4a
+--- /dev/null
++++ b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp
+@@ -0,0 +1,107 @@
++//===--- PotentialUnboundedLoopCheck.cpp - clang-tidy
++//-------------------------------===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#include "PotentialUnboundedLoopCheck.h"
++#include "clang/AST/ASTContext.h"
++#include "clang/ASTMatchers/ASTMatchFinder.h"
++
++using namespace clang::ast_matchers;
++
++namespace clang {
++namespace tidy {
++namespace misc {
++
++void PotentialUnboundedLoopCheck::registerMatchers(MatchFinder *Finder) {
++  Finder->addMatcher(
++      forStmt(allOf(hasCondition(
++                        binaryOperator(
++                            hasLHS(hasDescendant(declRefExpr().bind("lhs"))),
++                            hasRHS(hasDescendant(declRefExpr().bind("rhs"))),
++                            anyOf(hasOperatorName("<"), hasOperatorName("<="),
++                                  hasOperatorName(">"), hasOperatorName(">=")))
++                            .bind("op")),
++                    hasIncrement(
++                        unaryOperator(
++                            anyOf(hasOperatorName("++"), hasOperatorName("--")),
++                            hasDescendant(declRefExpr().bind("inc")))
++                            .bind("inc_op"))))
++          .bind("for"),
++      this);
++}
++
++inline bool isInc(UnaryOperatorKind Op) {
++  return Op == UnaryOperatorKind::UO_PostInc ||
++         Op == UnaryOperatorKind::UO_PreInc;
++}
++
++inline bool isDec(UnaryOperatorKind Op) {
++  return Op == UnaryOperatorKind::UO_PostDec ||
++         Op == UnaryOperatorKind::UO_PreDec;
++}
++
++inline bool isLT(BinaryOperatorKind Op) {
++  return Op == BinaryOperatorKind::BO_LT;
++}
++
++inline bool isLE(BinaryOperatorKind Op) {
++  return Op == BinaryOperatorKind::BO_LE;
++}
++inline bool isGT(BinaryOperatorKind Op) {
++  return Op == BinaryOperatorKind::BO_GT;
++}
++
++inline bool isGE(BinaryOperatorKind Op) {
++  return Op == BinaryOperatorKind::BO_GE;
++}
++
++void PotentialUnboundedLoopCheck::check(
++    const MatchFinder::MatchResult &Result) {
++  const auto *LHSDecl = Result.Nodes.getNodeAs<DeclRefExpr>("lhs")->getDecl();
++  const auto *RHSDecl = Result.Nodes.getNodeAs<DeclRefExpr>("rhs")->getDecl();
++  const auto *IncDecl = Result.Nodes.getNodeAs<DeclRefExpr>("inc")->getDecl();
++  auto Op = Result.Nodes.getNodeAs<BinaryOperator>("op")->getOpcode();
++  auto IncOp = Result.Nodes.getNodeAs<UnaryOperator>("inc_op")->getOpcode();
++  const auto *MatchedFor = Result.Nodes.getNodeAs<ForStmt>("for");
++
++  // only analyze non-compound types
++  if (LHSDecl->getType()->isCompoundType() ||
++      RHSDecl->getType()->isCompoundType() ||
++      IncDecl->getType()->isCompoundType()) {
++    return;
++  }
++
++  // only analyze loops in which increment var used in condition
++  if (IncDecl->getName() != LHSDecl->getName() &&
++      IncDecl->getName() != RHSDecl->getName()) {
++    return;
++  }
++
++  auto LHSWidth =
++      LHSDecl->getASTContext().getTypeInfo(LHSDecl->getType()).Width;
++  auto RHSWidth =
++      RHSDecl->getASTContext().getTypeInfo(RHSDecl->getType()).Width;
++
++  if (LHSWidth < RHSWidth) {
++    if (((isLT(Op) || isLE(Op)) && isInc(IncOp)) ||
++        ((isGT(Op) || isGE(Op)) && isDec(IncOp))) {
++      diag(MatchedFor->getForLoc(), "Potential unbounded loop");
++    }
++  } else if (LHSWidth > RHSWidth) {
++    if (((isGT(Op) || isGE(Op)) && isInc(IncOp)) ||
++        ((isLT(Op) || isLE(Op)) && isDec(IncOp))) {
++      diag(MatchedFor->getForLoc(), "Potential unbounded loop");
++    }
++  } else {
++    return;
++  }
++}
++
++} // namespace misc
++} // namespace tidy
++} // namespace clang
+diff --git a/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.h b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.h
+new file mode 100644
+index 000000000000..2db44bcdd19c
+--- /dev/null
++++ b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.h
+@@ -0,0 +1,34 @@
++//===--- PotentialUnboundedLoopCheck.h - clang-tidy -------------*- C++ -*-===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_POTENTIALUNBOUNDEDLOOPCHECK_H
++#define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_POTENTIALUNBOUNDEDLOOPCHECK_H
++
++#include "../ClangTidyCheck.h"
++
++namespace clang {
++namespace tidy {
++namespace misc {
++
++/// FIXME: Write a short description.
++///
++/// For the user-facing documentation see:
++/// http://clang.llvm.org/extra/clang-tidy/checks/misc-potential-unbounded-loop.html
++class PotentialUnboundedLoopCheck : public ClangTidyCheck {
++public:
++  PotentialUnboundedLoopCheck(StringRef Name, ClangTidyContext *Context)
++      : ClangTidyCheck(Name, Context) {}
++  void registerMatchers(ast_matchers::MatchFinder *Finder) override;
++  void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
++};
++
++} // namespace misc
++} // namespace tidy
++} // namespace clang
++
++#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_POTENTIALUNBOUNDEDLOOPCHECK_H
+diff --git a/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py b/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
+new file mode 100644
+index 000000000000..03755802e95d
+--- /dev/null
++++ b/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
+@@ -0,0 +1,155 @@
++"""Potential Unbounded Loop Test Generator
++
++This script autogenerates tests for checking loop unbounded with integer types
++The list of types used can be found in the `main()` function
++
++Usage:
++    python3 gen_potential_unbounded_loop_test.py > path/to/test/file
++"""
++
++import textwrap
++
++CHECK_NAME = "misc-potential-unbounded-loop"
++
++def op_to_str(op):
++    if op == "<":
++        return "lt"
++    elif op == "<=":
++        return "lte"
++    elif op == ">":
++        return "gt"
++    elif op == ">=":
++        return "gte"
++    elif op == "++":
++        return "inc"
++    elif op == "--":
++        return "dec"
++    else:
++        raise f"invalid op: {op}"
++
++
++def _gencode_helper(comp_op, inc_op, t1, t2, trigger=False, swap_comp_order=False):
++    """Generates a C/C++ function containing a for-loop.
++
++    Arguments:
++        comp_op     The comparision op to use in the loop header
++        inc_op      The increment op (++ or --) to use in the loop header
++        t1          The type of the loop variable
++        t2          The type of the bounds variable
++    """
++    code_indent = 4
++    warning = f"warning: Potential unbounded loop [{CHECK_NAME}]"
++
++    check_msg = ""
++    if trigger:
++        check_msg = f"// CHECK-MESSAGES: :[[@LINE-1]]:{code_indent + 1}: {warning}"
++
++    comp = f"i {comp_op} j"
++    if swap_comp_order:
++        comp = f"j {comp_op} i"
++
++    return textwrap.dedent(
++        f"""\
++        void test_{t1}_{op_to_str(comp_op)}_{t2}_{op_to_str(inc_op)}() {{
++            {t2} j;
++
++            // postfix
++            for ({t1} i = 0; {comp}; i{inc_op});
++            {check_msg}
++
++            // prefix
++            for ({t1} i = 0; {comp}; {inc_op}i);
++            {check_msg}
++        }}
++    """
++    )
++
++
++def gencode_lt(t1, t2):
++    """Generates tests using two loop var types
++
++    Arguments:
++        t1  Integer type
++        t2  Integer type
++
++    Notes:
++        precondition: t1 < t2 (code generator depends on this property)
++    """
++
++    tests = [
++        _gencode_helper("<", "++", t2, t1),
++        _gencode_helper("<=", "++", t2, t1),
++        _gencode_helper(">", "--", t2, t1),
++        _gencode_helper(">=", "--", t2, t1),
++        _gencode_helper(">", "++", t2, t1, swap_comp_order=True),
++        _gencode_helper(">=", "++", t2, t1, swap_comp_order=True),
++        _gencode_helper("<", "--", t2, t1, swap_comp_order=True),
++        _gencode_helper("<=", "--", t2, t1, swap_comp_order=True),
++        _gencode_helper("<", "++", t1, t2, trigger=True),
++        _gencode_helper("<=", "++", t1, t2, trigger=True),
++        _gencode_helper(">", "--", t1, t2, trigger=True),
++        _gencode_helper(">=", "--", t1, t2, trigger=True),
++        # swap comparision order for t1 and t2
++        # ensures that a potential unbounded loop exists
++        _gencode_helper(">", "++", t1, t2, trigger=True, swap_comp_order=True),
++        _gencode_helper(">=", "++", t1, t2, trigger=True, swap_comp_order=True),
++        _gencode_helper("<", "--", t1, t2, trigger=True, swap_comp_order=True),
++        _gencode_helper("<=", "--", t1, t2, trigger=True, swap_comp_order=True),
++    ]
++
++    return "".join(tests)
++
++
++def gencode_eq(t1):
++    """Generates tests using single loop var type
++
++    Arguments:
++        t1  Integer type
++    """
++    tests = [
++        _gencode_helper("<", "++", t1, t1),
++        _gencode_helper("<=", "++", t1, t1),
++        _gencode_helper(">", "--", t1, t1),
++        _gencode_helper(">=", "--", t1, t1),
++    ]
++
++    return "".join(tests)
++
++
++def gen(test):
++    _, types = test
++    n = len(types)
++
++    code = []
++
++    for i in range(n):
++        code.append(gencode_eq(types[i]))
++        for j in range(i + 1, n):
++            code.append(gencode_lt(types[i], types[j]))
++
++    return "".join(code)
++
++
++def main():
++    test_suite = {
++        "signed_int_types": ["int8_t", "int16_t", "int32_t", "int64_t"],
++        "unsigned_int_types": ["uint8_t", "uint16_t", "uint32_t", "uint64_t"],
++    }
++
++    preamble = textwrap.dedent(
++        f"""\
++        // @generated clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
++        // RUN: %check_clang_tidy %s {CHECK_NAME} %t
++    """
++    )
++
++    code = ["#include<stdint.h>\n"]
++
++    for test in test_suite.items():
++        code.append(gen(test))
++
++    print(f'{preamble} {"".join(code)}')
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/clang-tools-extra/clang-tidy/rename_check.py b/clang-tools-extra/clang-tidy/rename_check.py
+index 4d5311c9a293..2410041fd5d2 100755
+--- a/clang-tools-extra/clang-tidy/rename_check.py
++++ b/clang-tools-extra/clang-tidy/rename_check.py
+@@ -120,16 +120,15 @@ def adapt_cmake(module_path, check_name_camel):
+       if (not file_added) and (cpp_line or cpp_found):
+         cpp_found = True
+         if (line.strip() > cpp_file) or (not cpp_line):
+-          f.write('  ' + cpp_file + '\n')
++          f.write(('  ' + cpp_file + '\n').encode())
+           file_added = True
+-      f.write(line)
++      f.write(line.encode())
+ 
+   return True
+ 
+ # Modifies the module to include the new check.
+ def adapt_module(module_path, module, check_name, check_name_camel):
+-  modulecpp = filter(lambda p: p.lower() == module.lower() + 'tidymodule.cpp',
+-                     os.listdir(module_path))[0]
++  modulecpp = next(filter(lambda p: p.lower() == module.lower() + 'tidymodule.cpp', os.listdir(module_path)))
+   filename = os.path.join(module_path, modulecpp)
+   with open(filename, 'r') as f:
+     lines = f.readlines()
+@@ -149,21 +148,21 @@ def adapt_module(module_path, module, check_name, check_name_camel):
+           header_found = True
+           if match.group(1) > check_name_camel:
+             header_added = True
+-            f.write('#include "' + check_name_camel + '.h"\n')
++            f.write(('#include "' + check_name_camel + '.h"\n').encode())
+         elif header_found:
+           header_added = True
+-          f.write('#include "' + check_name_camel + '.h"\n')
++          f.write(('#include "' + check_name_camel + '.h"\n').encode())
+ 
+       if not check_added:
+         if line.strip() == '}':
+           check_added = True
+-          f.write(check_decl)
++          f.write(check_decl.encode())
+         else:
+           match = re.search('registerCheck<(.*)>', line)
+           if match and match.group(1) > check_name_camel:
+             check_added = True
+-            f.write(check_decl)
+-      f.write(line)
++            f.write(check_decl.encode())
++      f.write(line.encode())
+ 
+ 
+ # Adds a release notes entry.
+@@ -198,22 +197,22 @@ def add_release_notes(clang_tidy_path, old_check_name, new_check_name):
+ 
+         if match:
+           header_found = True
+-          f.write(line)
++          f.write(line.encode())
+           continue
+ 
+         if line.startswith('^^^^'):
+-          f.write(line)
++          f.write(line.encode())
+           continue
+ 
+         if header_found and add_note_here:
+           if not line.startswith('^^^^'):
+-            f.write("""- The '%s' check was renamed to :doc:`%s
++            f.write(("""- The '%s' check was renamed to :doc:`%s
+   <clang-tidy/checks/%s>`
+ 
+-""" % (old_check_name, new_check_name, new_check_name))
++""" % (old_check_name, new_check_name, new_check_name)).encode())
+             note_added = True
+ 
+-      f.write(line)
++      f.write(line.encode())
+ 
+ def main():
+   parser = argparse.ArgumentParser(description='Rename clang-tidy check.')
+@@ -259,9 +258,9 @@ def main():
+             (check_name_camel, cmake_lists))
+       return 1
+ 
+-    modulecpp = filter(
++    modulecpp = next(filter(
+         lambda p: p.lower() == old_module.lower() + 'tidymodule.cpp',
+-        os.listdir(old_module_path))[0]
++        os.listdir(old_module_path)))
+     deleteMatchingLines(os.path.join(old_module_path, modulecpp),
+                       '\\b' + check_name_camel + '|\\b' + args.old_check_name)
+ 
+diff --git a/clang-tools-extra/docs/ReleaseNotes.rst b/clang-tools-extra/docs/ReleaseNotes.rst
+index 0471c5e9c4eb..733f016682bd 100644
+--- a/clang-tools-extra/docs/ReleaseNotes.rst
++++ b/clang-tools-extra/docs/ReleaseNotes.rst
+@@ -301,6 +301,11 @@ New checks
+   Finds includes of system libc headers not provided by the compiler within
+   llvm-libc implementations.
+ 
++- New :doc:`misc-my-first-check
++  <clang-tidy/checks/misc-potential-unbounded-loop>` check.
++
++  FIXME: add release notes.
++
+ - New :doc:`misc-no-recursion
+   <clang-tidy/checks/misc-no-recursion>` check.
+ 
+diff --git a/clang-tools-extra/docs/clang-tidy/checks/list.rst b/clang-tools-extra/docs/clang-tidy/checks/list.rst
+index 78fed1a8ed9c..b8d9b63bedb9 100644
+--- a/clang-tools-extra/docs/clang-tidy/checks/list.rst
++++ b/clang-tools-extra/docs/clang-tidy/checks/list.rst
+@@ -70,7 +70,7 @@ Clang-Tidy Checks
+    `bugprone-misplaced-widening-cast <bugprone-misplaced-widening-cast.html>`_,
+    `bugprone-move-forwarding-reference <bugprone-move-forwarding-reference.html>`_, "Yes"
+    `bugprone-multiple-statement-macro <bugprone-multiple-statement-macro.html>`_,
+-   `bugprone-no-escape <bugprone-no-escape.html>`_, "Yes"
++   `bugprone-no-escape <bugprone-no-escape.html>`_,
+    `bugprone-not-null-terminated-result <bugprone-not-null-terminated-result.html>`_, "Yes"
+    `bugprone-parent-virtual-call <bugprone-parent-virtual-call.html>`_, "Yes"
+    `bugprone-posix-return <bugprone-posix-return.html>`_, "Yes"
+@@ -200,6 +200,7 @@ Clang-Tidy Checks
+    `misc-no-recursion <misc-no-recursion.html>`_,
+    `misc-non-copyable-objects <misc-non-copyable-objects.html>`_,
+    `misc-non-private-member-variables-in-classes <misc-non-private-member-variables-in-classes.html>`_,
++   `misc-potential-unbounded-loop <misc-potential-unbounded-loop.html>`_,
+    `misc-redundant-expression <misc-redundant-expression.html>`_, "Yes"
+    `misc-static-assert <misc-static-assert.html>`_, "Yes"
+    `misc-throw-by-value-catch-by-reference <misc-throw-by-value-catch-by-reference.html>`_,
+diff --git a/clang-tools-extra/docs/clang-tidy/checks/misc-potential-unbounded-loop.rst b/clang-tools-extra/docs/clang-tidy/checks/misc-potential-unbounded-loop.rst
+new file mode 100644
+index 000000000000..d1da15754061
+--- /dev/null
++++ b/clang-tools-extra/docs/clang-tidy/checks/misc-potential-unbounded-loop.rst
+@@ -0,0 +1,6 @@
++.. title:: clang-tidy - misc-potential-unbounded-loop
++
++misc-potential-unbounded-loop
++=============================
++
++FIXME: Describe what patterns does the check detect and why. Give examples.
+diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp
+new file mode 100644
+index 000000000000..e996ed78c25d
+--- /dev/null
++++ b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp
+@@ -0,0 +1,75 @@
++// RUN: %check_clang_tidy %s misc-potential-unbounded-loop %t
++#include<stdint.h>
++
++// Although the autogenerated tests check for this, we need to add a "test that
++// triggers the lint" to make testing infra happy :)
++void test_int() {
++    int16_t j;
++
++    for (int8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++
++// We get float checking for free because of the type information provided by
++// the AST
++void test_float() {
++    double j;
++
++    // postfix
++    for (float i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (float i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++
++// Lint should ignore if literals used in loop
++void test_literals() {
++  for (int i = 0; i < 10; i++);
++  for (int i = 0; 5 < 10; i++);
++}
++
++// Lint should ignore if loop elements are missing
++void test_missing_loop_elements() {
++  for (;;);
++  for (int i = 0;;i++);
++
++  int j;
++  for (;j > 10;);
++
++  for (int i = 0;;);
++}
++
++// Lint should ignore if increment variable is different from variable used in comparison
++void test_unrelated() {
++  int8_t a;
++  int32_t b;
++  for (int i = 0; a < b; i++);
++}
++
++// Lint should ignore complex types
++class A {
++  int x;
++  public:
++    A(int y) {
++      x = y;
++    }
++
++    int getX() {
++      return x;
++    }
++
++    void setX(int y) {
++      x = y;
++    }
++
++    bool operator <(const A& a) {
++      return x < a.x;
++    }
++};
++
++void test_complex() {
++  A A1(10), A2(20);
++  for (int i = 0; A1 < A2; i++);
++}
+diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp
+new file mode 100644
+index 000000000000..de366239de16
+--- /dev/null
++++ b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp
+@@ -0,0 +1,2468 @@
++// @generated clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
++// RUN: %check_clang_tidy %s misc-potential-unbounded-loop %t
++ #include<stdint.h>
++void test_int8_t_lt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int8_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int8_t i = 0; i < j; ++i);
++
++}
++void test_int8_t_lte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int8_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int8_t i = 0; i <= j; ++i);
++
++}
++void test_int8_t_gt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int8_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int8_t i = 0; i > j; --i);
++
++}
++void test_int8_t_gte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int8_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int8_t i = 0; i >= j; --i);
++
++}
++void test_int16_t_lt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int16_t i = 0; i < j; ++i);
++
++}
++void test_int16_t_lte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int16_t i = 0; i <= j; ++i);
++
++}
++void test_int16_t_gt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int16_t i = 0; i > j; --i);
++
++}
++void test_int16_t_gte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int16_t i = 0; i >= j; --i);
++
++}
++void test_int16_t_gt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int16_t i = 0; j > i; ++i);
++
++}
++void test_int16_t_gte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int16_t i = 0; j >= i; ++i);
++
++}
++void test_int16_t_lt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int16_t i = 0; j < i; --i);
++
++}
++void test_int16_t_lte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int16_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int16_t i = 0; j <= i; --i);
++
++}
++void test_int8_t_lt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_lt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i < j; ++i);
++
++}
++void test_int32_t_lte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i <= j; ++i);
++
++}
++void test_int32_t_gt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i > j; --i);
++
++}
++void test_int32_t_gte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i >= j; --i);
++
++}
++void test_int32_t_gt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int32_t i = 0; j > i; ++i);
++
++}
++void test_int32_t_gte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int32_t i = 0; j >= i; ++i);
++
++}
++void test_int32_t_lt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int32_t i = 0; j < i; --i);
++
++}
++void test_int32_t_lte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int32_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int32_t i = 0; j <= i; --i);
++
++}
++void test_int8_t_lt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int64_t_lt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i < j; ++i);
++
++}
++void test_int64_t_lte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i <= j; ++i);
++
++}
++void test_int64_t_gt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i > j; --i);
++
++}
++void test_int64_t_gte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i >= j; --i);
++
++}
++void test_int64_t_gt_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j > i; ++i);
++
++}
++void test_int64_t_gte_int8_t_inc() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j >= i; ++i);
++
++}
++void test_int64_t_lt_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j < i; --i);
++
++}
++void test_int64_t_lte_int8_t_dec() {
++    int8_t j;
++
++    // postfix
++    for (int64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j <= i; --i);
++
++}
++void test_int8_t_lt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_gte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int8_t_lte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int16_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int16_t i = 0; i < j; ++i);
++
++}
++void test_int16_t_lte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int16_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int16_t i = 0; i <= j; ++i);
++
++}
++void test_int16_t_gt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int16_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int16_t i = 0; i > j; --i);
++
++}
++void test_int16_t_gte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int16_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int16_t i = 0; i >= j; --i);
++
++}
++void test_int32_t_lt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i < j; ++i);
++
++}
++void test_int32_t_lte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i <= j; ++i);
++
++}
++void test_int32_t_gt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i > j; --i);
++
++}
++void test_int32_t_gte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i >= j; --i);
++
++}
++void test_int32_t_gt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int32_t i = 0; j > i; ++i);
++
++}
++void test_int32_t_gte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int32_t i = 0; j >= i; ++i);
++
++}
++void test_int32_t_lt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int32_t i = 0; j < i; --i);
++
++}
++void test_int32_t_lte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int32_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int32_t i = 0; j <= i; --i);
++
++}
++void test_int16_t_lt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int16_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int64_t_lt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i < j; ++i);
++
++}
++void test_int64_t_lte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i <= j; ++i);
++
++}
++void test_int64_t_gt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i > j; --i);
++
++}
++void test_int64_t_gte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i >= j; --i);
++
++}
++void test_int64_t_gt_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j > i; ++i);
++
++}
++void test_int64_t_gte_int16_t_inc() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j >= i; ++i);
++
++}
++void test_int64_t_lt_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j < i; --i);
++
++}
++void test_int64_t_lte_int16_t_dec() {
++    int16_t j;
++
++    // postfix
++    for (int64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j <= i; --i);
++
++}
++void test_int16_t_lt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_gte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int16_t_lte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int16_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int16_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_lt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i < j; ++i);
++
++}
++void test_int32_t_lte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int32_t i = 0; i <= j; ++i);
++
++}
++void test_int32_t_gt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i > j; --i);
++
++}
++void test_int32_t_gte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int32_t i = 0; i >= j; --i);
++
++}
++void test_int64_t_lt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i < j; ++i);
++
++}
++void test_int64_t_lte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i <= j; ++i);
++
++}
++void test_int64_t_gt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i > j; --i);
++
++}
++void test_int64_t_gte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i >= j; --i);
++
++}
++void test_int64_t_gt_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j > i; ++i);
++
++}
++void test_int64_t_gte_int32_t_inc() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (int64_t i = 0; j >= i; ++i);
++
++}
++void test_int64_t_lt_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j < i; --i);
++
++}
++void test_int64_t_lte_int32_t_dec() {
++    int32_t j;
++
++    // postfix
++    for (int64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (int64_t i = 0; j <= i; --i);
++
++}
++void test_int32_t_lt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_lte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_gt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_gte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_gt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_gte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_lt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int32_t_lte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int32_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (int32_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_int64_t_lt_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i < j; ++i);
++
++}
++void test_int64_t_lte_int64_t_inc() {
++    int64_t j;
++
++    // postfix
++    for (int64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (int64_t i = 0; i <= j; ++i);
++
++}
++void test_int64_t_gt_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i > j; --i);
++
++}
++void test_int64_t_gte_int64_t_dec() {
++    int64_t j;
++
++    // postfix
++    for (int64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (int64_t i = 0; i >= j; --i);
++
++}
++void test_uint8_t_lt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint8_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint8_t i = 0; i < j; ++i);
++
++}
++void test_uint8_t_lte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint8_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint8_t i = 0; i <= j; ++i);
++
++}
++void test_uint8_t_gt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint8_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint8_t i = 0; i > j; --i);
++
++}
++void test_uint8_t_gte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint8_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint8_t i = 0; i >= j; --i);
++
++}
++void test_uint16_t_lt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; i < j; ++i);
++
++}
++void test_uint16_t_lte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; i <= j; ++i);
++
++}
++void test_uint16_t_gt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; i > j; --i);
++
++}
++void test_uint16_t_gte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; i >= j; --i);
++
++}
++void test_uint16_t_gt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; j > i; ++i);
++
++}
++void test_uint16_t_gte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; j >= i; ++i);
++
++}
++void test_uint16_t_lt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; j < i; --i);
++
++}
++void test_uint16_t_lte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint16_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; j <= i; --i);
++
++}
++void test_uint8_t_lt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_lt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i < j; ++i);
++
++}
++void test_uint32_t_lte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i <= j; ++i);
++
++}
++void test_uint32_t_gt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i > j; --i);
++
++}
++void test_uint32_t_gte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i >= j; --i);
++
++}
++void test_uint32_t_gt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; j > i; ++i);
++
++}
++void test_uint32_t_gte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; j >= i; ++i);
++
++}
++void test_uint32_t_lt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; j < i; --i);
++
++}
++void test_uint32_t_lte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint32_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; j <= i; --i);
++
++}
++void test_uint8_t_lt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint64_t_lt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i < j; ++i);
++
++}
++void test_uint64_t_lte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i <= j; ++i);
++
++}
++void test_uint64_t_gt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i > j; --i);
++
++}
++void test_uint64_t_gte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i >= j; --i);
++
++}
++void test_uint64_t_gt_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j > i; ++i);
++
++}
++void test_uint64_t_gte_uint8_t_inc() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j >= i; ++i);
++
++}
++void test_uint64_t_lt_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j < i; --i);
++
++}
++void test_uint64_t_lte_uint8_t_dec() {
++    uint8_t j;
++
++    // postfix
++    for (uint64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j <= i; --i);
++
++}
++void test_uint8_t_lt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_gte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint8_t_lte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint8_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint8_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint16_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; i < j; ++i);
++
++}
++void test_uint16_t_lte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint16_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint16_t i = 0; i <= j; ++i);
++
++}
++void test_uint16_t_gt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint16_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; i > j; --i);
++
++}
++void test_uint16_t_gte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint16_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint16_t i = 0; i >= j; --i);
++
++}
++void test_uint32_t_lt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i < j; ++i);
++
++}
++void test_uint32_t_lte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i <= j; ++i);
++
++}
++void test_uint32_t_gt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i > j; --i);
++
++}
++void test_uint32_t_gte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i >= j; --i);
++
++}
++void test_uint32_t_gt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; j > i; ++i);
++
++}
++void test_uint32_t_gte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; j >= i; ++i);
++
++}
++void test_uint32_t_lt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; j < i; --i);
++
++}
++void test_uint32_t_lte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint32_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; j <= i; --i);
++
++}
++void test_uint16_t_lt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint16_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint64_t_lt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i < j; ++i);
++
++}
++void test_uint64_t_lte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i <= j; ++i);
++
++}
++void test_uint64_t_gt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i > j; --i);
++
++}
++void test_uint64_t_gte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i >= j; --i);
++
++}
++void test_uint64_t_gt_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j > i; ++i);
++
++}
++void test_uint64_t_gte_uint16_t_inc() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j >= i; ++i);
++
++}
++void test_uint64_t_lt_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j < i; --i);
++
++}
++void test_uint64_t_lte_uint16_t_dec() {
++    uint16_t j;
++
++    // postfix
++    for (uint64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j <= i; --i);
++
++}
++void test_uint16_t_lt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_gte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint16_t_lte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint16_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint16_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_lt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint32_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i < j; ++i);
++
++}
++void test_uint32_t_lte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint32_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint32_t i = 0; i <= j; ++i);
++
++}
++void test_uint32_t_gt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint32_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i > j; --i);
++
++}
++void test_uint32_t_gte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint32_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint32_t i = 0; i >= j; --i);
++
++}
++void test_uint64_t_lt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i < j; ++i);
++
++}
++void test_uint64_t_lte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i <= j; ++i);
++
++}
++void test_uint64_t_gt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i > j; --i);
++
++}
++void test_uint64_t_gte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i >= j; --i);
++
++}
++void test_uint64_t_gt_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; j > i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j > i; ++i);
++
++}
++void test_uint64_t_gte_uint32_t_inc() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; j >= i; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; j >= i; ++i);
++
++}
++void test_uint64_t_lt_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; j < i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j < i; --i);
++
++}
++void test_uint64_t_lte_uint32_t_dec() {
++    uint32_t j;
++
++    // postfix
++    for (uint64_t i = 0; j <= i; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; j <= i; --i);
++
++}
++void test_uint32_t_lt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; i < j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; i < j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_lte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; i <= j; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; i <= j; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_gt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; i > j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; i > j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_gte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; i >= j; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; i >= j; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_gt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; j > i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; j > i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_gte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; j >= i; i++);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; j >= i; ++i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_lt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; j < i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; j < i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint32_t_lte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint32_t i = 0; j <= i; i--);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++
++    // prefix
++    for (uint32_t i = 0; j <= i; --i);
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++}
++void test_uint64_t_lt_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint64_t i = 0; i < j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i < j; ++i);
++
++}
++void test_uint64_t_lte_uint64_t_inc() {
++    uint64_t j;
++
++    // postfix
++    for (uint64_t i = 0; i <= j; i++);
++
++
++    // prefix
++    for (uint64_t i = 0; i <= j; ++i);
++
++}
++void test_uint64_t_gt_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint64_t i = 0; i > j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i > j; --i);
++
++}
++void test_uint64_t_gte_uint64_t_dec() {
++    uint64_t j;
++
++    // postfix
++    for (uint64_t i = 0; i >= j; i--);
++
++
++    // prefix
++    for (uint64_t i = 0; i >= j; --i);
++
++}
++
