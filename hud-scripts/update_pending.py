@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Update pending CircleCI jobs in HUD
+# Update pending GH Runs/CircleCI jobs in HUD
 # Copyright (c) 2021-present, Facebook, Inc.
 import boto3
 import botocore
@@ -63,6 +63,12 @@ def circleci_fetch_json(url: str) -> Union[Dict[str, Any], List[Dict[str, Any]]]
         return json.load(data)
 
 
+def circleci_get_job_status(org: str, project: str, job_id: int) -> Dict[str, Any]:
+    rc = circleci_fetch_json(f"https://circleci.com/api/v2/project/gh/{org}/{project}/job/{job_id}")
+    assert isinstance(rc, dict)
+    return rc
+
+
 def gh_fetch_multipage_json(url: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     if params is None:
         params = {}
@@ -72,7 +78,8 @@ def gh_fetch_multipage_json(url: str, params: Optional[Dict[str, Any]] = None) -
         prev_len = len(rc)
         params["page"] = page_idx
         page_idx += 1
-        rc += gh_fetch_json(url, params)
+        page_json = gh_fetch_json(url, params)
+        rc += page_json
     return rc
 
 
@@ -87,10 +94,22 @@ def gh_get_ref_statuses(org: str, project: str, ref: str) -> Dict[str, Any]:
             rc["statuses"] += nrc["statuses"]
     return rc
 
+def gh_get_runs_status(org: str, project: str, run_id: str) -> List[Dict[str, Any]]:
+    url = f'https://api.github.com/repos/{org}/{project}/check-runs/{run_id}'
+    return gh_fetch_json(url)
+
 
 def map_circle_status(status: str) -> str:
     if status == "running":
         return "pending"
+    if status == "infrastructure_fail":
+        return "failure"
+    return status
+
+
+def map_ghrun_status(status: str) -> str:
+    if status == "completed":
+        return "success"
     return status
 
 
@@ -109,15 +128,25 @@ def update_pending(branch: str = "master") -> None:
             status = value['status']
             build_url = value['build_url']
             if status not in ['success', 'skipped', 'error', 'failure']:
-                rc = re.match("https://circleci.com/gh/pytorch/pytorch/(\\d+)\\?", build_url)
-                if rc is not None:
-                    job_status = circleci_fetch_json(f"https://circleci.com/api/v2/project/gh/pytorch/pytorch/job/{rc.group(1)}")
+                circle_match = re.match("https://circleci.com/gh/pytorch/pytorch/(\\d+)\\?", build_url)
+                ghrun_match = re.match("https://github.com/pytorch/pytorch/runs/(\\d+)", build_url)
+                if circle_match is not None:
+                    job_id = int(circle_match.group(1))
+                    job_status = circleci_get_job_status("pytorch", "pytorch", job_id)
                     circle_status = map_circle_status(job_status['status'])
                     if status != circle_status:
                         job_statuses[name]['status'] = circle_status
                         has_updates = True
                         continue
-                    has_pending = True
+                if ghrun_match is not None:
+                    run_id = int(ghrun_match.group(1))
+                    check_status = gh_get_runs_status("pytorch", "pytorch", run_id)
+                    ghrun_status = map_ghrun_status(check_status['status'])
+                    if status != ghrun_status:
+                        job_statuses[name]['status'] = ghrun_status
+                        has_updates = True
+                        continue
+                has_pending = True
         if has_pending:
             print(f"[{idx}/{len(commit_index)}] {title} ( {commit_id} ) has pending statuses")
         if has_updates:
