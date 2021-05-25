@@ -6,6 +6,5 @@ This directory contains patches for additional `clang-tidy` that are not part of
 
 ```
 cd clang-tidy-checks
-chmod +x ./setup.sh
 ./setup.sh
 ```
