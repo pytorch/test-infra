@@ -100,9 +100,9 @@ def gh_get_runs_status(org: str, project: str, run_id: str) -> List[Dict[str, An
 
 
 def map_circle_status(status: str) -> str:
-    if status == "running":
+    if status in ["running", "queued"]:
         return "pending"
-    if status == "infrastructure_fail":
+    if status in ["infrastructure_fail", "failed"]:
         return "failure"
     return status
 
@@ -147,11 +147,13 @@ def update_pending(branch: str = "master") -> None:
                         has_updates = True
                         continue
                 has_pending = True
-        if has_pending:
-            print(f"[{idx}/{len(commit_index)}] {title} ( {commit_id} ) has pending statuses")
         if has_updates:
             print(f"[{idx}/{len(commit_index)}] {title} ( {commit_id} ) has updates")
             s3.Object(bucket_name, f'{branch}/{commit_id}.json').put(Body=json_dumps(job_statuses))
+        elif has_pending:
+            print(f"[{idx}/{len(commit_index)}] {title} ( {commit_id} ) has pending statuses")
+        else:
+            print(f"[{idx}/{len(commit_index)}] were processed")
 
 
 if __name__ == '__main__':
