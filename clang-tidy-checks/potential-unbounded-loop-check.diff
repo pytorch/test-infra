@@ -1,12 +1,3 @@
-diff --git a/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp b/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
-index b6b3b1944d0e..ce966df15579 100644
---- a/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
-+++ b/clang-tools-extra/clang-tidy/cert/FloatLoopCounter.cpp
-@@ -32,3 +32,4 @@ void FloatLoopCounter::check(const MatchFinder::MatchResult &Result) {
- } // namespace cert
- } // namespace tidy
- } // namespace clang
-+
 diff --git a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
 index 880b7aacdc65..b4cc2bcda831 100644
 --- a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
@@ -42,10 +33,10 @@ index e06768c548bd..72dc89e8519e 100644
      CheckFactories.registerCheck<StaticAssertCheck>("misc-static-assert");
 diff --git a/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp
 new file mode 100644
-index 000000000000..b00c0525ef4a
+index 000000000000..1f7b7347cef6
 --- /dev/null
 +++ b/clang-tools-extra/clang-tidy/misc/PotentialUnboundedLoopCheck.cpp
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,116 @@
 +//===--- PotentialUnboundedLoopCheck.cpp - clang-tidy
 +//-------------------------------===//
 +//
@@ -58,6 +49,7 @@ index 000000000000..b00c0525ef4a
 +#include "PotentialUnboundedLoopCheck.h"
 +#include "clang/AST/ASTContext.h"
 +#include "clang/ASTMatchers/ASTMatchFinder.h"
++#include "llvm/Support/FormatVariadic.h"
 +
 +using namespace clang::ast_matchers;
 +
@@ -117,14 +109,14 @@ index 000000000000..b00c0525ef4a
 +  auto IncOp = Result.Nodes.getNodeAs<UnaryOperator>("inc_op")->getOpcode();
 +  const auto *MatchedFor = Result.Nodes.getNodeAs<ForStmt>("for");
 +
-+  // only analyze non-compound types
-+  if (LHSDecl->getType()->isCompoundType() ||
-+      RHSDecl->getType()->isCompoundType() ||
-+      IncDecl->getType()->isCompoundType()) {
++  // only analyze integer types
++  if (!LHSDecl->getType()->isIntegerType() ||
++      !RHSDecl->getType()->isIntegerType() ||
++      !IncDecl->getType()->isIntegerType()) {
 +    return;
 +  }
 +
-+  // only analyze loops in which increment var used in condition
++  // only analyze loops in which increment var is used in condition
 +  if (IncDecl->getName() != LHSDecl->getName() &&
 +      IncDecl->getName() != RHSDecl->getName()) {
 +    return;
@@ -138,12 +130,20 @@ index 000000000000..b00c0525ef4a
 +  if (LHSWidth < RHSWidth) {
 +    if (((isLT(Op) || isLE(Op)) && isInc(IncOp)) ||
 +        ((isGT(Op) || isGE(Op)) && isDec(IncOp))) {
-+      diag(MatchedFor->getForLoc(), "Potential unbounded loop");
++      std::string Msg = llvm::formatv(
++          "Found LHS of bitwidth {0} and RHS of bitwidth {1}. This can \
++potentially lead to an unbounded loop. Explicitly cast the RHS before \
++performing the comparison.", LHSWidth, RHSWidth);
++      diag(MatchedFor->getForLoc(), Msg);
 +    }
 +  } else if (LHSWidth > RHSWidth) {
 +    if (((isGT(Op) || isGE(Op)) && isInc(IncOp)) ||
 +        ((isLT(Op) || isLE(Op)) && isDec(IncOp))) {
-+      diag(MatchedFor->getForLoc(), "Potential unbounded loop");
++      std::string Msg = llvm::formatv(
++          "Found LHS of bitwidth {0} and RHS of bitwidth {1}. This can \
++potentially lead to an unbounded loop. Explicitly cast the LHS before \
++performing the comparison.", LHSWidth, RHSWidth);
++      diag(MatchedFor->getForLoc(), Msg);
 +    }
 +  } else {
 +    return;
@@ -195,10 +195,10 @@ index 000000000000..2db44bcdd19c
 +#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_POTENTIALUNBOUNDEDLOOPCHECK_H
 diff --git a/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py b/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
 new file mode 100644
-index 000000000000..03755802e95d
+index 000000000000..052c28f245d0
 --- /dev/null
 +++ b/clang-tools-extra/clang-tidy/misc/gen_potential_unbounded_loop_test.py
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,170 @@
 +"""Potential Unbounded Loop Test Generator
 +
 +This script autogenerates tests for checking loop unbounded with integer types
@@ -209,6 +209,7 @@ index 000000000000..03755802e95d
 +"""
 +
 +import textwrap
++import re
 +
 +CHECK_NAME = "misc-potential-unbounded-loop"
 +
@@ -229,6 +230,10 @@ index 000000000000..03755802e95d
 +        raise f"invalid op: {op}"
 +
 +
++def sizeof_op(op):
++    return int(re.findall("\d+", op)[0])
++
++
 +def _gencode_helper(comp_op, inc_op, t1, t2, trigger=False, swap_comp_order=False):
 +    """Generates a C/C++ function containing a for-loop.
 +
@@ -239,10 +244,20 @@ index 000000000000..03755802e95d
 +        t2          The type of the bounds variable
 +    """
 +    code_indent = 4
-+    warning = f"warning: Potential unbounded loop [{CHECK_NAME}]"
 +
++    # build check_msg
 +    check_msg = ""
 +    if trigger:
++        # build warning message
++        lhs_sz, rhs_sz = sizeof_op(t1), sizeof_op(t2)
++        if swap_comp_order:
++            lhs_sz, rhs_sz = rhs_sz, lhs_sz
++        warning_base = f"Found LHS of bitwidth {lhs_sz} and RHS of bitwidth {rhs_sz}. This can potentially lead to an unbounded loop."
++        warning_rest = "Explicitly cast the RHS before performing the comparison."
++        if swap_comp_order:
++            warning_rest = "Explicitly cast the LHS before performing the comparison."
++        warning = f"warning: {warning_base} {warning_rest} [{CHECK_NAME}]"
++
 +        check_msg = f"// CHECK-MESSAGES: :[[@LINE-1]]:{code_indent + 1}: {warning}"
 +
 +    comp = f"i {comp_op} j"
@@ -354,97 +369,6 @@ index 000000000000..03755802e95d
 +
 +if __name__ == "__main__":
 +    main()
-diff --git a/clang-tools-extra/clang-tidy/rename_check.py b/clang-tools-extra/clang-tidy/rename_check.py
-index 4d5311c9a293..2410041fd5d2 100755
---- a/clang-tools-extra/clang-tidy/rename_check.py
-+++ b/clang-tools-extra/clang-tidy/rename_check.py
-@@ -120,16 +120,15 @@ def adapt_cmake(module_path, check_name_camel):
-       if (not file_added) and (cpp_line or cpp_found):
-         cpp_found = True
-         if (line.strip() > cpp_file) or (not cpp_line):
--          f.write('  ' + cpp_file + '\n')
-+          f.write(('  ' + cpp_file + '\n').encode())
-           file_added = True
--      f.write(line)
-+      f.write(line.encode())
- 
-   return True
- 
- # Modifies the module to include the new check.
- def adapt_module(module_path, module, check_name, check_name_camel):
--  modulecpp = filter(lambda p: p.lower() == module.lower() + 'tidymodule.cpp',
--                     os.listdir(module_path))[0]
-+  modulecpp = next(filter(lambda p: p.lower() == module.lower() + 'tidymodule.cpp', os.listdir(module_path)))
-   filename = os.path.join(module_path, modulecpp)
-   with open(filename, 'r') as f:
-     lines = f.readlines()
-@@ -149,21 +148,21 @@ def adapt_module(module_path, module, check_name, check_name_camel):
-           header_found = True
-           if match.group(1) > check_name_camel:
-             header_added = True
--            f.write('#include "' + check_name_camel + '.h"\n')
-+            f.write(('#include "' + check_name_camel + '.h"\n').encode())
-         elif header_found:
-           header_added = True
--          f.write('#include "' + check_name_camel + '.h"\n')
-+          f.write(('#include "' + check_name_camel + '.h"\n').encode())
- 
-       if not check_added:
-         if line.strip() == '}':
-           check_added = True
--          f.write(check_decl)
-+          f.write(check_decl.encode())
-         else:
-           match = re.search('registerCheck<(.*)>', line)
-           if match and match.group(1) > check_name_camel:
-             check_added = True
--            f.write(check_decl)
--      f.write(line)
-+            f.write(check_decl.encode())
-+      f.write(line.encode())
- 
- 
- # Adds a release notes entry.
-@@ -198,22 +197,22 @@ def add_release_notes(clang_tidy_path, old_check_name, new_check_name):
- 
-         if match:
-           header_found = True
--          f.write(line)
-+          f.write(line.encode())
-           continue
- 
-         if line.startswith('^^^^'):
--          f.write(line)
-+          f.write(line.encode())
-           continue
- 
-         if header_found and add_note_here:
-           if not line.startswith('^^^^'):
--            f.write("""- The '%s' check was renamed to :doc:`%s
-+            f.write(("""- The '%s' check was renamed to :doc:`%s
-   <clang-tidy/checks/%s>`
- 
--""" % (old_check_name, new_check_name, new_check_name))
-+""" % (old_check_name, new_check_name, new_check_name)).encode())
-             note_added = True
- 
--      f.write(line)
-+      f.write(line.encode())
- 
- def main():
-   parser = argparse.ArgumentParser(description='Rename clang-tidy check.')
-@@ -259,9 +258,9 @@ def main():
-             (check_name_camel, cmake_lists))
-       return 1
- 
--    modulecpp = filter(
-+    modulecpp = next(filter(
-         lambda p: p.lower() == old_module.lower() + 'tidymodule.cpp',
--        os.listdir(old_module_path))[0]
-+        os.listdir(old_module_path)))
-     deleteMatchingLines(os.path.join(old_module_path, modulecpp),
-                       '\\b' + check_name_camel + '|\\b' + args.old_check_name)
- 
 diff --git a/clang-tools-extra/docs/ReleaseNotes.rst b/clang-tools-extra/docs/ReleaseNotes.rst
 index 0471c5e9c4eb..733f016682bd 100644
 --- a/clang-tools-extra/docs/ReleaseNotes.rst
@@ -496,10 +420,10 @@ index 000000000000..d1da15754061
 +FIXME: Describe what patterns does the check detect and why. Give examples.
 diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp
 new file mode 100644
-index 000000000000..e996ed78c25d
+index 000000000000..e65c6d19043d
 --- /dev/null
 +++ b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop-extra.cpp
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,72 @@
 +// RUN: %check_clang_tidy %s misc-potential-unbounded-loop %t
 +#include<stdint.h>
 +
@@ -509,21 +433,18 @@ index 000000000000..e996ed78c25d
 +    int16_t j;
 +
 +    for (int8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +
-+// We get float checking for free because of the type information provided by
-+// the AST
++// Ignore non-integer types
 +void test_float() {
 +    double j;
 +
 +    // postfix
 +    for (float i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (float i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
 +}
 +
 +// Lint should ignore if literals used in loop
@@ -577,7 +498,7 @@ index 000000000000..e996ed78c25d
 +}
 diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp
 new file mode 100644
-index 000000000000..de366239de16
+index 000000000000..c194e15526b1
 --- /dev/null
 +++ b/clang-tools-extra/test/clang-tidy/checkers/misc-potential-unbounded-loop.cpp
 @@ -0,0 +1,2468 @@
@@ -721,88 +642,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int16_t_inc() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int16_t_dec() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int16_t_dec() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int16_t_inc() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int16_t_inc() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lt_int16_t_dec() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int16_t_dec() {
 +    int16_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_lt_int8_t_inc() {
 +    int8_t j;
@@ -897,88 +818,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lt_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int64_t_lt_int8_t_inc() {
 +    int8_t j;
@@ -1073,88 +994,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gt_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_gte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int8_t_lte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lt_int16_t_inc() {
 +    int16_t j;
@@ -1293,88 +1214,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int16_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lte_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gt_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gte_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gt_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gte_int32_t_inc() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lt_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lte_int32_t_dec() {
 +    int32_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int64_t_lt_int16_t_inc() {
 +    int16_t j;
@@ -1469,88 +1390,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int16_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gt_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_gte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int16_t_lte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int16_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int16_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_lt_int32_t_inc() {
 +    int32_t j;
@@ -1689,88 +1610,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (int32_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_lte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_gt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_gte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_gt_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_gte_int64_t_inc() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_lt_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int32_t_lte_int64_t_dec() {
 +    int64_t j;
 +
 +    // postfix
 +    for (int32_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (int32_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_int64_t_lt_int64_t_inc() {
 +    int64_t j;
@@ -1953,88 +1874,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint16_t_inc() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint16_t_dec() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint16_t_dec() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint16_t_inc() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint16_t_inc() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lt_uint16_t_dec() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint16_t_dec() {
 +    uint16_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_lt_uint8_t_inc() {
 +    uint8_t j;
@@ -2129,88 +2050,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lt_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint64_t_lt_uint8_t_inc() {
 +    uint8_t j;
@@ -2305,88 +2226,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint8_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 8 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gt_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_gte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint8_t_lte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint8_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint8_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 8. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lt_uint16_t_inc() {
 +    uint16_t j;
@@ -2525,88 +2446,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint16_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lte_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gt_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gte_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gt_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gte_uint32_t_inc() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lt_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lte_uint32_t_dec() {
 +    uint32_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint64_t_lt_uint16_t_inc() {
 +    uint16_t j;
@@ -2701,88 +2622,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint16_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 16 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gt_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_gte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint16_t_lte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint16_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint16_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 16. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_lt_uint32_t_inc() {
 +    uint32_t j;
@@ -2921,88 +2842,88 @@ index 000000000000..de366239de16
 +
 +    // postfix
 +    for (uint32_t i = 0; i < j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; i < j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_lte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; i <= j; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; i <= j; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_gt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; i > j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; i > j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_gte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; i >= j; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; i >= j; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 32 and RHS of bitwidth 64. This can potentially lead to an unbounded loop. Explicitly cast the RHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_gt_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; j > i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; j > i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_gte_uint64_t_inc() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; j >= i; i++);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; j >= i; ++i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_lt_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; j < i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; j < i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint32_t_lte_uint64_t_dec() {
 +    uint64_t j;
 +
 +    // postfix
 +    for (uint32_t i = 0; j <= i; i--);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +
 +    // prefix
 +    for (uint32_t i = 0; j <= i; --i);
-+    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Potential unbounded loop [misc-potential-unbounded-loop]
++    // CHECK-MESSAGES: :[[@LINE-1]]:5: warning: Found LHS of bitwidth 64 and RHS of bitwidth 32. This can potentially lead to an unbounded loop. Explicitly cast the LHS before performing the comparison. [misc-potential-unbounded-loop]
 +}
 +void test_uint64_t_lt_uint64_t_inc() {
 +    uint64_t j;
