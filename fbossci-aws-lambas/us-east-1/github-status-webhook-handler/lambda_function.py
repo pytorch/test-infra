@@ -4,9 +4,12 @@ import json
 import os
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-
 import boto3  # type: ignore
 import botocore  # type: ignore
+
+# non-standard lambda runtime dependencies can be installed as layers
+# see instructions in requirements.txt
+import redis
 
 s3 = boto3.resource('s3')
 
@@ -43,7 +46,8 @@ def handle_commits(commits, ref) -> None:
     status_index = s3_get_json(bucket_name, f'{branch_name}/index.json', [])
     status_index.extend(commits)
     status_index = status_index[-100:]  # only keep most recent 100
-    s3.Object(bucket_name, f'{branch_name}/index.json').put(Body=json_dumps(status_index))
+    s3.Object(
+        bucket_name, f'{branch_name}/index.json').put(Body=json_dumps(status_index))
     print(f"Updated commit index for {branch_name}")
 
 
@@ -64,7 +68,8 @@ def get_workflow_name(job_id):
             return fetch_json(f'{url_prefix}runs/{run_id}').get('name')
     except HTTPError as err:
         if err.code == 403 and all(key in err.headers for key in ['X-RateLimit-Limit', 'X-RateLimit-Used']):
-            print(f"Rate limit exceeded: {err.headers['X-RateLimit-Used']}/{err.headers['X-RateLimit-Limit']}")
+            print(
+                f"Rate limit exceeded: {err.headers['X-RateLimit-Used']}/{err.headers['X-RateLimit-Limit']}")
         pass
     except Exception:
         pass
@@ -135,12 +140,21 @@ def lambda_handler(event, context):
         "commit_source": commit_source,
         "bucket": "ossci-job-status",
     }))
-
     status_file_name = commitId+'.json'
-    job_statuses = s3_get_json(bucket_name, f'{commit_source}/{status_file_name}', {})
-    combined_job_statuses = s3_get_json(bucket_name, f'combined/{status_file_name}', {})
-    job_statuses[job_name] = {'status': status, 'build_url': build_url}
-    combined_job_statuses[job_name] = {'status': status, 'build_url': build_url}
-    s3.Object(bucket_name, f'{commit_source}/{status_file_name}').put(Body=json_dumps(job_statuses))
-    s3.Object(bucket_name, f'combined/{status_file_name}').put(Body=json_dumps(combined_job_statuses))
+
+    timeout_in_seconds = 60
+    r = redis.Redis(host=os.environ.get('redis_host'))
+    with r.lock(commitId, timeout_in_seconds):
+        job_statuses = s3_get_json(
+            bucket_name, f'{commit_source}/{status_file_name}', {})
+        combined_job_statuses = s3_get_json(
+            bucket_name, f'combined/{status_file_name}', {})
+        job_statuses[job_name] = {'status': status, 'build_url': build_url}
+        combined_job_statuses[job_name] = {
+            'status': status, 'build_url': build_url}
+        s3.Object(
+            bucket_name, f'{commit_source}/{status_file_name}').put(Body=json_dumps(job_statuses))
+        s3.Object(bucket_name, f'combined/{status_file_name}').put(
+            Body=json_dumps(combined_job_statuses))
+
     return {"statusCode": 200, "body": "update processed"}
