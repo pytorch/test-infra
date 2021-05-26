@@ -96,7 +96,8 @@ def lambda_handler(event, context):
     # check_run
     if "check_run" in body:
         commitId = body["check_run"]["head_sha"]
-        build_url = body["check_run"]["details_url"]
+        # html_url should link to the overall workflow page
+        build_url = body["check_run"]["html_url"]
         workflow_name = get_workflow_name(body["check_run"]["id"])
         if workflow_name:
             job_name = f'{workflow_name} / {body["check_run"]["name"]}'
