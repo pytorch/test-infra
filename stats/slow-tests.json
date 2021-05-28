@@ -1,23 +1,4 @@
 {
-    "IntegerDivider (__main__.TestCUDAIntegerDivider)": 151.3115,
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 90.946,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 221.66,
-    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 129.985,
-    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 128.835,
-    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 116.032,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithFork)": 124.699,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn)": 126.309,
-    "test_inverse_many_batches_cuda_complex128 (__main__.TestLinalgCUDA)": 1417.595,
-    "test_inverse_many_batches_cuda_complex64 (__main__.TestLinalgCUDA)": 1407.7,
-    "test_inverse_many_batches_cuda_float32 (__main__.TestLinalgCUDA)": 1963.643,
-    "test_inverse_many_batches_cuda_float64 (__main__.TestLinalgCUDA)": 1407.731,
-    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 112.2344,
-    "test_matrix_exp_analytic_cuda_complex128 (__main__.TestLinalgCUDA)": 170.804,
-    "test_matrix_exp_analytic_cuda_complex64 (__main__.TestLinalgCUDA)": 171.79,
-    "test_matrix_exp_analytic_cuda_float32 (__main__.TestLinalgCUDA)": 241.813,
-    "test_matrix_exp_analytic_cuda_float64 (__main__.TestLinalgCUDA)": 172.185,
-    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 70.285,
-    "test_proper_exit (__main__.TestDataLoader)": 187.67,
-    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 187.558,
-    "test_zfnet (__main__.onnx.tests.c2_ref_test.TestCaffe2End2End)": 69.275
+    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 123.221,
+    "test_mean_dim_cpu (__main__.TestReductionsCPU)": 65.33850000000001
 }
