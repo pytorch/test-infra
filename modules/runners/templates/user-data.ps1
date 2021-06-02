@@ -16,6 +16,9 @@ Remove-Item C:\amazon-cloudwatch-agent.msi
 # %{~ endif ~}
 ## --- cloudwatch-agent ----
 
+# Source Chocolatey Powershell profile
+. "$PsHome\Microsoft.PowerShell_profile.ps1"
+
 ${install_config_runner}
 ${post_install}
 
