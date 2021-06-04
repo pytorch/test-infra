@@ -12,10 +12,10 @@ index b4cc2bcda831..0d10d978265a 100644
    NewDeleteOverloadsCheck.cpp
 diff --git a/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
 new file mode 100644
-index 000000000000..4def2d9db7ef
+index 000000000000..50d29634f1de
 --- /dev/null
 +++ b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,63 @@
 +//===--- MaxTokensCheck.cpp - clang-tidy ----------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -42,7 +42,7 @@ index 000000000000..4def2d9db7ef
 +  MaxTokensPPCallbacks(MaxTokensCheck *Check) : Check(Check) {}
 +
 +  void diag(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount) {
-+    if (TokenCount > MaxTokenCount) {
++    if (MaxTokenCount != 0 && TokenCount > MaxTokenCount && Loc.isValid()) {
 +      std::string Msg = llvm::formatv(
 +          "Number of tokens ({0}) exceeds the specified maximum ({1})",
 +          TokenCount, MaxTokenCount);
@@ -57,6 +57,7 @@ index 000000000000..4def2d9db7ef
 +
 +  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount,
 +                            unsigned MaxTokenCount) override {
++    MaxTokenCount = MaxTokenCount == 0 ? Check->FMaxTokens : MaxTokenCount;
 +    diag(Loc, TokenCount, MaxTokenCount);
 +  }
 +
@@ -71,15 +72,19 @@ index 000000000000..4def2d9db7ef
 +  PP->addPPCallbacks(std::make_unique<MaxTokensPPCallbacks>(this));
 +}
 +
++void MaxTokensCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
++  Options.store(Opts, "FMaxTokens", FMaxTokens);
++}
++
 +} // namespace misc
 +} // namespace tidy
 +} // namespace clang
 diff --git a/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
 new file mode 100644
-index 000000000000..b5b917e93816
+index 000000000000..5e73923ad0e7
 --- /dev/null
 +++ b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,37 @@
 +//===--- MaxTokensCheck.h - clang-tidy --------------------------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -104,8 +109,12 @@ index 000000000000..b5b917e93816
 +class MaxTokensCheck : public ClangTidyCheck {
 +public:
 +  MaxTokensCheck(StringRef Name, ClangTidyContext *Context)
-+      : ClangTidyCheck(Name, Context) {}
-+  void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP, Preprocessor *ModuleExpanderPP) override;
++      : ClangTidyCheck(Name, Context),
++        FMaxTokens(Options.get("FMaxTokens", 0)) {}
++  const unsigned FMaxTokens;
++  void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
++                           Preprocessor *ModuleExpanderPP) override;
++  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
 +};
 +
 +} // namespace misc
@@ -176,46 +185,53 @@ index 000000000000..e6995cd8748b
 +FIXME: Describe what patterns does the check detect and why. Give examples.
 diff --git a/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp b/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp
 new file mode 100644
-index 000000000000..f492e20515c5
+index 000000000000..661f168acd98
 --- /dev/null
 +++ b/clang-tools-extra/test/clang-tidy/checkers/misc-max-tokens.cpp
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,20 @@
 +// RUN: %check_clang_tidy %s misc-max-tokens %t
++// RUN: %check_clang_tidy -check-suffix=NOT-HIT-MAX-TOKEN %s misc-max-tokens %t -- -config="{CheckOptions: [{key: misc-max-tokens.FMaxTokens, value: 10}]}"
++// RUN: %check_clang_tidy -check-suffix=MAX-TOKEN %s misc-max-tokens %t -- -config="{CheckOptions: [{key: misc-max-tokens.FMaxTokens, value: 1}]}"
++// RUN: %check_clang_tidy -check-suffix=MAX-TOKEN-OVERRIDE %s misc-max-tokens %t -- -- -DMAX_TOKEN_OVERRIDE
 +
-+// FIXME: Add something that triggers the check here.
-+void f();
-+// CHECK-MESSAGES: :[[@LINE-1]]:6: warning: function 'f' is insufficiently awesome [misc-max-tokens]
++int x, y, z;
 +
-+// FIXME: Verify the applied fix.
-+//   * Make the CHECK patterns specific enough and try to make verified lines
-+//     unique to avoid incorrect matches.
-+//   * Use {{}} for regular expressions.
-+// CHECK-FIXES: {{^}}void awesome_f();{{$}}
++#pragma clang max_tokens_here 1
++// CHECK-MESSAGES: :[[@LINE-1]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-NOT-HIT-MAX-TOKEN: :[[@LINE-2]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-MAX-TOKEN: :[[@LINE-3]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
++// CHECK-MESSAGES-MAX-TOKEN-OVERRIDE: :[[@LINE-4]]:31: warning: Number of tokens (7) exceeds the specified maximum (1)
 +
-+// FIXME: Add something that doesn't trigger the check here.
-+void awesome_f2();
++#pragma clang max_tokens_here 10
++
++#ifdef MAX_TOKEN_OVERRIDE
++#pragma clang max_tokens_total 3
++// CHECK-MESSAGES-MAX-TOKEN-OVERRIDE: :[[@LINE-1]]:32: warning: Number of tokens (8) exceeds the specified maximum (3)
++#endif
++// CHECK-MESSAGES-MAX-TOKEN: :[[@LINE]]:3: warning: Number of tokens (8) exceeds the specified maximum (1)
 diff --git a/clang/include/clang/Lex/PPCallbacks.h b/clang/include/clang/Lex/PPCallbacks.h
-index de5e8eb2ca22..8351b3492837 100644
+index de5e8eb2ca22..e7c048e8637a 100644
 --- a/clang/include/clang/Lex/PPCallbacks.h
 +++ b/clang/include/clang/Lex/PPCallbacks.h
-@@ -276,6 +276,16 @@ public:
+@@ -276,6 +276,17 @@ public:
    /// is read.
    virtual void PragmaAssumeNonNullEnd(SourceLocation Loc) {}
  
-+  /// TODO: MaxTokens documentation
++  /// Callback invoked when a \#pragma clang max_tokens_here directive is processed.
 +  virtual void PragmaMaxTokensHere(SourceLocation Loc,
 +                                   unsigned CurrTokenCount,
 +                                   unsigned MaxTokenCount) {}
 +
-+  /// TODO: MaxTokens documentation
++  /// Callback invoked when a \#pragma clang max_tokens_all directive is
++  /// processed, which happens at the end of the file
 +  virtual void PragmaMaxTokensTotal(SourceLocation Loc,
-+                                   unsigned TokenCount,
-+                                   unsigned MaxTokenCount) {}
++                                    unsigned TokenCount,
++                                    unsigned MaxTokenCount) {}
 +
    /// Called by Preprocessor::HandleMacroExpandedIdentifier when a
    /// macro invocation is found.
    virtual void MacroExpands(const Token &MacroNameTok,
-@@ -535,6 +545,16 @@ public:
+@@ -535,6 +546,16 @@ public:
      Second->PragmaAssumeNonNullEnd(Loc);
    }
  
@@ -249,15 +265,19 @@ index 6402b31d00b2..4fb081aa5618 100644
      PP.Diag(Loc, diag::warn_max_tokens)
          << PP.getTokenCount() << (unsigned)MaxTokens;
 diff --git a/clang/lib/Parse/Parser.cpp b/clang/lib/Parse/Parser.cpp
-index 764d4e8e9d52..492eb058edfe 100644
+index 764d4e8e9d52..ec8b68d73ccc 100644
 --- a/clang/lib/Parse/Parser.cpp
 +++ b/clang/lib/Parse/Parser.cpp
-@@ -651,6 +651,10 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result, bool IsFirstDecl) {
+@@ -651,6 +651,14 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result, bool IsFirstDecl) {
        }
      }
  
 +    if (PP.getPPCallbacks()) {
-+      PP.getPPCallbacks()->PragmaMaxTokensTotal(PP.getMaxTokensOverrideLoc(), PP.getTokenCount(), PP.getMaxTokens());
++      SourceLocation Loc = PP.getMaxTokensOverrideLoc();
++      if (!Loc.isValid()) {
++        Loc = Tok.getLocation();
++      }
++      PP.getPPCallbacks()->PragmaMaxTokensTotal(Loc, PP.getTokenCount(), PP.getMaxTokens());
 +    }
 +
      // Late template parsing can begin.
