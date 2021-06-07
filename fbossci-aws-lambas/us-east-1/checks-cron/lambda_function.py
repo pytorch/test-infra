@@ -122,9 +122,8 @@ async def main():
             print("Ran too early, not doing anything")
             return
 
-        if len(all_stats) >= MAX_LEN:
-            # Chop off old data
-            all_stats = all_stats[:MAX_LEN]
+        # Chop off old data
+        all_stats = all_stats[:MAX_LEN]
 
         all_stats.insert(0, await get_gha_statuses())
         print("writing", all_stats)
