@@ -53,6 +53,7 @@ function build() {
         -DLLVM_BUILD_UTILS=OFF \
         -GNinja ../llvm
   cmake --build .
+  success
 }
 
 function setup() {
