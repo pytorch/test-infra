@@ -1,5 +1,5 @@
 diff --git a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
-index b4cc2bcda831..0d10d978265a 100644
+index 880b7aacdc65..730a3a506818 100644
 --- a/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
 +++ b/clang-tools-extra/clang-tidy/misc/CMakeLists.txt
 @@ -5,6 +5,7 @@ set(LLVM_LINK_COMPONENTS
@@ -123,7 +123,7 @@ index 000000000000..5e73923ad0e7
 +
 +#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_MAXTOKENSCHECK_H
 diff --git a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
-index 72dc89e8519e..3593a360b9ad 100644
+index e06768c548bd..9eb4f37fae9a 100644
 --- a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
 +++ b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
 @@ -10,6 +10,7 @@
@@ -134,7 +134,7 @@ index 72dc89e8519e..3593a360b9ad 100644
  #include "MisplacedConstCheck.h"
  #include "NewDeleteOverloadsCheck.h"
  #include "NoRecursionCheck.h"
-@@ -34,6 +35,8 @@ public:
+@@ -33,6 +34,8 @@ public:
    void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
      CheckFactories.registerCheck<DefinitionsInHeadersCheck>(
          "misc-definitions-in-headers");
@@ -144,23 +144,24 @@ index 72dc89e8519e..3593a360b9ad 100644
      CheckFactories.registerCheck<NewDeleteOverloadsCheck>(
          "misc-new-delete-overloads");
 diff --git a/clang-tools-extra/docs/ReleaseNotes.rst b/clang-tools-extra/docs/ReleaseNotes.rst
-index 733f016682bd..cf5e1d251d06 100644
+index 0471c5e9c4eb..913d0c791682 100644
 --- a/clang-tools-extra/docs/ReleaseNotes.rst
 +++ b/clang-tools-extra/docs/ReleaseNotes.rst
-@@ -301,6 +301,11 @@ New checks
+@@ -301,6 +301,12 @@ New checks
    Finds includes of system libc headers not provided by the compiler within
    llvm-libc implementations.
  
++=======
 +- New :doc:`misc-max-tokens
 +  <clang-tidy/checks/misc-max-tokens>` check.
 +
 +  FIXME: add release notes.
 +
- - New :doc:`misc-my-first-check
-   <clang-tidy/checks/misc-potential-unbounded-loop>` check.
+ - New :doc:`misc-no-recursion
+   <clang-tidy/checks/misc-no-recursion>` check.
  
 diff --git a/clang-tools-extra/docs/clang-tidy/checks/list.rst b/clang-tools-extra/docs/clang-tidy/checks/list.rst
-index b8d9b63bedb9..93e3b012badb 100644
+index 78fed1a8ed9c..b85f226052f8 100644
 --- a/clang-tools-extra/docs/clang-tidy/checks/list.rst
 +++ b/clang-tools-extra/docs/clang-tidy/checks/list.rst
 @@ -195,6 +195,7 @@ Clang-Tidy Checks

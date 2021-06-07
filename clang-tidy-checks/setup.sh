@@ -22,6 +22,9 @@ function check_requirements() {
 
 function clone_llvm() {
   info "cloning llvm"
+  if [[ -d llvm-project ]]; then
+    rm -rf llvm-project
+  fi
   git clone -b llvmorg-11.0.0 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
@@ -30,6 +33,7 @@ function apply_patches() {
   info "applying patches"
   cd llvm-project
   cat ../potential-unbounded-loop-check.diff | patch -p1 -N -d .
+  cat ../max-tokens-check.diff | patch -p1 -N -d .
   success
 }
 
@@ -47,7 +51,7 @@ function build() {
         -DLLVM_BUILD_TOOLS=OFF \
         -DLLVM_BUILD_UTILS=OFF \
         -GNinja ../llvm
-  cmake --build build
+  cmake --build .
 }
 
 function setup() {
