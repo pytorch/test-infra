@@ -32,8 +32,9 @@ function clone_llvm() {
 function apply_patches() {
   info "applying patches"
   cd llvm-project
-  cat ../potential-unbounded-loop-check.diff | patch -p1 -N -d .
-  cat ../max-tokens-check.diff | patch -p1 -N -d .
+  for check in ../*.diff; do
+    patch -p1 -N -d . < "$check"
+  done
   success
 }
 
@@ -43,7 +44,7 @@ function build() {
   cmake -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DLLVM_ENABLE_PROJECTS=clang,clang-tools-extra \
+        -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" \
         -DLLVM_USE_LINKER=lld \
         -DLLVM_TARGETS_TO_BUILD="X86" \
         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
