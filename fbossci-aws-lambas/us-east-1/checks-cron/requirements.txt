@@ -1,0 +1,10 @@
+# To install the lambda layers:
+#
+# pip install --target ./python -r requirements.txt
+# zip -r layer.zip ./python
+#
+# Then upload the layer via aws console or aws cli
+# Update the lambda's layer reference to the newly uploaded layer
+
+aioboto3
+aiohttp

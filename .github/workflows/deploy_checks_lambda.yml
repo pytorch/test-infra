@@ -1,0 +1,29 @@
+name: Deploy Checks Updater Lambda
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/deploy_lambda.yml'
+      - 'fbossci-aws-lambas/us-east-1/checks-cron/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          cd fbossci-aws-lambas/us-east-1/checks-cron
+          make deployment.zip
+      - name: Deploy
+        uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: us-east-1
+          function_name: checks-cron
+          timeout: 15
+          zip_file: fbossci-aws-lambas/us-east-1/checks-cron/deployment.zip
