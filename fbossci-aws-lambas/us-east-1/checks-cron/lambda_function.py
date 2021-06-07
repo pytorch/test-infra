@@ -67,7 +67,7 @@ def should_check_github(stats):
     if len(stats) == 0:
         return True
 
-    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(stats[-1]["last_updated"])
+    delta = datetime.datetime.now() - datetime.datetime.fromtimestamp(stats[0]["last_updated"])
     return delta > datetime.timedelta(minutes=5)
 
 
@@ -75,6 +75,13 @@ def should_check_github(stats):
 async def get_gha_statuses(max_pages=30, batch_size=10):
     all_statuses = collections.defaultdict(lambda: 0)
 
+    # There's no way to get all the unfinished jobs from the GitHub Actions API,
+    # here this assumes that it returns the most recent data first (and it's all
+    # paginated via the API), the heuristic here is that once the lambda has
+    # seen a certain number of completed jobs with no pending/queued/in progress
+    # jobs in between, it's probably safe to assume we've seen all the
+    # unfinished jobs. The stuff here is just making sure it checks a certain
+    # number of completed jobs before moving on (page size * max_pages_past)
     max_pages_past = 10
     pages_past = max_pages_past
 

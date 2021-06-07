@@ -3,7 +3,7 @@ deployment.zip:
 	cd python && zip -r ../deployment.zip .
 	zip -g deployment.zip lambda_function.py
 
-update: deployment.zip
+manual_update: deployment.zip
 	aws lambda update-function-code --function-name github-checks-status-updater --zip-file fileb://deployment.zip
 
 clean:
