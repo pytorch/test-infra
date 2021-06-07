@@ -135,6 +135,5 @@ async def main():
 
 def lambda_handler(event, context):
     print("handling lambda")
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    asyncio.run(main())
     return {"statusCode": 200, "body": "update processed"}
