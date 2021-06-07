@@ -61,5 +61,10 @@ function setup() {
   build
 }
 
+function verify() {
+  [[ -e bin/clang-tidy ]]
+}
+
 check_requirements
 setup
+verify
