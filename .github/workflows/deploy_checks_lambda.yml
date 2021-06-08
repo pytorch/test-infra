@@ -24,6 +24,6 @@ jobs:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
-          function_name: checks-cron
+          function_name: github-checks-status-updater
           timeout: 15
           zip_file: fbossci-aws-lambas/us-east-1/checks-cron/deployment.zip
