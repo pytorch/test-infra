@@ -1,0 +1,120 @@
+version: '3.6'
+
+services:
+  query_service:
+    image: {{ query_service_image }}
+    command: ["/bin/sh", "-c", "ln -sf $${TZ_FILE} /etc/localtime && until nc -z db 3306; do sleep 1; done && mysql -u$${MYSQL_USER} -p$${MYSQL_PASS} < /mysql-scripts/00-cxl.sql; bin/query_service -http_port 8086 -threads $${HTTP_THREADS} -mysql_url tcp://$${MYSQL_HOST}:3306 -mysql_user $${MYSQL_USER} -mysql_pass $${MYSQL_PASS} {% if keycloak_enabled %} -keycloak_enabled true -keycloak_host $${KEYCLOAK_HOST} -keycloak_realm $${KEYCLOAK_REALM} -keycloak_client_id $${KEYCLOAK_CLIENT_ID} -keycloak_client_secret $${KEYCLOAK_CLIENT_SECRET} {% endif %} -logtostderr -enable_kafka_stats=$${KAFKA_STATS_ENABLED} -kafka_broker_endpoint_list=$${KAFKA_BROKER_LIST} -enable_kafka_hf_stats=$${KAFKA_HF_STATS_ENABLED}"]
+    env_file:
+      - {{ stats_gfs_path }}/env/stats.env
+      - {{ stats_gfs_path }}/env/stats_hf.env
+      - {{ stats_gfs_path }}/env/time.env
+{% if keycloak_enabled %}
+      - {{ stats_gfs_path }}/env/qs_auth.env
+{% endif %}
+      - {{ db_gfs_path }}/env/mysql.env
+    volumes:
+      - {{ db_gfs_path }}/volumes/mysql_init_scripts:/mysql-scripts
+    networks:
+      - terragraph_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  prometheus:
+    image: prom/prometheus
+    command: ["--config.file=/etc/prometheus/prometheus.yml",
+              "--storage.tsdb.path=/prometheus",
+              "--web.console.libraries=/usr/share/prometheus/console_libraries",
+              "--web.console.templates=/usr/share/prometheus/consoles",
+              "--web.external-url=https://prometheus/prometheus/",
+              "--web.route-prefix=/",
+              "--web.enable-lifecycle",
+              {% for flag in prometheus_flags %}
+              "{{ flag }}",
+              {% endfor %}
+              ]
+    user: root
+    networks:
+      - terragraph_net
+    deploy:
+      placement:
+        constraints:
+          - node.labels.prometheus == true
+    volumes:
+      - {{ stats_gfs_path }}/config:/etc/prometheus
+      - {{ prometheus_data_path }}/data:/prometheus
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  prometheus_cache:
+    image: facebookincubator/prometheus-edge-hub:1.1.0
+    command: ["/bin/sh", "-c", "/bin/prometheus-edge-hub -limit=$${PROMETHEUS_CACHE_LIMIT}"]
+    user: root
+    env_file:
+      - {{ stats_gfs_path }}/env/prometheus.env
+    networks:
+      - terragraph_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  alertmanager:
+      image: prom/alertmanager
+      command: ["--config.file=/etc/prometheus/alertmanager.yml"]
+      env_file:
+        - {{ stats_gfs_path }}/env/prometheus.env
+      networks:
+        - terragraph_net
+      volumes:
+        - {{ stats_gfs_path }}/config:/etc/prometheus:ro
+      logging:
+        driver: "json-file"
+        options:
+          max-size: "20m"
+          max-file: "10"
+      depends_on:
+        - ipv6
+        - prometheus
+
+  prometheus_configurer:
+    image: facebookincubator/prometheus-configurer:1.0.1
+    command: ['-port=9100' ,
+              '-rules-dir=/etc/configs/alert_rules/',
+              '-prometheusURL=stats_prometheus:9090',
+              '-multitenant-label=networkID']
+    networks:
+      - terragraph_net
+    volumes:
+      - {{ stats_gfs_path }}/config:/etc/configs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  alertmanager_configurer:
+    image: facebookincubator/alertmanager-configurer:1.0.1
+    command: ['-port=9101',
+              '-alertmanager-conf=/etc/configs/alertmanager.yml',
+              '-alertmanagerURL=stats_alertmanager:9093',
+              '-multitenant-label=networkID']
+    networks:
+      - terragraph_net
+    volumes:
+      - {{ stats_gfs_path }}/config:/etc/configs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+networks:
+  terragraph_net:
+    external: true

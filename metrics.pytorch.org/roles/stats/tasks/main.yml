@@ -1,0 +1,43 @@
+---
+- name: create stats paths
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: 0755
+  with_items:
+    - "{{ stats_gfs_path }}/env"
+    - "{{ stats_gfs_path }}/config"
+    - "{{ stats_gfs_path }}/config/alert_rules"
+    - "{{ prometheus_data_path }}/data"
+
+- name: copy env files
+  template:
+    src: "{{ item }}"
+    dest: "{{ stats_gfs_path }}/env"
+    mode: 0644
+    owner: "{{ docker_user }}"
+    group: docker
+    force: no
+  with_items:
+    - time.env
+    - stats.env
+    - stats_hf.env
+    - prometheus.env
+    - qs_auth.env
+
+- name: overwrite managed stats configs
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+    owner: "{{ docker_user }}"
+    group: docker
+    force: yes
+  loop:
+    - { src: "docker-compose.yml", dest: "{{ stats_gfs_path }}" }
+    - { src: "prometheus.yml", dest: "{{ stats_gfs_path }}/config" }
+
+- name: run compose
+  command: "docker stack deploy -c {{ stats_gfs_path }}/docker-compose.yml --with-registry-auth --prune stats"

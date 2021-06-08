@@ -1,0 +1,60 @@
+---
+- name: create db paths
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: 0755
+  with_items:
+    - "{{ db_gfs_path }}/env"
+    - "{{ db_gfs_path }}/scripts"
+    - "{{ db_gfs_path }}/volumes/mysql_init_scripts"
+
+- name: set permissions on mysql data dir
+  file:
+    path: "{{ db_data_path }}/mysql"
+    state: directory
+    owner: "999" # uid = mysql
+    group: "999" # gid = mysql
+    mode: 0755
+
+- name: copy env files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    owner: "{{ docker_user }}"
+    group: docker
+    force: no
+  with_items:
+    - { src: "time.env", dest: "{{ db_gfs_path }}/env", mode: "0644" }
+    - { src: "mysql.env", dest: "{{ db_gfs_path }}/env", mode: "0644" }
+    - { src: "00-cxl.sql", dest: "{{ db_gfs_path }}/volumes/mysql_init_scripts", mode: "0755" }
+
+- name: copy scripts
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: 0755
+    force: yes
+  loop:
+    - { src: "create_service_database.sh", dest: "{{ db_gfs_path }}/scripts"}
+    - { src: "service.sql", dest: "{{ db_gfs_path }}/scripts"}
+
+- name: copy db config
+  template:
+    src: "docker-compose.yml"
+    dest: "{{ db_gfs_path }}"
+    mode: 0644
+    owner: "{{ docker_user }}"
+    group: docker
+    force: yes
+
+- name: add database label to docker node
+  shell: "docker node update --label-add \"database=true\" {{ ansible_nodename }}"
+
+- name: run compose
+  shell: "docker stack deploy -c {{ db_gfs_path }}/docker-compose.yml --with-registry-auth --prune database"

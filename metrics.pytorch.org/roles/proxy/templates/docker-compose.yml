@@ -1,0 +1,38 @@
+version: '3.7'
+
+services:
+  nginx:
+    image: {{ nginx_image }}
+    env_file:
+      - env/time.env
+    ports:
+      - "80:80"             # NMS Non-SSL port
+      - "443:443"           # NMS SSL port
+      - "6969:6969"         # Chihaya torrent tracker port
+      - "9200:9200"         # Elasticsearch port
+      - "9108:9108"         # Elasticsearch exporter port
+      - "24224:24224"       # Fluentd port
+      - "24224:24224/udp"   # Fluentd port
+      - "24231:24231"       # Fluentd exporter port
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+    networks:
+      - inbound
+      - terragraph_net
+    volumes:
+      - "{{ terragraph_docker_path }}/proxy/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf"
+      - "{{ terragraph_docker_path }}/proxy/conf/conf.d:/usr/local/openresty/nginx/conf/conf.d"
+      - "{{ terragraph_docker_path }}/proxy/certs:/etc/letsencrypt"
+      - "{{ terragraph_docker_path }}/proxy/users/htpasswd:/usr/local/openresty/nginx/.htpasswd"
+      - "{{ sysdump_gfs_path }}:{{ sysdump_gfs_path }}"
+      - "{{ e2e_path }}:{{ e2e_path }}"
+    command: ["/bin/sh", "-c", "ln -sf $${TZ_FILE} /etc/localtime && init-cert.sh && /usr/sbin/crond && openresty -g 'daemon off;'"]
+
+networks:
+  inbound:
+    external: true
+  terragraph_net:
+    external: true

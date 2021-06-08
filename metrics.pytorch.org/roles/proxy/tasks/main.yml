@@ -1,0 +1,126 @@
+---
+- name: create proxy paths
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: 0755
+  with_items:
+    - "{{ terragraph_docker_path }}/proxy/certs"
+    - "{{ terragraph_docker_path }}/proxy/env"
+    - "{{ terragraph_docker_path }}/proxy/users"
+
+- name: copy docker compose
+  template:
+    src: docker-compose.yml
+    dest: "{{ terragraph_docker_path }}/proxy"
+    mode: "0644"
+    owner: "{{ docker_user }}"
+    group: docker
+    force: yes
+
+- name: copy config
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+    owner: "{{ docker_user }}"
+    group: docker
+  with_items:
+    - { src: "time.env", dest: "{{ terragraph_docker_path }}/proxy/env" }
+    - { src: "nginx.conf", dest: "{{ terragraph_docker_path }}/proxy/conf" }
+    - { src: "http.conf", dest: "{{ terragraph_docker_path }}/proxy/conf/conf.d" }
+    - { src: "node_images.conf", dest: "{{ terragraph_docker_path }}/proxy/conf/conf.d" }
+  vars:
+    upstream_nms: nms
+    upstream_grafana: grafana
+    upstream_jupyter: jupyter
+    upstream_prometheus: prometheus
+    upstream_kibana: kibana
+    upstream_keycloak: keycloak_keycloak
+    upstream_chihaya: chihaya
+    upstream_elasticsearch: elasticsearch
+    upstream_exporter: es_exporter
+    upstream_fluentd: fluentd
+    upstream_docs: docs
+    resolver: "127.0.0.11"
+
+- name: copy nginx backend stream config
+  template:
+    src: stream.conf
+    dest: "{{ terragraph_docker_path }}/proxy/conf/conf.d/streams"
+    mode: "0644"
+    owner: "{{ docker_user }}"
+    group: docker
+
+- name: find existing stream configs
+  find:
+    paths: "{{ terragraph_docker_path }}/proxy/conf/conf.d/streams"
+    patterns: "stream-*.conf"
+  register: stream_configs
+
+- name: delete existing stream configs
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{stream_configs.files }}"
+
+- name: copy nginx backend config
+  template:
+    src: stream-controller.conf
+    dest: "{{ terragraph_docker_path }}/proxy/conf/conf.d/streams/stream-{{ controller_name }}.conf"
+    mode: "0644"
+    owner: "{{ docker_user }}"
+    group: docker
+  vars:
+    controller_name: "{{ ctrlr.name | trim | replace(' ', '_') | lower }}"
+    controller_port: "{{ ctrlr.ctrlr_port }}"
+    aggregator_port: "{{ ctrlr.agg_port }}"
+    e2e_app_port: "{{ ctrlr.app_port }}"
+    bt_seeder_port: "{{ ctrlr.bt_seeder_port}}"
+  with_items: "{{ controllers_list }}"
+  loop_control:
+    loop_var: ctrlr
+    index_var: index
+
+- name: create cert paths
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: docker
+    mode: "0700"
+  with_items:
+    - "{{ terragraph_docker_path }}/proxy/certs/live/{{ ext_nms_hostname }}"
+  when: ssl_cert_file is defined
+
+- name: copy private key file
+  copy:
+    src: "{{ ssl_key_file }}"
+    dest: "{{ terragraph_docker_path }}/proxy/certs/live/{{ ext_nms_hostname }}/privkey.pem"
+    mode: "0600"
+    owner: "{{ docker_user }}"
+    group: docker
+  when: ssl_key_file is defined
+
+- name: copy certificate file
+  copy:
+    src: "{{ ssl_cert_file }}"
+    dest: "{{ terragraph_docker_path }}/proxy/certs/live/{{ ext_nms_hostname }}/fullchain.pem"
+    mode: "0600"
+    owner: "{{ docker_user }}"
+    group: docker
+  when: ssl_cert_file is defined
+
+- name: copy service file
+  template:
+    src: nginx_proxy_monitor.service
+    dest: /lib/systemd/system
+
+- name: start the service
+  systemd:
+    name: nginx_proxy_monitor
+    daemon_reload: yes
+    state: restarted
+    enabled: yes

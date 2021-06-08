@@ -1,1 +1,7 @@
 .vscode
+
+metrics.pytorch.org/server.crt
+metrics.pytorch.org/server.csr
+metrics.pytorch.org/server.key
+*.tfstate
+.terraform/

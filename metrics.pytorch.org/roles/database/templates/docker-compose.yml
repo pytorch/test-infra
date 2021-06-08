@@ -1,0 +1,24 @@
+version: '3.6'
+
+services:
+  db:
+    image: mysql:5
+    env_file:
+      - {{ db_gfs_path }}/env/time.env
+    environment:
+      - MYSQL_HOST=
+      - MYSQL_ROOT_PASSWORD={{ db_root_password }}
+    volumes:
+      - "{{ db_gfs_path }}/volumes/mysql_init_scripts:/docker-entrypoint-initdb.d:ro"
+      - "{{ db_data_path }}/mysql:/var/lib/mysql"
+    networks:
+      - terragraph_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+networks:
+  terragraph_net:
+    external: true

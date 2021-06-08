@@ -1,0 +1,76 @@
+---
+
+- name: Setup Docker
+  hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Setup
+      shell: |
+        apt update
+        apt install -y docker.io
+        docker swarm init || echo done
+        docker stack rm monitoring || echo done
+        docker network create --driver overlay --attachable monitoring || echo done
+        rm -rf /etc/pytorch
+        mkdir -p /etc/pytorch
+        mkdir -p /etc/pytorch/influxdb
+        mkdir -p /etc/pytorch/influxdb-etc
+        mkdir -p /etc/pytorch/grafana-provisioning
+        mkdir -p /etc/pytorch/mysql
+        mkdir -p /etc/pytorch/grafana
+        cd /etc/pytorch
+        find . -type d | xargs chmod 777
+    - name: Copy files
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: "docker-compose.yml", dest: "/etc/pytorch/docker-compose.yml" }
+        - { src: "http.conf", dest: "/etc/pytorch/http.conf" }
+        - { src: "nginx.conf", dest: "/etc/pytorch/nginx.conf" }
+        - { src: "server.crt", dest: "/etc/pytorch/server.crt" }
+        - { src: "server.key", dest: "/etc/pytorch/server.key" }
+        - { src: "prometheus.yml", dest: "/etc/pytorch/prometheus.yml" }
+    - name: Run compose
+      shell: |
+        docker stack rm monitoring || echo done
+        docker stack deploy -c /etc/pytorch/docker-compose.yml monitoring
+
+# - name: Install nginx
+#   hosts: all
+#   become: true
+#   become_user: root
+#   become_method: sudo
+#   gather_facts: no
+#   roles:
+#     - { role: proxy, tags: ["nginx", "proxy"] }
+
+
+
+# - name: Setup database
+#   hosts: all
+#   run_once: true
+#   become: true
+#   become_user: root
+#   become_method: sudo
+#   gather_facts: no
+#   tags:
+#     - services
+#   roles:
+#     - { role: database, tags: ["database", "db"] }
+
+# - name: Setup stats/pinger
+#   hosts: all
+#   run_once: true
+#   become: true
+#   become_user: root
+#   become_method: sudo
+#   gather_facts: no
+#   tags:
+#     - services
+#   roles:
+#     - { role: stats, tags: ["stats"] }
+

@@ -1,0 +1,12 @@
+global:
+  resolve_timeout: 5m
+route:
+  group_by: ['alertname']
+  receiver: 'default'
+  routes:
+  - receiver: tg_tenant_base_route
+    match:
+      networkID: "tg"
+receivers:
+- name: 'default'
+- name: tg_tenant_base_route

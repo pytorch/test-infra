@@ -1,0 +1,71 @@
+# my global config
+global:
+  scrape_interval:     30s # Set the scrape interval to every 30 seconds. Default is every 1 minute.
+  evaluation_interval: 30s # Evaluate rules every 30 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+rule_files:
+  - "/etc/prometheus/alert_rules/*_rules.yml"
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets: ['alertmanager:9093']
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'cadvisor'
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    # honor_labels: true
+    dns_sd_configs:
+      - names:
+        - 'tasks.cadvisor'
+        type: 'A'
+        port: 8080
+
+  - job_name: 'gluster_exporter'
+    dns_sd_configs:
+      - names:
+        - 'tasks.gluster_exporter'
+        type: 'A'
+        port: 9713
+
+  - job_name: 'default_routes_service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['default_routes_service:8080']
+
+  - job_name: 'analytics'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['analytics:8080']
+
+  - job_name: 'kafka'
+    dns_sd_configs:
+      - names:
+        - 'tasks.kafka'
+        type: 'A'
+        port: 9876
+
+  - job_name: 'prometheus_cache'
+    metrics_path: /metrics
+    scrape_interval: 1s
+    honor_labels: true
+    static_configs:
+      - targets: ['prometheus_cache:9091']
+
+  - job_name: 'topology_service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['topology_service:8080']
+
+  - job_name: 'weather_service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['weather_service:8080']
