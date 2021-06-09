@@ -3,3 +3,5 @@
 *.env
 *.txt
 *.zip
+
+**/.DS_Store
