@@ -12,10 +12,10 @@ index 880b7aacdc65..730a3a506818 100644
    NewDeleteOverloadsCheck.cpp
 diff --git a/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
 new file mode 100644
-index 000000000000..50d29634f1de
+index 000000000000..1c7e5a18b93a
 --- /dev/null
 +++ b/clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,66 @@
 +//===--- MaxTokensCheck.cpp - clang-tidy ----------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -41,24 +41,27 @@ index 000000000000..50d29634f1de
 +public:
 +  MaxTokensPPCallbacks(MaxTokensCheck *Check) : Check(Check) {}
 +
-+  void diag(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount) {
++  void diag(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount, bool SuggestFix) {
 +    if (MaxTokenCount != 0 && TokenCount > MaxTokenCount && Loc.isValid()) {
 +      std::string Msg = llvm::formatv(
 +          "Number of tokens ({0}) exceeds the specified maximum ({1})",
 +          TokenCount, MaxTokenCount);
-+      Check->diag(Loc, Msg);
++      auto BaseDiag = Check->diag(Loc, Msg);
++      if (SuggestFix) {
++        BaseDiag << FixItHint::CreateReplacement(Loc, std::to_string(TokenCount));
++      }
 +    }
 +  }
 +
 +  void PragmaMaxTokensHere(SourceLocation Loc, unsigned CurrTokenCount,
 +                           unsigned MaxTokenCount) override {
-+    diag(Loc, CurrTokenCount, MaxTokenCount);
++    diag(Loc, CurrTokenCount, MaxTokenCount, true);
 +  }
 +
 +  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount,
-+                            unsigned MaxTokenCount) override {
++                            unsigned MaxTokenCount, bool IsFromPragma) override {
 +    MaxTokenCount = MaxTokenCount == 0 ? Check->FMaxTokens : MaxTokenCount;
-+    diag(Loc, TokenCount, MaxTokenCount);
++    diag(Loc, TokenCount, MaxTokenCount, IsFromPragma);
 +  }
 +
 +private:
@@ -211,10 +214,10 @@ index 000000000000..661f168acd98
 +#endif
 +// CHECK-MESSAGES-MAX-TOKEN: :[[@LINE]]:3: warning: Number of tokens (8) exceeds the specified maximum (1)
 diff --git a/clang/include/clang/Lex/PPCallbacks.h b/clang/include/clang/Lex/PPCallbacks.h
-index de5e8eb2ca22..e7c048e8637a 100644
+index de5e8eb2ca22..30f6498198b1 100644
 --- a/clang/include/clang/Lex/PPCallbacks.h
 +++ b/clang/include/clang/Lex/PPCallbacks.h
-@@ -276,6 +276,17 @@ public:
+@@ -276,6 +276,18 @@ public:
    /// is read.
    virtual void PragmaAssumeNonNullEnd(SourceLocation Loc) {}
  
@@ -227,12 +230,13 @@ index de5e8eb2ca22..e7c048e8637a 100644
 +  /// processed, which happens at the end of the file
 +  virtual void PragmaMaxTokensTotal(SourceLocation Loc,
 +                                    unsigned TokenCount,
-+                                    unsigned MaxTokenCount) {}
++                                    unsigned MaxTokenCount,
++                                    bool IsFromPragma) {}
 +
    /// Called by Preprocessor::HandleMacroExpandedIdentifier when a
    /// macro invocation is found.
    virtual void MacroExpands(const Token &MacroNameTok,
-@@ -535,6 +546,16 @@ public:
+@@ -535,6 +547,16 @@ public:
      Second->PragmaAssumeNonNullEnd(Loc);
    }
  
@@ -241,9 +245,9 @@ index de5e8eb2ca22..e7c048e8637a 100644
 +    Second->PragmaMaxTokensHere(Loc, CurTokenCount, MaxTokenCount);
 +  }
 +
-+  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount) override {
-+    First->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount);
-+    Second->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount);
++  void PragmaMaxTokensTotal(SourceLocation Loc, unsigned TokenCount, unsigned MaxTokenCount, bool IsFromPragma) override {
++    First->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount, IsFromPragma);
++    Second->PragmaMaxTokensTotal(Loc, TokenCount, MaxTokenCount, IsFromPragma);
 +  }
 +
    void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
@@ -266,19 +270,21 @@ index 6402b31d00b2..4fb081aa5618 100644
      PP.Diag(Loc, diag::warn_max_tokens)
          << PP.getTokenCount() << (unsigned)MaxTokens;
 diff --git a/clang/lib/Parse/Parser.cpp b/clang/lib/Parse/Parser.cpp
-index 764d4e8e9d52..ec8b68d73ccc 100644
+index 764d4e8e9d52..27cf3792f1e4 100644
 --- a/clang/lib/Parse/Parser.cpp
 +++ b/clang/lib/Parse/Parser.cpp
-@@ -651,6 +651,14 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result, bool IsFirstDecl) {
+@@ -651,6 +651,16 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result, bool IsFirstDecl) {
        }
      }
  
 +    if (PP.getPPCallbacks()) {
 +      SourceLocation Loc = PP.getMaxTokensOverrideLoc();
++      bool IsFromPragma = true;
 +      if (!Loc.isValid()) {
 +        Loc = Tok.getLocation();
++        IsFromPragma = false;
 +      }
-+      PP.getPPCallbacks()->PragmaMaxTokensTotal(Loc, PP.getTokenCount(), PP.getMaxTokens());
++      PP.getPPCallbacks()->PragmaMaxTokensTotal(Loc, PP.getTokenCount(), PP.getMaxTokens(), IsFromPragma);
 +    }
 +
      // Late template parsing can begin.
