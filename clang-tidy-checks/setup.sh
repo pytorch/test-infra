@@ -22,6 +22,9 @@ function check_requirements() {
 
 function clone_llvm() {
   info "cloning llvm"
+  if [[ -d llvm-project ]]; then
+    rm -rf llvm-project
+  fi
   git clone -b llvmorg-11.0.0 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
@@ -29,7 +32,9 @@ function clone_llvm() {
 function apply_patches() {
   info "applying patches"
   cd llvm-project
-  cat ../potential-unbounded-loop-check.diff | patch -p1 -N -d .
+  for check in ../*.diff; do
+    patch -p1 -N -d . < "$check"
+  done
   success
 }
 
@@ -39,7 +44,7 @@ function build() {
   cmake -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DLLVM_ENABLE_PROJECTS=clang,clang-tools-extra \
+        -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" \
         -DLLVM_USE_LINKER=lld \
         -DLLVM_TARGETS_TO_BUILD="X86" \
         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -47,7 +52,8 @@ function build() {
         -DLLVM_BUILD_TOOLS=OFF \
         -DLLVM_BUILD_UTILS=OFF \
         -GNinja ../llvm
-  cmake --build build
+  cmake --build .
+  success
 }
 
 function setup() {
@@ -56,5 +62,10 @@ function setup() {
   build
 }
 
+function verify() {
+  [[ -e bin/clang-tidy ]]
+}
+
 check_requirements
 setup
+verify
