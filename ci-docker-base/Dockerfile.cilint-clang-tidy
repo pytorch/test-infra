@@ -17,5 +17,8 @@ RUN cd ./clang-tidy-checks && ./setup.sh
 # Link clang-tidy to custom build
 RUN ln -s $(pwd)/clang-tidy-checks/llvm-project/build/bin/clang-tidy /bin/clang-tidy
 
+# Verify that clang-tidy has custome checks
+RUN cd ./clang-tidy-checks && ./verify.sh
+
 # Install python deps
 RUN pip3 install pyyaml typing_extensions dataclasses
