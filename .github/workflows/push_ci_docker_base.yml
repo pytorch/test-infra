@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'ci-docker-base/**'
+      - 'clang-tidy-checks/**'
       - '.github/workflows/push_ci_docker_base.yml'
 
 jobs:
@@ -18,7 +19,6 @@ jobs:
         run: |
           set -ex
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-          cd ci-docker-base
-          docker build . --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f Dockerfile.cilint-clang-tidy
+          docker build . --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f ci-docker-base/Dockerfile.cilint-clang-tidy
           docker push ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA
 
