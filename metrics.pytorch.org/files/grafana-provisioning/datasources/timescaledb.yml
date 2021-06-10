@@ -1,0 +1,18 @@
+# Grabbed from https://grafana.com/docs/grafana/latest/datasources/postgres/
+apiVersion: 1
+
+datasources:
+  - name: TimescaleDB
+    type: postgres
+    url: timescaledb:5432
+    database: pytorch
+    user: grafanareader
+    secureJsonData:
+      password: $GRAFANA_TIMESCALE_READER_PASSWORD
+    jsonData:
+      sslmode: "disable" # disable/require/verify-ca/verify-full
+      maxOpenConns: 0         # Grafana v5.4+
+      maxIdleConns: 2         # Grafana v5.4+
+      connMaxLifetime: 14400  # Grafana v5.4+
+      postgresVersion: 903 # 903=9.3, 904=9.4, 905=9.5, 906=9.6, 1000=10
+      timescaledb: true

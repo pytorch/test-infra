@@ -1,0 +1,6 @@
+CREATE DATABASE pytorch;
+CREATE USER grafanareader WITH PASSWORD '{{ passwords.grafanareader }}';
+
+-- NB: this will need to be re-run if new tables are added
+GRANT CONNECT ON DATABASE pytorch TO grafanareader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafanareader;

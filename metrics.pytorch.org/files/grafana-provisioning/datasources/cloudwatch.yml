@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: CloudWatch
+    type: cloudwatch
+    jsonData:
+      authType: keys
+      defaultRegion: us-east-1
+    secureJsonData:
+      accessKey: {{ passwords.aws.id }}
+      secretKey: {{ passwords.aws.secret }}

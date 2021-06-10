@@ -1,0 +1,52 @@
+---
+
+- name: Setup Docker
+  hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Setup
+      shell: |
+        apt update
+        apt install -y docker.io
+        docker swarm init || echo done
+        docker stack rm monitoring || echo done
+        docker network create --driver overlay --attachable monitoring || echo done
+
+        rm -rf /etc/pytorch
+        mkdir -p /etc/pytorch/grafana-provisioning/datasources \
+          /etc/pytorch/timescaledb \
+          /etc/pytorch/grafana
+
+        find /etc/pytorch -type d | xargs chmod 777
+    - name: Copy files
+      template:
+        src: "{{ item }}"
+        dest: "/etc/pytorch/"
+      with_fileglob:
+        - files/*
+    - name: Copy files
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: "files/grafana-provisioning/datasources/timescaledb.yml", dest: "/etc/pytorch/grafana-provisioning/datasources/timescaledb.yml" }
+        - { src: "files/grafana-provisioning/datasources/cloudwatch.yml", dest: "/etc/pytorch/grafana-provisioning/datasources/cloudwatch.yml" }
+        - { src: "{{ ssl_filenames.key }}", dest: "/etc/pytorch/privkey.pem" }
+        - { src: "{{ ssl_filenames.cert }}", dest: "/etc/pytorch/fullchain.pem" }
+    - name: Run compose
+      shell: |
+        docker stack rm monitoring || echo done
+        docker stack deploy -c /etc/pytorch/docker-compose.yml monitoring
+    - name: Initialize DB
+      retries: 5
+      delay: 1
+      register: result
+      until: result.rc == 0
+      shell: |
+        set -e
+        export CONTAINER=$(docker ps | grep timescaledb | awk '{print $1}')
+        echo logging into $CONTAINER
+        cat /etc/pytorch/init.psql | docker exec -i $CONTAINER psql --username=postgres --file=-
