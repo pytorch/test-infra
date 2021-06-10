@@ -1,5 +1,5 @@
 {
-  "total_count": 18,
+  "total_count": 19,
   "incomplete_results": false,
   "items": [
     {
@@ -67,6 +67,74 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/333990/workflows/e14e5809-c30d-452d-b4db-f88643749354/jobs/14041353/steps\r\n\r\n```\r\nJun 10 11:57:18 ======================================================================\r\nJun 10 11:57:18 ERROR [105.098s]: test_backward_rref_nested (__main__.TensorPipeDistAutogradTestWithSpawn)\r\nJun 10 11:57:18 ----------------------------------------------------------------------\r\nJun 10 11:57:18 Traceback (most recent call last):\r\nJun 10 11:57:18   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 398, in wrapper\r\nJun 10 11:57:18     self._join_processes(fn)\r\nJun 10 11:57:18   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 590, in _join_processes\r\nJun 10 11:57:18     self._check_return_codes(elapsed_time)\r\nJun 10 11:57:18   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 638, in _check_return_codes\r\nJun 10 11:57:18     raise RuntimeError('Process {} terminated or timed out after {} seconds'.format(i, elapsed_time))\r\nJun 10 11:57:18 RuntimeError: Process 0 terminated or timed out after 105.03801655769348 seconds\r\n```\r\n\r\n```\r\nJun 10 11:41:35 [E request_callback_no_python.cpp:552] Received error while processing request type 275: Unexpected end of pickler archive.\r\nJun 10 11:41:35 Exception raised from readSlowWithBuffer at /var/lib/jenkins/workspace/torch/csrc/jit/serialization/unpickler.cpp:756 (most recent call first):\r\nJun 10 11:41:35 frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x6b (0x7fed005eb81b in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 10 11:41:35 frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7fed005e71b1 in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 10 11:41:35 frame #2: <unknown function> + 0x3ead658 (0x7fed13d52658 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #3: torch::jit::Unpickler::run() + 0xdf (0x7fed13d5d38f in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #4: torch::jit::Unpickler::parse_ivalue() + 0x2e (0x7fed13d5d4fe in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #5: torch::jit::unpickle(std::function<unsigned long (char*, unsigned long)>, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0x22f (0x7fed13d2d8bf in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #6: torch::jit::unpickle(char const*, unsigned long, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0xd0 (0x7fed13d2ddf0 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #7: torch::distributed::autograd::CleanupAutogradContextReq::fromMessage(torch::distributed::rpc::Message const&) + 0xcb (0x7fed13fca57b in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #8: torch::distributed::rpc::deserializeRequest(torch::distributed::rpc::Message const&) + 0x1ed (0x7fed1401580d in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #9: torch::distributed::rpc::RequestCallbackNoPython::processMessage(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x7e (0x7fed13fe4a0e in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #10: torch::distributed::rpc::RequestCallback::operator()(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x57 (0x7fed13fe01c7 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 10 11:41:35 frame #11: <unknown function> + 0xe2b422 (0x7fed1cd7a422 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_python.so)\r\nJun 10 11:41:35 frame #12: c10::ThreadPool::main_loop(unsigned long) + 0x2db (0x7fed005bc9bb in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 10 11:41:35 frame #13: <unknown function> + 0xc819d (0x7fed2041a19d in /opt/conda/lib/libstdc++.so.6)\r\nJun 10 11:41:35 frame #14: <unknown function> + 0x76ba (0x7fed5b7ab6ba in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 10 11:41:35 frame #15: clone + 0x6d (0x7fed5b4e151d in /lib/x86_64-linux-gnu/libc.so.6)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/59796",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/59796/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/59796/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/59796/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/59796",
+      "id": 917426832,
+      "node_id": "MDU6SXNzdWU5MTc0MjY4MzI=",
+      "number": 59796,
+      "title": "DISABLED test_ddp_comparison_uneven_inputs (__main__.ProcessGroupDdpComparisonTestWithSpawn)",
+      "user": {
+        "login": "mrshenli",
+        "id": 16999635,
+        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/mrshenli",
+        "html_url": "https://github.com/mrshenli",
+        "followers_url": "https://api.github.com/users/mrshenli/followers",
+        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
+        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
+        "repos_url": "https://api.github.com/users/mrshenli/repos",
+        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 1301397902,
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
+          "name": "module: flaky-tests",
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI"
+        },
+        {
+          "id": 679953883,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
+          "name": "oncall: distributed",
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue"
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2021-06-10T14:43:10Z",
+      "updated_at": "2021-06-10T14:43:13Z",
+      "closed_at": null,
+      "author_association": "CONTRIBUTOR",
+      "active_lock_reason": null,
+      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/333542/workflows/d747e3b8-0023-4952-8f3d-a126536843bf/jobs/14023171/steps\r\n\r\n```\r\nJun 09 23:10:42 ======================================================================\r\nJun 09 23:10:42 ERROR [105.096s]: test_ddp_comparison_uneven_inputs (__main__.ProcessGroupDdpComparisonTestWithSpawn)\r\nJun 09 23:10:42 ----------------------------------------------------------------------\r\nJun 09 23:10:42 Traceback (most recent call last):\r\nJun 09 23:10:42   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 398, in wrapper\r\nJun 09 23:10:42     self._join_processes(fn)\r\nJun 09 23:10:42   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 590, in _join_processes\r\nJun 09 23:10:42     self._check_return_codes(elapsed_time)\r\nJun 09 23:10:42   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 638, in _check_return_codes\r\nJun 09 23:10:42     raise RuntimeError('Process {} terminated or timed out after {} seconds'.format(i, elapsed_time))\r\nJun 09 23:10:42 RuntimeError: Process 0 terminated or timed out after 105.05770897865295 seconds\r\n```\r\n\r\n```\r\nJun 09 22:57:58 Process 0 timed out with traceback: \r\nJun 09 22:57:58 \r\nJun 09 22:57:58 Thread 0x00007f84c5ffb700 (most recent call first):\r\nJun 09 22:57:58 \r\nJun 09 22:57:58 Current thread 0x00007f84f65d5700 (most recent call first):\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 483 in _event_listener\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/threading.py\", line 864 in run\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/threading.py\", line 916 in _bootstrap_inner\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/threading.py\", line 884 in _bootstrap\r\nJun 09 22:57:58 \r\nJun 09 22:57:58 Thread 0x00007f8517e74740 (most recent call first):\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/threading.py\", line 295 in wait\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/threading.py\", line 551 in wait\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 213 in _all_gather\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 77 in wrapper\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 277 in _wait_all_workers\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 77 in wrapper\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 334 in shutdown\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/api.py\", line 77 in wrapper\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 103 in new_test_method\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400 in wrapper\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516 in run_test\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 503 in _run\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/multiprocessing/process.py\", line 93 in run\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/multiprocessing/process.py\", line 258 in _bootstrap\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/multiprocessing/spawn.py\", line 118 in _main\r\nJun 09 22:57:58   File \"/opt/conda/lib/python3.6/multiprocessing/spawn.py\", line 105 in spawn_main\r\nJun 09 22:57:58   File \"<string>\", line 1 in <module>\r\nJun 09 22:57:58 \r\nJun 09 22:58:03 Could not retrieve traceback for timed out process: 1\r\nJun 09 22:58:03 Process 2 timed out with traceback: \r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
       "performed_via_github_app": null,
       "score": 0.0
     },
