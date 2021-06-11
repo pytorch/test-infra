@@ -3,5 +3,6 @@
 *.env
 *.txt
 *.zip
+*.swp
 
 **/.DS_Store
