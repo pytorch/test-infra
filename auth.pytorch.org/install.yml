@@ -1,0 +1,54 @@
+---
+
+- name: Setup Docker
+  hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Setup
+      shell: |
+        apt update
+        apt install -y docker.io
+        docker swarm init || echo done
+        docker stack rm gatekeeper || echo done
+        docker network create --driver overlay --attachable gatekeeper || echo done
+
+        mkdir -p /etc/pytorch/
+    - name: Copy files
+      template:
+        src: "{{ item }}"
+        dest: "/etc/pytorch/"
+      with_fileglob:
+        - files/*
+    - name: Copy files
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      with_items:
+        - { src: "{{ ssl_filenames.key }}", dest: "/etc/pytorch/privkey.pem" }
+        - { src: "{{ ssl_filenames.cert }}", dest: "/etc/pytorch/fullchain.pem" }
+    - name: Build gatekeeper image
+      shell: |
+        git clone https://github.com/prose/gatekeeper.git
+        cd gatekeeper
+        git checkout 7703f8c2ee7df67362f6eb114a512acc06a64744
+
+        echo '
+          {
+            "oauth_client_id": "{{ oauth.client_id }}",
+            "oauth_client_secret": "{{ oauth.secret }}",
+            "oauth_host": "github.com",
+            "oauth_port": 443,
+            "oauth_path": "/login/oauth/access_token",
+            "oauth_method": "POST",
+            "port": 9999
+          }
+        ' > config.json
+
+        docker build -t gatekeeper:local .
+    - name: Run compose
+      shell: |
+        docker stack rm gatekeeper || echo done
+        docker stack deploy -c /etc/pytorch/docker-compose.yml gatekeeper

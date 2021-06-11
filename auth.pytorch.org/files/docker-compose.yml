@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+  gatekeeper:
+    image: gatekeeper:local
+    ports:
+      - "9999:9999"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+    networks:
+      - gatekeeper
+
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+    networks:
+      - gatekeeper
+    volumes:
+        - "/etc/pytorch/http.conf:/etc/nginx/conf.d/default.conf"
+        - "/etc/pytorch/fullchain.pem:/etc/nginx/fullchain.pem"
+        - "/etc/pytorch/privkey.pem:/etc/nginx/privkey.pem"
+
+networks:
+  gatekeeper:
+    external: true
