@@ -52,7 +52,7 @@ function build() {
         -DLLVM_BUILD_TOOLS=OFF \
         -DLLVM_BUILD_UTILS=OFF \
         -GNinja ../llvm
-  cmake --build .
+  cmake --build . --target clang-tidy
   success
 }
 
