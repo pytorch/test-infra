@@ -1,6 +1,7 @@
 name: Push CI Docker Base
 
 on:
+  pull_request:
   push:
     branches:
       - master
