@@ -53,6 +53,9 @@ function build() {
         -DLLVM_BUILD_UTILS=OFF \
         -GNinja ../llvm
   cmake --build . --target clang-tidy
+  cd ../../
+  cp llvm-project/build/bin/clang-tidy .
+  rm -rf llvm-project
   success
 }
 
@@ -63,7 +66,7 @@ function setup() {
 }
 
 function verify() {
-  [[ -e bin/clang-tidy ]]
+  [[ -e ./clang-tidy ]]
 }
 
 check_requirements

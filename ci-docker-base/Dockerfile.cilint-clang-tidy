@@ -15,7 +15,7 @@ RUN apt-get update && \
 RUN cd ./clang-tidy-checks && ./setup.sh
 
 # Link clang-tidy to custom build
-RUN ln -s $(pwd)/clang-tidy-checks/llvm-project/build/bin/clang-tidy /bin/clang-tidy
+RUN ln -s $(pwd)/clang-tidy-checks/clang-tidy /bin/clang-tidy
 
 # Verify that clang-tidy has custom checks
 RUN cd ./clang-tidy-checks && ./verify.sh
