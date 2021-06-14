@@ -12,10 +12,14 @@ RUN apt-get update && \
     cmake clang lld ninja-build
 
 # Run setup script (See ./clang-tidy-checks/README.md for more details)
-RUN cd ./clang-tidy-checks && ./setup.sh
+# Build clang-tidy, copy out the binary, and remove the llvm checkout
+RUN cd ./clang-tidy-checks && \
+    ./setup.sh && \
+    cp llvm-project/build/bin/clang-tidy . && \
+    rm -rf llvm-project
 
 # Link clang-tidy to custom build
-RUN ln -s $(pwd)/clang-tidy-checks/llvm-project/build/bin/clang-tidy /bin/clang-tidy
+RUN ln -s $(pwd)/clang-tidy-checks/clang-tidy /bin/clang-tidy
 
 # Verify that clang-tidy has custom checks
 RUN cd ./clang-tidy-checks && ./verify.sh
