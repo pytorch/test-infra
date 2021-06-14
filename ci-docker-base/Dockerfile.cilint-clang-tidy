@@ -12,7 +12,7 @@ RUN apt-get update && \
     cmake clang lld ninja-build
 
 # Run setup script (See ./clang-tidy-checks/README.md for more details)
-# Copy the binary out and remove the llvm checkout
+# Build clang-tidy, copy out the binary, and remove the llvm checkout
 RUN cd ./clang-tidy-checks && \
     ./setup.sh && \
     cp llvm-project/build/bin/clang-tidy . && \
