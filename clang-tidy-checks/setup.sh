@@ -43,7 +43,7 @@ function build() {
   cd build
   cmake -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_BUILD_TYPE=Release \
         -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" \
         -DLLVM_USE_LINKER=lld \
         -DLLVM_TARGETS_TO_BUILD="X86" \
@@ -63,7 +63,7 @@ function setup() {
 }
 
 function verify() {
-  [[ -e bin/clang-tidy ]]
+  [[ -e ./bin/clang-tidy ]]
 }
 
 check_requirements
