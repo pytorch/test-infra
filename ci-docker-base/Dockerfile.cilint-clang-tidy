@@ -9,7 +9,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y software-properti
 RUN apt-add-repository ppa:git-core/ppa
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git python3-dev python3-pip build-essential time wget \
+    git python3-dev python3-pip python3-setuptools python3-wheel build-essential time wget \
     cmake clang lld ninja-build
 
 # Run setup script (See ./clang-tidy-checks/README.md for more details)
@@ -26,4 +26,5 @@ RUN ln -s $(pwd)/clang-tidy-checks/clang-tidy /bin/clang-tidy
 RUN cd ./clang-tidy-checks && ./verify.sh
 
 # Install python deps
-RUN pip3 install pyyaml typing_extensions dataclasses
+RUN wget https://raw.githubusercontent.com/pytorch/pytorch/master/requirements.txt && \
+    pip3 install -r requirements.txt
