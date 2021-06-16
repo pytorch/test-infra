@@ -1,5 +1,5 @@
 {
-  "total_count": 21,
+  "total_count": 22,
   "incomplete_results": false,
   "items": [
     {
@@ -203,6 +203,74 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/333382/workflows/1c7a602f-7ee9-48a2-ae22-c13c21ef21e1/jobs/14017608/steps\r\n\r\n```\r\nJun 09 21:32:31 ======================================================================\r\nJun 09 21:32:31 ERROR [105.097s]: test_backward_rref (__main__.TensorPipeDistAutogradTestWithSpawn)\r\nJun 09 21:32:31 ----------------------------------------------------------------------\r\nJun 09 21:32:31 Traceback (most recent call last):\r\nJun 09 21:32:31   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 398, in wrapper\r\nJun 09 21:32:31     self._join_processes(fn)\r\nJun 09 21:32:31   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 590, in _join_processes\r\nJun 09 21:32:31     self._check_return_codes(elapsed_time)\r\nJun 09 21:32:31   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 638, in _check_return_codes\r\nJun 09 21:32:31     raise RuntimeError('Process {} terminated or timed out after {} seconds'.format(i, elapsed_time))\r\nJun 09 21:32:31 RuntimeError: Process 0 terminated or timed out after 105.03704762458801 seconds\r\n```\r\n\r\n```\r\nJun 09 21:15:49   test_backward_rref (__main__.TensorPipeDistAutogradTestWithSpawn) ... Failed to respond to 'Shutdown Proceed' in time, got error RPCErr:1:RPC ran for more than set timeout (5000 ms) and will now be marked with an error\r\nJun 09 21:15:49 Failed to respond to 'Shutdown Proceed' in time, got error RPCErr:1:RPC ran for more than set timeout (5000 ms) and will now be marked with an error\r\nJun 09 21:15:49 Failed to respond to 'Shutdown Proceed' in time, got error RPCErr:1:RPC ran for more than set timeout (5000 ms) and will now be marked with an error\r\nJun 09 21:16:44 [E request_callback_no_python.cpp:552] Received error while processing request type 275: Unexpected end of pickler archive.\r\nJun 09 21:16:44 Exception raised from readSlowWithBuffer at /var/lib/jenkins/workspace/torch/csrc/jit/serialization/unpickler.cpp:756 (most recent call first):\r\nJun 09 21:16:44 frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x6b (0x7fa9a19ebdcb in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7fa9a19e7761 in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #2: <unknown function> + 0x3ea6768 (0x7fa9b514f768 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #3: torch::jit::Unpickler::run() + 0xdf (0x7fa9b515a49f in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #4: torch::jit::Unpickler::parse_ivalue() + 0x2e (0x7fa9b515a60e in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #5: torch::jit::unpickle(std::function<unsigned long (char*, unsigned long)>, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0x22f (0x7fa9b512a9cf in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #6: torch::jit::unpickle(char const*, unsigned long, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0xd0 (0x7fa9b512af00 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #7: torch::distributed::autograd::CleanupAutogradContextReq::fromMessage(torch::distributed::rpc::Message const&) + 0xcb (0x7fa9b53c788b in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #8: torch::distributed::rpc::deserializeRequest(torch::distributed::rpc::Message const&) + 0x1ed (0x7fa9b5412efd in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #9: torch::distributed::rpc::RequestCallbackNoPython::processMessage(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x7e (0x7fa9b53e1e1e in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #10: torch::distributed::rpc::RequestCallback::operator()(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x57 (0x7fa9b53dd4d7 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #11: <unknown function> + 0xe2ceb2 (0x7fa9be15eeb2 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_python.so)\r\nJun 09 21:16:44 frame #12: c10::ThreadPool::main_loop(unsigned long) + 0x2db (0x7fa9a19bcf6b in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #13: <unknown function> + 0xc819d (0x7fa9c180019d in /opt/conda/lib/libstdc++.so.6)\r\nJun 09 21:16:44 frame #14: <unknown function> + 0x76ba (0x7fa9fcb916ba in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 09 21:16:44 frame #15: clone + 0x6d (0x7fa9fc8c751d in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 09 21:16:44 \r\nJun 09 21:16:44 [E request_callback_no_python.cpp:552] Received error while processing request type 267: Unexpected end of pickler archive.\r\nJun 09 21:16:44 Exception raised from readSlowWithBuffer at /var/lib/jenkins/workspace/torch/csrc/jit/serialization/unpickler.cpp:756 (most recent call first):\r\nJun 09 21:16:44 frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x6b (0x7fa9a19ebdcb in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, char const*) + 0xd1 (0x7fa9a19e7761 in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #2: <unknown function> + 0x3ea6768 (0x7fa9b514f768 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #3: torch::jit::Unpickler::run() + 0xdf (0x7fa9b515a49f in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #4: torch::jit::Unpickler::parse_ivalue() + 0x2e (0x7fa9b515a60e in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #5: torch::jit::unpickle(std::function<unsigned long (char*, unsigned long)>, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0x22f (0x7fa9b512a9cf in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #6: torch::jit::unpickle(char const*, unsigned long, std::function<c10::StrongTypePtr (c10::QualifiedName const&)>, c10::ArrayRef<at::Tensor>) + 0xd0 (0x7fa9b512af00 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #7: <unknown function> + 0x4153beb (0x7fa9b53fcbeb in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #8: torch::distributed::rpc::ForkMessageBase::fromMessage(torch::distributed::rpc::Message const&, torch::distributed::rpc::MessageType) + 0x28 (0x7fa9b53fe2d8 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #9: torch::distributed::rpc::RRefUserDelete::fromMessage(torch::distributed::rpc::Message const&) + 0x2c (0x7fa9b53fe43c in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #10: torch::distributed::rpc::deserializeRequest(torch::distributed::rpc::Message const&) + 0x14d (0x7fa9b5412e5d in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #11: torch::distributed::rpc::RequestCallbackNoPython::processMessage(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x7e (0x7fa9b53e1e1e in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #12: torch::distributed::rpc::RequestCallback::operator()(torch::distributed::rpc::Message&, std::vector<c10::Stream, std::allocator<c10::Stream> >) const + 0x57 (0x7fa9b53dd4d7 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 09 21:16:44 frame #13: <unknown function> + 0xe2ceb2 (0x7fa9be15eeb2 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_python.so)\r\nJun 09 21:16:44 frame #14: c10::ThreadPool::main_loop(unsigned long) + 0x2db (0x7fa9a19bcf6b in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nJun 09 21:16:44 frame #15: <unknown function> + 0xc819d (0x7fa9c180019d in /opt/conda/lib/libstdc++.so.6)\r\nJun 09 21:16:44 frame #16: <unknown function> + 0x76ba (0x7fa9fcb916ba in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 09 21:16:44 frame #17: clone + 0x6d (0x7fa9fc8c751d in /lib/x86_64-linux-gnu/libc.so.6)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/60130",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/60130/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/60130/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/60130/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/60130",
+      "id": 923102072,
+      "node_id": "MDU6SXNzdWU5MjMxMDIwNzI=",
+      "number": 60130,
+      "title": "DISABLED test_ddp_logging_data_cpu (__main__.TestDistBackendWithFork)",
+      "user": {
+        "login": "rohan-varma",
+        "id": 8039770,
+        "node_id": "MDQ6VXNlcjgwMzk3NzA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/rohan-varma",
+        "html_url": "https://github.com/rohan-varma",
+        "followers_url": "https://api.github.com/users/rohan-varma/followers",
+        "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
+        "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
+        "repos_url": "https://api.github.com/users/rohan-varma/repos",
+        "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 1301397902,
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
+          "name": "module: flaky-tests",
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI"
+        },
+        {
+          "id": 679953883,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
+          "name": "oncall: distributed",
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue"
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 1,
+      "created_at": "2021-06-16T21:04:23Z",
+      "updated_at": "2021-06-16T22:38:00Z",
+      "closed_at": null,
+      "author_association": "MEMBER",
+      "active_lock_reason": null,
+      "body": "## 🐛 Bug\r\n\r\nExample failures:\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/337673/workflows/db188d30-2c92-4faf-ac2a-e90b70d1e8c2/jobs/14187632\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/337701/workflows/6e6161a7-7346-403a-a458-97f5e7970279/jobs/14188746\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/337710/workflows/3f835c0e-ad07-45fd-9ede-dec90c043bb3/jobs/14188742\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
       "performed_via_github_app": null,
       "score": 0.0
     },
