@@ -16,11 +16,11 @@ RUN apt-get update && \
 # Build clang-tidy, copy out the binary, and remove the llvm checkout
 RUN cd ./clang-tidy-checks && \
     ./setup.sh && \
-    cp llvm-project/build/bin/clang-tidy . && \
+    cp -r llvm-project/build . && \
     rm -rf llvm-project
 
 # Link clang-tidy to custom build
-RUN ln -s $(pwd)/clang-tidy-checks/clang-tidy /bin/clang-tidy
+RUN ln -s $(pwd)/clang-tidy-checks/build/bin/clang-tidy /usr/bin/clang-tidy
 
 # Verify that clang-tidy has custom checks
 RUN cd ./clang-tidy-checks && ./verify.sh
