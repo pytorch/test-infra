@@ -30,7 +30,7 @@ jobs:
           pip install boto3==1.16.34
       - name: Generate new slow test stats
         run: |
-          python -m tools.export_slow_tests -f slow-tests.json --ignore-small-diffs 0.1
+          python -m tools.stats.export_slow_tests -f slow-tests.json --ignore-small-diffs 0.1
       - name: Push file to this repository
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
