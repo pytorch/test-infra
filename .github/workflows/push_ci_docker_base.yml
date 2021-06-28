@@ -21,4 +21,20 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
           docker build . --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f ci-docker-base/Dockerfile.cilint-clang-tidy
           docker push ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA
-
+      - name: Extract binary
+        run: |
+          set -ex
+          # Copying files directly from a docker image is not supported
+          # As a workaround, we create a temporary container, copy the binary, and remove it
+          image_id=$(docker create ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA)
+          docker cp $image_id:/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
+          docker rm -v $image_id
+      - uses: driazati/upload-artifact-s3@7faed57ea7f289192a68d1af3eb6358785e21b86
+        name: Publish binary
+        with:
+          name: clang-tidy
+          if-no-files-found: error
+          s3prefix: linux
+          s3-bucket: oss-clang-format
+          path:
+            ./clang-tidy
