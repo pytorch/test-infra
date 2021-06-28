@@ -1,5 +1,7 @@
-# ubuntu18.04-cuda10.2-py3.6-tidy11
-FROM nvidia/cuda:10.2-devel-ubuntu18.04
+# ubuntu20.04-cuda11.2-py3.8-tidy11
+FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Copy diffs
 COPY ./clang-tidy-checks clang-tidy-checks
