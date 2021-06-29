@@ -67,7 +67,7 @@ function setup() {
 
 function verify() {
   [[ -e ./bin/clang-tidy ]] &&
-  ldd ./bin/clang-tidy 2>&1 | grep -q "not a dynamic executable"
+  ldd ./bin/clang-tidy | grep -q "not a dynamic executable"
 }
 
 check_requirements
