@@ -30,11 +30,13 @@ jobs:
           docker cp $image_id:/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
           docker rm -v $image_id
       - uses: driazati/upload-artifact-s3@7faed57ea7f289192a68d1af3eb6358785e21b86
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         name: Publish binary
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3prefix: linux
+          s3-prefix: linux64
           s3-bucket: oss-clang-format
-          path:
-            ./clang-tidy
+          path: ./clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
