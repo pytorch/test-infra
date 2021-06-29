@@ -44,10 +44,7 @@ function build() {
   cmake -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_EXE_LINKER_FLAGS="-static" \
         -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra" \
-        -DLLVM_ENABLE_LIBCXX=ON \
-        -DLLVM_STATIC_LINK_CXX_STDLIB=ON \
         -DLLVM_USE_LINKER=lld \
         -DLLVM_TARGETS_TO_BUILD="X86" \
         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -66,8 +63,7 @@ function setup() {
 }
 
 function verify() {
-  [[ -e ./bin/clang-tidy ]] &&
-  ldd ./bin/clang-tidy | grep -q "not a dynamic executable"
+  [[ -e ./bin/clang-tidy ]]
 }
 
 check_requirements
