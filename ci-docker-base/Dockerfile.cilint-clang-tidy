@@ -7,12 +7,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY ./clang-tidy-checks clang-tidy-checks
 
 # Install dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get install -y software-properties-common
+RUN apt-get update && apt-get upgrade -y && apt-get install -y software-properties-common wget
 RUN apt-add-repository ppa:git-core/ppa
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+RUN apt-add-repository "deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git python3-dev python3-pip python3-setuptools python3-wheel build-essential time wget \
-    cmake clang lld ninja-build libomp-dev
+    git python3-dev python3-pip python3-setuptools python3-wheel build-essential time \
+    cmake clang-11 lld ninja-build libomp-11-dev
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-11 1000
+RUN update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-11 1000
 
 # Run setup script (See ./clang-tidy-checks/README.md for more details)
 # Build clang-tidy, copy out the binary, and remove the llvm checkout
