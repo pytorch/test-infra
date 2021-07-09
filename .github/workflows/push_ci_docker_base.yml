@@ -10,7 +10,7 @@ on:
       - '.github/workflows/push_ci_docker_base.yml'
 
 jobs:
-  cilint-clang-tidy:
+  cilint-clang-tidy-linux:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
@@ -38,5 +38,25 @@ jobs:
           s3-prefix: linux64
           s3-bucket: oss-clang-format
           path: clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  cilint-clang-tidy-macos:
+    runs-on: macos-10.15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build binary
+        run: |
+          cd clang-tidy-checks
+          ./setup.sh
+      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        name: Publish binary
+        with:
+          name: clang-tidy
+          if-no-files-found: error
+          s3-prefix: macos
+          s3-bucket: oss-clang-format
+          path: clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
