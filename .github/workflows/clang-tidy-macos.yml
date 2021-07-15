@@ -5,9 +5,9 @@ on:
   push:
     branches:
       - master
-  paths:
-    - 'clang-tidy-checks/**'
-    - '.github/workflows/clang-tidy-macos.yml'
+    paths:
+      - 'clang-tidy-checks/**'
+      - '.github/workflows/clang-tidy-macos.yml'
 
 jobs:
   build:

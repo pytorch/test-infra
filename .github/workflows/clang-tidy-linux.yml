@@ -5,10 +5,10 @@ on:
   push:
     branches:
       - master
-  paths:
-    - 'ci-docker-base/Dockerfile.cilint-clang-tidy'
-    - 'clang-tidy-checks/**'
-    - '.github/workflows/clang-tidy-linux.yml'
+    paths:
+      - 'ci-docker-base/Dockerfile.cilint-clang-tidy'
+      - 'clang-tidy-checks/**'
+      - '.github/workflows/clang-tidy-linux.yml'
 
 jobs:
   build:
