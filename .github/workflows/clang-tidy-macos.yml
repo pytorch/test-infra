@@ -18,11 +18,15 @@ jobs:
       - name: Install dependencies
         run: |
           brew install ninja
-          brew install llvm
       - name: Build
         working-directory: ./clang-tidy-checks
         run: |
           set -ex
+
+          # LLVM is installed on the machine, but the binaries are not on the path
+          PATH="$(brew --prefix llvm)/bin:$PATH"
+          export PATH
+
           ./setup.sh
           cp llvm-project/build/bin/clang-tidy ../clang-tidy
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
