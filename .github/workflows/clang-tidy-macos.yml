@@ -18,6 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install ninja
+          brew install llvm
       - name: Build
         working-directory: ./clang-tidy-checks
         run: |
