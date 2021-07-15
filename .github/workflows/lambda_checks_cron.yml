@@ -1,11 +1,11 @@
-name: deploy_lambda_checks_cron
+name: lambda_checks_cron
 
 on:
   push:
     branches:
       - master
     paths:
-      - '.github/workflows/deploy_lambda_checks_cron.yml'
+      - '.github/workflows/lambda_checks_cron.yml'
       - 'fbossci-aws-lambas/us-east-1/checks-cron/**'
 
 jobs:
