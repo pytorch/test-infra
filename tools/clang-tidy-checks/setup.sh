@@ -83,7 +83,6 @@ function build() {
       ;;
     Darwin)
       cmake_os_args=(
-        -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++"
         -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
       )
       ;;

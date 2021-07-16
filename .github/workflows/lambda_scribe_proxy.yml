@@ -1,0 +1,41 @@
+name: lambda_scribe_proxy
+
+on:
+  pull_request:
+    paths:
+      - 'aws/lambda/scribe-proxy/**'
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/lambda_scribe_proxy.yml'
+      - 'aws/lambda/scribe-proxy/**'
+
+jobs:
+  unittest:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Unittest
+        run: |
+          cd aws/lambda/scribe-proxy/
+          python -m unittest
+  deploy:
+    runs-on: ubuntu-20.04
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Deploy
+        uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: us-east-1
+          function_name: gh-ci-scribe-proxy
+          source: aws/lambda/scribe-proxy/lambda_function.py
+          timeout: 60 # 60 seconds as the max duration of the lambda_function
