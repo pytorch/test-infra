@@ -1,0 +1,34 @@
+---
+
+- name: Setup Docker
+  hosts: all
+  become: true
+  become_user: root
+  become_method: sudo
+  gather_facts: false
+  tasks:
+    - name: Setup
+      shell: |
+        apt update
+        apt install -y docker.io
+        docker swarm init || echo done
+        docker stack rm monitoring || echo done
+
+        rm -rf /etc/pytorch
+        mkdir -p \
+          /etc/pytorch/grafana-provisioning/datasources \
+          /etc/pytorch/grafana-provisioning/dashboards \
+          /etc/pytorch/dashboards/ \
+          /etc/pytorch/grafana
+
+          find /etc/pytorch -type d | xargs chmod 777
+    - name: Copy files
+      template:
+        src: "{{ item.src }}"
+        dest: "/etc/pytorch/{{ item.path }}"
+      with_filetree: files/
+      when: item.state == 'file'
+    - name: Run compose
+      shell: |
+        docker stack rm monitoring || echo done
+        docker stack deploy -c /etc/pytorch/docker-compose.yml monitoring

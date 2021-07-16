@@ -21,3 +21,5 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+aws/websites/metrics.pytorch.org/vars.yml
