@@ -76,13 +76,13 @@ function build() {
     Linux)
       cmake_os_args=(
         -DLLVM_USE_LINKER=lld
-        -DLLVM_BUILD_STATIC=ON
-        -DCMAKE_CXX_FLAGS="-static"
+        -DCMAKE_EXE_LINKER_FLAGS="-static"
+        -DLLVM_ENABLE_LIBCXX=ON
+        -DLLVM_STATIC_LINK_CXX_STDLIB=ON
       )
       ;;
     Darwin)
       cmake_os_args=(
-        -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++"
         -DCMAKE_OSX_DEPLOYMENT_TARGET="10.15"
       )
       ;;
@@ -95,7 +95,7 @@ function build() {
   mkdir build
   cd build
 
-  cmake "${cmake_common_args[@] cmake_os_args[@]}" ../llvm
+  cmake "${cmake_common_args[@]}" "${cmake_os_args[@]}" ../llvm
   cmake --build . --target clang-tidy
   success
 }
