@@ -1,12 +1,23 @@
 .vscode
 
 *.env
-*.txt
 *.zip
 *.swp
 
+__pycache__
+
 **/.DS_Store
 *.pem
+
+**/.terraform/*
 *.tfstate
 *.tfstate.*
-.terraform/
+crash.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc

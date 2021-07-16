@@ -4,7 +4,7 @@ FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Copy diffs
-COPY ./clang-tidy-checks clang-tidy-checks
+COPY . clang-tidy-checks
 
 # Install dependencies
 RUN apt-get update && apt-get upgrade -y && apt-get install -y software-properties-common wget
@@ -25,8 +25,11 @@ RUN cd ./clang-tidy-checks && \
     cp -r llvm-project/build . && \
     rm -rf llvm-project
 
-# Link clang-tidy to custom build
-RUN ln -s $(pwd)/clang-tidy-checks/build/bin/clang-tidy /usr/bin/clang-tidy
+# Copy binary to /usr/bin
+#
+# We are copying the binary (instead of symlinking it) to avoid header file
+# conflicts between the installed version of clang and our custom build
+RUN cp /clang-tidy-checks/build/bin/clang-tidy /usr/bin/clang-tidy
 
 # Verify that clang-tidy has custom checks
 RUN cd ./clang-tidy-checks && ./verify.sh
