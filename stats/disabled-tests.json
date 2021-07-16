@@ -1,5 +1,5 @@
 {
-  "total_count": 33,
+  "total_count": 32,
   "incomplete_results": false,
   "items": [
     {
@@ -616,83 +616,6 @@
       "author_association": "MEMBER",
       "active_lock_reason": null,
       "body": "## 🐛 Bug\r\n\r\nFailure: https://circleci.com/api/v1.1/project/github/pytorch/pytorch/14490642/output/107/0?file=true&allocation-id=60db8ce678b5bc505c1f6663-0-build%2F3A72051D\r\n\r\n```\r\nJun 29 21:53:17   test_call_fork_in_jit_with_profiling (__main__.TensorPipeJitRpcTestWithSpawn) ... terminate called without an active exception\r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19200: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::stacktraceSignalHandler(int, siginfo_t*, void*) + 0x22 (0x7f15452f6ec2 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::stacktraceSignalHandlerStatic(int, siginfo_t*, void*) + 0x34 (0x7f15452f6f34 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: _PyModule_ClearDict + 0x6dd (0x5585ca86532d in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #5: PyImport_Cleanup + 0x537 (0x5585ca88cf47 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #6: Py_FinalizeEx + 0x79 (0x5585ca8bea49 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #7: Py_Exit + 0x8 (0x5585ca8beb88 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #8: <unknown function> + 0x207bcb (0x5585ca8bebcb in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #9: <unknown function> + 0x207c10 (0x5585ca8bec10 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #10: PyRun_SimpleStringFlags + 0x4f (0x5585ca8c028f in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #11: Py_RunMain + 0x3a1 (0x5585ca8c0ab1 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #12: Py_BytesMain + 0x39 (0x5585ca8c0ca9 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #13: __libc_start_main + 0xe7 (0x7f156ca89bf7 in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 frame #14: <unknown function> + 0x1e21c7 (0x5585ca8991c7 in /opt/conda/bin/python)\r\nJun 29 21:53:17 \r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19208: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::stacktraceSignalHandler(int, siginfo_t*, void*) + 0x22 (0x7f15452f6ec2 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::stacktraceSignalHandlerStatic(int, siginfo_t*, void*) + 0x34 (0x7f15452f6f34 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: pthread_cond_wait + 0x243 (0x7f156ce66ad3 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #5: <unknown function> + 0x33affc (0x7f1542e6bffc in /opt/conda/lib/python3.8/site-packages/numpy/core/../../../../libopenblas.so.0)\r\nJun 29 21:53:17 frame #6: <unknown function> + 0x76db (0x7f156ce606db in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #7: clone + 0x3f (0x7f156cb8971f in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 \r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19210: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::stacktraceSignalHandler(int, siginfo_t*, void*) + 0x22 (0x7f15452f6ec2 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::stacktraceSignalHandlerStatic(int, siginfo_t*, void*) + 0x34 (0x7f15452f6f34 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: pthread_cond_wait + 0x243 (0x7f156ce66ad3 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #5: <unknown function> + 0x33affc (0x7f1542e6bffc in /opt/conda/lib/python3.8/site-packages/numpy/core/../../../../libopenblas.so.0)\r\nJun 29 21:53:17 frame #6: <unknown function> + 0x76db (0x7f156ce606db in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #7: clone + 0x3f (0x7f156cb8971f in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 \r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19212: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::stacktraceSignalHandler(int, siginfo_t*, void*) + 0x22 (0x7f15452f6ec2 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::stacktraceSignalHandlerStatic(int, siginfo_t*, void*) + 0x34 (0x7f15452f6f34 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: pthread_cond_wait + 0x243 (0x7f156ce66ad3 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #5: <unknown function> + 0x33affc (0x7f1542e6bffc in /opt/conda/lib/python3.8/site-packages/numpy/core/../../../../libopenblas.so.0)\r\nJun 29 21:53:17 frame #6: <unknown function> + 0x76db (0x7f156ce606db in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #7: clone + 0x3f (0x7f156cb8971f in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 \r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19223: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::fatalSignalHandler(int) + 0x223 (0x7f15452f7173 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::fatalSignalHandlerStatic(int) + 0x24 (0x7f15452f7204 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: gsignal + 0xc7 (0x7f156caa6fb7 in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 frame #5: abort + 0x141 (0x7f156caa8921 in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 frame #6: __gnu_cxx::__verbose_terminate_handler() + 0xbc (0x7f154519e872 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #7: <unknown function> + 0xacf6f (0x7f154519cf6f in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #8: <unknown function> + 0xacfb1 (0x7f154519cfb1 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #9: __gxx_personality_v0 + 0x3ca (0x7f154519cc82 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #10: <unknown function> + 0xcbc6 (0x7f15450e8bc6 in /opt/conda/lib/libgcc_s.so.1)\r\nJun 29 21:53:17 frame #11: _Unwind_ForcedUnwind + 0x6a (0x7f15450e8eac in /opt/conda/lib/libgcc_s.so.1)\r\nJun 29 21:53:17 frame #12: __pthread_unwind + 0x40 (0x7f156ce6a000 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #13: <unknown function> + 0x8ae5 (0x7f156ce61ae5 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #14: <unknown function> + 0x1e5bb9 (0x5585ca89cbb9 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #15: <unknown function> + 0x80946 (0x5585ca737946 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #16: PyEval_AcquireThread + 0x24 (0x5585ca89f974 in /opt/conda/bin/python)\r\nJun 29 21:53:17 frame #17: <unknown function> + 0x15433f1 (0x7f155de2b3f1 in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_python.so)\r\nJun 29 21:53:17 frame #18: <unknown function> + 0x1aa4dd5 (0x7f155e38cdd5 in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_python.so)\r\nJun 29 21:53:17 frame #19: c10::TensorImpl::release_resources() + 0xbf (0x7f15452d5cbf in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #20: <unknown function> + 0x4cd9993 (0x7f154a249993 in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #21: <unknown function> + 0x4cdc87f (0x7f154a24c87f in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #22: <unknown function> + 0x8c28581 (0x7f154e198581 in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #23: torch::jit::InterpreterState::~InterpreterState() + 0xa3 (0x7f154e190d13 in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #24: <unknown function> + 0x8c2465d (0x7f154e19465d in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #25: <unknown function> + 0x8c2474b (0x7f154e19474b in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #26: <unknown function> + 0x4ce37cb (0x7f154a2537cb in /opt/conda/lib/python3.8/site-packages/torch/lib/libtorch_cpu.so)\r\nJun 29 21:53:17 frame #27: c10::ThreadPool::main_loop(unsigned long) + 0x2b5 (0x7f15452de975 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #28: <unknown function> + 0x79dda (0x7f15452dedda in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #29: <unknown function> + 0xc9039 (0x7f15451b9039 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #30: <unknown function> + 0x76db (0x7f156ce606db in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #31: clone + 0x3f (0x7f156cb8971f in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 \r\nJun 29 21:53:17 SIGABRT(6), PID: 19200, Thread 19224: \r\nJun 29 21:53:17  frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x93 (0x7f15452f6b93 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #1: c10::FatalSignalHandler::stacktraceSignalHandler(int, siginfo_t*, void*) + 0x22 (0x7f15452f6ec2 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #2: c10::FatalSignalHandler::stacktraceSignalHandlerStatic(int, siginfo_t*, void*) + 0x34 (0x7f15452f6f34 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #3: <unknown function> + 0x12980 (0x7f156ce6b980 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #4: pthread_cond_wait + 0x243 (0x7f156ce66ad3 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #5: std::condition_variable::wait(std::unique_lock<std::mutex>&) + 0x9 (0x7f15451b5399 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #6: c10::ThreadPool::main_loop(unsigned long) + 0xd8 (0x7f15452de798 in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #7: <unknown function> + 0x79dda (0x7f15452dedda in /opt/conda/lib/python3.8/site-packages/torch/lib/libc10.so)\r\nJun 29 21:53:17 frame #8: <unknown function> + 0xc9039 (0x7f15451b9039 in /opt/conda/lib/libstdc++.so.6)\r\nJun 29 21:53:17 frame #9: <unknown function> + 0x76db (0x7f156ce606db in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nJun 29 21:53:17 frame #10: clone + 0x3f (0x7f156cb8971f in /lib/x86_64-linux-gnu/libc.so.6)\r\nJun 29 21:53:17 \r\nJun 29 21:53:18 FAIL (3.361s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23 @gmagogsfm",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/60661",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/60661/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/60661/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/60661/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/60661",
-      "id": 929412157,
-      "node_id": "MDU6SXNzdWU5Mjk0MTIxNTc=",
-      "number": 60661,
-      "title": "DISABLED test_ddp_model_diff_across_ranks (__main__.TestDistBackendWithFork)",
-      "user": {
-        "login": "mrshenli",
-        "id": 16999635,
-        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mrshenli",
-        "html_url": "https://github.com/mrshenli",
-        "followers_url": "https://api.github.com/users/mrshenli/followers",
-        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
-        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
-        "repos_url": "https://api.github.com/users/mrshenli/repos",
-        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 2391777652,
-          "node_id": "MDU6TGFiZWwyMzkxNzc3NjUy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ddp",
-          "name": "module: ddp",
-          "color": "f7e101",
-          "default": false,
-          "description": "Issues/PRs related distributed data parallel training"
-        },
-        {
-          "id": 679953883,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
-          "name": "oncall: distributed",
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 1,
-      "created_at": "2021-06-24T16:32:23Z",
-      "updated_at": "2021-07-13T18:11:48Z",
-      "closed_at": null,
-      "author_association": "CONTRIBUTOR",
-      "active_lock_reason": null,
-      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/341033/workflows/8deb523d-fab5-4f64-a4d4-a792453d4504/jobs/14350173/steps\r\n\r\n```\r\nJun 24 08:35:22 ======================================================================\r\nJun 24 08:35:22 ERROR [100.089s]: test_ddp_model_diff_across_ranks (__main__.TestDistBackendWithFork)\r\nJun 24 08:35:22 ----------------------------------------------------------------------\r\nJun 24 08:35:22 Traceback (most recent call last):\r\nJun 24 08:35:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 398, in wrapper\r\nJun 24 08:35:22     self._join_processes(fn)\r\nJun 24 08:35:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 588, in _join_processes\r\nJun 24 08:35:22     self._check_no_test_errors(elapsed_time)\r\nJun 24 08:35:22   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 605, in _check_no_test_errors\r\nJun 24 08:35:22     raise RuntimeError('Process {} timed out after {} seconds'.format(i, elapsed_time))\r\nJun 24 08:35:22 RuntimeError: Process 0 timed out after 100.06581664085388 seconds\r\nJun 24 08:35:22 \r\nJun 24 08:35:22 ----------------------------------------------------------------------\r\n```\r\n\r\n```\r\nJun 24 08:21:57   test_ddp_model_diff_across_ranks (__main__.TestDistBackendWithFork) ... [E ProcessGroupNCCL.cpp:567] [Rank 0] Watchdog caught collective operation timeout: WorkNCCL(OpType=ALLREDUCE, Timeout(ms)=5000) ran for 7843 milliseconds before timing out.\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
       "performed_via_github_app": null,
       "score": 0.0
     },
@@ -2814,6 +2737,92 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "This test is failing intermittently on multiple builds with increasing frequency recently and no clear cause. \r\n\r\n```\r\nApr 29 09:14:17 ======================================================================\r\nApr 29 09:14:17 ERROR [0.030s]: test_default_quantized_lstm (quantization.test_quantize.TestPostTrainingDynamic)\r\nApr 29 09:14:17 ----------------------------------------------------------------------\r\nApr 29 09:14:17 Traceback (most recent call last):\r\nApr 29 09:14:17   File \"/var/lib/jenkins/workspace/test/quantization/test_quantize.py\", line 862, in test_default_quantized_lstm\r\nApr 29 09:14:17     y, (h, c) = cell_dq(x, (h, c))\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/modules/module.py\", line 562, in __call__\r\nApr 29 09:14:17     result = self.forward(*input, **kwargs)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 351, in forward\r\nApr 29 09:14:17     return self.forward_tensor(input, hx)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 312, in forward_tensor\r\nApr 29 09:14:17     input, hx, batch_sizes, max_batch_size, sorted_indices)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 293, in forward_impl\r\nApr 29 09:14:17     self.batch_first, dtype=self.dtype, use_dynamic=True)\r\nApr 29 09:14:17 RuntimeError: In ChooseQuantizationParams, min should be less than or equal to max\r\n```\r\n\n\ncc @jerryzh168 @jianyuh @dzhulgakov @raghuramank100 @jamesr66a @vkuzo @ezyang @gchanan @zou3519",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/34213",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/34213",
+      "id": 575502768,
+      "node_id": "MDU6SXNzdWU1NzU1MDI3Njg=",
+      "number": 34213,
+      "title": "DISABLED test_script_pack_padded_sequence (test_jit.TestScript)",
+      "user": {
+        "login": "mrshenli",
+        "id": 16999635,
+        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
+        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/mrshenli",
+        "html_url": "https://github.com/mrshenli",
+        "followers_url": "https://api.github.com/users/mrshenli/followers",
+        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
+        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
+        "repos_url": "https://api.github.com/users/mrshenli/repos",
+        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 443484135,
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
+          "name": "high priority",
+          "color": "F22613",
+          "default": false,
+          "description": null
+        },
+        {
+          "id": 1301397902,
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
+          "name": "module: flaky-tests",
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI"
+        },
+        {
+          "id": 679953983,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit",
+          "name": "oncall: jit",
+          "color": "c5def5",
+          "default": false,
+          "description": "Add this issue/PR to JIT oncall triage queue"
+        },
+        {
+          "id": 1301347167,
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
+          "name": "triaged",
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2020-03-04T15:29:15Z",
+      "updated_at": "2020-03-09T17:09:59Z",
+      "closed_at": null,
+      "author_association": "CONTRIBUTOR",
+      "active_lock_reason": null,
+      "body": "Previous failed runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682966\r\n\r\nSubsequent succeeded runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682247\r\nhttps://circleci.com/gh/pytorch/pytorch/4682241\r\n\r\nToday, it consistently fails:\r\nhttps://circleci.com/gh/pytorch/pytorch/4687625\r\nhttps://circleci.com/gh/pytorch/pytorch/4687610\r\nhttps://circleci.com/gh/pytorch/pytorch/4686149\r\n\r\n@ljk53 tried reverting the seemingly culprit PR #32814 and #34055, but the error persist. \r\n\r\nI am going to disable this test while JIT team investigating it. \n\ncc @ezyang @gchanan @zou3519 @suo",
       "performed_via_github_app": null,
       "score": 0.0
     }
