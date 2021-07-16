@@ -37,4 +37,4 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
           function_name: gh-ci-scribe-proxy
-          source: fbossci-aws-lambas/us-east-1/scribe-proxy/scribe_proxy.py
+          source: fbossci-aws-lambas/us-east-1/scribe-proxy/lambda_function.py
