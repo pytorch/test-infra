@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - '.github/workflows/lambda_checks_cron.yml'
-      - 'fbossci-aws-lambas/us-east-1/checks-cron/**'
+      - 'aws/lambda/checks-cron/**'
 
 jobs:
   deploy:
@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: |
-          cd fbossci-aws-lambas/us-east-1/checks-cron
+          cd aws/lambda/checks-cron
           make deployment.zip
       - name: Deploy
         uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
@@ -26,4 +26,4 @@ jobs:
           aws_region: us-east-1
           function_name: github-checks-status-updater
           timeout: 15
-          zip_file: fbossci-aws-lambas/us-east-1/checks-cron/deployment.zip
+          zip_file: aws/lambda/checks-cron/deployment.zip

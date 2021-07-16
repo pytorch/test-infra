@@ -1,13 +1,12 @@
-name: Push CI Docker Base
+name: publish_docker_image
 
 on:
   push:
     branches:
       - master
     paths:
-      - 'ci-docker-base/**'
-      - 'clang-tidy-checks/**'
-      - '.github/workflows/push_ci_docker_base.yml'
+      - 'tools/clang-tidy-checks/**'
+      - '.github/workflows/publish_docker_image.yml'
 
 jobs:
   cilint-clang-tidy:
@@ -19,7 +18,7 @@ jobs:
         run: |
           set -ex
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-          docker build . --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f ci-docker-base/Dockerfile.cilint-clang-tidy
+          docker build ./tools/clang-tidy-checks --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy
           docker push ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA
       - name: Extract binary
         run: |
