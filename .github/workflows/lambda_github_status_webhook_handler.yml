@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - '.github/workflows/lambda_github_status_webhook_handler.yml'
-      - 'fbossci-aws-lambas/us-east-1/github-status-webhook-handler/**'
+      - 'aws/lambda/github-status-webhook-handler/**'
 
 jobs:
   deploy:
@@ -21,4 +21,5 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
           function_name: github-status-webhook-handler
-          source: fbossci-aws-lambas/us-east-1/github-status-webhook-handler/lambda_function.py
+          source: aws/lambda/github-status-webhook-handler/lambda_function.py
+          timeout: 120 # 120 seconds as the max duration of the lambda_function, status webhook handler might need to wait for the redis distributed lock occasionally
