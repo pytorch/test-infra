@@ -1,7 +1,6 @@
 .vscode
 
 *.env
-*.txt
 *.zip
 *.swp
 
