@@ -1,7 +1,93 @@
 {
-  "total_count": 32,
+  "total_count": 33,
   "incomplete_results": false,
   "items": [
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/61804",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/61804/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/61804/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/61804/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/61804",
+      "id": 946704588,
+      "node_id": "MDU6SXNzdWU5NDY3MDQ1ODg=",
+      "number": 61804,
+      "title": "PyTorch/XLA AMP support is disabled",
+      "user": {
+        "login": "JackCaoG",
+        "id": 59073027,
+        "node_id": "MDQ6VXNlcjU5MDczMDI3",
+        "avatar_url": "https://avatars.githubusercontent.com/u/59073027?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/JackCaoG",
+        "html_url": "https://github.com/JackCaoG",
+        "followers_url": "https://api.github.com/users/JackCaoG/followers",
+        "following_url": "https://api.github.com/users/JackCaoG/following{/other_user}",
+        "gists_url": "https://api.github.com/users/JackCaoG/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/JackCaoG/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/JackCaoG/subscriptions",
+        "organizations_url": "https://api.github.com/users/JackCaoG/orgs",
+        "repos_url": "https://api.github.com/users/JackCaoG/repos",
+        "events_url": "https://api.github.com/users/JackCaoG/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/JackCaoG/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 443484135,
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
+          "name": "high priority",
+          "color": "F22613",
+          "default": false,
+          "description": null
+        },
+        {
+          "id": 1972560798,
+          "node_id": "MDU6TGFiZWwxOTcyNTYwNzk4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20amp%20(automated%20mixed%20precision)",
+          "name": "module: amp (automated mixed precision)",
+          "color": "f7e101",
+          "default": false,
+          "description": ""
+        },
+        {
+          "id": 1311538328,
+          "node_id": "MDU6TGFiZWwxMzExNTM4MzI4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20xla",
+          "name": "module: xla",
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to XLA support"
+        },
+        {
+          "id": 466131885,
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review",
+          "name": "triage review",
+          "color": "cc317c",
+          "default": false,
+          "description": ""
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2021-07-17T04:11:25Z",
+      "updated_at": "2021-07-17T04:13:07Z",
+      "closed_at": null,
+      "author_association": "COLLABORATOR",
+      "active_lock_reason": null,
+      "body": "PyTorch/XLA AMP supported  is add in 1.8.1 by [this pytorch pr](https://github.com/pytorch/pytorch/pull/48570) and [this pytorch/xla pr](https://github.com/pytorch/xla/pull/2654). It basically create an alias for `torch.cuda.amp.autocast` in pytorch/xla and add some check in pytorch end to allow cuda amp works for xla tensor. The motivation was to add the amp support for `XLA:GPU` and we have seen ~50% speed up on models like ResNet50 with amp enabled for `PyTorch/XLA:GPU`. \r\n\r\nAmp doesn't work for Pytorch/XLA anymore, I think it is because in [this pr](https://github.com/pytorch/pytorch/pull/57386) pytorch side enforced the [manual device registration](https://github.com/pytorch/pytorch/blob/f89ae9cb8dbd442ee85f39a0bb9572f9be823c21/aten/src/ATen/autocast_mode.cpp#L270) for amp rules. XLA tensor under the `torch.cuda.amp.autocast` context manager becomes a no-op.\r\n\r\n\r\n<!-- A clear and concise description of what the bug is. -->\r\n\r\n## To Reproduce\r\n\r\nSteps to reproduce the behavior:\r\n\r\n1. Run following code\r\n```\r\nimport torch\r\nimport torch_xla\r\nimport torch_xla.core.xla_model as xm\r\nfrom torch_xla.amp import autocast, GradScaler\r\n\r\ndevice = xm.xla_device()\r\n\r\na_float32 = torch.rand((8, 8), device=device)\r\nb_float32 = torch.rand((8, 8), device=device)\r\n\r\nwith autocast():\r\n    e_float16 = torch.mm(a_float32, b_float32)\r\n    print(e_float16.dtype)\r\n```\r\n\r\n<!-- If you have a code sample, error messages, stack traces, please provide it here as well -->\r\n\r\n## Expected behavior\r\ne_float16.dtype == `torch.float16`, but currently I see `torch.float32`\r\n\r\n## Environment\r\n\r\nPytorch nightly\r\nPyTorch/XLA nightly\r\nCUDA version: 11.2 (doesn't really matter)\r\n\r\n@ezyang @bdhirsh @yaochengji @ailzhang \r\nI am wondering if there is short term solution for us to hook back to CUDA amp rules since we only intend to use amp for `XLA:GPU`. The longer term solution might be we do this AMP device registration and copy the rules in pytorch/xla repo? \r\n\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @mcarilli @ptrblck @gmagogsfm",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
     {
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/61670",
       "repository_url": "https://api.github.com/repos/pytorch/pytorch",
@@ -2737,92 +2823,6 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "This test is failing intermittently on multiple builds with increasing frequency recently and no clear cause. \r\n\r\n```\r\nApr 29 09:14:17 ======================================================================\r\nApr 29 09:14:17 ERROR [0.030s]: test_default_quantized_lstm (quantization.test_quantize.TestPostTrainingDynamic)\r\nApr 29 09:14:17 ----------------------------------------------------------------------\r\nApr 29 09:14:17 Traceback (most recent call last):\r\nApr 29 09:14:17   File \"/var/lib/jenkins/workspace/test/quantization/test_quantize.py\", line 862, in test_default_quantized_lstm\r\nApr 29 09:14:17     y, (h, c) = cell_dq(x, (h, c))\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/modules/module.py\", line 562, in __call__\r\nApr 29 09:14:17     result = self.forward(*input, **kwargs)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 351, in forward\r\nApr 29 09:14:17     return self.forward_tensor(input, hx)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 312, in forward_tensor\r\nApr 29 09:14:17     input, hx, batch_sizes, max_batch_size, sorted_indices)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 293, in forward_impl\r\nApr 29 09:14:17     self.batch_first, dtype=self.dtype, use_dynamic=True)\r\nApr 29 09:14:17 RuntimeError: In ChooseQuantizationParams, min should be less than or equal to max\r\n```\r\n\n\ncc @jerryzh168 @jianyuh @dzhulgakov @raghuramank100 @jamesr66a @vkuzo @ezyang @gchanan @zou3519",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/34213",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/34213",
-      "id": 575502768,
-      "node_id": "MDU6SXNzdWU1NzU1MDI3Njg=",
-      "number": 34213,
-      "title": "DISABLED test_script_pack_padded_sequence (test_jit.TestScript)",
-      "user": {
-        "login": "mrshenli",
-        "id": 16999635,
-        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mrshenli",
-        "html_url": "https://github.com/mrshenli",
-        "followers_url": "https://api.github.com/users/mrshenli/followers",
-        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
-        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
-        "repos_url": "https://api.github.com/users/mrshenli/repos",
-        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 443484135,
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
-          "name": "high priority",
-          "color": "F22613",
-          "default": false,
-          "description": null
-        },
-        {
-          "id": 1301397902,
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
-          "name": "module: flaky-tests",
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI"
-        },
-        {
-          "id": 679953983,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit",
-          "name": "oncall: jit",
-          "color": "c5def5",
-          "default": false,
-          "description": "Add this issue/PR to JIT oncall triage queue"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 0,
-      "created_at": "2020-03-04T15:29:15Z",
-      "updated_at": "2020-03-09T17:09:59Z",
-      "closed_at": null,
-      "author_association": "CONTRIBUTOR",
-      "active_lock_reason": null,
-      "body": "Previous failed runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682966\r\n\r\nSubsequent succeeded runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682247\r\nhttps://circleci.com/gh/pytorch/pytorch/4682241\r\n\r\nToday, it consistently fails:\r\nhttps://circleci.com/gh/pytorch/pytorch/4687625\r\nhttps://circleci.com/gh/pytorch/pytorch/4687610\r\nhttps://circleci.com/gh/pytorch/pytorch/4686149\r\n\r\n@ljk53 tried reverting the seemingly culprit PR #32814 and #34055, but the error persist. \r\n\r\nI am going to disable this test while JIT team investigating it. \n\ncc @ezyang @gchanan @zou3519 @suo",
       "performed_via_github_app": null,
       "score": 0.0
     }
