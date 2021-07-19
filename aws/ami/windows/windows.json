@@ -1,0 +1,45 @@
+{
+    "builders": [
+        {
+            "type": "amazon-ebs",
+            "region": "us-east-1",
+            "ami_name": "Windows 2019 GHA CI - {{timestamp}}",
+            "source_ami_filter": {
+                "filters": {
+                    "virtualization-type": "hvm",
+                    "name": "Windows_Server-2019-English-Tesla-*",
+                    "root-device-type": "ebs"
+                },
+                "owners": ["amazon"],
+                "most_recent": true
+            },
+            "launch_block_device_mappings": [{
+                "device_name": "/dev/sda1",
+                "volume_size": 64,
+                "delete_on_termination": true
+            }],
+            "instance_type": "p3.2xlarge",
+            "associate_public_ip_address": true,
+            "user_data_file": "user-data-scripts/bootstrap-winrm.ps1",
+            "communicator": "winrm",
+            "winrm_username": "Administrator",
+            "winrm_use_ssl": true,
+            "winrm_insecure": true
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "powershell",
+            "environment_vars": [
+                "INSTALL_WINDOWS_SDK=0"
+            ],
+            "scripts": [
+                "{{ template_dir }}/scripts/Helpers/Reset-UserData.ps1",
+                "{{ template_dir }}/scripts/Installers/Install-Choco.ps1",
+                "{{ template_dir }}/scripts/Installers/Install-Tools.ps1",
+                "{{ template_dir }}/scripts/Installers/Install-VS.ps1"
+            ],
+            "execution_policy": "unrestricted"
+        }
+    ]
+}
