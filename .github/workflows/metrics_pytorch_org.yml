@@ -1,0 +1,42 @@
+name: Deploy metrics.pytorch.org
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'aws/websites/metrics.pytorch.org/**'
+      - '.github/workflows/metrics_pytorch_org.yml'
+
+concurrency:
+  group: "deploy metrics.pytorch.org"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          set -eux
+          pip install ansible
+      - name: Deploy
+        env:
+          FULLCHAIN: ${{ secrets.METRICS_FULLCHAIN }}
+          PRIVKEY: ${{ secrets.METRICS_PRIVKEY }}
+          VARS: ${{ secrets.METRICS_VARS }}
+          SSH_KEY: ${{ secrets.METRICS_SSH_KEY }}
+        run: |
+          set -eux
+          cd aws/websites/metrics.pytorch.org
+
+          echo "$FULLCHAIN" > files/fullchain.pem
+          echo "$PRIVKEY" > files/privkey.pem
+          echo "$VARS" > vars.yml
+          echo "$SSH_KEY" > ssh_key.pem
+          chmod 600 ssh_key.pem
+
+          ansible-playbook -i ubuntu@metrics.pytorch.org, install.yml --extra-vars=@vars.yml --private-key=ssh_key.pem
+
