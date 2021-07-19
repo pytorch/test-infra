@@ -2,6 +2,11 @@ name: Custom clang-tidy build (macos)
 
 on:
   pull_request:
+    paths:
+      - 'tools/clang-tidy-checks/**'
+      - '!tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy'
+      - '!tools/clang-tidy-checks/README.md'
+      - '.github/workflows/clang-tidy-macos.yml'
   push:
     branches:
       - master
