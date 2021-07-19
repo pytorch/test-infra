@@ -30,7 +30,6 @@ jobs:
           export PATH
 
           ./setup.sh
-          cp llvm-project/build/bin/clang-tidy ../../clang-tidy
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -39,6 +38,6 @@ jobs:
           if-no-files-found: error
           s3-prefix: macos
           s3-bucket: oss-clang-format
-          path: clang-tidy-checks/llvm-project/build/bin/clang-tidy
+          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
