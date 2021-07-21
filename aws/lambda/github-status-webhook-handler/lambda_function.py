@@ -70,9 +70,10 @@ def get_workflow_name(job_id):
         if err.code == 403 and all(key in err.headers for key in ['X-RateLimit-Limit', 'X-RateLimit-Used']):
             print(
                 f"Rate limit exceeded: {err.headers['X-RateLimit-Used']}/{err.headers['X-RateLimit-Limit']}")
-        pass
-    except Exception:
-        pass
+        else:
+            print(f"Caught {err} while trying to get workflow name for {job_id}")
+    except Exception as err:
+        print(f"Caught {err} while trying to get workflow name for {job_id}")
     return None
 
 
