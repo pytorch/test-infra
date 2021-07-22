@@ -84,6 +84,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   const launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX as string;
   const launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS as string;
   const launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS as string;
+  const securityGroupIDs = process.env.SECURITY_GROUP_IDS as string;
 
   const subnets = (process.env.SUBNET_IDS as string).split(',');
   const randomSubnet = subnets[Math.floor(Math.random() * subnets.length)];
@@ -110,7 +111,13 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           }
         }
       ],
-      SubnetId: randomSubnet,
+      NetworkInterfaces: [
+        {
+          AssociatePublicIpAddress: true,
+          SubnetId: randomSubnet,
+          Groups: securityGroupIDs.split(',')
+        }
+      ],
       TagSpecifications: [
         {
           ResourceType: 'instance',

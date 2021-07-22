@@ -62,11 +62,6 @@ resource "aws_launch_template" "linux_runner" {
   instance_type = var.instance_type
   key_name      = var.key_name
 
-  vpc_security_group_ids = compact(concat(
-    [aws_security_group.runner_sg.id],
-    var.runner_additional_security_group_ids,
-  ))
-
   tag_specifications {
     resource_type = "instance"
     tags = merge(
@@ -86,7 +81,6 @@ resource "aws_launch_template" "linux_runner" {
       },
     )
   }
-
 
   user_data = base64encode(templatefile(local.userdata_template, {
     environment                     = var.environment
@@ -129,11 +123,6 @@ resource "aws_launch_template" "windows_runner" {
   instance_type = var.instance_type
   key_name      = var.key_name
 
-  vpc_security_group_ids = compact(concat(
-    [aws_security_group.runner_sg.id],
-    var.runner_additional_security_group_ids,
-  ))
-
   tag_specifications {
     resource_type = "instance"
     tags = merge(
@@ -153,7 +142,6 @@ resource "aws_launch_template" "windows_runner" {
       },
     )
   }
-
 
   user_data = base64encode(templatefile(local.userdata_template_windows, {
     environment                     = var.environment

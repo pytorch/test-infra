@@ -41,6 +41,7 @@ resource "aws_lambda_function" "scale_up" {
       LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
       LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
       SUBNET_IDS                      = join(",", var.subnet_ids)
+      SECURITY_GROUP_IDS              = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
     }
   }
 
