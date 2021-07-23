@@ -1,0 +1,30 @@
+server.host: '0.0.0.0'
+
+elasticsearch.hosts: ['{{ passwords.es.host }}']
+
+kibana.index: ".username"
+
+server.basePath: "/kibana"
+server.rewriteBasePath: true
+security.showInsecureClusterWarning: false
+
+elasticsearch.ssl.verificationMode: none # if not using HTTPS
+
+opendistro_security.auth.type: basicauth
+opendistro_security.auth.anonymous_auth_enabled: false
+opendistro_security.cookie.secure: false # set to true when using HTTPS
+opendistro_security.cookie.ttl: 3600000
+opendistro_security.session.ttl: 3600000
+opendistro_security.session.keepalive: false
+opendistro_security.multitenancy.enabled: false
+opendistro_security.readonly_mode.roles: ['kibana_read_only']
+opendistro_security.auth.unauthenticated_routes: []
+opendistro_security.basicauth.login.title: 'Please log in using your user name and password'
+
+elasticsearch.username: '{{ passwords.es.username }}'
+elasticsearch.password: '{{ passwords.es.password }}'
+elasticsearch.requestHeadersWhitelist: [
+  authorization,
+  securitytenant,
+  security_tenant,
+]
