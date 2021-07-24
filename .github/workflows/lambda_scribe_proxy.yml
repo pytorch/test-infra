@@ -39,3 +39,4 @@ jobs:
           function_name: gh-ci-scribe-proxy
           source: aws/lambda/scribe-proxy/lambda_function.py
           timeout: 60 # 60 seconds as the max duration of the lambda_function
+          memory_size: 256 # 256 MB
