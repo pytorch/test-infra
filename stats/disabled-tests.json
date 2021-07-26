@@ -1,5 +1,5 @@
 {
-  "total_count": 32,
+  "total_count": 33,
   "incomplete_results": false,
   "items": [
     {
@@ -259,6 +259,57 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/350293/workflows/f3cd8e15-1a28-4ce6-9522-f5d1cf4a6c86/jobs/14756009/steps\r\n\r\n```\r\nJul 13 21:24:24 ======================================================================\r\nJul 13 21:24:24 ERROR [2.532s]: test_shutdown_errors (__main__.TensorPipeRpcTestWithSpawn)\r\nJul 13 21:24:24 ----------------------------------------------------------------------\r\nJul 13 21:24:24 Traceback (most recent call last):\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 398, in wrapper\r\nJul 13 21:24:24     self._join_processes(fn)\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 597, in _join_processes\r\nJul 13 21:24:24     self._check_return_codes(elapsed_time)\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 637, in _check_return_codes\r\nJul 13 21:24:24     raise RuntimeError(error)\r\nJul 13 21:24:24 RuntimeError: Process 2 exited with error code 10 and exception:\r\nJul 13 21:24:24 RuntimeError: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:24:24 \r\nJul 13 21:24:24 During handling of the above exception, another exception occurred:\r\nJul 13 21:24:24 \r\nJul 13 21:24:24 Traceback (most recent call last):\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516, in run_test\r\nJul 13 21:24:24     getattr(self, test_name)()\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400, in wrapper\r\nJul 13 21:24:24     fn()\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 100, in new_test_method\r\nJul 13 21:24:24     return_value = old_test_method(self, *arg, **kwargs)\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4101, in test_shutdown_errors\r\nJul 13 21:24:24     rpc.shutdown()\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 217, in __exit__\r\nJul 13 21:24:24     expected_regex.pattern, str(exc_value)))\r\nJul 13 21:24:24   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 135, in _raiseFailure\r\nJul 13 21:24:24     raise self.test_case.failureException(msg)\r\nJul 13 21:24:24 AssertionError: \"simulation rref\" does not match \"eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\"\r\n```\r\n\r\n```\r\nJul 13 21:22:33   test_shutdown_errors (__main__.TensorPipeRpcTestWithSpawn) ... [W tensorpipe_agent.cpp:608] RPC agent for worker1 won't send response to request #3 to worker0, as the agent is shutting down\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker1 encountered error when reading incoming request from worker0: pipe closed (this error originated at tensorpipe/core/pipe_impl.cc:356)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:912] RPC agent for worker0 encountered error when reading incoming response from worker1: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker0 encountered error when reading incoming request from worker1: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker3 encountered error when reading incoming request from worker0: pipe closed (this error originated at tensorpipe/core/pipe_impl.cc:356)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker0 encountered error when reading incoming request from worker3: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 Failed to respond to 'Shutdown Proceed' in time, got error Followers ['worker1', 'worker2', 'worker3'] timed out in _all_gather after 5.00 seconds. The first exception is eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:608] RPC agent for worker0 won't send response to request #1 to worker2, as the agent is shutting down\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:912] RPC agent for worker2 encountered error when reading incoming response from worker0: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker2 encountered error when reading incoming request from worker0: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 [W tensorpipe_agent.cpp:707] RPC agent for worker0 encountered error when reading incoming request from worker2: pipe closed (this error originated at tensorpipe/core/pipe_impl.cc:356)\r\nJul 13 21:22:33 On WorkerInfo(id=2, name=worker2):\r\nJul 13 21:22:33 RuntimeError('simulation',)\r\nJul 13 21:22:33 Traceback (most recent call last):\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/internal.py\", line 204, in _run_function\r\nJul 13 21:22:33     result = python_udf.func(*python_udf.args, **python_udf.kwargs)\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4090, in raise_error\r\nJul 13 21:22:33     raise RuntimeError('simulation')\r\nJul 13 21:22:33 RuntimeError: simulation\r\nJul 13 21:22:33 \r\nJul 13 21:22:33 Failed to respond to 'Shutdown Proceed' in time, got error eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 Caught exception: \r\nJul 13 21:22:33 RuntimeError: eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\r\nJul 13 21:22:33 \r\nJul 13 21:22:33 During handling of the above exception, another exception occurred:\r\nJul 13 21:22:33 \r\nJul 13 21:22:33 Traceback (most recent call last):\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516, in run_test\r\nJul 13 21:22:33     getattr(self, test_name)()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400, in wrapper\r\nJul 13 21:22:33     fn()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 100, in new_test_method\r\nJul 13 21:22:33     return_value = old_test_method(self, *arg, **kwargs)\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4101, in test_shutdown_errors\r\nJul 13 21:22:33     rpc.shutdown()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 217, in __exit__\r\nJul 13 21:22:33     expected_regex.pattern, str(exc_value)))\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/unittest/case.py\", line 135, in _raiseFailure\r\nJul 13 21:22:33     raise self.test_case.failureException(msg)\r\nJul 13 21:22:33 AssertionError: \"simulation rref\" does not match \"eof (this error originated at tensorpipe/transport/shm/connection_impl.cc:259)\"\r\nJul 13 21:22:33  exiting process 2 with exit code: 10\r\nJul 13 21:22:33 Caught exception: \r\nJul 13 21:22:33 Traceback (most recent call last):\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516, in run_test\r\nJul 13 21:22:33     getattr(self, test_name)()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400, in wrapper\r\nJul 13 21:22:33     fn()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 100, in new_test_method\r\nJul 13 21:22:33     return_value = old_test_method(self, *arg, **kwargs)\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4109, in test_shutdown_errors\r\nJul 13 21:22:33     dist.barrier()\r\nJul 13 21:22:33   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2617, in barrier\r\nJul 13 21:22:33     work.wait()\r\nJul 13 21:22:33 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:14727\r\nJul 13 21:22:33  exiting process 0 with exit code: 10\r\nJul 13 21:22:34 On WorkerInfo(id=1, name=worker1):\r\nJul 13 21:22:34 RuntimeError('simulation',)\r\nJul 13 21:22:34 Traceback (most recent call last):\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/internal.py\", line 204, in _run_function\r\nJul 13 21:22:34     result = python_udf.func(*python_udf.args, **python_udf.kwargs)\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4090, in raise_error\r\nJul 13 21:22:34     raise RuntimeError('simulation')\r\nJul 13 21:22:34 RuntimeError: simulation\r\nJul 13 21:22:34 \r\nJul 13 21:22:34 Caught exception: \r\nJul 13 21:22:34 Traceback (most recent call last):\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516, in run_test\r\nJul 13 21:22:34     getattr(self, test_name)()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400, in wrapper\r\nJul 13 21:22:34     fn()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 100, in new_test_method\r\nJul 13 21:22:34     return_value = old_test_method(self, *arg, **kwargs)\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4109, in test_shutdown_errors\r\nJul 13 21:22:34     dist.barrier()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2617, in barrier\r\nJul 13 21:22:34     work.wait()\r\nJul 13 21:22:34 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:43947\r\nJul 13 21:22:34  exiting process 1 with exit code: 10\r\nJul 13 21:22:34 On WorkerInfo(id=3, name=worker3):\r\nJul 13 21:22:34 RuntimeError('simulation',)\r\nJul 13 21:22:34 Traceback (most recent call last):\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rpc/internal.py\", line 204, in _run_function\r\nJul 13 21:22:34     result = python_udf.func(*python_udf.args, **python_udf.kwargs)\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4090, in raise_error\r\nJul 13 21:22:34     raise RuntimeError('simulation')\r\nJul 13 21:22:34 RuntimeError: simulation\r\nJul 13 21:22:34 \r\nJul 13 21:22:34 Caught exception: \r\nJul 13 21:22:34 Traceback (most recent call last):\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 516, in run_test\r\nJul 13 21:22:34     getattr(self, test_name)()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 400, in wrapper\r\nJul 13 21:22:34     fn()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/dist_utils.py\", line 100, in new_test_method\r\nJul 13 21:22:34     return_value = old_test_method(self, *arg, **kwargs)\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/distributed/rpc/rpc_test.py\", line 4109, in test_shutdown_errors\r\nJul 13 21:22:34     dist.barrier()\r\nJul 13 21:22:34   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 2617, in barrier\r\nJul 13 21:22:34     work.wait()\r\nJul 13 21:22:34 RuntimeError: [/var/lib/jenkins/workspace/third_party/gloo/gloo/transport/tcp/pair.cc:598] Connection closed by peer [172.17.0.2]:16786\r\nJul 13 21:22:34  exiting process 3 with exit code: 10\r\nJul 13 21:22:34 Process 2 terminated with exit code 10, terminating remaining processes.\r\nJul 13 21:22:34 ERROR (2.532s)\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/62176",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/62176/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/62176/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/62176/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/62176",
+      "id": 952513357,
+      "node_id": "MDU6SXNzdWU5NTI1MTMzNTc=",
+      "number": 62176,
+      "title": "DISABLED test_ddp_hook_with_optimizer_parity (__main__.TestDistBackendWithFork)",
+      "user": {
+        "login": "rohan-varma",
+        "id": 8039770,
+        "node_id": "MDQ6VXNlcjgwMzk3NzA=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/rohan-varma",
+        "html_url": "https://github.com/rohan-varma",
+        "followers_url": "https://api.github.com/users/rohan-varma/followers",
+        "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
+        "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
+        "repos_url": "https://api.github.com/users/rohan-varma/repos",
+        "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2021-07-26T05:18:30Z",
+      "updated_at": "2021-07-26T05:18:30Z",
+      "closed_at": null,
+      "author_association": "MEMBER",
+      "active_lock_reason": null,
+      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/355664/workflows/804d3268-23c9-4afb-a2e1-b3045431c349/jobs/14993819\r\n\r\nNeeds to be skipped when torchvision is not available",
       "performed_via_github_app": null,
       "score": 0.0
     },
@@ -2784,92 +2835,6 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "This test is failing intermittently on multiple builds with increasing frequency recently and no clear cause. \r\n\r\n```\r\nApr 29 09:14:17 ======================================================================\r\nApr 29 09:14:17 ERROR [0.030s]: test_default_quantized_lstm (quantization.test_quantize.TestPostTrainingDynamic)\r\nApr 29 09:14:17 ----------------------------------------------------------------------\r\nApr 29 09:14:17 Traceback (most recent call last):\r\nApr 29 09:14:17   File \"/var/lib/jenkins/workspace/test/quantization/test_quantize.py\", line 862, in test_default_quantized_lstm\r\nApr 29 09:14:17     y, (h, c) = cell_dq(x, (h, c))\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/modules/module.py\", line 562, in __call__\r\nApr 29 09:14:17     result = self.forward(*input, **kwargs)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 351, in forward\r\nApr 29 09:14:17     return self.forward_tensor(input, hx)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 312, in forward_tensor\r\nApr 29 09:14:17     input, hx, batch_sizes, max_batch_size, sorted_indices)\r\nApr 29 09:14:17   File \"/opt/conda/lib/python3.6/site-packages/torch/nn/quantized/dynamic/modules/rnn.py\", line 293, in forward_impl\r\nApr 29 09:14:17     self.batch_first, dtype=self.dtype, use_dynamic=True)\r\nApr 29 09:14:17 RuntimeError: In ChooseQuantizationParams, min should be less than or equal to max\r\n```\r\n\n\ncc @jerryzh168 @jianyuh @dzhulgakov @raghuramank100 @jamesr66a @vkuzo @ezyang @gchanan @zou3519",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/34213",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/34213",
-      "id": 575502768,
-      "node_id": "MDU6SXNzdWU1NzU1MDI3Njg=",
-      "number": 34213,
-      "title": "DISABLED test_script_pack_padded_sequence (test_jit.TestScript)",
-      "user": {
-        "login": "mrshenli",
-        "id": 16999635,
-        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
-        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/mrshenli",
-        "html_url": "https://github.com/mrshenli",
-        "followers_url": "https://api.github.com/users/mrshenli/followers",
-        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
-        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
-        "repos_url": "https://api.github.com/users/mrshenli/repos",
-        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 443484135,
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
-          "name": "high priority",
-          "color": "F22613",
-          "default": false,
-          "description": null
-        },
-        {
-          "id": 1301397902,
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests",
-          "name": "module: flaky-tests",
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI"
-        },
-        {
-          "id": 679953983,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit",
-          "name": "oncall: jit",
-          "color": "c5def5",
-          "default": false,
-          "description": "Add this issue/PR to JIT oncall triage queue"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 0,
-      "created_at": "2020-03-04T15:29:15Z",
-      "updated_at": "2020-03-09T17:09:59Z",
-      "closed_at": null,
-      "author_association": "CONTRIBUTOR",
-      "active_lock_reason": null,
-      "body": "Previous failed runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682966\r\n\r\nSubsequent succeeded runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682247\r\nhttps://circleci.com/gh/pytorch/pytorch/4682241\r\n\r\nToday, it consistently fails:\r\nhttps://circleci.com/gh/pytorch/pytorch/4687625\r\nhttps://circleci.com/gh/pytorch/pytorch/4687610\r\nhttps://circleci.com/gh/pytorch/pytorch/4686149\r\n\r\n@ljk53 tried reverting the seemingly culprit PR #32814 and #34055, but the error persist. \r\n\r\nI am going to disable this test while JIT team investigating it. \n\ncc @ezyang @gchanan @zou3519 @suo",
       "performed_via_github_app": null,
       "score": 0.0
     }
