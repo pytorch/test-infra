@@ -1,0 +1,11 @@
+notifiers:
+  - name: default-email
+    type: email
+    org_id: 1
+    uid: notifier1
+    disable_resolve_message: false
+    send_reminder: true
+    frequency: 8h
+    is_default: true
+    settings:
+      addresses: {{ passwords.email.to_address }}
