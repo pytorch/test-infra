@@ -1,6 +1,0 @@
-target/
-*.iml
-.idea/
-**/.terraform/
-**/*.tfstate*
-**/.DS_Store
