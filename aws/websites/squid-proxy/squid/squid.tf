@@ -5,15 +5,15 @@ provider "aws" {
 
 locals {
   user_data = templatefile("${path.module}/user-data.sh", {
-    aws_public_vpc_cidr        = "${var.aws_public_vpc_cidr}"
+    aws_private_vpc_cidr       = "${var.aws_private_vpc_cidr}"
     squid_port                 = "${var.squid_port}"
-    maximum_object_size         = "${var.maximum_object_size}"
+    maximum_object_size        = "${var.maximum_object_size}"
     disk_size                  = "${var.disk_size}"
   })
 }
 
 resource "aws_elb" "elb_1" {
-  internal                     = false
+  internal                     = true
   cross_zone_load_balancing    = true
   idle_timeout                 = 300
   connection_draining          = true
@@ -47,7 +47,7 @@ resource "aws_launch_configuration" "lc_1" {
   instance_type                = "${var.aws_instance_type}"
   key_name                     = "${var.aws_key_name}"
   security_groups              = ["${var.aws_security_group_id}"]
-  associate_public_ip_address  = true
+  associate_public_ip_address  = false
   user_data                    = local.user_data
   ebs_optimized = true
   root_block_device {

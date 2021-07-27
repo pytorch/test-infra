@@ -43,8 +43,8 @@ variable "aws_asg_max_size" {
   default     = 3
 }
 
-variable "aws_public_vpc_cidr" {
-  description = "VPC CIDR block range for the public VPC"
+variable "aws_private_vpc_cidr" {
+  description = "VPC CIDR block range for the private VPC"
 }
 
 variable "squid_port" {

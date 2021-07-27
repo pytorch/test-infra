@@ -22,9 +22,9 @@ variable "aws_key_name" {
   description = "AWS key name to use, it must exist in the specified region"
 }
 
-variable "aws_public_vpc_cidr" {
+variable "aws_private_vpc_cidr" {
   description = "VPC CIDR block range for the public VPC"
-  default     = "10.0.0.0/20"
+  default     = "10.0.0.0/16"
 }
 
 variable "squid_port" {

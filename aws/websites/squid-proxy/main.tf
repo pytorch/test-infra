@@ -3,10 +3,16 @@ provider "aws" {
   profile = var.aws_profile
 }
 
-data "aws_subnet_ids" "dev" {
+data "aws_subnet_ids" "gh_ci_vpc" {
   vpc_id = var.vpc_id
+
+  tags = {
+    Tier        = "private"
+    Environment = "gh-ci"
+  }
 }
 
+# security group to allow all inbound and outbound traffic from the private subnets
 resource "aws_security_group" "sg" {
   name   = "${var.environment_name}_sg"
   vpc_id = var.vpc_id
@@ -45,8 +51,8 @@ module "squid" {
   aws_region            = var.aws_region
   aws_profile           = var.aws_profile
   aws_security_group_id = aws_security_group.sg.id
-  aws_subnet_ids        = [tolist(data.aws_subnet_ids.dev.ids)[0]]
+  aws_subnet_ids        = tolist(data.aws_subnet_ids.gh_ci_vpc.ids)
   aws_ami               = lookup(var.aws_amis, var.aws_region)
-  aws_public_vpc_cidr   = var.aws_public_vpc_cidr
+  aws_private_vpc_cidr  = var.aws_private_vpc_cidr
   squid_port            = var.squid_port
 }

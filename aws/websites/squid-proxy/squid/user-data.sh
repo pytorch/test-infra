@@ -6,7 +6,7 @@ yum install -y squid
 cat > /etc/squid/squid.conf << EOF
 acl manager proto cache_object
 acl CONNECT method CONNECT
-acl localnet src ${aws_public_vpc_cidr}
+acl localnet src ${aws_private_vpc_cidr}
 acl localhost src 127.0.0.1/255.255.255.255
 acl Safe_ports port 80
 acl Safe_ports port 443
