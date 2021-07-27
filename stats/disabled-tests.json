@@ -294,7 +294,15 @@
         "site_admin": false
       },
       "labels": [
-
+        {
+          "id": 679953883,
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed",
+          "name": "oncall: distributed",
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue"
+        }
       ],
       "state": "open",
       "locked": false,
@@ -305,11 +313,11 @@
       "milestone": null,
       "comments": 0,
       "created_at": "2021-07-26T05:18:30Z",
-      "updated_at": "2021-07-26T05:18:30Z",
+      "updated_at": "2021-07-27T09:11:15Z",
       "closed_at": null,
       "author_association": "MEMBER",
       "active_lock_reason": null,
-      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/355664/workflows/804d3268-23c9-4afb-a2e1-b3045431c349/jobs/14993819\r\n\r\nNeeds to be skipped when torchvision is not available",
+      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/355664/workflows/804d3268-23c9-4afb-a2e1-b3045431c349/jobs/14993819\r\n\r\nNeeds to be skipped when torchvision is not available\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
       "performed_via_github_app": null,
       "score": 0.0
     },
