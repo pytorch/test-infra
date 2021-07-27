@@ -13,6 +13,7 @@ services:
     volumes:
       - /etc/pytorch/grafana:/var/lib/grafana
       - /etc/pytorch/grafana-provisioning/:/etc/grafana/provisioning
+      - /etc/pytorch/email_template.html:/usr/share/grafana/public/emails/alert_notification.html
       - /etc/pytorch/grafana.ini:/etc/grafana/grafana.ini
       - /etc/pytorch/dashboards:/var/lib/grafana/dashboards
 
