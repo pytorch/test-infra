@@ -8,7 +8,7 @@ on:
       - '.github/workflows/clang-tidy-linux.yml'
   push:
     branches:
-      - master
+      - main
     paths:
       - 'tools/clang-tidy-checks/**'
       - '!tools/clang-tidy-checks/README.md'
@@ -26,7 +26,7 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
           docker build ./tools/clang-tidy-checks --tag ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA -f tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy
       - name: Publish docker image and extract binary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           set -ex
           docker push ghcr.io/pytorch/cilint-clang-tidy:$GITHUB_SHA
@@ -38,7 +38,7 @@ jobs:
           docker rm -v $image_id
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: clang-tidy
           if-no-files-found: error

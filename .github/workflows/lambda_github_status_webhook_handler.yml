@@ -3,7 +3,7 @@ name: lambda_github_status_webhook_handler
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '.github/workflows/lambda_github_status_webhook_handler.yml'
       - 'aws/lambda/github-status-webhook-handler/**'

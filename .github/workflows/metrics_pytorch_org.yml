@@ -3,7 +3,7 @@ name: Deploy metrics.pytorch.org
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'aws/websites/metrics.pytorch.org/**'
       - '.github/workflows/metrics_pytorch_org.yml'
