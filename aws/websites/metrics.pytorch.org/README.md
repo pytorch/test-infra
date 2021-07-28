@@ -58,3 +58,10 @@ sudo docker exec -it <ID> /bin/bash
 Dashboards are defined via [Grafana's provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/#dashboards). Create a new dashboard in the UI, then export it to JSON and save that to a file in the repo under [`aws/websites/metrics.pytorch.org/files/dashboards`](aws/websites/metrics.pytorch.org/files/dashboards).
 
 Any `.yml` files there will automatically be picked up by Grafana when it restarts.
+
+Steps to add or change grafana dashboards:
+
+- Go to https://metrics.pytorch.org with login
+- Edit the dashboards or alerts directly within the dashboard
+- Go to the settings page, and save the JSON
+- Setup a PR and commit
