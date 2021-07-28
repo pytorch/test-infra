@@ -1,0 +1,22 @@
+name: Lint GitHub Actions
+
+on:
+  pull_request:
+
+jobs:
+  lint-actions:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.0'
+      - name: Install requirements
+        run: |
+          set -eux
+          go install github.com/rhysd/actionlint/cmd/actionlint@7040327ca40aefd92888871131adc30c7d9c1b6d
+      - name: Run actionlint
+        run: |
+          set -eux
+          actionlint --shellcheck NONE --pyflakes NONE
