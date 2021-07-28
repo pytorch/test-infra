@@ -171,6 +171,15 @@
       },
       "labels": [
         {
+          "id": 443484135,
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
+          "name": "high priority",
+          "color": "F22613",
+          "default": false,
+          "description": null
+        },
+        {
           "id": 1076922545,
           "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd",
@@ -180,6 +189,15 @@
           "description": "Related to torch.autograd, and the autograd engine in general"
         },
         {
+          "id": 2063790344,
+          "node_id": "MDU6TGFiZWwyMDYzNzkwMzQ0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20correctness%20(silent)",
+          "name": "module: correctness (silent)",
+          "color": "f7e101",
+          "default": false,
+          "description": "issue that returns an incorrect result silently"
+        },
+        {
           "id": 1504141947,
           "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra",
@@ -187,24 +205,6 @@
           "color": "f7e101",
           "default": false,
           "description": "Issues related to specialized linear algebra operations in PyTorch"
-        },
-        {
-          "id": 2484356711,
-          "node_id": "MDU6TGFiZWwyNDg0MzU2NzEx",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20testing",
-          "name": "module: testing",
-          "color": "fbca04",
-          "default": false,
-          "description": ""
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
         }
       ],
       "state": "open",
@@ -216,11 +216,11 @@
       "milestone": null,
       "comments": 0,
       "created_at": "2021-07-28T13:43:37Z",
-      "updated_at": "2021-07-28T15:35:02Z",
+      "updated_at": "2021-07-28T15:58:48Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
-      "body": "As it breaks https://app.circleci.com/pipelines/github/pytorch/pytorch/356909/workflows/c5e75110-4a25-40a2-8738-839b900c6caf/jobs/15048492\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jianyuh @mruberry @heitorschueroff @walterddr @IvanYashchuk @xwang233",
+      "body": "As it breaks https://app.circleci.com/pipelines/github/pytorch/pytorch/356909/workflows/c5e75110-4a25-40a2-8738-839b900c6caf/jobs/15048492\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @albanD @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jianyuh @mruberry @heitorschueroff @walterddr @IvanYashchuk @xwang233",
       "performed_via_github_app": null,
       "score": 0.0
     },
@@ -257,6 +257,15 @@
       },
       "labels": [
         {
+          "id": 443484135,
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
+          "name": "high priority",
+          "color": "F22613",
+          "default": false,
+          "description": null
+        },
+        {
           "id": 1076922545,
           "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd",
@@ -264,6 +273,15 @@
           "color": "f7e101",
           "default": false,
           "description": "Related to torch.autograd, and the autograd engine in general"
+        },
+        {
+          "id": 2063790344,
+          "node_id": "MDU6TGFiZWwyMDYzNzkwMzQ0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20correctness%20(silent)",
+          "name": "module: correctness (silent)",
+          "color": "f7e101",
+          "default": false,
+          "description": "issue that returns an incorrect result silently"
         },
         {
           "id": 1504141947,
@@ -275,22 +293,13 @@
           "description": "Issues related to specialized linear algebra operations in PyTorch"
         },
         {
-          "id": 2484356711,
-          "node_id": "MDU6TGFiZWwyNDg0MzU2NzEx",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20testing",
-          "name": "module: testing",
-          "color": "fbca04",
+          "id": 466131885,
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review",
+          "name": "triage review",
+          "color": "cc317c",
           "default": false,
           "description": ""
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
         }
       ],
       "state": "open",
@@ -340,11 +349,11 @@
       "milestone": null,
       "comments": 0,
       "created_at": "2021-07-28T13:42:37Z",
-      "updated_at": "2021-07-28T15:35:15Z",
+      "updated_at": "2021-07-28T15:59:19Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
-      "body": "As it broken https://app.circleci.com/pipelines/github/pytorch/pytorch/356909/workflows/c5e75110-4a25-40a2-8738-839b900c6caf/jobs/15048492\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jianyuh @mruberry @heitorschueroff @walterddr @IvanYashchuk @xwang233",
+      "body": "As it broken https://app.circleci.com/pipelines/github/pytorch/pytorch/356909/workflows/c5e75110-4a25-40a2-8738-839b900c6caf/jobs/15048492\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @albanD @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jianyuh @mruberry @heitorschueroff @walterddr @IvanYashchuk @xwang233",
       "performed_via_github_app": null,
       "score": 0.0
     },
