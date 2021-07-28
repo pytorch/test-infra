@@ -52,7 +52,7 @@
         "handler": 1,
         "message": "pytorch-probot has errors above the threshold, please check the logs",
         "name": "pytorch-probot Invocations and Errors alert",
-        "noDataState": "alerting",
+        "noDataState": "ok",
         "notifications": []
       },
       "datasource": "CloudWatch",
@@ -66,7 +66,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -75,6 +75,9 @@
               "viz": false
             },
             "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -105,7 +108,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -135,7 +154,7 @@
           "matchExact": true,
           "metricName": "Invocations",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -154,7 +173,7 @@
           "matchExact": true,
           "metricName": "Errors",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
@@ -280,7 +299,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -319,7 +338,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -349,7 +384,7 @@
           "matchExact": true,
           "metricName": "Invocations",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -368,7 +403,7 @@
           "matchExact": true,
           "metricName": "Errors",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
@@ -486,7 +521,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -504,7 +539,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -525,7 +560,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -555,7 +606,7 @@
           "matchExact": true,
           "metricName": "Invocations",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -574,7 +625,7 @@
           "matchExact": true,
           "metricName": "Errors",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
@@ -692,7 +743,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -731,7 +782,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -761,7 +828,7 @@
           "matchExact": true,
           "metricName": "Invocations",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -780,7 +847,7 @@
           "matchExact": true,
           "metricName": "Errors",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
@@ -853,6 +920,7 @@
         "y": 27
       },
       "id": 9,
+      "maxDataPoints": null,
       "options": {
         "legend": {
           "calcs": [],
@@ -920,7 +988,7 @@
         "handler": 1,
         "message": "scribe proxy errors are above the threshold, please check the logs",
         "name": "scribe-proxy Invocations and Errors alert",
-        "noDataState": "alerting",
+        "noDataState": "ok",
         "notifications": []
       },
       "datasource": "CloudWatch",
@@ -934,7 +1002,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "bars",
+            "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -973,7 +1041,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -1003,7 +1087,7 @@
           "matchExact": true,
           "metricName": "Invocations",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -1022,7 +1106,7 @@
           "matchExact": true,
           "metricName": "Errors",
           "namespace": "AWS/Lambda",
-          "period": "1h",
+          "period": "5m",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
@@ -1145,12 +1229,12 @@
     "list": []
   },
   "time": {
-    "from": "now-12h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Lambda Status",
   "uid": "LFSW__inz",
-  "version": 7
+  "version": 10
 }

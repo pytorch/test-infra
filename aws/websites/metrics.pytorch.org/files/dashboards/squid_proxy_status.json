@@ -218,14 +218,14 @@
             },
             "query": {
               "params": [
-                "Unhealthy Count",
+                "Unhealthy",
                 "5m",
                 "now"
               ]
             },
             "reducer": {
               "params": [],
-              "type": "max"
+              "type": "avg"
             },
             "type": "query"
           }
@@ -234,9 +234,9 @@
         "for": "5m",
         "frequency": "1m",
         "handler": 1,
-        "message": "Unhealthy instances are above 0, check the traffic that go through the squid proxy and ELB.",
-        "name": "Unhealthy instances alert",
-        "noDataState": "no_data",
+        "message": "Unhealthy Squid Proxy instances is above threshold or data reporting is missing, please check the logs or the health of the squid proxy ELB",
+        "name": "Unhealthy Squid Proxy Instance",
+        "noDataState": "alerting",
         "notifications": []
       },
       "datasource": "CloudWatch",
@@ -288,7 +288,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "UnHealthyHostCount_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -296,7 +312,7 @@
         "x": 12,
         "y": 0
       },
-      "id": 2,
+      "id": 7,
       "options": {
         "legend": {
           "calcs": [],
@@ -318,12 +334,12 @@
           "matchExact": true,
           "metricName": "UnHealthyHostCount",
           "namespace": "AWS/ELB",
-          "period": "30",
+          "period": "30s",
           "queryType": "randomWalk",
-          "refId": "Unhealthy Count",
-          "region": "us-east-1",
+          "refId": "Unhealthy",
+          "region": "default",
           "statistics": [
-            "Maximum"
+            "Sum"
           ]
         },
         {
@@ -337,12 +353,12 @@
           "matchExact": true,
           "metricName": "HealthyHostCount",
           "namespace": "AWS/ELB",
-          "period": "30",
+          "period": "30s",
           "queryType": "randomWalk",
-          "refId": "Healthy Count",
-          "region": "us-east-1",
+          "refId": "Healthy",
+          "region": "default",
           "statistics": [
-            "Maximum"
+            "Sum"
           ]
         }
       ],
@@ -354,7 +370,7 @@
           "visible": true
         }
       ],
-      "title": "Healthy instances",
+      "title": "Healthy Instances",
       "type": "timeseries"
     },
     {
@@ -407,7 +423,23 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BackendConnectionErrors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -437,7 +469,7 @@
           "matchExact": true,
           "metricName": "BackendConnectionErrors",
           "namespace": "AWS/ELB",
-          "period": "30",
+          "period": "30s",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "default",
@@ -464,5 +496,5 @@
   "timezone": "",
   "title": "Squid Cached Proxy",
   "uid": "4xOx_sZnz",
-  "version": 3
+  "version": 7
 }
