@@ -9,7 +9,13 @@ import zipfile
 
 
 def download_lambda(client, name, basename="."):
-    url = client.get_function(FunctionName=name)['Code']['Location']
+    func_info = client.get_function(FunctionName=name)
+    repo_type = func_info['Code']['RepositoryType']
+    if repo_type != 'S3':
+        print(f"Skipping {name}: hosted on unsupported repo type {repo_type}")
+        return
+    url = func_info['Code']['Location']
+
     print(f"Downloading {name}")
     with tempfile.NamedTemporaryFile(suffix='.zip') as tmp:
         urllib.request.urlretrieve(url, tmp.name)
