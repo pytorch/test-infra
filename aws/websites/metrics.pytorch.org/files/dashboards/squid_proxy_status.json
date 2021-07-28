@@ -339,7 +339,7 @@
           "refId": "Unhealthy",
           "region": "default",
           "statistics": [
-            "Sum"
+            "Average"
           ]
         },
         {
@@ -358,7 +358,7 @@
           "refId": "Healthy",
           "region": "default",
           "statistics": [
-            "Sum"
+            "Average"
           ]
         }
       ],
@@ -496,5 +496,5 @@
   "timezone": "",
   "title": "Squid Cached Proxy",
   "uid": "4xOx_sZnz",
-  "version": 7
+  "version": 2
 }
