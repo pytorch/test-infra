@@ -123,6 +123,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Invocations_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -275,7 +290,7 @@
           "matchExact": true,
           "metricName": "Duration",
           "namespace": "AWS/Lambda",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -349,6 +364,21 @@
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Invocations_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -497,7 +527,7 @@
           "matchExact": true,
           "metricName": "Duration",
           "namespace": "AWS/Lambda",
-          "period": "30",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -571,6 +601,21 @@
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Invocations_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -719,7 +764,7 @@
           "matchExact": true,
           "metricName": "Duration",
           "namespace": "AWS/Lambda",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -793,6 +838,21 @@
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Invocations_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -942,7 +1002,7 @@
           "matchExact": true,
           "metricName": "Duration",
           "namespace": "AWS/Lambda",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -1052,6 +1112,21 @@
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Invocations_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -1208,7 +1283,7 @@
           "matchExact": true,
           "metricName": "Duration",
           "namespace": "AWS/Lambda",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
@@ -1229,12 +1304,12 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Lambda Status",
   "uid": "LFSW__inz",
-  "version": 10
+  "version": 4
 }
