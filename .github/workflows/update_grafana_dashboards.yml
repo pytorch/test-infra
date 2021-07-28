@@ -1,9 +1,8 @@
 name: Update Grafana Dashboards
 
 on:
-  pull_request:
-  # schedule:
-  #   - cron: "*/15 * * * *"
+  schedule:
+    - cron: "*/15 * * * *"
 
 jobs:
   update-dashboards:
@@ -31,5 +30,4 @@ jobs:
           git config user.name 'facebook-github-bot'
           git config user.email 'facebook-github-bot@users.noreply.github.com'
           git commit -m"Automated Grafana dashboard update"
-          # Skipping git push for now...
-          # git push origin/main
+          git push origin/main
