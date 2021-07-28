@@ -9,7 +9,7 @@ on:
       - '.github/workflows/clang-tidy-macos.yml'
   push:
     branches:
-      - master
+      - main
     paths:
       - 'tools/clang-tidy-checks/**'
       - '!tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy'
@@ -37,7 +37,7 @@ jobs:
           ./setup.sh
       - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
         name: Publish binary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: clang-tidy
           if-no-files-found: error

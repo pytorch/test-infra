@@ -24,7 +24,7 @@ jobs:
           source_file: 'disabled-tests.json'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
-          destination_branch: master
+          destination_branch: main
           user_email: 'test-infra@pytorch.org'
           user_name: 'Pytorch Test Infra'
           commit_message: 'Updating disabled tests stats'

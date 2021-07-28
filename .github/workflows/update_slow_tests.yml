@@ -39,7 +39,7 @@ jobs:
           source_file: 'slow-tests.json'
           destination_repo: 'pytorch/test-infra'
           destination_folder: 'stats'
-          destination_branch: master
+          destination_branch: main
           user_email: 'test-infra@pytorch.org'
           user_name: 'PyTorch Test Infra'
           commit_message: 'Updating slow tests stats'
