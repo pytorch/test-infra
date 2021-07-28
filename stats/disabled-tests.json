@@ -171,6 +171,15 @@
       },
       "labels": [
         {
+          "id": 2383817833,
+          "node_id": "MDU6TGFiZWwyMzgzODE3ODMz",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/complex_autograd",
+          "name": "complex_autograd",
+          "color": "abfce4",
+          "default": false,
+          "description": ""
+        },
+        {
           "id": 443484135,
           "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority",
@@ -178,15 +187,6 @@
           "color": "F22613",
           "default": false,
           "description": null
-        },
-        {
-          "id": 1076922545,
-          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd",
-          "name": "module: autograd",
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to torch.autograd, and the autograd engine in general"
         },
         {
           "id": 2063790344,
@@ -225,7 +225,7 @@
       "milestone": null,
       "comments": 1,
       "created_at": "2021-07-28T13:43:37Z",
-      "updated_at": "2021-07-28T17:50:08Z",
+      "updated_at": "2021-07-28T19:24:47Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
@@ -302,13 +302,13 @@
           "description": "Issues related to specialized linear algebra operations in PyTorch"
         },
         {
-          "id": 466131885,
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review",
-          "name": "triage review",
-          "color": "cc317c",
+          "id": 1301347167,
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
+          "name": "triaged",
+          "color": "006b75",
           "default": false,
-          "description": ""
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
         }
       ],
       "state": "open",
@@ -358,7 +358,7 @@
       "milestone": null,
       "comments": 0,
       "created_at": "2021-07-28T13:42:37Z",
-      "updated_at": "2021-07-28T15:59:19Z",
+      "updated_at": "2021-07-28T19:25:37Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
