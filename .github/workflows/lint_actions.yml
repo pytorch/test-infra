@@ -1,0 +1,35 @@
+name: Lint GitHub Actions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-actions:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.0'
+      # Lifted from https://github.com/pytorch/pytorch/blob/b39b28ced39f6400c97c1ab663046d765fc95a87/.github/workflows/lint.yml#L189-L200
+      - name: Install ShellCheck
+        run: |
+          set -x
+          scversion="v0.7.2"
+          wget -qO- "https://github.com/koalaman/shellcheck/releases/download/${scversion?}/shellcheck-${scversion?}.linux.x86_64.tar.xz" | tar -xJv
+          mkdir -p ~/.local/bin
+          cp "shellcheck-${scversion}/shellcheck" ~/.local/bin/
+          rm -r "shellcheck-${scversion}"
+          ~/.local/bin/shellcheck --version
+      - name: Install requirements
+        run: |
+          set -eux
+          go install github.com/rhysd/actionlint/cmd/actionlint@7040327ca40aefd92888871131adc30c7d9c1b6d
+      - name: Run actionlint
+        run: |
+          set -eux
+          actionlint
