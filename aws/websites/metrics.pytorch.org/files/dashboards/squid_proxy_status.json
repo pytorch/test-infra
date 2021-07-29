@@ -98,7 +98,7 @@
           "matchExact": true,
           "metricName": "RequestCount",
           "namespace": "AWS/ELB",
-          "period": "30",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "default",
@@ -107,7 +107,7 @@
           ]
         }
       ],
-      "title": "Requests Count (30s)",
+      "title": "Requests Count",
       "type": "timeseries"
     },
     {
@@ -121,7 +121,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "line",
+            "drawStyle": "bars",
             "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
@@ -168,7 +168,7 @@
         "x": 6,
         "y": 0
       },
-      "id": 4,
+      "id": 8,
       "options": {
         "legend": {
           "calcs": [],
@@ -188,18 +188,18 @@
           "expression": "",
           "id": "",
           "matchExact": true,
-          "metricName": "Latency",
+          "metricName": "RequestCount",
           "namespace": "AWS/ELB",
-          "period": "",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "default",
           "statistics": [
-            "Average"
+            "Sum"
           ]
         }
       ],
-      "title": "Latency",
+      "title": "Requests Count",
       "type": "timeseries"
     },
     {
@@ -334,7 +334,7 @@
           "matchExact": true,
           "metricName": "UnHealthyHostCount",
           "namespace": "AWS/ELB",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "Unhealthy",
           "region": "default",
@@ -353,7 +353,7 @@
           "matchExact": true,
           "metricName": "HealthyHostCount",
           "namespace": "AWS/ELB",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "Healthy",
           "region": "default",
@@ -469,7 +469,7 @@
           "matchExact": true,
           "metricName": "BackendConnectionErrors",
           "namespace": "AWS/ELB",
-          "period": "30s",
+          "period": "1m",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "default",
@@ -480,8 +480,275 @@
       ],
       "title": "Backend Connection Errors",
       "type": "timeseries"
+    },
+    {
+      "datasource": "CloudWatch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NetworkOut_Average"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "dimensions": {
+            "AutoScalingGroupName": "Big CPU swarm"
+          },
+          "expression": "",
+          "id": "",
+          "matchExact": true,
+          "metricName": "NetworkOut",
+          "namespace": "AWS/EC2",
+          "period": "1m",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "region": "us-east-1",
+          "statistics": [
+            "Average"
+          ]
+        }
+      ],
+      "title": "Runners Network Out",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "CloudWatch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NetworkOut_Average"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BytesOutToDestination_Average"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BytesOutToSource_Average"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "dimensions": {
+            "NatGatewayId": "nat-08768659ec8444aed"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricName": "BytesOutToDestination",
+          "namespace": "AWS/NATGateway",
+          "period": "1m",
+          "refId": "A",
+          "region": "us-east-1",
+          "statistics": [
+            "Average"
+          ]
+        },
+        {
+          "alias": "",
+          "dimensions": {
+            "NatGatewayId": "nat-08768659ec8444aed"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricName": "BytesOutToSource",
+          "namespace": "AWS/NATGateway",
+          "period": "1m",
+          "refId": "B",
+          "region": "us-east-1",
+          "statistics": [
+            "Average"
+          ]
+        }
+      ],
+      "title": "Nat Gateway BytesOut",
+      "type": "timeseries"
     }
   ],
+  "refresh": "30s",
   "schemaVersion": 30,
   "style": "dark",
   "tags": [],
@@ -496,5 +763,5 @@
   "timezone": "",
   "title": "Squid Cached Proxy",
   "uid": "4xOx_sZnz",
-  "version": 2
+  "version": 3
 }
