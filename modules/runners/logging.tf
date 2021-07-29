@@ -76,7 +76,7 @@ resource "aws_cloudwatch_log_group" "gh_runners_linux" {
 
 resource "aws_iam_role_policy" "cloudwatch_linux" {
   count = var.enable_ssm_on_runners ? 1 : 0
-  name  = "CloudWatchLogginAndMetrics"
+  name  = "CloudWatchLogginAndMetricsLinux"
   role  = aws_iam_role.runner.name
   policy = templatefile("${path.module}/policies/instance-cloudwatch-policy.json",
     {
@@ -105,7 +105,7 @@ resource "aws_cloudwatch_log_group" "gh_runners_windows" {
 
 resource "aws_iam_role_policy" "cloudwatch_windows" {
   count = var.enable_ssm_on_runners ? 1 : 0
-  name  = "CloudWatchLogginAndMetrics"
+  name  = "CloudWatchLogginAndMetricsWindows"
   role  = aws_iam_role.runner.name
   policy = templatefile("${path.module}/policies/instance-cloudwatch-policy.json",
     {
