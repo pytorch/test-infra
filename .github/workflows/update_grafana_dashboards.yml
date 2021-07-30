@@ -17,7 +17,8 @@ jobs:
       - name: Update Dashboards
         id: update
         env:
-          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
         run: |
           set -eux
           cd aws/websites/metrics.pytorch.org

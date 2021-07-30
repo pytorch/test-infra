@@ -11,7 +11,8 @@ import difflib
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
-token = os.environ["GRAFANA_TOKEN"]
+user = os.environ["GRAFANA_USER"]
+password = os.environ["GRAFANA_PASSWORD"]
 
 Dashboard = Dict[str, Any]
 
@@ -21,9 +22,11 @@ DASHBOARD_DIR = ROOT / "files" / "dashboards"
 
 def grafana(url):
     base = "https://metrics.pytorch.org/api"
-    headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{base}/{url.lstrip('/')}", headers=headers)
-    return r.json()
+    r = requests.get(f"{base}/{url.lstrip('/')}", auth=(user, password))
+    value = r.json()
+    if isinstance(value, dict) and value.get("message", None) is not None:
+        raise RuntimeError(value)
+    return value
 
 
 def get_dashboards() -> List[Dashboard]:
