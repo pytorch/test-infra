@@ -41,7 +41,7 @@ async function removeRunner(
 export async function scaleDown(): Promise<void> {
   const scaleDownConfigs = JSON.parse(process.env.SCALE_DOWN_CONFIG as string) as [ScalingDownConfig];
 
-  const enableOrgLevel = yn(process.env.ENABLE_ORGANIZATION_RUNNERS, { default: true });
+  const enableOrgLevel = false;
   const environment = process.env.ENVIRONMENT as string;
   const minimumRunningTimeInMinutes = process.env.MINIMUM_RUNNING_TIME_IN_MINUTES as string;
   let idleCounter = getIdleRunnerCount(scaleDownConfigs);

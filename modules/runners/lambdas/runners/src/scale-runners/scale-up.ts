@@ -13,16 +13,12 @@ export interface ActionRequestMessage {
 
 export const scaleUp = async (eventSource: string, payload: ActionRequestMessage): Promise<void> => {
   if (eventSource !== 'aws:sqs') throw Error('Cannot handle non-SQS events!');
-  const enableOrgLevel = yn(process.env.ENABLE_ORGANIZATION_RUNNERS, { default: true });
+  const enableOrgLevel = false;
   const runnerExtraLabels = process.env.RUNNER_EXTRA_LABELS;
   const runnerGroup = process.env.RUNNER_GROUP_NAME;
   const environment = process.env.ENVIRONMENT as string;
-  const ghesBaseUrl = process.env.GHES_URL as string;
 
   let ghesApiUrl = '';
-  if (ghesBaseUrl) {
-    ghesApiUrl = `${ghesBaseUrl}/api/v3`;
-  }
 
   let installationId = payload.installationId;
   if (installationId == 0) {
@@ -85,7 +81,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
 
             const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}` : `--labels ${runnerType.runnerTypeName}`;
             const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
-            const configBaseUrl = ghesBaseUrl ? ghesBaseUrl : 'https://github.com';
+            const configBaseUrl = 'https://github.com';
             await createRunner({
               environment: environment,
               runnerConfig: enableOrgLevel

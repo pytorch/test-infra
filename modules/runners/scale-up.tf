@@ -28,9 +28,7 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       ENVIRONMENT                     = var.environment
-      GHES_URL                        = var.ghes_url
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
       GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
       GITHUB_APP_ID                   = var.github_app.id

@@ -115,7 +115,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         {
           AssociatePublicIpAddress: true,
           SubnetId: randomSubnet,
-          Groups: securityGroupIDs.split(',')
+          Groups: securityGroupIDs.split(','),
+          DeviceIndex: 0
         }
       ],
       TagSpecifications: [
