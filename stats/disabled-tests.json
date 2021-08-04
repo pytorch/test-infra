@@ -213,7 +213,7 @@
           "name": "module: linear algebra",
           "color": "f7e101",
           "default": false,
-          "description": "Issues related to specialized linear algebra operations in PyTorch"
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul"
         },
         {
           "id": 1301347167,
@@ -308,7 +308,7 @@
           "name": "module: linear algebra",
           "color": "f7e101",
           "default": false,
-          "description": "Issues related to specialized linear algebra operations in PyTorch"
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul"
         },
         {
           "id": 1301347167,
