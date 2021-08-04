@@ -1,0 +1,34 @@
+name: Update Grafana Dashboards
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  update-dashboards:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install requirements
+        run: |
+          set -eux
+          pip install requests==2.24.0
+      - name: Update Dashboards
+        id: update
+        env:
+          GRAFANA_USER: ${{ secrets.GRAFANA_USER }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+        run: |
+          set -eux
+          cd aws/websites/metrics.pytorch.org
+          python update_dashboards.py
+      - name: Push changes
+        if: ${{ steps.update.outputs.UPDATED_DASHBOARDS == 'yes' }} 
+        run: |
+          set -eux
+          git add aws/websites/metrics.pytorch.org/files/dashboards/*.json
+          git config user.name 'facebook-github-bot'
+          git config user.email 'facebook-github-bot@users.noreply.github.com'
+          git commit -m"Automated Grafana dashboard update"
+          git push origin/main
