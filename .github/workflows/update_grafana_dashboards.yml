@@ -31,4 +31,4 @@ jobs:
           git config user.name 'facebook-github-bot'
           git config user.email 'facebook-github-bot@users.noreply.github.com'
           git commit -m"Automated Grafana dashboard update"
-          git push origin/main
+          git push
