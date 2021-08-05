@@ -656,7 +656,7 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "30s",
+  "refresh": "",
   "schemaVersion": 30,
   "style": "dark",
   "tags": [],
@@ -671,5 +671,5 @@
   "timezone": "",
   "title": "Squid Cached Proxy",
   "uid": "4xOx_sZnz",
-  "version": 2
+  "version": 3
 }
