@@ -22,7 +22,7 @@
           /etc/pytorch/dashboards/ \
           /etc/pytorch/grafana
 
-          find /etc/pytorch -type d | xargs chmod 777
+        find /etc/pytorch -type d | xargs chmod 777
     - name: Copy files
       template:
         src: "{{ item.src }}"

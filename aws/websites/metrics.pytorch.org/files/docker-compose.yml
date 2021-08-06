@@ -17,6 +17,18 @@ services:
       - /etc/pytorch/grafana.ini:/etc/grafana/grafana.ini
       - /etc/pytorch/dashboards:/var/lib/grafana/dashboards
 
+  kibana:
+    image: amazon/opendistro-for-elasticsearch-kibana:1.13.2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+    networks:
+      - monitoring
+    volumes:
+      - "/etc/pytorch/kibana.yml:/usr/share/kibana/config/kibana.yml"
+
   nginx:
     image: nginx:1.21.0
     ports:
