@@ -3,6 +3,7 @@
 *.env
 *.zip
 *.swp
+*.txt
 
 __pycache__
 
@@ -21,3 +22,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+aws/lambda/github-logs-webhook/log/*
+aws/lambda/github-logs-webhook/python/*
+aws/lambda/github-webhook-sql-sync/python/*
