@@ -15,6 +15,9 @@ import datetime
 from elasticsearch_dsl import Document, Date, Integer, Keyword, Text, connections
 
 
+import re
+
+
 from typing import Dict, Any, List
 
 
@@ -22,6 +25,18 @@ GITHUB_OAUTH = os.environ["gh_pat"]
 WEBHOOK_SECRET = os.environ["gh_secret"]
 ELASTICSEARCH_URL = os.environ["es_url"]
 
+# 7-bit C1 ANSI sequences
+ANSI_ESCAPE_RE = re.compile(r'''
+    \x1B  # ESC
+    (?:   # 7-bit C1 Fe (except CSI)
+        [@-Z\\-_]
+    |     # or [ for CSI, followed by a control sequence
+        \[
+        [0-?]*  # Parameter bytes
+        [ -/]*  # Intermediate bytes
+        [@-~]   # Final byte
+    )
+''', re.VERBOSE)
 
 DONT_CARES_START = [
     "Removing ",
@@ -100,15 +115,18 @@ def clean_log(content: str) -> str:
         if keep_line(line):
             output += line
 
-    return output
+    return ANSI_ESCAPE_RE.sub('', output)
 
 
-async def get_suite(check_run_id: str) -> Dict[str, Any]:
+async def get_check_run(check_run_id: str) -> Dict[str, Any]:
     query = textwrap.dedent(
         f"""
         {{
             node(id:"{check_run_id}") {{
                 ... on CheckRun {{
+                    name
+                    url
+                    conclusion
                     checkSuite {{
                         databaseId
                         commit {{
@@ -123,6 +141,9 @@ async def get_suite(check_run_id: str) -> Dict[str, Any]:
                         }}
                         workflowRun {{
                             databaseId
+                            workflow {{
+                                name
+                            }}
                         }}
                     }}
                 }}
@@ -131,124 +152,76 @@ async def get_suite(check_run_id: str) -> Dict[str, Any]:
     """
     )
     response = await graphql(query)
-    return response["data"]["node"]["checkSuite"]
-
-
-def find_folders(zip: zipfile.ZipFile) -> List[zipfile.ZipInfo]:
-    folders = []
-    for file in zip.filelist:
-        if file.filename.endswith("/") and file.filename.count("/") == 1:
-            folders.append(file)
-    return folders
-
-
-def find_files_in_folder(zip: zipfile.ZipFile, folder: str) -> List[zipfile.ZipInfo]:
-    files = []
-    for file in zip.filelist:
-        if file.filename.startswith(folder) and file.filename != folder:
-            files.append(file)
-
-    return files
-
-
-def keep(path: Path) -> bool:
-    for ignore in UNINTERSTING_JOBS:
-        if str(path).endswith(ignore):
-            return False
-    return True
-
-
-def get_relevant_contents(zip_bytes_io) -> List[Dict[str, str]]:
-    try:
-        zip_file = zipfile.ZipFile(zip_bytes_io)
-    except zipfile.BadZipFile:
-        return None
-    documents = []
-
-    for folder in find_folders(zip_file):
-        files = find_files_in_folder(zip_file, folder.filename)
-        for file in files:
-            path = Path(file.filename)
-            content = zip_file.read(file).decode("utf-8")
-            if keep(path):
-                documents.append({"path": str(path), "text": clean_log(content)})
-
-    return documents
+    return response["data"]["node"]
 
 
 class Log(Document):
     hash = Keyword()
-    path = Text(analyzer="standard")
-    commit_subject = Text(analyzer="standard")
+    workflow = Keyword()
+    job = Keyword()
+    commit_subject = Keyword()
     text = Text(analyzer="standard", term_vector="with_positions_offsets")
     pr_number = Integer()
+    pr_title = Keyword()
+    conclusion = Keyword()
     date = Date()
-    pr_title = Text(analyzer="standard")
 
     class Index:
-        name = "gha-logs"
+        name = "github-logs"
         settings = {
             "number_of_shards": 2,
         }
 
 
-async def get_documents(check_run_node_id: str) -> List[Log]:
+async def get_document(check_run_node_id: str) -> Log:
     """
     For a given check run's node ID (a unique ID GitHub assigns every object),
     return back a list of logs + extra metadata
     """
-    extra_info = {
+    info = {
         "hash": "",
         "commit_subject": "",
         "pr_title": "",
         "pr_number": 0,
         "date": datetime.datetime.now(),
     }
-    if os.getenv("DEBUG", "0") == "0":
-        # Get the checkSuite from the check's ID
-        print("Fetching suite with check run node ID", check_run_node_id)
-        suite = await get_suite(check_run_node_id)
-        suite_id = suite["databaseId"]
-        log_url = (
-            f"https://api.github.com/repos/pytorch/pytorch/actions/runs/{suite_id}/logs"
-        )
 
-        # Gather extra labels
-        extra_info["hash"] = suite["commit"]["oid"]
-        extra_info["commit_subject"] = suite["commit"]["messageHeadline"]
+    # Get the checkSuite from the check's ID
+    print("Fetching suite with check run node ID", check_run_node_id)
+    run = await get_check_run(check_run_node_id)
+    if run is None:
+        print("Couldn't find check run")
+        return []
+    suite = run["checkSuite"]
+    run_id = run["url"].split("/")[-1]
+    log_url = (
+        f"https://api.github.com/repos/pytorch/pytorch/actions/jobs/{run_id}/logs"
+    )
 
-        prs = suite["commit"]["associatedPullRequests"]["nodes"]
-        if len(prs) > 0:
-            extra_info["pr_title"] = prs[0]["title"]
-            extra_info["pr_number"] = int(prs[0]["number"])
+    # Gather extra labels
+    info["workflow"] = suite["workflowRun"]["workflow"]["name"]
+    info["job"] = run["name"]
+    info["conclusion"] = run["conclusion"]
+    info["hash"] = suite["commit"]["oid"]
+    info["commit_subject"] = suite["commit"]["messageHeadline"]
 
-        # Get the log contents per file (with filtering for uninteresting jobs
-        # and inter-log filtering for uninteresting lines, mostly just to save
-        # space)
-        print("Fetching logs from", log_url)
-        r = requests.get(log_url, headers=headers())
-        documents = get_relevant_contents(io.BytesIO(r.content))
-        if documents is None:
-            print("not a zip:", r.content)
-    else:
-        # Debug mode, use an on-disk zip file
-        with open("log/out.zip", "rb") as f:
-            documents = get_relevant_contents(f)
+    # Find the PR the commit is attached to
+    prs = suite["commit"]["associatedPullRequests"]["nodes"]
+    if len(prs) > 0:
+        info["pr_title"] = prs[0]["title"]
+        info["pr_number"] = int(prs[0]["number"])
 
-    if documents is None:
-        return None
+    # Download the logs as plaintext
+    print("Fetching logs from", log_url)
+    r = requests.get(log_url, headers=headers())
+    info["text"] = clean_log(r.content.decode("utf-8"))
 
-    print("Appending documents")
-    es_documents = []
-    for document in documents:
-        document.update(extra_info)
-        es_documents.append(Log(**document))
+    # Check that we set all the keys we need
+    if list(sorted(info.keys())) != list(sorted([x[0] for x in Log._ObjectBase__list_fields()])):
+        raise RuntimeError("Missing keys for Log")
 
-    if len(documents) > 0:
-        keys = list(documents[0].keys())
-        print("Log document keys", keys)
 
-    return es_documents
+    return Log(**info)
 
 
 async def main(event):
@@ -262,12 +235,9 @@ async def main(event):
     if node_id is None:
         return {"statusCode": 200, "body": "no node ID"}
 
-    documents = await get_documents(node_id)
-    if documents is None:
-        return {"statusCode": 200, "body": "file not a zip"}
-    print(f"Saving {len(documents)} documents")
-    for document in documents:
-        document.save()
+    document = await get_document(node_id)
+    print(f"Saving document")
+    document.save()
 
     return {"statusCode": 200, "body": "wrote successfully"}
 
@@ -293,3 +263,12 @@ def lambda_handler(event, context):
     print("Result:", result)
     return result
 
+
+# intput = {
+#     "action": "completed",
+#     "check_run": {
+#         "node_id": "MDg6Q2hlY2tSdW4zMTY2Njc3MTkz",
+#     }
+# }
+
+# asyncio.run(main(intput))
