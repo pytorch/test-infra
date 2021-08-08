@@ -62,6 +62,9 @@ type_map = {
     "create_event": {
         "description": lambda: Column(String(100)),
     },
+    "check_suite": {
+        "conclusion": lambda: Column(String(100)),
+    },
     "pull_request": {
         "body": lambda: Column(Text),
         "milestone": lambda: Column(String(100)),
@@ -268,6 +271,7 @@ ACCEPTABLE_WEBHOOKS = {
     "issues",
     "push",
     "create",
+    "workflow_job",
 }
 
 import sqlalchemy
