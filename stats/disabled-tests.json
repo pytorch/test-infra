@@ -977,6 +977,92 @@
       "score": 0.0
     },
     {
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/59901",
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/labels{/name}",
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/comments",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/59901",
+      "id": 919334708,
+      "node_id": "MDU6SXNzdWU5MTkzMzQ3MDg=",
+      "number": 59901,
+      "title": "Full Backward Hooks get applied even when grad is disabled",
+      "user": {
+        "login": "Nicholasjoseph1994",
+        "id": 4275604,
+        "node_id": "MDQ6VXNlcjQyNzU2MDQ=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/4275604?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Nicholasjoseph1994",
+        "html_url": "https://github.com/Nicholasjoseph1994",
+        "followers_url": "https://api.github.com/users/Nicholasjoseph1994/followers",
+        "following_url": "https://api.github.com/users/Nicholasjoseph1994/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Nicholasjoseph1994/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Nicholasjoseph1994/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Nicholasjoseph1994/subscriptions",
+        "organizations_url": "https://api.github.com/users/Nicholasjoseph1994/orgs",
+        "repos_url": "https://api.github.com/users/Nicholasjoseph1994/repos",
+        "events_url": "https://api.github.com/users/Nicholasjoseph1994/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Nicholasjoseph1994/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "labels": [
+        {
+          "id": 1076922545,
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd",
+          "name": "module: autograd",
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general"
+        },
+        {
+          "id": 1076922764,
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn",
+          "name": "module: nn",
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn"
+        },
+        {
+          "id": 1301347167,
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
+          "name": "triaged",
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
+        },
+        {
+          "id": 1756257244,
+          "node_id": "MDU6TGFiZWwxNzU2MjU3MjQ0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/actionable",
+          "name": "actionable",
+          "color": "4ae269",
+          "default": false,
+          "description": ""
+        }
+      ],
+      "state": "open",
+      "locked": false,
+      "assignee": null,
+      "assignees": [
+
+      ],
+      "milestone": null,
+      "comments": 0,
+      "created_at": "2021-06-12T00:38:10Z",
+      "updated_at": "2021-06-14T17:37:20Z",
+      "closed_at": null,
+      "author_association": "NONE",
+      "active_lock_reason": null,
+      "body": "## 🐛 Bug\r\n\r\nWhen full_backward_hooks are registered, they are applied to the modules even in the case of torch.no_grad being disabled. This leads to an error here:\r\n```\r\n> /root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py(141)_apply_on_tensors()\r\n    140         grad_fn = new_tensors[0].grad_fn\r\n--> 141         if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\n    142             raise RuntimeError(\"Error while setting up backward hooks. Please open \"\r\n```\r\n\r\n```\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/nn/modules/module.py\", line 884, in _call_impl\r\n    input = bw_hook.setup_input_hook(input)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 158, in setup_input_hook\r\n    res, input_idx = self._apply_on_tensors(fn, args)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 141, in _apply_on_tensors\r\n    if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\nAttributeError: 'NoneType' object has no attribute 'name'\r\n```\r\n## To Reproduce\r\n\r\nSteps to reproduce the behavior:\r\nAdd a full_backward_hook to a torch module\r\nRun it with `@torch.no_grad`\r\n\r\n## Expected behavior\r\nNothing should happen with no_grad enabled because there is no backward pass, but it shouldn't give an error. \r\n\r\n\r\n## Environment\r\n\r\nPlease copy and paste the output from our\r\n[environment collection script](https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py)\r\n(or fill out the checklist below manually).\r\n\r\nYou can get the script and run it with:\r\n```\r\nwget https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py\r\n# For security purposes, please check the contents of collect_env.py before running it.\r\npython collect_env.py\r\n```\r\n\r\n - PyTorch Version (e.g., 1.0):\r\n - OS (e.g., Linux):\r\n - How you installed PyTorch (`conda`, `pip`, source):\r\n - Build command you used (if compiling from source):\r\n - Python version:\r\n - CUDA/cuDNN version:\r\n - GPU models and configuration:\r\n - Any other relevant information:\r\n\r\n## Additional context\r\n\r\n<!-- Add any other context about the problem here. -->\r\nI think this can be fixed by changing line 882 in nn.modules.module.py to\r\n`         if len(full_backward_hooks) > 0 and torch.is_grad_enabled():`\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @mruberry @jbschlosser",
+      "performed_via_github_app": null,
+      "score": 0.0
+    },
+    {
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/62359",
       "repository_url": "https://api.github.com/repos/pytorch/pytorch",
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/62359/labels{/name}",
@@ -1088,92 +1174,6 @@
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
       "body": "Right now, if test is marked as disabled, there are no way to test the fix without removing it from https://github.com/pytorch/test-infra/blob/main/stats/disabled-tests.json (i.e. by closing issue that disabled it)\r\nPerhaps this could be solved by:\r\n - Adding `IGNORE_DISABLED_ISSUES` environment variable, that would have comma separated issue numbers\r\n - Modify GHA workflows to set this environment variable for PRs that have \"Fixes #XYZ\" text in top commit\n\ncc @ezyang @seemethere @malfet @walterddr @pytorch/pytorch-dev-infra",
-      "performed_via_github_app": null,
-      "score": 0.0
-    },
-    {
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/59901",
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/labels{/name}",
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/comments",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/59901",
-      "id": 919334708,
-      "node_id": "MDU6SXNzdWU5MTkzMzQ3MDg=",
-      "number": 59901,
-      "title": "Full Backward Hooks get applied even when grad is disabled",
-      "user": {
-        "login": "Nicholasjoseph1994",
-        "id": 4275604,
-        "node_id": "MDQ6VXNlcjQyNzU2MDQ=",
-        "avatar_url": "https://avatars.githubusercontent.com/u/4275604?v=4",
-        "gravatar_id": "",
-        "url": "https://api.github.com/users/Nicholasjoseph1994",
-        "html_url": "https://github.com/Nicholasjoseph1994",
-        "followers_url": "https://api.github.com/users/Nicholasjoseph1994/followers",
-        "following_url": "https://api.github.com/users/Nicholasjoseph1994/following{/other_user}",
-        "gists_url": "https://api.github.com/users/Nicholasjoseph1994/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/Nicholasjoseph1994/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/Nicholasjoseph1994/subscriptions",
-        "organizations_url": "https://api.github.com/users/Nicholasjoseph1994/orgs",
-        "repos_url": "https://api.github.com/users/Nicholasjoseph1994/repos",
-        "events_url": "https://api.github.com/users/Nicholasjoseph1994/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/Nicholasjoseph1994/received_events",
-        "type": "User",
-        "site_admin": false
-      },
-      "labels": [
-        {
-          "id": 1076922545,
-          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd",
-          "name": "module: autograd",
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to torch.autograd, and the autograd engine in general"
-        },
-        {
-          "id": 1076922764,
-          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn",
-          "name": "module: nn",
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to torch.nn"
-        },
-        {
-          "id": 1301347167,
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged",
-          "name": "triaged",
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module"
-        },
-        {
-          "id": 1756257244,
-          "node_id": "MDU6TGFiZWwxNzU2MjU3MjQ0",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/actionable",
-          "name": "actionable",
-          "color": "4ae269",
-          "default": false,
-          "description": ""
-        }
-      ],
-      "state": "open",
-      "locked": false,
-      "assignee": null,
-      "assignees": [
-
-      ],
-      "milestone": null,
-      "comments": 0,
-      "created_at": "2021-06-12T00:38:10Z",
-      "updated_at": "2021-06-14T17:37:20Z",
-      "closed_at": null,
-      "author_association": "NONE",
-      "active_lock_reason": null,
-      "body": "## 🐛 Bug\r\n\r\nWhen full_backward_hooks are registered, they are applied to the modules even in the case of torch.no_grad being disabled. This leads to an error here:\r\n```\r\n> /root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py(141)_apply_on_tensors()\r\n    140         grad_fn = new_tensors[0].grad_fn\r\n--> 141         if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\n    142             raise RuntimeError(\"Error while setting up backward hooks. Please open \"\r\n```\r\n\r\n```\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/nn/modules/module.py\", line 884, in _call_impl\r\n    input = bw_hook.setup_input_hook(input)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 158, in setup_input_hook\r\n    res, input_idx = self._apply_on_tensors(fn, args)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 141, in _apply_on_tensors\r\n    if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\nAttributeError: 'NoneType' object has no attribute 'name'\r\n```\r\n## To Reproduce\r\n\r\nSteps to reproduce the behavior:\r\nAdd a full_backward_hook to a torch module\r\nRun it with `@torch.no_grad`\r\n\r\n## Expected behavior\r\nNothing should happen with no_grad enabled because there is no backward pass, but it shouldn't give an error. \r\n\r\n\r\n## Environment\r\n\r\nPlease copy and paste the output from our\r\n[environment collection script](https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py)\r\n(or fill out the checklist below manually).\r\n\r\nYou can get the script and run it with:\r\n```\r\nwget https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py\r\n# For security purposes, please check the contents of collect_env.py before running it.\r\npython collect_env.py\r\n```\r\n\r\n - PyTorch Version (e.g., 1.0):\r\n - OS (e.g., Linux):\r\n - How you installed PyTorch (`conda`, `pip`, source):\r\n - Build command you used (if compiling from source):\r\n - Python version:\r\n - CUDA/cuDNN version:\r\n - GPU models and configuration:\r\n - Any other relevant information:\r\n\r\n## Additional context\r\n\r\n<!-- Add any other context about the problem here. -->\r\nI think this can be fixed by changing line 882 in nn.modules.module.py to\r\n`         if len(full_backward_hooks) > 0 and torch.is_grad_enabled():`\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @mruberry @jbschlosser",
       "performed_via_github_app": null,
       "score": 0.0
     },
