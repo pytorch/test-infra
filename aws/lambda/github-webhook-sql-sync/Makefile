@@ -3,8 +3,8 @@ deployment:
 	cd python && zip -r ../deployment.zip .
 	zip -g deployment.zip lambda_function.py
 
-manual_update: deployment
-    aws lambda update-function-code --function-name github-webhook-sql-sync --zip-file fileb://deployment.zip
+manual_update:
+	aws lambda update-function-code --function-name github-webhook-rds-sync --zip-file fileb://deployment.zip
 
 clean:
 	rm -rf deployment.zip python

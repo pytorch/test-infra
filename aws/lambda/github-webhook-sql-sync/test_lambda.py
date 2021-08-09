@@ -1,3 +1,6 @@
+import os
+os.environ["gh_secret"] = "test"
+
 import lambda_function
 import json
 import asyncio
