@@ -21,7 +21,7 @@ class TestWebhook(unittest.TestCase):
             ["issues.json"],
             ["pull_request.json"],
             ["push.json"],
-            ["create.json", "issues.json", "pull_request.json", "push.json", "check_run.json", "check_suite.json", "workflow_job.json"],
+            ["create.json", "issues.json", "pull_request.json", "push.json", "check_run.json", "check_suite.json", "workflow_job.json", "issues-changed-body.json", "issues-changed-title.json"],
             ["push.json", "push.json", "issues.json", "issues.json"],
             ["push.json", "push.json", "pull_request.json", "create.json"],
         ]
@@ -40,7 +40,8 @@ class TestWebhook(unittest.TestCase):
                 with open(name) as f:
                     data = json.load(f)
 
-                return name.name.replace(".json", ""), data
+                type_name = name.name.replace(".json", "").split("_")[0]
+                return type_name, data
 
             hook_data = [load_hook(f) for f in hook_filenames]
             def sqlite():

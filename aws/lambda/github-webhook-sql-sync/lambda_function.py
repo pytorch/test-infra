@@ -8,6 +8,7 @@ import asyncio
 import os
 import hmac
 import hashlib
+import sqlalchemy
 from typing import *
 from urllib.parse import unquote
 
@@ -36,9 +37,14 @@ FlatDict = Dict[str, Union[str, int]]
 
 WEBHOOK_SECRET = os.environ["gh_secret"]
 
+# This marks that a key would store an object (something with a node_id)
 OBJECT_PLACEHOLDER = object()
 
-type_map = {
+NAME_MAP = {
+    "id": (str, lambda: Column(String(20))),
+}
+
+TYPE_MAP = {
     "repository": {
         "description": lambda: Column(String(300)),
         "homepage": lambda: Column(String(300)),
@@ -47,8 +53,14 @@ type_map = {
         "master_branch": lambda: Column(String(300)),
         "stargazers": lambda: Column(Integer),
     },
-    "issues_event": {"changes_title_from": lambda: Column(String(300)), "changes_body_from": lambda: Column(Text)},
-    "push_event": {"base_ref": lambda: Column(String(300)),},
+    "issues_event": {
+        "changes_title_from": lambda: Column(String(300)),
+        "changes_body_from": lambda: Column(Text),
+    },
+    "push_event": {
+        "base_ref": lambda: Column(String(300)),
+        "head_commit_message": lambda: Column(Text),
+    },
     "issue": {
         "assignee": lambda: OBJECT_PLACEHOLDER,
         "milestone": lambda: OBJECT_PLACEHOLDER,
@@ -60,8 +72,18 @@ type_map = {
         "name": lambda: Column(String(100)),
         "email": lambda: Column(String(100)),
     },
+    "check_run": {
+        "conclusion": lambda: Column(String(100)),
+        "output_title": lambda: Column(String(100)),
+        "output_summary": lambda: Column(Text),
+        "output_text": lambda: Column(Text),
+    },
+    "workflow_job": {"conclusion": lambda: Column(String(100)),},
     "create_event": {"description": lambda: Column(String(100)),},
-    "check_suite": {"conclusion": lambda: Column(String(100)),},
+    "check_suite": {
+        "conclusion": lambda: Column(String(100)),
+        "latest_check_runs_count": lambda: Column(Integer),
+    },
     "pull_request": {
         "body": lambda: Column(Text),
         "milestone": lambda: Column(String(100)),
@@ -81,6 +103,17 @@ type_map = {
         "merge_commit_sha": lambda: Column(String(100)),
         "assignee": lambda: Column(String(100)),
     },
+}
+
+
+ACCEPTABLE_WEBHOOKS = {
+    "check_suite",
+    "check_run",
+    "pull_request",
+    "issues",
+    "push",
+    "create",
+    "workflow_job",
 }
 
 
@@ -140,17 +173,29 @@ def extract_github_objects(obj: Dict[str, Any], obj_name: str) -> List[FlatDict]
             curr[name] = node_id
 
     helper(obj, [])
+
+    # Add an entry for the top level object
     objects.append((f"{obj_name}_event", flatten_object(obj)))
 
+    # Add the time of creation for each object
     for _, object in objects:
         object["sync_last_update_at"] = datetime.datetime.now()
-    # print(json.dumps(objects, indent=2))
+
     return objects
 
 
-def get_column(key: str, value: Any, type_name: str):
-    if key in type_map.get(type_name, {}):
-        return type_map[type_name][key]()
+def get_column(key: str, value: Any, type_name: str) -> Column:
+    """
+    If the key is present for the webhook type 'type_name' in the hardcoded
+    TYPE_MAP, use it. Otherwise, guess the type based on the value's runtime
+    type.
+    """
+    if key in TYPE_MAP.get(type_name, {}):
+        return TYPE_MAP[type_name][key]()
+
+    if key in NAME_MAP:
+        return NAME_MAP[key][1]()
+
     if is_date(key, value):
         return Column(DateTime)
     if isinstance(value, str):
@@ -162,53 +207,37 @@ def get_column(key: str, value: Any, type_name: str):
     if isinstance(value, list):
         return Column(JSON)
     else:
+        # Don't error out immediately, but bubble this up so we can report all
+        # errors at once later
         return None
-        raise RuntimeError(f"Unknown type {type_name}.{key}: {value}")
 
 
-x = ""
+rprint_buffer = ""
 
 
 def rprint(s):
-    global x
-    x += "\n" + str(s)
+    global rprint_buffer
+    rprint_buffer += "\n" + str(s)
 
 
 def is_date(key: str, value: Any) -> bool:
     return key.endswith("_at") or key.endswith("timestamp")
 
 
-def get_pk(obj: FlatDict) -> Tuple[str, Column]:
+def get_primary_key(obj: FlatDict) -> Tuple[str, Column]:
     if "node_id" in obj:
         return "node_id", Column(String(50), primary_key=True)
 
     return "pk_id", Column(Integer, primary_key=True)
 
 
-def generate_orm(name: str, obj: FlatDict, sql_base: Any) -> Any:
-    columns = {"__tablename__": name, "__table_args__": {"extend_existing": True}}
-    errors = []
-    for key, value in obj.items():
-        col = get_column(key, value, type_name=name)
-        if col is OBJECT_PLACEHOLDER:
-            # There is a null object (with a node_id) missing, so create it as
-            # we would if something was there but leave the value blank
-            columns[f"{key}_node_id"] = Column(String(50))
-        elif col is None:
-            errors.append(f"{name}.{key}: {value}")
-        else:
-            columns[key] = col
-
-    if len(errors) > 0:
-        catted_errors = "\n    ".join(errors)
-        raise RuntimeError(f"Unknown types:\n{catted_errors}")
-
-    # Fill in any inconsistent / missing columns from the GitHub API
-    for key, column_creator in type_map.get(name, {}).items():
-        columns[key] = column_creator()
-        # value = column_creator()
-
-    # transform lists into JSON
+def transform_data(obj: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Run in-place transformations on obj to translate fields into the appropriate
+    type for storage:
+        * lists -> JSON encoded data
+        * dates -> Python datetimes
+    """
     for key, value in obj.items():
         if isinstance(value, list):
             obj[key] = json.dumps(value)
@@ -222,16 +251,60 @@ def generate_orm(name: str, obj: FlatDict, sql_base: Any) -> Any:
                 obj[key] = parser.parse(value)
             else:
                 raise RuntimeError(f"Unknown date type {key}: {value}")
-                # try:
-                #     obj[key] = datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
-                # except:
-                #     obj[key] = datetime.datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
+        elif isinstance(value, str):
+            # TODO: Use utf8mb4 on the DB instead of this which deletes all
+            # unicode chars
+            obj[key] = value.encode("ascii", "ignore").decode()
 
-    # set the pk
-    pk_name, pk_column = get_pk(obj)
-    columns[pk_name] = pk_column
+    for key, item in NAME_MAP.items():
+        caster, _ = item
+        if key in obj:
+            obj[key] = caster(obj[key])
 
-    # create ORM class
+    return obj
+
+
+def generate_orm(name: str, obj: FlatDict, sql_base: Any) -> Any:
+    """
+    Create an instance of a SQLAlchemy ORM class from a dictionary.
+    """
+    columns = {"__tablename__": name, "__table_args__": {"extend_existing": True}}
+    errors = []
+    for key, value in obj.items():
+        col = get_column(key, value, type_name=name)
+        if col is OBJECT_PLACEHOLDER:
+            # There is a null object (with a node_id) missing, so create it as
+            # we would if something was there but leave the value blank
+            columns[f"{key}_node_id"] = Column(String(50))
+        elif col is None:
+            # Unable to find a type for this value. An entry is missing in the
+            # TYPE_MAP for this name.key pair
+            errors.append(f"{name}.{key}: {value}")
+        else:
+            # Got a column successfully, so set it on the table
+            columns[key] = col
+
+    if len(errors) > 0:
+        # Couldn't get a column type for some of the data, so error out
+        catted_errors = "\n    typeerr: ".join(errors)
+        raise RuntimeError(f"Unknown types:\n{catted_errors}")
+
+    # Fill in any inconsistent / missing columns from the GitHub API
+    # The loop above only looks at the data actually received on the webhook.
+    # Some things may be missing (inconsistencies in GitHub's API or just
+    # doesn't exist), so fill in their types here:
+    for key, column_creator in TYPE_MAP.get(name, {}).items():
+        columns[key] = column_creator()
+
+    # Change data into the right types for storage
+    obj = transform_data(obj)
+
+    # Set the primary key (some webhooks don't have a node_id at the top level
+    # so set up an auto-incrementing int ID for them)
+    pk_name, pk_type = get_primary_key(obj)
+    columns[pk_name] = pk_type
+
+    # Create SQLAlchemy ORM class (which registers it to be created in sql_base)
     the_class = type(name, (sql_base,), columns)
     return the_class(**obj)
 
@@ -241,127 +314,38 @@ def connection_string():
     password = os.environ["db_password"]
     user = os.environ["db_user"]
 
-    return f"mysql+pymysql://{user}:{password}@{host}"
+    return f"mysql+pymysql://{user}:{password}@{host}?charset=utf8mb4"
 
-
-def extract_data(type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    if type in {"push"}:
-        return payload
-
-    return payload[type]
-
-
-ACCEPTABLE_WEBHOOKS = {
-    "check_suite",
-    "check_run",
-    "pull_request",
-    "issues",
-    "push",
-    "create",
-    "workflow_job",
-}
-
-import sqlalchemy
-import re
-
-
-def fix_tables(session, engine, objects, orm_objects):
-    # For each of the objects, ensure the schema in the DB contains that in the
-    # orm_objects.
-    from sqlalchemy import inspect
-
-    inspector = inspect(engine)
-
-    def column_type_sql(column) -> str:
-        return column.type.compile(engine.dialect)
-
-    from sqlalchemy.sql import text
-
-    tables = inspector.get_table_names()
-    for orm in orm_objects:
-        if orm.__tablename__ not in tables:
-            # The ORM will insert the table for us if it's not there
-            continue
-
-        sql_columns = inspector.get_columns(orm.__tablename__)
-        sql_columns_map = {item["name"]: item for item in sql_columns}
-        orm_columns = {k: v for k, v in orm.__dict__.items() if not k.startswith("_")}
-        # print(sql_columns_map.keys())
-        for new_key in orm_columns:
-            if new_key not in sql_columns_map:
-                maybe_type = type_map.get(orm.__tablename__, {}).get(new_key, None)
-                if maybe_type is not None:
-                    continue
-                # session.execute()
-                data = {
-                    "tablename": orm.__tablename__,
-                    "colname": new_key,
-                }
-                breakpoint()
-                tablename = sqlalchemy.String('').literal_processor(dialect=engine.dialect)(value=orm.__tablename__)
-                colname = sqlalchemy.String('').literal_processor(dialect=engine.dialect)(value=new_key)
-                # print(a)
-                tablename = tablename.strip("'")
-                colname = colname.strip("'")
-                # sql_command = text(f"ALTER TABLE `:tablename` ADD COLUMN `:colname` {column_type_sql(orm.__class__.__dict__[new_key])};")
-                sql_command = f"alter table `{tablename}` add column `{colname}` {column_type_sql(orm.__class__.__dict__[new_key])}"
-                print(f"MISMATCH {orm.__tablename__}.{new_key} DOESNT EXIST")
-                print(sql_command)
-                with engine.connect() as con:
-                    print(sql_command)
-                    con.execute(sql_command)
-                # session.execute(sql_command)
-        # print(orm_columns.keys())
-        # break
-
-    for table_name in inspector.get_table_names():
-        for column in inspector.get_columns(table_name):
-
-            # print("Column: %s" % column['name'])
-            pass
-
-    # exit(0)
 
 async def handle_webhook(payload: Dict[str, Any], type: str):
-    global x
-    x = ""
+    global rprint_buffer
+    rprint_buffer = ""
     Base = declarative_base()
-    print(ACCEPTABLE_WEBHOOKS)
-    print(f"[{type}]")
-    print(type in ACCEPTABLE_WEBHOOKS)
+
+    # Only look at allowlisted webhooks
     if type not in ACCEPTABLE_WEBHOOKS:
         return {"statusCode": 200, "body": f"not processing {type}"}
 
     # Marshal JSON into SQL-able data
-    # data = extract_data(type, payload)
     objects = extract_github_objects(payload, type)
+
     # NB: This has to be before create_all since it passively registers the tables
     orm_objects = [generate_orm(name, obj, Base) for name, obj in objects]
-    # print(flattened_data)
-    # exit(0)
 
     # Set up link to DB
-    # engine = create_engine(connection_string(), echo=True)
-    engine = create_engine(connection_string(), echo=False)
+    engine = create_engine(connection_string(), echo=os.getenv("ECHO", False))
     Session = sessionmaker(bind=engine)
     Session.configure(bind=engine)
     session = Session()
     Base.metadata.create_all(engine)
-    # print(session.execute("show tables"))
+
+    # Set all the objects on the session
     for orm_obj in orm_objects:
         merged = session.merge(orm_obj)
         session.add(merged)
 
+    # Write to DB
     session.commit()
-    # try:
-    #     session.commit()
-    # except Exception as e:
-    #     fix_tables(session, engine, objects, orm_objects)
-    #     session.commit()
-    #     print("FAILED", e.args[0])
-    #     pass
-    #     # raise e
-    # # print("wrote")
 
     return {"statusCode": 200, "body": "ok"}
 
@@ -394,17 +378,19 @@ def lambda_handler(event, context):
     except Exception as ex:
         error = traceback.format_exc()
         return {
-            "statusCode": 200,
-            "body": x + "\n\n" + repr(ex) + "\n" + error + "\n\n" + event["body"],
+            "statusCode": 500,
+            "body": rprint_buffer
+            + "\n\n"
+            + repr(ex)
+            + "\n"
+            + error
+            + "\n\n"
+            + event["body"],
         }
     return result
 
 
 if os.getenv("DEBUG", "") == "1":
-    #     def fail():
-    #         raise RuntimeError()
-
-    #     connection_string = fail
     from pathlib import Path
 
     name = Path(sys.argv[1])
