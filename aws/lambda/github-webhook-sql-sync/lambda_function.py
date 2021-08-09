@@ -357,6 +357,24 @@ def check_hash(payload, expected):
     return hmac.compare_digest(signature, expected)
 
 
+def save_to_s3(event_type, payload):
+    # TODO: Remove this, this is just temporary to gather some testing data
+    import boto3
+    # s3 = boto3.resource('s3')
+    session = boto3.Session(
+        aws_access_key_id=os.environ["aws_key_id"],
+        aws_secret_access_key=os.environ["aws_access_key"],
+    )
+    s3 = session.resource('s3')
+
+    now = datetime.datetime.now()
+    millis = int(now.timestamp() * 1000)
+    day = now.strftime("%Y-%m-%d")
+    name = f"pytorch/pytorch/webhooks/{day}/{event_type}-{millis}.json"
+    bucket = s3.Bucket("gha-artifacts")
+    bucket.put_object(Key=name, Body=json.dumps(payload).encode("utf-8"))
+
+
 def lambda_handler(event, context):
     try:
         print("Invoked")
@@ -368,9 +386,11 @@ def lambda_handler(event, context):
             if body.startswith("payload="):
                 body = body[len("payload=") :]
             payload = json.loads(body)
-            type = event["headers"]["X-GitHub-Event"]
+            event_type = event["headers"]["X-GitHub-Event"]
 
-            result = asyncio.run(handle_webhook(payload, type))
+            save_to_s3(event_type, payload)
+
+            result = asyncio.run(handle_webhook(payload, event_type))
         else:
             result = {"statusCode": 403, "body": "Forbidden"}
 
