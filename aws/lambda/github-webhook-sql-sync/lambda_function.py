@@ -48,18 +48,23 @@ TYPE_MAP = {
     "repository": {
         "description": lambda: Column(String(300)),
         "homepage": lambda: Column(String(300)),
-        "license": lambda: Column(String(300)),
+        "license": lambda: OBJECT_PLACEHOLDER,
         "mirror_url": lambda: Column(String(300)),
         "master_branch": lambda: Column(String(300)),
         "stargazers": lambda: Column(Integer),
+        "organization": lambda: Column(String(300)),
     },
     "issues_event": {
         "changes_title_from": lambda: Column(String(300)),
         "changes_body_from": lambda: Column(Text),
+        "label": lambda: OBJECT_PLACEHOLDER,
     },
     "push_event": {
         "base_ref": lambda: Column(String(300)),
         "head_commit_message": lambda: Column(Text),
+    },
+    "license": {
+        "url": lambda: Column(String(300)),
     },
     "issue": {
         "assignee": lambda: OBJECT_PLACEHOLDER,
@@ -72,7 +77,12 @@ TYPE_MAP = {
         "name": lambda: Column(String(100)),
         "email": lambda: Column(String(100)),
     },
+    "enterprise": {
+        "description": lambda: Column(Text),
+        "website_url": lambda: Column(String(300)),
+    },
     "check_run": {
+        "name": lambda: Column(String(300)),
         "conclusion": lambda: Column(String(100)),
         "output_title": lambda: Column(String(100)),
         "output_summary": lambda: Column(Text),
@@ -83,6 +93,14 @@ TYPE_MAP = {
     "check_suite": {
         "conclusion": lambda: Column(String(100)),
         "latest_check_runs_count": lambda: Column(Integer),
+        "before": lambda: Column(String(300)),
+        "after": lambda: Column(String(300)),
+    },
+    "commit": {
+        "commit_verification_signature": lambda: Column(String(300)),
+        "commit_verification_payload": lambda: Column(String(300)),
+        "author": lambda: OBJECT_PLACEHOLDER,
+        "committer": lambda: OBJECT_PLACEHOLDER,
     },
     "pull_request": {
         "body": lambda: Column(Text),
@@ -114,6 +132,7 @@ ACCEPTABLE_WEBHOOKS = {
     "push",
     "create",
     "workflow_job",
+    "status",
 }
 
 
@@ -286,18 +305,28 @@ def generate_orm(name: str, obj: FlatDict, sql_base: Any) -> Any:
 
     if len(errors) > 0:
         # Couldn't get a column type for some of the data, so error out
-        catted_errors = "\n    typeerr: ".join(errors)
+        catted_errors = "\n    ".join([f"typeerr: {e}" for e in errors])
         raise RuntimeError(f"Unknown types:\n{catted_errors}")
+
+    # Change data into the right types for storage
+    obj = transform_data(obj)
 
     # Fill in any inconsistent / missing columns from the GitHub API
     # The loop above only looks at the data actually received on the webhook.
     # Some things may be missing (inconsistencies in GitHub's API or just
     # doesn't exist), so fill in their types here:
     for key, column_creator in TYPE_MAP.get(name, {}).items():
-        columns[key] = column_creator()
-
-    # Change data into the right types for storage
-    obj = transform_data(obj)
+        value = column_creator()
+        if value is OBJECT_PLACEHOLDER:
+            columns[f"{key}_node_id"] = Column(String(50))
+            if key in obj:
+                if obj[key] is not None:
+                    raise RuntimeError(f"not doing it {name}.{key}")
+                else:
+                    del obj[key]
+                    obj[f"{key}_node_id"] = None
+        else:
+            columns[key] = value
 
     # Set the primary key (some webhooks don't have a node_id at the top level
     # so set up an auto-incrementing int ID for them)
@@ -333,7 +362,7 @@ async def handle_webhook(payload: Dict[str, Any], type: str):
     orm_objects = [generate_orm(name, obj, Base) for name, obj in objects]
 
     # Set up link to DB
-    engine = create_engine(connection_string(), echo=os.getenv("ECHO", False))
+    engine = create_engine(connection_string(), echo=bool(os.getenv("ECHO", False)))
     Session = sessionmaker(bind=engine)
     Session.configure(bind=engine)
     session = Session()
@@ -376,6 +405,7 @@ def save_to_s3(event_type, payload):
 
 
 def lambda_handler(event, context):
+    # return {"statusCode": 200, "body": "not doing anything"}
     try:
         print("Invoked")
         expected = event["headers"].get("X-Hub-Signature-256", "").split("=")[1]
