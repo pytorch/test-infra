@@ -52,9 +52,9 @@ def diff(expected, actual):
     return "".join(diff)
 
 
-def file_path(name: str) -> str:
+def file_path(name: str) -> Path:
     name = name.replace(" ", "_").replace("-", "_")
-    return f"{name}.json"
+    return DASHBOARD_DIR / f"{name}.json"
 
 
 if __name__ == "__main__":

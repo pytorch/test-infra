@@ -27,7 +27,7 @@ jobs:
         if: ${{ steps.update.outputs.UPDATED_DASHBOARDS == 'yes' }} 
         run: |
           set -eux
-          git add aws/websites/metrics.pytorch.org/files/dashboards/*.json
+          git add aws/websites/metrics.pytorch.org/files/dashboards/.
           git config user.name 'facebook-github-bot'
           git config user.email 'facebook-github-bot@users.noreply.github.com'
           git commit -m"Automated Grafana dashboard update"
