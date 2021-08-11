@@ -26,3 +26,4 @@ terraform.rc
 aws/lambda/github-logs-webhook/log/*
 aws/lambda/github-logs-webhook/python/*
 aws/lambda/github-webhook-sql-sync/python/*
+aws/lambda/github-webhook-sql-sync/hooks/*

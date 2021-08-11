@@ -41,60 +41,63 @@ class TestWebhook(unittest.TestCase):
                 with open(name) as f:
                     data = json.load(f)
 
-                type_name = name.name.replace(".json", "").split("_")[0]
+                type_name = name.name.replace(".json", "").split("-")[0]
                 return type_name, data
 
             def sqlite():
-                return f"sqlite:///test.db"
+                return f"mysql+pymysql://admin:hello@localhost/pytorch?charset=utf8mb4"
+                # return f"sqlite:///test.db"
                 # return f"sqlite:///{f.name}"
 
             lambda_function.connection_string = sqlite
 
             err = io.StringIO()
             out = io.StringIO()
-            n = len([x for x in samples_path.glob("*.json")])
-            for i, name in enumerate(samples_path.glob("*.json")):
+            glob_path = os.getenv("TEST", "*.json")
+            # glob_path = "status-1628537794304.json"
+            n = len([x for x in samples_path.glob(glob_path)])
+            for i, name in enumerate(samples_path.glob(glob_path)):
                 type, data = load_hook(name)
                 type = type.split("-")[0]
                 # with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
-                if i % 1000 == 0:
+                if i % 20 == 0:
                     print(f"{i} / {n}")
                 try:
                     r = asyncio.run(lambda_function.handle_webhook(data, type=type))
                 except Exception as e:
-                    print("Failed on", name)
+                    print(f"FAILED ON\n\nenv TEST={name.name} python test_lambda.py\n")
                     raise e
-                break
+                # break
             err = err.getvalue()
             out = out.getvalue()
 
 
-    def _test_webhooks(self, hook_filenames: List[str]):
-        samples_path = Path(__file__).resolve().parent / "samples"
-        with tempfile.NamedTemporaryFile() as f:
-            def load_hook(name: str):
-                name = samples_path / name
-                with open(name) as f:
-                    data = json.load(f)
+    # def _test_webhooks(self, hook_filenames: List[str]):
+    #     samples_path = Path(__file__).resolve().parent / "samples"
+    #     with tempfile.NamedTemporaryFile() as f:
+    #         def load_hook(name: str):
+    #             name = samples_path / name
+    #             with open(name) as f:
+    #                 data = json.load(f)
 
-                type_name = name.name.replace(".json", "").split("_")[0]
-                return type_name, data
+    #             type_name = name.name.replace(".json", "").split("-")[0]
+    #             return type_name, data
 
-            hook_data = [load_hook(f) for f in hook_filenames]
-            def sqlite():
-                print("fetching db")
-                return f"sqlite:///{f.name}"
-            lambda_function.connection_string = sqlite
+    #         hook_data = [load_hook(f) for f in hook_filenames]
+    #         def sqlite():
+    #             print("fetching db")
+    #             return f"sqlite:///{f.name}"
+    #         lambda_function.connection_string = sqlite
 
-            err = io.StringIO()
-            out = io.StringIO()
-            for type, data in hook_data:
-                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
-                    asyncio.run(lambda_function.handle_webhook(data, type=type))
-            err = err.getvalue()
-            out = out.getvalue()
-            # print(err)
-            # print(out)
+    #         err = io.StringIO()
+    #         out = io.StringIO()
+    #         for type, data in hook_data:
+    #             with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+    #                 asyncio.run(lambda_function.handle_webhook(data, type=type))
+    #         err = err.getvalue()
+    #         out = out.getvalue()
+    #         # print(err)
+    #         # print(out)
 
 
 if __name__ == "__main__":
