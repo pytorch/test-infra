@@ -52,6 +52,11 @@ def diff(expected, actual):
     return "".join(diff)
 
 
+def file_path(name: str) -> str:
+    name = name.replace(" ", "_").replace("-", "_")
+    return f"{name}.json"
+
+
 if __name__ == "__main__":
     dashboards = get_dashboards()
     files = files_by_uid()
@@ -60,8 +65,14 @@ if __name__ == "__main__":
 
     for dashboard in dashboards:
         uid = dashboard["uid"]
-        file = files[uid]
         dashboard_on_grafana = grafana(f"dashboards/uid/{uid}")["dashboard"]
+        file = files.get(
+            uid,
+            {
+                "dashboard": "doesn't exist",
+                "path": file_path(dashboard_on_grafana["title"]),
+            },
+        )
         dashboard_in_repo = file["dashboard"]
 
         if dashboard_on_grafana == dashboard_in_repo:
@@ -76,10 +87,9 @@ if __name__ == "__main__":
 
         with open(file["path"], "w") as f:
             f.write(dashboard_on_grafana)
-    
+
     if updated:
-        print('::set-output name=UPDATED_DASHBOARDS::yes')
+        print("::set-output name=UPDATED_DASHBOARDS::yes")
     else:
-        print('::set-output name=UPDATED_DASHBOARDS::no')
-    
+        print("::set-output name=UPDATED_DASHBOARDS::no")
 
