@@ -392,12 +392,16 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 5,
+        "w": 4,
         "x": 0,
         "y": 8
       },
       "id": 11,
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "first"
@@ -405,9 +409,8 @@
           "fields": "/^hours_since_push$/",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
+        "text": {},
+        "textMode": "auto"
       },
       "pluginVersion": "8.0.6",
       "targets": [
@@ -441,8 +444,8 @@
           ]
         }
       ],
-      "title": "Time since last master update",
-      "type": "gauge"
+      "title": "Last master update",
+      "type": "stat"
     },
     {
       "datasource": "MySQL",
@@ -472,12 +475,16 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 5,
+        "w": 4,
+        "x": 4,
         "y": 8
       },
       "id": 12,
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "first"
@@ -485,9 +492,8 @@
           "fields": "/^hours_since_push$/",
           "values": false
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
+        "text": {},
+        "textMode": "auto"
       },
       "pluginVersion": "8.0.6",
       "targets": [
@@ -521,8 +527,91 @@
           ]
         }
       ],
-      "title": "Time since last viable/strict update",
-      "type": "gauge"
+      "title": "Last viable/strict update",
+      "type": "stat"
+    },
+    {
+      "datasource": "MySQL",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 8
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "first"
+          ],
+          "fields": "/^hours_since_push$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.0.6",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly'\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Last nightly update",
+      "type": "stat"
     },
     {
       "datasource": "MySQL",
@@ -1467,5 +1556,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 12
+  "version": 15
 }
