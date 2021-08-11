@@ -15,12 +15,11 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "hideControls": false,
   "id": 3,
   "links": [],
   "panels": [
     {
-      "datasource": null,
+      "datasource": "MySQL",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -90,14 +89,47 @@
       },
       "targets": [
         {
+          "format": "table",
+          "group": [
+            {
+              "params": [
+                "author_association"
+              ],
+              "type": "column"
+            }
+          ],
+          "metricColumn": "none",
           "queryType": "randomWalk",
-          "refId": "A"
+          "rawQuery": true,
+          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"association\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "author_association"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request",
+          "timeColumn": "created_at",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
         }
       ],
-      "title": "Panel Title",
+      "title": "PR Contributor Status",
       "type": "timeseries"
     }
   ],
+  "refresh": "",
   "schemaVersion": 30,
   "style": "dark",
   "tags": [],
@@ -112,5 +144,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 2
 }
