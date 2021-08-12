@@ -265,15 +265,7 @@
         "site_admin": false
       },
       "labels": [
-        {
-          "id": 679953983,
-          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit",
-          "name": "oncall: jit",
-          "color": "c5def5",
-          "default": false,
-          "description": "Add this issue/PR to JIT oncall triage queue"
-        }
+
       ],
       "state": "open",
       "locked": false,
@@ -282,9 +274,9 @@
 
       ],
       "milestone": null,
-      "comments": 4,
+      "comments": 5,
       "created_at": "2021-07-14T15:20:02Z",
-      "updated_at": "2021-07-21T19:36:56Z",
+      "updated_at": "2021-08-12T05:48:39Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
