@@ -548,7 +548,7 @@
               },
               {
                 "color": "red",
-                "value": 12
+                "value": 24
               }
             ]
           },
@@ -1706,5 +1706,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 17
+  "version": 18
 }
