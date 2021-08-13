@@ -1169,7 +1169,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"association\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
+          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"PR Count\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
           "refId": "A",
           "select": [
             [
@@ -1789,5 +1789,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 5
 }
