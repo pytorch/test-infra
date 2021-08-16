@@ -9,7 +9,9 @@ data "amazon-ami" "windows_root_ami" {
   region      = "us-east-1"
 }
 
-locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
+locals {
+  timestamp = regex_replace(timestamp(), "[- TZ:]", "")
+}
 
 source "amazon-ebs" "windows_ebs_builder" {
   ami_name                    = "Windows 2019 GHA CI - ${local.timestamp}"
@@ -33,6 +35,22 @@ source "amazon-ebs" "windows_ebs_builder" {
 build {
   sources = ["source.amazon-ebs.windows_ebs_builder"]
 
+  # Install sshd_config
+  provisioner "file" {
+    source      = "${path.root}/configs/sshd_config"
+    destination = "C:\\ProgramData\\ssh\\sshd_config"
+  }
+
+  # Install ssh server
+  provisioner "powershell" {
+    elevated_user     = "SYSTEM"
+    elevated_password = ""
+    scripts = [
+      "${path.root}/scripts/Installers/Install-SSH.ps1",
+    ]
+  }
+
+  # Install the rest of the dependencies
   provisioner "powershell" {
     environment_vars = ["INSTALL_WINDOWS_SDK=0"]
     execution_policy = "unrestricted"
@@ -41,7 +59,7 @@ build {
       "${path.root}/scripts/Installers/Install-Choco.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
       "${path.root}/scripts/Installers/Install-VS.ps1",
-      "${path.root}/scripts/Installers/Install-SSH.ps1"
     ]
   }
+
 }

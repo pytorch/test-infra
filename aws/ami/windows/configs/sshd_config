@@ -1,0 +1,11 @@
+# Enable Public key Auth
+PubkeyAuthentication yes
+
+# Disable password Auth
+PasswordAuthentication no
+
+# Only check ${HOME}/.ssh/authorized_keys by default
+AuthorizedKeysFile .ssh/authorized_keys
+
+# override default of no subsystems for sftp
+Subsystem	sftp	sftp-server.exe
