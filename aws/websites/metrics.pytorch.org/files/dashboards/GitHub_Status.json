@@ -1919,7 +1919,7 @@
           "visible": true
         }
       ],
-      "title": "Last nightly update",
+      "title": "Last viable/strict update",
       "type": "timeseries"
     }
   ],
@@ -1938,5 +1938,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 6
+  "version": 8
 }
