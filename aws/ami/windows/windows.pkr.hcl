@@ -30,6 +30,10 @@ source "amazon-ebs" "windows_ebs_builder" {
   winrm_insecure = true
   winrm_use_ssl  = true
   winrm_username = "Administrator"
+  aws_polling {
+    # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
+    max_attempts = 600
+  }
 }
 
 build {
