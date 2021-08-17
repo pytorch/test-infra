@@ -509,7 +509,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select count(*) as \"num_reverts\" from push_event where ref='refs/heads/master' and head_commit_message like \"Revert%\";",
+          "rawSql": "select count(*) as \"num_reverts\" from push_event where ref='refs/heads/master' and head_commit_message like \"Revert%\" and $__timeFilter(head_commit_timestamp);",
           "refId": "A",
           "select": [
             [
@@ -675,7 +675,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly'\norder by head_commit_timestamp desc \nlimit 1;",
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
           "refId": "A",
           "select": [
             [
@@ -2018,5 +2018,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 10
+  "version": 12
 }
