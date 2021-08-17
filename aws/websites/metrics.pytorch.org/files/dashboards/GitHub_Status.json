@@ -8,6 +8,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -412,7 +418,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.6",
+      "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
@@ -495,7 +501,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.6",
+      "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
@@ -578,7 +584,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.6",
+      "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
@@ -661,7 +667,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.0.6",
+      "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
@@ -1154,7 +1160,7 @@
       "options": {
         "showHeader": true
       },
-      "pluginVersion": "8.0.6",
+      "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
@@ -1938,5 +1944,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 2
 }
