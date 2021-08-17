@@ -704,6 +704,7 @@
     },
     {
       "datasource": "MySQL",
+      "description": "Failures across all sources (commits, PRs, nightlies)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -748,7 +749,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select context, count(*) as \"num_failures\"\nfrom status_event \nWHERE\n  $__timeFilter(created_at) and state!=\"pending\" and state!=\"success\"\nGROUP BY context\nORDER BY COUNT(*) desc\nlimit 10;\n",
+          "rawSql": "select context, count(*) as \"num_failures\"\nfrom status_event \nWHERE\n  $__timeFilter(created_at) and state!=\"pending\" and state!=\"success\"\nGROUP BY context\nORDER BY COUNT(*) desc;\n",
           "refId": "A",
           "select": [
             [
@@ -772,7 +773,7 @@
           ]
         }
       ],
-      "title": "Top 10 Failing Jobs",
+      "title": "Top Failing Jobs",
       "type": "table"
     },
     {
@@ -1859,7 +1860,7 @@
           {
             "evaluator": {
               "params": [
-                48
+                24
               ],
               "type": "gt"
             },
@@ -1994,7 +1995,7 @@
         {
           "colorMode": "critical",
           "op": "gt",
-          "value": 48,
+          "value": 24,
           "visible": true
         }
       ],
@@ -2017,5 +2018,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 4
+  "version": 10
 }
