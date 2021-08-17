@@ -704,6 +704,159 @@
     },
     {
       "datasource": "MySQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 21,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select context, count(*) as \"num_failures\"\nfrom status_event \nWHERE\n  $__timeFilter(created_at) and state!=\"pending\" and state!=\"success\"\nGROUP BY context\nORDER BY COUNT(*) desc\nlimit 10;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Top 10 Failing Jobs",
+      "type": "table"
+    },
+    {
+      "datasource": "MySQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [
+            {
+              "params": [
+                "author_association"
+              ],
+              "type": "column"
+            }
+          ],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"PR Count\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "author_association"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request",
+          "timeColumn": "created_at",
+          "timeColumnType": "datetime",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "PR Contributor Status",
+      "type": "table"
+    },
+    {
+      "datasource": "MySQL",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -805,7 +958,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 16
       },
       "id": 6,
       "options": {
@@ -1123,15 +1276,39 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "CloudWatch",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -1148,59 +1325,82 @@
             ]
           }
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 12
-      },
-      "id": 2,
-      "options": {
-        "showHeader": true
-      },
-      "pluginVersion": "8.1.1",
-      "targets": [
-        {
-          "format": "table",
-          "group": [
-            {
-              "params": [
-                "author_association"
-              ],
-              "type": "column"
-            }
-          ],
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"PR Count\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
-          "refId": "A",
-          "select": [
-            [
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
               {
-                "params": [
-                  "author_association"
-                ],
-                "type": "column"
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
               }
             ]
-          ],
-          "table": "pull_request",
-          "timeColumn": "created_at",
-          "timeColumnType": "datetime",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "dimensions": {
+            "FunctionName": "github-webhook-rds-sync"
+          },
+          "expression": "",
+          "id": "",
+          "matchExact": true,
+          "metricName": "Invocations",
+          "namespace": "AWS/Lambda",
+          "period": "1m",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "region": "default",
+          "statistics": [
+            "Sum"
+          ]
+        },
+        {
+          "alias": "",
+          "dimensions": {
+            "FunctionName": "github-webhook-rds-sync"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricName": "Errors",
+          "namespace": "AWS/Lambda",
+          "period": "1m",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "region": "default",
+          "statistics": [
+            "Sum"
           ]
         }
       ],
-      "title": "PR Contributor Status",
-      "type": "table"
+      "title": "Sync Lambda Status",
+      "type": "timeseries"
     },
     {
       "datasource": "MySQL",
@@ -1305,7 +1505,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 24
       },
       "id": 15,
       "options": {
@@ -1500,133 +1700,6 @@
         }
       ],
       "title": "Workflow Job Events",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "CloudWatch",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Errors_Sum"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 18
-      },
-      "id": 8,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "alias": "",
-          "dimensions": {
-            "FunctionName": "github-webhook-rds-sync"
-          },
-          "expression": "",
-          "id": "",
-          "matchExact": true,
-          "metricName": "Invocations",
-          "namespace": "AWS/Lambda",
-          "period": "1m",
-          "queryType": "randomWalk",
-          "refId": "A",
-          "region": "default",
-          "statistics": [
-            "Sum"
-          ]
-        },
-        {
-          "alias": "",
-          "dimensions": {
-            "FunctionName": "github-webhook-rds-sync"
-          },
-          "expression": "",
-          "hide": false,
-          "id": "",
-          "matchExact": true,
-          "metricName": "Errors",
-          "namespace": "AWS/Lambda",
-          "period": "1m",
-          "queryType": "randomWalk",
-          "refId": "B",
-          "region": "default",
-          "statistics": [
-            "Sum"
-          ]
-        }
-      ],
-      "title": "Sync Lambda Status",
       "type": "timeseries"
     },
     {
@@ -1944,5 +2017,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 2
+  "version": 4
 }
