@@ -23,13 +23,14 @@ source "amazon-ebs" "windows_ebs_builder" {
     device_name           = "/dev/sda1"
     volume_size           = 64
   }
-  source_ami     = "${data.amazon-ami.windows_root_ami.id}"
-  region         = "us-east-1"
-  ami_regions    = ["us-east-1", "us-east-2"]
-  user_data_file = "user-data-scripts/bootstrap-winrm.ps1"
-  winrm_insecure = true
-  winrm_use_ssl  = true
-  winrm_username = "Administrator"
+  source_ami      = "${data.amazon-ami.windows_root_ami.id}"
+  region          = "us-east-1"
+  ami_regions     = ["us-east-1", "us-east-2"]
+  user_data_file  = "user-data-scripts/bootstrap-winrm.ps1"
+  winrm_insecure  = true
+  winrm_use_ssl   = true
+  winrm_username  = "Administrator"
+  skip_create_ami = var.skip_create_ami
   aws_polling {
     # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
     max_attempts = 600
@@ -66,4 +67,11 @@ build {
     ]
   }
 
+  # Install CUDA Toolkit 10.2
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=10.2"]
+    scripts = [
+      "${path.root}/scripts/Installers/Install-CUDA-Toolkit.ps1",
+    ]
+  }
 }
