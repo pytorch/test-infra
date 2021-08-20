@@ -100,11 +100,11 @@
       "milestone": null,
       "comments": 0,
       "created_at": "2021-08-20T18:40:55Z",
-      "updated_at": "2021-08-20T18:42:14Z",
+      "updated_at": "2021-08-20T20:23:33Z",
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
-      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/367226/workflows/e734b996-f8a8-466e-83b4-24973aff8a75/jobs/15494643\r\n\r\nIt seems worker freezes.\r\nPotential solution is to set range based on CPU counts. https://github.com/pytorch/pytorch/blob/b9fc656cf26d60127bd695e4e5a7d27622f2563d/test/test_dataloader.py#L2280\n\ncc @SsnL @VitalyFedyunin @ejguan",
+      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/367226/workflows/e734b996-f8a8-466e-83b4-24973aff8a75/jobs/15494643\r\n\r\nIt seems worker freezing.\r\nPotential solution is to set range based on CPU counts. https://github.com/pytorch/pytorch/blob/b9fc656cf26d60127bd695e4e5a7d27622f2563d/test/test_dataloader.py#L2280\r\n\r\ncc @SsnL @VitalyFedyunin @ejguan",
       "performed_via_github_app": null,
       "score": 0.0
     },
