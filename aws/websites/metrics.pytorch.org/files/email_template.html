@@ -1,41 +1,21 @@
 {% raw %}
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
 
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta name="viewport" content="width=device-width" />
-</head>
-
-<body>
-
-  <p>{{.Name}} [{{.State}}]</p>
-  <br>
-
-  <p>{{.Message}}</p>
-  <br>
-
-  <p>{{.Error}}</p>
-  <br>
-
-  <p>
-    Rule: {{.RuleUrl}}
-    <br>
-    Alert: {{.AlertPageUrl}}
-  </p>
-
-  <br>
-  <p>
-    Values:
-    <br>
-    {{range .EvalMatches}}
-    &nbsp;&nbsp;{{.Metric}} = {{.Value}}<br>
-    {{end}}
-      <br>
-  </p>
-
-  {{.ImageLink}}
-</body>
-
+  <body>
+    <p>{{.Name}} [{{.State}}]</p>
+    <p>{{.Message}}</p>
+    <p>{{.Error}}</p>
+    <p>{{.RuleUrl}}</p>
+    <p>{{.AlertPageUrl}}</p>
+    <p>Values:</p>
+    {{range .EvalMatches}} &nbsp;&nbsp;{{.Metric}} = {{.Value}}<br />{{end}}
+    {{.ImageLink}}
+  </body>
 </html>
 {% endraw %}
+
