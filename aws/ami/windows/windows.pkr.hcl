@@ -56,7 +56,7 @@ build {
 
   # Install the rest of the dependencies
   provisioner "powershell" {
-    environment_vars = ["INSTALL_WINDOWS_SDK=0"]
+    environment_vars = ["INSTALL_WINDOWS_SDK=0", "VS_VERSION=16.8.6"]
     execution_policy = "unrestricted"
     scripts = [
       "${path.root}/scripts/Helpers/Reset-UserData.ps1",
