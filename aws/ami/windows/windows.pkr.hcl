@@ -39,6 +39,12 @@ source "amazon-ebs" "windows_ebs_builder" {
 build {
   sources = ["source.amazon-ebs.windows_ebs_builder"]
 
+  # Install helper modules
+  provisioner "file" {
+    source = "${path.root}/scripts/ImageHelpers"
+    destination = "C:\\Program Files\\WindowsPowerShell\\Modules\\"
+  }
+
   # Install sshd_config
   provisioner "file" {
     source      = "${path.root}/configs/sshd_config"
@@ -63,6 +69,7 @@ build {
       "${path.root}/scripts/Installers/Install-Choco.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
       "${path.root}/scripts/Installers/Install-VS.ps1",
+      "${path.root}/scripts/Installers/Install-WDK.ps1",
     ]
   }
 
