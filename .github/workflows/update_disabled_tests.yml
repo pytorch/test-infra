@@ -23,7 +23,7 @@ jobs:
           with open('disabled_tests.json') as file:
             disabled_tests_json = json.load(file)
 
-          # Sort the items (disabled tests) by their URL
+          # Sort disabled test issues by URL, e.g., https://api.github.com/repos/pytorch/pytorch/issues/38491
           disabled_tests_json['items'].sort(key=lambda x: x['url'])
 
           with open('disabled_tests.json', mode='w') as file:
