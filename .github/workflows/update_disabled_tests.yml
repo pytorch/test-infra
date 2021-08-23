@@ -20,13 +20,13 @@ jobs:
         shell: python
         run: |
           import json
-          with open('disabled_tests.json') as file:
+          with open('disabled-tests.json') as file:
             disabled_tests_json = json.load(file)
 
           # Sort disabled test issues by URL, e.g., https://api.github.com/repos/pytorch/pytorch/issues/38491
           disabled_tests_json['items'].sort(key=lambda x: x['url'])
 
-          with open('disabled_tests.json', mode='w') as file:
+          with open('disabled-tests.json', mode='w') as file:
               json.dump(disabled_tests_json, file, sort_keys=True, indent=2)
       - name: Push file to test-infra repository
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
