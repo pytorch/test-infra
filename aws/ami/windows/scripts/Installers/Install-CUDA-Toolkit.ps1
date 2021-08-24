@@ -18,13 +18,50 @@ Switch -Wildcard ($cudaVersion) {
   }
 }
 
-Write-Output "Downloading toolkit installer, $windowsS3BaseUrl/$toolkitInstaller"
-$tmpToolkitInstaller = New-TemporaryFile
-Invoke-WebRequest -Uri "$windowsS3BaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
-$tmpExtractedInstaller = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-7z x "$toolkitInstaller" -o "$tmpExtractedInstaller"
+function Install-CudaToolkit() {
+  Write-Output "Downloading toolkit installer, $windowsS3BaseUrl/$toolkitInstaller"
+  $tmpToolkitInstaller = New-TemporaryFile
+  Invoke-WebRequest -Uri "$windowsS3BaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
+  $tmpExtractedInstaller = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+  7z x "$toolkitInstaller" -o "$tmpExtractedInstaller"
+  $cudaInstallLogs = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
 
-Start-Process -Wait "$tmpExtractedInstaller\setup.exe" -s "$installerArgs"
+  Start-Process -Wait "$tmpExtractedInstaller\setup.exe" -s "$installerArgs" -loglevel:6 -log:"$cudaInstallLogs"
+  $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
+  if (-Not (Test-Path -Path "$expectedInstallLocation\bin\nvcc.exe" -PathType Leaf)) {
+    Write-Error "CUDA $cudaVersion installation failed, nvcc not found at $expectedInstallLocation\bin\nvcc.exe"
+    Get-Content -Path "$cudaInstallLogs\LOG.RunDll32.exe.log"
+    Get-Content -Path "$cudaInstallLogs\LOG.setup.exe.log"
+    exit 1
+  }
+}
+
+function Install-Cudnn() {
+
+}
+
+function Install-NvTools() {
+  $nvToolsLocalPath = "C:\Program Files\NVIDIA Corporation\NvToolsExt"
+  # Check if we actually need to do the install
+  if (Test-Path -Path "$nvToolsLocalPath\bin\x64\nvToolsExt64_1.dll" -PathType Leaf) {
+    return
+  }
+  $nvToolsUrl = "https://ossci-windows.s3.amazonaws.com/NvToolsExt.7z"
+  $tmpToolsDl = New-TemporaryFile
+  Write-Output "Downloading NvTools, $nvToolsUrl"
+  Invoke-WebRequest -Uri "$nvToolsUrl" -OutFile "$tmpToolsDl"
+  $tmpExtractedNvTools = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+  7z x "$tmpToolsDl" -o "$tmpExtractedNvTools"
+
+  Write-Output "Copying NvTools, '$tmpExtractedNvTools' -> '$nvToolsLocalPath'"
+  New-Item -Path "$nvToolsLocalPath "-ItemType "directory" -Force
+  Copy-Item -Recurse -Path "$tmpExtractedNvTools\*" -Destination "$nvToolsLocalPath"
+}
+
+# TODO:
+# - install vs integration
+# - install cudnn
+
 
 # Write-Output "Downloading cudnn archive, $windowsS3BaseUrl/$cudnnZip"
 # $tmpCudnnZip = New-TemporaryFile
