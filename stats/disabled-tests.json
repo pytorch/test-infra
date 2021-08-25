@@ -2685,13 +2685,23 @@
       "author_association": "CONTRIBUTOR", 
       "body": "Disable this slow test according to oncall runbook\r\nOther pytorch_linux_xenial_cuda10_2_cudnn7_py3_gcc7 can pass.\r\n\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/369938/workflows/a4903602-9784-4e3e-8554-21965f9c693c/jobs/15607719\r\n", 
       "closed_at": null, 
-      "comments": 0, 
+      "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/comments", 
       "created_at": "2021-08-25T07:29:56Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/63933", 
       "id": 978813863, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2701,8 +2711,8 @@
       "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
       "score": 0.0, 
       "state": "open", 
-      "title": "DISABLED pytorch_linux_xenial_cuda10_2_cudnn7_py3_slow_test", 
-      "updated_at": "2021-08-25T07:30:06Z", 
+      "title": "DISABLED test_argminmax_large_axis_cuda (__main__.TestReductionsCUDA)", 
+      "updated_at": "2021-08-25T19:01:08Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/63933", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1760893?v=4", 
