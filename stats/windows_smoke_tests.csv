@@ -20,7 +20,6 @@ test_cpp_extensions_jit,TestCppExtensionJIT,test_jit_cuda_archflags,25528.358531
 test_ops,TestOpInfoCUDA,test_unsupported_backward___rmatmul___cuda_bfloat16,38.068965517241,1,7,2,0,10,19
 test_dataloader,TestDataLoaderPersistentWorkers,test_timeout,2666.6782265146,1,4675,1,0,2232,9045
 test_ops,TestCommonCUDA,test_variant_consistency_jit_cross_cuda_float32,256.21441441441,1,265,1,0,109,428
-_count,windows_failure_count,linux_failure_count,windows_total_count,linux_total_count
 test_ops,TestGradientsCUDA,test_inplace_forward_mode_AD_acos_cuda_complex128,68.82411310151,25,3605,47,0,1128,10182
 test_ops,TestCommonCUDA,test_variant_consistency_eager_nn_functional_conv_transpose2d_cuda_float32,61.214152700187,18,1491,23,0,439,4359
 test_quantization,TestZeroRedundancyOptimizerSingleRank,test_state_dict,517.12081259249,4,4682,4,0,4,13588
