@@ -854,7 +854,7 @@
         {
           "color": "f7e101", 
           "default": false, 
-          "description": "Related to our tests suite in tests/ folder", 
+          "description": "Issues related to tests (not the torch.testing module)", 
           "id": 1300933336, 
           "name": "module: tests", 
           "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2", 
