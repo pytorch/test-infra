@@ -2693,6 +2693,15 @@
       "id": 978813863, 
       "labels": [
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Problem is a flaky test in CI", 
@@ -2712,7 +2721,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "DISABLED test_argminmax_large_axis_cuda (__main__.TestReductionsCUDA)", 
-      "updated_at": "2021-08-25T19:01:08Z", 
+      "updated_at": "2021-08-30T15:54:44Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/63933", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1760893?v=4", 
