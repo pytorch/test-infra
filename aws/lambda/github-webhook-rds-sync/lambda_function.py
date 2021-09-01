@@ -6,7 +6,6 @@ import boto3
 import hmac
 import hashlib
 from typing import *
-from urllib.parse import unquote
 from sqlalchemy import insert, table, column
 from sqlalchemy.dialects.mysql import insert
 
@@ -15,7 +14,6 @@ from utils import (
     get_engine,
     transform_data,
     connection_string,
-    ACCEPTABLE_WEBHOOKS,
     WEBHOOK_SECRET,
 )
 
@@ -34,10 +32,6 @@ def upsert(engine, model, insert_dict):
 
 async def handle_webhook(payload: Dict[str, Any], type: str):
     engine = get_engine(connection_string())
-
-    # Only look at allowlisted webhooks
-    if type not in ACCEPTABLE_WEBHOOKS:
-        return {"statusCode": 200, "body": f"not processing {type}"}
 
     # Marshal JSON into SQL-able data
     objects = extract_github_objects(payload, type)
@@ -66,7 +60,7 @@ def check_hash(payload, expected):
 
 def save_to_s3(event_type, payload):
     """
-    Save a webhook payload to S3 in gha-artifacts/pytorch/pytorch/webhooks (used
+    Save a webhook payload to S3 in gha-artifacts/webhooks (used
     in generate_schema.py)
     """
     session = boto3.Session(
@@ -78,7 +72,7 @@ def save_to_s3(event_type, payload):
     now = datetime.datetime.now()
     millis = int(now.timestamp() * 1000)
     day = now.strftime("%Y-%m-%d")
-    name = f"pytorch/pytorch/webhooks/{day}/{event_type}-{millis}.json"
+    name = f"webhooks/{day}/{event_type}-{millis}.json"
     bucket = s3.Bucket("gha-artifacts")
     bucket.put_object(Key=name, Body=json.dumps(payload).encode("utf-8"))
 
@@ -89,10 +83,13 @@ def lambda_handler(event, context):
 
     # Check that the signature matches the secret on GitHub
     if check_hash(payload, expected):
-        body = unquote(event["body"])
+        body = event["body"]
         if body.startswith("payload="):
             body = body[len("payload=") :]
-        payload = json.loads(body)
+        try:
+            payload = json.loads(body)
+        except Exception as e:
+            raise RuntimeError(f"Failed to decode JSON:\n{str(e)}\n\n{body}\n\n{event}")
 
         # Pull out the webhook type (e.g. pull_request, issues, check_run, etc)
         event_type = event["headers"]["X-GitHub-Event"]
@@ -102,7 +99,10 @@ def lambda_handler(event, context):
         if os.getenv("save_to_s3", False) == "1":
             save_to_s3(event_type, payload)
 
-        result = asyncio.run(handle_webhook(payload, event_type))
+        if os.getenv("write_to_db", "1") == "1":
+            result = asyncio.run(handle_webhook(payload, event_type))
+        else:
+            result = {"statusCode": 200, "body": "didn't write"}
     else:
         result = {"statusCode": 403, "body": "Forbidden"}
 

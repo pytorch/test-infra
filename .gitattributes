@@ -1,1 +1,2 @@
 **/.terraform.lock.hcl linguist-generated=true
+.github/workflows/generated-*.yml linguist-generated=true

@@ -1,0 +1,36 @@
+# @generated DO NOT EDIT MANUALLY
+# Generated from .github/templates/deploy_lambda.yml.j2
+name: Deploy rds-proxy
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/templates/deploy_lambda.yml.j2'
+      - 'aws/lambda/rds-proxy/**'
+
+
+concurrency:
+  group: Deploy rds-proxy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: |
+          cd aws/lambda/rds-proxy
+          make deployment
+      - name: Deploy
+        uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
+        with:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_region: us-east-1
+          function_name: rds-proxy-app
+          timeout: 3
+          zip_file: aws/lambda/rds-proxy/deployment.zip
