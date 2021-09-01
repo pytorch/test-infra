@@ -1,17 +1,8 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 91.732,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 229.194,
-    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 135.645,
-    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 76.48438461538461,
-    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 131.86,
-    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 116.915,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 282.386,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 268.3976666666667,
-    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 92.296,
-    "test_inplace_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 78.79350000000001,
-    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 93.583,
-    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 150.478,
-    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 71.06,
-    "test_proper_exit (__main__.TestDataLoader)": 200.502,
-    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 200.785
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 253.386,
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 242.977,
+    "test_fn_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 64.137,
+    "test_reflection_pad2d (__main__.quantization.core.test_quantized_op.TestPadding)": 66.67733333333334,
+    "test_torchvision_smoke (__main__.TestTensorBoardPytorchGraph)": 109.572,
+    "test_unary_ops (__main__.TestTEFuser)": 103.4125
 }
