@@ -26,6 +26,101 @@
   "panels": [
     {
       "datasource": "MySQL2",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "text": {},
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref != \"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\"\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Execution time on master vs PR for workflow jobs",
+      "type": "barchart"
+    },
+    {
+      "datasource": "MySQL2",
       "description": "Failures on jobs that are not build / test / lint",
       "fieldConfig": {
         "defaults": {
@@ -66,7 +161,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 12
       },
       "id": 4,
       "options": {
@@ -175,7 +270,7 @@
         "h": 15,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 22
       },
       "id": 2,
       "options": {
@@ -238,5 +333,5 @@
   "timezone": "",
   "title": "GitHub Actions Status",
   "uid": "Hkfm0147k",
-  "version": 7
+  "version": 8
 }
