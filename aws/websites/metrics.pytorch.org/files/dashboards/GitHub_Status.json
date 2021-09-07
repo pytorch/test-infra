@@ -592,7 +592,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict'\norder by head_commit_timestamp desc \nlimit 1;",
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
           "refId": "A",
           "select": [
             [
@@ -1819,7 +1819,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly'\norder by head_commit_timestamp desc \nlimit 1;",
+          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
           "refId": "A",
           "select": [
             [
@@ -1886,7 +1886,7 @@
         "for": "5m",
         "frequency": "1h",
         "handler": 1,
-        "name": "Last nightly update alert",
+        "name": "Last viable/strict update alert",
         "noDataState": "no_data",
         "notifications": []
       },
@@ -1968,7 +1968,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict'\norder by head_commit_timestamp desc \nlimit 1;",
+          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
           "refId": "A",
           "select": [
             [
@@ -2319,5 +2319,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 4
 }
