@@ -34,6 +34,109 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 42,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n    workflow_job.completed_at as \"time\",\n    (\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"runtime_minutes\"\nfrom workflow_job\n    inner join workflow_run on workflow_job.run_id = workflow_run.id\nwhere workflow_job.name = \"build\"\n    and workflow_run.name = \"linux-xenial-py3.6-gcc5.4\"\n    and workflow_job.completed_at is not null\n    and $__timeFilter(workflow_job.completed_at)\norder by workflow_job.completed_at;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "cpu build time gcc5.4 / py3.6",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "MySQL2",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
             "axisSoftMin": 0,
             "fillOpacity": 80,
             "gradientMode": "none",
@@ -65,7 +168,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 10
       },
       "id": 6,
       "options": {
@@ -161,7 +264,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 22
       },
       "id": 4,
       "options": {
@@ -270,7 +373,7 @@
         "h": 15,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 32
       },
       "id": 2,
       "options": {
@@ -333,5 +436,5 @@
   "timezone": "",
   "title": "GitHub Actions Status",
   "uid": "Hkfm0147k",
-  "version": 8
+  "version": 10
 }
