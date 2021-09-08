@@ -464,72 +464,6 @@
     }, 
     {
       "active_lock_reason": null, 
-      "assignee": null, 
-      "assignees": [], 
-      "author_association": "NONE", 
-      "body": "## \ud83d\udc1b Bug\r\n\r\nWhen we have optimizers for multiple parts of the networks and one such part has the amp context disabled through     `@torch.cuda.amp.autocast(enabled=False)` the optimizer for that part will error out with `AssertionError: No inf checks were recorded for this optimizer.`\r\n\r\n## To Reproduce\r\n\r\nCreate a VAE and have the code processor (where we split into mean and logvar, do the reparameterization trick, generate the z) set to `@torch.cuda.amp.autocast(enabled=False)` and dedicate an optimizer to it. If you follow the multi optimizer example the code will error out.\r\n\r\n## Expected behavior\r\n\r\nAllow the scaler to check if amp is active for those variables and if not, to not error out in regards to the inf checks.\r\n\r\n## Environment\r\n - PyTorch Version (e.g., 1.0): 1.6\r\n - OS (e.g., Linux): Ubuntu 18.04\r\n - How you installed PyTorch (`conda`, `pip`, source): pip\r\n - Build command you used (if compiling from source): N/A\r\n - Python version: 3.6\r\n - CUDA/cuDNN version: 11/7.6\r\n - GPU models and configuration: Titan V\r\n\n\ncc @mcarilli", 
-      "closed_at": null, 
-      "comments": 4, 
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/47128/comments", 
-      "created_at": "2020-10-30T18:38:28Z", 
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/47128/events", 
-      "html_url": "https://github.com/pytorch/pytorch/issues/47128", 
-      "id": 733427450, 
-      "labels": [
-        {
-          "color": "006b75", 
-          "default": false, 
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
-          "id": 1301347167, 
-          "name": "triaged", 
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "", 
-          "id": 1972560798, 
-          "name": "module: amp (automated mixed precision)", 
-          "node_id": "MDU6TGFiZWwxOTcyNTYwNzk4", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20amp%20(automated%20mixed%20precision)"
-        }
-      ], 
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/47128/labels{/name}", 
-      "locked": false, 
-      "milestone": null, 
-      "node_id": "MDU6SXNzdWU3MzM0Mjc0NTA=", 
-      "number": 47128, 
-      "performed_via_github_app": null, 
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
-      "score": 0.0, 
-      "state": "open", 
-      "title": "AMP doesn't gracefully handle optimizers for disabled regions", 
-      "updated_at": "2021-04-12T19:13:28Z", 
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/47128", 
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/10502740?v=4", 
-        "events_url": "https://api.github.com/users/danieltudosiu/events{/privacy}", 
-        "followers_url": "https://api.github.com/users/danieltudosiu/followers", 
-        "following_url": "https://api.github.com/users/danieltudosiu/following{/other_user}", 
-        "gists_url": "https://api.github.com/users/danieltudosiu/gists{/gist_id}", 
-        "gravatar_id": "", 
-        "html_url": "https://github.com/danieltudosiu", 
-        "id": 10502740, 
-        "login": "danieltudosiu", 
-        "node_id": "MDQ6VXNlcjEwNTAyNzQw", 
-        "organizations_url": "https://api.github.com/users/danieltudosiu/orgs", 
-        "received_events_url": "https://api.github.com/users/danieltudosiu/received_events", 
-        "repos_url": "https://api.github.com/users/danieltudosiu/repos", 
-        "site_admin": false, 
-        "starred_url": "https://api.github.com/users/danieltudosiu/starred{/owner}{/repo}", 
-        "subscriptions_url": "https://api.github.com/users/danieltudosiu/subscriptions", 
-        "type": "User", 
-        "url": "https://api.github.com/users/danieltudosiu"
-      }
-    }, 
-    {
-      "active_lock_reason": null, 
       "assignee": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8884619?v=4", 
         "events_url": "https://api.github.com/users/SciPioneer/events{/privacy}", 
@@ -2788,7 +2722,64 @@
         "type": "User", 
         "url": "https://api.github.com/users/ezyang"
       }
+    }, 
+    {
+      "active_lock_reason": null, 
+      "assignee": null, 
+      "assignees": [], 
+      "author_association": "CONTRIBUTOR", 
+      "body": "This is most easily seen in the following example, prior to fixing https://github.com/pytorch/pytorch/issues/64687\r\n\r\n```\r\nimport torch\r\nclass A:\r\n    @classmethod\r\n    def __torch_function__(cls, func, types, args=(), kwargs=None):\r\n        print(types)\r\n\r\na = A()\r\nb = torch.nn.Parameter()\r\n\r\ntorch.add(a, b)\r\ntorch.overrides.handle_torch_function(None, (a, b), a, b)\r\n```\r\n\r\nthis prints:\r\n\r\n```\r\n(<class '__main__.A'>,)\r\n(<class '__main__.A'>, <class 'torch.nn.parameter.Parameter'>)\r\n```\r\n\r\nParameter is completely omitted from the types in the first case, which goes through the C++ parser. The Python code path via buggy `handle_torch_function` shows what a naive implementation that didn't handle this case explicitly does: it includes Parameter in the types list, because, well, that's what it's supposed to do.\r\n\r\nThis is not very nice because although we originally motivated disabled_torch_function_impl as a pure performance optimization, it actually also has semantic meaning: classes who disable torch function impl don't show up in the types list. This is important because other implementations of torch function may query the types list to determine if they understand the arguments or not. \r\n\r\nUnfortunately, this behavior is also quite desirable. Canonically, we are supposed to be able to mark anything as a Parameter and expect everything to work as is with it. So if someone studiously goes through all the arguments and tests that they are, in fact, Tensors, would in fact fail if they were passed a Parameter. So having disabled_torch_function_impl work this way increases interoperability of said classes with other use cases (we are basically saying, \"yeah, this is a subclass, but just pretend it is a Tensor for all intents and purposes).\r\n\r\nThere is a related problem observed by @albanD that suggests that we might need to fix Parameter is some other, very fancy way. Suppose that you have a tensor subclass, and you want it also to be a Parameter. You can't just do the normal thing of `Parameter(my_tensor)` because Parameter overrides the subclass. This suggests that we actually want some sort of boolean property on regular Tensor that says if something is a Parameter or not, and then Parameter is just some fancy class which overrides the meaning of issubclass to test for this boolean. This sounds very disruptive and I'm not sure if we can actually do it, but we should if we can as it would make `Parameter(my_tensor)` transparently work.\r\n\r\ncc @hameerabbasi @rgommers @peterbell10", 
+      "closed_at": null, 
+      "comments": 0, 
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/comments", 
+      "created_at": "2021-09-08T20:12:08Z", 
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/events", 
+      "html_url": "https://github.com/pytorch/pytorch/issues/64690", 
+      "id": 991489174, 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "", 
+          "id": 2422898073, 
+          "name": "module: __torch_function__", 
+          "node_id": "MDU6TGFiZWwyNDIyODk4MDcz", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20__torch_function__"
+        }
+      ], 
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/labels{/name}", 
+      "locked": false, 
+      "milestone": null, 
+      "node_id": "MDU6SXNzdWU5OTE0ODkxNzQ=", 
+      "number": 64690, 
+      "performed_via_github_app": null, 
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
+      "score": 0.0, 
+      "state": "open", 
+      "title": "_disabled_torch_function_impl is unimplementable (must be special cased)", 
+      "updated_at": "2021-09-08T20:15:34Z", 
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/64690", 
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
+        "events_url": "https://api.github.com/users/ezyang/events{/privacy}", 
+        "followers_url": "https://api.github.com/users/ezyang/followers", 
+        "following_url": "https://api.github.com/users/ezyang/following{/other_user}", 
+        "gists_url": "https://api.github.com/users/ezyang/gists{/gist_id}", 
+        "gravatar_id": "", 
+        "html_url": "https://github.com/ezyang", 
+        "id": 13564, 
+        "login": "ezyang", 
+        "node_id": "MDQ6VXNlcjEzNTY0", 
+        "organizations_url": "https://api.github.com/users/ezyang/orgs", 
+        "received_events_url": "https://api.github.com/users/ezyang/received_events", 
+        "repos_url": "https://api.github.com/users/ezyang/repos", 
+        "site_admin": false, 
+        "starred_url": "https://api.github.com/users/ezyang/starred{/owner}{/repo}", 
+        "subscriptions_url": "https://api.github.com/users/ezyang/subscriptions", 
+        "type": "User", 
+        "url": "https://api.github.com/users/ezyang"
+      }
     }
   ], 
-  "total_count": 40
+  "total_count": 41
 }
