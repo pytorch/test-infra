@@ -25,5 +25,6 @@ terraform.rc
 
 aws/websites/metrics.pytorch.org/vars.yml
 
+aws/lambda/hud-query-proxy/python/*
 aws/lambda/github-webhook-rds-sync/python/*
 aws/lambda/github-webhook-rds-sync/hooks/*
