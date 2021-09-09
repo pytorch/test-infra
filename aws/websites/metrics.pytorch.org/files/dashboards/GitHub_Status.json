@@ -455,7 +455,7 @@
     },
     {
       "datasource": "MySQL",
-      "description": "",
+      "description": "Note: Bundled commits show up as a single revert",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -509,7 +509,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select count(*) as \"num_reverts\" from push_event where ref='refs/heads/master' and head_commit_message like \"Revert%\" and $__timeFilter(head_commit_timestamp);",
+          "rawSql": "select count(*) as \"num_reverts\"\nfrom push_event\nwhere ref = 'refs/heads/master'\n    and head_commit_message like \"Revert D%\"\n    and $__timeFilter(sync_last_update_at);",
           "refId": "A",
           "select": [
             [
@@ -2485,5 +2485,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 6
+  "version": 9
 }
