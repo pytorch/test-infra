@@ -2681,6 +2681,15 @@
       "id": 991466634, 
       "labels": [
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "", 
@@ -2700,7 +2709,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_C.disabled_torch_function doesn't return NotImplemented for unrecognized types", 
-      "updated_at": "2021-09-08T19:40:06Z", 
+      "updated_at": "2021-09-09T00:38:17Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/64687", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
@@ -2738,6 +2747,15 @@
       "id": 991489174, 
       "labels": [
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "", 
@@ -2757,7 +2775,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_disabled_torch_function_impl is unimplementable (must be special cased)", 
-      "updated_at": "2021-09-08T20:15:34Z", 
+      "updated_at": "2021-09-09T00:38:03Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/64690", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
