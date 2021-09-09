@@ -3,12 +3,21 @@ param(
 )
 
 $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
+$ProgressPreference = 'SilentlyContinue'
 
 # Switch statement for specfic CUDA versions
 Switch ($cudaVersion) {
   "10.2" {
     $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
     $cudnnZip = "cudnn-10.2-windows10-x64-v7.6.5.32.zip"
+  }
+  "11.1" {
+    $toolkitInstaller = "cuda_11.1.0_456.43_win10.exe"
+    $cudnnZip = "cudnn-11.1-windows-x64-v8.0.5.39.zip"
+  }
+  "11.3" {
+    $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
+    $cudnnZip = "cudnn-11.3-windows-x64-v8.2.0.53.zip"
   }
 }
 
@@ -27,37 +36,55 @@ function New-TemporaryDirectory() {
 }
 
 function Install-CudaToolkit() {
+  $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
+  if (Test-Path -Path "$expectedInstallLocation" -PathType Container) {
+    Write-Output "Existing cudatoolkit installation already found at '$expectedInstallLocation', continuing..."
+    return
+  }
+
   Write-Output "Downloading toolkit installer, $windowsS3BaseUrl/$toolkitInstaller"
   $tmpToolkitInstaller = New-TemporaryFile
   Invoke-WebRequest -Uri "$windowsS3BaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
   $tmpExtractedInstaller = New-TemporaryDirectory
-  7z x "$toolkitInstaller" -o "$tmpExtractedInstaller"
+  7z x "$tmpToolkitInstaller" -o"$tmpExtractedInstaller"
   $cudaInstallLogs = New-TemporaryDirectory
 
-  Start-Process -Wait "$tmpExtractedInstaller\setup.exe" -s "$installerArgs" -loglevel:6 -log:"$cudaInstallLogs"
-  $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
+  Write-Output "Running installer for CUDA v$cudaVersion..."
+  $argsList = "-s $installerArgs -loglevel:6 -log:$cudaInstallLogs"
+  Write-Output "setup.exe: $tmpExtractedInstaller\setup.exe"
+  Write-Output "Args: $argsList"
+  Start-Process -FilePath "$tmpExtractedInstaller\setup.exe" -ArgumentList "$argsList" -Wait -NoNewWindow -PassThru
   if (-Not (Test-Path -Path "$expectedInstallLocation\bin\nvcc.exe" -PathType Leaf)) {
     Write-Error "CUDA installation failed for CUDA version $cudaVersion, nvcc not found at $expectedInstallLocation\bin\nvcc.exe"
+    Write-Error "==== LOG.RunDll32.exe.log ===="
     Get-Content -Path "$cudaInstallLogs\LOG.RunDll32.exe.log"
+    Write-Error "==== Log.setup.exe.log ===="
     Get-Content -Path "$cudaInstallLogs\LOG.setup.exe.log"
     exit 1
   }
 }
 
 function Install-Cudnn() {
+  $cudnnOutputLocation = "$env:ProgramFiles\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion\"
+  if (Test-Path -Path "$cudnnOutputLocation" -PathType Container) {
+    Write-Output "Existing cudnn installation already found at '$cudnnOutputLocation', continuing..."
+    return
+  }
+
   Write-Output "Downloading cudnnArchive, $windowsS3BaseUrl/$cudnnZip"
   $tmpCudnnInstall = New-TemporaryFile
   Invoke-WebRequest -Uri "$windowsS3BaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
   $tmpCudnnExtracted = New-TemporaryDirectory
-  7z x "$toolkitInstaller" -o "$tmpCudnnExtracted"
-
-  Copy-Item -Force -Recurse "$tmpCudnnExtracted\*" "$env:ProgramFiles\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion\"
+  7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
+  Write-Output "Copying cudnn to $cudnnOutputLocation"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\cuda\*" "$cudnnOutputLocation"
 }
 
 function Install-NvTools() {
   $nvToolsLocalPath = "C:\Program Files\NVIDIA Corporation\NvToolsExt"
   # Check if we actually need to do the install
-  if (Test-Path -Path "$nvToolsLocalPath\bin\x64\nvToolsExt64_1.dll" -PathType Leaf) {
+  if (Test-Path -Path "$nvToolsLocalPath" -PathType Container) {
+    Write-Output "Existing nvtools installation already found, continuing..."
     return
   }
   $nvToolsUrl = "https://ossci-windows.s3.amazonaws.com/NvToolsExt.7z"
@@ -65,16 +92,15 @@ function Install-NvTools() {
   Write-Output "Downloading NvTools, $nvToolsUrl"
   Invoke-WebRequest -Uri "$nvToolsUrl" -OutFile "$tmpToolsDl"
   $tmpExtractedNvTools = New-TemporaryDirectory
-  7z x "$tmpToolsDl" -o "$tmpExtractedNvTools"
+  7z x "$tmpToolsDl" -o"$tmpExtractedNvTools"
 
   Write-Output "Copying NvTools, '$tmpExtractedNvTools' -> '$nvToolsLocalPath'"
   New-Item -Path "$nvToolsLocalPath "-ItemType "directory" -Force
   Copy-Item -Recurse -Path "$tmpExtractedNvTools\*" -Destination "$nvToolsLocalPath"
 }
 
-# TODO:
-# - install vs integration
-
 Install-CudaToolkit
 Install-Cudnn
 Install-NvTools
+# Clear out temp files
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue

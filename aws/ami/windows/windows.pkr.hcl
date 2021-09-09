@@ -67,11 +67,25 @@ build {
     ]
   }
 
-  # Install CUDA Toolkit 10.2
+  # Install CUDA Toolkits
   provisioner "powershell" {
     environment_vars = ["CUDA_VERSION=10.2"]
     scripts = [
-      "${path.root}/scripts/Installers/Install-CUDA-Toolkit.ps1",
+      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
+    ]
+  }
+
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=11.1"]
+    scripts = [
+      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
+    ]
+  }
+
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=11.3"]
+    scripts = [
+      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
     ]
   }
 }
