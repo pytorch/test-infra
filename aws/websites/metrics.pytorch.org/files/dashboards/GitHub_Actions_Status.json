@@ -290,7 +290,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select CONCAT(workflow_run.name, \" / \", check_run.name) as \"name\",\n    workflow_run.id,\n    count(*) as \"failure_count\"\nfrom check_run\n    inner join workflow_run on check_run.check_suite_node_id = workflow_run.check_suite_node_id\nwhere check_run.status = \"completed\"\n    and check_run.conclusion = \"failure\"\n    and check_run.name != \"build\"\n    and check_run.name != \"build-and-test\"\n    and check_run.name not like \"test %\"\n    and check_run.name != \"mypy\"\n    and check_run.name != \"quick-checks\"\n    and check_run.name != \"flake8-py3\"\n    and check_run.name != \"clang-format\"\n    and check_run.name != \"shellcheck\"\n    and check_run.name != \"clang-tidy\"\n    and $__timeFilter(check_run.completed_at)\ngroup by name\norder by count(*) desc",
+          "rawSql": "select CONCAT(workflow_run.name, \" / \", check_run.name) as \"name\",\n    workflow_run.id,\n    count(*) as \"failure_count\"\nfrom check_run\n    inner join workflow_run on check_run.check_suite_node_id = workflow_run.check_suite_node_id\nwhere check_run.status = \"completed\"\n    and check_run.conclusion = \"failure\"\n    and check_run.name != \"build\"\n    and check_run.name != \"build-and-test\"\n    and check_run.name not like \"test %\"\n    and check_run.name != \"test\"\n    and check_run.name != \"mypy\"\n    and check_run.name != \"quick-checks\"\n    and check_run.name != \"flake8-py3\"\n    and check_run.name != \"clang-format\"\n    and check_run.name != \"shellcheck\"\n    and check_run.name != \"clang-tidy\"\n    and $__timeFilter(check_run.completed_at)\ngroup by name\norder by count(*) desc",
           "refId": "A",
           "select": [
             [
@@ -436,5 +436,5 @@
   "timezone": "",
   "title": "GitHub Actions Status",
   "uid": "Hkfm0147k",
-  "version": 10
+  "version": 11
 }
