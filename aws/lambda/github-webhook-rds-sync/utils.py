@@ -215,18 +215,6 @@ TABLE_NAME_REMAP = {
 }
 
 
-ACCEPTABLE_WEBHOOKS = {
-    "check_suite",
-    "check_run",
-    "pull_request",
-    "issues",
-    "push",
-    "create",
-    "workflow_job",
-    "status",
-}
-
-
 def flatten_object(obj: Dict[str, Any]) -> FlatDict:
     """
     Take an object and inline all the fields so it doesn't have any nesting
@@ -258,6 +246,9 @@ def extract_github_objects(obj: Dict[str, Any], obj_name: str) -> List[NamedDict
     objects = []
 
     def drop_key(key: str) -> bool:
+        if key == "target_url":
+            return False
+
         return (
             key.endswith("_url")
             or key == "_links"
