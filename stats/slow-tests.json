@@ -1,14 +1,15 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 100.04150000000001,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 229.959,
-    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 135.315,
-    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 134.264,
-    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 116.944,
-    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 95.525,
-    "test_inplace_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 72.74685714285714,
-    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 100.367,
-    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 157.725,
-    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 71.454,
-    "test_proper_exit (__main__.TestDataLoader)": 200.937,
-    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 201.418
+    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 107.07050000000001,
+    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 229.379,
+    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 138.637,
+    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 134.716,
+    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 116.598,
+    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 99.288,
+    "test_inplace_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 73.41514285714285,
+    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 100.535,
+    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 127.711,
+    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 70.999,
+    "test_proper_exit (__main__.TestDataLoader)": 200.906,
+    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 200.657,
+    "test_unary_ops (__main__.TestTEFuser)": 88.75042857142857
 }
