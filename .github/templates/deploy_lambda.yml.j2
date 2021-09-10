@@ -1,12 +1,17 @@
-name: lambda_checks_cron
+name: Deploy !{{ name }}
 
 on:
   push:
     branches:
-      - main
+      - master
     paths:
-      - '.github/workflows/lambda_checks_cron.yml'
-      - 'aws/lambda/checks-cron/**'
+      - '.github/templates/deploy_lambda.yml.j2'
+      - 'aws/lambda/!{{ name }}/**'
+
+
+concurrency:
+  group: Deploy !{{ name }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -16,14 +21,14 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: |
-          cd aws/lambda/checks-cron
-          make deployment.zip
+          cd aws/lambda/!{{ name }}
+          make deployment
       - name: Deploy
         uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
         with:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
-          function_name: github-checks-status-updater
-          timeout: 15
-          zip_file: aws/lambda/checks-cron/deployment.zip
+          function_name: !{{ name }}-app
+          timeout: !{{ timeout }}
+          zip_file: aws/lambda/!{{ name }}/deployment.zip

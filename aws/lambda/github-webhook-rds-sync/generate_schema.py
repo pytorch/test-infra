@@ -22,16 +22,11 @@ from utils import (
     generate_orm,
     get_engine,
     connection_string,
-    ACCEPTABLE_WEBHOOKS,
 )
 
 
 async def update_schema_for(payload: Dict[str, Any], webhook: str):
     Base = declarative_base()
-
-    # Only look at allowlisted webhooks
-    if webhook not in ACCEPTABLE_WEBHOOKS:
-        return {"statusCode": 200, "body": f"not processing {webhook}"}
 
     # Marshal JSON into SQL-able data
     objects = extract_github_objects(payload, webhook)
@@ -50,15 +45,13 @@ if __name__ == "__main__":
     webhooks = defaultdict(dict)
 
     # Go over and combine all webhooks of the same type
-    n = len([x for x in samples_path.glob("*.json")])
-    for i, name in enumerate(samples_path.glob("*.json")):
+    n = len([x for x in samples_path.glob("*/*.json")])
+    for i, name in enumerate(samples_path.glob("*/*.json")):
         if i % 1000 == 0:
             print(f"{i} / {n}")
 
         webhook = name.name.replace(".json", "").split("-")[0]
         name = samples_path / name
-        if webhook not in ACCEPTABLE_WEBHOOKS:
-            continue
 
         with open(name) as f:
             data = json.load(f)

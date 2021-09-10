@@ -1,16 +1,18 @@
-name: Deploy github-webhook-rds-sync
+# @generated DO NOT EDIT MANUALLY
+# Generated from .github/templates/deploy_lambda.yml.j2
+name: Deploy github_webhook_rds_sync
 
 on:
   push:
     branches:
       - master
     paths:
-      - '.github/workflows/lambda_github_log_webhook.yml'
-      - 'aws/lambda/github-logs-webhook/**'
+      - '.github/templates/deploy_lambda.yml.j2'
+      - 'aws/lambda/github_webhook_rds_sync/**'
 
 
 concurrency:
-  group: Deploy github-logs-webhook
+  group: Deploy github_webhook_rds_sync
   cancel-in-progress: true
 
 jobs:
@@ -21,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: |
-          cd aws/lambda/github-logs-webhook
+          cd aws/lambda/github_webhook_rds_sync
           make deployment
       - name: Deploy
         uses: appleboy/lambda-action@1e05c1377056f21ebb2ce69b910bc16b943c2a66
@@ -29,6 +31,6 @@ jobs:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
-          function_name: github-checks-status-updater
-          timeout: 15
-          zip_file: aws/lambda/github-logs-webhook/deployment.zip
+          function_name: github_webhook_rds_sync-app
+          timeout: 3
+          zip_file: aws/lambda/github_webhook_rds_sync/deployment.zip

@@ -27,3 +27,4 @@ aws/websites/metrics.pytorch.org/vars.yml
 
 aws/lambda/github-webhook-rds-sync/python/*
 aws/lambda/github-webhook-rds-sync/hooks/*
+aws/lambda/rds-proxy/python/*

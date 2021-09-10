@@ -62,6 +62,7 @@ TYPE_MAP = {
         "changes_title_from": lambda: Column(String(300)),
         "changes_body_from": lambda: Column(Text),
         "label": lambda: OBJECT_PLACEHOLDER,
+        "milestone": lambda: OBJECT_PLACEHOLDER,
     },
     "push_event": {
         "base_ref": lambda: Column(String(300)),
@@ -74,6 +75,7 @@ TYPE_MAP = {
         "assignee": lambda: OBJECT_PLACEHOLDER,
         "milestone": lambda: OBJECT_PLACEHOLDER,
         "closed_at": lambda: Column(DateTime),
+        "body": lambda: Column(Text),
         "active_lock_reason": lambda: Column(String(100)),
         "performed_via_github_app": lambda: Column(Boolean),
     },
@@ -88,7 +90,7 @@ TYPE_MAP = {
     "check_run": {
         "name": lambda: Column(String(300)),
         "conclusion": lambda: Column(String(100)),
-        "output_title": lambda: Column(String(100)),
+        "output_title": lambda: Column(String(300)),
         "output_summary": lambda: Column(Text),
         "output_text": lambda: Column(Text),
     },
@@ -99,6 +101,34 @@ TYPE_MAP = {
         "description": lambda: Column(String(100)),
     },
     "label": {"description": lambda: Column(Text)},
+    "review": {
+        "body": lambda: Column(Text),
+    },
+    "pull_request_review_event": {
+        "changes_body_from": lambda: Column(Text),
+    },
+    "pull_request_review_comment_event": {
+        "changes_body_from": lambda: Column(Text),
+    },
+    "comment": {
+        "performed_via_github_app": lambda: OBJECT_PLACEHOLDER,
+        "body": lambda: Column(Text),
+        "side": lambda: Column(String(30)),
+        "start_side": lambda: Column(String(30)),
+        "diff_hunk": lambda: Column(Text),
+        "pull_request_review_id": lambda: Column(String(20)),
+        "original_start_line": lambda: Column(Integer),
+        "path": lambda: Column(String(300)),
+        "start_line": lambda: Column(Integer),
+        "position": lambda: Column(Integer),
+        "original_position": lambda: Column(Integer),
+        "line": lambda: Column(Integer),
+        "original_line": lambda: Column(Integer),
+        "commit_id": lambda: Column(String(300)),
+        "original_commit_id": lambda: Column(String(300)),
+        "in_reply_to_id": lambda: Column(String(30)),
+    },
+    "issue_comment_event": {"changes_body_from": lambda: Column(Text)},
     "check_suite": {
         "conclusion": lambda: Column(String(100)),
         "latest_check_runs_count": lambda: Column(Integer),
@@ -119,9 +149,24 @@ TYPE_MAP = {
         "commit_verification_payload": lambda: Column(Text),
         "author": lambda: OBJECT_PLACEHOLDER,
         "committer": lambda: OBJECT_PLACEHOLDER,
+        "commit_message": lambda: Column(Text),
+    },
+    "milestone": {
+        "due_on": lambda: Column(DateTime),
+    },
+    "installation_event": {
+        "installation_single_file_name": lambda: Column(Text),
+        "installation_suspended_by": lambda: OBJECT_PLACEHOLDER,
+        "requester": lambda: OBJECT_PLACEHOLDER,
     },
     "pull_request": {
         "body": lambda: Column(Text),
+        "comments": lambda: Column(Integer),
+        "commits": lambda: Column(Integer),
+        "deletions": lambda: Column(Integer),
+        "changed_files": lambda: Column(Integer),
+        "additions": lambda: Column(Integer),
+        "review_comments": lambda: Column(Integer),
         "milestone": lambda: OBJECT_PLACEHOLDER,
         "head_repo_description": lambda: Column(Text),
         "head_repo_homepage": lambda: Column(String(100)),
@@ -133,7 +178,10 @@ TYPE_MAP = {
         "base_repo_license": lambda: Column(String(100)),
         "auto_merge": lambda: Column(String(100)),
         "active_lock_reason": lambda: Column(String(100)),
+        "merged": lambda: Column(Boolean),
         "mergeable": lambda: Column(Boolean),
+        "maintainer_can_modify": lambda: Column(Boolean),
+        "mergeable_state": lambda: Column(String(100)),
         "rebaseable": lambda: Column(Boolean),
         "merged_by": lambda: Column(String(100)),
         "merge_commit_sha": lambda: Column(String(100)),
@@ -142,17 +190,28 @@ TYPE_MAP = {
     "pull_request_event": {
         "changes_title_from": lambda: Column(String(300)),
         "changes_body_from": lambda: Column(Text),
+    },
+    "workflow_run": {
+        "id": lambda: Column(String(20)),
+        "check_suite_id": lambda: Column(String(20)),
+        "workflow_id": lambda: Column(String(20)),
+        "head_commit_message": lambda: Column(Text),
     }
 }
 
 TABLE_NAME_REMAP = {
+    "head_repository": "repository",
     "repo": "repository",
     "committer": "user",
     "assignee": "user",
     "author": "user",
     "requested_reviewer": "user",
     "owner": "user",
+    "requester": "user",
+    "installation_suspended_by": "user",
     "sender": "user",
+    "account": "user",
+    "creator": "user",
 }
 
 
@@ -199,18 +258,21 @@ def extract_github_objects(obj: Dict[str, Any], obj_name: str) -> List[NamedDict
     objects = []
 
     def drop_key(key: str) -> bool:
-        return key.endswith("_url") or key == "_links" or key == "url" or key == "permissions"
+        return (
+            key.endswith("_url")
+            or key == "_links"
+            or key == "url"
+            or key == "permissions"
+        )
 
-    def visit_dict(
-        curr: Dict[str, Any], full_name: List[str]
-    ) -> Tuple[bool, FlatDict]:
+    def visit_dict(curr: Dict[str, Any], full_name: List[str]) -> Tuple[bool, FlatDict]:
         result = {}
 
         for key, value in list(curr.items()):
             # Objects are not always named consistently (e.g. repository vs
             # repo, owner vs. user, so fix that up here)
             remapped_key = TABLE_NAME_REMAP.get(key, None)
-            
+
             if drop_key(key):
                 # Ignore URLs
                 continue
@@ -229,7 +291,11 @@ def extract_github_objects(obj: Dict[str, Any], obj_name: str) -> List[NamedDict
                     # It will go into its own table so just put a link to it
                     # here
                     result[f"{key}_node_id"] = data["node_id"]
-            elif value is None and TYPE_MAP.get(full_name[-1], {}).get(key, lambda: None)() == OBJECT_PLACEHOLDER:
+            elif (
+                value is None
+                and TYPE_MAP.get(full_name[-1], {}).get(key, lambda: None)()
+                == OBJECT_PLACEHOLDER
+            ):
                 # We might have a null object, in which case we still need to
                 # add it as a _node_id
                 result[f"{key}_node_id"] = None
@@ -285,7 +351,7 @@ def get_column(key: str, value: Any, type_name: str) -> Column:
         # errors at once later
         # breakpoint()
         if key.endswith("_node_id"):
-            return get_column(key[:-len("_node_id")], value, type_name)
+            return get_column(key[: -len("_node_id")], value, type_name)
         # raise RuntimeError()
         return None
 
@@ -319,6 +385,9 @@ def transform_data(obj: Dict[str, Any]) -> Dict[str, Any]:
         * dates -> Python datetimes
     """
     for key, value in obj.items():
+        if value is None:
+            # Don't bother writing nulls, they can mess with object fields
+            continue
         if isinstance(value, list):
             obj[key] = json.dumps(value)
         elif is_date(key, value) and value is not None:
@@ -328,7 +397,7 @@ def transform_data(obj: Dict[str, Any]) -> Dict[str, Any]:
             elif isinstance(value, datetime.datetime):
                 obj[key] = value
             elif isinstance(value, str):
-                formats = ["%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z"]
+                formats = ["%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%S.%f%z"]
                 date = None
 
                 for format in formats:
