@@ -37,7 +37,7 @@ function New-TemporaryDirectory() {
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
-  if (Test-Path -Path "$expectedInstallLocation" -PathType Container) {
+  if (Test-Path -Path "$expectedInstallLocation\bin\nvcc.exe" -PathType Leaf) {
     Write-Output "Existing cudatoolkit installation already found at '$expectedInstallLocation', continuing..."
     return
   }
@@ -65,9 +65,9 @@ function Install-CudaToolkit() {
 }
 
 function Install-Cudnn() {
-  $cudnnOutputLocation = "$env:ProgramFiles\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion\"
-  if (Test-Path -Path "$cudnnOutputLocation" -PathType Container) {
-    Write-Output "Existing cudnn installation already found at '$cudnnOutputLocation', continuing..."
+  $expectedInstallLocation = "$env:ProgramFiles\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion\"
+  if (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf) {
+    Write-Output "Existing cudnn installation already found at '$expectedInstallLocation', continuing..."
     return
   }
 
@@ -76,8 +76,12 @@ function Install-Cudnn() {
   Invoke-WebRequest -Uri "$windowsS3BaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
   $tmpCudnnExtracted = New-TemporaryDirectory
   7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
-  Write-Output "Copying cudnn to $cudnnOutputLocation"
-  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\cuda\*" "$cudnnOutputLocation"
+  Write-Output "Copying cudnn to $expectedInstallLocation"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\cuda\*" "$expectedInstallLocation"
+  if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {
+    Write-Error "cudnn installation failed for CUDA version $cudaVersion, cudnn.h not found at $expectedInstallLocation\include\cudnn.h"
+    exit 1
+  }
 }
 
 function Install-NvTools() {
