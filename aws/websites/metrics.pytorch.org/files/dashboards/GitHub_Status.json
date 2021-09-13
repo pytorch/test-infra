@@ -25,7 +25,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -198,7 +198,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -371,7 +371,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -454,7 +454,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "Note: Bundled commits show up as a single revert",
       "fieldConfig": {
         "defaults": {
@@ -537,7 +537,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -620,7 +620,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -703,7 +703,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "Failures across all sources (commits, PRs, nightlies)",
       "fieldConfig": {
         "defaults": {
@@ -777,7 +777,7 @@
       "type": "table"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -860,7 +860,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -943,7 +943,7 @@
       "type": "stat"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1023,7 +1023,7 @@
       "type": "table"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1570,7 +1570,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -1907,7 +1907,7 @@
         "noDataState": "no_data",
         "notifications": []
       },
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2056,7 +2056,7 @@
         "noDataState": "no_data",
         "notifications": []
       },
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2170,7 +2170,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL",
+      "datasource": "GitHub",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2485,5 +2485,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 9
+  "version": 2
 }

@@ -21,11 +21,11 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 4,
   "links": [],
   "panels": [
     {
-      "datasource": "MySQL2",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -128,7 +128,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "MySQL2",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -223,7 +223,7 @@
       "type": "barchart"
     },
     {
-      "datasource": "MySQL2",
+      "datasource": "GitHub",
       "description": "Failures on jobs that are not build / test / lint",
       "fieldConfig": {
         "defaults": {
@@ -318,7 +318,7 @@
       "type": "barchart"
     },
     {
-      "datasource": "MySQL2",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -436,5 +436,5 @@
   "timezone": "",
   "title": "GitHub Actions Status",
   "uid": "Hkfm0147k",
-  "version": 11
+  "version": 2
 }
