@@ -1,0 +1,29 @@
+name: sync_pytorch_canary
+
+on:
+  schedule:
+    # Every day at 3:33am ET
+    - cron: "33 7 * * *"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+  pull_request_target:
+
+jobs:
+  sync-pytorch:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Set up SSH
+        env:
+          PYTORCH_CANARY_SSH_PRIVATE_KEY: ${{ secrets.PYTORCH_CANARY_SSH_PRIVATE_KEY }}
+        run: |
+          set -eu
+          mkdir -p ~/.ssh
+          echo "$PYTORCH_CANARY_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+      - name: Clone pytorch/pytorch
+        run: git clone --bare https://github.com/pytorch/pytorch.git
+      - name: Mirror push to the new repository
+        run: |
+          export GIT_SSH_COMMAND="ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
+          cd pytorch
+          git push --mirror https://github.com/pytorch/pytorch-canary.git
