@@ -19,21 +19,25 @@ jobs:
           mkdir -p ~/.ssh
           echo "$PYTORCH_CANARY_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-      - name: Clone pytorch/pytorch
-        run: |
-          git clone --bare git@github.com:pytorch/pytorch.git pytorch
+      - name: Clone pytorch
+        uses: actions/checkout@v2
+        with:
+          repository: 'pytorch/pytorch'
+          ref: 'master'
+          submodules: 'recursive'
+          path: 'pytorch'
       - name: Mirror push to pytorch/pytorch-canary
         run: |
           set -eu
           export GIT_SSH_COMMAND="ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
           cd pytorch
 
-          # This was previously just a git push --mirror, but that ran into issues as pytorch/pytorch
-          # has too many branches. We could go with a solution was derived from a StackOverflow:
+          # This was previously just a git push --mirror from a bare pytorch/pytorch repo, but that ran into issues as
+          # pytorch/pytorch has too many branches. We could go with a solution was derived from a StackOverflow:
           # https://stackoverflow.com/questions/54828301/git-error-when-pushing-remote-failed-to-report-status
           # that would look like
           #   git gc
           #   git push --tags git@github.com:pytorch/pytorch-canary.git
           #   git branch -a --format "%(refname)" | xargs -i bash -c "git symbolic-ref HEAD {} && git push git@github.com:pytorch/pytorch-canary"
           # OR we could just settle with pushing master. So we'll do that instead.
-          git symbolic-ref HEAD master && git push git@github.com:pytorch/pytorch-canary
+          git push git@github.com:pytorch/pytorch-canary master
