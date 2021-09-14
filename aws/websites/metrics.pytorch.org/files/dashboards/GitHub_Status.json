@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 5,
   "links": [],
   "panels": [
     {
@@ -1531,7 +1531,7 @@
         {
           "alias": "",
           "dimensions": {
-            "FunctionName": "github-webhook-rds-sync"
+            "FunctionName": "github-webhook-rds-sync-app"
           },
           "expression": "",
           "id": "",
@@ -1549,7 +1549,7 @@
         {
           "alias": "",
           "dimensions": {
-            "FunctionName": "github-webhook-rds-sync"
+            "FunctionName": "github-webhook-rds-sync-app"
           },
           "expression": "",
           "hide": false,
