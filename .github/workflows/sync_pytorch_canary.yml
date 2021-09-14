@@ -26,6 +26,7 @@ jobs:
           ref: 'master'
           submodules: 'recursive'
           path: 'pytorch'
+          fetch-depth: 0  # pushing master requires nonshallow checkout
       - name: Mirror push to pytorch/pytorch-canary
         run: |
           set -eu
