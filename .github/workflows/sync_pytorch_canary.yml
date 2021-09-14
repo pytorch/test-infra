@@ -40,4 +40,4 @@ jobs:
           #   git push --tags git@github.com:pytorch/pytorch-canary.git
           #   git branch -a --format "%(refname)" | xargs -i bash -c "git symbolic-ref HEAD {} && git push git@github.com:pytorch/pytorch-canary"
           # OR we could just settle with pushing master. So we'll do that instead.
-          git push git@github.com:pytorch/pytorch-canary master
+          git push -f git@github.com:pytorch/pytorch-canary master
