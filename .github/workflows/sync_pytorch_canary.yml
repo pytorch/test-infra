@@ -2,8 +2,8 @@ name: sync_pytorch_canary
 
 on:
   schedule:
-    # Every day at 3:33am ET
-    - cron: "33 7 * * *"
+    # Every 15 minutes
+    - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
