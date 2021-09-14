@@ -2,8 +2,8 @@ name: sync_pytorch_canary
 
 on:
   schedule:
-    # Every 15 minutes
-    - cron: "*/15 * * * *"
+    # Every hour at the 43rd minute
+    - cron: "43 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
@@ -24,6 +24,13 @@ jobs:
           git clone --bare git@github.com:pytorch/pytorch.git pytorch
       - name: Mirror push to pytorch/pytorch-canary
         run: |
+          set -eu
           export GIT_SSH_COMMAND="ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
           cd pytorch
-          git push --mirror git@github.com:pytorch/pytorch-canary.git
+
+          # This was previously just a git push --mirror, but that ran into issues as pytorch/pytorch
+          # has too many branches. The following solution was derived from a StackOverflow:
+          # https://stackoverflow.com/questions/54828301/git-error-when-pushing-remote-failed-to-report-status
+          git gc
+          git push --tags git@github.com:pytorch/pytorch-canary.git
+          git branch -a --format "%(refname)" | xargs -i bash -c "git symbolic-ref HEAD {} && git push git@github.com:pytorch/pytorch-canary"
