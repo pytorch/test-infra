@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: Metrics
+    type: mysql
+    url: {{ passwords.databases.metrics.host }}
+    database: metrics
+    user: {{ passwords.databases.metrics.user }}
+    password: {{ passwords.databases.metrics.password }}
+    jsonData:
+      maxOpenConns: 0
+      maxIdleConns: 2
+      connMaxLifetime: 14400
