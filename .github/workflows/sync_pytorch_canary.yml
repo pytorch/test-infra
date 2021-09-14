@@ -6,7 +6,6 @@ on:
     - cron: "33 7 * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
-  push:
 
 jobs:
   sync-pytorch:
@@ -21,9 +20,10 @@ jobs:
           echo "$PYTORCH_CANARY_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
       - name: Clone pytorch/pytorch
-        run: git clone --bare https://github.com/pytorch/pytorch.git
-      - name: Mirror push to the new repository
+        run: |
+          git clone --bare git@github.com:pytorch/pytorch.git pytorch
+      - name: Mirror push to pytorch/pytorch-canary
         run: |
           export GIT_SSH_COMMAND="ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no"
           cd pytorch
-          git push --mirror https://github.com/pytorch/pytorch-canary.git
+          git push --mirror git@github.com:pytorch/pytorch-canary.git
