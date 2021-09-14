@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 3,
   "links": [],
   "panels": [
     {
@@ -1531,7 +1531,7 @@
         {
           "alias": "",
           "dimensions": {
-            "FunctionName": "github-webhook-rds-sync-app"
+            "FunctionName": "github-webhook-rds-sync"
           },
           "expression": "",
           "id": "",
@@ -1549,7 +1549,7 @@
         {
           "alias": "",
           "dimensions": {
-            "FunctionName": "github-webhook-rds-sync-app"
+            "FunctionName": "github-webhook-rds-sync"
           },
           "expression": "",
           "hide": false,
@@ -2485,5 +2485,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 2
+  "version": 1
 }
