@@ -26,6 +26,262 @@
   "panels": [
     {
       "datasource": "GitHub",
+      "description": "Failures on CircleCI runs on the master branch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failing jobs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 28,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"failing jobs\"\nFROM status_event\nWHERE state != \"pending\"\n  AND state != \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "CircleCI/Jenkins Master Failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
+      "description": "Failures on CircleCI runs on the master branch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failing jobs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 29,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"failing jobs\"\nFROM status_event\nWHERE state != \"pending\"\n  AND state != \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "CircleCI Master Failures",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -80,7 +336,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 4,
       "options": {
@@ -107,7 +363,7 @@
           ],
           "metricColumn": "none",
           "queryType": "randomWalk",
-          "rawQuery": false,
+          "rawQuery": true,
           "rawSql": "SELECT\n  $__timeGroupAlias(created_at,1h),\n  count(*) AS \"PRs created\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY 1\nORDER BY $__timeGroup(created_at,1h)",
           "refId": "A",
           "select": [
@@ -253,7 +509,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 8
       },
       "id": 9,
       "options": {
@@ -400,7 +656,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 11,
       "options": {
@@ -483,7 +739,7 @@
         "h": 4,
         "w": 2,
         "x": 4,
-        "y": 8
+        "y": 16
       },
       "id": 18,
       "options": {
@@ -566,7 +822,7 @@
         "h": 4,
         "w": 2,
         "x": 6,
-        "y": 8
+        "y": 16
       },
       "id": 12,
       "options": {
@@ -649,7 +905,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 8
+        "y": 16
       },
       "id": 16,
       "options": {
@@ -735,7 +991,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 16
       },
       "id": 21,
       "options": {
@@ -806,7 +1062,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 12
+        "y": 20
       },
       "id": 23,
       "options": {
@@ -889,7 +1145,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 12
+        "y": 20
       },
       "id": 24,
       "options": {
@@ -974,7 +1230,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 24
       },
       "id": 2,
       "options": {
@@ -1125,7 +1381,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 24
       },
       "id": 6,
       "options": {
@@ -1498,7 +1754,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "id": 26,
       "options": {
@@ -1648,7 +1904,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 32
       },
       "id": 22,
       "options": {
@@ -1918,7 +2174,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "id": 8,
       "options": {
@@ -2076,7 +2332,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 15,
       "options": {
@@ -2367,7 +2623,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "id": 17,
       "options": {
@@ -2516,7 +2772,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 38
+        "y": 46
       },
       "id": 19,
       "options": {
@@ -2588,5 +2844,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 4
+  "version": 6
 }
