@@ -2571,7 +2571,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "This is most easily seen in the following example, prior to fixing https://github.com/pytorch/pytorch/issues/64687\r\n\r\n```\r\nimport torch\r\nclass A:\r\n    @classmethod\r\n    def __torch_function__(cls, func, types, args=(), kwargs=None):\r\n        print(types)\r\n\r\na = A()\r\nb = torch.nn.Parameter()\r\n\r\ntorch.add(a, b)\r\ntorch.overrides.handle_torch_function(None, (a, b), a, b)\r\n```\r\n\r\nthis prints:\r\n\r\n```\r\n(<class '__main__.A'>,)\r\n(<class '__main__.A'>, <class 'torch.nn.parameter.Parameter'>)\r\n```\r\n\r\nParameter is completely omitted from the types in the first case, which goes through the C++ parser. The Python code path via buggy `handle_torch_function` shows what a naive implementation that didn't handle this case explicitly does: it includes Parameter in the types list, because, well, that's what it's supposed to do.\r\n\r\nThis is not very nice because although we originally motivated disabled_torch_function_impl as a pure performance optimization, it actually also has semantic meaning: classes who disable torch function impl don't show up in the types list. This is important because other implementations of torch function may query the types list to determine if they understand the arguments or not. \r\n\r\nUnfortunately, this behavior is also quite desirable. Canonically, we are supposed to be able to mark anything as a Parameter and expect everything to work as is with it. So if someone studiously goes through all the arguments and tests that they are, in fact, Tensors, would in fact fail if they were passed a Parameter. So having disabled_torch_function_impl work this way increases interoperability of said classes with other use cases (we are basically saying, \"yeah, this is a subclass, but just pretend it is a Tensor for all intents and purposes).\r\n\r\nThere is a related problem observed by @albanD that suggests that we might need to fix Parameter is some other, very fancy way. Suppose that you have a tensor subclass, and you want it also to be a Parameter. You can't just do the normal thing of `Parameter(my_tensor)` because Parameter overrides the subclass. This suggests that we actually want some sort of boolean property on regular Tensor that says if something is a Parameter or not, and then Parameter is just some fancy class which overrides the meaning of issubclass to test for this boolean. This sounds very disruptive and I'm not sure if we can actually do it, but we should if we can as it would make `Parameter(my_tensor)` transparently work.\r\n\r\ncc @hameerabbasi @rgommers @peterbell10", 
       "closed_at": null, 
-      "comments": 3, 
+      "comments": 4, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/comments", 
       "created_at": "2021-09-08T20:12:08Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/events", 
@@ -2607,7 +2607,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_disabled_torch_function_impl is unimplementable (must be special cased)", 
-      "updated_at": "2021-09-15T01:45:52Z", 
+      "updated_at": "2021-09-15T17:41:42Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/64690", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
