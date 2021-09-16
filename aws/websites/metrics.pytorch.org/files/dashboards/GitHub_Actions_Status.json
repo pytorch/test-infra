@@ -421,42 +421,6 @@
       "type": "timeseries"
     },
     {
-      "alert": {
-        "alertRuleTags": {},
-        "conditions": [
-          {
-            "evaluator": {
-              "params": [
-                10
-              ],
-              "type": "gt"
-            },
-            "operator": {
-              "type": "and"
-            },
-            "query": {
-              "params": [
-                "A",
-                "5m",
-                "now"
-              ]
-            },
-            "reducer": {
-              "params": [],
-              "type": "last"
-            },
-            "type": "query"
-          }
-        ],
-        "executionErrorState": "alerting",
-        "for": "1m",
-        "frequency": "1m",
-        "handler": 1,
-        "message": "Uh oh! Looks like the test alert sure is testing!",
-        "name": "Test Alerts alert",
-        "noDataState": "no_data",
-        "notifications": []
-      },
       "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
@@ -557,14 +521,7 @@
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "critical",
-          "op": "gt",
-          "value": 10,
-          "visible": true
-        }
-      ],
+      "thresholds": [],
       "title": "Test Alerts",
       "type": "timeseries"
     }
@@ -584,5 +541,5 @@
   "timezone": "",
   "title": "GitHub Actions Status",
   "uid": "Hkfm0147k",
-  "version": 3
+  "version": 4
 }
