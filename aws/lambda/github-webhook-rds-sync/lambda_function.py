@@ -17,6 +17,8 @@ from utils import (
     WEBHOOK_SECRET,
 )
 
+from existing_schema import existing_schema
+
 
 def upsert(engine, model, insert_dict):
     """
@@ -46,6 +48,23 @@ async def handle_webhook(payload: Dict[str, Any], type: str):
 
             model_data = [tablename] + [column(k) for k in obj.keys()]
             model = table(*model_data)
+
+            if tablename not in existing_schema:
+                print(
+                    f"Skipping write of {tablename} since it doesn't exist in hardcoded schema"
+                )
+                continue
+
+            # Remove non-existent fields
+            newdata = {}
+            for key, value in obj.items():
+                if key in existing_schema[tablename]:
+                    newdata[key] = value
+                else:
+                    print(
+                        f"Dropping key '{key}' with value '{value}' since it doesn't exist in table {tablename}"
+                    )
+            obj = newdata
             upsert(conn, model, obj)
 
     return {"statusCode": 200, "body": "ok"}
