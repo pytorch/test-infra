@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -3210,5 +3210,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 18
+  "version": 1
 }
