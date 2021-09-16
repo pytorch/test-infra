@@ -57,12 +57,10 @@ async function getReleaseAsset(
   } else {
     return undefined;
   }
-  console.log(`Looking for actions-runner-${runnerOS}-${runnerArch}`)
+  console.log(`Looking for actions-runner-${runnerOS}-${runnerArch}`);
   const assets = asset.assets?.filter((a) => a.name?.includes(`actions-runner-${runnerOS}-${runnerArch}-`));
 
-  return assets?.length === 1
-    ? { name: assets[0].name, downloadUrl: assets[0].browser_download_url }
-    : undefined;
+  return assets?.length === 1 ? { name: assets[0].name, downloadUrl: assets[0].browser_download_url } : undefined;
 }
 
 async function uploadToS3(s3: S3, cacheObject: CacheObject, actionRunnerReleaseAsset: ReleaseAsset): Promise<void> {
@@ -97,18 +95,18 @@ export const handle = async (): Promise<void> => {
   const fetchPrereleaseBinaries = yn(process.env.GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES, { default: false });
   const distributions = [
     {
-      runnerOS: "linux",
-      runnerArch: "x64",
-      s3Key: process.env.S3_OBJECT_KEY_LINUX
+      runnerOS: 'linux',
+      runnerArch: 'x64',
+      s3Key: process.env.S3_OBJECT_KEY_LINUX,
     },
     {
-      runnerOS: "win",
-      runnerArch: "x64",
-      s3Key: process.env.S3_OBJECT_KEY_WINDOWS
-    }
-  ]
-  for(const distribution of distributions) {
-    console.log({distribution})
+      runnerOS: 'win',
+      runnerArch: 'x64',
+      s3Key: process.env.S3_OBJECT_KEY_WINDOWS,
+    },
+  ];
+  for (const distribution of distributions) {
+    console.log({ distribution });
     const cacheObject: CacheObject = {
       bucket: process.env.S3_BUCKET_NAME as string,
       key: distribution.s3Key as string,
@@ -117,7 +115,9 @@ export const handle = async (): Promise<void> => {
       throw Error('Please check all mandatory variables are set.');
     }
     const actionRunnerReleaseAsset = await getReleaseAsset(
-      distribution.runnerOS, distribution.runnerArch, fetchPrereleaseBinaries
+      distribution.runnerOS,
+      distribution.runnerArch,
+      fetchPrereleaseBinaries,
     );
     if (actionRunnerReleaseAsset === undefined) {
       throw Error('Cannot find GitHub release asset.');

@@ -46,8 +46,8 @@ describe('Test createGithubAuth', () => {
 });
 
 describe('Test createGithubAuth', () => {
-  const mockedDecrypt = (decrypt as unknown) as jest.Mock;
-  const mockedCreatAppAuth = (createAppAuth as unknown) as jest.Mock;
+  const mockedDecrypt = decrypt as unknown as jest.Mock;
+  const mockedCreatAppAuth = createAppAuth as unknown as jest.Mock;
   const mockedDefaults = jest.spyOn(request, 'defaults');
   let mockedRequestInterface: MockProxy<RequestInterface>;
 

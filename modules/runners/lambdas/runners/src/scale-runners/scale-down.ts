@@ -1,7 +1,15 @@
 import { Octokit } from '@octokit/rest';
 import moment from 'moment';
 import yn from 'yn';
-import { listRunners, RunnerInfo, terminateRunner, Repo, createGitHubClientForRunnerFactory, listGithubRunnersFactory, getRepo } from './runners';
+import {
+  listRunners,
+  RunnerInfo,
+  terminateRunner,
+  Repo,
+  createGitHubClientForRunnerFactory,
+  listGithubRunnersFactory,
+  getRepo,
+} from './runners';
 import { getIdleRunnerCount, ScalingDownConfig } from './scale-down-config';
 
 function runnerMinimumTimeExceeded(runner: RunnerInfo, minimumRunningTimeInMinutes: string): boolean {
@@ -20,14 +28,14 @@ async function removeRunner(
   try {
     const result = enableOrgLevel
       ? await githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
-        runner_id: ghRunnerId,
-        org: repo.repoOwner,
-      })
+          runner_id: ghRunnerId,
+          org: repo.repoOwner,
+        })
       : await githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
-        runner_id: ghRunnerId,
-        owner: repo.repoOwner,
-        repo: repo.repoName,
-      });
+          runner_id: ghRunnerId,
+          owner: repo.repoOwner,
+          repo: repo.repoName,
+        });
 
     if (result.status == 204) {
       await terminateRunner(ec2runner);

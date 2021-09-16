@@ -17,11 +17,11 @@ export interface ListRunnerFilters {
 }
 
 export interface RunnerType {
-  instance_type: string,
-  os: string,
-  max_available: number,
-  disk_size: number,
-  runnerTypeName: string,
+  instance_type: string;
+  os: string;
+  max_available: number;
+  disk_size: number;
+  runnerTypeName: string;
 }
 
 export async function listRunners(filters: ListRunnerFilters | undefined = undefined): Promise<RunnerInfo[]> {
@@ -90,14 +90,15 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   const randomSubnet = subnets[Math.floor(Math.random() * subnets.length)];
   console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
   const ec2 = new EC2();
-  const storageDeviceName = runnerParameters.runnerType.os === "linux" ? "/dev/xvda" : "/dev/sda1"
+  const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';
   const runInstancesResponse = await ec2
     .runInstances({
       MaxCount: 1,
       MinCount: 1,
       LaunchTemplate: {
-        LaunchTemplateName: runnerParameters.runnerType.os === "linux" ? launchTemplateNameLinux : launchTemplateNameWindows,
-        Version: runnerParameters.runnerType.os === "linux" ? launchTemplateVersionLinux : launchTemplateVersionWindows,
+        LaunchTemplateName:
+          runnerParameters.runnerType.os === 'linux' ? launchTemplateNameLinux : launchTemplateNameWindows,
+        Version: runnerParameters.runnerType.os === 'linux' ? launchTemplateVersionLinux : launchTemplateVersionWindows,
       },
       InstanceType: runnerParameters.runnerType.instance_type,
       BlockDeviceMappings: [
@@ -105,19 +106,19 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           DeviceName: storageDeviceName,
           Ebs: {
             VolumeSize: runnerParameters.runnerType.disk_size,
-            VolumeType: "gp3",
+            VolumeType: 'gp3',
             Encrypted: true,
-            DeleteOnTermination: true
-          }
-        }
+            DeleteOnTermination: true,
+          },
+        },
       ],
       NetworkInterfaces: [
         {
           AssociatePublicIpAddress: true,
           SubnetId: randomSubnet,
           Groups: securityGroupIDs.split(','),
-          DeviceIndex: 0
-        }
+          DeviceIndex: 0,
+        },
       ],
       TagSpecifications: [
         {
@@ -128,13 +129,16 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
               Key: runnerParameters.orgName ? 'Org' : 'Repo',
               Value: runnerParameters.orgName ? runnerParameters.orgName : runnerParameters.repoName,
             },
-            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName }
+            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
           ],
         },
       ],
     })
     .promise();
-  console.info(`Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `, runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','));
+  console.info(
+    `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
+    runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','),
+  );
 
   const ssm = new SSM();
   runInstancesResponse.Instances?.forEach(async (i: EC2.Instance) => {
@@ -159,7 +163,11 @@ export function getRepo(org: string | undefined, repo: string | undefined, orgLe
     : { repoOwner: repo?.split('/')[0] as string, repoName: repo?.split('/')[1] as string };
 }
 
-export function createGitHubClientForRunnerFactory(): (org: string | undefined, repo: string | undefined, orgLevel: boolean) => Promise<Octokit> {
+export function createGitHubClientForRunnerFactory(): (
+  org: string | undefined,
+  repo: string | undefined,
+  orgLevel: boolean,
+) => Promise<Octokit> {
   const cache: Map<string, Octokit> = new Map();
 
   return async (org: string | undefined, repo: string | undefined, orgLevel: boolean) => {
@@ -171,7 +179,7 @@ export function createGitHubClientForRunnerFactory(): (org: string | undefined, 
     const ghAuth = await createGithubAuth(undefined, 'app', ghesApiUrl);
     const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
     const repository = getRepo(org, repo, orgLevel);
-    const key = orgLevel ? repository.repoOwner : repository.repoOwner + repository.repoName;
+    const key = orgLevel ? repository.repoOwner : `${repository.repoOwner}/${repository.repoName}`;
     const cachedOctokit = cache.get(key);
 
     if (cachedOctokit) {
@@ -182,16 +190,16 @@ export function createGitHubClientForRunnerFactory(): (org: string | undefined, 
     console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
     const installationId = orgLevel
       ? (
-        await githubClient.apps.getOrgInstallation({
-          org: repository.repoOwner,
-        })
-      ).data.id
+          await githubClient.apps.getOrgInstallation({
+            org: repository.repoOwner,
+          })
+        ).data.id
       : (
-        await githubClient.apps.getRepoInstallation({
-          owner: repository.repoOwner,
-          repo: repository.repoName,
-        })
-      ).data.id;
+          await githubClient.apps.getRepoInstallation({
+            owner: repository.repoOwner,
+            repo: repository.repoName,
+          })
+        ).data.id;
     const ghAuth2 = await createGithubAuth(installationId, 'installation', ghesApiUrl);
     const octokit = await createOctoClient(ghAuth2.token, ghesApiUrl);
     cache.set(key, octokit);
@@ -226,12 +234,12 @@ export function listGithubRunnersFactory(): (
     console.debug(`[listGithubRunners] Cache miss for ${key}`);
     const runners = enableOrgLevel
       ? await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
-        org: repository.repoOwner,
-      })
+          org: repository.repoOwner,
+        })
       : await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-        owner: repository.repoOwner,
-        repo: repository.repoName,
-      });
+          owner: repository.repoOwner,
+          repo: repository.repoName,
+        });
     cache.set(key, runners);
 
     return runners;

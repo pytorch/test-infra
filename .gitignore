@@ -23,3 +23,5 @@ example/*.secrets*.tfvars
 .vscode
 
 **/coverage/*
+
+/build/

@@ -1,7 +1,13 @@
-import { listRunners, createRunner, RunnerType, createGitHubClientForRunnerFactory, listGithubRunnersFactory } from './runners';
+import {
+  listRunners,
+  createRunner,
+  RunnerType,
+  createGitHubClientForRunnerFactory,
+  listGithubRunnersFactory,
+} from './runners';
 import { createOctoClient, createGithubAuth } from './gh-auth';
-import yn from 'yn';
-import YAML from 'yaml'
+import LRU from 'lru-cache';
+import YAML from 'yaml';
 
 export interface ActionRequestMessage {
   id: number;
@@ -9,6 +15,7 @@ export interface ActionRequestMessage {
   repositoryName: string;
   repositoryOwner: string;
   installationId: number;
+  runnerLabels: string[];
 }
 
 export const scaleUp = async (eventSource: string, payload: ActionRequestMessage): Promise<void> => {
@@ -26,110 +33,143 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
     const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
     installationId = enableOrgLevel
       ? (
-        await githubClient.apps.getOrgInstallation({
-          org: payload.repositoryOwner,
-        })
-      ).data.id
+          await githubClient.apps.getOrgInstallation({
+            org: payload.repositoryOwner,
+          })
+        ).data.id
       : (
-        await githubClient.apps.getRepoInstallation({
-          owner: payload.repositoryOwner,
-          repo: payload.repositoryName,
-        })
-      ).data.id;
+          await githubClient.apps.getRepoInstallation({
+            owner: payload.repositoryOwner,
+            repo: payload.repositoryName,
+          })
+        ).data.id;
   }
-
 
   const ghAuth = await createGithubAuth(installationId, 'installation', ghesApiUrl);
   const githubInstallationClient = await createOctoClient(ghAuth.token, ghesApiUrl);
-  const checkRun = await githubInstallationClient.checks.get({
-    check_run_id: payload.id,
-    owner: payload.repositoryOwner,
-    repo: payload.repositoryName,
-  });
 
   const repoName = enableOrgLevel ? undefined : `${payload.repositoryOwner}/${payload.repositoryName}`;
   const orgName = enableOrgLevel ? payload.repositoryOwner : undefined;
 
-  if (checkRun.data.status === 'queued') {
-    const currentRunners = await listRunners({
-      environment: environment,
-      repoName: repoName,
-    });
-    console.info(
-      `${enableOrgLevel
+  const currentRunners = await listRunners({
+    environment: environment,
+    repoName: repoName,
+  });
+  console.info(
+    `${
+      enableOrgLevel
         ? `Organization ${payload.repositoryOwner}`
         : `Repo ${payload.repositoryOwner}/${payload.repositoryName}`
-      } has ${currentRunners.length} runners`,
-    );
+    } has ${currentRunners.length} runners`,
+  );
 
-    const runnerTypes = await GetRunnerTypes(payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel);
+  const runnerTypes = await GetRunnerTypes(
+    payload.repositoryOwner,
+    `${payload.repositoryOwner}/${payload.repositoryName}`,
+    enableOrgLevel,
+  );
 
-    for (const runnerType of runnerTypes) {
-      try {
-        const currentRunnerCount = currentRunners.filter(x => x.runnerType === runnerType.runnerTypeName).length;
-        if (currentRunnerCount < runnerType.max_available) {
-          // check if all runners are busy
-          if (await allRunnersBusy(runnerType.runnerTypeName, payload.repositoryOwner, `${payload.repositoryOwner}/${payload.repositoryName}`, enableOrgLevel)) {
-            // create token
-            const registrationToken = enableOrgLevel
-              ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
-              : await githubInstallationClient.actions.createRegistrationTokenForRepo({
+  // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
+  // if no labels are found this should just be a no-op
+  for (const runnerLabel of payload.runnerLabels) {
+    const runnerType = runnerTypes.get(runnerLabel);
+    if (runnerType === undefined) {
+      console.info(
+        `Runner label '${runnerType}' was not found in config for ${payload.repositoryOwner}/${
+          payload.repositoryName
+        }, see: ${JSON.stringify(runnerTypes)}`,
+      );
+      continue;
+    }
+    try {
+      const currentRunnerCount = currentRunners.filter((x) => x.runnerType === runnerType.runnerTypeName).length;
+      if (currentRunnerCount < runnerType.max_available) {
+        // check if all runners are busy
+        if (
+          await allRunnersBusy(
+            runnerType.runnerTypeName,
+            payload.repositoryOwner,
+            `${payload.repositoryOwner}/${payload.repositoryName}`,
+            enableOrgLevel,
+          )
+        ) {
+          // create token
+          const registrationToken = enableOrgLevel
+            ? await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: payload.repositoryOwner })
+            : await githubInstallationClient.actions.createRegistrationTokenForRepo({
                 owner: payload.repositoryOwner,
                 repo: payload.repositoryName,
               });
-            const token = registrationToken.data.token;
+          const token = registrationToken.data.token;
 
-            const labelsArgument = runnerExtraLabels !== undefined ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}` : `--labels ${runnerType.runnerTypeName}`;
-            const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
-            const configBaseUrl = 'https://github.com';
-            await createRunner({
-              environment: environment,
-              runnerConfig: enableOrgLevel
-                ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument}`
-                : `--url ${configBaseUrl}/${payload.repositoryOwner}/${payload.repositoryName} ` +
+          const labelsArgument =
+            runnerExtraLabels !== undefined
+              ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}`
+              : `--labels ${runnerType.runnerTypeName}`;
+          const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
+          const configBaseUrl = 'https://github.com';
+          await createRunner({
+            environment: environment,
+            runnerConfig: enableOrgLevel
+              ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument}`
+              : `--url ${configBaseUrl}/${payload.repositoryOwner}/${payload.repositoryName} ` +
                 `--token ${token} ${labelsArgument}`,
-              orgName: orgName,
-              repoName: repoName,
-              runnerType: runnerType,
-            });
-          } else {
-            console.info('There are available runners, no new runners will be created');
-          }
+            orgName: orgName,
+            repoName: repoName,
+            runnerType: runnerType,
+          });
         } else {
-          console.info('No runner will be created, maximum number of runners reached.');
+          console.info('There are available runners, no new runners will be created');
         }
-      } catch(e) {
-        console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`)
+      } else {
+        console.info('No runner will be created, maximum number of runners reached.');
       }
+    } catch (e) {
+      console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
     }
   }
 };
 
-async function allRunnersBusy(runnerType: string, org: string, repo: string, enableOrgLevel: boolean): Promise<boolean> {
+async function allRunnersBusy(
+  runnerType: string,
+  org: string,
+  repo: string,
+  enableOrgLevel: boolean,
+): Promise<boolean> {
   const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
   const listGithubRunners = listGithubRunnersFactory();
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
   const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
 
-  const runnersWithLabel = ghRunners.filter(x => x.labels.some(y => y.name === runnerType) && x.status.toLowerCase() !== "offline");
-  const busyCount = ghRunners.filter(x => x.busy).length;
+  const runnersWithLabel = ghRunners.filter(
+    (x) => x.labels.some((y) => y.name === runnerType) && x.status.toLowerCase() !== 'offline',
+  );
+  const busyCount = ghRunners.filter((x) => x.busy).length;
 
-  console.info(`Found ${runnersWithLabel.length} matching GitHub runners [${runnerType}], ${busyCount} are busy`);
+  console.info(`Found matching GitHub runners [${runnerType}], ${busyCount}/${runnersWithLabel.length} are busy`);
 
-  return runnersWithLabel.every(x => x.busy);
+  return runnersWithLabel.every((x) => x.busy);
 }
 
-async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean): Promise<RunnerType[]> {
+const runnerTypeCache = new LRU();
+
+async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean): Promise<Map<string, RunnerType>> {
+  const runnerTypeKey = `${org}/${repo}/enableOrgLevel=${enableOrgLevel}`;
+
+  if (runnerTypeCache.get(runnerTypeKey) !== undefined) {
+    return runnerTypeCache.get(runnerTypeKey) as Map<string, RunnerType>;
+  }
+
   const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
 
-  const response = (await githubAppClient.repos.getContent({
+  const response = await githubAppClient.repos.getContent({
     owner: org,
     repo: repo.split('/')[1],
     path: '.github/scale-config.yml',
-  }));
+  });
 
   const { content } = { ...response.data };
 
@@ -143,7 +183,7 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
   console.debug(`scale-config.yml contents: ${configYml}`);
 
   let config = YAML.parse(configYml);
-  let result: RunnerType[] = [];
+  let result: Map<string, RunnerType> = new Map<string, RunnerType>();
 
   for (const prop in config.runner_types) {
     let runnerType: RunnerType = {
@@ -153,12 +193,11 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
       max_available: config.runner_types[prop].max_available,
       disk_size: config.runner_types[prop].disk_size,
     };
-
-    result.push(runnerType);
+    result.set(prop, runnerType);
   }
 
+  runnerTypeCache.set(runnerTypeKey, result);
   console.debug(`configuration: ${JSON.stringify(result)}`);
 
   return result;
 }
-

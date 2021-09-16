@@ -141,7 +141,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
-      }
+      },
     });
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
@@ -172,7 +172,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
-      }
+      },
     });
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
@@ -203,7 +203,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
-      }
+      },
     });
     expect(mockSSM.putParameter).toBeCalledWith({
       Name: 'unit-test-env-i-1234',
@@ -227,7 +227,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
-      }
+      },
     });
     expect(mockSSM.putParameter).not.toBeCalled();
   });

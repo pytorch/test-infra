@@ -1,7 +1,7 @@
 import { IncomingHttpHeaders } from 'http';
 import { Webhooks } from '@octokit/webhooks';
 import { sendActionRequest } from '../sqs';
-import { CheckRunEvent } from '@octokit/webhooks-definitions/schema';
+import { WorkflowJobEvent } from '@octokit/webhooks-types';
 import { decrypt } from '../kms';
 
 export const handle = async (headers: IncomingHttpHeaders, payload: any): Promise<number> => {
@@ -38,19 +38,20 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
 
   console.debug(`Received Github event: "${githubEvent}"`);
 
-  if (githubEvent === 'check_run') {
-    const body = JSON.parse(payload) as CheckRunEvent;
+  if (githubEvent === 'workflow_job') {
+    const body = JSON.parse(payload) as WorkflowJobEvent;
     let installationId = body.installation?.id;
     if (installationId == null) {
       installationId = 0;
     }
-    if (body.action === 'created' && body.check_run.status === 'queued') {
+    if (body.action === 'queued') {
       await sendActionRequest({
-        id: body.check_run.id,
+        id: body.workflow_job.id,
         repositoryName: body.repository.name,
         repositoryOwner: body.repository.owner.login,
         eventType: githubEvent,
         installationId: installationId,
+        runnerLabels: body.workflow_job.labels,
       });
     }
   } else {

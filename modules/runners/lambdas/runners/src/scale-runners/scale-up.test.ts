@@ -30,6 +30,7 @@ const TEST_DATA: ActionRequestMessage = {
   repositoryName: 'hello-world',
   repositoryOwner: 'Codertocat',
   installationId: 2,
+  runnerLabels: ["linux.2xlarge"]
 };
 
 const TEST_DATA_WITHOUT_INSTALL_ID: ActionRequestMessage = {
@@ -38,6 +39,7 @@ const TEST_DATA_WITHOUT_INSTALL_ID: ActionRequestMessage = {
   repositoryName: 'hello-world',
   repositoryOwner: 'Codertocat',
   installationId: 0,
+  runnerLabels: ["linux.2xlarge"]
 };
 
 const cleanEnv = process.env;
@@ -153,7 +155,7 @@ describe('scaleUp with GHES', () => {
       expect(spy).toBeCalledWith(
         TEST_DATA.installationId,
         'installation',
-        "https://github.enterprise.something/api/v3"
+        'https://github.enterprise.something/api/v3',
       );
     });
 
@@ -161,12 +163,12 @@ describe('scaleUp with GHES', () => {
       const spy = jest.spyOn(ghAuth, 'createGithubAuth');
       await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
       expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', "https://github.enterprise.something/api/v3");
+      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', 'https://github.enterprise.something/api/v3');
       expect(spy).toHaveBeenNthCalledWith(
         2,
         TEST_DATA.installationId,
         'installation',
-        "https://github.enterprise.something/api/v3"
+        'https://github.enterprise.something/api/v3',
       );
     });
 
@@ -186,7 +188,8 @@ describe('scaleUp with GHES', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url https://github.enterprise.something/${TEST_DATA.repositoryOwner} ` +
+        runnerConfig:
+          `--url https://github.enterprise.something/${TEST_DATA.repositoryOwner} ` +
           `--token 1234abcd --labels label1,label2 --runnergroup TEST_GROUP`,
         orgName: TEST_DATA.repositoryOwner,
         repoName: undefined,
@@ -229,7 +232,7 @@ describe('scaleUp with GHES', () => {
       expect(spy).toBeCalledWith(
         TEST_DATA.installationId,
         'installation',
-        "https://github.enterprise.something/api/v3"
+        'https://github.enterprise.something/api/v3',
       );
     });
 
@@ -237,12 +240,12 @@ describe('scaleUp with GHES', () => {
       const spy = jest.spyOn(ghAuth, 'createGithubAuth');
       await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
       expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', "https://github.enterprise.something/api/v3");
+      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', 'https://github.enterprise.something/api/v3');
       expect(spy).toHaveBeenNthCalledWith(
         2,
         TEST_DATA.installationId,
         'installation',
-        "https://github.enterprise.something/api/v3"
+        'https://github.enterprise.something/api/v3',
       );
     });
 
@@ -251,7 +254,8 @@ describe('scaleUp with GHES', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url ` +
+        runnerConfig:
+          `--url ` +
           `https://github.enterprise.something/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
           `--token 1234abcd --labels label1,label2`,
         orgName: undefined,
@@ -265,7 +269,8 @@ describe('scaleUp with GHES', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url ` +
+        runnerConfig:
+          `--url ` +
           `https://github.enterprise.something/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
           `--token 1234abcd --labels label1,label2`,
         orgName: undefined,
@@ -295,15 +300,15 @@ describe('scaleUp with public GH', () => {
     await scaleUp('aws:sqs', TEST_DATA);
     expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
     expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-    expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', "");
+    expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', '');
   });
 
   it('retrieves installation id if not set', async () => {
     const spy = jest.spyOn(ghAuth, 'createGithubAuth');
     await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
     expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-    expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', "");
-    expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', "");
+    expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', '');
+    expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', '');
   });
 
   it('does not list runners when no workflows are queued', async () => {
@@ -357,7 +362,8 @@ describe('scaleUp with public GH', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url https://github.com/${TEST_DATA.repositoryOwner} ` +
+        runnerConfig:
+          `--url https://github.com/${TEST_DATA.repositoryOwner} ` +
           `--token 1234abcd --labels label1,label2 --runnergroup TEST_GROUP`,
         orgName: TEST_DATA.repositoryOwner,
         repoName: undefined,
@@ -397,15 +403,15 @@ describe('scaleUp with public GH', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
       expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-      expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', "");
+      expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', '');
     });
 
     it('retrieves installation id if not set', async () => {
       const spy = jest.spyOn(ghAuth, 'createGithubAuth');
       await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
       expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', "");
-      expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', "");
+      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', '');
+      expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', '');
     });
 
     it('creates a runner with correct config and labels', async () => {
@@ -413,7 +419,8 @@ describe('scaleUp with public GH', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url https://github.com/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
+        runnerConfig:
+          `--url https://github.com/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
           `--token 1234abcd --labels label1,label2`,
         orgName: undefined,
         repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
@@ -426,7 +433,8 @@ describe('scaleUp with public GH', () => {
       await scaleUp('aws:sqs', TEST_DATA);
       expect(createRunner).toBeCalledWith({
         environment: 'unit-test-environment',
-        runnerConfig: `--url https://github.com/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
+        runnerConfig:
+          `--url https://github.com/${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName} ` +
           `--token 1234abcd --labels label1,label2`,
         orgName: undefined,
         repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
