@@ -53,8 +53,8 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "1s",
-        "frequency": "15m",
+        "for": "30m",
+        "frequency": "30m",
         "handler": 1,
         "message": "More than 5% of CircleCI jobs are failing on master",
         "name": "CircleCI/Jenkins Master Fail % alert",
@@ -226,8 +226,8 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "5m",
-        "frequency": "1m",
+        "for": "30m",
+        "frequency": "30m",
         "handler": 1,
         "message": "GHA jobs are failing at a high rate",
         "name": "GitHub Actions Master Fail % alert",
@@ -3730,5 +3730,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 6
+  "version": 8
 }
