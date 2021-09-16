@@ -25,6 +25,42 @@
   "links": [],
   "panels": [
     {
+      "alert": {
+        "alertRuleTags": {},
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                5
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "1h",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "max"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "for": "1s",
+        "frequency": "15m",
+        "handler": 1,
+        "message": "More than 5% of CircleCI jobs are failing on master",
+        "name": "CircleCI/Jenkins Master Fail % alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
       "datasource": "GitHub",
       "description": "Failures on CircleCI runs on the master branch",
       "fieldConfig": {
@@ -70,8 +106,8 @@
                 "value": null
               },
               {
-                "color": "#EAB839",
-                "value": 1
+                "color": "green",
+                "value": 5
               }
             ]
           }
@@ -80,28 +116,13 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Fail Percent"
+              "options": "fail_percent"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "successful jobs"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -115,7 +136,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 28,
+      "id": 32,
       "links": [
         {
           "targetBlank": true,
@@ -140,7 +161,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"failing jobs\"\nFROM status_event\nWHERE state != \"pending\"\n  AND state != \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
+          "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"fail_percent\"\nFROM\n  (SELECT $__timeGroupAlias(updated_at, 30m),\n          sum(CASE\n                  WHEN state != \"success\"\n                       AND state != \"pending\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN state = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM status_event\n   WHERE $__timeFilter(updated_at)\n     AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\n   GROUP BY 1\n   ORDER BY $__timeGroup(updated_at, 30m)) AS nested",
           "refId": "A",
           "select": [
             [
@@ -162,91 +183,18 @@
               "type": "macro"
             }
           ]
-        },
+        }
+      ],
+      "thresholds": [
         {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"successful jobs\"\nFROM status_event\nWHERE state = \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
-          "refId": "B",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "colorMode": "critical",
+          "op": "gt",
+          "value": 5,
+          "visible": true
         }
       ],
       "title": "CircleCI/Jenkins Master Fail %",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "total",
-            "binary": {
-              "left": "failing jobs",
-              "operator": "+",
-              "reducer": "sum",
-              "right": "successful jobs"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            },
-            "replaceFields": false
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Fail Percent dec",
-            "binary": {
-              "left": "failing jobs",
-              "operator": "/",
-              "reducer": "sum",
-              "right": "total"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            },
-            "replaceFields": false
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Fail Percent",
-            "binary": {
-              "left": "Fail Percent dec",
-              "operator": "*",
-              "reducer": "sum",
-              "right": "100"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            },
-            "replaceFields": true
-          }
-        }
-      ],
+      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -1492,72 +1440,164 @@
     },
     {
       "datasource": "GitHub",
+      "description": "Failures on CircleCI runs on the master branch",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
           },
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "red",
-                "value": 80
+                "color": "#EAB839",
+                "value": 1
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fail Percent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "successful jobs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 12,
         "x": 0,
         "y": 24
       },
-      "id": 2,
+      "id": 28,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20$__timeGroupAlias(updated_at,%2030m),%5Cn%20%20%20%20%20%20%20count(*)%20as%20%5C%22failing%20jobs%5C%22%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%5CnGROUP%20BY%201%5CnORDER%20BY%20$__timeGroup(updated_at,30m)%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
       "options": {
-        "showHeader": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "pluginVersion": "8.1.1",
       "targets": [
         {
-          "format": "table",
-          "group": [
-            {
-              "params": [
-                "author_association"
-              ],
-              "type": "column"
-            }
-          ],
+          "format": "time_series",
+          "group": [],
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"PR Count\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"failing jobs\"\nFROM status_event\nWHERE state != \"pending\"\n  AND state != \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "author_association"
+                  "pk_id"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "pull_request",
-          "timeColumn": "created_at",
-          "timeColumnType": "datetime",
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"successful jobs\"\nFROM status_event\nWHERE state = \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
           "where": [
             {
               "name": "$__timeFilter",
@@ -1567,8 +1607,61 @@
           ]
         }
       ],
-      "title": "PR Contributor Status",
-      "type": "table"
+      "title": "CircleCI/Jenkins Master Fail %",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "total",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "+",
+              "reducer": "sum",
+              "right": "successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent dec",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "total"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent",
+            "binary": {
+              "left": "Fail Percent dec",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "100"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
+      "type": "timeseries"
     },
     {
       "datasource": "GitHub",
@@ -1649,35 +1742,11 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "align": "auto",
+            "displayMode": "auto"
           },
           "mappings": [],
           "thresholds": {
@@ -1697,44 +1766,45 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 12,
         "x": 0,
-        "y": 30
+        "y": 32
       },
-      "id": 26,
+      "id": 2,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
+        "showHeader": true
       },
+      "pluginVersion": "8.1.1",
       "targets": [
         {
-          "format": "time_series",
-          "group": [],
+          "format": "table",
+          "group": [
+            {
+              "params": [
+                "author_association"
+              ],
+              "type": "column"
+            }
+          ],
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select starred_at as \"time\",\n    pk_id+50339 as \"star num\" -- add the offset of stars to when we started recording events\nfrom star_event\nwhere action = \"created\" and $__timeFilter(starred_at);",
+          "rawSql": "SELECT\n  author_association,\n  count(*) AS \"PR Count\"\nFROM pull_request\nWHERE\n  $__timeFilter(created_at)\nGROUP BY author_association\nORDER BY created_at",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "pk_id"
+                  "author_association"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
+          "table": "pull_request",
+          "timeColumn": "created_at",
+          "timeColumnType": "datetime",
           "where": [
             {
               "name": "$__timeFilter",
@@ -1744,8 +1814,8 @@
           ]
         }
       ],
-      "title": "Star Growth",
-      "type": "timeseries"
+      "title": "PR Contributor Status",
+      "type": "table"
     },
     {
       "datasource": "GitHub",
@@ -2168,7 +2238,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": "CloudWatch",
+      "datasource": "GitHub",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2217,23 +2287,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Errors_Sum"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 8,
@@ -2241,7 +2295,7 @@
         "x": 0,
         "y": 38
       },
-      "id": 8,
+      "id": 26,
       "options": {
         "legend": {
           "calcs": [],
@@ -2254,44 +2308,36 @@
       },
       "targets": [
         {
-          "alias": "",
-          "dimensions": {
-            "FunctionName": "github-webhook-rds-sync-app"
-          },
-          "expression": "",
-          "id": "",
-          "matchExact": true,
-          "metricName": "Invocations",
-          "namespace": "AWS/Lambda",
-          "period": "1m",
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
           "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select starred_at as \"time\",\n    pk_id+50339 as \"star num\" -- add the offset of stars to when we started recording events\nfrom star_event\nwhere action = \"created\" and $__timeFilter(starred_at);",
           "refId": "A",
-          "region": "default",
-          "statistics": [
-            "Sum"
-          ]
-        },
-        {
-          "alias": "",
-          "dimensions": {
-            "FunctionName": "github-webhook-rds-sync-app"
-          },
-          "expression": "",
-          "hide": false,
-          "id": "",
-          "matchExact": true,
-          "metricName": "Errors",
-          "namespace": "AWS/Lambda",
-          "period": "1m",
-          "queryType": "randomWalk",
-          "refId": "B",
-          "region": "default",
-          "statistics": [
-            "Sum"
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
           ]
         }
       ],
-      "title": "Sync Lambda Status",
+      "title": "Star Growth",
       "type": "timeseries"
     },
     {
@@ -2596,44 +2642,7 @@
       "type": "timeseries"
     },
     {
-      "alert": {
-        "alertRuleTags": {},
-        "conditions": [
-          {
-            "evaluator": {
-              "params": [
-                24
-              ],
-              "type": "gt"
-            },
-            "operator": {
-              "type": "and"
-            },
-            "query": {
-              "params": [
-                "A",
-                "5m",
-                "now"
-              ]
-            },
-            "reducer": {
-              "params": [],
-              "type": "last"
-            },
-            "type": "query"
-          }
-        ],
-        "executionErrorState": "alerting",
-        "for": "5m",
-        "frequency": "1h",
-        "handler": 1,
-        "message": "Nightly hasn't been updated in over a day",
-        "name": "Last nightly update alert",
-        "noDataState": "no_data",
-        "notifications": []
-      },
-      "datasource": "GitHub",
-      "description": "",
+      "datasource": "CloudWatch",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2677,21 +2686,36 @@
               },
               {
                 "color": "red",
-                "value": 12
+                "value": 80
               }
             ]
-          },
-          "unit": "h"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Errors_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 4,
-        "w": 4,
+        "h": 8,
+        "w": 12,
         "x": 0,
         "y": 46
       },
-      "id": 17,
+      "id": 8,
       "options": {
         "legend": {
           "calcs": [],
@@ -2702,196 +2726,46 @@
           "mode": "single"
         }
       },
-      "pluginVersion": "8.0.6",
       "targets": [
         {
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
+          "alias": "",
+          "dimensions": {
+            "FunctionName": "github-webhook-rds-sync-app"
+          },
+          "expression": "",
+          "id": "",
+          "matchExact": true,
+          "metricName": "Invocations",
+          "namespace": "AWS/Lambda",
+          "period": "1m",
           "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
           "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "output_annotations_count"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "check_run",
-          "timeColumn": "started_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
+          "region": "default",
+          "statistics": [
+            "Sum"
+          ]
+        },
+        {
+          "alias": "",
+          "dimensions": {
+            "FunctionName": "github-webhook-rds-sync-app"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricName": "Errors",
+          "namespace": "AWS/Lambda",
+          "period": "1m",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "region": "default",
+          "statistics": [
+            "Sum"
           ]
         }
       ],
-      "thresholds": [
-        {
-          "colorMode": "critical",
-          "op": "gt",
-          "value": 24,
-          "visible": true
-        }
-      ],
-      "title": "Last nightly update",
-      "type": "timeseries"
-    },
-    {
-      "alert": {
-        "alertRuleTags": {},
-        "conditions": [
-          {
-            "evaluator": {
-              "params": [
-                24
-              ],
-              "type": "gt"
-            },
-            "operator": {
-              "type": "and"
-            },
-            "query": {
-              "params": [
-                "A",
-                "5m",
-                "now"
-              ]
-            },
-            "reducer": {
-              "params": [],
-              "type": "last"
-            },
-            "type": "query"
-          }
-        ],
-        "executionErrorState": "alerting",
-        "for": "5m",
-        "frequency": "1h",
-        "handler": 1,
-        "name": "Last viable/strict update alert",
-        "noDataState": "no_data",
-        "notifications": []
-      },
-      "datasource": "GitHub",
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 12
-              }
-            ]
-          },
-          "unit": "h"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 46
-      },
-      "id": 19,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "pluginVersion": "8.0.6",
-      "targets": [
-        {
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "output_annotations_count"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "check_run",
-          "timeColumn": "started_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "thresholds": [
-        {
-          "colorMode": "critical",
-          "op": "gt",
-          "value": 24,
-          "visible": true
-        }
-      ],
-      "title": "Last viable/strict update",
+      "title": "Sync Lambda Status",
       "type": "timeseries"
     },
     {
@@ -3193,6 +3067,305 @@
       ],
       "title": "Workflow Job Events",
       "type": "timeseries"
+    },
+    {
+      "alert": {
+        "alertRuleTags": {},
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                24
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "last"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "for": "5m",
+        "frequency": "1h",
+        "handler": 1,
+        "message": "Nightly hasn't been updated in over a day",
+        "name": "Last nightly update alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
+      "datasource": "GitHub",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 54
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.6",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [
+        {
+          "colorMode": "critical",
+          "op": "gt",
+          "value": 24,
+          "visible": true
+        }
+      ],
+      "title": "Last nightly update",
+      "type": "timeseries"
+    },
+    {
+      "alert": {
+        "alertRuleTags": {},
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                24
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "5m",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "last"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "for": "5m",
+        "frequency": "1h",
+        "handler": 1,
+        "name": "Last viable/strict update alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
+      "datasource": "GitHub",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 54
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.0.6",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  CURRENT_TIMESTAMP() as \"time\",\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [
+        {
+          "colorMode": "critical",
+          "op": "gt",
+          "value": 24,
+          "visible": true
+        }
+      ],
+      "title": "Last viable/strict update",
+      "type": "timeseries"
     }
   ],
   "refresh": false,
@@ -3210,5 +3383,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 4
 }
