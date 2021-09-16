@@ -403,7 +403,7 @@
           ]
         }
       ],
-      "title": "GitHub Actions Master Failures",
+      "title": "GitHub Actions Master Fail %",
       "transformations": [
         {
           "id": "calculateField",
@@ -3210,5 +3210,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 17
+  "version": 18
 }
