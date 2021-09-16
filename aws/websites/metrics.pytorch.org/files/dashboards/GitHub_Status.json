@@ -198,6 +198,42 @@
       "type": "timeseries"
     },
     {
+      "alert": {
+        "alertRuleTags": {},
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                5
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": [
+                "A",
+                "1h",
+                "now"
+              ]
+            },
+            "reducer": {
+              "params": [],
+              "type": "max"
+            },
+            "type": "query"
+          }
+        ],
+        "executionErrorState": "alerting",
+        "for": "5m",
+        "frequency": "1m",
+        "handler": 1,
+        "message": "GHA jobs are failing at a high rate",
+        "name": "GitHub Actions Master Fail % alert",
+        "noDataState": "no_data",
+        "notifications": []
+      },
       "datasource": "GitHub",
       "description": "Failures on GHA runs on the master branch",
       "fieldConfig": {
@@ -243,8 +279,8 @@
                 "value": null
               },
               {
-                "color": "#EAB839",
-                "value": 1
+                "color": "green",
+                "value": 5
               }
             ]
           }
@@ -273,7 +309,7 @@
         "x": 12,
         "y": 0
       },
-      "id": 29,
+      "id": 33,
       "links": [
         {
           "targetBlank": true,
@@ -298,7 +334,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n       count(*) as \"failing jobs\"\nFROM workflow_job\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(workflow_job.completed_at)\n  AND workflow_job.conclusion != \"success\"\n  AND workflow_job.conclusion != \"skipped\"\n  AND workflow_job.conclusion != \"cancelled\"\nGROUP BY 1\nORDER BY $__timeGroup(completed_at, 30m)",
+          "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"Fail Percent\"\nFROM\n  (SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n          sum(CASE\n                  WHEN workflow_job.conclusion != \"success\"\n                       AND workflow_job.conclusion != \"skipped\"\n                       AND workflow_job.conclusion != \"cancelled\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN workflow_job.conclusion = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM workflow_job\n   INNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\n   WHERE workflow_run.head_branch = \"master\"\n     AND $__timeFilter(workflow_job.completed_at)\n   GROUP BY 1\n   ORDER BY $__timeGroup(completed_at, 30m)) AS nested",
           "refId": "A",
           "select": [
             [
@@ -320,89 +356,18 @@
               "type": "macro"
             }
           ]
-        },
+        }
+      ],
+      "thresholds": [
         {
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n       count(*) as \"successful jobs\"\nFROM workflow_job\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(workflow_job.completed_at)\n  AND workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(completed_at, 30m)",
-          "refId": "B",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
+          "colorMode": "critical",
+          "op": "gt",
+          "value": 5,
+          "visible": true
         }
       ],
       "title": "GitHub Actions Master Fail %",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": "failing jobs",
-              "operator": "+",
-              "reducer": "sum",
-              "right": "successful jobs"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "fail percent dec",
-            "binary": {
-              "left": "failing jobs",
-              "operator": "/",
-              "reducer": "sum",
-              "right": "failing jobs + successful jobs"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Fail Percent",
-            "binary": {
-              "left": "fail percent dec",
-              "operator": "*",
-              "reducer": "sum",
-              "right": "100"
-            },
-            "mode": "binary",
-            "reduce": {
-              "include": [],
-              "reducer": "sum"
-            },
-            "replaceFields": true
-          }
-        }
-      ],
+      "transformations": [],
       "type": "timeseries"
     },
     {
@@ -1665,32 +1630,73 @@
     },
     {
       "datasource": "GitHub",
-      "description": "Failures across all sources (commits, PRs, nightlies)",
+      "description": "Failures on GHA runs on the master branch",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
           },
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
               },
               {
-                "color": "red",
-                "value": 80
+                "color": "#EAB839",
+                "value": 1
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fail Percent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1698,32 +1704,74 @@
         "x": 12,
         "y": 24
       },
-      "id": 21,
+      "id": 29,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Workflow Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%221631747855211%22,%221631749293949%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20concat(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Fruns%2F%5C%22,%20workflow_job.id)%20AS%20%5C%22url%5C%22,%5Cn%20%20%20%20%20%20%20workflow_run.name%20as%20%5C%22workflow%5C%22,%5Cn%20%20%20%20%20%20%20workflow_job.name,%5Cn%20%20%20%20%20%20%20workflow_job.completed_at,%5Cn%20%20%20%20%20%20%20workflow_job.status,%5Cn%20%20%20%20%20%20%20workflow_job.conclusion,%5Cn%20%20%20%20%20%20%20workflow_job.head_sha,%5Cn%20%20%20%20%20%20%20workflow_run.head_commit_message%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnOrder%20by%20workflow_job.completed_at%20desc;%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20$__timeGroupAlias(workflow_job.completed_at,%2030m),%5Cn%20%20%20%20%20%20%20count(*)%20as%20%5C%22failing%20jobs%5C%22%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnGROUP%20BY%201%5CnORDER%20BY%20$__timeGroup(completed_at,%2030m)%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
       "options": {
-        "showHeader": true
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
       },
-      "pluginVersion": "8.1.1",
       "targets": [
         {
-          "format": "table",
+          "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select context, count(*) as \"num_failures\"\nfrom status_event \nWHERE\n  $__timeFilter(created_at) and state!=\"pending\" and state!=\"success\"\nGROUP BY context\nORDER BY COUNT(*) desc;\n",
+          "rawSql": "SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n       count(*) as \"failing jobs\"\nFROM workflow_job\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(workflow_job.completed_at)\n  AND workflow_job.conclusion != \"success\"\n  AND workflow_job.conclusion != \"skipped\"\n  AND workflow_job.conclusion != \"cancelled\"\nGROUP BY 1\nORDER BY $__timeGroup(completed_at, 30m)",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "output_annotations_count"
+                  "pk_id"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "check_run",
-          "timeColumn": "started_at",
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n       count(*) as \"successful jobs\"\nFROM workflow_job\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(workflow_job.completed_at)\n  AND workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(completed_at, 30m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
           "timeColumnType": "timestamp",
           "where": [
             {
@@ -1734,8 +1782,59 @@
           ]
         }
       ],
-      "title": "Top Failing Jobs",
-      "type": "table"
+      "title": "GitHub Actions Master Fail %",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": "failing jobs",
+              "operator": "+",
+              "reducer": "sum",
+              "right": "successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "fail percent dec",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "failing jobs + successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent",
+            "binary": {
+              "left": "fail percent dec",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "100"
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [],
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
+      "type": "timeseries"
     },
     {
       "datasource": "GitHub",
@@ -1816,6 +1915,183 @@
       ],
       "title": "PR Contributor Status",
       "type": "table"
+    },
+    {
+      "datasource": "GitHub",
+      "description": "Failures across all sources (commits, PRs, nightlies)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 21,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select context, count(*) as \"num_failures\"\nfrom status_event \nWHERE\n  $__timeFilter(created_at) and state!=\"pending\" and state!=\"success\"\nGROUP BY context\nORDER BY COUNT(*) desc;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Top Failing Jobs",
+      "type": "table"
+    },
+    {
+      "datasource": "GitHub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "id": 26,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select starred_at as \"time\",\n    pk_id+50339 as \"star num\" -- add the offset of stars to when we started recording events\nfrom star_event\nwhere action = \"created\" and $__timeFilter(starred_at);",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Star Growth",
+      "type": "timeseries"
     },
     {
       "datasource": "GitHub",
@@ -1920,7 +2196,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 6,
       "options": {
@@ -2238,410 +2514,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": "GitHub",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 38
-      },
-      "id": 26,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "format": "time_series",
-          "group": [],
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "select starred_at as \"time\",\n    pk_id+50339 as \"star num\" -- add the offset of stars to when we started recording events\nfrom star_event\nwhere action = \"created\" and $__timeFilter(starred_at);",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Star Growth",
-      "type": "timeseries"
-    },
-    {
-      "datasource": "GitHub",
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "cancelled"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "success"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "action_required"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
-      "id": 22,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "format": "time_series",
-          "group": [
-            {
-              "params": [
-                "10m",
-                "none"
-              ],
-              "type": "time"
-            }
-          ],
-          "hide": false,
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": false,
-          "rawSql": "SELECT\n  $__timeGroupAlias(started_at,10m),\n  count(*) AS \"success\"\nFROM check_run\nWHERE\n  $__timeFilter(started_at) AND\n  conclusion = 'success'\nGROUP BY 1\nORDER BY $__timeGroup(started_at,10m)",
-          "refId": "B",
-          "select": [
-            [
-              {
-                "params": [
-                  "*"
-                ],
-                "type": "column"
-              },
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "aggregate"
-              },
-              {
-                "params": [
-                  "success"
-                ],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "check_run",
-          "timeColumn": "started_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "conclusion",
-                "=",
-                "'success'"
-              ],
-              "type": "expression"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [
-            {
-              "params": [
-                "10m",
-                "none"
-              ],
-              "type": "time"
-            }
-          ],
-          "hide": false,
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(started_at,10m),\n  count(*) AS \"failure\"\nFROM check_run\nWHERE\n  $__timeFilter(started_at) AND\n  conclusion = 'failure'\nGROUP BY 1\nORDER BY $__timeGroup(started_at,10m)",
-          "refId": "C",
-          "select": [
-            [
-              {
-                "params": [
-                  "*"
-                ],
-                "type": "column"
-              },
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "aggregate"
-              },
-              {
-                "params": [
-                  "failure"
-                ],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "check_run",
-          "timeColumn": "started_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "conclusion",
-                "=",
-                "'failure'"
-              ],
-              "type": "expression"
-            }
-          ]
-        }
-      ],
-      "title": "Check Run Successes / (Fail + Successes)",
-      "transformations": [
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "failure un-nanned",
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "failure"
-              ],
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "success un-nanned",
-            "mode": "reduceRow",
-            "reduce": {
-              "include": [
-                "success"
-              ],
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "binary": {
-              "left": "failure un-nanned",
-              "operator": "+",
-              "reducer": "sum",
-              "right": "success un-nanned"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            }
-          }
-        },
-        {
-          "id": "calculateField",
-          "options": {
-            "alias": "Success Percent",
-            "binary": {
-              "left": "success un-nanned",
-              "operator": "/",
-              "reducer": "sum",
-              "right": "failure un-nanned + success un-nanned"
-            },
-            "mode": "binary",
-            "reduce": {
-              "reducer": "sum"
-            },
-            "replaceFields": true
-          }
-        }
-      ],
-      "type": "timeseries"
-    },
-    {
       "datasource": "CloudWatch",
       "fieldConfig": {
         "defaults": {
@@ -2873,7 +2745,7 @@
         "x": 12,
         "y": 48
       },
-      "id": 15,
+      "id": 22,
       "options": {
         "legend": {
           "calcs": [],
@@ -2896,70 +2768,11 @@
               "type": "time"
             }
           ],
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"completed\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'completed'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "*"
-                ],
-                "type": "column"
-              },
-              {
-                "params": [
-                  "count"
-                ],
-                "type": "aggregate"
-              },
-              {
-                "params": [
-                  "cancelled"
-                ],
-                "type": "alias"
-              }
-            ]
-          ],
-          "table": "check_run",
-          "timeColumn": "started_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            },
-            {
-              "datatype": "varchar",
-              "name": "",
-              "params": [
-                "conclusion",
-                "=",
-                "'cancelled'"
-              ],
-              "type": "expression"
-            }
-          ]
-        },
-        {
-          "format": "time_series",
-          "group": [
-            {
-              "params": [
-                "10m",
-                "none"
-              ],
-              "type": "time"
-            }
-          ],
           "hide": false,
           "metricColumn": "none",
           "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"queued\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'queued'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
+          "rawQuery": false,
+          "rawSql": "SELECT\n  $__timeGroupAlias(started_at,10m),\n  count(*) AS \"success\"\nFROM check_run\nWHERE\n  $__timeFilter(started_at) AND\n  conclusion = 'success'\nGROUP BY 1\nORDER BY $__timeGroup(started_at,10m)",
           "refId": "B",
           "select": [
             [
@@ -2977,7 +2790,7 @@
               },
               {
                 "params": [
-                  "cancelled"
+                  "success"
                 ],
                 "type": "alias"
               }
@@ -2998,7 +2811,7 @@
               "params": [
                 "conclusion",
                 "=",
-                "'cancelled'"
+                "'success'"
               ],
               "type": "expression"
             }
@@ -3019,7 +2832,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"started\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'started'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
+          "rawSql": "SELECT\n  $__timeGroupAlias(started_at,10m),\n  count(*) AS \"failure\"\nFROM check_run\nWHERE\n  $__timeFilter(started_at) AND\n  conclusion = 'failure'\nGROUP BY 1\nORDER BY $__timeGroup(started_at,10m)",
           "refId": "C",
           "select": [
             [
@@ -3037,7 +2850,7 @@
               },
               {
                 "params": [
-                  "cancelled"
+                  "failure"
                 ],
                 "type": "alias"
               }
@@ -3058,14 +2871,74 @@
               "params": [
                 "conclusion",
                 "=",
-                "'cancelled'"
+                "'failure'"
               ],
               "type": "expression"
             }
           ]
         }
       ],
-      "title": "Workflow Job Events",
+      "title": "Check Run Successes / (Fail + Successes)",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "failure un-nanned",
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "failure"
+              ],
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "success un-nanned",
+            "mode": "reduceRow",
+            "reduce": {
+              "include": [
+                "success"
+              ],
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": "failure un-nanned",
+              "operator": "+",
+              "reducer": "sum",
+              "right": "success un-nanned"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Success Percent",
+            "binary": {
+              "left": "success un-nanned",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "failure un-nanned + success un-nanned"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -3366,6 +3239,306 @@
       ],
       "title": "Last viable/strict update",
       "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cancelled"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "success"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "action_required"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "10m",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"completed\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'completed'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "*"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "cancelled"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "conclusion",
+                "=",
+                "'cancelled'"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "10m",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"queued\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'queued'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "*"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "cancelled"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "conclusion",
+                "=",
+                "'cancelled'"
+              ],
+              "type": "expression"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [
+            {
+              "params": [
+                "10m",
+                "none"
+              ],
+              "type": "time"
+            }
+          ],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(sync_last_update_at,10m),\n  count(*) AS \"started\"\nFROM workflow_job_event\nWHERE\n  $__timeFilter(sync_last_update_at) AND\n  action = 'started'\nGROUP BY 1\nORDER BY $__timeGroup(sync_last_update_at,10m)",
+          "refId": "C",
+          "select": [
+            [
+              {
+                "params": [
+                  "*"
+                ],
+                "type": "column"
+              },
+              {
+                "params": [
+                  "count"
+                ],
+                "type": "aggregate"
+              },
+              {
+                "params": [
+                  "cancelled"
+                ],
+                "type": "alias"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            },
+            {
+              "datatype": "varchar",
+              "name": "",
+              "params": [
+                "conclusion",
+                "=",
+                "'cancelled'"
+              ],
+              "type": "expression"
+            }
+          ]
+        }
+      ],
+      "title": "Workflow Job Events",
+      "type": "timeseries"
     }
   ],
   "refresh": false,
@@ -3383,5 +3556,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 4
+  "version": 5
 }
