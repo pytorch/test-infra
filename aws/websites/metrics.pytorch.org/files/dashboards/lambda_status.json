@@ -8,6 +8,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -569,7 +575,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -629,7 +635,7 @@
         "x": 0,
         "y": 18
       },
-      "id": 6,
+      "id": 13,
       "options": {
         "legend": {
           "calcs": [],
@@ -637,7 +643,7 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "targets": [
@@ -1311,5 +1317,5 @@
   "timezone": "",
   "title": "Lambda Status",
   "uid": "LFSW__inz",
-  "version": 1
+  "version": 2
 }
