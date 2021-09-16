@@ -1,0 +1,10 @@
+{% import 'common.yml.j2' as common %}
+
+name: Update Grafana Dashboards
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+
+jobs:
+  !{{ common.update_dashboards_job() }}
