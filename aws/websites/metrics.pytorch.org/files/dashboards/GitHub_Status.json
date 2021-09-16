@@ -80,13 +80,28 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "failing jobs"
+              "options": "Fail Percent"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "successful jobs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
                   "mode": "fixed"
                 }
               }
@@ -105,7 +120,7 @@
         {
           "targetBlank": true,
           "title": "See Individual Jobs",
-          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20$__timeGroupAlias(updated_at,%2030m),%5Cn%20%20%20%20%20%20%20count(*)%20as%20%5C%22failing%20jobs%5C%22%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%5CnGROUP%20BY%201%5CnORDER%20BY%20$__timeGroup(updated_at,30m)%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
         }
       ],
       "options": {
@@ -147,9 +162,91 @@
               "type": "macro"
             }
           ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 30m),\n       count(*) as \"successful jobs\"\nFROM status_event\nWHERE state = \"success\"\n  AND $__timeFilter(updated_at)\n  AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\nGROUP BY 1\nORDER BY $__timeGroup(updated_at,30m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
         }
       ],
-      "title": "CircleCI/Jenkins Master Failures",
+      "title": "CircleCI/Jenkins Master Fail %",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "total",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "+",
+              "reducer": "sum",
+              "right": "successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent dec",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "total"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent",
+            "binary": {
+              "left": "Fail Percent dec",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "100"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -208,7 +305,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "failing jobs"
+              "options": "Fail Percent"
             },
             "properties": [
               {
@@ -233,7 +330,7 @@
         {
           "targetBlank": true,
           "title": "See Individual Workflow Jobs",
-          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%221631682173738%22,%221631690028283%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20concat(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Fruns%2F%5C%22,%20workflow_job.id)%20AS%20%5C%22url%5C%22,%5Cn%20%20%20%20%20%20%20workflow_run.name%20as%20%5C%22workflow%5C%22,%5Cn%20%20%20%20%20%20%20workflow_job.name,%5Cn%20%20%20%20%20%20%20workflow_job.status,%5Cn%20%20%20%20%20%20%20workflow_job.conclusion,%5Cn%20%20%20%20%20%20%20workflow_job.head_sha,%5Cn%20%20%20%20%20%20%20workflow_run.head_commit_message%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20$__timeGroupAlias(workflow_job.completed_at,%2030m),%5Cn%20%20%20%20%20%20%20count(*)%20as%20%5C%22failing%20jobs%5C%22%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnGROUP%20BY%201%5CnORDER%20BY%20$__timeGroup(completed_at,%2030m)%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%221631747855211%22,%221631749293949%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20concat(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Fruns%2F%5C%22,%20workflow_job.id)%20AS%20%5C%22url%5C%22,%5Cn%20%20%20%20%20%20%20workflow_run.name%20as%20%5C%22workflow%5C%22,%5Cn%20%20%20%20%20%20%20workflow_job.name,%5Cn%20%20%20%20%20%20%20workflow_job.completed_at,%5Cn%20%20%20%20%20%20%20workflow_job.status,%5Cn%20%20%20%20%20%20%20workflow_job.conclusion,%5Cn%20%20%20%20%20%20%20workflow_job.head_sha,%5Cn%20%20%20%20%20%20%20workflow_run.head_commit_message%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnOrder%20by%20workflow_job.completed_at%20desc;%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20$__timeGroupAlias(workflow_job.completed_at,%2030m),%5Cn%20%20%20%20%20%20%20count(*)%20as%20%5C%22failing%20jobs%5C%22%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnGROUP%20BY%201%5CnORDER%20BY%20$__timeGroup(completed_at,%2030m)%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
         }
       ],
       "options": {
@@ -275,9 +372,89 @@
               "type": "macro"
             }
           ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n       count(*) as \"successful jobs\"\nFROM workflow_job\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(workflow_job.completed_at)\n  AND workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(completed_at, 30m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
         }
       ],
       "title": "GitHub Actions Master Failures",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "binary": {
+              "left": "failing jobs",
+              "operator": "+",
+              "reducer": "sum",
+              "right": "successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "fail percent dec",
+            "binary": {
+              "left": "failing jobs",
+              "operator": "/",
+              "reducer": "sum",
+              "right": "failing jobs + successful jobs"
+            },
+            "mode": "binary",
+            "reduce": {
+              "reducer": "sum"
+            }
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Fail Percent",
+            "binary": {
+              "left": "fail percent dec",
+              "operator": "*",
+              "reducer": "sum",
+              "right": "100"
+            },
+            "mode": "binary",
+            "reduce": {
+              "include": [],
+              "reducer": "sum"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
       "type": "timeseries"
     },
     {
@@ -2844,5 +3021,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 9
+  "version": 15
 }
