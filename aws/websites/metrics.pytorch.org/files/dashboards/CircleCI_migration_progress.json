@@ -21,84 +21,9 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "hideControls": false,
   "id": 7,
   "links": [],
   "panels": [
-    {
-      "datasource": "GitHub",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "displayMode": "auto"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 4,
-      "options": {
-        "showHeader": true
-      },
-      "pluginVersion": "8.1.1",
-      "targets": [
-        {
-          "format": "table",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "SELECT DISTINCT context AS \"Job Name\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%';\n",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "CircleCI job names",
-      "type": "table"
-    },
     {
       "datasource": "GitHub",
       "description": "Number of CircleCI job types currently running on GHA",
@@ -153,10 +78,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 10,
+        "w": 18,
         "x": 0,
-        "y": 8
+        "y": 0
       },
       "id": 2,
       "options": {
@@ -176,7 +101,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(updated_at, 720m),\n       count(distinct context) AS \"circleci_jobs\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%'\nGROUP BY 1;",
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 12h),\n       count(distinct context) AS \"circleci_jobs\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%'\nGROUP BY 1;",
           "refId": "A",
           "select": [
             [
@@ -202,6 +127,80 @@
       ],
       "title": "CircleCI jobs burndown chart",
       "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 18,
+        "x": 0,
+        "y": 10
+      },
+      "id": 4,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.1",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT DISTINCT context AS \"Job Name\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%'\nORDER By context;\n",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "CircleCI job names",
+      "type": "table"
     }
   ],
   "schemaVersion": 30,
@@ -218,5 +217,5 @@
   "timezone": "",
   "title": "CircleCI migration progress",
   "uid": "gJaYvuInk",
-  "version": 1
+  "version": 4
 }
