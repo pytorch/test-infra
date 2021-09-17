@@ -1525,7 +1525,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "Full Backward Hooks get applied even when grad is disabled", 
-      "updated_at": "2021-09-17T16:50:41Z", 
+      "updated_at": "2021-09-17T22:27:49Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/59901", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/4275604?v=4", 
