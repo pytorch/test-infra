@@ -2571,7 +2571,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "This is most easily seen in the following example, prior to fixing https://github.com/pytorch/pytorch/issues/64687\r\n\r\n```\r\nimport torch\r\nclass A:\r\n    @classmethod\r\n    def __torch_function__(cls, func, types, args=(), kwargs=None):\r\n        print(types)\r\n\r\na = A()\r\nb = torch.nn.Parameter()\r\n\r\ntorch.add(a, b)\r\ntorch.overrides.handle_torch_function(None, (a, b), a, b)\r\n```\r\n\r\nthis prints:\r\n\r\n```\r\n(<class '__main__.A'>,)\r\n(<class '__main__.A'>, <class 'torch.nn.parameter.Parameter'>)\r\n```\r\n\r\nParameter is completely omitted from the types in the first case, which goes through the C++ parser. The Python code path via buggy `handle_torch_function` shows what a naive implementation that didn't handle this case explicitly does: it includes Parameter in the types list, because, well, that's what it's supposed to do.\r\n\r\nThis is not very nice because although we originally motivated disabled_torch_function_impl as a pure performance optimization, it actually also has semantic meaning: classes who disable torch function impl don't show up in the types list. This is important because other implementations of torch function may query the types list to determine if they understand the arguments or not. \r\n\r\nUnfortunately, this behavior is also quite desirable. Canonically, we are supposed to be able to mark anything as a Parameter and expect everything to work as is with it. So if someone studiously goes through all the arguments and tests that they are, in fact, Tensors, would in fact fail if they were passed a Parameter. So having disabled_torch_function_impl work this way increases interoperability of said classes with other use cases (we are basically saying, \"yeah, this is a subclass, but just pretend it is a Tensor for all intents and purposes).\r\n\r\nThere is a related problem observed by @albanD that suggests that we might need to fix Parameter is some other, very fancy way. Suppose that you have a tensor subclass, and you want it also to be a Parameter. You can't just do the normal thing of `Parameter(my_tensor)` because Parameter overrides the subclass. This suggests that we actually want some sort of boolean property on regular Tensor that says if something is a Parameter or not, and then Parameter is just some fancy class which overrides the meaning of issubclass to test for this boolean. This sounds very disruptive and I'm not sure if we can actually do it, but we should if we can as it would make `Parameter(my_tensor)` transparently work.\r\n\r\ncc @hameerabbasi @rgommers @peterbell10", 
       "closed_at": null, 
-      "comments": 5, 
+      "comments": 6, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/comments", 
       "created_at": "2021-09-08T20:12:08Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/64690/events", 
@@ -2607,7 +2607,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_disabled_torch_function_impl is unimplementable (must be special cased)", 
-      "updated_at": "2021-09-17T14:49:30Z", 
+      "updated_at": "2021-09-17T16:33:03Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/64690", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
@@ -2635,7 +2635,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "The default behavior of Tensor.__torch_function__ is preserve subclasses but based on conversations with, well, basically everyone doing custom subclasses with __torch_dispatch__ is this is NEVER what you want (example, @anjali411).\r\n\r\nI propose that if `__torch_dispatch__` is defined, `__Torch_function__` SHOULD NOT do default subclass preservation behavior.\r\n\r\ncc @albanD @zou3519 ", 
+      "body": "The default behavior of Tensor.__torch_function__ is preserve subclasses but based on conversations with, well, basically everyone doing custom subclasses with __torch_dispatch__ is this is NEVER what you want (example, @anjali411).\r\n\r\nI propose that if `__torch_dispatch__` is defined, `__Torch_function__` SHOULD NOT do default subclass preservation behavior.\r\n\r\ncc @hameerabbasi @rgommers @peterbell10 @albanD @zou3519 ", 
       "closed_at": null, 
       "comments": 0, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/65215/comments", 
@@ -2643,7 +2643,26 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/65215/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/65215", 
       "id": 999430713, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "", 
+          "id": 2422898073, 
+          "name": "module: __torch_function__", 
+          "node_id": "MDU6TGFiZWwyNDIyODk4MDcz", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20__torch_function__"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/65215/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2654,7 +2673,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_disabled_torch_function_impl should not be necessary for __torch_dispatch__", 
-      "updated_at": "2021-09-17T14:40:06Z", 
+      "updated_at": "2021-09-17T16:26:58Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/65215", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
