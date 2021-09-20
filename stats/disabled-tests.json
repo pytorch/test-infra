@@ -2553,7 +2553,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "The default behavior of Tensor.__torch_function__ is preserve subclasses but based on conversations with, well, basically everyone doing custom subclasses with __torch_dispatch__ is this is NEVER what you want (example, @anjali411).\r\n\r\nI propose that if `__torch_dispatch__` is defined, `__Torch_function__` SHOULD NOT do default subclass preservation behavior.\r\n\r\ncc @hameerabbasi @rgommers @peterbell10 @albanD @zou3519 ", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/65215/comments", 
       "created_at": "2021-09-17T14:40:06Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/65215/events", 
@@ -2589,7 +2589,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "_disabled_torch_function_impl should not be necessary for __torch_dispatch__", 
-      "updated_at": "2021-09-17T16:45:24Z", 
+      "updated_at": "2021-09-20T13:46:28Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/65215", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4", 
