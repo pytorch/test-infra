@@ -101,3 +101,11 @@ resource "aws_iam_role_policy_attachment" "scale_down_vpc_execution_role" {
   role       = aws_iam_role.scale_down.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
+
+resource "aws_iam_role_policy" "scale_down_secretsmanager_access" {
+  count = var.secretsmanager_secrets_id != null ? 1 : 0
+  role  = aws_iam_role.scale_down.name
+  policy = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
+    secretsmanager_arn = data.aws_secretsmanager_secret_version.app_creds.arn
+  })
+}

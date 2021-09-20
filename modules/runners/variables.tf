@@ -336,3 +336,10 @@ variable "runner_additional_security_group_ids" {
   type        = list(string)
   default     = []
 }
+
+
+variable "secretsmanager_secrets_id" {
+  description = "(optional) ID for secretsmanager secret to use for Github App credentials"
+  type        = string
+  default     = null
+}

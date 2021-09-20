@@ -87,6 +87,7 @@ module "runners" {
   idle_config                          = var.idle_config
   enable_ssm_on_runners                = var.enable_ssm_on_runners
   runner_additional_security_group_ids = var.runner_additional_security_group_ids
+  secretsmanager_secrets_id            = var.secretsmanager_secrets_id
 
   lambda_s3_bucket                 = var.lambda_s3_bucket
   runners_lambda_s3_key            = var.runners_lambda_s3_key

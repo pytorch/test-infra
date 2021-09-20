@@ -359,3 +359,9 @@ variable "market_options" {
   type        = string
   default     = "spot"
 }
+
+variable "secretsmanager_secrets_id" {
+  description = "(optional) ID for secretsmanager secret to use for Github App credentials"
+  type        = string
+  default     = null
+}

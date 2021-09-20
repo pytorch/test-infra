@@ -191,3 +191,7 @@ resource "aws_security_group" "runner_sg" {
     },
   )
 }
+
+data "aws_secretsmanager_secret_version" "app_creds" {
+  secret_id = var.secretsmanager_secrets_id
+}

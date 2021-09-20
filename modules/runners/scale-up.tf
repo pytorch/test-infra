@@ -29,6 +29,7 @@ resource "aws_lambda_function" "scale_up" {
   environment {
     variables = {
       ENVIRONMENT                     = var.environment
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
       GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
       GITHUB_APP_ID                   = var.github_app.id
@@ -108,4 +109,12 @@ resource "aws_iam_role_policy_attachment" "scale_up_vpc_execution_role" {
   count      = length(var.lambda_subnet_ids) > 0 ? 1 : 0
   role       = aws_iam_role.scale_up.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy" "scale_up_secretsmanager_access" {
+  count = var.secretsmanager_secrets_id != null ? 1 : 0
+  role  = aws_iam_role.scale_up.name
+  policy = templatefile("${path.module}/policies/lambda-secretsmanager.json", {
+    secretsmanager_arn = data.aws_secretsmanager_secret_version.app_creds.arn
+  })
 }
