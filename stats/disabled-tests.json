@@ -1471,7 +1471,7 @@
       "author_association": "NONE", 
       "body": "## \ud83d\udc1b Bug\r\n\r\nWhen full_backward_hooks are registered, they are applied to the modules even in the case of torch.no_grad being disabled. This leads to an error here:\r\n```\r\n> /root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py(141)_apply_on_tensors()\r\n    140         grad_fn = new_tensors[0].grad_fn\r\n--> 141         if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\n    142             raise RuntimeError(\"Error while setting up backward hooks. Please open \"\r\n```\r\n\r\n```\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/nn/modules/module.py\", line 884, in _call_impl\r\n    input = bw_hook.setup_input_hook(input)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 158, in setup_input_hook\r\n    res, input_idx = self._apply_on_tensors(fn, args)\r\n  File \"/root/miniconda3/lib/python3.8/site-packages/torch/utils/hooks.py\", line 141, in _apply_on_tensors\r\n    if not grad_fn.name() == \"BackwardHookFunctionBackward\":\r\nAttributeError: 'NoneType' object has no attribute 'name'\r\n```\r\n## To Reproduce\r\n\r\nSteps to reproduce the behavior:\r\nAdd a full_backward_hook to a torch module\r\nRun it with `@torch.no_grad`\r\n\r\n## Expected behavior\r\nNothing should happen with no_grad enabled because there is no backward pass, but it shouldn't give an error. \r\n\r\n\r\n## Environment\r\n\r\nPlease copy and paste the output from our\r\n[environment collection script](https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py)\r\n(or fill out the checklist below manually).\r\n\r\nYou can get the script and run it with:\r\n```\r\nwget https://raw.githubusercontent.com/pytorch/pytorch/master/torch/utils/collect_env.py\r\n# For security purposes, please check the contents of collect_env.py before running it.\r\npython collect_env.py\r\n```\r\n\r\n - PyTorch Version (e.g., 1.0):\r\n - OS (e.g., Linux):\r\n - How you installed PyTorch (`conda`, `pip`, source):\r\n - Build command you used (if compiling from source):\r\n - Python version:\r\n - CUDA/cuDNN version:\r\n - GPU models and configuration:\r\n - Any other relevant information:\r\n\r\n## Additional context\r\n\r\n<!-- Add any other context about the problem here. -->\r\nI think this can be fixed by changing line 882 in nn.modules.module.py to\r\n`         if len(full_backward_hooks) > 0 and torch.is_grad_enabled():`\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @mruberry @jbschlosser", 
       "closed_at": null, 
-      "comments": 4, 
+      "comments": 5, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/comments", 
       "created_at": "2021-06-12T00:38:10Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/59901/events", 
@@ -1525,7 +1525,7 @@
       "score": 0.0, 
       "state": "open", 
       "title": "Full Backward Hooks get applied even when grad is disabled", 
-      "updated_at": "2021-09-20T14:03:37Z", 
+      "updated_at": "2021-09-20T14:19:15Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/59901", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/4275604?v=4", 
