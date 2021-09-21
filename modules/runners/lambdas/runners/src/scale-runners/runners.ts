@@ -87,69 +87,92 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   const securityGroupIDs = process.env.SECURITY_GROUP_IDS as string;
 
   const subnets = (process.env.SUBNET_IDS as string).split(',');
-  const randomSubnet = subnets[Math.floor(Math.random() * subnets.length)];
   console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
   const ec2 = new EC2();
   const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';
-  const runInstancesResponse = await ec2
-    .runInstances({
-      MaxCount: 1,
-      MinCount: 1,
-      LaunchTemplate: {
-        LaunchTemplateName:
-          runnerParameters.runnerType.os === 'linux' ? launchTemplateNameLinux : launchTemplateNameWindows,
-        Version: runnerParameters.runnerType.os === 'linux' ? launchTemplateVersionLinux : launchTemplateVersionWindows,
-      },
-      InstanceType: runnerParameters.runnerType.instance_type,
-      BlockDeviceMappings: [
-        {
-          DeviceName: storageDeviceName,
-          Ebs: {
-            VolumeSize: runnerParameters.runnerType.disk_size,
-            VolumeType: 'gp3',
-            Encrypted: true,
-            DeleteOnTermination: true,
+  const maxRetries = 10;
+  for (let x = 1; x <= maxRetries; x++) {
+    try {
+      console.info(`[${x}/${maxRetries}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
+      // Trying different subnets since some subnets don't always work for specific instance types
+      // Tries to resolve for errors like:
+      //   Your requested instance type (c5.2xlarge) is not supported in your requested Availability Zone (us-east-1e).
+      //   Please retry your request by not specifying an Availability Zone or choosing us-east-1a, us-east-1b, us-east-1c, us-east-1d, us-east-1f.
+      const randomSubnet = subnets.splice(Math.floor(Math.random() * subnets.length), 1)[0];
+      const runInstancesResponse = await ec2
+        .runInstances({
+          MaxCount: 1,
+          MinCount: 1,
+          LaunchTemplate: {
+            LaunchTemplateName:
+              runnerParameters.runnerType.os === 'linux' ? launchTemplateNameLinux : launchTemplateNameWindows,
+            Version:
+              runnerParameters.runnerType.os === 'linux' ? launchTemplateVersionLinux : launchTemplateVersionWindows,
           },
-        },
-      ],
-      NetworkInterfaces: [
-        {
-          AssociatePublicIpAddress: true,
-          SubnetId: randomSubnet,
-          Groups: securityGroupIDs.split(','),
-          DeviceIndex: 0,
-        },
-      ],
-      TagSpecifications: [
-        {
-          ResourceType: 'instance',
-          Tags: [
-            { Key: 'Application', Value: 'github-action-runner' },
+          InstanceType: runnerParameters.runnerType.instance_type,
+          BlockDeviceMappings: [
             {
-              Key: runnerParameters.orgName ? 'Org' : 'Repo',
-              Value: runnerParameters.orgName ? runnerParameters.orgName : runnerParameters.repoName,
+              DeviceName: storageDeviceName,
+              Ebs: {
+                VolumeSize: runnerParameters.runnerType.disk_size,
+                VolumeType: 'gp3',
+                Encrypted: true,
+                DeleteOnTermination: true,
+              },
             },
-            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
           ],
-        },
-      ],
-    })
-    .promise();
-  console.info(
-    `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
-    runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','),
-  );
+          NetworkInterfaces: [
+            {
+              AssociatePublicIpAddress: true,
+              SubnetId: randomSubnet,
+              Groups: securityGroupIDs.split(','),
+              DeviceIndex: 0,
+            },
+          ],
+          TagSpecifications: [
+            {
+              ResourceType: 'instance',
+              Tags: [
+                { Key: 'Application', Value: 'github-action-runner' },
+                {
+                  Key: runnerParameters.orgName ? 'Org' : 'Repo',
+                  Value: runnerParameters.orgName ? runnerParameters.orgName : runnerParameters.repoName,
+                },
+                { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+              ],
+            },
+          ],
+        })
+        .promise();
+      console.info(
+        `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
+        runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','),
+      );
 
-  const ssm = new SSM();
-  runInstancesResponse.Instances?.forEach(async (i: EC2.Instance) => {
-    await ssm
-      .putParameter({
-        Name: runnerParameters.environment + '-' + (i.InstanceId as string),
-        Value: runnerParameters.runnerConfig,
-        Type: 'SecureString',
-      })
-      .promise();
-  });
+      const ssm = new SSM();
+      runInstancesResponse.Instances?.forEach(async (i: EC2.Instance) => {
+        await ssm
+          .putParameter({
+            Name: runnerParameters.environment + '-' + (i.InstanceId as string),
+            Value: runnerParameters.runnerConfig,
+            Type: 'SecureString',
+          })
+          .promise();
+      });
+      break;
+    } catch (e) {
+      if (x === maxRetries) {
+        console.error(
+          `[${x}/${maxRetries}] Max retries exceeded creating instance ${runnerParameters.runnerType.instance_type}: ${e}`,
+        );
+        throw e;
+      } else {
+        console.warn(
+          `[${x}/${maxRetries}] Issue creating instance ${runnerParameters.runnerType.instance_type}, going to retry :${e}`,
+        );
+      }
+    }
+  }
 }
 
 export interface Repo {
