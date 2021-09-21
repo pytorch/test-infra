@@ -21,8 +21,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "hideControls": false,
   "id": 6,
+  "iteration": 1632264274755,
   "links": [],
   "panels": [
     {
@@ -51,7 +51,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -78,8 +78,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 12,
+        "w": 21,
         "x": 0,
         "y": 0
       },
@@ -97,7 +97,7 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "single"
+          "mode": "multi"
         }
       },
       "targets": [
@@ -107,7 +107,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT updated_at AS \"time\",\n       library,\n       (size / 1024 / 1024) as \"MB\"\nFROM binary_size\nWHERE branch = \"master\"\n  AND library like \"libtorch%\"\n  AND $__timeFilter(updated_at);",
+          "rawSql": "SELECT updated_at as \"time\",\n       library,\n       (SIZE / 1024 / 1024) AS \"MB\"\nFROM binary_size\nWHERE branch = \"master\"\n  AND build_environment = \"$build_environment\"\n  AND library like \"libtorch%\"\n  AND $__timeFilter(updated_at);",
           "refId": "A",
           "select": [
             [
@@ -139,7 +139,32 @@
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": "linux-bionic-cuda10.2-py3.9-gcc7",
+          "value": "linux-bionic-cuda10.2-py3.9-gcc7"
+        },
+        "datasource": "Metrics",
+        "definition": "select build_environment from binary_size where $__timeFilter(updated_at) group by build_environment;",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": "Build Environment",
+        "multi": false,
+        "name": "build_environment",
+        "options": [],
+        "query": "select build_environment from binary_size where $__timeFilter(updated_at) group by build_environment;",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-6h",
@@ -149,5 +174,5 @@
   "timezone": "",
   "title": "Binary Size",
   "uid": "SQGr-_I7k",
-  "version": 1
+  "version": 5
 }
