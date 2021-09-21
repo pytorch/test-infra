@@ -28,6 +28,7 @@ resource "aws_lambda_function" "scale_down" {
   environment {
     variables = {
       ENVIRONMENT                     = var.environment
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       KMS_KEY_ID                      = var.encryption.kms_key_id
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
