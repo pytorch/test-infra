@@ -9,7 +9,12 @@ on:
 
 jobs:
   sync-pytorch:
+    strategy:
+      matrix:
+        ref: ["master", "viable/strict"]
     runs-on: ubuntu-20.04
+    env:
+      PYTORCH_REF: ${{ matrix.ref }}
     steps:
       - name: Set up SSH
         env:
@@ -23,10 +28,10 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: 'pytorch/pytorch'
-          ref: 'master'
+          ref: ${{ matrix.ref }}
           submodules: 'recursive'
           path: 'pytorch'
-          fetch-depth: 0  # pushing master requires nonshallow checkout
+          fetch-depth: 0  # pushing requires nonshallow checkout
       - name: Mirror push to pytorch/pytorch-canary
         run: |
           set -eu
@@ -41,4 +46,4 @@ jobs:
           #   git push --tags git@github.com:pytorch/pytorch-canary.git
           #   git branch -a --format "%(refname)" | xargs -i bash -c "git symbolic-ref HEAD {} && git push git@github.com:pytorch/pytorch-canary"
           # OR we could just settle with pushing master. So we'll do that instead.
-          git push -f git@github.com:pytorch/pytorch-canary master
+          git push -f git@github.com:pytorch/pytorch-canary "${PYTORCH_REF}"
