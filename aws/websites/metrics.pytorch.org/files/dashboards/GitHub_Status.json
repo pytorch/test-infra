@@ -53,7 +53,7 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "30m",
+        "for": "5h",
         "frequency": "30m",
         "handler": 1,
         "message": "More than 5% of CircleCI jobs are failing on master",
@@ -226,7 +226,7 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "30m",
+        "for": "5h",
         "frequency": "30m",
         "handler": 1,
         "message": "GHA jobs are failing at a high rate",
@@ -4000,5 +4000,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 4
+  "version": 5
 }
