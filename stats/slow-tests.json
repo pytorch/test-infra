@@ -1,8 +1,16 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 111.98949999999999,
-    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 71.72033333333333,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 205.53,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 198.2625,
-    "test_fn_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 69.507,
-    "test_inplace_gradgrad_cumprod_cpu_complex128 (__main__.TestGradientsCPU)": 92.94616666666667
+    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 107.71549999999999,
+    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 227.507,
+    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 134.051,
+    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 133.801,
+    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 113.65549999999999,
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 206.91125,
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 199.31875,
+    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 94.88300000000001,
+    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 98.93275,
+    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 154.89249999999998,
+    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 70.019,
+    "test_proper_exit (__main__.TestDataLoader)": 197.3,
+    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 197.616,
+    "test_unary_ops (__main__.TestTEFuser)": 67.8900625
 }
