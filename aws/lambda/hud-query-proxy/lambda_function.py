@@ -202,18 +202,20 @@ def update_branch(branch):
     gzipfile.close()
 
     session = boto3.Session(
-        aws_access_key_id=os.environ["aws_key_id"],
-        aws_secret_access_key=os.environ["aws_access_key"],
+        aws_access_key_id=os.environ.get("aws_key_id"),
+        aws_secret_access_key=os.environ.get("aws_access_key"),
     )
     s3 = session.resource("s3")
 
     bucket = s3.Bucket("ossci-job-status")
+    name = f"single/{branch.replace('/', '_')}.json.gz"
     bucket.put_object(
-        Key=f"single/{branch.replace('/', '_')}.json.gz",
+        Key=name,
         Body=buf.getvalue(),
         ContentType="application/json",
         ContentEncoding="gzip",
     )
+    print(f"Wrote object for {name}")
     return "ok"
 
 
