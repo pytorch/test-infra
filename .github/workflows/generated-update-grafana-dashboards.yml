@@ -1,3 +1,7 @@
+# @generated DO NOT EDIT MANUALLY
+# Generated from .github/templates/update_grafana_dashboards.yml.j2
+
+
 name: Update Grafana Dashboards
 
 on:
@@ -24,7 +28,7 @@ jobs:
           cd aws/websites/metrics.pytorch.org
           python update_dashboards.py
       - name: Push changes
-        if: ${{ steps.update.outputs.UPDATED_DASHBOARDS == 'yes' }} 
+        if: ${{ steps.update.outputs.UPDATED_DASHBOARDS == 'yes' }}
         run: |
           set -eux
           git add aws/websites/metrics.pytorch.org/files/dashboards/.
