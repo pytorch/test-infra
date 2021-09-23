@@ -54,6 +54,8 @@ SAVED_QUERIES = {"sample": "select name from workflow_run limit 10"}
 TYPE_MAP = {
     "int": "INTEGER",
     "string": "VARCHAR(300)",
+    "float": "FLOAT",
+    "date": "DATETIME",
 }
 
 

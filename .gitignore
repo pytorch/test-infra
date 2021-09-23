@@ -4,6 +4,7 @@
 *.zip
 *.swp
 *.txt
+!requirements.txt
 
 __pycache__
 
