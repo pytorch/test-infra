@@ -2619,8 +2619,8 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "5m",
-        "frequency": "1h",
+        "for": "1m",
+        "frequency": "1d",
         "handler": 1,
         "message": "Nightly hasn't been updated in over a day",
         "name": "Last nightly update alert",
@@ -2769,8 +2769,8 @@
           }
         ],
         "executionErrorState": "alerting",
-        "for": "5m",
-        "frequency": "1h",
+        "for": "1m",
+        "frequency": "1d",
         "handler": 1,
         "name": "Last viable/strict update alert",
         "noDataState": "no_data",
@@ -4000,5 +4000,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 4
 }
