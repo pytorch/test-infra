@@ -69,15 +69,15 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
     enableOrgLevel,
   );
 
+  const runnerLabels = payload.runnerLabels !== undefined ? payload.runnerLabels : Array.from(runnerTypes.keys());
+
   // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
   // if no labels are found this should just be a no-op
-  for (const runnerLabel of payload.runnerLabels) {
+  for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
     if (runnerType === undefined) {
       console.info(
-        `Runner label '${runnerType}' was not found in config for ${payload.repositoryOwner}/${
-          payload.repositoryName
-        }, see: ${JSON.stringify(runnerTypes)}`,
+        `Runner label '${runnerLabel}' was not found in config for ${payload.repositoryOwner}/${payload.repositoryName}`,
       );
       continue;
     }
