@@ -17,6 +17,7 @@ export interface ActionRequestMessage {
 }
 
 export const sendActionRequest = async (message: ActionRequestMessage) => {
+  console.info(`[sendActionRequest] Sending message: ${JSON.stringify(message)}`)
   await sqs
     .sendMessage({
       QueueUrl: String(process.env.SQS_URL_WEBHOOK),
