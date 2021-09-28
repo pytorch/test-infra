@@ -22,7 +22,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1632779166094,
+  "iteration": 1632806146153,
   "links": [],
   "panels": [
     {
@@ -303,6 +303,12 @@
         "y": 12
       },
       "id": 5,
+      "links": [
+        {
+          "title": "Results breakdown",
+          "url": "https://metrics.pytorch.org/explore?left=%5B%22now-24h%22,%22now%22,%22Metrics%22,%7B%22datasource%22:%22Metrics%22,%22format%22:%22table%22,%22group%22:%5B%5D,%22metricColumn%22:%22none%22,%22queryType%22:%22randomWalk%22,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20updated_at%20AS%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20branch,%5Cn%20%20%20%20%20%20%20ref,%5Cn%20%20%20%20%20%20%20cache_hits,%5Cn%20%20%20%20%20%20%20cache_misses,%5Cn%20%20%20%20%20%20%20compile_requests%5CnFROM%20sccache_stats%5CnWHERE%20branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20build_environment%3D%5C%22linux-xenial-py3.6-gcc5.4%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5CnORDER%20BY%20updated_at%20DESC;%22,%22select%22:%5B%5B%7B%22params%22:%5B%22id%22%5D,%22type%22:%22column%22%7D%5D%5D,%22table%22:%22import_stats%22,%22timeColumn%22:%22updated_at%22,%22timeColumnType%22:%22timestamp%22,%22where%22:%5B%7B%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D,%22type%22:%22macro%22%7D%5D%7D,%7B%22datasource%22:%22Metrics%22,%22format%22:%22time_series%22,%22timeColumn%22:%22updated_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20updated_at%20AS%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20cache_hits,%5Cn%20%20%20%20%20%20%20cache_misses,%5Cn%20%20%20%20%20%20%20compile_requests%5CnFROM%20sccache_stats%5CnWHERE%20branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20build_environment%3D%5C%22linux-xenial-py3.6-gcc5.4%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5CnORDER%20BY%20updated_at%20DESC;%22,%22table%22:%22import_stats%22,%22timeColumnType%22:%22timestamp%22%7D%5D&orgId=1"
+        }
+      ],
       "options": {
         "legend": {
           "calcs": [],
@@ -320,7 +326,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT updated_at AS \"time\",\n       cache_hits,\n       cache_misses,\n       compile_requests\nFROM sccache_stats\nWHERE branch = \"master\"\n  AND build_environment=\"$build_environment\"\nORDER BY updated_at DESC;",
+          "rawSql": "SELECT updated_at AS \"time\",\n       cache_hits,\n       cache_misses,\n       compile_requests\nFROM sccache_stats\nWHERE branch = \"master\"\n  AND build_environment=\"$build_environment\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at DESC;",
           "refId": "A",
           "select": [
             [
@@ -387,5 +393,5 @@
   "timezone": "",
   "title": "Binary Size",
   "uid": "SQGr-_I7k",
-  "version": 3
+  "version": 7
 }
