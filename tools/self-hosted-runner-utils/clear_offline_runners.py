@@ -44,7 +44,10 @@ def main() -> None:
     repo = gh.get_repo(options.repo)
     runners = repo.get_self_hosted_runners()
     include_pattern = re.compile(options.include)
+    num_removed = 0
+    num_total = 0
     for runner in runners:
+        num_total += 1
         if runner.status != "offline" or not include_pattern.match(runner.name):
             continue
         print(f"- {runner.name} ", end="")
@@ -53,6 +56,8 @@ def main() -> None:
         else:
             repo.remove_self_hosted_runner(runner)
             print("removed")
+        num_removed += 1
+    print(f"Removed {num_removed}/{num_total}")
 
 
 if __name__ == "__main__":
