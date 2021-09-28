@@ -43,3 +43,18 @@ There are also dry run options to just show which runners would be deleted
 ```bash
 python clear_offline_runners.py pytorch/pytorch --dry-run
 ```
+
+## check_runners_state.py
+
+A utility to check overall stats for self hosted runners.
+
+> NOTE: You do need adminstrator access to use this script
+
+> NOTE: GITHUB_TOKEN should be set in your environment for this script to work properly
+
+### Usage
+
+```bash
+# python check_runners_state.py <REPO>
+python check_runners_state.py pytorch/pytorch
+```

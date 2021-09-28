@@ -1,0 +1,73 @@
+import os
+import argparse
+import re
+from dataclasses import dataclass, field
+from collections import defaultdict
+from typing import Dict
+
+from github import Github
+
+
+@dataclass
+class RunnersState:
+    num_total: int = 0
+    num_online: int = 0
+    num_per_label: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Display self hosted runners state for Github repositories"
+    )
+    parser.add_argument(
+        "repo",
+        help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
+        type=str,
+    )
+    parser.add_argument(
+        "--include",
+        help="Regex to match runner names",
+        type=str,
+        default=".*",
+    )
+    parser.add_argument(
+        "--token",
+        help="Github token to pull from (Can also pass GITHUB_TOKEN as an env variable)",
+        type=str,
+        default=os.getenv("GITHUB_TOKEN", ""),
+    )
+    options = parser.parse_args()
+    return options
+
+
+def main() -> None:
+    options = parse_args()
+    if options.token == "":
+        raise Exception("GITHUB_TOKEN or --token must be set")
+    gh = Github(options.token)
+    repo = gh.get_repo(options.repo)
+    runners = repo.get_self_hosted_runners()
+    include_pattern = re.compile(options.include)
+    state = RunnersState()
+    for runner in runners:
+        if not include_pattern.match(runner.name):
+            continue
+        state.num_total += 1
+        if runner.status == "online":
+            state.num_online += 1
+            for label in runner.labels():
+                if label.get("type") == "custom" and label:
+                    state.num_per_label[str(label["name"])] += 1
+    over_total = lambda num: f"{num}/{state.num_total}"
+    percentage_of = lambda num: f"{num} ({int(num/state.num_total*100):2})%"
+    print(f"Repository stats for {options.repo}")
+    print(f"{state.num_total:>15} total runners")
+    print(f"{over_total(state.num_online):>15} online runners")
+    print()
+    print("Number of online runners per label")
+    for label, num_label in state.num_per_label.items():
+        print(f"{percentage_of(num_label):>15} {label}")
+
+
+if __name__ == "__main__":
+    main()
