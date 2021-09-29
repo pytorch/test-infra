@@ -23,7 +23,7 @@ resource "aws_lambda_function" "scale_up" {
   handler                        = "index.scaleUp"
   runtime                        = "nodejs12.x"
   timeout                        = var.lambda_timeout_scale_up
-  reserved_concurrent_executions = 1
+  reserved_concurrent_executions = var.scale_up_lambda_concurrency
   tags                           = local.tags
 
   environment {

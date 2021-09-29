@@ -44,6 +44,7 @@ resource "aws_lambda_function" "webhook" {
       KMS_KEY_ID                = var.encryption.kms_key_id
       GITHUB_APP_WEBHOOK_SECRET = local.github_app_webhook_secret
       SQS_URL_WEBHOOK           = var.sqs_build_queue.id
+      NUM_MESSAGE_GROUPS        = var.scale_up_lambda_concurrency
     }
   }
 

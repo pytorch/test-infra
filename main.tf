@@ -46,6 +46,8 @@ module "webhook" {
 
   role_path                 = var.role_path
   role_permissions_boundary = var.role_permissions_boundary
+
+  scale_up_lambda_concurrency = var.scale_up_lambda_concurrency
 }
 
 module "runners" {
