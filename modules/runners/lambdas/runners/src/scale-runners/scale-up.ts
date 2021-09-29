@@ -154,7 +154,7 @@ async function allRunnersBusy(
   console.info(`Found matching GitHub runners [${runnerType}], ${busyCount}/${runnersWithLabel.length} are busy`);
   // Have a fail safe just in case we're likely to need more runners
   if (availableCount < NUM_ALLOWED_TO_BE_AVAILABLE) {
-    return false;
+    return true;
   }
 
   return runnersWithLabel.every((x) => x.busy);
@@ -166,8 +166,10 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
   const runnerTypeKey = `${org}/${repo}/enableOrgLevel=${enableOrgLevel}`;
 
   if (runnerTypeCache.get(runnerTypeKey) !== undefined) {
+    console.debug(`[GetRunnerTypes] Cached runnerTypes found`)
     return runnerTypeCache.get(runnerTypeKey) as Map<string, RunnerType>;
   }
+  console.debug(`[GetRunnerTypes] Grabbing runnerTypes`)
 
   const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
 
