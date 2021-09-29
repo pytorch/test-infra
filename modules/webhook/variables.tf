@@ -81,6 +81,6 @@ variable "webhook_lambda_s3_object_version" {
 
 variable "scale_up_lambda_concurrency" {
   description = "Number of concurrent instances to run for the scale up lambda"
-  type        = int
+  type        = number
   default     = 10
 }

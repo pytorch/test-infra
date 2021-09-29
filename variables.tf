@@ -368,6 +368,6 @@ variable "secretsmanager_secrets_id" {
 
 variable "scale_up_lambda_concurrency" {
   description = "Number of concurrent instances to run for the scale up lambda"
-  type        = int
+  type        = number
   default     = 10
 }
