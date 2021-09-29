@@ -14,6 +14,7 @@ export interface ActionRequestMessage {
   repositoryOwner: string;
   installationId: number;
   runnerLabels: string[];
+  callbackUrl: string;
 }
 
 export const sendActionRequest = async (message: ActionRequestMessage) => {

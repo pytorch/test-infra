@@ -58,6 +58,7 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
         eventType: githubEvent,
         installationId: installationId,
         runnerLabels: body.workflow_job.labels,
+        callbackUrl: body.workflow_job.check_run_url
       });
     }
   } else {
