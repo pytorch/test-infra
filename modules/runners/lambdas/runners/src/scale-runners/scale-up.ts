@@ -130,6 +130,9 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
   }
 };
 
+// Buffer to determine how many available
+const NUM_ALLOWED_TO_BE_AVAILABLE = 10;
+
 async function allRunnersBusy(
   runnerType: string,
   org: string,
@@ -145,9 +148,14 @@ async function allRunnersBusy(
   const runnersWithLabel = ghRunners.filter(
     (x) => x.labels.some((y) => y.name === runnerType) && x.status.toLowerCase() !== 'offline',
   );
-  const busyCount = ghRunners.filter((x) => x.busy).length;
+  const busyCount = runnersWithLabel.filter((x) => x.busy).length;
+  const availableCount = runnersWithLabel.length - busyCount;
 
   console.info(`Found matching GitHub runners [${runnerType}], ${busyCount}/${runnersWithLabel.length} are busy`);
+  // Have a fail safe just in case we're likely to need more runners
+  if (availableCount < NUM_ALLOWED_TO_BE_AVAILABLE) {
+    return false;
+  }
 
   return runnersWithLabel.every((x) => x.busy);
 }
