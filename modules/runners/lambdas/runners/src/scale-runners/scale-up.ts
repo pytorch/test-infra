@@ -81,7 +81,6 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
       );
       continue;
     }
-    try {
       const currentRunnerCount = currentRunners.filter((x) => x.runnerType === runnerType.runnerTypeName).length;
       if (currentRunnerCount < runnerType.max_available) {
         // check if all runners are busy
@@ -108,6 +107,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
               : `--labels ${runnerType.runnerTypeName}`;
           const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
           const configBaseUrl = 'https://github.com';
+          try {
           await createRunner({
             environment: environment,
             runnerConfig: enableOrgLevel
@@ -118,15 +118,15 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
             repoName: repoName,
             runnerType: runnerType,
           });
+    } catch (e) {
+      console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
+    }
         } else {
           console.info('There are available runners, no new runners will be created');
         }
       } else {
         console.info('No runner will be created, maximum number of runners reached.');
       }
-    } catch (e) {
-      console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
-    }
   }
 };
 
