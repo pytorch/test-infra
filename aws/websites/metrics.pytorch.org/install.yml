@@ -11,7 +11,9 @@
       shell: |
         apt update
         apt install -y docker.io
-        docker swarm init || echo done
+        # make sure this IP CIDR doesn't collide with the addresses of the
+        # machine the swarm is running on!
+        docker swarm init --default-addr-pool 10.0.0.0/8 || echo done
         docker stack rm monitoring || echo done
 
         rm -rf /etc/pytorch
