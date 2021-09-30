@@ -91,7 +91,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
   const ec2 = new EC2();
   const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';
-  const maxRetries = 10;
+  const maxRetries = subnets.length;
   for (let x = 1; x <= maxRetries; x++) {
     try {
       console.info(`[${x}/${maxRetries}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
