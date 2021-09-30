@@ -94,7 +94,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   const maxRetries = subnets.length;
   for (let x = 1; x <= maxRetries; x++) {
     try {
-      console.info(`[${x}/${maxRetries}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
+      console.debug(`[${x}/${maxRetries}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
       // Trying different subnets since some subnets don't always work for specific instance types
       // Tries to resolve for errors like:
       //   Your requested instance type (c5.2xlarge) is not supported in your requested Availability Zone (us-east-1e).
