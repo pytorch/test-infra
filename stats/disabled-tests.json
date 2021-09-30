@@ -2954,15 +2954,33 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: rocm\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport", 
+      "body": "Platforms: rocm\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/comments", 
       "created_at": "2021-09-30T06:21:13Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/65884", 
       "id": 1011764222, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
         {
           "color": "f7e101", 
           "default": false, 
@@ -2996,7 +3014,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/timeline", 
       "title": "DISABLED test_fn_grad_min_binary_cuda_float64 (__main__.TestGradientsCUDA)", 
-      "updated_at": "2021-09-30T06:21:59Z", 
+      "updated_at": "2021-09-30T14:50:48Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/65884", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
