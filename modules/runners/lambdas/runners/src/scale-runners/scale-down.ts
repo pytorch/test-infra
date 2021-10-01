@@ -1,6 +1,5 @@
 import { Octokit } from '@octokit/rest';
 import moment from 'moment';
-import yn from 'yn';
 import {
   listRunners,
   RunnerInfo,
@@ -39,10 +38,12 @@ async function removeRunner(
 
     if (result.status == 204) {
       await terminateRunner(ec2runner);
-      console.info(`AWS runner instance '${ec2runner.instanceId}' is terminated and GitHub runner is de-registered.`);
+      console.info(
+        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated and GitHub runner is de-registered.`,
+      );
     }
   } catch (e) {
-    console.debug(`Error scaling down '${ec2runner.instanceId}': ${e}`);
+    console.error(`Error scaling down '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`);
   }
 }
 
@@ -88,6 +89,7 @@ export async function scaleDown(): Promise<void> {
     for (const ghRunner of ghRunners) {
       const runnerName = ghRunner.name as string;
       if (ghRunner.busy) {
+        console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping...`);
         continue;
       }
 
@@ -104,11 +106,11 @@ export async function scaleDown(): Promise<void> {
 
     // Remove orphan AWS runners.
     if (orphanEc2Runner) {
-      console.info(`Runner '${ec2runner.instanceId}' is orphan, and will be removed.`);
+      console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is orphan, and will be removed.`);
       try {
         await terminateRunner(ec2runner);
       } catch (e) {
-        console.debug(`Orphan runner '${ec2runner.instanceId}' cannot be removed.`);
+        console.error(`Orphan runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
       }
     }
   }
