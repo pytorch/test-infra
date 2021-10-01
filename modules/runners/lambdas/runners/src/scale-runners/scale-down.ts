@@ -87,6 +87,10 @@ export async function scaleDown(): Promise<void> {
     let orphanEc2Runner = true;
     for (const ghRunner of ghRunners) {
       const runnerName = ghRunner.name as string;
+      if (ghRunner.busy) {
+        continue;
+      }
+
       if (runnerName === ec2runner.instanceId) {
         orphanEc2Runner = false;
         if (idleCounter > 0) {
