@@ -88,13 +88,13 @@ export async function scaleDown(): Promise<void> {
     let orphanEc2Runner = true;
     for (const ghRunner of ghRunners) {
       const runnerName = ghRunner.name as string;
-      if (ghRunner.busy) {
-        console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping...`);
-        continue;
-      }
 
       if (runnerName === ec2runner.instanceId) {
         orphanEc2Runner = false;
+        if (ghRunner.busy) {
+          console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping...`);
+          continue;
+        }
         if (idleCounter > 0) {
           idleCounter--;
           console.debug(`Runner '${ec2runner.instanceId}' will kept idle.`);
