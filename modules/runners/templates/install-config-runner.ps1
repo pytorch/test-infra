@@ -47,7 +47,7 @@ foreach ($group in @("Administrators", "docker-users")) {
 Set-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0 -Force
 Write-Host "Disabled User Access Control (UAC)"
 
-$configCmd = ".\config.cmd --unattended --name $InstanceId --work `"_work`" $config"
+$configCmd = ".\config.cmd --unattended --ephemeral --name $InstanceId --work `"_work`" $config"
 Write-Host "Invoking config command..."
 Invoke-Expression $configCmd
 
