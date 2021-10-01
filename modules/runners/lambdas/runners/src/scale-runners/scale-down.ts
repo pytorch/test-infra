@@ -42,7 +42,7 @@ async function removeRunner(
       console.info(`AWS runner instance '${ec2runner.instanceId}' is terminated and GitHub runner is de-registered.`);
     }
   } catch (e) {
-    console.debug(`Runner '${ec2runner.instanceId}' cannot be de-registered, most likely the runner is active.`);
+    console.debug(`Error scaling down '${ec2runner.instanceId}': ${e}`);
   }
 }
 
