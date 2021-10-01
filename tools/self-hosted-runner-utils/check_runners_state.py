@@ -13,6 +13,7 @@ class RunnersState:
     num_total: int = 0
     num_online: int = 0
     num_per_label: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    num_busy_per_label: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,15 +59,25 @@ def main() -> None:
             for label in runner.labels():
                 if label.get("type") == "custom" and label:
                     state.num_per_label[str(label["name"])] += 1
+                    if runner.busy:
+                        state.num_busy_per_label[str(label["name"])] += 1
     over_total = lambda num: f"{num}/{state.num_total}"
-    percentage_of = lambda num: f"{num} ({int(num/state.num_total*100):2})%"
-    print(f"Repository stats for {options.repo}")
+    percentage_of = lambda num, label: f"{state.num_busy_per_label[label]}/{num}"
+    num_queued_workflows = len([_ for _ in repo.get_workflow_runs(status="queued")])
+    num_in_progress_workflows = len(
+        [_ for _ in repo.get_workflow_runs(status="in_progress")]
+    )
+    print(f"Self Hosted stats for {options.repo}")
     print(f"{state.num_total:>15} total runners")
     print(f"{over_total(state.num_online):>15} online runners")
     print()
-    print("Number of online runners per label")
-    for label, num_label in state.num_per_label.items():
-        print(f"{percentage_of(num_label):>15} {label}")
+    print("Number of busy/online runners per label")
+    for label, num_label in sorted(state.num_per_label.items()):
+        print(f"{percentage_of(num_label, label):>15} {label}")
+    print()
+    print(f"Workflow stats for {options.repo}")
+    print(f"{num_queued_workflows:>15} queued workflows")
+    print(f"{num_in_progress_workflows:>15} in_progress workflows")
 
 
 if __name__ == "__main__":
