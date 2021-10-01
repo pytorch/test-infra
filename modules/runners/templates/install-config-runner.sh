@@ -24,7 +24,7 @@ if [[ "$os_id" =~ ^ubuntu.* ]]; then
     ./bin/installdependencies.sh
 fi
 
-./config.sh --ephemeral --unattended --name $INSTANCE_ID --work "_work" $CONFIG
+./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
 
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}
