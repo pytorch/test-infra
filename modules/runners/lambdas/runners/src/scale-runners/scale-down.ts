@@ -84,7 +84,7 @@ export async function scaleDown(): Promise<void> {
     const githubAppClient = await createGitHubClientForRunner(ec2runner.org, ec2runner.repo, enableOrgLevel);
 
     const repo = getRepo(ec2runner.org, ec2runner.repo, enableOrgLevel);
-    const ghRunners = await listGithubRunners(githubAppClient, ec2runner.org, ec2runner.repo, enableOrgLevel);
+    const ghRunners = await listGithubRunners(githubAppClient, ec2runner.org, ec2runner.repo, enableOrgLevel, false);
     let orphanEc2Runner = true;
     for (const ghRunner of ghRunners) {
       const runnerName = ghRunner.name as string;

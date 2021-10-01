@@ -247,11 +247,18 @@ export function listGithubRunnersFactory(): (
   org: string | undefined,
   repo: string | undefined,
   enableOrgLevel: boolean,
+  useCache: boolean,
 ) => Promise<GhRunners> {
-  return async (client: Octokit, org: string | undefined, repo: string | undefined, enableOrgLevel: boolean) => {
+  return async (
+    client: Octokit,
+    org: string | undefined,
+    repo: string | undefined,
+    enableOrgLevel: boolean,
+    useCache: boolean,
+  ) => {
     const key: string = `${org}/${repo}`;
     // Exit out early if we have our key
-    if (ghRunnersCache.get(key) !== undefined) {
+    if (useCache && ghRunnersCache.get(key) !== undefined) {
       console.debug(`[listGithubRunners] Cache hit for ${key}`);
       return ghRunnersCache.get(key) as GhRunners;
     }

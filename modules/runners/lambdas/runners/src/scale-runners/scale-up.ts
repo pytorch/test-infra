@@ -138,7 +138,7 @@ async function allRunnersBusy(
   const listGithubRunners = listGithubRunnersFactory();
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
-  const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
+  const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel, true);
 
   const runnersWithLabel = ghRunners.filter(
     (x) => x.labels.some((y) => y.name === runnerType) && x.status.toLowerCase() !== 'offline',
