@@ -187,7 +187,7 @@ export function getRepo(org: string | undefined, repo: string | undefined, orgLe
     : { repoOwner: repo?.split('/')[0] as string, repoName: repo?.split('/')[1] as string };
 }
 
-const ghClientCache = new LRU();
+const ghClientCache = new LRU({ maxAge: 60 * 1000 });
 
 export function createGitHubClientForRunnerFactory(): (
   org: string | undefined,
