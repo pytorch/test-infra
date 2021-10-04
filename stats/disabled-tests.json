@@ -2964,15 +2964,6 @@
       "id": 1011764222, 
       "labels": [
         {
-          "color": "cc317c", 
-          "default": false, 
-          "description": "", 
-          "id": 466131885, 
-          "name": "triage review", 
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        }, 
-        {
           "color": "f7e101", 
           "default": false, 
           "description": "AMD GPU support for Pytorch", 
@@ -2980,6 +2971,15 @@
           "name": "module: rocm", 
           "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        }, 
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/labels{/name}", 
@@ -3005,7 +3005,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/timeline", 
       "title": "DISABLED test_fn_grad_min_binary_cuda_float64 (__main__.TestGradientsCUDA)", 
-      "updated_at": "2021-09-30T15:54:36Z", 
+      "updated_at": "2021-10-04T17:17:07Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/65884", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
