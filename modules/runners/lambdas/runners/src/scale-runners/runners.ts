@@ -239,8 +239,8 @@ export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
-// Set cache to expire every 30 seconds, we just want to avoid grabbing this for every scale request
-const ghRunnersCache = new LRU({ maxAge: 30 * 1000 });
+// Set cache to expire every 10 seconds, we just want to avoid grabbing this for every scale request
+const ghRunnersCache = new LRU({ maxAge: 10 * 1000 });
 
 export function listGithubRunnersFactory(): (
   client: Octokit,
@@ -261,10 +261,12 @@ export function listGithubRunnersFactory(): (
     const runners = enableOrgLevel
       ? await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
           org: repository.repoOwner,
+          per_page: 100,
         })
       : await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
           owner: repository.repoOwner,
           repo: repository.repoName,
+          per_page: 100,
         });
     ghRunnersCache.set(key, runners);
     return runners;
