@@ -893,7 +893,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", id) AS \"url\",\n       name,\n       head_sha,\n       head_commit_message,\n       updated_at\nFROM workflow_run\nWHERE head_branch = \"master\"\n  AND conclusion = \"cancelled\"\n  AND $__timeFilter(updated_at)",
+          "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", id) AS \"url\",\n       name,\n       head_sha,\n       head_commit_message,\n       updated_at\nFROM workflow_run\nWHERE head_branch = \"master\"\n  AND conclusion = \"cancelled\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at desc",
           "refId": "A",
           "select": [
             [
@@ -3779,5 +3779,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 9
+  "version": 10
 }
