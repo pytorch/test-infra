@@ -187,49 +187,47 @@ export function getRepo(org: string | undefined, repo: string | undefined, orgLe
     : { repoOwner: repo?.split('/')[0] as string, repoName: repo?.split('/')[1] as string };
 }
 
-const ghClientCache = new LRU({ maxAge: 60 * 1000 });
+export const ghClientCache = new LRU({ maxAge: 60 * 1000 });
 
-export function createGitHubClientForRunnerFactory(): (
+export async function createGitHubClientForRunner(
   org: string | undefined,
   repo: string | undefined,
   orgLevel: boolean,
-) => Promise<Octokit> {
-  return async (org: string | undefined, repo: string | undefined, orgLevel: boolean) => {
-    const ghesBaseUrl = process.env.GHES_URL as string;
-    let ghesApiUrl = '';
-    if (ghesBaseUrl) {
-      ghesApiUrl = `${ghesBaseUrl}/api/v3`;
-    }
-    const ghAuth = await createGithubAuth(undefined, 'app', ghesApiUrl);
-    const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
-    const repository = getRepo(org, repo, orgLevel);
-    const key = orgLevel ? repository.repoOwner : `${repository.repoOwner}/${repository.repoName}`;
-    const cachedOctokit = ghClientCache.get(key) as Octokit;
+): Promise<Octokit> {
+  const ghesBaseUrl = process.env.GHES_URL as string;
+  let ghesApiUrl = '';
+  if (ghesBaseUrl) {
+    ghesApiUrl = `${ghesBaseUrl}/api/v3`;
+  }
+  const ghAuth = await createGithubAuth(undefined, 'app', ghesApiUrl);
+  const githubClient = await createOctoClient(ghAuth.token, ghesApiUrl);
+  const repository = getRepo(org, repo, orgLevel);
+  const key = orgLevel ? repository.repoOwner : `${repository.repoOwner}/${repository.repoName}`;
+  const cachedOctokit = ghClientCache.get(key) as Octokit;
 
-    if (cachedOctokit) {
-      console.debug(`[createGitHubClientForRunner] Cache hit for ${key}`);
-      return cachedOctokit;
-    }
+  if (cachedOctokit) {
+    console.debug(`[createGitHubClientForRunner] Cache hit for ${key}`);
+    return cachedOctokit;
+  }
 
-    console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
-    const installationId = orgLevel
-      ? (
-          await githubClient.apps.getOrgInstallation({
-            org: repository.repoOwner,
-          })
-        ).data.id
-      : (
-          await githubClient.apps.getRepoInstallation({
-            owner: repository.repoOwner,
-            repo: repository.repoName,
-          })
-        ).data.id;
-    const ghAuth2 = await createGithubAuth(installationId, 'installation', ghesApiUrl);
-    const octokit = await createOctoClient(ghAuth2.token, ghesApiUrl);
-    ghClientCache.set(key, octokit);
+  console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
+  const installationId = orgLevel
+    ? (
+        await githubClient.apps.getOrgInstallation({
+          org: repository.repoOwner,
+        })
+      ).data.id
+    : (
+        await githubClient.apps.getRepoInstallation({
+          owner: repository.repoOwner,
+          repo: repository.repoName,
+        })
+      ).data.id;
+  const ghAuth2 = await createGithubAuth(installationId, 'installation', ghesApiUrl);
+  const octokit = await createOctoClient(ghAuth2.token, ghesApiUrl);
+  ghClientCache.set(key, octokit);
 
-    return octokit;
-  };
+  return octokit;
 }
 
 /**
@@ -240,35 +238,28 @@ export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
 // Set cache to expire every 10 seconds, we just want to avoid grabbing this for every scale request
-const ghRunnersCache = new LRU({ maxAge: 10 * 1000 });
+export const ghRunnersCache = new LRU({ maxAge: 10 * 1000 });
 
-export function listGithubRunnersFactory(): (
+export async function listGithubRunners(
   client: Octokit,
   org: string | undefined,
   repo: string | undefined,
   enableOrgLevel: boolean,
-) => Promise<GhRunners> {
-  return async (client: Octokit, org: string | undefined, repo: string | undefined, enableOrgLevel: boolean) => {
-    const key: string = `${org}/${repo}`;
-    // Exit out early if we have our key
-    if (ghRunnersCache.get(key) !== undefined) {
-      console.debug(`[listGithubRunners] Cache hit for ${key}`);
-      return ghRunnersCache.get(key) as GhRunners;
-    }
-    const repository = getRepo(org, repo, enableOrgLevel);
+): Promise<GhRunners> {
+  const key: string = `${org}/${repo}`;
+  // Exit out early if we have our key
+  if (ghRunnersCache.get(key) !== undefined) {
+    console.debug(`[listGithubRunners] Cache hit for ${key}`);
+    return ghRunnersCache.get(key) as GhRunners;
+  }
+  const repository = getRepo(org, repo, enableOrgLevel);
 
-    console.debug(`[listGithubRunners] Cache miss for ${key}`);
-    const runners = enableOrgLevel
-      ? await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
-          org: repository.repoOwner,
-          per_page: 100,
-        })
-      : await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-          owner: repository.repoOwner,
-          repo: repository.repoName,
-          per_page: 100,
-        });
-    ghRunnersCache.set(key, runners);
-    return runners;
-  };
+  console.debug(`[listGithubRunners] Cache miss for ${key}`);
+  const runners = await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
+    owner: repository.repoOwner,
+    repo: repository.repoName,
+    per_page: 100,
+  });
+  ghRunnersCache.set(key, runners);
+  return runners;
 }

@@ -1,10 +1,4 @@
-import {
-  listRunners,
-  createRunner,
-  RunnerType,
-  createGitHubClientForRunnerFactory,
-  listGithubRunnersFactory,
-} from './runners';
+import { listRunners, createRunner, RunnerType, createGitHubClientForRunner, listGithubRunners } from './runners';
 import { createOctoClient, createGithubAuth } from './gh-auth';
 import LRU from 'lru-cache';
 import YAML from 'yaml';
@@ -134,9 +128,6 @@ async function allRunnersBusy(
   repo: string,
   enableOrgLevel: boolean,
 ): Promise<boolean> {
-  const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
-  const listGithubRunners = listGithubRunnersFactory();
-
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
   const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
 
@@ -165,8 +156,6 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
     return runnerTypeCache.get(runnerTypeKey) as Map<string, RunnerType>;
   }
   console.debug(`[GetRunnerTypes] Grabbing runnerTypes`);
-
-  const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
 
