@@ -2787,7 +2787,7 @@
         }
       ], 
       "author_association": "COLLABORATOR", 
-      "body": "## \ud83d\udc1b Bug\r\n\r\nONNX converter tests that validate export using ONNX Runtime backend have been disabled during migration:\r\n https://github.com/pytorch/pytorch/pull/65975\r\n\r\nWe no longer run these as part of the pipeline on PRs and lack of tests could cause potential issues with the exporter. \r\n\r\nI think this is due to the condition in the test script that checks the CI environment name when executing the tests:\r\nhttps://github.com/pytorch/pytorch/blob/ee38a467eab5faf352b34f56b21de215de0cd321/scripts/onnx/test.sh#L54\r\nhttps://github.com/pytorch/pytorch/blob/ee38a467eab5faf352b34f56b21de215de0cd321/scripts/onnx/test.sh#L81\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @seemethere @malfet @pytorch/pytorch-dev-infra\r\n", 
+      "body": "## \ud83d\udc1b Bug\r\n\r\nONNX converter tests that validate export using ONNX Runtime backend have been disabled during migration:\r\n https://github.com/pytorch/pytorch/pull/65975\r\n\r\nWe no longer run these as part of the pipeline on PRs and lack of tests could cause potential issues with the exporter. \r\n\r\nI think this is due to the condition in the test script that checks the CI environment name when executing the tests:\r\nhttps://github.com/pytorch/pytorch/blob/ee38a467eab5faf352b34f56b21de215de0cd321/scripts/onnx/test.sh#L54\r\nhttps://github.com/pytorch/pytorch/blob/ee38a467eab5faf352b34f56b21de215de0cd321/scripts/onnx/test.sh#L81\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @BowenBao @neginraoof @seemethere @malfet @pytorch/pytorch-dev-infra\r\n", 
       "closed_at": null, 
       "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66502/comments", 
@@ -2804,6 +2804,15 @@
           "name": "high priority", 
           "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Related to torch.onnx", 
+          "id": 693805995, 
+          "name": "module: onnx", 
+          "node_id": "MDU6TGFiZWw2OTM4MDU5OTU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20onnx"
         }, 
         {
           "color": "f7e101", 
@@ -2847,7 +2856,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66502/timeline", 
       "title": "ONNX Runtime backend tests on CI are disabled", 
-      "updated_at": "2021-10-12T22:13:39Z", 
+      "updated_at": "2021-10-12T22:23:10Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66502", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/16928382?v=4", 
