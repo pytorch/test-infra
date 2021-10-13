@@ -382,85 +382,6 @@
     }, 
     {
       "active_lock_reason": null, 
-      "assignee": null, 
-      "assignees": [], 
-      "author_association": "CONTRIBUTOR", 
-      "body": "https://app.circleci.com/pipelines/github/pytorch/pytorch/288392/workflows/eefe2661-2c8b-42c9-b416-8947699fa21e/jobs/11714811\r\n\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/288392/workflows/eefe2661-2c8b-42c9-b416-8947699fa21e/jobs/11714822", 
-      "closed_at": null, 
-      "comments": 0, 
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/54429/comments", 
-      "created_at": "2021-03-22T15:39:16Z", 
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/54429/events", 
-      "html_url": "https://github.com/pytorch/pytorch/issues/54429", 
-      "id": 837850839, 
-      "labels": [
-        {
-          "color": "006b75", 
-          "default": false, 
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
-          "id": 1301347167, 
-          "name": "triaged", 
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "Problem is a flaky test in CI", 
-          "id": 1301397902, 
-          "name": "module: flaky-tests", 
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        }
-      ], 
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/54429/labels{/name}", 
-      "locked": false, 
-      "milestone": null, 
-      "node_id": "MDU6SXNzdWU4Mzc4NTA4Mzk=", 
-      "number": 54429, 
-      "performed_via_github_app": null, 
-      "reactions": {
-        "+1": 0, 
-        "-1": 0, 
-        "confused": 0, 
-        "eyes": 0, 
-        "heart": 0, 
-        "hooray": 0, 
-        "laugh": 0, 
-        "rocket": 0, 
-        "total_count": 0, 
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/54429/reactions"
-      }, 
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
-      "score": 0.0, 
-      "state": "open", 
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/54429/timeline", 
-      "title": "DISABLED test_from_cuda_array_interface* (TestNumbaIntegration)", 
-      "updated_at": "2021-03-22T16:07:47Z", 
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/54429", 
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/1160355?v=4", 
-        "events_url": "https://api.github.com/users/pbelevich/events{/privacy}", 
-        "followers_url": "https://api.github.com/users/pbelevich/followers", 
-        "following_url": "https://api.github.com/users/pbelevich/following{/other_user}", 
-        "gists_url": "https://api.github.com/users/pbelevich/gists{/gist_id}", 
-        "gravatar_id": "", 
-        "html_url": "https://github.com/pbelevich", 
-        "id": 1160355, 
-        "login": "pbelevich", 
-        "node_id": "MDQ6VXNlcjExNjAzNTU=", 
-        "organizations_url": "https://api.github.com/users/pbelevich/orgs", 
-        "received_events_url": "https://api.github.com/users/pbelevich/received_events", 
-        "repos_url": "https://api.github.com/users/pbelevich/repos", 
-        "site_admin": false, 
-        "starred_url": "https://api.github.com/users/pbelevich/starred{/owner}{/repo}", 
-        "subscriptions_url": "https://api.github.com/users/pbelevich/subscriptions", 
-        "type": "User", 
-        "url": "https://api.github.com/users/pbelevich"
-      }
-    }, 
-    {
-      "active_lock_reason": null, 
       "assignee": {
         "avatar_url": "https://avatars.githubusercontent.com/u/9958665?v=4", 
         "events_url": "https://api.github.com/users/pritamdamania87/events{/privacy}", 
@@ -3006,7 +2927,86 @@
         "type": "User", 
         "url": "https://api.github.com/users/mruberry"
       }
+    }, 
+    {
+      "active_lock_reason": null, 
+      "assignee": null, 
+      "assignees": [], 
+      "author_association": "MEMBER", 
+      "body": "Appears to be failing again after re-enabling onnx tests, going to disable for now so we can re-introduce onnx tests\r\n\r\nRe-enabling onnx tests: \r\n* https://github.com/pytorch/pytorch/pull/66513\r\n\r\nPrevious related issues:\r\n* https://github.com/pytorch/pytorch/issues/63968\r\n* https://github.com/pytorch/pytorch/issues/34658\r\n\r\ncc @BowenBao @neginraoof", 
+      "closed_at": null, 
+      "comments": 1, 
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/comments", 
+      "created_at": "2021-10-12T23:58:35Z", 
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/events", 
+      "html_url": "https://github.com/pytorch/pytorch/issues/66528", 
+      "id": 1024612461, 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Related to torch.onnx", 
+          "id": 693805995, 
+          "name": "module: onnx", 
+          "node_id": "MDU6TGFiZWw2OTM4MDU5OTU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20onnx"
+        }, 
+        {
+          "color": "bfdadc", 
+          "default": false, 
+          "description": "Denotes a (flaky) test currently skipped in CI.", 
+          "id": 1679533716, 
+          "name": "skipped", 
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ], 
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/labels{/name}", 
+      "locked": false, 
+      "milestone": null, 
+      "node_id": "I_kwDOA-j9z849Elht", 
+      "number": 66528, 
+      "performed_via_github_app": null, 
+      "reactions": {
+        "+1": 0, 
+        "-1": 0, 
+        "confused": 0, 
+        "eyes": 0, 
+        "heart": 0, 
+        "hooray": 0, 
+        "laugh": 0, 
+        "rocket": 0, 
+        "total_count": 0, 
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/reactions"
+      }, 
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
+      "score": 0.0, 
+      "state": "open", 
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/timeline", 
+      "title": "DISABLED test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)", 
+      "updated_at": "2021-10-13T00:07:55Z", 
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/66528", 
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1700823?v=4", 
+        "events_url": "https://api.github.com/users/seemethere/events{/privacy}", 
+        "followers_url": "https://api.github.com/users/seemethere/followers", 
+        "following_url": "https://api.github.com/users/seemethere/following{/other_user}", 
+        "gists_url": "https://api.github.com/users/seemethere/gists{/gist_id}", 
+        "gravatar_id": "", 
+        "html_url": "https://github.com/seemethere", 
+        "id": 1700823, 
+        "login": "seemethere", 
+        "node_id": "MDQ6VXNlcjE3MDA4MjM=", 
+        "organizations_url": "https://api.github.com/users/seemethere/orgs", 
+        "received_events_url": "https://api.github.com/users/seemethere/received_events", 
+        "repos_url": "https://api.github.com/users/seemethere/repos", 
+        "site_admin": false, 
+        "starred_url": "https://api.github.com/users/seemethere/starred{/owner}{/repo}", 
+        "subscriptions_url": "https://api.github.com/users/seemethere/subscriptions", 
+        "type": "User", 
+        "url": "https://api.github.com/users/seemethere"
+      }
     }
   ], 
-  "total_count": 48
+  "total_count": 49
 }
