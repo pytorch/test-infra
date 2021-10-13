@@ -2343,7 +2343,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "https://github.com/pytorch/pytorch/runs/3859954275\r\n\r\n```\r\n======================================================================\r\nERROR [1.014s]: test_collectives (__main__.PythonProcessGroupTest)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 423, in wrapper\r\n    self._join_processes(fn)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 642, in _join_processes\r\n    self._check_return_codes(elapsed_time)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 687, in _check_return_codes\r\n    raise RuntimeError(error)\r\nRuntimeError: Process 1 exited with error code 10 and exception:\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 541, in run_test\r\n    getattr(self, test_name)()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 425, in wrapper\r\n    fn()\r\n  File \"/var/lib/jenkins/workspace/test/distributed/test_c10d_common.py\", line 774, in test_collectives\r\n    dist.init_process_group(\"dummy\", rank=self.rank, world_size=self.world_size)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 608, in init_process_group\r\n    _store_based_barrier(rank, store, timeout)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 231, in _store_based_barrier\r\n    worker_count = store.add(store_key, 0)\r\nRuntimeError: Broken pipe\r\n\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66422/comments", 
       "created_at": "2021-10-11T14:29:33Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/66422/events", 
@@ -2437,7 +2437,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66422/timeline", 
       "title": "DISABLED test_collectives (__main__.PythonProcessGroupTest)", 
-      "updated_at": "2021-10-12T20:43:35Z", 
+      "updated_at": "2021-10-13T06:09:08Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66422", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4", 
