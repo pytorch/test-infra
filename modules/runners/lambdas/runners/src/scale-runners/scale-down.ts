@@ -5,11 +5,9 @@ import {
   RunnerInfo,
   terminateRunner,
   Repo,
-  createGitHubClientForRunner,
-  listGithubRunners,
+  createGitHubClientForRunnerFactory,
+  listGithubRunnersFactory,
   getRepo,
-  ghRunnersCache,
-  ghClientCache,
 } from './runners';
 import { getIdleRunnerCount, ScalingDownConfig } from './scale-down-config';
 
@@ -23,14 +21,20 @@ async function removeRunner(
   ec2runner: RunnerInfo,
   ghRunnerId: number,
   repo: Repo,
+  enableOrgLevel: boolean,
   githubAppClient: Octokit,
 ): Promise<void> {
   try {
-    const result = await githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
-      runner_id: ghRunnerId,
-      owner: repo.repoOwner,
-      repo: repo.repoName,
-    });
+    const result = enableOrgLevel
+      ? await githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
+          runner_id: ghRunnerId,
+          org: repo.repoOwner,
+        })
+      : await githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
+          runner_id: ghRunnerId,
+          owner: repo.repoOwner,
+          repo: repo.repoName,
+        });
 
     if (result.status == 204) {
       await terminateRunner(ec2runner);
@@ -39,14 +43,17 @@ async function removeRunner(
       );
     }
   } catch (e) {
-    console.warn(`Error scaling down '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`);
+    console.error(`Error scaling down '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`);
   }
 }
 
 export async function scaleDown(): Promise<void> {
+  const scaleDownConfigs = JSON.parse(process.env.SCALE_DOWN_CONFIG as string) as [ScalingDownConfig];
+
   const enableOrgLevel = false;
   const environment = process.env.ENVIRONMENT as string;
   const minimumRunningTimeInMinutes = process.env.MINIMUM_RUNNING_TIME_IN_MINUTES as string;
+  let idleCounter = getIdleRunnerCount(scaleDownConfigs);
 
   // list and sort runners, newest first. This ensure we keep the newest runners longer.
   const runners = (
@@ -66,33 +73,40 @@ export async function scaleDown(): Promise<void> {
     return;
   }
 
-  // Ensure a clean cache before attempting each scale down event
-  ghRunnersCache.reset();
-  ghClientCache.reset();
+  const createGitHubClientForRunner = createGitHubClientForRunnerFactory();
+  const listGithubRunners = listGithubRunnersFactory();
 
-  for await (const ec2runner of runners) {
+  for (const ec2runner of runners) {
     if (!runnerMinimumTimeExceeded(ec2runner, minimumRunningTimeInMinutes)) {
-      console.debug(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] has not been alive long enough, skipping`,
-      );
       continue;
     }
 
     const githubAppClient = await createGitHubClientForRunner(ec2runner.org, ec2runner.repo, enableOrgLevel);
+
     const repo = getRepo(ec2runner.org, ec2runner.repo, enableOrgLevel);
     const ghRunners = await listGithubRunners(githubAppClient, ec2runner.org, ec2runner.repo, enableOrgLevel);
-    const ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
-    // ec2Runner matches a runner that's registered to github
-    if (ghRunner) {
-      if (ghRunner.busy) {
-        console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping`);
-        continue;
-      } else {
-        await removeRunner(ec2runner, ghRunner.id, repo, githubAppClient);
+    let orphanEc2Runner = true;
+    for (const ghRunner of ghRunners) {
+      const runnerName = ghRunner.name as string;
+
+      if (runnerName === ec2runner.instanceId) {
+        orphanEc2Runner = false;
+        if (ghRunner.busy) {
+          console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping...`);
+          continue;
+        }
+        if (idleCounter > 0) {
+          idleCounter--;
+          console.debug(`Runner '${ec2runner.instanceId}' will kept idle.`);
+        } else {
+          await removeRunner(ec2runner, ghRunner.id, repo, enableOrgLevel, githubAppClient);
+        }
       }
-    } else {
-      // Remove orphan AWS runners.
-      console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is orphaned, and will be removed.`);
+    }
+
+    // Remove orphan AWS runners.
+    if (orphanEc2Runner) {
+      console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is orphan, and will be removed.`);
       try {
         await terminateRunner(ec2runner);
       } catch (e) {
