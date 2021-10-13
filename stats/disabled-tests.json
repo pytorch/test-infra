@@ -2952,6 +2952,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20onnx"
         }, 
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "bfdadc", 
           "default": false, 
           "description": "Denotes a (flaky) test currently skipped in CI.", 
@@ -2984,7 +2993,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/timeline", 
       "title": "DISABLED test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)", 
-      "updated_at": "2021-10-13T00:07:55Z", 
+      "updated_at": "2021-10-13T02:49:36Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66528", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1700823?v=4", 
