@@ -26,6 +26,10 @@ fi
 
 ./config.sh --ephemeral --unattended --name $INSTANCE_ID --work "_work" $CONFIG
 
+# Set tag as runner id for scale down later
+GH_RUNNER_ID=$(jq '.agentId' .runner)
+aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
+
 chown -R $USER_NAME:$USER_NAME .
 OVERWRITE_SERVICE_USER=${run_as_root_user}
 SERVICE_USER=$${OVERWRITE_SERVICE_USER:-$USER_NAME}

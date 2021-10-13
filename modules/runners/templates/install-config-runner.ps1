@@ -51,6 +51,10 @@ $configCmd = ".\config.cmd --unattended --ephemeral --name $InstanceId --work `"
 Write-Host "Invoking config command..."
 Invoke-Expression $configCmd
 
+# Set tag as runner id for scale down later
+$ghRunnerId = jq '.agentId' .runner
+aws ec2 create-tags --region $Region --resource $InstanceId --tags "Key=GithubRunnerID,Value=$ghRunnerId"
+
 Write-Host "Scheduling runner daemon to run as runneruser..."
 $pwd = Get-Location
 $action = New-ScheduledTaskAction -WorkingDirectory "$pwd" -Execute "run.cmd"

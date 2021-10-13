@@ -47,3 +47,9 @@ resource "aws_iam_role_policy_attachment" "managed_policies" {
 }
 
 // see also logging.tf for logging and metrics policies
+
+resource "aws_iam_role_policy" "create_tags" {
+  name   = "runner-create-tags"
+  role   = aws_iam_role.runner.name
+  policy = file("${path.module}/policies/instance-ec2-create-tags-policy.json")
+}
