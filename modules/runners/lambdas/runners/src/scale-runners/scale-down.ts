@@ -10,6 +10,8 @@ import {
   getRepo,
   ghRunnersCache,
   ghClientCache,
+  getRunner,
+  GhRunner,
 } from './runners';
 import { getIdleRunnerCount, ScalingDownConfig } from './scale-down-config';
 
@@ -81,7 +83,17 @@ export async function scaleDown(): Promise<void> {
     const githubAppClient = await createGitHubClientForRunner(ec2runner.org, ec2runner.repo, enableOrgLevel);
     const repo = getRepo(ec2runner.org, ec2runner.repo, enableOrgLevel);
     const ghRunners = await listGithubRunners(githubAppClient, ec2runner.org, ec2runner.repo, enableOrgLevel);
-    const ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+    let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+    // Github's / Octokit's list for self hosted runners is inconsistent when listing out pages > 1
+    // so we attempt to do a sanity check here to make sure that the instance itself is actually
+    // orphaned and not busy, the ghRunnerId will only be populated if the runner was actually
+    // registered to Github so this should be a fairly safe call to make
+    if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] not found in listGithubRunners call, attempting to grab directly`,
+      );
+      ghRunner = await getRunner(githubAppClient, repo.repoOwner, repo.repoName, ec2runner.ghRunnerId);
+    }
     // ec2Runner matches a runner that's registered to github
     if (ghRunner) {
       if (ghRunner.busy) {
