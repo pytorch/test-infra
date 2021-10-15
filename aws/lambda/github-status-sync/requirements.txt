@@ -1,0 +1,5 @@
+boto3==1.16.52
+aiohttp==3.6.2
+cryptography==35.0.0
+requests==2.24.0
+PyJWT==2.1.0
