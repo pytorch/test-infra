@@ -2599,6 +2599,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
         }, 
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "E83C95", 
           "default": false, 
           "description": "related to torch.utils.benchmark e.g. Timer", 
@@ -2631,7 +2640,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66503/timeline", 
       "title": "DISABLED test_timer_tiny_fast_snippet (__main__.TestBenchmarkUtils)", 
-      "updated_at": "2021-10-12T21:18:31Z", 
+      "updated_at": "2021-10-18T15:46:22Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66503", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
