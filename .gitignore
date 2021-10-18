@@ -5,6 +5,7 @@
 *.swp
 *.txt
 !requirements.txt
+!cli-requirements.txt
 
 __pycache__
 

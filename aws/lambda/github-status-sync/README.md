@@ -15,7 +15,15 @@ Optional:
 - `user` - GitHub username (e.g. `pytorch`)
 - `history_size` - number of commits to fetch in the past (e.g. `100`)
 
-These can optionally be configured via an EventBridge event (which would let you sync multiple repos at different rates from a single lambda):
+These can optionally be configured via an EventBridge event (which would let you sync multiple repos at different rates from a single lambda). Use `update_triggers.py` to configure how you want the Lambda to run and execute it with the relevant AWS credentials.
+
+```bash
+pip install -r cli-requirements.txt
+export ACCOUNT_ID=1234
+python update_triggers.py
+```
+
+You can also add events via the AWS console:
 
 1. In the Lambda triggers configuration page, add a new EventBridge trigger to run on a schedule (e.g. `rate(1 minute)`).
 2. Click on the EventBridge event and got "Edit" it
