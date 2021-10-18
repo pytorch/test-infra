@@ -5,7 +5,7 @@ name: Deploy rds-proxy
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '.github/templates/deploy_lambda.yml.j2'
       - 'aws/lambda/rds-proxy/**'
@@ -31,6 +31,6 @@ jobs:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
-          function_name: rds-proxy-app
+          function_name: rds-proxy
           timeout: 3
           zip_file: aws/lambda/rds-proxy/deployment.zip

@@ -34,13 +34,25 @@ class CIWorkflow:
 
 WORKFLOWS = [
     CIWorkflow(
-        template="deploy_lambda.yml.j2", name="github_webhook_rds_sync", timeout=3
+        template="deploy_lambda.yml.j2",
+        name="github-webhook-rds-sync",
+        lambda_name="github-webhook-rds-sync-app",
+        timeout=3,
     ),
-    CIWorkflow(template="deploy_lambda.yml.j2", name="checks-cron", timeout=3),
-    CIWorkflow(template="deploy_lambda.yml.j2", name="rds-proxy", timeout=3),
     CIWorkflow(
-        template="deploy_lambda.yml.j2", name="github-status-sync", timeout=5 * 60
+        template="deploy_lambda.yml.j2",
+        name="rds-proxy",
+        lambda_name="rds-proxy",
+        timeout=3,
     ),
+    # This can't be deployed from GitHub's runners since it installs incompatible
+    # binaries when downloading dependencies
+    # CIWorkflow(
+    #     template="deploy_lambda.yml.j2",
+    #     name="github-status-sync",
+    #     lambda_name="ossci-job-status-sync",
+    #     timeout=5 * 60,
+    # ),
     CIWorkflow(
         template="metrics_pytorch_org.yml.j2", name="metrics-pytorch-org", timeout=3
     ),

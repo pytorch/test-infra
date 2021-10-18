@@ -3,7 +3,7 @@ name: Deploy !{{ name }}
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '.github/templates/deploy_lambda.yml.j2'
       - 'aws/lambda/!{{ name }}/**'
@@ -29,6 +29,6 @@ jobs:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: us-east-1
-          function_name: !{{ name }}-app
+          function_name: !{{ lambda_name }}
           timeout: !{{ timeout }}
           zip_file: aws/lambda/!{{ name }}/deployment.zip
