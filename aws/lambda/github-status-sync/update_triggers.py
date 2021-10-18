@@ -47,10 +47,13 @@ EVENT_TARGETS = {
         "input": generate_input(repo="vision", branches=["main", "release/0.11"]),
     },
     "sync-pytorch-pytorch": {
-        "schedule": "rate(4 minutes)",
+        "schedule": "rate(1 minute)",
+        "input": generate_input(repo="pytorch", branches=["master"]),
+    },
+    "sync-pytorch-pytorch-slow": {
+        "schedule": "rate(1 hour)",
         "input": generate_input(
-            repo="pytorch",
-            branches=["master", "nightly", "viable/strict", "release/1.10"],
+            repo="pytorch", branches=["nightly", "viable/strict", "release/1.10"],
         ),
     },
 }
