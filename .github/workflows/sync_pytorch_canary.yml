@@ -11,7 +11,7 @@ jobs:
   sync-pytorch:
     strategy:
       matrix:
-        ref: ["master", "viable/strict"]
+        ref: ["viable/strict"]
     runs-on: ubuntu-20.04
     env:
       PYTORCH_REF: ${{ matrix.ref }}
