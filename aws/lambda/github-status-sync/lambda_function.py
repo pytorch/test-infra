@@ -16,7 +16,7 @@ import time
 from typing import *
 
 
-BUCKET = os.environ["bucket"]
+BUCKET = os.getenv("bucket", "ossci-job-status")
 APP_ID = int(os.environ["app_id"])
 
 # The private key needs to maintain its newlines, get it via
@@ -223,6 +223,7 @@ class BranchHandler:
             Body=buf.getvalue(),
             ContentType="application/json",
             ContentEncoding="gzip",
+            Expires="0",
         )
         print(f"Wrote {len(data)} commits from {self.name} to {prefix}")
 
