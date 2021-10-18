@@ -39,6 +39,9 @@ WORKFLOWS = [
     CIWorkflow(template="deploy_lambda.yml.j2", name="checks-cron", timeout=3),
     CIWorkflow(template="deploy_lambda.yml.j2", name="rds-proxy", timeout=3),
     CIWorkflow(
+        template="deploy_lambda.yml.j2", name="github-status-sync", timeout=5 * 60
+    ),
+    CIWorkflow(
         template="metrics_pytorch_org.yml.j2", name="metrics-pytorch-org", timeout=3
     ),
     CIWorkflow(

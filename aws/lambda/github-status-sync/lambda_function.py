@@ -71,7 +71,8 @@ def user_token(user: str) -> str:
     2. Request a new token for that user
     3. Return it so it can be used in future API requests
     """
-    id = installation_id(user)
+    # Hardcode the installation to PyTorch so we can always get a valid ID key
+    id = installation_id("pytorch")
     url = f"https://api.github.com/app/installations/{id}/access_tokens"
     r_bytes = requests.post(url, headers=app_headers())
     r = json.loads(r_bytes.content.decode())
@@ -200,7 +201,7 @@ class BranchHandler:
         name: str,
         head: str,
         history_size: int,
-        fetch_size: int = 10,
+        fetch_size: int,
     ):
         self.gql = gql
         self.user = user
@@ -342,7 +343,7 @@ class GraphQL:
         remaining = headers.get("X-RateLimit-Remaining")
         used = headers.get("X-RateLimit-Used")
         total = headers.get("X-RateLimit-Limit")
-        reset_timestamp = int(headers.get("X-RateLimit-Reset"))  # type: ignore
+        reset_timestamp = int(headers.get("X-RateLimit-Reset", 0))  # type: ignore
         reset = datetime.datetime.fromtimestamp(reset_timestamp).strftime(
             "%a, %d %b %Y %H:%M:%S"
         )
@@ -367,7 +368,9 @@ class GraphQL:
         return r
 
 
-async def main(user: str, repo: str, branches: List[str], history_size: int) -> None:
+async def main(
+    user: str, repo: str, branches: List[str], history_size: int, fetch_size: int
+) -> None:
     """
     Grab a list of all the head commits for each branch, then fetch all the jobs
     for the last 'history_size' commits on that branch
@@ -386,7 +389,9 @@ async def main(user: str, repo: str, branches: List[str], history_size: int) -> 
         for head in heads["data"].values():
             sha = head["ref"]["target"]["oid"]
             branch = head["ref"]["name"]
-            handlers.append(BranchHandler(gql, user, repo, branch, sha, history_size))
+            handlers.append(
+                BranchHandler(gql, user, repo, branch, sha, history_size, fetch_size)
+            )
 
         await asyncio.gather(*[h.run() for h in handlers])
 
@@ -401,6 +406,7 @@ def lambda_handler(event: Any, context: Any) -> None:
         "user": None,
         "repo": None,
         "history_size": None,
+        "fetch_size": None,
     }
 
     for key in data.keys():
@@ -416,6 +422,7 @@ def lambda_handler(event: Any, context: Any) -> None:
         )
 
     data["history_size"] = int(data["history_size"])
+    data["fetch_size"] = int(data["fetch_size"])
     data["branches"] = data["branches"].split(",")
 
     # return
@@ -430,6 +437,7 @@ if os.getenv("DEBUG", "0") == "1":
             "user": "pytorch",
             "repo": "pytorch",
             "history_size": 100,
+            "fetch_size": 10,
         },
         None,
     )
