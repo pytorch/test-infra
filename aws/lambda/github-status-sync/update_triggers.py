@@ -4,6 +4,7 @@ import boto3
 import click
 
 eb = boto3.client("events")
+lc = boto3.client("lambda")
 
 
 def jprint(o):
@@ -56,6 +57,15 @@ EVENT_TARGETS = {
             repo="pytorch", branches=["nightly", "viable/strict", "release/1.10"],
         ),
     },
+    "sync-pytorchlightning": {
+        "schedule": "rate(4 hours)",
+        "input": generate_input(
+            user="PyTorchLightning",
+            repo="pytorch-lightning",
+            branches=["master"],
+            fetch_size=4,
+        ),
+    },
 }
 
 
@@ -66,10 +76,10 @@ def cli():
 
     To use, you must set the ACCOUNT_ID environment variable:
 
-    # You can also get the ID from any ARN on the account
-    $ aws sts get-caller-identity --query Account --output text
-    123456
-    $ export ACCOUNT_ID=123456
+        # You can also get the ID from any ARN on the account
+        $ aws sts get-caller-identity --query Account --output text
+        123456
+        $ export ACCOUNT_ID=123456
     """
     pass
 
@@ -87,6 +97,17 @@ def list():
             print(f"Input for {name} ({target['Id']}):")
             jprint(input)
             print("")
+
+
+@cli.command()
+@click.option("--rule")
+def invoke(rule):
+    """
+    Run the lambda with a rule
+    """
+    data = EVENT_TARGETS[rule]["input"]
+    result = lc.invoke(FunctionName=LAMBDA_ARN, Payload=json.dumps(data).encode())
+    jprint(result)
 
 
 @cli.command()
