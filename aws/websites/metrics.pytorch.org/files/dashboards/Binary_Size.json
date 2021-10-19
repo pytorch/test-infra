@@ -22,7 +22,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 1,
-  "iteration": 1632949780031,
+  "iteration": 1634678719791,
   "links": [],
   "panels": [
     {
@@ -442,7 +442,7 @@
           "value": "linux-bionic-cuda10.2-py3.9-gcc7"
         },
         "datasource": "Metrics",
-        "definition": "select build_environment from binary_size where $__timeFilter(updated_at) group by build_environment;",
+        "definition": "select build_environment from sccache_stats where $__timeFilter(updated_at) group by build_environment;",
         "description": null,
         "error": null,
         "hide": 0,
@@ -451,7 +451,7 @@
         "multi": false,
         "name": "build_environment",
         "options": [],
-        "query": "select build_environment from binary_size where $__timeFilter(updated_at) group by build_environment;",
+        "query": "select build_environment from sccache_stats where $__timeFilter(updated_at) group by build_environment;",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -468,5 +468,5 @@
   "timezone": "",
   "title": "Binary Size",
   "uid": "SQGr-_I7k",
-  "version": 9
+  "version": 10
 }
