@@ -102,6 +102,7 @@ module "runners" {
   cloudwatch_config                = var.cloudwatch_config
   runner_log_files                 = var.runner_log_files
   runner_group_name                = var.runner_group_name
+  scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
 
   instance_profile_path     = var.instance_profile_path
   role_path                 = var.role_path
