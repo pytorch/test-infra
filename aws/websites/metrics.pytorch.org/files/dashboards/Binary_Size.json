@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 6,
   "iteration": 1634678719791,
   "links": [],
   "panels": [
@@ -468,5 +468,5 @@
   "timezone": "",
   "title": "Binary Size",
   "uid": "SQGr-_I7k",
-  "version": 10
+  "version": 1
 }
