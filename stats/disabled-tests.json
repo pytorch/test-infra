@@ -2965,15 +2965,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         }, 
         {
-          "color": "cc317c", 
-          "default": false, 
-          "description": "", 
-          "id": 466131885, 
-          "name": "triage review", 
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        }, 
-        {
           "color": "f7e101", 
           "default": false, 
           "description": "Add this issue/PR to distributed oncall triage queue", 
@@ -3024,7 +3015,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66951/timeline", 
       "title": "DISABLED test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)", 
-      "updated_at": "2021-10-20T18:13:37Z", 
+      "updated_at": "2021-10-20T18:42:38Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66951", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
