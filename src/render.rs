@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::Path;
 use std::{cmp, collections::HashMap, fs, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use console::{style, Style};
 use similar::{ChangeTag, DiffableStr, TextDiff};
 use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
@@ -122,7 +122,10 @@ pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) 
 
                 buf.write_all(b"\n")?;
             } else if let Some(line_number) = &lint_message.line {
-                let file = fs::read_to_string(path)?;
+                let file = fs::read_to_string(path).context(format!(
+                    "Error reading file: '{}' when rendering lints",
+                    path.display()
+                ))?;
                 let lines = file.tokenize_lines();
 
                 buf.write_all(b"\n")?;

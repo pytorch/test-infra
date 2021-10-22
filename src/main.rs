@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use glob::Pattern;
+use log::debug;
 use render::render_lint_messages;
 use std::collections::HashMap;
 use std::io::Write;
@@ -81,6 +82,7 @@ fn group_lints_by_file(
 }
 
 struct Linter {
+    name: String,
     patterns: Vec<Pattern>,
     commands: Vec<String>,
 }
@@ -105,13 +107,16 @@ impl Linter {
             .iter()
             .map(|arg| arg.replace("{{PATHSFILE}}", file_path))
             .collect();
+
+        debug!("Running: {} {}", program[0], arguments.join(" "));
         let command = Command::new(&program[0]).args(arguments).output()?;
 
         if !&command.status.success() {
             let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
-            return Err(anyhow::Error::msg(
-                "rustfmt linter failed with non-zero exit code",
-            ))
+            return Err(anyhow::Error::msg(format!(
+                "lint adapter for '{}' failed with non-zero exit code",
+                self.name
+            )))
             .with_context(|| stderr);
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
@@ -119,13 +124,18 @@ impl Linter {
             .split("\n")
             .filter(|line| !line.is_empty())
             .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
-            .collect::<Result<_>>()?;
+            .collect::<Result<_>>()
+            .context(format!(
+                "Failed to deserialize output for lint adapter: '{}'",
+                self.name
+            ))?;
 
         Ok(lints)
     }
 
     fn run(&self, files: &Vec<String>) -> Result<Vec<LintMessage>> {
         let matches = self.get_matches(files);
+        debug!("Linter '{}' matched files: {:#?}", self.name, matches);
         if matches.is_empty() {
             return Ok(Vec::new());
         }
@@ -146,15 +156,42 @@ fn patterns_from_strs(pattern_strs: &Vec<String>) -> Result<Vec<Pattern>> {
         .collect::<Result<Vec<Pattern>>>()
 }
 
+fn apply_patches(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<()> {
+    for (path, lint_messages) in lint_messages {
+        for lint_message in lint_messages {
+            if let Some(replacement) = &lint_message.replacement {
+                std::fs::write(path, replacement).context(format!(
+                    "Failed to write apply patch to file: '{}'",
+                    path.display()
+                ))?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, StructOpt)]
 #[structopt(name = "example", about = "An example of StructOpt usage.")]
 struct Opt {
-    #[structopt(long = "config", default_value = ".lintrunner")]
+    #[structopt(long = "config", default_value = ".lintrunner.toml")]
     config: String,
+
+    #[structopt(short = "v", long = "verbose")]
+    verbose: bool,
+
+    #[structopt(short = "a", long = "apply-patches")]
+    apply_patches: bool,
 }
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
+    let log_level = if opt.verbose {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+    env_logger::Builder::new().filter_level(log_level).init();
+
     let config_path = PathBuf::from(opt.config);
     let lint_config = LintConfig::new(&config_path)?;
 
@@ -162,6 +199,7 @@ fn main() -> Result<()> {
     for config in lint_config.linters {
         let patterns = patterns_from_strs(&config.patterns)?;
         linters.push(Linter {
+            name: config.name,
             patterns,
             commands: config.args,
         });
@@ -170,12 +208,15 @@ fn main() -> Result<()> {
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
     let files = Arc::new(get_changed_files()?);
+
+    debug!("Linting files: {:#?}", files);
+
     let mut thread_handles = Vec::new();
 
     for linter in linters {
         let all_lints = Arc::clone(&all_lints);
         let files = Arc::clone(&files);
-        let handle = thread::spawn(move || ->Result<()> {
+        let handle = thread::spawn(move || -> Result<()> {
             let lints = linter.run(&files)?;
             let mut all_lints = all_lints.lock().unwrap();
             group_lints_by_file(&mut all_lints, lints);
@@ -190,5 +231,8 @@ fn main() -> Result<()> {
 
     let all_lints = all_lints.lock().unwrap();
     render_lint_messages(&all_lints)?;
+    if opt.apply_patches {
+        apply_patches(&all_lints)?;
+    }
     Ok(())
 }
