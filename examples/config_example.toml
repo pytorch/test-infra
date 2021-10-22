@@ -3,7 +3,7 @@ name = 'flake8'
 patterns = ['**/*.py']
 args = [
     'python3',
-    'src/flake8_linter.py',
+    'examples/flake8_linter.py',
     '--binary=flake8',
     '--',
     '@{{PATHSFILE}}'
@@ -14,7 +14,7 @@ name = 'rustfmt'
 patterns = ['**/*.rs']
 args = [
     'python3',
-    'src/rustfmt_linter.py',
+    'examples/rustfmt_linter.py',
     '--binary=rustfmt',
     '--config-path=rustfmt.toml',
     '--',
