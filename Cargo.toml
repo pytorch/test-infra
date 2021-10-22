@@ -8,17 +8,17 @@ license = "BSD-3-Clause"
 
 
 [dependencies]
-structopt = "*"
-anyhow = "*"
-glob = "*"
-tempfile = "*"
+structopt = "0.3.25"
+anyhow = "1.0"
+glob = "0.3"
+tempfile = "3.2"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0"
 termcolor = "1.1.2"
-atty = "*"
+atty = "0.2"
 textwrap = {version = "0.14", features = ["terminal_size"]}
 similar = {version = "2.1.0", features = ["inline"]}
-console = "*"
+console = "0.15"
 toml = "0.5.8"
 log = "0.4.0"
 env_logger = "0.9.0"
