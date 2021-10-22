@@ -360,13 +360,18 @@ class GraphQL:
             f"[rate limit] Used {used}, {remaining} / {total} remaining, reset at {reset}"
         )
 
-    async def query(self, query: str, verify: Any = None, retries: int = 5) -> Any:
+    async def query(
+        self,
+        query: str,
+        verify: Optional[Callable[[Any], None]] = None,
+        retries: int = 5,
+    ) -> Any:
         """
         Run an authenticated GraphQL query
         """
         # Remove unnecessary white space
         query = compress_query(query)
-        if retries == 0:
+        if retries <= 0:
             raise RuntimeError(f"Query {query[:100]} failed, no retries left")
 
         url = "https://api.github.com/graphql"
