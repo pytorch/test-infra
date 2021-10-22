@@ -290,6 +290,10 @@ class BranchHandler:
         }}
         """
 
+    def check_response(self, gql_response: Any) -> None:
+        # Just check that this path in the dict exists
+        gql_response["data"]["repository"]["ref"]["target"]["history"]["nodes"]
+
     async def run(self) -> None:
         """
         Fetch history for the branch (in batches) and merge them all together
@@ -300,9 +304,13 @@ class BranchHandler:
 
         async def fetch(i: int) -> Any:
             try:
-                return await self.gql.query(self.query(offset=self.fetch_size * i))
+                return await self.gql.query(
+                    self.query(offset=self.fetch_size * i), verify=self.check_response
+                )
             except Exception as e:
-                print(f"Error: {e}\nFailed to fetch {self.name} on batch {i}")
+                print(
+                    f"Error: {e}\nFailed to fetch {self.user}/{self.repo}/{self.name} on batch {i} / {fetches}"
+                )
                 return None
 
         coros = [fetch(i) for i in range(fetches)]
@@ -320,17 +328,17 @@ class BranchHandler:
                 ]
                 raw_commits += commits_batch
             except Exception as e:
-                print(e)
                 # Errors here are expected if the branch has less than HISTORY_SIZE
                 # commits (GitHub will just time out). There's no easy way to find
                 # this number ahead of time and avoid errors, but if we had that
                 # then we could delete this try-catch.
-                pass
+                print(f"Error: Didn't find history in commit batch: {e}\n{r}")
 
         # Pull out the data and format it
         commits = extract_jobs(raw_commits)
 
         print(f"Writing results for {self.name} to S3")
+
         # Store gzip'ed data to S3
         self.write_to_s3(commits)
 
@@ -339,7 +347,7 @@ class GraphQL:
     def __init__(self, session: aiohttp.ClientSession) -> None:
         self.session = session
 
-    def log_rate_limit(self, headers: Dict[str, Any]) -> None:
+    def log_rate_limit(self, headers: Any) -> None:
         remaining = headers.get("X-RateLimit-Remaining")
         used = headers.get("X-RateLimit-Used")
         total = headers.get("X-RateLimit-Limit")
@@ -352,20 +360,30 @@ class GraphQL:
             f"[rate limit] Used {used}, {remaining} / {total} remaining, reset at {reset}"
         )
 
-    async def query(self, query: str) -> Any:
+    async def query(self, query: str, verify: Any = None, retries: int = 5) -> Any:
         """
         Run an authenticated GraphQL query
         """
         # Remove unnecessary white space
         query = compress_query(query)
+        if retries == 0:
+            raise RuntimeError(f"Query {query[:100]} failed, no retries left")
 
         url = "https://api.github.com/graphql"
-        async with self.session.post(url, json={"query": query}) as resp:
-            self.log_rate_limit(resp.headers)
-            r = await resp.json()
-        if "data" not in r:
-            raise RuntimeError(r)
-        return r
+        try:
+            async with self.session.post(url, json={"query": query}) as resp:
+                self.log_rate_limit(resp.headers)
+                r = await resp.json()
+            if "data" not in r:
+                raise RuntimeError(r)
+            if verify is not None:
+                verify(r)
+            return r
+        except Exception as e:
+            print(
+                f"Retrying query {query[:100]}, remaining attempts: {retries - 1}\n{e}"
+            )
+            return await self.query(query, verify=verify, retries=retries - 1)
 
 
 async def main(
@@ -433,7 +451,7 @@ if os.getenv("DEBUG", "0") == "1":
     # For local development
     lambda_handler(
         {
-            "branches": "master",
+            "branches": "release/1.10",
             "user": "pytorch",
             "repo": "pytorch",
             "history_size": 100,
