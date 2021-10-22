@@ -154,11 +154,6 @@ def _run_command(
             stderr=subprocess.PIPE,
             check=True,
             encoding="utf-8",
-            env={
-                **os.environ,
-                **(extra_env if extra_env else {}),
-                "SCRIBE_LOG_USAGE": "0",  # https://fburl.com/diff/mx8w3ei4
-            },
         )
     finally:
         end_time = time.monotonic()
@@ -247,7 +242,7 @@ def get_issue_documentation_url(code: str) -> str:
     if code in DOCUMENTED_IN_BUGBEAR:
         return "https://github.com/PyCQA/flake8-bugbear#list-of-warnings"
 
-    return "https://www.internalfb.com/intern/wiki/Python/lint"
+    return ""
 
 
 def check_file(
@@ -258,10 +253,8 @@ def check_file(
     retries: int,
 ) -> List[LintMessage]:
     try:
-        # --shebang ensures we use our meta-flake8 wrapper
-        # since vanilla flake8 will fail.
         proc = run_command(
-            [binary, "--shebang", "--py2", "--py3", filename],
+            [binary, "--exit-zero", filename],
             extra_env={"FLAKE8_PLUGINS_PATH": flake8_plugins_path}
             if flake8_plugins_path
             else None,
