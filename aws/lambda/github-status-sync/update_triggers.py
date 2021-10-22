@@ -57,6 +57,19 @@ EVENT_TARGETS = {
             repo="pytorch", branches=["nightly", "viable/strict", "release/1.10"],
         ),
     },
+    "sync-pytorch-lightning": {
+        "schedule": "rate(4 hours)",
+        "input": generate_input(
+            user="PyTorchLightning",
+            repo="pytorch-lightning",
+            branches=["master"],
+            fetch_size=4,
+        ),
+    },
+    "sync-pytorch-torchx": {
+        "schedule": "rate(4 hours)",
+        "input": generate_input(repo="torchx", branches=["main"],),
+    },
 }
 
 
