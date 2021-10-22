@@ -15,6 +15,8 @@ Optional:
 - `user` - GitHub username (e.g. `pytorch`)
 - `history_size` - number of commits to fetch in the past (e.g. `100`)
 
+### `update_triggers.py`
+
 These can optionally be configured via an EventBridge event (which would let you sync multiple repos at different rates from a single lambda). Use `update_triggers.py` to configure how you want the Lambda to run and execute it with the relevant AWS credentials.
 
 ```bash
@@ -22,6 +24,8 @@ pip install -r cli-requirements.txt
 export ACCOUNT_ID=1234
 python update_triggers.py
 ```
+
+### Manual events
 
 You can also add events via the AWS console:
 
@@ -56,3 +60,12 @@ python lambda_function.py
 ```
 
 **Note**: The `cryptography` package relies on binaries, so you can only deploy this from a Linux machine (doing it from MacOS will result in errors reading ELF headers at import time)
+
+## Manual invocation
+
+You can also use `update_triggers.py` to manually call the lambda for one of the rules defined in `update_triggers.py`.
+
+```bash
+# e.g. sync the pytorch/pytorch/master branch
+python update_triggers.py invoke --rule sync-pytorch-pytorch
+```

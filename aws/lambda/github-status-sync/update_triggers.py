@@ -4,6 +4,7 @@ import boto3
 import click
 
 eb = boto3.client("events")
+lb = boto3.client("lambda")
 
 
 def jprint(o):
@@ -72,6 +73,16 @@ def cli():
     $ export ACCOUNT_ID=123456
     """
     pass
+
+
+@cli.command()
+@click.option("--rule")
+def invoke(rule):
+    data = EVENT_TARGETS[rule]["input"]
+    print(f"Sending to {LAMBDA_ARN}:")
+    print(json.dumps(data, indent=2))
+    result = lb.invoke(FunctionName=LAMBDA_ARN, Payload=json.dumps(data).encode())
+    print(result)
 
 
 @cli.command()
