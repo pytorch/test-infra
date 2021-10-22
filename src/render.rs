@@ -12,7 +12,12 @@ use crate::lint_message::{LintMessage, LintSeverity};
 
 static CONTEXT_LINES: usize = 3;
 
-pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<()> {
+pub enum PrintedLintErrors {
+    Yes,
+    No,
+}
+
+pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<PrintedLintErrors> {
     let palette = Palette::new();
     let stdout = BufferWriter::stdout(if atty::is(atty::Stream::Stdout) {
         ColorChoice::Auto
@@ -20,6 +25,13 @@ pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) 
         ColorChoice::Never
     });
     let mut buf = stdout.buffer();
+    if lint_messages.is_empty() {
+        buf.write_all(format!("{} {}\n", style("ok").green(), "No lint issues.").as_bytes())?;
+        stdout.print(&buf)?;
+
+        return Ok(PrintedLintErrors::No);
+    }
+
     let wrap_78_indent_4 = textwrap::Options::new(78)
         .initial_indent(spaces(4))
         .subsequent_indent(spaces(4));
@@ -167,7 +179,7 @@ pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) 
 
     stdout.print(&buf)?;
 
-    Ok(())
+    Ok(PrintedLintErrors::Yes)
 }
 
 fn bspaces(len: u8) -> &'static [u8] {

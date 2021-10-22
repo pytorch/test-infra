@@ -5,6 +5,7 @@ use render::render_lint_messages;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::exit;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashSet, process::Command};
@@ -17,6 +18,7 @@ mod render;
 
 use lint_config::LintConfig;
 use lint_message::LintMessage;
+use render::PrintedLintErrors;
 
 fn get_changed_files() -> Result<Vec<String>> {
     // Retrieve changed files in current commit
@@ -230,9 +232,16 @@ fn main() -> Result<()> {
     }
 
     let all_lints = all_lints.lock().unwrap();
-    render_lint_messages(&all_lints)?;
-    if opt.apply_patches {
-        apply_patches(&all_lints)?;
+    let did_print = render_lint_messages(&all_lints)?;
+    match did_print {
+        PrintedLintErrors::No => {
+            exit(0);
+        }
+        PrintedLintErrors::Yes => {
+            if opt.apply_patches {
+                apply_patches(&all_lints)?;
+            }
+            exit(1);
+        }
     }
-    Ok(())
 }
