@@ -20,6 +20,7 @@ impl LintConfig {
 #[derive(Serialize, Deserialize)]
 pub struct LinterConfig {
     pub name: String,
-    pub patterns: Vec<String>,
+    pub include_patterns: Vec<String>,
+    pub exclude_patterns: Vec<String>,
     pub args: Vec<String>,
 }

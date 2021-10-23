@@ -85,7 +85,8 @@ fn group_lints_by_file(
 
 struct Linter {
     name: String,
-    patterns: Vec<Pattern>,
+    include_patterns: Vec<Pattern>,
+    exclude_patterns: Vec<Pattern>,
     commands: Vec<String>,
 }
 
@@ -93,7 +94,17 @@ impl Linter {
     fn get_matches(&self, files: &Vec<String>) -> Vec<String> {
         files
             .iter()
-            .filter(|name| self.patterns.iter().any(|pattern| pattern.matches(name)))
+            .filter(|name| {
+                self.include_patterns
+                    .iter()
+                    .any(|pattern| pattern.matches(name))
+            })
+            .filter(|name| {
+                !self
+                    .exclude_patterns
+                    .iter()
+                    .any(|pattern| pattern.matches(name))
+            })
             .map(|name| name.clone())
             .collect()
     }
@@ -199,10 +210,12 @@ fn main() -> Result<()> {
 
     let mut linters = Vec::new();
     for config in lint_config.linters {
-        let patterns = patterns_from_strs(&config.patterns)?;
+        let include_patterns = patterns_from_strs(&config.include_patterns)?;
+        let exclude_patterns = patterns_from_strs(&config.exclude_patterns)?;
         linters.push(Linter {
             name: config.name,
-            patterns,
+            include_patterns,
+            exclude_patterns,
             commands: config.args,
         });
     }

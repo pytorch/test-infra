@@ -17,7 +17,9 @@ pub enum PrintedLintErrors {
     No,
 }
 
-pub fn render_lint_messages(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<PrintedLintErrors> {
+pub fn render_lint_messages(
+    lint_messages: &HashMap<PathBuf, Vec<LintMessage>>,
+) -> Result<PrintedLintErrors> {
     let palette = Palette::new();
     let stdout = BufferWriter::stdout(if atty::is(atty::Stream::Stdout) {
         ColorChoice::Auto
