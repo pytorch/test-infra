@@ -2827,15 +2827,25 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: rocm\r\n\r\nExample failures:\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1427//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1405//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1378//console", 
+      "body": "Platforms: rocm\r\n\r\nExample failures:\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1427//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1405//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1378//console\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/comments", 
       "created_at": "2021-10-22T16:59:29Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/67101", 
       "id": 1033783510, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Add this issue/PR to distributed oncall triage queue", 
+          "id": 679953883, 
+          "name": "oncall: distributed", 
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2859,7 +2869,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/timeline", 
       "title": "DISABLED test_nccl_timeout (__main__.NcclErrorHandlingTest)", 
-      "updated_at": "2021-10-22T16:59:31Z", 
+      "updated_at": "2021-10-24T20:00:16Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67101", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
