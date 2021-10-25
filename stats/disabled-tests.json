@@ -1230,7 +1230,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Flaky on CI, for example in this https://github.com/pytorch/pytorch/runs/3816958493?check_suite_focus=true.\r\n\r\nThis was on the 10.2 linux build.\r\n\r\nA better log view can be found by expanding on the linux 10.2 distributed tests here: https://hud.pytorch.org/commit/b8e19992533a2257f457926e6535f54054fc2003\r\n\r\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
+      "body": "Flaky on CI, for example in this https://github.com/pytorch/pytorch/runs/3816958493?check_suite_focus=true.\r\n\r\nThis was on the 10.2 linux build.\r\n\r\nA better log view can be found by expanding on the linux 10.2 distributed tests here: https://hud.pytorch.org/commit/b8e19992533a2257f457926e6535f54054fc2003\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/comments", 
@@ -1283,6 +1283,15 @@
           "name": "module: flaky-tests", 
           "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }, 
+        {
+          "color": "5319E7", 
+          "default": false, 
+          "description": "Add this issue/PR to R2P (elastic) oncall triage queue", 
+          "id": 3486427601, 
+          "name": "oncall: r2p", 
+          "node_id": "LA_kwDOA-j9z87PzqnR", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20r2p"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/labels{/name}", 
@@ -1308,7 +1317,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/timeline", 
       "title": "DISABLED test_create_store_single_server (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-08T15:42:32Z", 
+      "updated_at": "2021-10-25T20:20:05Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66207", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
@@ -1389,6 +1398,15 @@
           "name": "module: flaky-tests", 
           "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }, 
+        {
+          "color": "5319E7", 
+          "default": false, 
+          "description": "Add this issue/PR to R2P (elastic) oncall triage queue", 
+          "id": 3486427601, 
+          "name": "oncall: r2p", 
+          "node_id": "LA_kwDOA-j9z87PzqnR", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20r2p"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66319/labels{/name}", 
@@ -1414,7 +1432,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66319/timeline", 
       "title": "DISABLED test_create_store_multi (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-08T15:47:07Z", 
+      "updated_at": "2021-10-25T20:18:00Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66319", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
@@ -2325,6 +2343,15 @@
           "name": "module: flaky-tests", 
           "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }, 
+        {
+          "color": "5319E7", 
+          "default": false, 
+          "description": "Add this issue/PR to R2P (elastic) oncall triage queue", 
+          "id": 3486427601, 
+          "name": "oncall: r2p", 
+          "node_id": "LA_kwDOA-j9z87PzqnR", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20r2p"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66641/labels{/name}", 
@@ -2350,7 +2377,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66641/timeline", 
       "title": "DISABLED test_create_store_multi (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-19T17:27:15Z", 
+      "updated_at": "2021-10-25T20:17:45Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66641", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
@@ -2666,8 +2693,48 @@
     }, 
     {
       "active_lock_reason": null, 
-      "assignee": null, 
-      "assignees": [], 
+      "assignee": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/14858254?v=4", 
+        "events_url": "https://api.github.com/users/H-Huang/events{/privacy}", 
+        "followers_url": "https://api.github.com/users/H-Huang/followers", 
+        "following_url": "https://api.github.com/users/H-Huang/following{/other_user}", 
+        "gists_url": "https://api.github.com/users/H-Huang/gists{/gist_id}", 
+        "gravatar_id": "", 
+        "html_url": "https://github.com/H-Huang", 
+        "id": 14858254, 
+        "login": "H-Huang", 
+        "node_id": "MDQ6VXNlcjE0ODU4MjU0", 
+        "organizations_url": "https://api.github.com/users/H-Huang/orgs", 
+        "received_events_url": "https://api.github.com/users/H-Huang/received_events", 
+        "repos_url": "https://api.github.com/users/H-Huang/repos", 
+        "site_admin": false, 
+        "starred_url": "https://api.github.com/users/H-Huang/starred{/owner}{/repo}", 
+        "subscriptions_url": "https://api.github.com/users/H-Huang/subscriptions", 
+        "type": "User", 
+        "url": "https://api.github.com/users/H-Huang"
+      }, 
+      "assignees": [
+        {
+          "avatar_url": "https://avatars.githubusercontent.com/u/14858254?v=4", 
+          "events_url": "https://api.github.com/users/H-Huang/events{/privacy}", 
+          "followers_url": "https://api.github.com/users/H-Huang/followers", 
+          "following_url": "https://api.github.com/users/H-Huang/following{/other_user}", 
+          "gists_url": "https://api.github.com/users/H-Huang/gists{/gist_id}", 
+          "gravatar_id": "", 
+          "html_url": "https://github.com/H-Huang", 
+          "id": 14858254, 
+          "login": "H-Huang", 
+          "node_id": "MDQ6VXNlcjE0ODU4MjU0", 
+          "organizations_url": "https://api.github.com/users/H-Huang/orgs", 
+          "received_events_url": "https://api.github.com/users/H-Huang/received_events", 
+          "repos_url": "https://api.github.com/users/H-Huang/repos", 
+          "site_admin": false, 
+          "starred_url": "https://api.github.com/users/H-Huang/starred{/owner}{/repo}", 
+          "subscriptions_url": "https://api.github.com/users/H-Huang/subscriptions", 
+          "type": "User", 
+          "url": "https://api.github.com/users/H-Huang"
+        }
+      ], 
       "author_association": "MEMBER", 
       "body": "Example flaky failure on trunk: https://github.com/pytorch/pytorch/runs/3954935266\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
@@ -2738,7 +2805,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66983/timeline", 
       "title": "DISABLED test_init_pg_and_rpc_with_same_socket (__main__.TCPStoreTest)", 
-      "updated_at": "2021-10-22T00:20:02Z", 
+      "updated_at": "2021-10-25T20:21:18Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66983", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
