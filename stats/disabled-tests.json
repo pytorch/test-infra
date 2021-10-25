@@ -1232,7 +1232,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "Flaky on CI, for example in this https://github.com/pytorch/pytorch/runs/3816958493?check_suite_focus=true.\r\n\r\nThis was on the 10.2 linux build.\r\n\r\nA better log view can be found by expanding on the linux 10.2 distributed tests here: https://hud.pytorch.org/commit/b8e19992533a2257f457926e6535f54054fc2003\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/comments", 
       "created_at": "2021-10-06T16:44:31Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/events", 
@@ -1256,15 +1256,6 @@
           "name": "triage review", 
           "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "Add this issue/PR to distributed oncall triage queue", 
-          "id": 679953883, 
-          "name": "oncall: distributed", 
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         }, 
         {
           "color": "006b75", 
@@ -1317,7 +1308,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66207/timeline", 
       "title": "DISABLED test_create_store_single_server (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-25T20:20:05Z", 
+      "updated_at": "2021-10-25T20:29:46Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66207", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
@@ -1373,15 +1364,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
         }, 
         {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "Add this issue/PR to distributed oncall triage queue", 
-          "id": 679953883, 
-          "name": "oncall: distributed", 
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        }, 
-        {
           "color": "006b75", 
           "default": false, 
           "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
@@ -1432,7 +1414,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66319/timeline", 
       "title": "DISABLED test_create_store_multi (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-25T20:18:00Z", 
+      "updated_at": "2021-10-25T20:28:42Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66319", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
@@ -2329,15 +2311,6 @@
         {
           "color": "f7e101", 
           "default": false, 
-          "description": "Add this issue/PR to distributed oncall triage queue", 
-          "id": 679953883, 
-          "name": "oncall: distributed", 
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
           "description": "Problem is a flaky test in CI", 
           "id": 1301397902, 
           "name": "module: flaky-tests", 
@@ -2377,7 +2350,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66641/timeline", 
       "title": "DISABLED test_create_store_multi (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-25T20:17:45Z", 
+      "updated_at": "2021-10-25T20:28:29Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66641", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
