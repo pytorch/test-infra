@@ -2742,7 +2742,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Timing out when attempting to migrate linux gpu workflows to linux.4xlarge.nvidia.gpu\r\n\r\nhttps://github.com/pytorch/pytorch/pull/67264", 
+      "body": "Timing out when attempting to migrate linux gpu workflows to linux.4xlarge.nvidia.gpu\r\n\r\nhttps://github.com/pytorch/pytorch/pull/67264\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67287/comments", 
@@ -2750,7 +2750,17 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67287/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/67287", 
       "id": 1036771604, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Add this issue/PR to distributed oncall triage queue", 
+          "id": 679953883, 
+          "name": "oncall: distributed", 
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67287/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2774,7 +2784,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67287/timeline", 
       "title": "DISABLED test_add_param_group (__main__.TestZeroRedundancyOptimizerDistributed)", 
-      "updated_at": "2021-10-26T21:53:22Z", 
+      "updated_at": "2021-10-26T22:09:38Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67287", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1700823?v=4", 
@@ -2802,7 +2812,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Timing out when attempting to migrate to linux.4xlarge.nvidia.gpu\r\n\r\nSee https://github.com/pytorch/pytorch/pull/67264", 
+      "body": "Timing out when attempting to migrate to linux.4xlarge.nvidia.gpu\r\n\r\nSee https://github.com/pytorch/pytorch/pull/67264\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67289/comments", 
@@ -2810,7 +2820,17 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67289/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/67289", 
       "id": 1036774331, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Add this issue/PR to distributed oncall triage queue", 
+          "id": 679953883, 
+          "name": "oncall: distributed", 
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67289/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2834,7 +2854,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67289/timeline", 
       "title": "DISABLED test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)", 
-      "updated_at": "2021-10-26T21:54:40Z", 
+      "updated_at": "2021-10-26T22:10:51Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67289", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1700823?v=4", 
