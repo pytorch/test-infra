@@ -2309,6 +2309,15 @@
       "id": 1026677139, 
       "labels": [
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Problem is a flaky test in CI", 
@@ -2350,7 +2359,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66641/timeline", 
       "title": "DISABLED test_create_store_multi (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-10-25T20:28:29Z", 
+      "updated_at": "2021-10-26T15:39:37Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66641", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
