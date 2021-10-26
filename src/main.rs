@@ -20,6 +20,21 @@ use lint_config::LintConfig;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
+fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
+    debug!("Running paths_cmd: {}", paths_cmd);
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(paths_cmd)
+        .output()
+        .context("failed to run provided paths_cmd")?;
+
+    let files = std::str::from_utf8(&output.stdout).context("failed to parse paths_cmd output")?;
+    let files = files.lines().map(|s| s.to_string()).collect::<HashSet<String>>();
+    let mut files = files.into_iter().collect::<Vec<String>>();
+    files.sort();
+    Ok(files)
+}
+
 fn get_changed_files() -> Result<Vec<String>> {
     // Retrieve changed files in current commit
     let commit_files = Command::new("git")
@@ -49,9 +64,9 @@ fn get_changed_files() -> Result<Vec<String>> {
 
     let working_tree_files_str = std::str::from_utf8(&working_tree_files.stdout)?;
     let working_tree_files: HashSet<String> = working_tree_files_str
-        .split("\n")
-        .map(|x| x.to_string())
+        .lines()
         .filter(|line| !line.is_empty())
+        .map(|x| x.to_string())
         .collect();
     let mut all_changed_files: Vec<String> = commit_files
         .union(&working_tree_files)
@@ -194,6 +209,11 @@ struct Opt {
 
     #[structopt(short = "a", long = "apply-patches")]
     apply_patches: bool,
+
+    // Shell command that returns new-line separated paths to lint
+    // (e.g. --paths-cmd 'git ls-files path/to/project')
+    #[structopt(long = "paths-cmd")]
+    paths_cmd: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -222,7 +242,11 @@ fn main() -> Result<()> {
 
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
-    let files = Arc::new(get_changed_files()?);
+    let files = match opt.paths_cmd {
+        Some(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
+        None => get_changed_files()?,
+    };
+    let files = Arc::new(files);
 
     debug!("Linting files: {:#?}", files);
 

@@ -13,7 +13,10 @@ impl LintConfig {
     pub fn new(path: &Path) -> Result<LintConfig> {
         let lint_config = fs::read_to_string(path)
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
-        Ok(toml::from_str(&lint_config)?)
+        Ok(toml::from_str(&lint_config).context(format!(
+            "Config file '{}' had invalid schema",
+            path.display()
+        ))?)
     }
 }
 
