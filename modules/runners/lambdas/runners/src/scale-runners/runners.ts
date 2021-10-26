@@ -168,6 +168,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         );
         throw e;
       } else {
+        // Pause for half a second before trying again
+        await new Promise((resolve) => setTimeout(resolve, 500));
         console.warn(
           `[${x}/${maxRetries}] Issue creating instance ${runnerParameters.runnerType.instance_type}, going to retry :${e}`,
         );

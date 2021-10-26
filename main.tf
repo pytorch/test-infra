@@ -19,6 +19,7 @@ resource "aws_sqs_queue" "queued_builds" {
   visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
   fifo_queue                  = true
   content_based_deduplication = true
+  max_message_size            = 1024
 
   tags = var.tags
 }
