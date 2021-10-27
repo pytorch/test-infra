@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fs, path::Path};
 
 use crate::linter::Linter;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use glob::Pattern;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -69,10 +69,23 @@ impl LintRunnerConfig {
     pub fn new(path: &Path) -> Result<LintRunnerConfig> {
         let lint_config = fs::read_to_string(path)
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
-        Ok(toml::from_str(&lint_config).context(format!(
+        let config: LintRunnerConfig = toml::from_str(&lint_config).context(format!(
             "Config file '{}' had invalid schema",
             path.display()
-        ))?)
+        ))?;
+        for linter in &config.linters {
+            if let Some(init_args) = &linter.init_args {
+                if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {
+                    bail!(
+                        "Linter config for linter {} defines init args \
+                         but does not take a {{{{DRYRUN}}}} argument.",
+                        linter.name
+                    );
+                }
+            }
+        }
+
+        Ok(config)
     }
 }
 
