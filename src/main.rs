@@ -153,16 +153,11 @@ fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
         "Initializing linters: {:?}",
         linters.iter().map(|l| &l.name).collect::<Vec<_>>()
     );
-    let mut thread_handles = Vec::new();
 
     for linter in linters {
-        let handle = thread::spawn(move || -> Result<()> { linter.init(dry_run) });
-        thread_handles.push(handle);
+        linter.init(dry_run)?;
     }
 
-    for handle in thread_handles {
-        handle.join().unwrap()?;
-    }
     Ok(0)
 }
 
@@ -253,7 +248,6 @@ fn do_main() -> Result<i32> {
         }
     }
 }
-
 
 fn main() {
     let code = match do_main() {

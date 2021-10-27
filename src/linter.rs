@@ -2,9 +2,9 @@ use std::io::Write;
 use std::process::Command;
 
 use crate::lint_message::LintMessage;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use glob::Pattern;
-use log::debug;
+use log::{debug, info};
 
 pub struct Linter {
     pub name: String,
@@ -45,7 +45,12 @@ impl Linter {
             .map(|arg| arg.replace("{{PATHSFILE}}", file_path))
             .collect();
 
-        debug!("Running linter {}: {} {}", self.name, program[0], arguments.join(" "));
+        debug!(
+            "Running linter {}: {} {}",
+            self.name,
+            program[0],
+            arguments.join(" ")
+        );
 
         let start = std::time::Instant::now();
         let command = Command::new(&program[0]).args(arguments).output()?;
@@ -86,6 +91,7 @@ impl Linter {
     pub fn init(&self, dry_run: bool) -> Result<()> {
         match &self.init_commands {
             Some(init_commands) => {
+                info!("Initializing linter: '{}'", self.name);
                 if init_commands.is_empty() {
                     return Ok(());
                 }
@@ -96,15 +102,12 @@ impl Linter {
                     .collect();
                 let (program, arguments) = init_commands.split_at(1);
                 debug!("Running: {} {}", program[0], arguments.join(" "));
-                let command = Command::new(&program[0]).args(arguments).output()?;
-
-                if !&command.status.success() {
-                    let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
-                    return Err(anyhow::Error::msg(format!(
+                let status = Command::new(&program[0]).args(arguments).status()?;
+                if !status.success() {
+                    bail!(
                         "lint initializer for '{}' failed with non-zero exit code",
                         self.name
-                    )))
-                    .with_context(|| stderr);
+                    );
                 }
                 Ok(())
             }
