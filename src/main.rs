@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use glob::Pattern;
 use log::debug;
 use render::render_lint_messages;
 use std::collections::HashMap;
@@ -15,10 +14,10 @@ mod lint_message;
 mod linter;
 mod render;
 
-use lint_config::LintConfig;
 use lint_message::LintMessage;
-use linter::Linter;
 use render::PrintedLintErrors;
+
+use crate::lint_config::get_linters_from_config;
 
 fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
     debug!("Running paths_cmd: {}", paths_cmd);
@@ -93,18 +92,6 @@ fn group_lints_by_file(
     });
 }
 
-fn patterns_from_strs(pattern_strs: &Vec<String>) -> Result<Vec<Pattern>> {
-    pattern_strs
-        .iter()
-        .map(|pattern_str| {
-            Pattern::new(pattern_str).map_err(|err| {
-                anyhow::Error::msg(err)
-                    .context("Could not parse pattern from linter configuration.")
-            })
-        })
-        .collect::<Result<Vec<Pattern>>>()
-}
-
 fn apply_patches(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<()> {
     for (path, lint_messages) in lint_messages {
         for lint_message in lint_messages {
@@ -157,51 +144,20 @@ fn main() -> Result<()> {
     env_logger::Builder::new().filter_level(log_level).init();
 
     let config_path = PathBuf::from(opt.config);
-    let lint_config = LintConfig::new(&config_path)?;
+    let skipped_linters = opt.skip.map(|linters| {
+        linters
+            .split(',')
+            .map(|linter_name| linter_name.to_string())
+            .collect::<HashSet<_>>()
+    });
+    let taken_linters = opt.take.map(|linters| {
+        linters
+            .split(',')
+            .map(|linter_name| linter_name.to_string())
+            .collect::<HashSet<_>>()
+    });
 
-    let skipped_linters = match &opt.skip {
-        Some(linters) => linters.split(',').map(|x| x.to_string()).collect(),
-        None => HashSet::new(),
-    };
-    let taken_linters = match &opt.take {
-        Some(linters) => linters.split(',').map(|x| x.to_string()).collect(),
-        None => HashSet::new(),
-    };
-
-    let mut linters = Vec::new();
-    for config in lint_config.linters {
-        let include_patterns = patterns_from_strs(&config.include_patterns)?;
-        let exclude_patterns = patterns_from_strs(&config.exclude_patterns)?;
-        linters.push(Linter {
-            name: config.name,
-            include_patterns,
-            exclude_patterns,
-            commands: config.args,
-        });
-    }
-
-    debug!(
-        "Found linters: {:?}",
-        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
-    );
-
-    // Apply --take
-    if !taken_linters.is_empty() {
-        debug!("Taking linters: {:?}", taken_linters);
-        linters = linters
-            .into_iter()
-            .filter(|linter| taken_linters.contains(&linter.name))
-            .collect();
-    }
-
-    // Apply --skip
-    if !skipped_linters.is_empty() {
-        debug!("Skipping linters: {:?}", skipped_linters);
-        linters = linters
-            .into_iter()
-            .filter(|linter| !skipped_linters.contains(&linter.name))
-            .collect();
-    }
+    let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
 
     debug!(
         "Running linters: {:?}",
