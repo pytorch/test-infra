@@ -29,7 +29,10 @@ fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
         .context("failed to run provided paths_cmd")?;
 
     let files = std::str::from_utf8(&output.stdout).context("failed to parse paths_cmd output")?;
-    let files = files.lines().map(|s| s.to_string()).collect::<HashSet<String>>();
+    let files = files
+        .lines()
+        .map(|s| s.to_string())
+        .collect::<HashSet<String>>();
     let mut files = files.into_iter().collect::<Vec<String>>();
     files.sort();
     Ok(files)
@@ -201,19 +204,29 @@ fn apply_patches(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<(
 #[derive(Debug, StructOpt)]
 #[structopt(name = "example", about = "An example of StructOpt usage.")]
 struct Opt {
-    #[structopt(long = "config", default_value = ".lintrunner.toml")]
+    /// Path to a toml file defining which linters to run.
+    #[structopt(long, default_value = ".lintrunner.toml")]
     config: String,
 
-    #[structopt(short = "v", long = "verbose")]
+    #[structopt(short, long)]
     verbose: bool,
 
-    #[structopt(short = "a", long = "apply-patches")]
+    /// If set, any suggested patches will be applied.
+    #[structopt(short, long)]
     apply_patches: bool,
 
-    // Shell command that returns new-line separated paths to lint
-    // (e.g. --paths-cmd 'git ls-files path/to/project')
-    #[structopt(long = "paths-cmd")]
+    /// Shell command that returns new-line separated paths to lint
+    /// (e.g. --paths-cmd 'git ls-files path/to/project')
+    #[structopt(long)]
     paths_cmd: Option<String>,
+
+    /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA")
+    #[structopt(long)]
+    skip: Option<String>,
+
+    /// Comma-separated list of linters to run (opposite of --skip)
+    #[structopt(long)]
+    take: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -228,6 +241,15 @@ fn main() -> Result<()> {
     let config_path = PathBuf::from(opt.config);
     let lint_config = LintConfig::new(&config_path)?;
 
+    let skipped_linters = match &opt.skip {
+        Some(linters) => linters.split(',').map(|x| x.to_string()).collect(),
+        None => HashSet::new(),
+    };
+    let taken_linters = match &opt.take {
+        Some(linters) => linters.split(',').map(|x| x.to_string()).collect(),
+        None => HashSet::new(),
+    };
+
     let mut linters = Vec::new();
     for config in lint_config.linters {
         let include_patterns = patterns_from_strs(&config.include_patterns)?;
@@ -239,6 +261,34 @@ fn main() -> Result<()> {
             commands: config.args,
         });
     }
+
+    debug!(
+        "Found linters: {:?}",
+        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+    );
+
+    // Apply --take
+    if !taken_linters.is_empty() {
+        debug!("Taking linters: {:?}", taken_linters);
+        linters = linters
+            .into_iter()
+            .filter(|linter| taken_linters.contains(&linter.name))
+            .collect();
+    }
+
+    // Apply --skip
+    if !skipped_linters.is_empty() {
+        debug!("Skipping linters: {:?}", skipped_linters);
+        linters = linters
+            .into_iter()
+            .filter(|linter| !skipped_linters.contains(&linter.name))
+            .collect();
+    }
+
+    debug!(
+        "Running linters: {:?}",
+        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+    );
 
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
