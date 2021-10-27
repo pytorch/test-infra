@@ -7,13 +7,13 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct LintConfig {
+struct LintRunnerConfig {
     #[serde(rename = "linter")]
-    linters: Vec<LinterConfig>,
+    linters: Vec<LintConfig>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct LinterConfig {
+struct LintConfig {
     name: String,
     include_patterns: Vec<String>,
     exclude_patterns: Vec<String>,
@@ -26,16 +26,16 @@ pub fn get_linters_from_config(
     skipped_linters: Option<HashSet<String>>,
     taken_linters: Option<HashSet<String>>,
 ) -> Result<Vec<Linter>> {
-    let linter_config = LintConfig::new(config_path)?;
+    let lint_runner_config = LintRunnerConfig::new(config_path)?;
     let mut linters = Vec::new();
-    for linter_config in linter_config.linters {
-        let include_patterns = patterns_from_strs(&linter_config.include_patterns)?;
-        let exclude_patterns = patterns_from_strs(&linter_config.exclude_patterns)?;
+    for lint_config in lint_runner_config.linters {
+        let include_patterns = patterns_from_strs(&lint_config.include_patterns)?;
+        let exclude_patterns = patterns_from_strs(&lint_config.exclude_patterns)?;
         linters.push(Linter {
-            name: linter_config.name,
+            name: lint_config.name,
             include_patterns,
             exclude_patterns,
-            commands: linter_config.args,
+            commands: lint_config.args,
         });
     }
     debug!(
@@ -63,8 +63,8 @@ pub fn get_linters_from_config(
     Ok(linters)
 }
 
-impl LintConfig {
-    pub fn new(path: &Path) -> Result<LintConfig> {
+impl LintRunnerConfig {
+    pub fn new(path: &Path) -> Result<LintRunnerConfig> {
         let lint_config = fs::read_to_string(path)
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
         Ok(toml::from_str(&lint_config).context(format!(
