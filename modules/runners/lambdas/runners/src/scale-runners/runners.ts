@@ -99,7 +99,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       // Tries to resolve for errors like:
       //   Your requested instance type (c5.2xlarge) is not supported in your requested Availability Zone (us-east-1e).
       //   Please retry your request by not specifying an Availability Zone or choosing us-east-1a, us-east-1b, us-east-1c, us-east-1d, us-east-1f.
-      const randomSubnet = subnets.splice(Math.floor(Math.random() * subnets.length), 1)[0];
+      const randomSubnet = subnets.pop();
       const runInstancesResponse = await ec2
         .runInstances({
           MaxCount: 1,
@@ -168,8 +168,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         );
         throw e;
       } else {
-        // Pause for half a second before trying again
-        await new Promise((resolve) => setTimeout(resolve, 500));
         console.warn(
           `[${x}/${maxRetries}] Issue creating instance ${runnerParameters.runnerType.instance_type}, going to retry :${e}`,
         );
