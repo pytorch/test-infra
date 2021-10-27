@@ -191,12 +191,17 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
   let result: Map<string, RunnerType> = new Map<string, RunnerType>();
 
   for (const prop in config.runner_types) {
+    let isEphemeral = true;
+    if (config.runner_types[prop].is_ephemeral !== undefined) {
+      isEphemeral = config.runner_types[prop].is_ephemeral;
+    }
     let runnerType: RunnerType = {
       runnerTypeName: prop,
       instance_type: config.runner_types[prop].instance_type,
       os: config.runner_types[prop].os,
       max_available: config.runner_types[prop].max_available,
       disk_size: config.runner_types[prop].disk_size,
+      is_ephemeral: isEphemeral,
     };
     result.set(prop, runnerType);
   }

@@ -141,6 +141,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
+        is_ephemeral: true,
       },
     });
     expect(mockEC2.runInstances).toBeCalledWith({
@@ -172,6 +173,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
+        is_ephemeral: true,
       },
     });
     expect(mockEC2.runInstances).toBeCalledWith({
@@ -203,6 +205,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
+        is_ephemeral: true,
       },
     });
     expect(mockSSM.putParameter).toBeCalledWith({
@@ -227,6 +230,7 @@ describe('create runner', () => {
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
+        is_ephemeral: true,
       },
     });
     expect(mockSSM.putParameter).not.toBeCalled();

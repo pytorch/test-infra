@@ -18,13 +18,24 @@ done
 CONFIG=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
 aws ssm delete-parameter --name ${environment}-$INSTANCE_ID --region $REGION
 
+IS_EPHEMERAL=$(aws ssm get-parameters --names ${environment}-$INSTANCE_ID-ephemeral --with-decryption --region $REGION | jq -r ".Parameters | .[0] | .Value")
+aws ssm delete-parameter --name ${environment}-$INSTANCE_ID-ephemeral --region $REGION
+
+EPHEMERAL_FLAG="--ephemeral"
+if [[ $IS_EPHEMERAL = "0" ]]; then
+    EPHEMERAL_FLAG=""
+fi
+
 export RUNNER_ALLOW_RUNASROOT=1
 os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)
 if [[ "$os_id" =~ ^ubuntu.* ]]; then
     ./bin/installdependencies.sh
 fi
 
-./config.sh --ephemeral --unattended --name $INSTANCE_ID --work "_work" $CONFIG
+(
+    set -x
+    ./config.sh $EPHEMERAL_FLAG --unattended --name $INSTANCE_ID --work "_work" $CONFIG
+)
 
 # Set tag as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)

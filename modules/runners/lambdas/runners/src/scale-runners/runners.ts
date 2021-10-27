@@ -23,6 +23,7 @@ export interface RunnerType {
   max_available: number;
   disk_size: number;
   runnerTypeName: string;
+  is_ephemeral: boolean;
 }
 
 export async function listRunners(filters: ListRunnerFilters | undefined = undefined): Promise<RunnerInfo[]> {
@@ -156,6 +157,14 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           .putParameter({
             Name: runnerParameters.environment + '-' + (i.InstanceId as string),
             Value: runnerParameters.runnerConfig,
+            Type: 'SecureString',
+          })
+          .promise();
+        // Let node know if it's supposed to be ephemeral or not (default: true)
+        await ssm
+          .putParameter({
+            Name: runnerParameters.environment + '-' + (i.InstanceId as string) + '-ephemeral',
+            Value: runnerParameters.runnerType.is_ephemeral ? '1' : '0',
             Type: 'SecureString',
           })
           .promise();
