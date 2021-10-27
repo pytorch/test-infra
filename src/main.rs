@@ -3,7 +3,6 @@ use glob::Pattern;
 use log::debug;
 use render::render_lint_messages;
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
 use std::sync::{Arc, Mutex};
@@ -18,6 +17,7 @@ mod render;
 
 use lint_config::LintConfig;
 use lint_message::LintMessage;
+use linter::Linter;
 use render::PrintedLintErrors;
 
 fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
@@ -81,14 +81,6 @@ fn get_changed_files() -> Result<Vec<String>> {
     Ok(all_changed_files)
 }
 
-fn write_matches_to_file(matched_files: Vec<String>) -> Result<tempfile::NamedTempFile> {
-    let file = tempfile::NamedTempFile::new()?;
-    for matched_file in matched_files {
-        writeln!(&file, "{}", matched_file)?;
-    }
-    Ok(file)
-}
-
 fn group_lints_by_file(
     all_lints: &mut HashMap<PathBuf, Vec<LintMessage>>,
     lints: Vec<LintMessage>,
@@ -99,80 +91,6 @@ fn group_lints_by_file(
             .push(lint);
         acc
     });
-}
-
-struct Linter {
-    name: String,
-    include_patterns: Vec<Pattern>,
-    exclude_patterns: Vec<Pattern>,
-    commands: Vec<String>,
-}
-
-impl Linter {
-    fn get_matches(&self, files: &Vec<String>) -> Vec<String> {
-        files
-            .iter()
-            .filter(|name| {
-                self.include_patterns
-                    .iter()
-                    .any(|pattern| pattern.matches(name))
-            })
-            .filter(|name| {
-                !self
-                    .exclude_patterns
-                    .iter()
-                    .any(|pattern| pattern.matches(name))
-            })
-            .map(|name| name.clone())
-            .collect()
-    }
-
-    fn run_command(&self, filenames_to_lint: tempfile::NamedTempFile) -> Result<Vec<LintMessage>> {
-        let file_path = filenames_to_lint
-            .path()
-            .to_str()
-            .ok_or(anyhow::Error::msg("tempfile corrupted"))?;
-
-        let (program, arguments) = self.commands.split_at(1);
-        let arguments: Vec<String> = arguments
-            .iter()
-            .map(|arg| arg.replace("{{PATHSFILE}}", file_path))
-            .collect();
-
-        debug!("Running: {} {}", program[0], arguments.join(" "));
-        let command = Command::new(&program[0]).args(arguments).output()?;
-
-        if !&command.status.success() {
-            let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
-            return Err(anyhow::Error::msg(format!(
-                "lint adapter for '{}' failed with non-zero exit code",
-                self.name
-            )))
-            .with_context(|| stderr);
-        }
-        let stdout_str = std::str::from_utf8(&command.stdout)?;
-        let lints: Vec<LintMessage> = stdout_str
-            .split("\n")
-            .filter(|line| !line.is_empty())
-            .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
-            .collect::<Result<_>>()
-            .context(format!(
-                "Failed to deserialize output for lint adapter: '{}'",
-                self.name
-            ))?;
-
-        Ok(lints)
-    }
-
-    fn run(&self, files: &Vec<String>) -> Result<Vec<LintMessage>> {
-        let matches = self.get_matches(files);
-        debug!("Linter '{}' matched files: {:#?}", self.name, matches);
-        if matches.is_empty() {
-            return Ok(Vec::new());
-        }
-        let file = write_matches_to_file(matches)?;
-        self.run_command(file)
-    }
 }
 
 fn patterns_from_strs(pattern_strs: &Vec<String>) -> Result<Vec<Pattern>> {
