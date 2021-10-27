@@ -18,6 +18,7 @@ struct LintConfig {
     include_patterns: Vec<String>,
     exclude_patterns: Vec<String>,
     args: Vec<String>,
+    init_args: Option<Vec<String>>,
 }
 
 /// Given options specified by the user, return a list of linters to run.
@@ -36,6 +37,7 @@ pub fn get_linters_from_config(
             include_patterns,
             exclude_patterns,
             commands: lint_config.args,
+            init_commands: lint_config.init_args,
         });
     }
     debug!(

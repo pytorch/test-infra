@@ -11,6 +11,7 @@ pub struct Linter {
     pub include_patterns: Vec<Pattern>,
     pub exclude_patterns: Vec<Pattern>,
     pub commands: Vec<String>,
+    pub init_commands: Option<Vec<String>>,
 }
 
 impl Linter {
@@ -44,8 +45,11 @@ impl Linter {
             .map(|arg| arg.replace("{{PATHSFILE}}", file_path))
             .collect();
 
-        debug!("Running: {} {}", program[0], arguments.join(" "));
+        debug!("Running linter {}: {} {}", self.name, program[0], arguments.join(" "));
+
+        let start = std::time::Instant::now();
         let command = Command::new(&program[0]).args(arguments).output()?;
+        debug!("Linter {} took: {:?}", self.name, start.elapsed());
 
         if !&command.status.success() {
             let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
@@ -77,6 +81,36 @@ impl Linter {
         }
         let file = write_matches_to_file(matches)?;
         self.run_command(file)
+    }
+
+    pub fn init(&self, dry_run: bool) -> Result<()> {
+        Ok(())
+        // match self.init_commands {
+        //     Some(init_commands) => {
+        //         if init_commands.is_empty() {
+        //             return Ok(());
+        //         }
+
+        //         let arguments: Vec<String> = init_commands
+        //             .iter()
+        //             .map(|arg| arg.replace("{{DRYRUN}}", format!("{}", dry_run).as_str()))
+        //             .collect();
+        //         let (program, arguments) = init_commands.split_at(1);
+        //         debug!("Running: {} {}", program[0], arguments.join(" "));
+        //         let command = Command::new(&program[0]).args(arguments).output()?;
+
+        //         if !&command.status.success() {
+        //             let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
+        //             return Err(anyhow::Error::msg(format!(
+        //                 "lint initializer for '{}' failed with non-zero exit code",
+        //                 self.name
+        //             )))
+        //             .with_context(|| stderr);
+        //         }
+        //         Ok(())
+        //     }
+        //     None => Ok(()),
+        // }
     }
 }
 

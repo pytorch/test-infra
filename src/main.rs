@@ -1,12 +1,13 @@
 use anyhow::{Context, Result};
+use linter::Linter;
 use log::debug;
-use render::render_lint_messages;
+use render::{print_error, render_lint_messages};
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
-use std::process::exit;
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::{collections::HashSet, process::Command};
+use std::{io, thread};
 use structopt::StructOpt;
 
 mod lint_config;
@@ -107,16 +108,16 @@ fn apply_patches(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<(
 }
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "example", about = "An example of StructOpt usage.")]
+#[structopt(name = "lintrunner", about = "A lint runner")]
 struct Opt {
-    /// Path to a toml file defining which linters to run.
-    #[structopt(long, default_value = ".lintrunner.toml")]
-    config: String,
-
     #[structopt(short, long)]
     verbose: bool,
 
-    /// If set, any suggested patches will be applied.
+    /// Path to a toml file defining which linters to run
+    #[structopt(long, default_value = ".lintrunner.toml")]
+    config: String,
+
+    /// If set, any suggested patches will be applied
     #[structopt(short, long)]
     apply_patches: bool,
 
@@ -132,33 +133,44 @@ struct Opt {
     /// Comma-separated list of linters to run (opposite of --skip)
     #[structopt(long)]
     take: Option<String>,
+
+    #[structopt(subcommand)]
+    cmd: Option<SubCommand>,
 }
 
-fn main() -> Result<()> {
-    let opt = Opt::from_args();
-    let log_level = if opt.verbose {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
-    env_logger::Builder::new().filter_level(log_level).init();
+#[derive(StructOpt, Debug)]
+enum SubCommand {
+    /// Perform first-time setup for linters
+    Init {
+        /// If set, do not actually execute initialization commands, just print them
+        #[structopt(long, short)]
+        dry_run: bool,
+    },
+}
 
-    let config_path = PathBuf::from(opt.config);
-    let skipped_linters = opt.skip.map(|linters| {
-        linters
-            .split(',')
-            .map(|linter_name| linter_name.to_string())
-            .collect::<HashSet<_>>()
-    });
-    let taken_linters = opt.take.map(|linters| {
-        linters
-            .split(',')
-            .map(|linter_name| linter_name.to_string())
-            .collect::<HashSet<_>>()
-    });
+fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
+    debug!(
+        "Initializing linters: {:?}",
+        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+    );
+    let mut thread_handles = Vec::new();
 
-    let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
+    for linter in linters {
+        let handle = thread::spawn(move || -> Result<()> { linter.init(dry_run) });
+        thread_handles.push(handle);
+    }
 
+    for handle in thread_handles {
+        handle.join().unwrap()?;
+    }
+    Ok(0)
+}
+
+fn do_lint(
+    linters: Vec<Linter>,
+    paths_cmd: Option<String>,
+    should_apply_patches: bool,
+) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
         linters.iter().map(|l| &l.name).collect::<Vec<_>>()
@@ -166,7 +178,7 @@ fn main() -> Result<()> {
 
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
-    let files = match opt.paths_cmd {
+    let files = match paths_cmd {
         Some(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
         None => get_changed_files()?,
     };
@@ -195,14 +207,70 @@ fn main() -> Result<()> {
     let all_lints = all_lints.lock().unwrap();
     let did_print = render_lint_messages(&all_lints)?;
     match did_print {
-        PrintedLintErrors::No => {
-            exit(0);
-        }
+        PrintedLintErrors::No => Ok(0),
         PrintedLintErrors::Yes => {
-            if opt.apply_patches {
+            if should_apply_patches {
                 apply_patches(&all_lints)?;
             }
-            exit(1);
+            Ok(1)
         }
     }
+}
+
+fn do_main() -> Result<i32> {
+    let opt = Opt::from_args();
+    let log_level = if opt.verbose {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+    env_logger::Builder::new().filter_level(log_level).init();
+
+    let config_path = PathBuf::from(opt.config);
+    let skipped_linters = opt.skip.map(|linters| {
+        linters
+            .split(',')
+            .map(|linter_name| linter_name.to_string())
+            .collect::<HashSet<_>>()
+    });
+    let taken_linters = opt.take.map(|linters| {
+        linters
+            .split(',')
+            .map(|linter_name| linter_name.to_string())
+            .collect::<HashSet<_>>()
+    });
+
+    let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
+
+    match opt.cmd {
+        Some(SubCommand::Init { dry_run }) => {
+            // Just run initialization commands, don't actually lint.
+            do_init(linters, dry_run)
+        }
+        None => {
+            // Default command is to just lint.
+            do_lint(linters, opt.paths_cmd, opt.apply_patches)
+        }
+    }
+}
+
+
+fn main() {
+    let code = match do_main() {
+        Ok(code) => code,
+        Err(err) => {
+            print_error(&err)
+                .context("failed to print exit error")
+                .unwrap();
+            1
+        }
+    };
+
+    // Flush the output before exiting, in case there is anything left in the buffers.
+    drop(io::stdout().flush());
+    drop(io::stderr().flush());
+
+    // exit() abruptly ends the process while running no destructors. We should
+    // make sure that nothing is alive before running this.
+    std::process::exit(code);
 }

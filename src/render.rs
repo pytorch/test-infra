@@ -5,8 +5,9 @@ use std::{cmp, collections::HashMap, fs, path::PathBuf};
 
 use anyhow::{Context, Result};
 use console::{style, Style};
+use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
-use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
+use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::lint_message::{LintMessage, LintSeverity};
 
@@ -248,4 +249,40 @@ impl Palette {
             // highlight: inverse,
         }
     }
+}
+
+pub fn print_error(err: &anyhow::Error) -> std::io::Result<()> {
+    let mut stderr = StandardStream::stderr(if atty::is(atty::Stream::Stderr) {
+        ColorChoice::Auto
+    } else {
+        ColorChoice::Never
+    });
+
+    let mut label_color = ColorSpec::new();
+    label_color
+        .set_fg(Some(Color::Red))
+        .set_bold(true)
+        .set_reset(false);
+
+    let mut chain = err.chain();
+
+    if let Some(error) = chain.next() {
+        stderr.set_color(&label_color)?;
+        write!(stderr, "error:")?;
+        stderr.reset()?;
+        write!(stderr, " ")?;
+        let mut indenter = IndentWriter::new_skip_initial(spaces(7), &mut stderr);
+        writeln!(indenter, "{}", error)?;
+
+        for cause in chain {
+            stderr.set_color(&label_color)?;
+            write!(stderr, "caused by:")?;
+            stderr.reset()?;
+            write!(stderr, " ")?;
+            let mut indenter = IndentWriter::new_skip_initial(spaces(11), &mut stderr);
+            writeln!(indenter, "{}", cause)?;
+        }
+    }
+
+    Ok(())
 }
