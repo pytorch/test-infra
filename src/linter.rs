@@ -96,9 +96,15 @@ impl Linter {
                     return Ok(());
                 }
 
+                let dry_run = if dry_run {
+                    "1"
+                } else {
+                    "0"
+                };
+
                 let init_commands: Vec<String> = init_commands
                     .iter()
-                    .map(|arg| arg.replace("{{DRYRUN}}", format!("{}", dry_run).as_str()))
+                    .map(|arg| arg.replace("{{DRYRUN}}", dry_run))
                     .collect();
                 let (program, arguments) = init_commands.split_at(1);
                 debug!("Running: {} {}", program[0], arguments.join(" "));

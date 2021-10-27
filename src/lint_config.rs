@@ -77,7 +77,7 @@ impl LintRunnerConfig {
             if let Some(init_args) = &linter.init_args {
                 if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {
                     bail!(
-                        "Linter config for linter {} defines init args \
+                        "Config for linter {} defines init args \
                          but does not take a {{{{DRYRUN}}}} argument.",
                         linter.name
                     );
