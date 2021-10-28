@@ -96,11 +96,7 @@ impl Linter {
                     return Ok(());
                 }
 
-                let dry_run = if dry_run {
-                    "1"
-                } else {
-                    "0"
-                };
+                let dry_run = if dry_run { "1" } else { "0" };
 
                 let init_commands: Vec<String> = init_commands
                     .iter()

@@ -4,10 +4,9 @@ use std::path::Path;
 use std::{cmp, collections::HashMap, fs, path::PathBuf};
 
 use anyhow::{Context, Result};
-use console::{style, Style};
+use console::{style, Color, Style, Term};
 use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
-use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::lint_message::{LintMessage, LintSeverity};
 
@@ -21,16 +20,9 @@ pub enum PrintedLintErrors {
 pub fn render_lint_messages(
     lint_messages: &HashMap<PathBuf, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
-    let palette = Palette::new();
-    let stdout = BufferWriter::stdout(if atty::is(atty::Stream::Stdout) {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    });
-    let mut buf = stdout.buffer();
+    let mut stdout = Term::stdout();
     if lint_messages.is_empty() {
-        buf.write_all(format!("{} {}\n", style("ok").green(), "No lint issues.").as_bytes())?;
-        stdout.print(&buf)?;
+        stdout.write_line(format!("{} {}", style("ok").green(), "No lint issues.").as_str())?;
 
         return Ok(PrintedLintErrors::No);
     }
@@ -46,47 +38,33 @@ pub fn render_lint_messages(
     for path in paths {
         let lint_messages = lint_messages.get(path).unwrap();
 
-        buf.write_all(b"\n\n")?;
-
-        buf.set_color(&palette.attention)?;
-        buf.write_all(b">>>")?;
-        buf.reset()?;
-
-        buf.write_all(b" Lint for ")?;
-
-        buf.set_color(&palette.subject)?;
-        buf.write_all(path.to_string_lossy().as_bytes())?;
-        buf.reset()?;
-
-        buf.write_all(b":\n")?;
+        stdout.write_all(b"\n\n")?;
+        stdout.write_line(&format!(
+            "{} Lint for {}:\n",
+            style(">>>").bold(),
+            style(path.to_string_lossy()).underlined()
+        ))?;
 
         for lint_message in lint_messages {
-            buf.write_all(b"\n")?;
             // Write: `   Error  (LINTER) prefer-using-this-over-that\n`
-
-            buf.write_all(bspaces(2))?;
-            buf.set_color(match lint_message.severity {
-                LintSeverity::Error => &palette.error,
+            let error_style = match lint_message.severity {
+                LintSeverity::Error => Style::new().bg(Color::Red).bold(),
                 LintSeverity::Warning | LintSeverity::Advice | LintSeverity::Disabled => {
-                    &palette.warning
+                    Style::new().bg(Color::Yellow).bold()
                 }
-            })?;
-            write!(buf, " {} ", lint_message.severity.label())?;
-            buf.reset()?;
-
-            write!(buf, " ({}) ", lint_message.code)?;
-
-            buf.set_color(&palette.subject)?;
-            write!(buf, "{}", lint_message.name)?;
-            buf.reset()?;
-            buf.write_all(b"\n")?;
+            };
+            stdout.write_line(&format!(
+                "  {} ({}) {}",
+                error_style.apply_to(lint_message.severity.label()),
+                lint_message.code,
+                style(&lint_message.name).underlined(),
+            ))?;
 
             // Write the description.
 
             if let Some(description) = &lint_message.description {
                 for line in textwrap::wrap(description, &wrap_78_indent_4) {
-                    buf.write_all(line.as_bytes())?;
-                    buf.write_all(b"\n")?;
+                    stdout.write_line(&line)?;
                 }
             }
 
@@ -95,12 +73,12 @@ pub fn render_lint_messages(
             if let (Some(original), Some(replacement)) =
                 (&lint_message.original, &lint_message.replacement)
             {
-                buf.write_all(b"\n")?;
+                stdout.write_all(b"\n")?;
                 let diff = TextDiff::from_lines(original, replacement);
 
                 for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
                     if idx > 0 {
-                        buf.write_all(format!("{:-^1$}\n", "-", 80).as_bytes())?;
+                        write!(stdout, "{:-^1$}\n", "-", 80)?;
                     }
                     for op in group {
                         for change in diff.iter_inline_changes(op) {
@@ -109,41 +87,40 @@ pub fn render_lint_messages(
                                 ChangeTag::Insert => ("+", Style::new().green()),
                                 ChangeTag::Equal => (" ", Style::new().dim()),
                             };
-                            buf.write_all(
-                                format!(
-                                    "    {}{} |{}",
-                                    style(Line(change.old_index())).dim(),
-                                    style(Line(change.new_index())).dim(),
-                                    s.apply_to(sign).bold(),
-                                )
-                                .as_bytes(),
+                            write!(
+                                stdout,
+                                "    {}{} |{}",
+                                style(Line(change.old_index())).dim(),
+                                style(Line(change.new_index())).dim(),
+                                s.apply_to(sign).bold(),
                             )?;
                             for (emphasized, value) in change.iter_strings_lossy() {
                                 if emphasized {
-                                    buf.write_all(
-                                        format!("{}", s.apply_to(value).underlined().on_black())
-                                            .as_bytes(),
+                                    write!(
+                                        stdout,
+                                        "{}",
+                                        s.apply_to(value).underlined().on_black()
                                     )?;
                                 } else {
-                                    buf.write_all(format!("{}", s.apply_to(value)).as_bytes())?;
+                                    write!(stdout, "{}", s.apply_to(value))?;
                                 }
                             }
                             if change.missing_newline() {
-                                buf.write_all(b"\n")?;
+                                stdout.write_all(b"\n")?;
                             }
                         }
                     }
                 }
 
-                buf.write_all(b"\n")?;
+                stdout.write_all(b"\n")?;
             } else if let Some(line_number) = &lint_message.line {
+                stdout.write_all(b"\n")?;
+
                 let file = fs::read_to_string(path).context(format!(
                     "Error reading file: '{}' when rendering lints",
                     path.display()
                 ))?;
                 let lines = file.tokenize_lines();
-
-                buf.write_all(b"\n")?;
 
                 // subtract 1 because lines are reported as 1-indexed, but the
                 // lines vector is 0-indexed.
@@ -165,22 +142,18 @@ pub fn render_lint_messages(
 
                     if cur_idx == line_idx {
                         // Highlight the actually failing line with a chevron + different color
-                        buf.write_all(
-                            format!("    >>> {}  |", style(line_number).dim()).as_bytes(),
-                        )?;
-                        buf.write_all(format!("{}", style(line).yellow()).as_bytes())?;
+                        write!(stdout, "    >>> {}  |", style(line_number).dim())?;
+                        write!(stdout, "{}", style(line).yellow())?;
                     } else {
-                        buf.write_all(
-                            format!("        {}  |", style(line_number).dim()).as_bytes(),
-                        )?;
-                        buf.write_all(line.as_bytes())?;
+                        write!(stdout, "        {}  |", style(line_number).dim())?;
+                        stdout.write_all(line.as_bytes())?;
                     }
                 }
+
+                stdout.write_all(b"\n")?;
             }
         }
     }
-
-    stdout.print(&buf)?;
 
     Ok(PrintedLintErrors::Yes)
 }
@@ -207,77 +180,17 @@ impl fmt::Display for Line {
     }
 }
 
-struct Palette {
-    error: ColorSpec,
-    warning: ColorSpec,
-
-    attention: ColorSpec,
-    subject: ColorSpec,
-}
-
-impl Palette {
-    fn new() -> Palette {
-        let mut bold = ColorSpec::new();
-        bold.set_bold(true).set_reset(false);
-
-        let mut underline = ColorSpec::new();
-        underline.set_underline(true).set_reset(false);
-
-        let mut bold_red_bg = ColorSpec::new();
-        bold_red_bg
-            .set_bg(Some(Color::Red))
-            .set_bold(true)
-            .set_reset(false);
-
-        let mut bold_yellow_bg = ColorSpec::new();
-        bold_yellow_bg
-            .set_bg(Some(Color::Yellow))
-            .set_bold(true)
-            .set_reset(false);
-
-        let mut inverse = ColorSpec::new();
-        inverse
-            .set_fg(Some(Color::Black))
-            .set_bg(Some(Color::White))
-            .set_reset(false);
-
-        Palette {
-            error: bold_red_bg,
-            warning: bold_yellow_bg,
-            attention: bold,
-            subject: underline,
-            // highlight: inverse,
-        }
-    }
-}
-
 pub fn print_error(err: &anyhow::Error) -> std::io::Result<()> {
-    let mut stderr = StandardStream::stderr(if atty::is(atty::Stream::Stderr) {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    });
-
-    let mut label_color = ColorSpec::new();
-    label_color
-        .set_fg(Some(Color::Red))
-        .set_bold(true)
-        .set_reset(false);
-
+    let mut stderr = Term::stderr();
     let mut chain = err.chain();
 
     if let Some(error) = chain.next() {
-        stderr.set_color(&label_color)?;
-        write!(stderr, "error:")?;
-        stderr.reset()?;
-        write!(stderr, " ")?;
+        write!(stderr, "{} ", style("error:").red().bold())?;
         let mut indenter = IndentWriter::new_skip_initial(spaces(7), &mut stderr);
         writeln!(indenter, "{}", error)?;
 
         for cause in chain {
-            stderr.set_color(&label_color)?;
-            write!(stderr, "caused by:")?;
-            stderr.reset()?;
+            write!(stderr, "{} ", style("caused_by:").red().bold())?;
             write!(stderr, " ")?;
             let mut indenter = IndentWriter::new_skip_initial(spaces(11), &mut stderr);
             writeln!(indenter, "{}", cause)?;
