@@ -2758,7 +2758,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "### \ud83d\udc1b Describe the bug\n\nFor a flaky failure example, see https://hud.pytorch.org/commit/pytorch/pytorch/62feadd76fb5760faccd526d9064b9ba5de13083, which passed on the next commit.\n\n### Versions\n\nlinux-bionic-cuda10.2-py3.9-gcc7\n\ncc @nairbv @NicolasHug", 
+      "body": "### \ud83d\udc1b Describe the bug\n\nFor a flaky failure example, see https://hud.pytorch.org/commit/pytorch/pytorch/62feadd76fb5760faccd526d9064b9ba5de13083, which passed on the next commit.\n\n### Versions\n\nlinux-bionic-cuda10.2-py3.9-gcc7\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @nairbv @NicolasHug", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67447/comments", 
@@ -2767,6 +2767,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/67447", 
       "id": 1038648571, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
         {
           "color": "006b75", 
           "default": false, 
@@ -2779,11 +2788,29 @@
         {
           "color": "f7e101", 
           "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
           "description": "", 
           "id": 1313583792, 
           "name": "module: hub", 
           "node_id": "MDU6TGFiZWwxMzEzNTgzNzky", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20hub"
+        }, 
+        {
+          "color": "bfdadc", 
+          "default": false, 
+          "description": "Denotes a (flaky) test currently skipped in CI.", 
+          "id": 1679533716, 
+          "name": "skipped", 
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67447/labels{/name}", 
@@ -2809,7 +2836,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67447/timeline", 
       "title": "DISABLED test_set_dir (__main__.TestHub)", 
-      "updated_at": "2021-10-28T15:23:50Z", 
+      "updated_at": "2021-10-28T15:24:22Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67447", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
