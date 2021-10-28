@@ -4,7 +4,7 @@ use std::path::Path;
 use std::{cmp, collections::HashMap, fs, path::PathBuf};
 
 use anyhow::{Context, Result};
-use console::{style, Color, Style, Term};
+use console::{style, Style, Term};
 use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
 
@@ -48,9 +48,9 @@ pub fn render_lint_messages(
         for lint_message in lint_messages {
             // Write: `   Error  (LINTER) prefer-using-this-over-that\n`
             let error_style = match lint_message.severity {
-                LintSeverity::Error => Style::new().bg(Color::Red).bold(),
+                LintSeverity::Error => Style::new().on_red().bold(),
                 LintSeverity::Warning | LintSeverity::Advice | LintSeverity::Disabled => {
-                    Style::new().bg(Color::Yellow).bold()
+                    Style::new().on_yellow().bold()
                 }
             };
             stdout.write_line(&format!(
