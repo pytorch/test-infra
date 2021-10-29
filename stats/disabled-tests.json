@@ -2354,15 +2354,24 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: rocm\r\n\r\nExample failures:\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1427//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1405//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1378//console\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
+      "body": "Platforms: rocm, linux\r\n\r\nExample failures:\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1427//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1405//console\r\n- https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1378//console\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
       "closed_at": null, 
-      "comments": 2, 
+      "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/comments", 
       "created_at": "2021-10-22T16:59:29Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/67101", 
       "id": 1033783510, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
         {
           "color": "f7e101", 
           "default": false, 
@@ -2380,6 +2389,24 @@
           "name": "module: rocm", 
           "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }, 
+        {
+          "color": "bfdadc", 
+          "default": false, 
+          "description": "Denotes a (flaky) test currently skipped in CI.", 
+          "id": 1679533716, 
+          "name": "skipped", 
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/labels{/name}", 
@@ -2405,7 +2432,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67101/timeline", 
       "title": "DISABLED test_nccl_timeout (__main__.NcclErrorHandlingTest)", 
-      "updated_at": "2021-10-24T20:16:09Z", 
+      "updated_at": "2021-10-29T15:52:10Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67101", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
