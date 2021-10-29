@@ -1,5 +1,7 @@
 use anyhow::{bail, Context, Result};
 use lint_config::get_linters_from_config;
+use console::style;
+use indicatif::{MultiProgress, ProgressBar};
 use linter::Linter;
 use log::debug;
 use path::AbsPath;
@@ -233,18 +235,32 @@ fn do_lint(
 
     let mut thread_handles = Vec::new();
 
+
+    let spinners = MultiProgress::new();
     for linter in linters {
+        let spinner = spinners.add(ProgressBar::new_spinner());
+        spinner.set_message(format!("{} running...", linter.name));
+        spinner.enable_steady_tick(100);
         let all_lints = Arc::clone(&all_lints);
         let files = Arc::clone(&files);
+
         let handle = thread::spawn(move || -> Result<()> {
             let lints = linter.run(&files)?;
             let mut all_lints = all_lints.lock().unwrap();
+            let is_success = lints.is_empty();
             group_lints_by_file(&mut all_lints, lints);
+            let spinner_message = if is_success {
+                format!("{} {}", linter.name, style("success!").green())
+            } else {
+                format!("{} {}", linter.name, style("failure").red())
+            };
+            spinner.finish_with_message(spinner_message);
             Ok(())
         });
         thread_handles.push(handle);
     }
 
+    spinners.join_and_clear()?;
     for handle in thread_handles {
         handle.join().unwrap()?;
     }
