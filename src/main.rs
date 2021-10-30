@@ -42,24 +42,46 @@ fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<AbsPath>> {
         .collect::<Result<_>>()
 }
 
-fn get_changed_files() -> Result<Vec<AbsPath>> {
-    // Retrieve changed files in current commit
-    let commit_files = Command::new("git")
-        .arg("diff-tree")
-        .arg("--no-commit-id")
-        .arg("--name-only")
-        .arg("-r")
-        .arg("HEAD")
+fn is_head_public() -> Result<bool> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--abbrev-ref")
+        .arg("origin/HEAD")
         .output()?;
+    let default_branch = std::str::from_utf8(&output.stdout)?;
+    let status = Command::new("git")
+        .arg("merge-base")
+        .arg("--is-ancestor")
+        .arg("HEAD")
+        .arg(default_branch)
+        .status()?;
+    Ok(status.success())
+}
 
-    let commit_files_str = std::str::from_utf8(&commit_files.stdout)?;
+fn get_changed_files() -> Result<Vec<AbsPath>> {
+    // Retrieve changed files in current commit.
+    // But only if that commit isn't a "public" commit (e.g. is part of the
+    // remote's default branch).
+    let mut commit_files: Option<HashSet<String>> = None;
+    if !is_head_public()? {
+        let output = Command::new("git")
+            .arg("diff-tree")
+            .arg("--no-commit-id")
+            .arg("--name-only")
+            .arg("-r")
+            .arg("HEAD")
+            .output()?;
 
-    let commit_files: HashSet<String> = commit_files_str
-        .split("\n")
-        .map(|x| x.to_string())
-        .filter(|line| !line.is_empty())
-        .collect();
+        let commit_files_str = std::str::from_utf8(&output.stdout)?;
 
+        commit_files = Some(
+            commit_files_str
+                .split("\n")
+                .map(|x| x.to_string())
+                .filter(|line| !line.is_empty())
+                .collect(),
+        );
+    }
     // Retrieve changed files in the working tree
     let working_tree_files = Command::new("git")
         .arg("diff-index")
@@ -75,12 +97,15 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
         .filter(|line| !line.is_empty())
         .map(|x| x.to_string())
         .collect();
-    let mut all_changed_files: Vec<String> = commit_files
-        .union(&working_tree_files)
-        .map(|x| x.clone())
-        .collect();
 
+    let mut all_changed_files = working_tree_files;
+    if let Some(commit_files) = commit_files {
+        for file in commit_files {
+            all_changed_files.insert(file);
+        }
+    }
     // Sort for consistency
+    let mut all_changed_files: Vec<String> = all_changed_files.into_iter().collect();
     all_changed_files.sort();
     all_changed_files
         .into_iter()
