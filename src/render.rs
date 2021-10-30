@@ -8,7 +8,7 @@ use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
 
 use crate::lint_message::{LintMessage, LintSeverity};
-use crate::path::AbsPath;
+use crate::path::{path_relative_from, AbsPath};
 
 static CONTEXT_LINES: usize = 3;
 
@@ -38,11 +38,17 @@ pub fn render_lint_messages(
     for path in paths {
         let lint_messages = lint_messages.get(path).unwrap();
 
+        // Write path relative to user's current working directory.
+        let current_dir = std::env::current_dir()?;
+        // unwrap will never panic because we know `path` is absolute.
+        let relative_path =
+            path_relative_from(path.as_pathbuf().as_path(), current_dir.as_path()).unwrap();
+
         stdout.write_all(b"\n\n")?;
         stdout.write_line(&format!(
             "{} Lint for {}:\n",
             style(">>>").bold(),
-            style(path.as_pathbuf().to_string_lossy()).underlined()
+            style(relative_path.as_path().display()).underlined()
         ))?;
 
         for lint_message in lint_messages {
