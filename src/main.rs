@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
+use lint_config::get_linters_from_config;
 use linter::Linter;
 use log::debug;
+use path::AbsPath;
 use render::{print_error, render_lint_messages};
 use std::collections::HashMap;
 use std::io::Write;
@@ -13,14 +15,13 @@ use structopt::StructOpt;
 mod lint_config;
 mod lint_message;
 mod linter;
+mod path;
 mod render;
 
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
-use crate::lint_config::get_linters_from_config;
-
-fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
+fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<AbsPath>> {
     debug!("Running paths_cmd: {}", paths_cmd);
     let output = Command::new("sh")
         .arg("-c")
@@ -35,10 +36,13 @@ fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<String>> {
         .collect::<HashSet<String>>();
     let mut files = files.into_iter().collect::<Vec<String>>();
     files.sort();
-    Ok(files)
+    files
+        .into_iter()
+        .map(|f| AbsPath::new(PathBuf::from(f)))
+        .collect::<Result<_>>()
 }
 
-fn get_changed_files() -> Result<Vec<String>> {
+fn get_changed_files() -> Result<Vec<AbsPath>> {
     // Retrieve changed files in current commit
     let commit_files = Command::new("git")
         .arg("diff-tree")
@@ -78,28 +82,31 @@ fn get_changed_files() -> Result<Vec<String>> {
 
     // Sort for consistency
     all_changed_files.sort();
-    Ok(all_changed_files)
+    all_changed_files
+        .into_iter()
+        .map(|f| AbsPath::new(PathBuf::from(f)))
+        .collect::<Result<_>>()
 }
 
 fn group_lints_by_file(
-    all_lints: &mut HashMap<PathBuf, Vec<LintMessage>>,
+    all_lints: &mut HashMap<AbsPath, Vec<LintMessage>>,
     lints: Vec<LintMessage>,
 ) {
     lints.into_iter().fold(all_lints, |acc, lint| {
-        acc.entry(PathBuf::from(lint.path.clone()))
+        acc.entry(lint.path.clone())
             .or_insert_with(Vec::new)
             .push(lint);
         acc
     });
 }
 
-fn apply_patches(lint_messages: &HashMap<PathBuf, Vec<LintMessage>>) -> Result<()> {
+fn apply_patches(lint_messages: &HashMap<AbsPath, Vec<LintMessage>>) -> Result<()> {
     for (path, lint_messages) in lint_messages {
         for lint_message in lint_messages {
             if let Some(replacement) = &lint_message.replacement {
-                std::fs::write(path, replacement).context(format!(
+                std::fs::write(path.as_pathbuf(), replacement).context(format!(
                     "Failed to write apply patch to file: '{}'",
-                    path.display()
+                    path.as_pathbuf().display()
                 ))?;
             }
         }
@@ -221,7 +228,7 @@ fn do_main() -> Result<i32> {
     };
     env_logger::Builder::new().filter_level(log_level).init();
 
-    let config_path = PathBuf::from(opt.config);
+    let config_path = AbsPath::new(PathBuf::from(opt.config))?;
     let skipped_linters = opt.skip.map(|linters| {
         linters
             .split(',')

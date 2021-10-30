@@ -1,7 +1,11 @@
 use std::io::Write;
+use std::path::Path;
 use std::process::Command;
 
-use crate::lint_message::LintMessage;
+use crate::{
+    lint_message::LintMessage,
+    path::{path_relative_from, AbsPath},
+};
 use anyhow::{bail, Context, Result};
 use glob::Pattern;
 use log::{debug, info};
@@ -12,29 +16,47 @@ pub struct Linter {
     pub exclude_patterns: Vec<Pattern>,
     pub commands: Vec<String>,
     pub init_commands: Option<Vec<String>>,
+    pub config_path: AbsPath,
+}
+
+fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
+    // Unwrap ok because we already checked that both paths are absolute.
+    let relative_path = path_relative_from(from, base).unwrap();
+    pattern.matches(relative_path.to_str().unwrap())
 }
 
 impl Linter {
-    fn get_matches(&self, files: &Vec<String>) -> Vec<String> {
+    fn get_matches(&self, files: &Vec<AbsPath>) -> Vec<AbsPath> {
+        // Unwrap is fine here because we know this path is absolute and won't be `/`
+        let config_dir = self.config_path.as_pathbuf().parent().unwrap();
+
         files
             .iter()
             .filter(|name| {
-                self.include_patterns
-                    .iter()
-                    .any(|pattern| pattern.matches(name))
+                self.include_patterns.iter().any(|pattern| {
+                    matches_relative_path(config_dir, name.as_pathbuf().as_path(), pattern)
+                })
             })
             .filter(|name| {
-                !self
-                    .exclude_patterns
-                    .iter()
-                    .any(|pattern| pattern.matches(name))
+                !self.exclude_patterns.iter().any(|pattern| {
+                    matches_relative_path(config_dir, name.as_pathbuf().as_path(), pattern)
+                })
             })
-            .map(|name| name.clone())
+            .map(|p| p.clone())
             .collect()
     }
 
-    fn run_command(&self, filenames_to_lint: tempfile::NamedTempFile) -> Result<Vec<LintMessage>> {
-        let file_path = filenames_to_lint
+    fn run_command(&self, matched_files: Vec<AbsPath>) -> Result<Vec<LintMessage>> {
+        let tmp_file = tempfile::NamedTempFile::new()?;
+        for matched_file in &matched_files {
+            let name = matched_file
+                .as_pathbuf()
+                .to_str()
+                .ok_or(anyhow::Error::msg("Could not convert path to string."))?;
+            writeln!(&tmp_file, "{}", name)?;
+        }
+
+        let file_path = tmp_file
             .path()
             .to_str()
             .ok_or(anyhow::Error::msg("tempfile corrupted"))?;
@@ -65,27 +87,28 @@ impl Linter {
             .with_context(|| stderr);
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
-        let lints: Vec<LintMessage> = stdout_str
+        let lints = stdout_str
             .split("\n")
             .filter(|line| !line.is_empty())
-            .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
-            .collect::<Result<_>>()
+            .map(|line| LintMessage::from_json(line))
+            .collect::<Result<Vec<LintMessage>>>()
             .context(format!(
                 "Failed to deserialize output for lint adapter: '{}'",
                 self.name
-            ))?;
-
+            ))?
+            .into_iter()
+            .filter(|lint| matched_files.contains(&lint.path))
+            .collect();
         Ok(lints)
     }
 
-    pub fn run(&self, files: &Vec<String>) -> Result<Vec<LintMessage>> {
-        let matches = self.get_matches(files);
+    pub fn run(&self, files: &Vec<AbsPath>) -> Result<Vec<LintMessage>> {
+        let matches = self.get_matches(&files);
         debug!("Linter '{}' matched files: {:#?}", self.name, matches);
         if matches.is_empty() {
             return Ok(Vec::new());
         }
-        let file = write_matches_to_file(matches)?;
-        self.run_command(file)
+        self.run_command(matches)
     }
 
     pub fn init(&self, dry_run: bool) -> Result<()> {
@@ -116,12 +139,4 @@ impl Linter {
             None => Ok(()),
         }
     }
-}
-
-fn write_matches_to_file(matched_files: Vec<String>) -> Result<tempfile::NamedTempFile> {
-    let file = tempfile::NamedTempFile::new()?;
-    for matched_file in matched_files {
-        writeln!(&file, "{}", matched_file)?;
-    }
-    Ok(file)
 }

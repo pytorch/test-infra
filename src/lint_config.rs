@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fs, path::Path};
+use std::{collections::HashSet, fs};
 
-use crate::linter::Linter;
+use crate::{linter::Linter, path::AbsPath};
 use anyhow::{bail, Context, Result};
 use glob::Pattern;
 use log::debug;
@@ -23,7 +23,7 @@ struct LintConfig {
 
 /// Given options specified by the user, return a list of linters to run.
 pub fn get_linters_from_config(
-    config_path: &Path,
+    config_path: &AbsPath,
     skipped_linters: Option<HashSet<String>>,
     taken_linters: Option<HashSet<String>>,
 ) -> Result<Vec<Linter>> {
@@ -38,6 +38,7 @@ pub fn get_linters_from_config(
             exclude_patterns,
             commands: lint_config.args,
             init_commands: lint_config.init_args,
+            config_path: config_path.clone(),
         });
     }
     debug!(
@@ -66,8 +67,9 @@ pub fn get_linters_from_config(
 }
 
 impl LintRunnerConfig {
-    pub fn new(path: &Path) -> Result<LintRunnerConfig> {
-        let lint_config = fs::read_to_string(path)
+    pub fn new(path: &AbsPath) -> Result<LintRunnerConfig> {
+        let path = path.as_pathbuf();
+        let lint_config = fs::read_to_string(path.as_path())
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
         let config: LintRunnerConfig = toml::from_str(&lint_config).context(format!(
             "Config file '{}' had invalid schema",

@@ -1,7 +1,6 @@
 use std::fmt;
 use std::io::Write;
-use std::path::Path;
-use std::{cmp, collections::HashMap, fs, path::PathBuf};
+use std::{cmp, collections::HashMap, fs};
 
 use anyhow::{Context, Result};
 use console::{style, Style, Term};
@@ -9,6 +8,7 @@ use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
 
 use crate::lint_message::{LintMessage, LintSeverity};
+use crate::path::AbsPath;
 
 static CONTEXT_LINES: usize = 3;
 
@@ -18,7 +18,7 @@ pub enum PrintedLintErrors {
 }
 
 pub fn render_lint_messages(
-    lint_messages: &HashMap<PathBuf, Vec<LintMessage>>,
+    lint_messages: &HashMap<AbsPath, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     let mut stdout = Term::stdout();
     if lint_messages.is_empty() {
@@ -32,7 +32,7 @@ pub fn render_lint_messages(
         .subsequent_indent(spaces(4));
 
     // Always render messages in sorted order.
-    let mut paths: Vec<&Path> = lint_messages.keys().map(|p| p.as_path()).collect();
+    let mut paths: Vec<&AbsPath> = lint_messages.keys().collect();
     paths.sort();
 
     for path in paths {
@@ -42,7 +42,7 @@ pub fn render_lint_messages(
         stdout.write_line(&format!(
             "{} Lint for {}:\n",
             style(">>>").bold(),
-            style(path.to_string_lossy()).underlined()
+            style(path.as_pathbuf().to_string_lossy()).underlined()
         ))?;
 
         for lint_message in lint_messages {
@@ -116,9 +116,9 @@ pub fn render_lint_messages(
             } else if let Some(line_number) = &lint_message.line {
                 stdout.write_all(b"\n")?;
 
-                let file = fs::read_to_string(path).context(format!(
+                let file = fs::read_to_string(path.as_pathbuf()).context(format!(
                     "Error reading file: '{}' when rendering lints",
-                    path.display()
+                    path.as_pathbuf().display()
                 ))?;
                 let lines = file.tokenize_lines();
 
