@@ -4,8 +4,8 @@ use std::{cmp, collections::HashMap, fs};
 
 use anyhow::{Context, Result};
 use console::{style, Style, Term};
-use indent_write::io::IndentWriter;
 use similar::{ChangeTag, DiffableStr, TextDiff};
+use textwrap::indent;
 
 use crate::lint_message::{LintMessage, LintSeverity};
 use crate::path::{path_relative_from, AbsPath};
@@ -192,14 +192,14 @@ pub fn print_error(err: &anyhow::Error) -> std::io::Result<()> {
 
     if let Some(error) = chain.next() {
         write!(stderr, "{} ", style("error:").red().bold())?;
-        let mut indenter = IndentWriter::new_skip_initial(spaces(7), &mut stderr);
-        writeln!(indenter, "{}", error)?;
+        let indented = indent(&format!("{}", error), spaces(7));
+        writeln!(stderr, "{}", indented)?;
 
         for cause in chain {
             write!(stderr, "{} ", style("caused_by:").red().bold())?;
             write!(stderr, " ")?;
-            let mut indenter = IndentWriter::new_skip_initial(spaces(11), &mut stderr);
-            writeln!(indenter, "{}", cause)?;
+            let indented = indent(&format!("{}", cause), spaces(11));
+            writeln!(stderr, "{}", indented)?;
         }
     }
 

@@ -14,11 +14,9 @@ glob = "0.3"
 tempfile = "3.2"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0"
-atty = "0.2"
 textwrap = {version = "0.14", features = ["terminal_size"]}
 similar = {version = "2.1.0", features = ["inline"]}
 console = "0.15"
 toml = "0.5.8"
 log = "0.4.0"
 env_logger = "0.9.0"
-indent_write = "2.2.0"
