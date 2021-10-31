@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use lint_config::get_linters_from_config;
 use linter::Linter;
 use log::debug;
@@ -48,14 +48,21 @@ fn is_head_public() -> Result<bool> {
         .arg("--abbrev-ref")
         .arg("origin/HEAD")
         .output()?;
-    let default_branch = std::str::from_utf8(&output.stdout)?;
+    if !output.status.success() {
+        bail!("Failed to determine whether commit was public; git rev-parse failed");
+    }
+    let default_branch = std::str::from_utf8(&output.stdout)?.trim();
     let status = Command::new("git")
         .arg("merge-base")
         .arg("--is-ancestor")
         .arg("HEAD")
         .arg(default_branch)
         .status()?;
-    Ok(status.success())
+    match status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => bail!("Failed to determine whether commit was public; git merge-base failed"),
+    }
 }
 
 fn get_changed_files() -> Result<Vec<AbsPath>> {
@@ -71,6 +78,9 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
             .arg("-r")
             .arg("HEAD")
             .output()?;
+        if !output.status.success() {
+            bail!("Failed to determine files to lint; git diff-tree failed");
+        }
 
         let commit_files_str = std::str::from_utf8(&output.stdout)?;
 
@@ -81,23 +91,31 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
                 .filter(|line| !line.is_empty())
                 .collect(),
         );
+        debug!(
+            "HEAD commit is not public, linting commit diff files: {:?}",
+            commit_files
+        );
     }
     // Retrieve changed files in the working tree
-    let working_tree_files = Command::new("git")
+    let output = Command::new("git")
         .arg("diff-index")
         .arg("--no-commit-id")
         .arg("--name-only")
         .arg("-r")
         .arg("HEAD")
         .output()?;
+    if !output.status.success() {
+        bail!("Failed to determine files to lint; git diff-index failed");
+    }
 
-    let working_tree_files_str = std::str::from_utf8(&working_tree_files.stdout)?;
+    let working_tree_files_str = std::str::from_utf8(&output.stdout)?;
     let working_tree_files: HashSet<String> = working_tree_files_str
         .lines()
         .filter(|line| !line.is_empty())
         .map(|x| x.to_string())
         .collect();
 
+    debug!("Linting working tree diff files: {:?}", working_tree_files);
     let mut all_changed_files = working_tree_files;
     if let Some(commit_files) = commit_files {
         for file in commit_files {
