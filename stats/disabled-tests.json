@@ -2619,7 +2619,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "Test hit OSError here: https://github.com/pytorch/pytorch/runs/4054754297?check_suite_focus=true\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67606/comments", 
       "created_at": "2021-11-01T03:47:57Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67606/events", 
@@ -2634,6 +2634,15 @@
           "name": "oncall: distributed", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
+        {
+          "color": "5319E7", 
+          "default": false, 
+          "description": "Add this issue/PR to R2P (elastic) oncall triage queue", 
+          "id": 3486427601, 
+          "name": "oncall: r2p", 
+          "node_id": "LA_kwDOA-j9z87PzqnR", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20r2p"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67606/labels{/name}", 
@@ -2659,7 +2668,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67606/timeline", 
       "title": "DISABLED test_create_store_single_server (__main__.DistributedUtilTest)", 
-      "updated_at": "2021-11-01T03:47:58Z", 
+      "updated_at": "2021-11-01T07:32:29Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67606", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
