@@ -160,14 +160,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
             Type: 'SecureString',
           })
           .promise();
-        // Let node know if it's supposed to be ephemeral or not (default: true)
-        await ssm
-          .putParameter({
-            Name: runnerParameters.environment + '-' + (i.InstanceId as string) + '-ephemeral',
-            Value: runnerParameters.runnerType.is_ephemeral ? '1' : '0',
-            Type: 'SecureString',
-          })
-          .promise();
       });
       break;
     } catch (e) {

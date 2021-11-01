@@ -103,15 +103,16 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
         runnerExtraLabels !== undefined
           ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}`
           : `--labels ${runnerType.runnerTypeName}`;
+      const ephemeralArgument = runnerType.is_ephemeral ? "--ephemeral" : ""
       const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
       const configBaseUrl = 'https://github.com';
       try {
         await createRunner({
           environment: environment,
           runnerConfig: enableOrgLevel
-            ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument}`
+            ? `--url ${configBaseUrl}/${payload.repositoryOwner} --token ${token} ${labelsArgument}${runnerGroupArgument} ${ephemeralArgument}`
             : `--url ${configBaseUrl}/${payload.repositoryOwner}/${payload.repositoryName} ` +
-              `--token ${token} ${labelsArgument}`,
+              `--token ${token} ${labelsArgument} ${ephemeralArgument}`,
           orgName: orgName,
           repoName: repoName,
           runnerType: runnerType,
