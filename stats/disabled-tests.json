@@ -2644,7 +2644,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Test timed out here: https://github.com/pytorch/pytorch/runs/4059791464?check_suite_focus=true. \n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @lw @beauby @jjlilley", 
+      "body": "Test timed out here: https://github.com/pytorch/pytorch/runs/4059791464?check_suite_focus=true. \n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @lw @beauby @jjlilley", 
       "closed_at": null, 
       "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67604/comments", 
@@ -2654,6 +2654,24 @@
       "id": 1040726855, 
       "labels": [
         {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Add this issue/PR to distributed oncall triage queue", 
@@ -2661,6 +2679,15 @@
           "name": "oncall: distributed", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         }, 
         {
           "color": "f7e845", 
@@ -2704,7 +2731,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67604/timeline", 
       "title": "DISABLED test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)", 
-      "updated_at": "2021-11-01T14:30:56Z", 
+      "updated_at": "2021-11-01T20:27:44Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67604", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
@@ -2732,7 +2759,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Test timed out here: https://github.com/pytorch/pytorch/runs/4057157651?check_suite_focus=true.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd", 
+      "body": "Test timed out here: https://github.com/pytorch/pytorch/runs/4057157651?check_suite_focus=true.\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67605/comments", 
@@ -2741,6 +2768,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/67605", 
       "id": 1040727177, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
         {
           "color": "f7e101", 
           "default": false, 
@@ -2758,6 +2803,15 @@
           "name": "oncall: jit", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         }, 
         {
           "color": "f7e101", 
@@ -2792,7 +2846,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67605/timeline", 
       "title": "DISABLED test_remote_script_udf (__main__.TensorPipeJitRpcTest)", 
-      "updated_at": "2021-11-01T03:47:12Z", 
+      "updated_at": "2021-11-01T20:27:36Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67605", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
