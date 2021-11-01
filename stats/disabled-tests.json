@@ -2443,7 +2443,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "Test timed out here: https://github.com/pytorch/pytorch/runs/4059791464?check_suite_focus=true. \n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @lw @beauby @jjlilley", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67604/comments", 
       "created_at": "2021-11-01T03:46:13Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67604/events", 
@@ -2501,7 +2501,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67604/timeline", 
       "title": "DISABLED test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)", 
-      "updated_at": "2021-11-01T03:46:17Z", 
+      "updated_at": "2021-11-01T14:30:56Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67604", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
