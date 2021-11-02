@@ -4,11 +4,44 @@ from pathlib import Path
 
 import jinja2
 import os
+from dataclasses import dataclass
 from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 GITHUB_DIR = REPO_ROOT / ".github"
+
+CRONS = {
+    "5 minutes": "*/5 * * * *",
+    "1 hour": "0 * * * *",
+}
+
+
+@dataclass
+class Branch:
+    branch: str
+    cron: str = CRONS["1 hour"]
+    fetch_size: int = 4
+    history_size: int = 100
+
+
+HUD_JOBS = {
+    "pytorch": {
+        "pytorch": [
+            Branch(branch="master", fetch_size=2, cron=CRONS["5 minutes"]),
+            Branch(branch="nightly", fetch_size=2),
+            Branch(branch="release/1.10", fetch_size=2),
+            Branch(branch="viable/strict", fetch_size=2),
+        ],
+        "vision": [Branch(branch="main"), Branch(branch="release/0.11")],
+        "audio": [Branch(branch="main"), Branch(branch="release/0.10")],
+        "text": [Branch(branch="main"), Branch(branch="release/0.11")],
+        "examples": [Branch(branch="master")],
+        "tutorials": [Branch(branch="master")],
+        "torchx": [Branch(branch="main")],
+    },
+    "PyTorchLightning": {"pytorch-lightning": [Branch(branch="master")]},
+}
 
 
 class CIWorkflow:
@@ -63,11 +96,28 @@ WORKFLOWS = [
     ),
 ]
 
+for user_name, repos in HUD_JOBS.items():
+    for repo_name, branches in repos.items():
+        for branch in branches:
+            WORKFLOWS.append(
+                CIWorkflow(
+                    template="update_github_status.yml.j2",
+                    repo=repo_name,
+                    user=user_name,
+                    branch=branch.branch,
+                    name=f"update-github-status-{user_name}-{repo_name}-{branch.branch.replace('/', '_')}",
+                    cron=branch.cron,
+                    fetch_size=branch.fetch_size,
+                    history_size=branch.history_size,
+                )
+            )
+
 
 if __name__ == "__main__":
     jinja_env = jinja2.Environment(
         variable_start_string="!{{",
         loader=jinja2.FileSystemLoader(str(GITHUB_DIR / "templates")),
+        undefined=jinja2.StrictUndefined,
     )
 
     # Delete the existing generated files first, this should align with .gitattributes file description.

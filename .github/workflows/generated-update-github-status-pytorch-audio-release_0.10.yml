@@ -1,0 +1,38 @@
+# @generated DO NOT EDIT MANUALLY
+# Generated from .github/templates/update_github_status.yml.j2
+# @generated DO NOT EDIT MANUALLY
+# Generated from .github/templates/deploy_lambda.yml.j2
+name: Update audio/pytorch/release/0.10 status
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  pull_request:
+
+
+concurrency:
+  group: Update audio/pytorch/release/0.10 status
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          pip install \
+            boto3==1.16.52 \
+            aiohttp==3.7.4 \
+            cryptography==35.0.0 \
+            requests==2.24.0 \
+            PyJWT==2.1.0
+      - name: Update
+        env:
+          app_id: ${{ secrets.SYNC_APP_ID }}
+          private_key: ${{ secrets.SYNC_PRIVATE_KEY }}
+          AWS_KEY_ID: ${{ secrets.OSSCI_JOB_STATUS_ID }}
+          AWS_SECRET_KEY: ${{ secrets.OSSCI_JOB_STATUS_KEY }}
+        run: |
+          python tools/scripts/update_github_status.py --repo 'audio' --user 'pytorch' --branch 'release/0.10' --fetch_size 4 --history_size 100
