@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
-use lint_config::get_linters_from_config;
 use console::style;
 use indicatif::{MultiProgress, ProgressBar};
+use lint_config::get_linters_from_config;
 use linter::Linter;
 use log::debug;
 use path::AbsPath;
@@ -235,7 +235,6 @@ fn do_lint(
 
     let mut thread_handles = Vec::new();
 
-
     let spinners = MultiProgress::new();
     for linter in linters {
         let spinner = spinners.add(ProgressBar::new_spinner());
@@ -287,7 +286,8 @@ fn do_main() -> Result<i32> {
     };
     env_logger::Builder::new().filter_level(log_level).init();
 
-    let config_path = AbsPath::new(PathBuf::from(opt.config))?;
+    let config_path = AbsPath::new(PathBuf::from(&opt.config))
+        .with_context(|| format!("Could not read lintrunner config at: '{}'", opt.config))?;
     let skipped_linters = opt.skip.map(|linters| {
         linters
             .split(',')
