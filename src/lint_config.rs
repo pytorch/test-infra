@@ -16,7 +16,8 @@ struct LintRunnerConfig {
 struct LintConfig {
     name: String,
     include_patterns: Vec<String>,
-    exclude_patterns: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exclude_patterns: Option<Vec<String>>,
     args: Vec<String>,
     init_args: Option<Vec<String>>,
 }
@@ -31,7 +32,11 @@ pub fn get_linters_from_config(
     let mut linters = Vec::new();
     for lint_config in lint_runner_config.linters {
         let include_patterns = patterns_from_strs(&lint_config.include_patterns)?;
-        let exclude_patterns = patterns_from_strs(&lint_config.exclude_patterns)?;
+        let exclude_patterns = if let Some(exclude_patterns) = &lint_config.exclude_patterns {
+            patterns_from_strs(exclude_patterns)?
+        } else {
+            Vec::new()
+        };
         linters.push(Linter {
             name: lint_config.name,
             include_patterns,
