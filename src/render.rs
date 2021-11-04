@@ -39,23 +39,22 @@ pub fn render_lint_messages(
         let lint_messages = lint_messages.get(path).unwrap();
 
         // Write path relative to user's current working directory.
-        let current_dir = std::env::current_dir()?;
-        let display_path = if let Some(abs_path) = path {
-            // unwrap will never panic because we know `path` is absolute.
-            path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path())
-                .unwrap()
-                .to_string_lossy()
-                .into_owned()
-        } else {
-            "<no file>".to_string()
-        };
-
         stdout.write_all(b"\n\n")?;
-        stdout.write_line(&format!(
-            "{} Lint for {}:\n",
-            style(">>>").bold(),
-            style(display_path).underlined()
+
+        let current_dir = std::env::current_dir()?;
+        if let Some(abs_path) = path {
+            // unwrap will never panic because we know `path` is absolute.
+            let relative_path = path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path())
+                .unwrap();
+            stdout.write_line(&format!(
+                "{} Lint for {}:\n",
+                style(">>>").bold(),
+                style(relative_path.display()).underlined()
         ))?;
+        } else {
+            stdout.write_line(">>> General linter failure:\n")?;
+        }
+
 
         for lint_message in lint_messages {
             // Write: `   Error  (LINTER) prefer-using-this-over-that\n`
