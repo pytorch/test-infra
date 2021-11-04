@@ -59,7 +59,6 @@ pub struct LintMessage {
 impl LintMessage {
     pub fn from_json(json: &str) -> Result<LintMessage> {
         let raw_msg: LintMessageSerde = serde_json::from_str(json)?;
-        dbg!(&raw_msg.path);
         Ok(LintMessage {
             path: AbsPath::new(PathBuf::from(raw_msg.path))?,
             line: raw_msg.line,
