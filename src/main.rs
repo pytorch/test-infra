@@ -134,7 +134,7 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
 }
 
 fn group_lints_by_file(
-    all_lints: &mut HashMap<AbsPath, Vec<LintMessage>>,
+    all_lints: &mut HashMap<Option<AbsPath>, Vec<LintMessage>>,
     lints: Vec<LintMessage>,
 ) {
     lints.into_iter().fold(all_lints, |acc, lint| {
@@ -145,10 +145,10 @@ fn group_lints_by_file(
     });
 }
 
-fn apply_patches(lint_messages: &HashMap<AbsPath, Vec<LintMessage>>) -> Result<()> {
+fn apply_patches(lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>) -> Result<()> {
     for (path, lint_messages) in lint_messages {
         for lint_message in lint_messages {
-            if let Some(replacement) = &lint_message.replacement {
+            if let (Some(replacement), Some(path)) = (&lint_message.replacement, path) {
                 std::fs::write(path.as_pathbuf(), replacement).context(format!(
                     "Failed to write apply patch to file: '{}'",
                     path.as_pathbuf().display()
@@ -235,31 +235,32 @@ fn do_lint(
 
     let mut thread_handles = Vec::new();
 
-    let spinners = MultiProgress::new();
+    // let spinners = MultiProgress::new();
     for linter in linters {
-        let spinner = spinners.add(ProgressBar::new_spinner());
-        spinner.set_message(format!("{} running...", linter.name));
-        spinner.enable_steady_tick(100);
+        // let spinner = spinners.add(ProgressBar::new_spinner());
+        // spinner.set_message(format!("{} running...", linter.name));
+        // spinner.enable_steady_tick(100);
         let all_lints = Arc::clone(&all_lints);
         let files = Arc::clone(&files);
 
         let handle = thread::spawn(move || -> Result<()> {
             let lints = linter.run(&files)?;
+            debug!("lints for {}: {:#?}", linter.name, lints);
             let mut all_lints = all_lints.lock().unwrap();
             let is_success = lints.is_empty();
             group_lints_by_file(&mut all_lints, lints);
-            let spinner_message = if is_success {
-                format!("{} {}", linter.name, style("success!").green())
-            } else {
-                format!("{} {}", linter.name, style("failure").red())
-            };
-            spinner.finish_with_message(spinner_message);
+            // let spinner_message = if is_success {
+            //     format!("{} {}", linter.name, style("success!").green())
+            // } else {
+            //     format!("{} {}", linter.name, style("failure").red())
+            // };
+            // spinner.finish_with_message(spinner_message);
             Ok(())
         });
         thread_handles.push(handle);
     }
 
-    spinners.join_and_clear()?;
+    // spinners.join()?;
     for handle in thread_handles {
         handle.join().unwrap()?;
     }

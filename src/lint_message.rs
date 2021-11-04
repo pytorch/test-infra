@@ -28,7 +28,7 @@ impl LintSeverity {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LintMessageSerde {
-    path: String,
+    path: Option<String>,
     line: Option<usize>,
     char: Option<usize>,
     code: String,
@@ -43,8 +43,9 @@ struct LintMessageSerde {
     bypass_changed_line_filtering: Option<bool>,
 }
 
+#[derive(Debug)]
 pub struct LintMessage {
-    pub path: AbsPath,
+    pub path: Option<AbsPath>,
     pub line: Option<usize>,
     pub char: Option<usize>,
     pub code: String,
@@ -59,8 +60,14 @@ pub struct LintMessage {
 impl LintMessage {
     pub fn from_json(json: &str) -> Result<LintMessage> {
         let raw_msg: LintMessageSerde = serde_json::from_str(json)?;
+        let path = if let Some(raw_path) = raw_msg.path {
+            Some(AbsPath::new(PathBuf::from(raw_path))?)
+        } else {
+            None
+        };
+
         Ok(LintMessage {
-            path: AbsPath::new(PathBuf::from(raw_msg.path))?,
+            path,
             line: raw_msg.line,
             char: raw_msg.char,
             code: raw_msg.code,

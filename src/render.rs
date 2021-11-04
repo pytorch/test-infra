@@ -18,7 +18,7 @@ pub enum PrintedLintErrors {
 }
 
 pub fn render_lint_messages(
-    lint_messages: &HashMap<AbsPath, Vec<LintMessage>>,
+    lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     let mut stdout = Term::stdout();
     if lint_messages.is_empty() {
@@ -32,7 +32,7 @@ pub fn render_lint_messages(
         .subsequent_indent(spaces(4));
 
     // Always render messages in sorted order.
-    let mut paths: Vec<&AbsPath> = lint_messages.keys().collect();
+    let mut paths: Vec<&Option<AbsPath>> = lint_messages.keys().collect();
     paths.sort();
 
     for path in paths {
@@ -40,15 +40,21 @@ pub fn render_lint_messages(
 
         // Write path relative to user's current working directory.
         let current_dir = std::env::current_dir()?;
-        // unwrap will never panic because we know `path` is absolute.
-        let relative_path =
-            path_relative_from(path.as_pathbuf().as_path(), current_dir.as_path()).unwrap();
+        let display_path = if let Some(abs_path) = path {
+            // unwrap will never panic because we know `path` is absolute.
+            path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path())
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            "<no file>".to_string()
+        };
 
         stdout.write_all(b"\n\n")?;
         stdout.write_line(&format!(
             "{} Lint for {}:\n",
             style(">>>").bold(),
-            style(relative_path.as_path().display()).underlined()
+            style(display_path).underlined()
         ))?;
 
         for lint_message in lint_messages {
@@ -119,7 +125,7 @@ pub fn render_lint_messages(
                 }
 
                 stdout.write_all(b"\n")?;
-            } else if let Some(line_number) = &lint_message.line {
+            } else if let (Some(line_number), Some(path)) = (&lint_message.line, path) {
                 stdout.write_all(b"\n")?;
 
                 let file = fs::read_to_string(path.as_pathbuf()).context(format!(

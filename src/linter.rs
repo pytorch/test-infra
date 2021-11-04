@@ -97,7 +97,14 @@ impl Linter {
                 self.name
             ))?
             .into_iter()
-            .filter(|lint| matched_files.contains(&lint.path))
+            .filter(|lint| {
+                if let Some(path) = &lint.path {
+                    matched_files.contains(path)
+                } else {
+                    // Always display lints without a path.
+                    true
+                }
+            })
             .collect();
         Ok(lints)
     }
