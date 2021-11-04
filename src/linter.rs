@@ -17,6 +17,7 @@ pub struct Linter {
     pub commands: Vec<String>,
     pub init_commands: Option<Vec<String>>,
     pub config_path: AbsPath,
+    pub bypass_matched_file_filter: bool,
 }
 
 fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
@@ -95,18 +96,22 @@ impl Linter {
             .context(format!(
                 "Failed to deserialize output for lint adapter: '{}'",
                 self.name
-            ))?
-            .into_iter()
-            .filter(|lint| {
-                if let Some(path) = &lint.path {
-                    matched_files.contains(path)
-                } else {
-                    // Always display lints without a path.
-                    true
-                }
-            })
-            .collect();
-        Ok(lints)
+            ))?;
+        if self.bypass_matched_file_filter {
+            Ok(lints)
+        } else {
+            Ok(lints
+                .into_iter()
+                .filter(|lint| {
+                    if let Some(path) = &lint.path {
+                        matched_files.contains(path)
+                    } else {
+                        // Always display lints without a path.
+                        true
+                    }
+                })
+                .collect())
+        }
     }
 
     pub fn run(&self, files: &Vec<AbsPath>) -> Result<Vec<LintMessage>> {

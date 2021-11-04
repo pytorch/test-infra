@@ -20,6 +20,8 @@ struct LintConfig {
     exclude_patterns: Option<Vec<String>>,
     args: Vec<String>,
     init_args: Option<Vec<String>>,
+    #[serde(default)]
+    bypass_matched_file_filter: bool,
 }
 
 /// Given options specified by the user, return a list of linters to run.
@@ -44,6 +46,7 @@ pub fn get_linters_from_config(
             commands: lint_config.args,
             init_commands: lint_config.init_args,
             config_path: config_path.clone(),
+            bypass_matched_file_filter: lint_config.bypass_matched_file_filter,
         });
     }
     debug!(

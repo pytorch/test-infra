@@ -245,7 +245,6 @@ fn do_lint(
 
         let handle = thread::spawn(move || -> Result<()> {
             let lints = linter.run(&files)?;
-            debug!("lints for {}: {:#?}", linter.name, lints);
             let mut all_lints = all_lints.lock().unwrap();
             let is_success = lints.is_empty();
             group_lints_by_file(&mut all_lints, lints);
