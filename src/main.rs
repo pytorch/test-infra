@@ -3,7 +3,7 @@ use console::style;
 use indicatif::{MultiProgress, ProgressBar};
 use lint_config::get_linters_from_config;
 use linter::Linter;
-use log::debug;
+use log::{debug, log_enabled};
 use path::AbsPath;
 use render::{print_error, render_lint_messages};
 use std::collections::HashMap;
@@ -235,31 +235,41 @@ fn do_lint(
 
     let mut thread_handles = Vec::new();
 
-    // let spinners = MultiProgress::new();
+    let spinners = Arc::new(MultiProgress::new());
     for linter in linters {
-        // let spinner = spinners.add(ProgressBar::new_spinner());
-        // spinner.set_message(format!("{} running...", linter.name));
-        // spinner.enable_steady_tick(100);
         let all_lints = Arc::clone(&all_lints);
         let files = Arc::clone(&files);
+        let spinners = Arc::clone(&spinners);
 
         let handle = thread::spawn(move || -> Result<()> {
+            let mut spinner = None;
+            if !log_enabled!(log::Level::Debug) {
+                let _spinner = spinners.add(ProgressBar::new_spinner());
+                _spinner.set_message(format!("{} running...", linter.name));
+                _spinner.enable_steady_tick(100);
+                spinner = Some(_spinner);
+            }
+
             let lints = linter.run(&files)?;
             let mut all_lints = all_lints.lock().unwrap();
             let is_success = lints.is_empty();
             group_lints_by_file(&mut all_lints, lints);
-            // let spinner_message = if is_success {
-            //     format!("{} {}", linter.name, style("success!").green())
-            // } else {
-            //     format!("{} {}", linter.name, style("failure").red())
-            // };
-            // spinner.finish_with_message(spinner_message);
+
+            let spinner_message = if is_success {
+                format!("{} {}", linter.name, style("success!").green())
+            } else {
+                format!("{} {}", linter.name, style("failure").red())
+            };
+
+            if !log_enabled!(log::Level::Debug) {
+                spinner.unwrap().finish_with_message(spinner_message);
+            }
             Ok(())
         });
         thread_handles.push(handle);
     }
 
-    // spinners.join()?;
+    spinners.join()?;
     for handle in thread_handles {
         handle.join().unwrap()?;
     }
