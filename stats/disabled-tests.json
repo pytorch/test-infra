@@ -2803,7 +2803,17 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67881/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/67881", 
       "id": 1045274446, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/67881/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2827,7 +2837,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67881/timeline", 
       "title": "DISABLED test_nested (__main__.ForkTest)", 
-      "updated_at": "2021-11-04T22:40:21Z", 
+      "updated_at": "2021-11-05T16:09:46Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67881", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4", 
