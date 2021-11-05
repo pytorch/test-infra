@@ -20,6 +20,7 @@ resource "aws_sqs_queue" "queued_builds" {
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
+  message_retention_seconds   = 1800
 
   tags = var.tags
 }
