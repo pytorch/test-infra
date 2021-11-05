@@ -80,12 +80,24 @@ impl Linter {
         debug!("Linter {} took: {:?}", self.name, start.elapsed());
 
         if !&command.status.success() {
-            let stderr = std::str::from_utf8(&command.stderr)?.to_owned();
-            return Err(anyhow::Error::msg(format!(
-                "lint adapter for '{}' failed with non-zero exit code",
-                self.name
-            )))
-            .with_context(|| stderr);
+            // If the command failed, format a special lint message that complains.
+            // This ensures that an individual buggy linter adapter cannot crash the program.
+            let stderr = std::str::from_utf8(&command.stderr)?;
+            let stdout = std::str::from_utf8(&command.stdout)?;
+            let err_lint = LintMessage {
+                path: None,
+                line: None,
+                char: None,
+                code: self.name.clone(),
+                severity: crate::lint_message::LintSeverity::Error,
+                name: "Linter adapter failed".to_string(),
+                description: Some(format!("Linter adapter failed with non-zero exit code. \n\
+                    This is a bug, please file an issue against the owner of this linter. \n\n\
+                    STDERR:\n{}\n\nSTDOUT:{}\n", stderr, stdout)),
+                original: None,
+                replacement: None,
+            };
+            return Ok(vec![err_lint]);
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
         let lints = stdout_str
