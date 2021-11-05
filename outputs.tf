@@ -11,6 +11,8 @@ output "runners" {
     role_runner                     = module.runners.role_runner
     role_scale_up                   = module.runners.role_scale_up
     role_scale_down                 = module.runners.role_scale_down
+    role_scale_down                 = module.runners.role_scale_down
+    iam_profile_name_runner         = module.runners.iam_profile_name_runner
   }
 }
 

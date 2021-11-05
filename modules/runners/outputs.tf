@@ -25,3 +25,7 @@ output "lambda_scale_down" {
 output "role_scale_down" {
   value = aws_iam_role.scale_down
 }
+
+output "iam_profile_name_runner" {
+  value = aws_iam_instance_profile.runner.name
+}
