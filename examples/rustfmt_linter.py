@@ -35,7 +35,6 @@ class LintMessage(NamedTuple):
     original: Optional[str]
     replacement: Optional[str]
     description: Optional[str]
-    bypassChangedLineFiltering: Optional[bool]
 
 
 def as_posix(name: str) -> str:
@@ -119,7 +118,6 @@ def check_file(
                     original=None,
                     replacement=None,
                     description=description,
-                    bypassChangedLineFiltering=None,
                 )
             ]
 
@@ -148,7 +146,6 @@ def check_file(
                         stdout=err.stdout.decode("utf-8").strip() or "(empty)",
                     )
                 ),
-                bypassChangedLineFiltering=None,
             )
         ]
 
@@ -172,7 +169,6 @@ def check_file(
                     "Possible rustfmt bug. "
                     "rustfmt returned error output but didn't fail:\n{}"
                 ).format(clean_err),
-                bypassChangedLineFiltering=None,
             )
         ]
 
@@ -187,7 +183,6 @@ def check_file(
             original=original.decode("utf-8"),
             replacement=replacement.decode("utf-8"),
             description="See https://github.com/rust-lang/rustfmt#tips",
-            bypassChangedLineFiltering=True,
         )
     ]
 

@@ -39,8 +39,6 @@ struct LintMessageSerde {
     original: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     replacement: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    bypass_changed_line_filtering: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -54,7 +52,6 @@ pub struct LintMessage {
     pub description: Option<String>,
     pub original: Option<String>,
     pub replacement: Option<String>,
-    pub bypass_changed_line_filtering: Option<bool>,
 }
 
 impl LintMessage {
@@ -76,7 +73,6 @@ impl LintMessage {
             description: raw_msg.description,
             original: raw_msg.original,
             replacement: raw_msg.replacement,
-            bypass_changed_line_filtering: raw_msg.bypass_changed_line_filtering,
         })
     }
 }
