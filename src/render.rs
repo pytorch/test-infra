@@ -18,9 +18,9 @@ pub enum PrintedLintErrors {
 }
 
 pub fn render_lint_messages_json(
+    stdout: &mut Term,
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
-    let stdout = Term::stdout();
     let mut printed = false;
     for (_, lint_message) in lint_messages {
         for lint_message in lint_message {
@@ -37,9 +37,9 @@ pub fn render_lint_messages_json(
 }
 
 pub fn render_lint_messages(
+    stdout: &mut Term,
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
-    let mut stdout = Term::stdout();
     if lint_messages.is_empty() {
         stdout.write_line(format!("{} {}", style("ok").green(), "No lint issues.").as_str())?;
 
@@ -102,6 +102,11 @@ pub fn render_lint_messages(
             if let (Some(original), Some(replacement)) =
                 (&lint_message.original, &lint_message.replacement)
             {
+                write!(
+                    stdout,
+                    "\n    {}\n",
+                    style("You can run `lintrunner -a` to apply this patch.").cyan()
+                )?;
                 stdout.write_all(b"\n")?;
                 let diff = TextDiff::from_lines(original, replacement);
 

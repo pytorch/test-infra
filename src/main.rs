@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use console::style;
+use console::{style, Term};
 use indicatif::{MultiProgress, ProgressBar};
 use lint_config::get_linters_from_config;
 use linter::Linter;
@@ -218,6 +218,13 @@ fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
     Ok(0)
 }
 
+fn remove_patchable_lints(lints: Vec<LintMessage>) -> Vec<LintMessage> {
+    lints
+        .into_iter()
+        .filter(|lint| lint.replacement.is_none())
+        .collect()
+}
+
 fn do_lint(
     linters: Vec<Linter>,
     paths_cmd: Option<String>,
@@ -258,8 +265,18 @@ fn do_lint(
             }
 
             let lints = linter.run(&files)?;
+
+            // If we're applying patches later, don't consider lints that would
+            // be fixed by that.
+            let lints = if should_apply_patches {
+                remove_patchable_lints(lints)
+            } else {
+                lints
+            };
+
             let mut all_lints = all_lints.lock().unwrap();
             let is_success = lints.is_empty();
+
             group_lints_by_file(&mut all_lints, lints);
 
             let spinner_message = if is_success {
@@ -281,20 +298,25 @@ fn do_lint(
         handle.join().unwrap()?;
     }
 
+    // Unwrap is fine because all other owners hsould have been joined.
     let all_lints = all_lints.lock().unwrap();
+
+    let mut stdout = Term::stdout();
+
     let did_print = if render_as_json {
-        render_lint_messages_json(&all_lints)?
+        render_lint_messages_json(&mut stdout, &all_lints)?
     } else {
-        render_lint_messages(&all_lints)?
+        render_lint_messages(&mut stdout, &all_lints)?
     };
+
+    if should_apply_patches {
+        apply_patches(&all_lints)?;
+        stdout.write_line("Successfully applied all patches.")?;
+    }
+
     match did_print {
         PrintedLintErrors::No => Ok(0),
-        PrintedLintErrors::Yes => {
-            if should_apply_patches {
-                apply_patches(&all_lints)?;
-            }
-            Ok(1)
-        }
+        PrintedLintErrors::Yes => Ok(1),
     }
 }
 
