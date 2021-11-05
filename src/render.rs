@@ -17,6 +17,25 @@ pub enum PrintedLintErrors {
     No,
 }
 
+pub fn render_lint_messages_json(
+    lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
+) -> Result<PrintedLintErrors> {
+    let stdout = Term::stdout();
+    let mut printed = false;
+    for (_, lint_message) in lint_messages {
+        for lint_message in lint_message {
+            printed = true;
+            stdout.write_line(&lint_message.to_json()?)?;
+        }
+    }
+
+    if printed {
+        Ok(PrintedLintErrors::Yes)
+    } else {
+        Ok(PrintedLintErrors::No)
+    }
+}
+
 pub fn render_lint_messages(
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {

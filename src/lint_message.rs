@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::path::AbsPath;
@@ -74,5 +74,24 @@ impl LintMessage {
             original: raw_msg.original,
             replacement: raw_msg.replacement,
         })
+    }
+
+    pub fn to_json(&self) -> Result<String> {
+        let raw_msg = LintMessageSerde {
+            path: self
+                .path
+                .as_ref()
+                .map(|p| p.as_pathbuf().to_string_lossy().to_string()),
+            line: self.line,
+            char: self.char,
+            code: self.code.clone(),
+            severity: self.severity,
+            name: self.name.clone(),
+            description: self.description.clone(),
+            original: self.original.clone(),
+            replacement: self.replacement.clone(),
+        };
+        Ok(serde_json::to_string(&raw_msg)
+            .with_context(|| format!("Failed to serialize lint message to json: {:#?}", self))?)
     }
 }

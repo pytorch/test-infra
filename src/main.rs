@@ -3,9 +3,9 @@ use console::style;
 use indicatif::{MultiProgress, ProgressBar};
 use lint_config::get_linters_from_config;
 use linter::Linter;
-use log::{debug, log_enabled};
+use log::debug;
 use path::AbsPath;
-use render::{print_error, render_lint_messages};
+use render::{print_error, render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
@@ -186,6 +186,11 @@ struct Opt {
     #[structopt(long)]
     take: Option<String>,
 
+    /// If set, lintrunner will render lint messages as JSON, according to the
+    /// LintMessage spec.
+    #[structopt(long)]
+    json: bool,
+
     #[structopt(subcommand)]
     cmd: Option<SubCommand>,
 }
@@ -217,6 +222,8 @@ fn do_lint(
     linters: Vec<Linter>,
     paths_cmd: Option<String>,
     should_apply_patches: bool,
+    render_as_json: bool,
+    enable_spinners: bool,
 ) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
@@ -234,8 +241,8 @@ fn do_lint(
     debug!("Linting files: {:#?}", files);
 
     let mut thread_handles = Vec::new();
-
     let spinners = Arc::new(MultiProgress::new());
+
     for linter in linters {
         let all_lints = Arc::clone(&all_lints);
         let files = Arc::clone(&files);
@@ -243,7 +250,7 @@ fn do_lint(
 
         let handle = thread::spawn(move || -> Result<()> {
             let mut spinner = None;
-            if !log_enabled!(log::Level::Debug) {
+            if enable_spinners {
                 let _spinner = spinners.add(ProgressBar::new_spinner());
                 _spinner.set_message(format!("{} running...", linter.name));
                 _spinner.enable_steady_tick(100);
@@ -261,7 +268,7 @@ fn do_lint(
                 format!("{} {}", linter.name, style("failure").red())
             };
 
-            if !log_enabled!(log::Level::Debug) {
+            if enable_spinners {
                 spinner.unwrap().finish_with_message(spinner_message);
             }
             Ok(())
@@ -275,7 +282,11 @@ fn do_lint(
     }
 
     let all_lints = all_lints.lock().unwrap();
-    let did_print = render_lint_messages(&all_lints)?;
+    let did_print = if render_as_json {
+        render_lint_messages_json(&all_lints)?
+    } else {
+        render_lint_messages(&all_lints)?
+    };
     match did_print {
         PrintedLintErrors::No => Ok(0),
         PrintedLintErrors::Yes => {
@@ -289,10 +300,14 @@ fn do_lint(
 
 fn do_main() -> Result<i32> {
     let opt = Opt::from_args();
-    let log_level = if opt.verbose {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
+    let log_level = match (opt.verbose, opt.json) {
+        // Verbose overrides json
+        (true, true) => log::LevelFilter::Debug,
+        (true, false) => log::LevelFilter::Debug,
+        // If just json is asked for, suppress most output except hard errors.
+        (false, true) => log::LevelFilter::Error,
+        // Default
+        (false, false) => log::LevelFilter::Info,
     };
     env_logger::Builder::new().filter_level(log_level).init();
 
@@ -313,6 +328,8 @@ fn do_main() -> Result<i32> {
 
     let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
 
+    let enable_spinners = !opt.verbose && !opt.json;
+
     match opt.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
@@ -320,7 +337,13 @@ fn do_main() -> Result<i32> {
         }
         None => {
             // Default command is to just lint.
-            do_lint(linters, opt.paths_cmd, opt.apply_patches)
+            do_lint(
+                linters,
+                opt.paths_cmd,
+                opt.apply_patches,
+                opt.json,
+                enable_spinners,
+            )
         }
     }
 }
