@@ -145,15 +145,13 @@ fn group_lints_by_file(
     });
 }
 
-fn apply_patches(lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>) -> Result<()> {
-    for (path, lint_messages) in lint_messages {
-        for lint_message in lint_messages {
-            if let (Some(replacement), Some(path)) = (&lint_message.replacement, path) {
-                std::fs::write(path.as_pathbuf(), replacement).context(format!(
-                    "Failed to write apply patch to file: '{}'",
-                    path.as_pathbuf().display()
-                ))?;
-            }
+fn apply_patches(lint_messages: &Vec<LintMessage>) -> Result<()> {
+    for lint_message in lint_messages {
+        if let (Some(replacement), Some(path)) = (&lint_message.replacement, &lint_message.path) {
+            std::fs::write(path.as_pathbuf(), replacement).context(format!(
+                "Failed to write apply patch to file: '{}'",
+                path.as_pathbuf().display()
+            ))?;
         }
     }
     Ok(())
@@ -269,6 +267,7 @@ fn do_lint(
             // If we're applying patches later, don't consider lints that would
             // be fixed by that.
             let lints = if should_apply_patches {
+                apply_patches(&lints)?;
                 remove_patchable_lints(lints)
             } else {
                 lints
@@ -310,7 +309,6 @@ fn do_lint(
     };
 
     if should_apply_patches {
-        apply_patches(&all_lints)?;
         stdout.write_line("Successfully applied all patches.")?;
     }
 
