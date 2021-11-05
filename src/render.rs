@@ -44,17 +44,16 @@ pub fn render_lint_messages(
         let current_dir = std::env::current_dir()?;
         if let Some(abs_path) = path {
             // unwrap will never panic because we know `path` is absolute.
-            let relative_path = path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path())
-                .unwrap();
+            let relative_path =
+                path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path()).unwrap();
             stdout.write_line(&format!(
                 "{} Lint for {}:\n",
                 style(">>>").bold(),
                 style(relative_path.display()).underlined()
-        ))?;
+            ))?;
         } else {
             stdout.write_line(">>> General linter failure:\n")?;
         }
-
 
         for lint_message in lint_messages {
             // Write: `   Error  (LINTER) prefer-using-this-over-that\n`
@@ -98,12 +97,15 @@ pub fn render_lint_messages(
                                 ChangeTag::Insert => ("+", Style::new().green()),
                                 ChangeTag::Equal => (" ", Style::new().dim()),
                             };
+                            let changeset = Changeset {
+                                old: change.old_index(),
+                                new: change.new_index(),
+                            };
                             write!(
                                 stdout,
-                                "    {}{} |{}",
-                                style(Line(change.old_index())).dim(),
-                                style(Line(change.new_index())).dim(),
-                                s.apply_to(sign).bold(),
+                                "    {} |{}",
+                                style(changeset).dim(),
+                                s.apply_to(sign).bold()
                             )?;
                             for (emphasized, value) in change.iter_strings_lossy() {
                                 if emphasized {
@@ -178,6 +180,41 @@ fn bspaces(len: u8) -> &'static [u8] {
 fn spaces(len: u8) -> &'static str {
     // SAFETY: `SPACES` is valid UTF-8 since it is all spaces.
     unsafe { std::str::from_utf8_unchecked(bspaces(len)) }
+}
+
+struct Changeset {
+    old: Option<usize>,
+    new: Option<usize>,
+}
+impl fmt::Display for Changeset {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // We want things to get formatted like:
+        // 1234  1235
+        //     ^^ two spaces
+        match (self.old, self.new) {
+            (Some(old), Some(new)) => {
+                // +1 because we want to print the line number, not the vector index.
+                let old = old + 1;
+                let new = new + 1;
+                write!(f, "{}  {}", old, new)
+            }
+            // In cases where old/new are missing, do an approximation:
+            // '1234      '
+            //        ^^^^ length of '1234' mirrored to the other side
+            //      ^^ two spaces still
+            (Some(old), None) => {
+                let old = old + 1;
+                let total_length = old.to_string().len() * 2 + 2;
+                write!(f, "{:<width$}", old, width = total_length)
+            }
+            (None, Some(new)) => {
+                let new = new + 1;
+                let total_length = new.to_string().len() * 2 + 2;
+                write!(f, "{:>width$}", new, width = total_length)
+            }
+            (None, None) => unreachable!(),
+        }
+    }
 }
 
 struct Line(Option<usize>);
