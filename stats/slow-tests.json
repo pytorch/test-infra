@@ -1,17 +1,6 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 81.018,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 198.747,
-    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 122.657,
-    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 72.55933333333333,
-    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 122.64,
-    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 114.672,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 206.083,
-    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 199.2195,
-    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 96.637,
-    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 99.307,
-    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 156.438,
-    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 75.688,
-    "test_proper_exit (__main__.TestDataLoader)": 179.355,
-    "test_proper_exit (__main__.TestDataLoaderPersistentWorkers)": 181.645,
-    "test_trunc_normal (__main__.TestNNInit)": 175.803
+    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 79.62,
+    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 101.471,
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-gloo)": 250.394,
+    "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn__dist-nccl)": 243.691
 }
