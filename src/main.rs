@@ -146,8 +146,18 @@ fn group_lints_by_file(
 }
 
 fn apply_patches(lint_messages: &Vec<LintMessage>) -> Result<()> {
+    let mut patched_paths = HashSet::new();
     for lint_message in lint_messages {
         if let (Some(replacement), Some(path)) = (&lint_message.replacement, &lint_message.path) {
+            if patched_paths.contains(path.as_pathbuf().as_path()) {
+                bail!(
+                    "Two different linters proposed changes for the same file:
+                    {}.\n This is not yet supported, file an issue if you want it.",
+                    path.as_pathbuf().display()
+                );
+            }
+            patched_paths.insert(path.as_pathbuf().as_path());
+
             std::fs::write(path.as_pathbuf(), replacement).context(format!(
                 "Failed to write apply patch to file: '{}'",
                 path.as_pathbuf().display()
