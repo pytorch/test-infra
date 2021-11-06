@@ -74,6 +74,13 @@ pub fn get_linters_from_config(
         } else {
             Vec::new()
         };
+
+        if lint_config.command.is_empty() {
+            bail!(
+                "Invalid linter configuration: '{}' has an empty command list.",
+                lint_config.code
+            );
+        }
         linters.push(Linter {
             code: lint_config.code,
             include_patterns,

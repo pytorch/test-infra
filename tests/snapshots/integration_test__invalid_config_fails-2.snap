@@ -1,0 +1,7 @@
+---
+source: tests/integration_test.rs
+expression: "std::str::from_utf8(&output.stdout)?.lines().collect::<Vec<_>>()"
+
+---
+[]
+

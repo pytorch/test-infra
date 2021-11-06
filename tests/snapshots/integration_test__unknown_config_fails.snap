@@ -1,0 +1,8 @@
+---
+source: tests/integration_test.rs
+expression: "std::str::from_utf8(&output.stderr)?.lines().collect::<Vec<_>>()"
+
+---
+- "error:        Could not read lintrunner config at: 'asdfasdfasdf'"
+- "caused_by:             No such file or directory (os error 2)"
+
