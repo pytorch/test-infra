@@ -14,12 +14,44 @@ struct LintRunnerConfig {
 
 #[derive(Serialize, Deserialize)]
 struct LintConfig {
-    name: String,
+    /// The name of the linter, conventionally capitals and numbers, no spaces,
+    /// dashes, or underscores
+    ///    e.g. 'FLAKE8' or 'CLANGFORMAT'
+    code: String,
+
+    /// A list of UNIX-style glob patterns. Paths matching any of these patterns
+    /// will be linted.  Patterns should be specified relative to the location
+    /// of the config file.
+    ///   e.g. ['torch/csrc/**/*.cpp', 'test/foo.py']
     include_patterns: Vec<String>,
+
+    /// A list of UNIX-style glob patterns. Paths matching any of these patterns
+    /// will be never be linted, even if they match an include pattern.
+    ///   e.g. ['torch/csrc/**/*.cpp', 'test/foo.py']
     #[serde(skip_serializing_if = "Option::is_none")]
     exclude_patterns: Option<Vec<String>>,
-    args: Vec<String>,
-    init_args: Option<Vec<String>>,
+
+    /// A list of arguments describing how the linter will be called. lintrunner
+    /// will create a subprocess and invoke this command.
+    ///
+    /// If the string "{{PATHSFILE}}" is present in the list, it will be
+    /// replaced by the location of a file containing a list of paths to lint,
+    /// one per line.
+    ///   e.g. ['python3', 'my_linter.py', '@{{PATHSFILE}}']
+    command: Vec<String>,
+
+    /// A list of arguments describing how to set up the right dependencies for
+    /// this linter. This command will be run when `lintrunner init` is called.
+    ///
+    /// The string "{{DRYRUN}}" must be present in the arguments provided. It
+    /// will be 1 if `lintrunner init --dry-run` is called, 0 otherwise.
+    ///
+    /// If {{DRYRUN}} is set, this command is expected to not make any changes
+    /// to the user's environment, instead it should only print what it will do.
+    init_command: Option<Vec<String>>,
+
+    /// By default, any lint messages returned that refer to a path not
+    /// explicitly requested by lintrunner are filtered out.
     #[serde(default)]
     bypass_matched_file_filter: bool,
 }
@@ -40,18 +72,18 @@ pub fn get_linters_from_config(
             Vec::new()
         };
         linters.push(Linter {
-            name: lint_config.name,
+            code: lint_config.code,
             include_patterns,
             exclude_patterns,
-            commands: lint_config.args,
-            init_commands: lint_config.init_args,
+            commands: lint_config.command,
+            init_commands: lint_config.init_command,
             config_path: config_path.clone(),
             bypass_matched_file_filter: lint_config.bypass_matched_file_filter,
         });
     }
     debug!(
         "Found linters: {:?}",
-        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+        linters.iter().map(|l| &l.code).collect::<Vec<_>>()
     );
 
     // Apply --take
@@ -59,7 +91,7 @@ pub fn get_linters_from_config(
         debug!("Taking linters: {:?}", taken_linters);
         linters = linters
             .into_iter()
-            .filter(|linter| taken_linters.contains(&linter.name))
+            .filter(|linter| taken_linters.contains(&linter.code))
             .collect();
     }
 
@@ -68,7 +100,7 @@ pub fn get_linters_from_config(
         debug!("Skipping linters: {:?}", skipped_linters);
         linters = linters
             .into_iter()
-            .filter(|linter| !skipped_linters.contains(&linter.name))
+            .filter(|linter| !skipped_linters.contains(&linter.code))
             .collect();
     }
     Ok(linters)
@@ -84,12 +116,12 @@ impl LintRunnerConfig {
             path.display()
         ))?;
         for linter in &config.linters {
-            if let Some(init_args) = &linter.init_args {
+            if let Some(init_args) = &linter.init_command {
                 if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {
                     bail!(
                         "Config for linter {} defines init args \
                          but does not take a {{{{DRYRUN}}}} argument.",
-                        linter.name
+                        linter.code
                     );
                 }
             }

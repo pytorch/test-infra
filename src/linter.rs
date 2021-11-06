@@ -11,7 +11,7 @@ use glob::Pattern;
 use log::{debug, info};
 
 pub struct Linter {
-    pub name: String,
+    pub code: String,
     pub include_patterns: Vec<Pattern>,
     pub exclude_patterns: Vec<Pattern>,
     pub commands: Vec<String>,
@@ -70,14 +70,14 @@ impl Linter {
 
         debug!(
             "Running linter {}: {} {}",
-            self.name,
+            self.code,
             program[0],
             arguments.join(" ")
         );
 
         let start = std::time::Instant::now();
         let command = Command::new(&program[0]).args(arguments).output()?;
-        debug!("Linter {} took: {:?}", self.name, start.elapsed());
+        debug!("Linter {} took: {:?}", self.code, start.elapsed());
 
         if !&command.status.success() {
             // If the command failed, format a special lint message that complains.
@@ -88,7 +88,7 @@ impl Linter {
                 path: None,
                 line: None,
                 char: None,
-                code: self.name.clone(),
+                code: self.code.clone(),
                 severity: crate::lint_message::LintSeverity::Error,
                 name: "Linter adapter failed".to_string(),
                 description: Some(format!("Linter adapter failed with non-zero exit code. \n\
@@ -107,7 +107,7 @@ impl Linter {
             .collect::<Result<Vec<LintMessage>>>()
             .context(format!(
                 "Failed to deserialize output for lint adapter: '{}'",
-                self.name
+                self.code
             ))?;
         if self.bypass_matched_file_filter {
             Ok(lints)
@@ -128,7 +128,7 @@ impl Linter {
 
     pub fn run(&self, files: &Vec<AbsPath>) -> Result<Vec<LintMessage>> {
         let matches = self.get_matches(&files);
-        debug!("Linter '{}' matched files: {:#?}", self.name, matches);
+        debug!("Linter '{}' matched files: {:#?}", self.code, matches);
         if matches.is_empty() {
             return Ok(Vec::new());
         }
@@ -138,7 +138,7 @@ impl Linter {
     pub fn init(&self, dry_run: bool) -> Result<()> {
         match &self.init_commands {
             Some(init_commands) => {
-                info!("Initializing linter: '{}'", self.name);
+                info!("Initializing linter: '{}'", self.code);
                 if init_commands.is_empty() {
                     return Ok(());
                 }
@@ -155,7 +155,7 @@ impl Linter {
                 if !status.success() {
                     bail!(
                         "lint initializer for '{}' failed with non-zero exit code",
-                        self.name
+                        self.code
                     );
                 }
                 Ok(())

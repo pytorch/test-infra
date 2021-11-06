@@ -206,7 +206,7 @@ enum SubCommand {
 fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
     debug!(
         "Initializing linters: {:?}",
-        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+        linters.iter().map(|l| &l.code).collect::<Vec<_>>()
     );
 
     for linter in linters {
@@ -232,7 +232,7 @@ fn do_lint(
 ) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
-        linters.iter().map(|l| &l.name).collect::<Vec<_>>()
+        linters.iter().map(|l| &l.code).collect::<Vec<_>>()
     );
 
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
@@ -257,7 +257,7 @@ fn do_lint(
             let mut spinner = None;
             if enable_spinners {
                 let _spinner = spinners.add(ProgressBar::new_spinner());
-                _spinner.set_message(format!("{} running...", linter.name));
+                _spinner.set_message(format!("{} running...", linter.code));
                 _spinner.enable_steady_tick(100);
                 spinner = Some(_spinner);
             }
@@ -279,9 +279,9 @@ fn do_lint(
             group_lints_by_file(&mut all_lints, lints);
 
             let spinner_message = if is_success {
-                format!("{} {}", linter.name, style("success!").green())
+                format!("{} {}", linter.code, style("success!").green())
             } else {
-                format!("{} {}", linter.name, style("failure").red())
+                format!("{} {}", linter.code, style("failure").red())
             };
 
             if enable_spinners {
