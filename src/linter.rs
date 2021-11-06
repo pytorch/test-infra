@@ -17,7 +17,6 @@ pub struct Linter {
     pub commands: Vec<String>,
     pub init_commands: Option<Vec<String>>,
     pub config_path: AbsPath,
-    pub bypass_matched_file_filter: bool,
 }
 
 fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
@@ -91,16 +90,19 @@ impl Linter {
                 code: self.code.clone(),
                 severity: crate::lint_message::LintSeverity::Error,
                 name: "Linter adapter failed".to_string(),
-                description: Some(format!("Linter adapter failed with non-zero exit code. \n\
+                description: Some(format!(
+                    "Linter adapter failed with non-zero exit code. \n\
                     This is a bug, please file an issue against the owner of this linter. \n\n\
-                    STDERR:\n{}\n\nSTDOUT:{}\n", stderr, stdout)),
+                    STDERR:\n{}\n\nSTDOUT:{}\n",
+                    stderr, stdout
+                )),
                 original: None,
                 replacement: None,
             };
             return Ok(vec![err_lint]);
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
-        let lints = stdout_str
+        stdout_str
             .split("\n")
             .filter(|line| !line.is_empty())
             .map(|line| LintMessage::from_json(line))
@@ -108,22 +110,7 @@ impl Linter {
             .context(format!(
                 "Failed to deserialize output for lint adapter: '{}'",
                 self.code
-            ))?;
-        if self.bypass_matched_file_filter {
-            Ok(lints)
-        } else {
-            Ok(lints
-                .into_iter()
-                .filter(|lint| {
-                    if let Some(path) = &lint.path {
-                        matched_files.contains(path)
-                    } else {
-                        // Always display lints without a path.
-                        true
-                    }
-                })
-                .collect())
-        }
+            ))
     }
 
     pub fn run(&self, files: &Vec<AbsPath>) -> Result<Vec<LintMessage>> {
