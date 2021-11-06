@@ -20,7 +20,7 @@ struct LintConfig {
     code: String,
 
     /// A list of UNIX-style glob patterns. Paths matching any of these patterns
-    /// will be linted.  Patterns should be specified relative to the location
+    /// will be linted. Patterns should be specified relative to the location
     /// of the config file.
     ///   e.g. ['torch/csrc/**/*.cpp', 'test/foo.py']
     include_patterns: Vec<String>,
@@ -37,6 +37,10 @@ struct LintConfig {
     /// If the string "{{PATHSFILE}}" is present in the list, it will be
     /// replaced by the location of a file containing a list of paths to lint,
     /// one per line.
+    ///
+    /// The paths in {{PATHSFILE}} will always be canoncalized (e.g. they are
+    /// absolute paths with symlinks resolved).
+    ///
     ///   e.g. ['python3', 'my_linter.py', '@{{PATHSFILE}}']
     command: Vec<String>,
 
