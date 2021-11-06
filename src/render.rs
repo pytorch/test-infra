@@ -41,7 +41,7 @@ pub fn render_lint_messages(
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     if lint_messages.is_empty() {
-        write!(stdout, "{} {}\n", style("ok").green(), "No lint issues.")?;
+        writeln!(stdout, "{} {}", style("ok").green(), "No lint issues.")?;
 
         return Ok(PrintedLintErrors::No);
     }
@@ -83,9 +83,9 @@ pub fn render_lint_messages(
                     Style::new().on_yellow().bold()
                 }
             };
-            write!(
+            writeln!(
                 stdout,
-                "  {} ({}) {}\n",
+                "  {} ({}) {}",
                 error_style.apply_to(lint_message.severity.label()),
                 lint_message.code,
                 style(&lint_message.name).underlined(),
@@ -95,7 +95,7 @@ pub fn render_lint_messages(
 
             if let Some(description) = &lint_message.description {
                 for line in textwrap::wrap(description, &wrap_78_indent_4) {
-                    write!(stdout, "{}\n", line)?;
+                    writeln!(stdout, "{}", line)?;
                 }
             }
 
@@ -104,9 +104,9 @@ pub fn render_lint_messages(
             if let (Some(original), Some(replacement)) =
                 (&lint_message.original, &lint_message.replacement)
             {
-                write!(
+                writeln!(
                     stdout,
-                    "\n    {}\n",
+                    "\n    {}",
                     style("You can run `lintrunner -a` to apply this patch.").cyan()
                 )?;
                 stdout.write_all(b"\n")?;
@@ -114,7 +114,7 @@ pub fn render_lint_messages(
 
                 for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
                     if idx > 0 {
-                        write!(stdout, "{:-^1$}\n", "-", 80)?;
+                        writeln!(stdout, "{:-^1$}", "-", 80)?;
                     }
                     for op in group {
                         for change in diff.iter_inline_changes(op) {
