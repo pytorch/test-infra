@@ -18,14 +18,14 @@ pub enum PrintedLintErrors {
 }
 
 pub fn render_lint_messages_json(
-    stdout: &mut Term,
+    stdout: &mut impl Write,
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     let mut printed = false;
     for (_, lint_message) in lint_messages {
         for lint_message in lint_message {
             printed = true;
-            stdout.write_line(&lint_message.to_json()?)?;
+            write!(stdout, "{}\n", lint_message.to_json()?)?;
         }
     }
 
@@ -37,11 +37,11 @@ pub fn render_lint_messages_json(
 }
 
 pub fn render_lint_messages(
-    stdout: &mut Term,
+    stdout: &mut impl Write,
     lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     if lint_messages.is_empty() {
-        stdout.write_line(format!("{} {}", style("ok").green(), "No lint issues.").as_str())?;
+        write!(stdout, "{} {}\n", style("ok").green(), "No lint issues.")?;
 
         return Ok(PrintedLintErrors::No);
     }
@@ -65,13 +65,14 @@ pub fn render_lint_messages(
             // unwrap will never panic because we know `path` is absolute.
             let relative_path =
                 path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path()).unwrap();
-            stdout.write_line(&format!(
-                "{} Lint for {}:\n",
+            write!(
+                stdout,
+                "{} Lint for {}:\n\n",
                 style(">>>").bold(),
                 style(relative_path.display()).underlined()
-            ))?;
+            )?;
         } else {
-            stdout.write_line(">>> General linter failure:\n")?;
+            write!(stdout, ">>> General linter failure:\n\n")?;
         }
 
         for lint_message in lint_messages {
@@ -82,18 +83,19 @@ pub fn render_lint_messages(
                     Style::new().on_yellow().bold()
                 }
             };
-            stdout.write_line(&format!(
-                "  {} ({}) {}",
+            write!(
+                stdout,
+                "  {} ({}) {}\n",
                 error_style.apply_to(lint_message.severity.label()),
                 lint_message.code,
                 style(&lint_message.name).underlined(),
-            ))?;
+            )?;
 
             // Write the description.
 
             if let Some(description) = &lint_message.description {
                 for line in textwrap::wrap(description, &wrap_78_indent_4) {
-                    stdout.write_line(&line)?;
+                    write!(stdout, "{}\n", line)?;
                 }
             }
 
