@@ -25,6 +25,7 @@ impl LintSeverity {
     }
 }
 
+/// Represents a single lint message.
 #[derive(Debug, Deserialize, Clone, Serialize)]
 struct LintMessageSerde {
     /// Path to the file this lint message pertains to.
@@ -41,7 +42,7 @@ struct LintMessageSerde {
     /// The column number that the lint message pertains to.
     char: Option<usize>,
 
-    /// Linter code (e.g. FLAKE8). Must match the code specified in the linter config.
+    /// Linter code (e.g. `FLAKE8`). Must match the code specified in the linter config.
     code: String,
 
     /// The severity of the lint message.

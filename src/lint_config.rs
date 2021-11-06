@@ -12,45 +12,49 @@ struct LintRunnerConfig {
     linters: Vec<LintConfig>,
 }
 
+/// Represents a single linter, along with all the information necessary to invoke it.
 #[derive(Serialize, Deserialize)]
 struct LintConfig {
     /// The name of the linter, conventionally capitals and numbers, no spaces,
     /// dashes, or underscores
+    ///
     ///    e.g. 'FLAKE8' or 'CLANGFORMAT'
     code: String,
 
     /// A list of UNIX-style glob patterns. Paths matching any of these patterns
     /// will be linted. Patterns should be specified relative to the location
     /// of the config file.
-    ///   e.g. ['torch/csrc/**/*.cpp', 'test/foo.py']
+    ///
+    ///   e.g. `['torch/csrc/**/*.cpp', 'test/foo.py']`
     include_patterns: Vec<String>,
 
     /// A list of UNIX-style glob patterns. Paths matching any of these patterns
     /// will be never be linted, even if they match an include pattern.
-    ///   e.g. ['torch/csrc/**/*.cpp', 'test/foo.py']
+    ///
+    ///   e.g. `['torch/csrc/**/*.cpp', 'test/foo.py']`
     #[serde(skip_serializing_if = "Option::is_none")]
     exclude_patterns: Option<Vec<String>>,
 
     /// A list of arguments describing how the linter will be called. lintrunner
     /// will create a subprocess and invoke this command.
     ///
-    /// If the string "{{PATHSFILE}}" is present in the list, it will be
+    /// If the string `{{PATHSFILE}}` is present in the list, it will be
     /// replaced by the location of a file containing a list of paths to lint,
     /// one per line.
     ///
-    /// The paths in {{PATHSFILE}} will always be canoncalized (e.g. they are
+    /// The paths in `{{PATHSFILE}}` will always be canoncalized (e.g. they are
     /// absolute paths with symlinks resolved).
     ///
-    ///   e.g. ['python3', 'my_linter.py', '@{{PATHSFILE}}']
+    ///   e.g. `['python3', 'my_linter.py', '@{{PATHSFILE}}']`
     command: Vec<String>,
 
     /// A list of arguments describing how to set up the right dependencies for
     /// this linter. This command will be run when `lintrunner init` is called.
     ///
-    /// The string "{{DRYRUN}}" must be present in the arguments provided. It
+    /// The string `{{DRYRUN}}` must be present in the arguments provided. It
     /// will be 1 if `lintrunner init --dry-run` is called, 0 otherwise.
     ///
-    /// If {{DRYRUN}} is set, this command is expected to not make any changes
+    /// If `{{DRYRUN}}` is set, this command is expected to not make any changes
     /// to the user's environment, instead it should only print what it will do.
     init_command: Option<Vec<String>>,
 }
