@@ -6,7 +6,6 @@ edition = "2018"
 description = "A lint running tool and framework."
 license = "BSD-3-Clause"
 
-
 [dependencies]
 structopt = "0.3.25"
 anyhow = "1.0"
