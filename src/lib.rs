@@ -6,7 +6,7 @@ use log::debug;
 use path::AbsPath;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashSet, process::Command};
@@ -130,7 +130,7 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
 }
 
 fn group_lints_by_file(
-    all_lints: &mut HashMap<Option<AbsPath>, Vec<LintMessage>>,
+    all_lints: &mut HashMap<Option<String>, Vec<LintMessage>>,
     lints: Vec<LintMessage>,
 ) {
     lints.into_iter().fold(all_lints, |acc, lint| {
@@ -145,14 +145,15 @@ fn apply_patches(lint_messages: &Vec<LintMessage>) -> Result<()> {
     let mut patched_paths = HashSet::new();
     for lint_message in lint_messages {
         if let (Some(replacement), Some(path)) = (&lint_message.replacement, &lint_message.path) {
-            if patched_paths.contains(path.as_pathbuf().as_path()) {
+            let path = AbsPath::new(PathBuf::from(path))?;
+            if patched_paths.contains(&path) {
                 bail!(
                     "Two different linters proposed changes for the same file:
                     {}.\n This is not yet supported, file an issue if you want it.",
                     path.as_pathbuf().display()
                 );
             }
-            patched_paths.insert(path.as_pathbuf().as_path());
+            patched_paths.insert(path.clone());
 
             std::fs::write(path.as_pathbuf(), replacement).context(format!(
                 "Failed to write apply patch to file: '{}'",

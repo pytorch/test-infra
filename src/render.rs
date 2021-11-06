@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io::Write;
+use std::path::PathBuf;
 use std::{cmp, collections::HashMap, fs};
 
 use anyhow::{Context, Result};
@@ -19,13 +20,13 @@ pub enum PrintedLintErrors {
 
 pub fn render_lint_messages_json(
     stdout: &mut impl Write,
-    lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
+    lint_messages: &HashMap<Option<String>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     let mut printed = false;
     for (_, lint_message) in lint_messages {
         for lint_message in lint_message {
             printed = true;
-            write!(stdout, "{}\n", lint_message.to_json()?)?;
+            write!(stdout, "{}\n", serde_json::to_string(lint_message)?)?;
         }
     }
 
@@ -38,7 +39,7 @@ pub fn render_lint_messages_json(
 
 pub fn render_lint_messages(
     stdout: &mut impl Write,
-    lint_messages: &HashMap<Option<AbsPath>, Vec<LintMessage>>,
+    lint_messages: &HashMap<Option<String>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     if lint_messages.is_empty() {
         writeln!(stdout, "{} {}", style("ok").green(), "No lint issues.")?;
@@ -51,28 +52,43 @@ pub fn render_lint_messages(
         .subsequent_indent(spaces(4));
 
     // Always render messages in sorted order.
-    let mut paths: Vec<&Option<AbsPath>> = lint_messages.keys().collect();
+    let mut paths: Vec<&Option<String>> = lint_messages.keys().collect();
     paths.sort();
 
     for path in paths {
         let lint_messages = lint_messages.get(path).unwrap();
 
-        // Write path relative to user's current working directory.
         stdout.write_all(b"\n\n")?;
 
         let current_dir = std::env::current_dir()?;
-        if let Some(abs_path) = path {
-            // unwrap will never panic because we know `path` is absolute.
-            let relative_path =
-                path_relative_from(abs_path.as_pathbuf().as_path(), current_dir.as_path()).unwrap();
-            write!(
-                stdout,
-                "{} Lint for {}:\n\n",
-                style(">>>").bold(),
-                style(relative_path.display()).underlined()
-            )?;
-        } else {
-            write!(stdout, ">>> General linter failure:\n\n")?;
+        match path {
+            None => write!(stdout, ">>> General linter failure:\n\n")?,
+            Some(path) => {
+                // Try to render the path relative to user's current working directory.
+                // But if we fail to relativize the path, just print what the linter
+                // gave us directly.
+                let abs_path = AbsPath::new(PathBuf::from(path));
+                let path_to_print = match abs_path {
+                    Ok(abs_path) => {
+                        // unwrap will never panic because we know `path` is absolute.
+                        let relative_path = path_relative_from(
+                            abs_path.as_pathbuf().as_path(),
+                            current_dir.as_path(),
+                        )
+                        .unwrap();
+
+                        relative_path.display().to_string()
+                    }
+                    Err(_) => path.clone(),
+                };
+
+                write!(
+                    stdout,
+                    "{} Lint for {}:\n\n",
+                    style(">>>").bold(),
+                    style(path_to_print).underlined()
+                )?;
+            }
         }
 
         for lint_message in lint_messages {
@@ -155,9 +171,9 @@ pub fn render_lint_messages(
             } else if let (Some(line_number), Some(path)) = (&lint_message.line, path) {
                 stdout.write_all(b"\n")?;
 
-                let file = fs::read_to_string(path.as_pathbuf()).context(format!(
+                let file = fs::read_to_string(path).context(format!(
                     "Error reading file: '{}' when rendering lints",
-                    path.as_pathbuf().display()
+                    path
                 ))?;
                 let lines = file.tokenize_lines();
 

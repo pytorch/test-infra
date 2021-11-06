@@ -105,7 +105,7 @@ impl Linter {
         stdout_str
             .split("\n")
             .filter(|line| !line.is_empty())
-            .map(|line| LintMessage::from_json(line))
+            .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
             .collect::<Result<Vec<LintMessage>>>()
             .context(format!(
                 "Failed to deserialize output for lint adapter: '{}'",
