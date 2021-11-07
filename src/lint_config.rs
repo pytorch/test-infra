@@ -35,20 +35,34 @@ pub struct LintConfig {
     /// The name of the linter, conventionally capitals and numbers, no spaces,
     /// dashes, or underscores
     ///
-    ///    e.g. 'FLAKE8' or 'CLANGFORMAT'
+    /// # Examples
+    /// - `'FLAKE8'`
+    /// - `'CLANGFORMAT'`
     pub code: String,
 
     /// A list of UNIX-style glob patterns. Paths matching any of these patterns
     /// will be linted. Patterns should be specified relative to the location
     /// of the config file.
     ///
-    ///   e.g. `['torch/csrc/**/*.cpp', 'test/foo.py']`
+    /// # Examples
+    /// - Matching against everything:
+    /// ```toml
+    /// include_patterns = ['**']
+    /// ```
+    /// - Matching against a specific file extension:
+    /// ```toml
+    /// include_patterns = ['include/**/*.h', 'src/**/*.cpp']
+    /// ```
+    /// - Match a specific file:
+    /// ```toml
+    /// include_patterns = ['include/caffe2/caffe2_operators.h', 'torch/csrc/jit/script_type.h']
+    /// ```
     pub include_patterns: Vec<String>,
 
     /// A list of UNIX-style glob patterns. Paths matching any of these patterns
     /// will be never be linted, even if they match an include pattern.
     ///
-    ///   e.g. `['torch/csrc/**/*.cpp', 'test/foo.py']`
+    /// For examples, see: [`LintConfig::include_patterns`]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude_patterns: Option<Vec<String>>,
 
@@ -62,7 +76,11 @@ pub struct LintConfig {
     /// The paths in `{{PATHSFILE}}` will always be canoncalized (e.g. they are
     /// absolute paths with symlinks resolved).
     ///
-    ///   e.g. `['python3', 'my_linter.py', '@{{PATHSFILE}}']`
+    /// # Examples
+    /// - Calling a Python script:
+    /// ```toml
+    /// command = ['python3', 'my_linter.py', -- '@{{PATHSFILE}}']
+    /// ```
     pub command: Vec<String>,
 
     /// A list of arguments describing how to set up the right dependencies for
@@ -73,6 +91,11 @@ pub struct LintConfig {
     ///
     /// If `{{DRYRUN}}` is set, this command is expected to not make any changes
     /// to the user's environment, instead it should only print what it will do.
+    ///
+    /// # Examples
+    /// - Calling a Python script:
+    /// ```toml
+    /// command = ['python3', 'my_linter_init.py', '--dry-run={{DRYRUN}}']
     pub init_command: Option<Vec<String>>,
 }
 
