@@ -6,7 +6,7 @@ use regex::Regex;
 use std::io::Write;
 
 fn assert_output_snapshot(cmd: &mut Command) -> Result<()> {
-    let re = Regex::new("test-lintrunner-config(.*)toml").unwrap();
+    let re = Regex::new("'.*test-lintrunner-config.*toml'").unwrap();
     let output = cmd.output()?;
 
     let output_string = format!(

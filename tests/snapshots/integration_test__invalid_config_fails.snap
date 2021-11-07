@@ -7,6 +7,6 @@ expression: output_lines
 - ""
 - ""
 - "STDERR:"
-- "error:        Config file '/tmp/<temp-config>' had invalid schema"
+- "error:        Config file <temp-config> had invalid schema"
 - "caused_by:             missing field `linter` at line 1 column 1"
 
