@@ -4,6 +4,7 @@ use indicatif::{MultiProgress, ProgressBar};
 use linter::Linter;
 use log::debug;
 use path::AbsPath;
+use regex::Regex;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -72,7 +73,7 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
         let output = Command::new("git")
             .arg("diff-tree")
             .arg("--no-commit-id")
-            .arg("--name-only")
+            .arg("--name-status")
             .arg("-r")
             .arg("HEAD")
             .output()?;
@@ -80,12 +81,22 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
             bail!("Failed to determine files to lint; git diff-tree failed");
         }
 
+        // Output looks like:
+        // D    src/lib.rs
+        // M    foo/bar.baz
         let commit_files_str = std::str::from_utf8(&output.stdout)?;
+        let re = Regex::new(r"^[A-Z]\s+")?;
 
         commit_files = Some(
             commit_files_str
                 .split("\n")
                 .map(|x| x.to_string())
+                // Filter out deleted files.
+                .filter(|line| !line.starts_with("D"))
+                // Strip the status prefix.
+                .map(|line| {
+                    re.replace(&line, "").to_string()
+                })
                 .filter(|line| !line.is_empty())
                 .collect(),
         );
@@ -125,7 +136,11 @@ fn get_changed_files() -> Result<Vec<AbsPath>> {
     all_changed_files.sort();
     all_changed_files
         .into_iter()
-        .map(|f| AbsPath::new(PathBuf::from(f)))
+        .map(|f| {
+            AbsPath::new(PathBuf::from(&f)).with_context(|| {
+                format!("Failed to find file while gathering files to lint: {}", f)
+            })
+        })
         .collect::<Result<_>>()
 }
 
