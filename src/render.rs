@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::{cmp, collections::HashMap, fs};
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use console::{style, Style, Term};
 use similar::{ChangeTag, DiffableStr, TextDiff};
 use textwrap::indent;
@@ -23,11 +23,9 @@ pub fn render_lint_messages_json(
     lint_messages: &HashMap<Option<String>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     let mut printed = false;
-    for (_, lint_message) in lint_messages {
-        for lint_message in lint_message {
-            printed = true;
-            writeln!(stdout, "{}", serde_json::to_string(lint_message)?)?;
-        }
+    for lint_message in lint_messages.values().flatten() {
+        printed = true;
+        writeln!(stdout, "{}", serde_json::to_string(lint_message)?)?;
     }
 
     if printed {
@@ -42,7 +40,7 @@ pub fn render_lint_messages(
     lint_messages: &HashMap<Option<String>, Vec<LintMessage>>,
 ) -> Result<PrintedLintErrors> {
     if lint_messages.is_empty() {
-        writeln!(stdout, "{} {}", style("ok").green(), "No lint issues.")?;
+        writeln!(stdout, "{} No lint issues.", style("ok").green())?;
 
         return Ok(PrintedLintErrors::No);
     }
@@ -117,7 +115,7 @@ pub fn render_lint_messages(
 }
 
 // Write formatted context lines, with an styled indicator for which line the lint is about
-fn write_context(stdout: &mut impl Write, path: &String, highlight_line: &usize) -> Result<()> {
+fn write_context(stdout: &mut impl Write, path: &str, highlight_line: &usize) -> Result<()> {
     stdout.write_all(b"\n")?;
     let file = fs::read_to_string(path).context(format!(
         "Error reading file: '{}' when rendering lints",
@@ -131,14 +129,19 @@ fn write_context(stdout: &mut impl Write, path: &String, highlight_line: &usize)
     for cur_idx in start_idx..=end_idx {
         let line = lines
             .get(cur_idx)
-            .ok_or(anyhow::Error::msg("TODO line mismatch"))?;
+            .ok_or_else(|| anyhow!("TODO line mismatch"))?;
         let line_number = cur_idx + 1;
 
         // Wrlte `123 |  my failing line content
 
         if cur_idx == line_idx {
             // Highlight the actually failing line with a chevron + different color
-            write!(stdout, "    >>> {}  |{}", style(line_number).dim(), style(line).yellow())?;
+            write!(
+                stdout,
+                "    >>> {}  |{}",
+                style(line_number).dim(),
+                style(line).yellow()
+            )?;
         } else {
             write!(stdout, "        {}  |{}", style(line_number).dim(), line)?;
         }
@@ -148,11 +151,7 @@ fn write_context(stdout: &mut impl Write, path: &String, highlight_line: &usize)
 }
 
 // Write the context, computing and styling a diff from the original to the suggested replacement.
-fn write_context_diff(
-    stdout: &mut impl Write,
-    original: &String,
-    replacement: &String,
-) -> Result<()> {
+fn write_context_diff(stdout: &mut impl Write, original: &str, replacement: &str) -> Result<()> {
     writeln!(
         stdout,
         "\n    {}",

@@ -180,7 +180,7 @@ impl LintRunnerConfig {
     }
 }
 
-fn patterns_from_strs(pattern_strs: &Vec<String>) -> Result<Vec<Pattern>> {
+fn patterns_from_strs(pattern_strs: &[String]) -> Result<Vec<Pattern>> {
     pattern_strs
         .iter()
         .map(|pattern_str| {

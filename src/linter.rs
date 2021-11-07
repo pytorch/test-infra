@@ -6,7 +6,7 @@ use crate::{
     lint_message::LintMessage,
     path::{path_relative_from, AbsPath},
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use glob::Pattern;
 use log::{debug, info};
 
@@ -26,7 +26,7 @@ fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
 }
 
 impl Linter {
-    fn get_matches(&self, files: &Vec<AbsPath>) -> Vec<AbsPath> {
+    fn get_matches(&self, files: &[AbsPath]) -> Vec<AbsPath> {
         // Unwrap is fine here because we know this path is absolute and won't be `/`
         let config_dir = self.config_path.as_pathbuf().parent().unwrap();
 
@@ -42,7 +42,7 @@ impl Linter {
                     matches_relative_path(config_dir, name.as_pathbuf().as_path(), pattern)
                 })
             })
-            .map(|p| p.clone())
+            .cloned()
             .collect()
     }
 
@@ -52,14 +52,14 @@ impl Linter {
             let name = matched_file
                 .as_pathbuf()
                 .to_str()
-                .ok_or(anyhow::Error::msg("Could not convert path to string."))?;
+                .ok_or_else(|| anyhow!("Could not convert path to string."))?;
             writeln!(&tmp_file, "{}", name)?;
         }
 
         let file_path = tmp_file
             .path()
             .to_str()
-            .ok_or(anyhow::Error::msg("tempfile corrupted"))?;
+            .ok_or_else(|| anyhow!("tempfile corrupted"))?;
 
         let (program, arguments) = self.commands.split_at(1);
         let arguments: Vec<String> = arguments
@@ -98,7 +98,7 @@ impl Linter {
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
         stdout_str
-            .split("\n")
+            .split('\n')
             .filter(|line| !line.is_empty())
             .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
             .collect::<Result<Vec<LintMessage>>>()
@@ -108,7 +108,7 @@ impl Linter {
             ))
     }
 
-    pub fn run(&self, files: &Vec<AbsPath>) -> Vec<LintMessage> {
+    pub fn run(&self, files: &[AbsPath]) -> Vec<LintMessage> {
         let matches = self.get_matches(&files);
         debug!("Linter '{}' matched files: {:#?}", self.code, matches);
         if matches.is_empty() {
