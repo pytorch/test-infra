@@ -26,7 +26,7 @@ pub fn render_lint_messages_json(
     for (_, lint_message) in lint_messages {
         for lint_message in lint_message {
             printed = true;
-            write!(stdout, "{}\n", serde_json::to_string(lint_message)?)?;
+            writeln!(stdout, "{}", serde_json::to_string(lint_message)?)?;
         }
     }
 
@@ -92,23 +92,9 @@ pub fn render_lint_messages(
         }
 
         for lint_message in lint_messages {
-            // Write: `   Error  (LINTER) prefer-using-this-over-that\n`
-            let error_style = match lint_message.severity {
-                LintSeverity::Error => Style::new().on_red().bold(),
-                LintSeverity::Warning | LintSeverity::Advice | LintSeverity::Disabled => {
-                    Style::new().on_yellow().bold()
-                }
-            };
-            writeln!(
-                stdout,
-                "  {} ({}) {}",
-                error_style.apply_to(lint_message.severity.label()),
-                lint_message.code,
-                style(&lint_message.name).underlined(),
-            )?;
+            write_summary_line(stdout, lint_message)?;
 
             // Write the description.
-
             if let Some(description) = &lint_message.description {
                 for line in textwrap::wrap(description, &wrap_78_indent_4) {
                     writeln!(stdout, "{}", line)?;
@@ -116,101 +102,118 @@ pub fn render_lint_messages(
             }
 
             // If we have original and replacement, show the diff.
-            // Write the context code snippet.
             if let (Some(original), Some(replacement)) =
                 (&lint_message.original, &lint_message.replacement)
             {
-                writeln!(
-                    stdout,
-                    "\n    {}",
-                    style("You can run `lintrunner -a` to apply this patch.").cyan()
-                )?;
-                stdout.write_all(b"\n")?;
-                let diff = TextDiff::from_lines(original, replacement);
-
-                for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
-                    if idx > 0 {
-                        writeln!(stdout, "{:-^1$}", "-", 80)?;
-                    }
-                    for op in group {
-                        for change in diff.iter_inline_changes(op) {
-                            let (sign, s) = match change.tag() {
-                                ChangeTag::Delete => ("-", Style::new().red()),
-                                ChangeTag::Insert => ("+", Style::new().green()),
-                                ChangeTag::Equal => (" ", Style::new().dim()),
-                            };
-                            let changeset = Changeset {
-                                old: change.old_index(),
-                                new: change.new_index(),
-                            };
-                            write!(
-                                stdout,
-                                "    {} |{}",
-                                style(changeset).dim(),
-                                s.apply_to(sign).bold()
-                            )?;
-                            for (emphasized, value) in change.iter_strings_lossy() {
-                                if emphasized {
-                                    write!(
-                                        stdout,
-                                        "{}",
-                                        s.apply_to(value).underlined().on_black()
-                                    )?;
-                                } else {
-                                    write!(stdout, "{}", s.apply_to(value))?;
-                                }
-                            }
-                            if change.missing_newline() {
-                                stdout.write_all(b"\n")?;
-                            }
-                        }
-                    }
-                }
-
-                stdout.write_all(b"\n")?;
-            } else if let (Some(line_number), Some(path)) = (&lint_message.line, path) {
-                stdout.write_all(b"\n")?;
-
-                let file = fs::read_to_string(path).context(format!(
-                    "Error reading file: '{}' when rendering lints",
-                    path
-                ))?;
-                let lines = file.tokenize_lines();
-
-                // subtract 1 because lines are reported as 1-indexed, but the
-                // lines vector is 0-indexed.
-                // Use saturating arithmetic to avoid underflow.
-                let line_idx = line_number.saturating_sub(1);
-                let max_idx = lines.len().saturating_sub(1);
-
-                // Print surrounding context
-                let start_idx = line_idx.saturating_sub(CONTEXT_LINES);
-                let end_idx = cmp::min(max_idx, line_idx + CONTEXT_LINES);
-
-                for cur_idx in start_idx..=end_idx {
-                    let line = lines
-                        .get(cur_idx)
-                        .ok_or(anyhow::Error::msg("TODO line mismatch"))?;
-                    let line_number = cur_idx + 1;
-
-                    // Wrlte `123 |  my failing line content
-
-                    if cur_idx == line_idx {
-                        // Highlight the actually failing line with a chevron + different color
-                        write!(stdout, "    >>> {}  |", style(line_number).dim())?;
-                        write!(stdout, "{}", style(line).yellow())?;
-                    } else {
-                        write!(stdout, "        {}  |", style(line_number).dim())?;
-                        stdout.write_all(line.as_bytes())?;
-                    }
-                }
-
-                stdout.write_all(b"\n")?;
+                write_context_diff(stdout, original, replacement)?;
+            } else if let (Some(highlight_line), Some(path)) = (&lint_message.line, path) {
+                // Otherwise, write the context code snippet.
+                write_context(stdout, path, highlight_line)?;
             }
         }
     }
 
     Ok(PrintedLintErrors::Yes)
+}
+
+// Write formatted context lines, with an styled indicator for which line the lint is about
+fn write_context(stdout: &mut impl Write, path: &String, highlight_line: &usize) -> Result<()> {
+    stdout.write_all(b"\n")?;
+    let file = fs::read_to_string(path).context(format!(
+        "Error reading file: '{}' when rendering lints",
+        path
+    ))?;
+    let lines = file.tokenize_lines();
+    let line_idx = highlight_line.saturating_sub(1);
+    let max_idx = lines.len().saturating_sub(1);
+    let start_idx = line_idx.saturating_sub(CONTEXT_LINES);
+    let end_idx = cmp::min(max_idx, line_idx + CONTEXT_LINES);
+    for cur_idx in start_idx..=end_idx {
+        let line = lines
+            .get(cur_idx)
+            .ok_or(anyhow::Error::msg("TODO line mismatch"))?;
+        let line_number = cur_idx + 1;
+
+        // Wrlte `123 |  my failing line content
+
+        if cur_idx == line_idx {
+            // Highlight the actually failing line with a chevron + different color
+            write!(stdout, "    >>> {}  |{}", style(line_number).dim(), style(line).yellow())?;
+        } else {
+            write!(stdout, "        {}  |{}", style(line_number).dim(), line)?;
+        }
+    }
+    stdout.write_all(b"\n")?;
+    Ok(())
+}
+
+// Write the context, computing and styling a diff from the original to the suggested replacement.
+fn write_context_diff(
+    stdout: &mut impl Write,
+    original: &String,
+    replacement: &String,
+) -> Result<()> {
+    writeln!(
+        stdout,
+        "\n    {}",
+        style("You can run `lintrunner -a` to apply this patch.").cyan()
+    )?;
+    stdout.write_all(b"\n")?;
+    let diff = TextDiff::from_lines(original, replacement);
+    for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+        if idx > 0 {
+            writeln!(stdout, "{:-^1$}", "-", 80)?;
+        }
+        for op in group {
+            for change in diff.iter_inline_changes(op) {
+                let (sign, s) = match change.tag() {
+                    ChangeTag::Delete => ("-", Style::new().red()),
+                    ChangeTag::Insert => ("+", Style::new().green()),
+                    ChangeTag::Equal => (" ", Style::new().dim()),
+                };
+                let changeset = Changeset {
+                    old: change.old_index(),
+                    new: change.new_index(),
+                };
+                write!(
+                    stdout,
+                    "    {} |{}",
+                    style(changeset).dim(),
+                    s.apply_to(sign).bold()
+                )?;
+                for (emphasized, value) in change.iter_strings_lossy() {
+                    if emphasized {
+                        write!(stdout, "{}", s.apply_to(value).underlined().on_black())?;
+                    } else {
+                        write!(stdout, "{}", s.apply_to(value))?;
+                    }
+                }
+                if change.missing_newline() {
+                    stdout.write_all(b"\n")?;
+                }
+            }
+        }
+    }
+    stdout.write_all(b"\n")?;
+    Ok(())
+}
+
+// Write: `   Error  (LINTER) prefer-using-this-over-that\n`
+fn write_summary_line(stdout: &mut impl Write, lint_message: &LintMessage) -> Result<()> {
+    let error_style = match lint_message.severity {
+        LintSeverity::Error => Style::new().on_red().bold(),
+        LintSeverity::Warning | LintSeverity::Advice | LintSeverity::Disabled => {
+            Style::new().on_yellow().bold()
+        }
+    };
+    writeln!(
+        stdout,
+        "  {} ({}) {}",
+        error_style.apply_to(lint_message.severity.label()),
+        lint_message.code,
+        style(&lint_message.name).underlined(),
+    )?;
+    Ok(())
 }
 
 fn bspaces(len: u8) -> &'static [u8] {
