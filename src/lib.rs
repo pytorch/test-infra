@@ -6,7 +6,7 @@ use log::debug;
 use path::AbsPath;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::{collections::HashSet, process::Command};
@@ -184,9 +184,25 @@ fn remove_patchable_lints(lints: Vec<LintMessage>) -> Vec<LintMessage> {
         .collect()
 }
 
+fn get_paths_from_input(paths: Vec<String>) -> Result<Vec<AbsPath>> {
+    let mut ret = Vec::new();
+    for path in &paths {
+        let path = AbsPath::new(PathBuf::from(path))
+            .with_context(|| format!("Failed to lint provided file: '{}'", path))?;
+        ret.push(path);
+    }
+    Ok(ret)
+}
+
+pub enum PathsToLint {
+    Auto,
+    PathsCmd(String),
+    Paths(Vec<String>),
+}
+
 pub fn do_lint(
     linters: Vec<Linter>,
-    paths_cmd: Option<String>,
+    paths_to_lint: PathsToLint,
     should_apply_patches: bool,
     render_as_json: bool,
     enable_spinners: bool,
@@ -198,9 +214,10 @@ pub fn do_lint(
 
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
-    let files = match paths_cmd {
-        Some(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
-        None => get_changed_files()?,
+    let files = match paths_to_lint {
+        PathsToLint::Auto => get_changed_files()?,
+        PathsToLint::PathsCmd(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
+        PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
     };
     let files = Arc::new(files);
 

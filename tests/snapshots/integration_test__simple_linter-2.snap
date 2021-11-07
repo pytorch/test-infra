@@ -1,0 +1,20 @@
+---
+source: tests/integration_test.rs
+expression: "std::str::from_utf8(&output.stdout)?.lines().collect::<Vec<_>>()"
+
+---
+- ""
+- ""
+- ">>> Lint for tests/integration_test.rs:"
+- ""
+- "  Advice (DUMMY) dummy failure"
+- "    A dummy linter failure"
+- ""
+- "        1  |use anyhow::Result;"
+- "        2  |use assert_cmd::Command;"
+- "    >>> 3  |use insta::assert_yaml_snapshot;"
+- "        4  |use lintrunner::lint_message::{LintMessage, LintSeverity};"
+- "        5  |use regex::Regex;"
+- "        6  |use std::io::Write;"
+- ""
+

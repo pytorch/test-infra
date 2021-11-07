@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 use lintrunner::{
     do_init, do_lint, lint_config::get_linters_from_config, path::AbsPath, render::print_error,
+    PathsToLint,
 };
 
 #[derive(Debug, StructOpt)]
@@ -41,6 +42,9 @@ struct Opt {
 
     #[structopt(subcommand)]
     cmd: Option<SubCommand>,
+
+    /// Paths to lint.
+    paths: Vec<String>,
 }
 
 #[derive(StructOpt, Debug)]
@@ -85,6 +89,14 @@ fn do_main() -> Result<i32> {
 
     let enable_spinners = !opt.verbose && !opt.json;
 
+    let paths_to_lint = if let Some(paths_cmd) = opt.paths_cmd {
+        PathsToLint::PathsCmd(paths_cmd)
+    } else if !opt.paths.is_empty() {
+        PathsToLint::Paths(opt.paths)
+    } else {
+        PathsToLint::Auto
+    };
+
     match opt.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
@@ -94,7 +106,7 @@ fn do_main() -> Result<i32> {
             // Default command is to just lint.
             do_lint(
                 linters,
-                opt.paths_cmd,
+                paths_to_lint,
                 opt.apply_patches,
                 opt.json,
                 enable_spinners,

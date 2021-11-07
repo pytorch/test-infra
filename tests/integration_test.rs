@@ -1,6 +1,7 @@
 use anyhow::Result;
 use assert_cmd::Command;
 use insta::assert_yaml_snapshot;
+use lintrunner::lint_message::{LintMessage, LintSeverity};
 use regex::Regex;
 use std::io::Write;
 
@@ -33,6 +34,21 @@ fn temp_config(contents: &str) -> Result<tempfile::NamedTempFile> {
         .suffix(".toml")
         .tempfile()?;
     config.write_all(contents.as_bytes())?;
+    Ok(config)
+}
+
+fn temp_config_returning_msg(lint_message: LintMessage) -> Result<tempfile::NamedTempFile> {
+    let serialized = serde_json::to_string(&lint_message)?;
+    let config = temp_config(&format!(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['echo', '{}']
+        ",
+        serialized
+    ))?;
+
     Ok(config)
 }
 
@@ -90,6 +106,77 @@ fn empty_command_fails() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn simple_linter() -> Result<()> {
+    let lint_message = LintMessage {
+        path: Some("tests/integration_test.rs".to_string()),
+        line: Some(3),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    // Run the linter on this file.
+    cmd.arg("tests/integration_test.rs");
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['wont_be_checked']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg("blahblahblah");
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
+    let lint_message = LintMessage {
+        path: Some("i_dont_exist_wow".to_string()),
+        line: Some(3),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+
+    // Run the linter on this file.
+    cmd.arg("tests/integration_test.rs");
     cmd.assert().failure();
     assert_output_snapshot(&mut cmd)?;
 
