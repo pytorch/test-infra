@@ -1,8 +1,19 @@
 ---
 source: tests/integration_test.rs
-expression: "std::str::from_utf8(&output.stderr)?.lines().collect::<Vec<_>>()"
+expression: output_lines
 
 ---
+- "STDOUT:"
+- ""
+- ""
+- ">>> Lint for i_dont_exist_wow:"
+- ""
+- "  Advice (DUMMY) dummy failure"
+- "    A dummy linter failure"
+- ""
+- ""
+- ""
+- "STDERR:"
 - "error:        Error reading file: 'i_dont_exist_wow' when rendering lints"
 - "caused_by:             No such file or directory (os error 2)"
 
