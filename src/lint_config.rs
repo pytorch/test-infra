@@ -13,8 +13,25 @@ struct LintRunnerConfig {
 }
 
 /// Represents a single linter, along with all the information necessary to invoke it.
+///
+/// This goes in the linter configuration TOML file.
+///
+/// # Examples:
+///
+/// ```toml
+/// [[linter]]
+/// code = 'NOQA'
+/// include_patterns = ['**/*.py', '**/*.pyi']
+/// exclude_patterns = ['caffe2/**']
+/// command = [
+///     'python3',
+///     'linters/check_noqa.py',
+///     '--',
+///     '@{{PATHSFILE}}'
+/// ]
+/// ```
 #[derive(Serialize, Deserialize)]
-struct LintConfig {
+pub struct LintConfig {
     /// The name of the linter, conventionally capitals and numbers, no spaces,
     /// dashes, or underscores
     ///
