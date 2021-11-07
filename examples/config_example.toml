@@ -1,20 +1,20 @@
 [[linter]]
-name = 'flake8'
-patterns = ['**/*.py']
-args = [
+code = 'flake8'
+exclude_patterns = ['**/*.py']
+command = [
     'python3',
-    'examples/flake8_linter.py',
+    'flake8_linter.py',
     '--binary=flake8',
     '--',
     '@{{PATHSFILE}}'
 ]
 
 [[linter]]
-name = 'rustfmt'
-patterns = ['**/*.rs']
-args = [
+code = 'rustfmt'
+include_patterns = ['**/*.rs']
+command = [
     'python3',
-    'examples/rustfmt_linter.py',
+    'rustfmt_linter.py',
     '--binary=rustfmt',
     '--config-path=rustfmt.toml',
     '--',
