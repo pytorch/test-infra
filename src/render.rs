@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::{cmp, collections::HashMap, fs};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use console::{style, Style, Term};
 use similar::{ChangeTag, DiffableStr, TextDiff};
 use textwrap::indent;
@@ -117,33 +117,45 @@ pub fn render_lint_messages(
 // Write formatted context lines, with an styled indicator for which line the lint is about
 fn write_context(stdout: &mut impl Write, path: &str, highlight_line: &usize) -> Result<()> {
     stdout.write_all(b"\n")?;
-    let file = fs::read_to_string(path).context(format!(
-        "Error reading file: '{}' when rendering lints",
-        path
-    ))?;
-    let lines = file.tokenize_lines();
-    let line_idx = highlight_line.saturating_sub(1);
-    let max_idx = lines.len().saturating_sub(1);
-    let start_idx = line_idx.saturating_sub(CONTEXT_LINES);
-    let end_idx = cmp::min(max_idx, line_idx + CONTEXT_LINES);
-    for cur_idx in start_idx..=end_idx {
-        let line = lines
-            .get(cur_idx)
-            .ok_or_else(|| anyhow!("TODO line mismatch"))?;
-        let line_number = cur_idx + 1;
+    let file = fs::read_to_string(path);
+    match file {
+        Ok(file) => {
+            let lines = file.tokenize_lines();
+            let line_idx = highlight_line.saturating_sub(1);
+            let max_idx = lines.len().saturating_sub(1);
+            let start_idx = line_idx.saturating_sub(CONTEXT_LINES);
+            let end_idx = cmp::min(max_idx, line_idx + CONTEXT_LINES);
+            for cur_idx in start_idx..=end_idx {
+                let line = lines
+                    .get(cur_idx)
+                    .ok_or_else(|| anyhow!("TODO line mismatch"))?;
+                let line_number = cur_idx + 1;
 
-        // Wrlte `123 |  my failing line content
+                // Wrlte `123 |  my failing line content
 
-        if cur_idx == line_idx {
-            // Highlight the actually failing line with a chevron + different color
-            write!(
-                stdout,
-                "    >>> {}  |{}",
-                style(line_number).dim(),
-                style(line).yellow()
-            )?;
-        } else {
-            write!(stdout, "        {}  |{}", style(line_number).dim(), line)?;
+                if cur_idx == line_idx {
+                    // Highlight the actually failing line with a chevron + different color
+                    write!(
+                        stdout,
+                        "    >>> {}  |{}",
+                        style(line_number).dim(),
+                        style(line).yellow()
+                    )?;
+                } else {
+                    write!(stdout, "        {}  |{}", style(line_number).dim(), line)?;
+                }
+            }
+        }
+        Err(e) => {
+            let msg = textwrap::indent(
+                &format!(
+                    "Could not retrieve source context: {}\n\
+                    This is typically a linter bug.",
+                    e
+                ),
+                spaces(8),
+            );
+            write!(stdout, "{}", style(msg).red())?;
         }
     }
     stdout.write_all(b"\n")?;

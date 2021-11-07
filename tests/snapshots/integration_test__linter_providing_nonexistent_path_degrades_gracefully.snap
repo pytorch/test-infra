@@ -11,9 +11,9 @@ expression: output_lines
 - "  Advice (DUMMY) dummy failure"
 - "    A dummy linter failure"
 - ""
+- "        Could not retrieve source context: No such file or directory (os error 2) "
+- "        This is typically a linter bug."
 - ""
 - ""
 - "STDERR:"
-- "error:        Error reading file: 'i_dont_exist_wow' when rendering lints"
-- "caused_by:             No such file or directory (os error 2)"
 
