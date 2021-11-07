@@ -186,3 +186,45 @@ fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn linter_hard_failure_is_caught() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['false']
+        ",
+    )?;
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+
+    // Run the linter on this file.
+    cmd.arg("tests/integration_test.rs");
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn linter_nonexistent_command() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['idonotexist']
+        ",
+    )?;
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+
+    // Run the linter on this file.
+    cmd.arg("tests/integration_test.rs");
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}

@@ -255,7 +255,7 @@ pub fn do_lint(
                 spinner = Some(_spinner);
             }
 
-            let lints = linter.run(&files)?;
+            let lints = linter.run(&files);
 
             // If we're applying patches later, don't consider lints that would
             // be fixed by that.

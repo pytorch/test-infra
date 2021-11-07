@@ -75,31 +75,26 @@ impl Linter {
         );
 
         let start = std::time::Instant::now();
-        let command = Command::new(&program[0]).args(arguments).output()?;
+        let command = Command::new(&program[0])
+            .args(&arguments)
+            .output()
+            .with_context(|| {
+                format!(
+                    "Failed to execute linter command {} with args: {:?}",
+                    program[0], arguments
+                )
+            })?;
         debug!("Linter {} took: {:?}", self.code, start.elapsed());
 
         if !&command.status.success() {
-            // If the command failed, format a special lint message that complains.
-            // This ensures that an individual buggy linter adapter cannot crash the program.
             let stderr = std::str::from_utf8(&command.stderr)?;
             let stdout = std::str::from_utf8(&command.stdout)?;
-            let err_lint = LintMessage {
-                path: None,
-                line: None,
-                char: None,
-                code: self.code.clone(),
-                severity: crate::lint_message::LintSeverity::Error,
-                name: "Linter adapter failed".to_string(),
-                description: Some(format!(
-                    "Linter adapter failed with non-zero exit code. \n\
-                    This is a bug, please file an issue against the owner of this linter. \n\n\
-                    STDERR:\n{}\n\nSTDOUT:{}\n",
-                    stderr, stdout
-                )),
-                original: None,
-                replacement: None,
-            };
-            return Ok(vec![err_lint]);
+            bail!(
+                "Linter command failed with non-zero exit code.\n\
+                 STDERR:\n{}\n\nSTDOUT:{}\n",
+                stderr,
+                stdout,
+            );
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
         stdout_str
@@ -113,13 +108,37 @@ impl Linter {
             ))
     }
 
-    pub fn run(&self, files: &Vec<AbsPath>) -> Result<Vec<LintMessage>> {
+    pub fn run(&self, files: &Vec<AbsPath>) -> Vec<LintMessage> {
         let matches = self.get_matches(&files);
         debug!("Linter '{}' matched files: {:#?}", self.code, matches);
         if matches.is_empty() {
-            return Ok(Vec::new());
+            return Vec::new();
         }
-        self.run_command(matches)
+        // Wrap the command in a Result to ensure uniform error handling.
+        // This way, linters are guaranteed to exit cleanly, and any issue will
+        // be reported using the same mechanism that we use to report regular
+        // lint errors.
+        match self.run_command(matches) {
+            Err(e) => {
+                let err_lint = LintMessage {
+                    path: None,
+                    line: None,
+                    char: None,
+                    code: self.code.clone(),
+                    severity: crate::lint_message::LintSeverity::Error,
+                    name: "Linter failed".to_string(),
+                    description: Some(format!(
+                        "Linter failed. This a bug, please file an issue against \
+                                 the linter maintainer.\n\nCONTEXT:\n{}",
+                        e
+                    )),
+                    original: None,
+                    replacement: None,
+                };
+                return vec![err_lint];
+            }
+            Ok(messages) => messages,
+        }
     }
 
     pub fn init(&self, dry_run: bool) -> Result<()> {
