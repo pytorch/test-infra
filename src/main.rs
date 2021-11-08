@@ -27,7 +27,7 @@ struct Opt {
     #[structopt(long)]
     paths_cmd: Option<String>,
 
-    /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA")
+    /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA)
     #[structopt(long)]
     skip: Option<String>,
 
