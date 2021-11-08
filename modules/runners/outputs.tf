@@ -29,3 +29,7 @@ output "role_scale_down" {
 output "iam_profile_name_runner" {
   value = aws_iam_instance_profile.runner.name
 }
+
+output "runner_sg_id" {
+  value = aws_security_group.runner_sg.id
+}
