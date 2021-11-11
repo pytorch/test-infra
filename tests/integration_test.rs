@@ -119,8 +119,8 @@ fn empty_command_fails() -> Result<()> {
 #[test]
 fn simple_linter() -> Result<()> {
     let lint_message = LintMessage {
-        path: Some("tests/integration_test.rs".to_string()),
-        line: Some(3),
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
         char: Some(1),
         code: "DUMMY".to_string(),
         name: "dummy failure".to_string(),
@@ -133,8 +133,6 @@ fn simple_linter() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
-    // Run the linter on this file.
-    cmd.arg("tests/integration_test.rs");
     cmd.assert().failure();
     assert_output_snapshot(&mut cmd)?;
 

@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
 use crate::path::AbsPath;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use log::debug;
 use regex::Regex;
 
@@ -50,6 +50,11 @@ fn is_head_public() -> Result<bool> {
 }
 
 pub fn get_changed_files() -> Result<Vec<AbsPath>> {
+    // Output looks like:
+    // D    src/lib.rs
+    // M    foo/bar.baz
+    let re = Regex::new(r"^[A-Z]\s+")?;
+
     // Retrieve changed files in current commit.
     // But only if that commit isn't a "public" commit (e.g. is part of the
     // remote's default branch).
@@ -66,11 +71,7 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
             bail!("Failed to determine files to lint; git diff-tree failed");
         }
 
-        // Output looks like:
-        // D    src/lib.rs
-        // M    foo/bar.baz
         let commit_files_str = std::str::from_utf8(&output.stdout)?;
-        let re = Regex::new(r"^[A-Z]\s+")?;
 
         commit_files = Some(
             commit_files_str
@@ -92,7 +93,7 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
     let output = Command::new("git")
         .arg("diff-index")
         .arg("--no-commit-id")
-        .arg("--name-only")
+        .arg("--name-status")
         .arg("-r")
         .arg("HEAD")
         .output()?;
@@ -104,6 +105,10 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
     let working_tree_files: HashSet<String> = working_tree_files_str
         .lines()
         .filter(|line| !line.is_empty())
+        // Filter out deleted files.
+        .filter(|line| !line.starts_with('D'))
+        // Strip the status prefix.
+        .map(|line| re.replace(&line, "").to_string())
         .map(|x| x.to_string())
         .collect();
 
