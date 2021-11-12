@@ -2639,7 +2639,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/4865//console\r\n\r\n```\r\n13:00:51 ======================================================================\r\n13:00:51 ERROR [105.046s]: test_ddp_sync_bn_training_vs_eval (__main__.TestDistBackendWithSpawn)\r\n13:00:51 ----------------------------------------------------------------------\r\n13:00:51 Traceback (most recent call last):\r\n13:00:51   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 457, in wrapper\r\n13:00:51     self._join_processes(fn)\r\n13:00:51   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 676, in _join_processes\r\n13:00:51     self._check_return_codes(elapsed_time)\r\n13:00:51   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 728, in _check_return_codes\r\n13:00:51     i, elapsed_time\r\n13:00:51 RuntimeError: Process 0 terminated or timed out after 105.0231831073761 seconds\r\n```\r\n\r\nHappening consistently after https://github.com/pytorch/pytorch/pull/67445\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
       "closed_at": null, 
-      "comments": 8, 
+      "comments": 9, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68173/comments", 
       "created_at": "2021-11-11T14:19:56Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68173/events", 
@@ -2706,7 +2706,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68173/timeline", 
       "title": "DISABLED test_ddp_sync_bn_training_vs_eval (__main__.TestDistBackendWithSpawn)", 
-      "updated_at": "2021-11-12T14:20:42Z", 
+      "updated_at": "2021-11-12T15:55:03Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68173", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
