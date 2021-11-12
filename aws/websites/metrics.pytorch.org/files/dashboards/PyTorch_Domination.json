@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 10,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -598,5 +598,5 @@
   "timezone": "",
   "title": "PyTorch Domination",
   "uid": "v6rOPEK7k",
-  "version": 6
+  "version": 1
 }
