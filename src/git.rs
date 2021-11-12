@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
 use crate::path::AbsPath;
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use log::debug;
 use regex::Regex;
 
@@ -32,9 +32,10 @@ fn is_head_public() -> Result<bool> {
         .arg("--abbrev-ref")
         .arg("origin/HEAD")
         .output()?;
-    if !output.status.success() {
-        bail!("Failed to determine whether commit was public; git rev-parse failed");
-    }
+    ensure!(
+        output.status.success(),
+        "Failed to determine whether commit was public; git rev-parse failed"
+    );
     let default_branch = std::str::from_utf8(&output.stdout)?.trim();
     let status = Command::new("git")
         .arg("merge-base")
@@ -67,9 +68,10 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
             .arg("-r")
             .arg("HEAD")
             .output()?;
-        if !output.status.success() {
-            bail!("Failed to determine files to lint; git diff-tree failed");
-        }
+        ensure!(
+            output.status.success(),
+            "Failed to determine files to lint; git diff-tree failed"
+        );
 
         let commit_files_str = std::str::from_utf8(&output.stdout)?;
 
@@ -97,9 +99,10 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
         .arg("-r")
         .arg("HEAD")
         .output()?;
-    if !output.status.success() {
-        bail!("Failed to determine files to lint; git diff-index failed");
-    }
+    ensure!(
+        output.status.success(),
+        "Failed to determine files to lint; git diff-index failed"
+    );
 
     let working_tree_files_str = std::str::from_utf8(&output.stdout)?;
     let working_tree_files: HashSet<String> = working_tree_files_str
@@ -119,11 +122,23 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
             all_changed_files.insert(file);
         }
     }
+
     // Sort for consistency
     let mut all_changed_files: Vec<String> = all_changed_files.into_iter().collect();
     all_changed_files.sort();
+
+    // Git reports files relative to the root of git root directory, so retrieve
+    // that and prepend it to the file paths.
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()?;
+    ensure!(output.status.success(), "Failed to determine git root");
+    let root = std::str::from_utf8(&output.stdout)?.trim();
+
     all_changed_files
         .into_iter()
+        .map(|f| format!("{}/{}", root, f))
         .map(|f| {
             AbsPath::new(PathBuf::from(&f)).with_context(|| {
                 format!("Failed to find file while gathering files to lint: {}", f)

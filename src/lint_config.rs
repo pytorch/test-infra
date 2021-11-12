@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fs};
 
 use crate::{linter::Linter, path::AbsPath};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use glob::Pattern;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -121,12 +121,11 @@ pub fn get_linters_from_config(
             Vec::new()
         };
 
-        if lint_config.command.is_empty() {
-            bail!(
-                "Invalid linter configuration: '{}' has an empty command list.",
-                lint_config.code
-            );
-        }
+        ensure!(
+            !lint_config.command.is_empty(),
+            "Invalid linter configuration: '{}' has an empty command list.",
+            lint_config.code
+        );
         linters.push(Linter {
             code: lint_config.code,
             include_patterns,
@@ -148,13 +147,12 @@ pub fn get_linters_from_config(
     if let Some(taken_linters) = taken_linters {
         debug!("Taking linters: {:?}", taken_linters);
         for linter in &taken_linters {
-            if !all_linters.contains(linter) {
-                bail!(
-                    "Unknown linter specified in --take: {}. These linters are available: {:?}",
-                    linter,
-                    all_linters,
-                );
-            }
+            ensure!(
+                all_linters.contains(linter),
+                "Unknown linter specified in --take: {}. These linters are available: {:?}",
+                linter,
+                all_linters,
+            );
         }
 
         linters = linters
@@ -167,13 +165,12 @@ pub fn get_linters_from_config(
     if let Some(skipped_linters) = skipped_linters {
         debug!("Skipping linters: {:?}", skipped_linters);
         for linter in &skipped_linters {
-            if !all_linters.contains(linter) {
-                bail!(
-                    "Unknown linter specified in --skip: {}. These linters are available: {:?}",
-                    linter,
-                    all_linters,
-                );
-            }
+            ensure!(
+                all_linters.contains(linter),
+                "Unknown linter specified in --skip: {}. These linters are available: {:?}",
+                linter,
+                all_linters,
+            );
         }
         linters = linters
             .into_iter()

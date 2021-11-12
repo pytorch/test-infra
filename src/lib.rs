@@ -6,23 +6,22 @@ use log::debug;
 use path::AbsPath;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::{collections::HashSet};
 
+mod git;
 pub mod lint_config;
 pub mod lint_message;
 pub mod linter;
 pub mod path;
 pub mod render;
-mod git;
 
-use git::get_paths_cmd_files;
 use git::get_changed_files;
+use git::get_paths_cmd_files;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
-
 
 fn group_lints_by_file(
     all_lints: &mut HashMap<Option<String>, Vec<LintMessage>>,

@@ -6,7 +6,7 @@ use crate::{
     lint_message::LintMessage,
     path::{path_relative_from, AbsPath},
 };
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use glob::Pattern;
 use log::{debug, info};
 
@@ -165,12 +165,11 @@ impl Linter {
                     .args(arguments)
                     .current_dir(self.get_config_dir())
                     .status()?;
-                if !status.success() {
-                    bail!(
-                        "lint initializer for '{}' failed with non-zero exit code",
-                        self.code
-                    );
-                }
+                ensure!(
+                    status.success(),
+                    "lint initializer for '{}' failed with non-zero exit code",
+                    self.code
+                );
                 Ok(())
             }
             None => Ok(()),

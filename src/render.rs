@@ -294,9 +294,7 @@ impl fmt::Display for Changeset {
             // '1234      '
             //        ^^^^ length of '1234' mirrored to the other side
             //      ^^ two spaces still
-            (Some(old), None) => {
-                write!(f, "{:>width$}  {:width$}", old, " ", width = self.max_pad)
-            }
+            (Some(old), None) => write!(f, "{:>width$}  {:width$}", old, " ", width = self.max_pad),
             (None, Some(new)) => {
                 let new = new + 1;
                 write!(f, "{:width$}  {:>width$}", " ", new, width = self.max_pad)
