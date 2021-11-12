@@ -18,11 +18,12 @@
       }
     ]
   },
+  "description": "Metrics on binary size, sccache, resident memory, etc.",
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 6,
-  "iteration": 1634678719791,
+  "id": 7,
+  "iteration": 1634691512228,
   "links": [],
   "panels": [
     {
@@ -466,7 +467,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Binary Size",
+  "title": "Framework Health",
   "uid": "SQGr-_I7k",
-  "version": 1
+  "version": 2
 }

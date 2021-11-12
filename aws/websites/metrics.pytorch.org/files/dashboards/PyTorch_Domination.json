@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 10,
   "links": [],
   "panels": [
     {
@@ -36,20 +36,20 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 42,
-            "gradientMode": "opacity",
+            "fillOpacity": 0,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
-            "pointSize": 3,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "always",
+            "showPoints": "auto",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -77,12 +77,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
+        "h": 9,
+        "w": 12,
         "x": 0,
         "y": 0
       },
-      "id": 8,
+      "id": 6,
       "options": {
         "legend": {
           "calcs": [],
@@ -100,7 +100,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select\n    workflow_job.completed_at as \"time\",\n    (\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"runtime_minutes\"\nfrom workflow_job\n    inner join workflow_run on workflow_job.run_id = workflow_run.id\nwhere workflow_job.name = \"build\"\n    and workflow_run.name = \"linux-xenial-py3.6-gcc5.4\"\n    and workflow_job.completed_at is not null\n    and $__timeFilter(workflow_job.completed_at)\norder by workflow_job.completed_at;",
+          "rawSql": "SELECT\n  $__timeGroupAlias(commit_committer_date, '7d'),\n  COUNT(DISTINCT IF(commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"%facebook%\", commit_committer_email, null)) as total_meta_contributors,\n  COUNT(DISTINCT IF(commit_committer_email NOT LIKE \"%fb.com\" AND commit_committer_email NOT LIKE \"%facebook%\", commit_committer_email, null)) as total_out_of_meta_contributors\nFROM commit\nGROUP BY time\nORDER BY time",
           "refId": "A",
           "select": [
             [
@@ -124,7 +124,7 @@
           ]
         }
       ],
-      "title": "cpu build time gcc5.4 / py3.6",
+      "title": "PyTorch Contributors (7days total) (in vs out of Meta)",
       "type": "timeseries"
     },
     {
@@ -138,215 +138,26 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 24,
-        "x": 0,
-        "y": 10
-      },
-      "id": 6,
-      "options": {
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
-        "text": {},
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "format": "table",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref != \"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\"\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Execution time on master vs PR for workflow jobs",
-      "type": "barchart"
-    },
-    {
-      "datasource": "GitHub",
-      "description": "Failures on jobs that are not build / test / lint",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 22
-      },
-      "id": 4,
-      "options": {
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
-        "text": {},
-        "tooltip": {
-          "mode": "single"
-        }
-      },
-      "targets": [
-        {
-          "format": "table",
-          "group": [],
-          "metricColumn": "none",
-          "queryType": "randomWalk",
-          "rawQuery": true,
-          "rawSql": "select CONCAT(workflow_run.name, \" / \", check_run.name) as \"name\",\n    workflow_run.id,\n    count(*) as \"failure_count\"\nfrom check_run\n    inner join workflow_run on check_run.check_suite_node_id = workflow_run.check_suite_node_id\nwhere check_run.status = \"completed\"\n    and check_run.conclusion = \"failure\"\n    and check_run.name != \"build\"\n    and check_run.name != \"build-and-test\"\n    and check_run.name not like \"test %\"\n    and check_run.name != \"test\"\n    and check_run.name != \"mypy\"\n    and check_run.name != \"quick-checks\"\n    and check_run.name != \"flake8-py3\"\n    and check_run.name != \"clang-format\"\n    and check_run.name != \"shellcheck\"\n    and check_run.name != \"clang-tidy\"\n    and $__timeFilter(check_run.completed_at)\ngroup by name\norder by count(*) desc",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "pk_id"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "pull_request_review_event",
-          "timeColumn": "sync_last_update_at",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "title": "Flaky failures",
-      "type": "barchart"
-    },
-    {
-      "datasource": "GitHub",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 0,
+            "fillOpacity": 100,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": true,
+            "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "percent"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -370,12 +181,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 15,
-        "w": 24,
-        "x": 0,
-        "y": 32
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
       },
-      "id": 2,
+      "id": 7,
       "options": {
         "legend": {
           "calcs": [],
@@ -383,7 +194,7 @@
           "placement": "bottom"
         },
         "tooltip": {
-          "mode": "multi"
+          "mode": "single"
         }
       },
       "targets": [
@@ -393,7 +204,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroup(updated_at, '5m') as time,\n    SUM(\n        UNIX_TIMESTAMP(updated_at) - UNIX_TIMESTAMP(created_at)\n    ) / COUNT(*) / 60 as \"avg_runtime_minutes\",\n    name as metric\nFROM workflow_run\nWHERE status = \"completed\"\n    and conclusion = \"success\"\n    and $__timeFilter(updated_at)\nGROUP BY name,\n    time\nORDER BY time",
+          "rawSql": "SELECT\n  $__timeGroupAlias(commit_committer_date, '7d'),\n  COUNT(DISTINCT IF(commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"%facebook%\", commit_committer_email, null)) as total_meta_contributors,\n  COUNT(DISTINCT IF(commit_committer_email NOT LIKE \"%fb.com\" AND commit_committer_email NOT LIKE \"%facebook%\", commit_committer_email, null)) as total_out_of_meta_contributors\nFROM commit\nGROUP BY time\nORDER BY time",
           "refId": "A",
           "select": [
             [
@@ -417,11 +228,12 @@
           ]
         }
       ],
-      "title": "Average Minutes per Successful Workflow Job",
+      "title": "PyTorch Contributors (mails) 1w",
       "type": "timeseries"
     },
     {
       "datasource": "GitHub",
+      "description": "Amount of commits from different contributors",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -439,7 +251,7 @@
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -473,12 +285,13 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 9,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 9
       },
-      "id": 10,
+      "id": 2,
+      "interval": "1d",
       "options": {
         "legend": {
           "calcs": [],
@@ -488,16 +301,188 @@
         "tooltip": {
           "mode": "single"
         }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(commit_committer_date, '7d'),\n  SUM(IF(commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"%facebook%\", 1, 0)) as from_meta,\n  SUM(IF(commit_committer_email NOT LIKE \"%fb.com\" AND commit_committer_email NOT LIKE \"%facebook%\", 1, 0)) as not_from_meta,\n  COUNT(commit_committer_email) as total\nFROM commit\nGROUP BY time\nORDER BY time",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "# Of Commits Per 7 Days",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 4,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "percent"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(commit_committer_date, '7d'),\n  SUM(IF(commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"%facebook%\", 1, 0)) as from_meta,\n  SUM(IF(commit_committer_email NOT LIKE \"%fb.com\" AND commit_committer_email NOT LIKE \"%facebook%\", 1, 0)) as not_from_meta\nFROM commit\nGROUP BY time\nORDER BY time",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "% Of Commits From Meta vs Out-of Meta",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "GitHub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 9,
+      "options": {
+        "showHeader": true
       },
       "pluginVersion": "8.1.1",
       "targets": [
         {
           "format": "table",
           "group": [],
+          "hide": false,
           "metricColumn": "none",
-          "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "select NOW() as \"time\", 1000 as 'bad'",
+          "rawSql": "SELECT\n  IF(commit_committer_email LIKE \"%facebook%\" OR commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"=\",\n    \"meta / FB\",\n    SUBSTRING(commit_committer_email, LOCATE('@', commit_committer_email) + 1, LENGTH(commit_committer_email))\n    ) company,\n  COUNT(IF(commit_committer_email LIKE \"%facebook%\" OR commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"=\",\n    \"meta / FB\",\n    SUBSTRING(commit_committer_email, LOCATE('@', commit_committer_email) + 1, LENGTH(commit_committer_email))\n    )) as commits_count\nFROM commit\nGROUP BY company\nORDER BY commits_count DESC",
           "refId": "A",
           "select": [
             [
@@ -521,12 +506,84 @@
           ]
         }
       ],
-      "thresholds": [],
-      "title": "Test Alerts",
-      "type": "timeseries"
+      "title": "Commits Counts Per Company (All Time)",
+      "type": "table"
+    },
+    {
+      "datasource": "GitHub",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "noValue": "----",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 11,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.1.1",
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT\n    $__timeGroupAlias(commit_committer_date, '7d'),\n    COUNT(DISTINCT \n      IF(\n        commit_committer_email LIKE \"%facebook%\" OR commit_committer_email LIKE \"%fb.com\" OR commit_committer_email LIKE \"=\",\n        \"meta\",\n        IF (\n          commit_committer_email LIKE \"%gmail.com%\" OR commit_committer_email LIKE \"%live.co.uk%\" OR commit_committer_email LIKE \"%hotmail.com%\" OR commit_committer_email LIKE \"%outlook.com%\" OR commit_committer_email LIKE \"%live.com%\",\n          \"personal\",\n          SUBSTRING(commit_committer_email, LOCATE('@', commit_committer_email) + 1, LENGTH(commit_committer_email))\n        )\n      )) as companies_count\nFROM commit\nGROUP BY time\nORDER BY time DESC",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Companies Contributing During 1w",
+      "type": "table"
     }
   ],
-  "refresh": "",
   "schemaVersion": 30,
   "style": "dark",
   "tags": [],
@@ -534,12 +591,12 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "2021-09-10T07:00:00.000Z",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "GitHub Actions Status",
-  "uid": "Hkfm0147k",
-  "version": 1
+  "title": "PyTorch Domination",
+  "uid": "v6rOPEK7k",
+  "version": 6
 }

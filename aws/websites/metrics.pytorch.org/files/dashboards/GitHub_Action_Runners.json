@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -668,5 +668,5 @@
   "timezone": "",
   "title": "GitHub Action Runners AWS Stats",
   "uid": "CfUZz-n7z",
-  "version": 1
+  "version": 2
 }
