@@ -53,7 +53,7 @@ def diff(expected, actual):
 
 
 def file_path(name: str) -> Path:
-    name = name.replace(" ", "_").replace("-", "_")
+    name = name.replace(" ", "_").replace("-", "_").replace("/", "_")
     return DASHBOARD_DIR / f"{name}.json"
 
 
