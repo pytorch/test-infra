@@ -112,7 +112,6 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
         .filter(|line| !line.starts_with('D'))
         // Strip the status prefix.
         .map(|line| re.replace(&line, "").to_string())
-        .map(|x| x.to_string())
         .collect();
 
     debug!("Linting working tree diff files: {:?}", working_tree_files);
