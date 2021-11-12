@@ -226,3 +226,58 @@ fn linter_nonexistent_command() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn simple_linter_replacement_message() -> Result<()> {
+    let lint_message = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: Some(
+            "\
+            foo\n\
+            bar\n\
+            baz\n\
+            foo\n\
+            bar\n\
+            baz\n\
+            foo\n\
+            bar\n\
+            baz\n\
+            foo\n\
+            bar\n\
+            baz\n\
+        "
+            .to_string(),
+        ),
+        replacement: Some(
+            "\
+            foo\n\
+            bar\n\
+            bat\n\
+            foo\n\
+            bar\n\
+            bat\n\
+            foo\n\
+            bar\n\
+            bat\n\
+            foo\n\
+            bar\n\
+            bat\n\
+        "
+            .to_string(),
+        ),
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}

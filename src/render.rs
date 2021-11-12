@@ -121,28 +121,40 @@ fn write_context(stdout: &mut impl Write, path: &str, highlight_line: &usize) ->
     match file {
         Ok(file) => {
             let lines = file.tokenize_lines();
-            let line_idx = highlight_line.saturating_sub(1);
+
+            let highlight_idx = highlight_line.saturating_sub(1);
+
             let max_idx = lines.len().saturating_sub(1);
-            let start_idx = line_idx.saturating_sub(CONTEXT_LINES);
-            let end_idx = cmp::min(max_idx, line_idx + CONTEXT_LINES);
+            let start_idx = highlight_idx.saturating_sub(CONTEXT_LINES);
+            let end_idx = cmp::min(max_idx, highlight_idx + CONTEXT_LINES);
+
             for cur_idx in start_idx..=end_idx {
                 let line = lines
                     .get(cur_idx)
                     .ok_or_else(|| anyhow!("TODO line mismatch"))?;
                 let line_number = cur_idx + 1;
 
-                // Wrlte `123 |  my failing line content
+                let max_line_number = max_idx + 1;
+                let max_pad = max_line_number.to_string().len();
 
-                if cur_idx == line_idx {
+                // Write `123 |  my failing line content
+                if cur_idx == highlight_idx {
                     // Highlight the actually failing line with a chevron + different color
                     write!(
                         stdout,
-                        "    >>> {}  |{}",
+                        "    >>> {:>width$}  |{}",
                         style(line_number).dim(),
-                        style(line).yellow()
+                        style(line).yellow(),
+                        width = max_pad
                     )?;
                 } else {
-                    write!(stdout, "        {}  |{}", style(line_number).dim(), line)?;
+                    write!(
+                        stdout,
+                        "        {:>width$}  |{}",
+                        style(line_number).dim(),
+                        line,
+                        width = max_pad
+                    )?;
                 }
             }
         }
@@ -171,6 +183,20 @@ fn write_context_diff(stdout: &mut impl Write, original: &str, replacement: &str
     )?;
     stdout.write_all(b"\n")?;
     let diff = TextDiff::from_lines(original, replacement);
+
+    let mut max_line_number = 1;
+    for (_, group) in diff.grouped_ops(3).iter().enumerate() {
+        for op in group {
+            for change in diff.iter_inline_changes(op) {
+                let old_line = change.old_index().unwrap_or(0) + 1;
+                let new_line = change.new_index().unwrap_or(0) + 1;
+                max_line_number = cmp::max(max_line_number, old_line);
+                max_line_number = cmp::max(max_line_number, new_line);
+            }
+        }
+    }
+    let max_pad = max_line_number.to_string().len();
+
     for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
         if idx > 0 {
             writeln!(stdout, "{:-^1$}", "-", 80)?;
@@ -183,6 +209,7 @@ fn write_context_diff(stdout: &mut impl Write, original: &str, replacement: &str
                     ChangeTag::Equal => (" ", Style::new().dim()),
                 };
                 let changeset = Changeset {
+                    max_pad,
                     old: change.old_index(),
                     new: change.new_index(),
                 };
@@ -239,6 +266,8 @@ fn spaces(len: u8) -> &'static str {
 }
 
 struct Changeset {
+    // The length of the largest line number we'll be printing.
+    max_pad: usize,
     old: Option<usize>,
     new: Option<usize>,
 }
@@ -252,21 +281,25 @@ impl fmt::Display for Changeset {
                 // +1 because we want to print the line number, not the vector index.
                 let old = old + 1;
                 let new = new + 1;
-                write!(f, "{}  {}", old, new)
+                write!(
+                    f,
+                    "{:>left_pad$}  {:>right_pad$}",
+                    old,
+                    new,
+                    left_pad = self.max_pad,
+                    right_pad = self.max_pad,
+                )
             }
             // In cases where old/new are missing, do an approximation:
             // '1234      '
             //        ^^^^ length of '1234' mirrored to the other side
             //      ^^ two spaces still
             (Some(old), None) => {
-                let old = old + 1;
-                let total_length = old.to_string().len() * 2 + 2;
-                write!(f, "{:<width$}", old, width = total_length)
+                write!(f, "{:>width$}  {:width$}", old, " ", width = self.max_pad)
             }
             (None, Some(new)) => {
                 let new = new + 1;
-                let total_length = new.to_string().len() * 2 + 2;
-                write!(f, "{:>width$}", new, width = total_length)
+                write!(f, "{:width$}  {:>width$}", " ", new, width = self.max_pad)
             }
             (None, None) => unreachable!(),
         }
