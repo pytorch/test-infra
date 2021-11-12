@@ -76,6 +76,9 @@ pub struct LintConfig {
     /// The paths in `{{PATHSFILE}}` will always be canoncalized (e.g. they are
     /// absolute paths with symlinks resolved).
     ///
+    /// Commands are run with the current working directory set to the parent
+    /// directory of the config file.
+    ///
     /// # Examples
     /// - Calling a Python script:
     /// ```toml
@@ -91,6 +94,9 @@ pub struct LintConfig {
     ///
     /// If `{{DRYRUN}}` is set, this command is expected to not make any changes
     /// to the user's environment, instead it should only print what it will do.
+    ///
+    /// Commands are run with the current working directory set to the parent
+    /// directory of the config file.
     ///
     /// # Examples
     /// - Calling a Python script:

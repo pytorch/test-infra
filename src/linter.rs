@@ -26,10 +26,13 @@ fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
 }
 
 impl Linter {
-    fn get_matches(&self, files: &[AbsPath]) -> Vec<AbsPath> {
+    fn get_config_dir(&self) -> &Path {
         // Unwrap is fine here because we know this path is absolute and won't be `/`
-        let config_dir = self.config_path.as_pathbuf().parent().unwrap();
+        self.config_path.as_pathbuf().parent().unwrap()
+    }
 
+    fn get_matches(&self, files: &[AbsPath]) -> Vec<AbsPath> {
+        let config_dir = self.get_config_dir();
         files
             .iter()
             .filter(|name| {
@@ -77,6 +80,7 @@ impl Linter {
         let start = std::time::Instant::now();
         let command = Command::new(&program[0])
             .args(&arguments)
+            .current_dir(self.get_config_dir())
             .output()
             .with_context(|| {
                 format!(
@@ -157,7 +161,10 @@ impl Linter {
                     .collect();
                 let (program, arguments) = init_commands.split_at(1);
                 debug!("Running: {} {}", program[0], arguments.join(" "));
-                let status = Command::new(&program[0]).args(arguments).status()?;
+                let status = Command::new(&program[0])
+                    .args(arguments)
+                    .current_dir(self.get_config_dir())
+                    .status()?;
                 if !status.success() {
                     bail!(
                         "lint initializer for '{}' failed with non-zero exit code",
