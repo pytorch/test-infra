@@ -146,7 +146,7 @@ fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
             [[linter]]
             code = 'TESTLINTER'
             include_patterns = ['**']
-            command = ['wont_be_checked']
+            command = ['wont_be_run']
         ",
     )?;
 
@@ -276,6 +276,48 @@ fn simple_linter_replacement_message() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn take_nonexistent_linter() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['wont_be_run']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg("--take=MENOEXIST");
+
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn skip_nonexistent_linter() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = ['**']
+            command = ['wont_be_run']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg("--skip=MENOEXIST");
+
     cmd.assert().failure();
     assert_output_snapshot(&mut cmd)?;
 

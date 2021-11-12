@@ -1,0 +1,11 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error:        Unknown linter specified in --skip: MENOEXIST. These linters are available: {\"TESTLINTER\"}"
+

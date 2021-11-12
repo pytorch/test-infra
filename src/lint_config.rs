@@ -130,14 +130,27 @@ pub fn get_linters_from_config(
             config_path: config_path.clone(),
         });
     }
-    debug!(
-        "Found linters: {:?}",
-        linters.iter().map(|l| &l.code).collect::<Vec<_>>()
-    );
+    let all_linters = linters
+        .iter()
+        .map(|l| &l.code)
+        .cloned()
+        .collect::<HashSet<_>>();
+
+    debug!("Found linters: {:?}", all_linters,);
 
     // Apply --take
     if let Some(taken_linters) = taken_linters {
         debug!("Taking linters: {:?}", taken_linters);
+        for linter in &taken_linters {
+            if !all_linters.contains(linter) {
+                bail!(
+                    "Unknown linter specified in --take: {}. These linters are available: {:?}",
+                    linter,
+                    all_linters,
+                );
+            }
+        }
+
         linters = linters
             .into_iter()
             .filter(|linter| taken_linters.contains(&linter.code))
@@ -147,6 +160,15 @@ pub fn get_linters_from_config(
     // Apply --skip
     if let Some(skipped_linters) = skipped_linters {
         debug!("Skipping linters: {:?}", skipped_linters);
+        for linter in &skipped_linters {
+            if !all_linters.contains(linter) {
+                bail!(
+                    "Unknown linter specified in --skip: {}. These linters are available: {:?}",
+                    linter,
+                    all_linters,
+                );
+            }
+        }
         linters = linters
             .into_iter()
             .filter(|linter| !skipped_linters.contains(&linter.code))
