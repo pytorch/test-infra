@@ -101,15 +101,20 @@ impl Linter {
             );
         }
         let stdout_str = std::str::from_utf8(&command.stdout)?;
-        stdout_str
-            .split('\n')
-            .filter(|line| !line.is_empty())
-            .map(|line| serde_json::from_str(line).map_err(|a| anyhow::Error::msg(a.to_string())))
-            .collect::<Result<Vec<LintMessage>>>()
-            .context(format!(
-                "Failed to deserialize output for lint adapter: '{}'",
-                self.code
-            ))
+        let mut messages = Vec::new();
+        for line in stdout_str.lines() {
+            if line.is_empty() {
+                continue;
+            }
+            let msg = serde_json::from_str(line).with_context(|| {
+                format!(
+                    "Failed to deserialize output for lint adapter, line: {}",
+                    line
+                )
+            })?;
+            messages.push(msg);
+        }
+        Ok(messages)
     }
 
     pub fn run(&self, files: &[AbsPath]) -> Vec<LintMessage> {
