@@ -133,6 +133,8 @@ fn simple_linter() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
     cmd.assert().failure();
     assert_output_snapshot(&mut cmd)?;
 
@@ -276,6 +278,8 @@ fn simple_linter_replacement_message() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
     cmd.assert().failure();
     assert_output_snapshot(&mut cmd)?;
 
