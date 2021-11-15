@@ -214,5 +214,5 @@ fn patterns_from_strs(pattern_strs: &[String]) -> Result<Vec<Pattern>> {
                     .context("Could not parse pattern from linter configuration.")
             })
         })
-        .collect::<Result<Vec<Pattern>>>()
+        .collect()
 }
