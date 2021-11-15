@@ -2233,7 +2233,7 @@
       "author_association": "CONTRIBUTOR", 
       "body": "This test is failing consistently on _win-vs2019-cuda11.3-py3 / test (default, 2, 2, windows.8xlarge.nvidia.gpu) but apparently no other jobs. Failure snippet:\r\n\r\n```\r\n\u274c Failure: TestLinalgCUDA.test_addmm_baddbmm_overflow_cuda_float16\r\nTraceback (most recent call last):\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\testing\\_internal\\common_device_type.py\", line 371, in instantiated_test\r\n    result = test(self, **param_kwargs)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\testing\\_internal\\common_device_type.py\", line 891, in only_fn\r\n    return fn(slf, *args, **kwargs)\r\n  File \"test_linalg.py\", line 6139, in test_addmm_baddbmm_overflow\r\n    self.assertTrue((out == 10000.).all())\r\nAssertionError: tensor(False, device='cuda:0') is not true\r\n```\r\n\r\nPlatforms: windows\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @mruberry @jianyuh @nikitaved @pearu @walterddr @IvanYashchuk @xwang233 @Lezcano", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 2, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68125/comments", 
       "created_at": "2021-11-10T18:34:48Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68125/events", 
@@ -2300,7 +2300,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68125/timeline", 
       "title": "DISABLED test_addmm_baddbmm_overflow_cuda_float16 (__main__.TestLinalgCUDA)", 
-      "updated_at": "2021-11-15T18:26:30Z", 
+      "updated_at": "2021-11-15T20:58:47Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68125", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
