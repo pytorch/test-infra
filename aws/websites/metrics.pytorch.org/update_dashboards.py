@@ -62,7 +62,7 @@ if __name__ == "__main__":
     files = files_by_uid()
     updated = False
 
-    #update dashboard use case
+    # update dashboard use case
     for dashboard in dashboards:
         uid = dashboard["uid"]
         dashboard_on_grafana = grafana(f"dashboards/uid/{uid}")["dashboard"]
@@ -88,9 +88,9 @@ if __name__ == "__main__":
         with open(file["path"], "w") as f:
             f.write(dashboard_on_grafana)
 
-    #delete dashboard use case
-    dashboards_uids = { d["uid"]: d["uid"] for d in dashboards }
-    for uid,file in files.items():
+    # delete dashboard from graphana use case
+    dashboards_uids = {d["uid"] for d in dashboards}
+    for uid, file in files.items():
         if uid not in dashboards_uids:
             os.remove(file["path"])
             updated = True
