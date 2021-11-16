@@ -117,69 +117,133 @@ pub fn get_git_root() -> Result<AbsPath> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Write};
+    use std::{fs::OpenOptions, io::Write};
 
     use super::*;
     use tempfile::TempDir;
 
-    fn bootstrap_git_dir() -> Result<TempDir> {
-        let tempdir = TempDir::new()?;
-        Command::new("git")
-            .args(&["init"])
-            .current_dir(tempdir.path())
-            .output()?;
-
-        let test_file_1 = tempdir.path().join("test_file_1.txt");
-        let mut test_file_1 = File::create(test_file_1)?;
-
-        let test_file_2 = tempdir.path().join("test_file_1.txt");
-        let mut test_file_2 = File::create(test_file_2)?;
-
-        writeln!(test_file_1, "Initial commit")?;
-        writeln!(test_file_2, "Initial commit")?;
-
-        Command::new("git")
-            .args(&["add", "."])
-            .current_dir(tempdir.path())
-            .output()?;
-
-        writeln!(test_file_1, "content from commit1")?;
-        writeln!(test_file_2, "content from commit2")?;
-
-        Command::new("git")
-            .args(&["commit", "-m", "commit1"])
-            .current_dir(tempdir.path())
-            .output()?;
-
-        // Don't write anthing to file 2 for this!
-        writeln!(test_file_1, "content from commit2")?;
-
-        Command::new("git")
-            .args(&["commit", "-m", "commit2"])
-            .current_dir(tempdir.path())
-            .output()?;
-
-        Ok(tempdir)
+    struct GitCheckout {
+        root: TempDir,
     }
 
+    impl GitCheckout {
+        fn new() -> Result<GitCheckout> {
+            let root = TempDir::new()?;
+
+            Command::new("git")
+                .args(&["init"])
+                .current_dir(root.path())
+                .output()?;
+
+            Ok(GitCheckout { root })
+        }
+
+        fn rm_file(&self, name: &str) -> Result<()> {
+            let path = self.root.path().join(name);
+            std::fs::remove_file(path)?;
+            Ok(())
+        }
+
+        fn write_file(&self, name: &str, contents: &str) -> Result<()> {
+            let path = self.root.path().join(name);
+            let mut file = OpenOptions::new()
+                .read(true)
+                .append(true)
+                .create(true)
+                .open(path)?;
+
+            writeln!(file, "{}", contents)?;
+            Ok(())
+        }
+
+        fn add(&self, pathspec: &str) -> Result<()> {
+            let output = Command::new("git")
+                .args(&["add", pathspec])
+                .current_dir(self.root.path())
+                .output()?;
+            assert!(output.status.success());
+            Ok(())
+        }
+
+        fn commit(&self, message: &str) -> Result<()> {
+            let output = Command::new("git")
+                .args(&["commit", "-m", message])
+                .current_dir(self.root.path())
+                .output()?;
+            assert!(output.status.success());
+            Ok(())
+        }
+
+        fn changed_files(&self) -> Result<Vec<String>> {
+            let git_root = AbsPath::new(PathBuf::from(self.root.path()))?;
+            let files = get_changed_files(git_root)?;
+            let files = files
+                .into_iter()
+                .map(|abs_path| {
+                    abs_path
+                        .as_pathbuf()
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string()
+                })
+                .collect::<Vec<_>>();
+            Ok(files)
+        }
+    }
+
+    // Should properly detect changes in the commit (and not check other files)
     #[test]
-    fn head_files() -> Result<()> {
-        let dir = bootstrap_git_dir()?;
-        let git_root = AbsPath::new(PathBuf::from(dir.path()))?;
-        let files = get_changed_files(git_root)?;
-        let files = files
-            .into_iter()
-            .map(|abs_path| {
-                abs_path
-                    .as_pathbuf()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string()
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(files.len(), 1);
-        assert_eq!(files[0], "test_file_1.txt");
+    fn doesnt_detect_unchanged() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.write_file("test_3.txt", "Initial commit")?;
+
+        git.add(".")?;
+        git.commit("commit 1")?;
+
+        // Don't write anthing to file 2 for this!
+        git.write_file("test_1.txt", "commit 2")?;
+
+        git.add(".")?;
+        git.commit("commit 2")?;
+
+        // Add some uncomitted changes to the working tree
+        git.write_file("test_3.txt", "commit 2")?;
+
+        let files = git.changed_files()?;
+        assert_eq!(files.len(), 2);
+        assert!(files.contains(&"test_1.txt".to_string()));
+        assert!(files.contains(&"test_3.txt".to_string()));
+        Ok(())
+    }
+
+    // Files that were deleted in the commit should not be checked, since
+    // obviously they are gone.
+    #[test]
+    fn deleted_files_in_commit() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.write_file("test_3.txt", "Initial commit")?;
+
+        git.add(".")?;
+        git.commit("commit 1")?;
+
+        git.rm_file("test_1.txt")?;
+
+        let files = git.changed_files()?;
+        assert_eq!(files.len(), 0);
+
+        git.add(".")?;
+        git.commit("removal commit")?;
+
+        // Remove a file in the working tree as well.
+        git.rm_file("test_2.txt")?;
+
+        let files = git.changed_files()?;
+        assert_eq!(files.len(), 0);
         Ok(())
     }
 }
