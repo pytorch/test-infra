@@ -2925,9 +2925,9 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "See https://github.com/pytorch/pytorch/runs/4221582535?check_suite_focus=true. Relevant snippet:\r\n\r\n```\r\n\r\n2021-11-16T10:05:58.7795940Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... FAIL (30.029s)\r\n2021-11-16T10:06:18.9412500Z     test_bottleneck_cpu_only failed - num_retries_left: 3\r\n2021-11-16T10:06:18.9413310Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (20.162s)\r\n2021-11-16T10:06:28.8624360Z     test_bottleneck_cpu_only succeeded - num_retries_left: 2\r\n2021-11-16T10:06:28.8625230Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (9.921s)\r\n2021-11-16T10:06:38.7689690Z     test_bottleneck_cpu_only succeeded - num_retries_left: 1\r\n2021-11-16T10:06:38.7691190Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (9.906s)\r\n2021-11-16T10:06:38.7702930Z     test_bottleneck_cpu_only succeeded - num_retries_left: 0\r\n\r\n2021-11-16T10:08:17.3358120Z ======================================================================\r\n2021-11-16T10:08:17.3358790Z FAIL [30.029s]: test_bottleneck_cpu_only (__main__.TestBottleneck)\r\n2021-11-16T10:08:17.3360380Z ----------------------------------------------------------------------\r\n2021-11-16T10:08:17.3360980Z Traceback (most recent call last):\r\n2021-11-16T10:08:17.3361540Z   File \"test_utils.py\", line 498, in test_bottleneck_cpu_only\r\n2021-11-16T10:08:17.3362630Z     self.assertEqual(rc, 0, msg='Run failed with\\n{}'.format(err))\r\n2021-11-16T10:08:17.3364030Z   File \"/usr/local/miniconda/envs/build/lib/python3.8/site-packages/torch/testing/_internal/common_utils.py\", line 2065, in assertEqual\r\n2021-11-16T10:08:17.3365000Z     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n2021-11-16T10:08:17.3366190Z AssertionError: False is not true : Scalars failed to compare as equal! -9 != 0\r\n2021-11-16T10:08:17.3366770Z Run failed with\r\n2021-11-16T10:08:17.3367010Z \r\n2021-11-16T10:08:17.3367210Z \r\n2021-11-16T10:08:17.3583350Z ----------------------------------------------------------------------\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser", 
+      "body": "See https://github.com/pytorch/pytorch/runs/4221582535?check_suite_focus=true. Relevant snippet:\r\n\r\n```\r\n\r\n2021-11-16T10:05:58.7795940Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... FAIL (30.029s)\r\n2021-11-16T10:06:18.9412500Z     test_bottleneck_cpu_only failed - num_retries_left: 3\r\n2021-11-16T10:06:18.9413310Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (20.162s)\r\n2021-11-16T10:06:28.8624360Z     test_bottleneck_cpu_only succeeded - num_retries_left: 2\r\n2021-11-16T10:06:28.8625230Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (9.921s)\r\n2021-11-16T10:06:38.7689690Z     test_bottleneck_cpu_only succeeded - num_retries_left: 1\r\n2021-11-16T10:06:38.7691190Z   test_bottleneck_cpu_only (__main__.TestBottleneck) ... ok (9.906s)\r\n2021-11-16T10:06:38.7702930Z     test_bottleneck_cpu_only succeeded - num_retries_left: 0\r\n\r\n2021-11-16T10:08:17.3358120Z ======================================================================\r\n2021-11-16T10:08:17.3358790Z FAIL [30.029s]: test_bottleneck_cpu_only (__main__.TestBottleneck)\r\n2021-11-16T10:08:17.3360380Z ----------------------------------------------------------------------\r\n2021-11-16T10:08:17.3360980Z Traceback (most recent call last):\r\n2021-11-16T10:08:17.3361540Z   File \"test_utils.py\", line 498, in test_bottleneck_cpu_only\r\n2021-11-16T10:08:17.3362630Z     self.assertEqual(rc, 0, msg='Run failed with\\n{}'.format(err))\r\n2021-11-16T10:08:17.3364030Z   File \"/usr/local/miniconda/envs/build/lib/python3.8/site-packages/torch/testing/_internal/common_utils.py\", line 2065, in assertEqual\r\n2021-11-16T10:08:17.3365000Z     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n2021-11-16T10:08:17.3366190Z AssertionError: False is not true : Scalars failed to compare as equal! -9 != 0\r\n2021-11-16T10:08:17.3366770Z Run failed with\r\n2021-11-16T10:08:17.3367010Z \r\n2021-11-16T10:08:17.3367210Z \r\n2021-11-16T10:08:17.3583350Z ----------------------------------------------------------------------\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @VitalyFedyunin @ngimel", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68433/comments", 
       "created_at": "2021-11-16T16:07:44Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68433/events", 
@@ -2951,6 +2951,24 @@
           "name": "triage review", 
           "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Issues related to performance, either of kernel code or framework glue", 
+          "id": 679952992, 
+          "name": "module: performance", 
+          "node_id": "MDU6TGFiZWw2Nzk5NTI5OTI=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20performance"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "CPU specific problem (e.g., perf, algorithm)", 
+          "id": 1294499454, 
+          "name": "module: cpu", 
+          "node_id": "MDU6TGFiZWwxMjk0NDk5NDU0", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cpu"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/68433/labels{/name}", 
@@ -2976,7 +2994,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68433/timeline", 
       "title": "DISABLED test_bottleneck_cpu_only (__main__.TestBottleneck)", 
-      "updated_at": "2021-11-16T16:07:46Z", 
+      "updated_at": "2021-11-16T16:37:13Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68433", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
