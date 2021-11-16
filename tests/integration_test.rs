@@ -3,6 +3,7 @@ use assert_cmd::Command;
 use insta::assert_yaml_snapshot;
 use lintrunner::lint_message::{LintMessage, LintSeverity};
 use regex::Regex;
+use serde_json;
 use std::io::Write;
 
 fn assert_output_snapshot(cmd: &mut Command) -> Result<()> {

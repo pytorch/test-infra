@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
 use crate::path::AbsPath;
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{ensure, Context, Result};
 use log::debug;
 use regex::Regex;
 
@@ -26,71 +26,40 @@ pub fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<AbsPath>> {
         .collect::<Result<_>>()
 }
 
-fn is_head_public() -> Result<bool> {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("origin/HEAD")
-        .output()?;
-    ensure!(
-        output.status.success(),
-        "Failed to determine whether commit was public; git rev-parse failed"
-    );
-    let default_branch = std::str::from_utf8(&output.stdout)?.trim();
-    let status = Command::new("git")
-        .arg("merge-base")
-        .arg("--is-ancestor")
-        .arg("HEAD")
-        .arg(default_branch)
-        .status()?;
-    match status.code() {
-        Some(0) => Ok(true),
-        Some(1) => Ok(false),
-        _ => bail!("Failed to determine whether commit was public; git merge-base failed"),
-    }
-}
-
-pub fn get_changed_files() -> Result<Vec<AbsPath>> {
-    // Output looks like:
+pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
+    let git_root = git_root.as_pathbuf().as_path();
+    // Output of --name-status looks like:
     // D    src/lib.rs
     // M    foo/bar.baz
     let re = Regex::new(r"^[A-Z]\s+")?;
 
     // Retrieve changed files in current commit.
-    // But only if that commit isn't a "public" commit (e.g. is part of the
-    // remote's default branch).
-    let mut commit_files: Option<HashSet<String>> = None;
-    if !is_head_public()? {
-        let output = Command::new("git")
-            .arg("diff-tree")
-            .arg("--no-commit-id")
-            .arg("--name-status")
-            .arg("-r")
-            .arg("HEAD")
-            .output()?;
-        ensure!(
-            output.status.success(),
-            "Failed to determine files to lint; git diff-tree failed"
-        );
+    let output = Command::new("git")
+        .arg("diff-tree")
+        .arg("--no-commit-id")
+        .arg("--name-status")
+        .arg("-r")
+        .arg("HEAD")
+        .current_dir(git_root)
+        .output()?;
+    ensure!(
+        output.status.success(),
+        "Failed to determine files to lint; git diff-tree failed"
+    );
 
-        let commit_files_str = std::str::from_utf8(&output.stdout)?;
+    let commit_files_str = std::str::from_utf8(&output.stdout)?;
 
-        commit_files = Some(
-            commit_files_str
-                .split('\n')
-                .map(|x| x.to_string())
-                // Filter out deleted files.
-                .filter(|line| !line.starts_with('D'))
-                // Strip the status prefix.
-                .map(|line| re.replace(&line, "").to_string())
-                .filter(|line| !line.is_empty())
-                .collect(),
-        );
-        debug!(
-            "HEAD commit is not public, linting commit diff files: {:?}",
-            commit_files
-        );
-    }
+    let commit_files: HashSet<String> = commit_files_str
+        .split('\n')
+        .map(|x| x.to_string())
+        // Filter out deleted files.
+        .filter(|line| !line.starts_with('D'))
+        // Strip the status prefix.
+        .map(|line| re.replace(&line, "").to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+    debug!("Linting commit diff files: {:?}", commit_files);
+
     // Retrieve changed files in the working tree
     let output = Command::new("git")
         .arg("diff-index")
@@ -98,6 +67,7 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
         .arg("--name-status")
         .arg("-r")
         .arg("HEAD")
+        .current_dir(git_root)
         .output()?;
     ensure!(
         output.status.success(),
@@ -115,33 +85,101 @@ pub fn get_changed_files() -> Result<Vec<AbsPath>> {
         .collect();
 
     debug!("Linting working tree diff files: {:?}", working_tree_files);
-    let mut all_changed_files = working_tree_files;
-    if let Some(commit_files) = commit_files {
-        for file in commit_files {
-            all_changed_files.insert(file);
-        }
-    }
+    let mut all_changed_files: Vec<&String> = working_tree_files.union(&commit_files).collect();
 
     // Sort for consistency
-    let mut all_changed_files: Vec<String> = all_changed_files.into_iter().collect();
     all_changed_files.sort();
 
     // Git reports files relative to the root of git root directory, so retrieve
     // that and prepend it to the file paths.
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("--show-toplevel")
-        .output()?;
-    ensure!(output.status.success(), "Failed to determine git root");
-    let root = std::str::from_utf8(&output.stdout)?.trim();
 
     all_changed_files
         .into_iter()
-        .map(|f| format!("{}/{}", root, f))
+        .map(|f| format!("{}/{}", git_root.display(), f))
         .map(|f| {
             AbsPath::new(PathBuf::from(&f)).with_context(|| {
                 format!("Failed to find file while gathering files to lint: {}", f)
             })
         })
         .collect::<Result<_>>()
+}
+
+// Retrieve the git root based on the current working directory.
+pub fn get_git_root() -> Result<AbsPath> {
+    let output = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .output()?;
+    ensure!(output.status.success(), "Failed to determine git root");
+    let root = std::str::from_utf8(&output.stdout)?.trim();
+    AbsPath::new(PathBuf::from(root))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::File, io::Write};
+
+    use super::*;
+    use tempfile::TempDir;
+
+    fn bootstrap_git_dir() -> Result<TempDir> {
+        let tempdir = TempDir::new()?;
+        Command::new("git")
+            .args(&["init"])
+            .current_dir(tempdir.path())
+            .output()?;
+
+        let test_file_1 = tempdir.path().join("test_file_1.txt");
+        let mut test_file_1 = File::create(test_file_1)?;
+
+        let test_file_2 = tempdir.path().join("test_file_1.txt");
+        let mut test_file_2 = File::create(test_file_2)?;
+
+        writeln!(test_file_1, "Initial commit")?;
+        writeln!(test_file_2, "Initial commit")?;
+
+        Command::new("git")
+            .args(&["add", "."])
+            .current_dir(tempdir.path())
+            .output()?;
+
+        writeln!(test_file_1, "content from commit1")?;
+        writeln!(test_file_2, "content from commit2")?;
+
+        Command::new("git")
+            .args(&["commit", "-m", "commit1"])
+            .current_dir(tempdir.path())
+            .output()?;
+
+        // Don't write anthing to file 2 for this!
+        writeln!(test_file_1, "content from commit2")?;
+
+        Command::new("git")
+            .args(&["commit", "-m", "commit2"])
+            .current_dir(tempdir.path())
+            .output()?;
+
+        Ok(tempdir)
+    }
+
+    #[test]
+    fn head_files() -> Result<()> {
+        let dir = bootstrap_git_dir()?;
+        let git_root = AbsPath::new(PathBuf::from(dir.path()))?;
+        let files = get_changed_files(git_root)?;
+        let files = files
+            .into_iter()
+            .map(|abs_path| {
+                abs_path
+                    .as_pathbuf()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], "test_file_1.txt");
+        Ok(())
+    }
 }

@@ -23,11 +23,10 @@ Then, simply run `lintrunner` to lint your changes!
 
 ## How `lintrunner` decides what files to lint
 When run with no arguments, it will check:
-- The files changed in `HEAD`, unless `HEAD` is a “public” commit (i.e. an ancestor of `origin/main`).
+- The files changed in the `HEAD` commit.
 - The files changed in the user’s working tree.
 
 It does *not* check:
-- Any changes that are considered “public” (i.e. an ancestor of `origin/main`).
 - Any files not tracked by `git`; `git add` them to lint them.
 
 To lint a specific file or files, pass them as positional arguments:

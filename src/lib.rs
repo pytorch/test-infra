@@ -19,6 +19,7 @@ pub mod path;
 pub mod render;
 
 use git::get_changed_files;
+use git::get_git_root;
 use git::get_paths_cmd_files;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
@@ -109,7 +110,10 @@ pub fn do_lint(
     // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
     let all_lints = Arc::new(Mutex::new(HashMap::new()));
     let files = match paths_to_lint {
-        PathsToLint::Auto => get_changed_files()?,
+        PathsToLint::Auto => {
+            let git_root = get_git_root()?;
+            get_changed_files(git_root)?
+        }
         PathsToLint::PathsCmd(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
         PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
     };
