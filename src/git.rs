@@ -58,7 +58,10 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .map(|line| re.replace(&line, "").to_string())
         .filter(|line| !line.is_empty())
         .collect();
-    debug!("Linting commit diff files: {:?}", commit_files);
+
+    if commit_files.len() < 10 {
+        debug!("Linting commit diff files: {:?}", commit_files);
+    }
 
     // Retrieve changed files in the working tree
     let output = Command::new("git")
@@ -84,7 +87,10 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .map(|line| re.replace(line, "").to_string())
         .collect();
 
-    debug!("Linting working tree diff files: {:?}", working_tree_files);
+    if working_tree_files.len() < 10 {
+        debug!("Linting working tree diff files: {:?}", working_tree_files);
+    }
+
     let mut all_changed_files: Vec<&String> = working_tree_files.union(&commit_files).collect();
 
     // Sort for consistency

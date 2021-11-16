@@ -1,8 +1,11 @@
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 /// Represents a canonicalized path to a file or directory.
-#[derive(Debug, PartialOrd, Ord, Eq, PartialEq, Hash, Clone)]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Clone)]
 pub struct AbsPath {
     inner: PathBuf,
 }
@@ -16,6 +19,12 @@ impl AbsPath {
 
     pub fn as_pathbuf(&self) -> &PathBuf {
         &self.inner
+    }
+}
+
+impl fmt::Debug for AbsPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_pathbuf().display())
     }
 }
 
