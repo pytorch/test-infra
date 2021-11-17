@@ -123,9 +123,7 @@ pub fn do_lint(
         linters.iter().map(|l| &l.code).collect::<Vec<_>>()
     );
 
-    // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
-    let all_lints = Arc::new(Mutex::new(HashMap::new()));
-    let files = match paths_to_lint {
+    let mut files = match paths_to_lint {
         PathsToLint::Auto => {
             let git_root = get_git_root()?;
             get_changed_files(git_root)?
@@ -134,12 +132,20 @@ pub fn do_lint(
         PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
         PathsToLint::PathsFile(file) => get_paths_from_file(file)?,
     };
+
+    // Sort and unique the files so we pass a consistent ordering to linters
+    files.sort();
+    files.dedup();
+
     let files = Arc::new(files);
 
     debug!("Linting files: {:#?}", files);
 
     let mut thread_handles = Vec::new();
     let spinners = Arc::new(MultiProgress::new());
+
+    // Too lazy to learn rust's fancy concurrent programming stuff, just spawn a thread per linter and join them.
+    let all_lints = Arc::new(Mutex::new(HashMap::new()));
 
     for linter in linters {
         let all_lints = Arc::clone(&all_lints);

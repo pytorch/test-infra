@@ -87,16 +87,11 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
 
     debug!("Linting working tree diff files: {:?}", working_tree_files);
 
-    let mut all_changed_files: Vec<&String> = working_tree_files.union(&commit_files).collect();
-
-    // Sort for consistency
-    all_changed_files.sort();
-
-    // Git reports files relative to the root of git root directory, so retrieve
-    // that and prepend it to the file paths.
-
-    all_changed_files
+    working_tree_files
+        .union(&commit_files)
         .into_iter()
+        // Git reports files relative to the root of git root directory, so retrieve
+        // that and prepend it to the file paths.
         .map(|f| format!("{}/{}", git_root.display(), f))
         .map(|f| {
             AbsPath::new(PathBuf::from(&f)).with_context(|| {
