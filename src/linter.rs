@@ -39,13 +39,13 @@ impl Linter {
             .filter(|name| {
                 self.include_patterns
                     .iter()
-                    .any(|pattern| matches_relative_path(config_dir, &name, pattern))
+                    .any(|pattern| matches_relative_path(config_dir, name, pattern))
             })
             .filter(|name| {
                 !self
                     .exclude_patterns
                     .iter()
-                    .any(|pattern| matches_relative_path(config_dir, &name, pattern))
+                    .any(|pattern| matches_relative_path(config_dir, name, pattern))
             })
             .cloned()
             .collect()

@@ -22,7 +22,7 @@ pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
     files.sort();
     files
         .into_iter()
-        .map(|f| AbsPath::try_from(f))
+        .map(AbsPath::try_from)
         .collect::<Result<_>>()
 }
 
