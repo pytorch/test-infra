@@ -1,15 +1,9 @@
-use std::collections::HashSet;
-
 use log::{debug, trace};
 
-use crate::path::AbsPath;
-
-pub fn log_files(message: &str, files: &[AbsPath]) {
-    debug!("{} <use -vv to see this list>", message);
-    trace!("{}{:?}", message, files);
-}
-
-pub fn log_files_str(message: &str, files: &HashSet<String>) {
+pub fn log_files<T>(message: &str, files: &T)
+where
+    T: std::fmt::Debug,
+{
     debug!("{} <use -vv to see this list>", message);
     trace!("{}{:?}", message, files);
 }
