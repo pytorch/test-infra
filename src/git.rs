@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf, process::Command};
+use std::{collections::HashSet, convert::TryFrom, process::Command};
 
 use crate::{log_utils::log_files_str, path::AbsPath};
 use anyhow::{ensure, Context, Result};
@@ -22,12 +22,11 @@ pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
     files.sort();
     files
         .into_iter()
-        .map(|f| AbsPath::new(PathBuf::from(f)))
+        .map(|f| AbsPath::try_from(f))
         .collect::<Result<_>>()
 }
 
 pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
-    let git_root = git_root.as_pathbuf().as_path();
     // Output of --name-status looks like:
     // D    src/lib.rs
     // M    foo/bar.baz
@@ -40,7 +39,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .arg("--name-status")
         .arg("-r")
         .arg("HEAD")
-        .current_dir(git_root)
+        .current_dir(&git_root)
         .output()?;
     ensure!(
         output.status.success(),
@@ -68,7 +67,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .arg("--name-status")
         .arg("-r")
         .arg("HEAD")
-        .current_dir(git_root)
+        .current_dir(&git_root)
         .output()?;
     ensure!(
         output.status.success(),
@@ -94,7 +93,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         // that and prepend it to the file paths.
         .map(|f| format!("{}/{}", git_root.display(), f))
         .map(|f| {
-            AbsPath::new(PathBuf::from(&f)).with_context(|| {
+            AbsPath::try_from(&f).with_context(|| {
                 format!("Failed to find file while gathering files to lint: {}", f)
             })
         })
@@ -109,12 +108,12 @@ pub fn get_git_root() -> Result<AbsPath> {
         .output()?;
     ensure!(output.status.success(), "Failed to determine git root");
     let root = std::str::from_utf8(&output.stdout)?.trim();
-    AbsPath::new(PathBuf::from(root))
+    AbsPath::try_from(root)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::OpenOptions, io::Write};
+    use std::{convert::TryFrom, fs::OpenOptions, io::Write};
 
     use super::*;
     use tempfile::TempDir;
@@ -172,18 +171,11 @@ mod tests {
         }
 
         fn changed_files(&self) -> Result<Vec<String>> {
-            let git_root = AbsPath::new(PathBuf::from(self.root.path()))?;
+            let git_root = AbsPath::try_from(self.root.path())?;
             let files = get_changed_files(git_root)?;
             let files = files
                 .into_iter()
-                .map(|abs_path| {
-                    abs_path
-                        .as_pathbuf()
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string()
-                })
+                .map(|abs_path| abs_path.file_name().unwrap().to_string_lossy().to_string())
                 .collect::<Vec<_>>();
             Ok(files)
         }

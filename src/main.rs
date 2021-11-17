@@ -1,4 +1,4 @@
-use std::{collections::HashSet, io::Write, path::PathBuf};
+use std::{collections::HashSet, convert::TryFrom, io::Write};
 
 use anyhow::{Context, Result};
 use structopt::StructOpt;
@@ -79,7 +79,7 @@ fn do_main() -> Result<i32> {
     };
     env_logger::Builder::new().filter_level(log_level).init();
 
-    let config_path = AbsPath::new(PathBuf::from(&opt.config))
+    let config_path = AbsPath::try_from(&opt.config)
         .with_context(|| format!("Could not read lintrunner config at: '{}'", opt.config))?;
     let skipped_linters = opt.skip.map(|linters| {
         linters
@@ -99,7 +99,7 @@ fn do_main() -> Result<i32> {
     let enable_spinners = opt.verbose == 0 && !opt.json;
 
     let paths_to_lint = if let Some(paths_file) = opt.paths_from {
-        let path_file = AbsPath::new(PathBuf::from(&paths_file))
+        let path_file = AbsPath::try_from(&paths_file)
             .with_context(|| format!("Failed to find `--paths-from` file '{}'", paths_file))?;
         PathsToLint::PathsFile(path_file)
     } else if let Some(paths_cmd) = opt.paths_cmd {

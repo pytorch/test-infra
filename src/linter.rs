@@ -29,7 +29,7 @@ fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
 impl Linter {
     fn get_config_dir(&self) -> &Path {
         // Unwrap is fine here because we know this path is absolute and won't be `/`
-        self.config_path.as_pathbuf().parent().unwrap()
+        self.config_path.parent().unwrap()
     }
 
     fn get_matches(&self, files: &[AbsPath]) -> Vec<AbsPath> {
@@ -37,14 +37,15 @@ impl Linter {
         files
             .iter()
             .filter(|name| {
-                self.include_patterns.iter().any(|pattern| {
-                    matches_relative_path(config_dir, name.as_pathbuf().as_path(), pattern)
-                })
+                self.include_patterns
+                    .iter()
+                    .any(|pattern| matches_relative_path(config_dir, &name, pattern))
             })
             .filter(|name| {
-                !self.exclude_patterns.iter().any(|pattern| {
-                    matches_relative_path(config_dir, name.as_pathbuf().as_path(), pattern)
-                })
+                !self
+                    .exclude_patterns
+                    .iter()
+                    .any(|pattern| matches_relative_path(config_dir, &name, pattern))
             })
             .cloned()
             .collect()
@@ -54,7 +55,6 @@ impl Linter {
         let tmp_file = tempfile::NamedTempFile::new()?;
         for matched_file in &matched_files {
             let name = matched_file
-                .as_pathbuf()
                 .to_str()
                 .ok_or_else(|| anyhow!("Could not convert path to string."))?;
             writeln!(&tmp_file, "{}", name)?;

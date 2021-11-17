@@ -7,15 +7,15 @@ use path::AbsPath;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod git;
-mod log_utils;
 pub mod lint_config;
 pub mod lint_message;
 pub mod linter;
+mod log_utils;
 pub mod path;
 pub mod render;
 
@@ -41,19 +41,19 @@ fn apply_patches(lint_messages: &[LintMessage]) -> Result<()> {
     let mut patched_paths = HashSet::new();
     for lint_message in lint_messages {
         if let (Some(replacement), Some(path)) = (&lint_message.replacement, &lint_message.path) {
-            let path = AbsPath::new(PathBuf::from(path))?;
+            let path = AbsPath::try_from(path)?;
             if patched_paths.contains(&path) {
                 bail!(
                     "Two different linters proposed changes for the same file:
                     {}.\n This is not yet supported, file an issue if you want it.",
-                    path.as_pathbuf().display()
+                    path.display()
                 );
             }
             patched_paths.insert(path.clone());
 
-            std::fs::write(path.as_pathbuf(), replacement).context(format!(
+            std::fs::write(&path, replacement).context(format!(
                 "Failed to write apply patch to file: '{}'",
-                path.as_pathbuf().display()
+                path.display()
             ))?;
         }
     }
@@ -83,7 +83,7 @@ fn remove_patchable_lints(lints: Vec<LintMessage>) -> Vec<LintMessage> {
 fn get_paths_from_input(paths: Vec<String>) -> Result<Vec<AbsPath>> {
     let mut ret = Vec::new();
     for path in &paths {
-        let path = AbsPath::new(PathBuf::from(path))
+        let path = AbsPath::try_from(path)
             .with_context(|| format!("Failed to find provided file: '{}'", path))?;
         ret.push(path);
     }
@@ -91,10 +91,10 @@ fn get_paths_from_input(paths: Vec<String>) -> Result<Vec<AbsPath>> {
 }
 
 fn get_paths_from_file(file: AbsPath) -> Result<Vec<AbsPath>> {
-    let file = std::fs::read_to_string(file.as_pathbuf()).with_context(|| {
+    let file = std::fs::read_to_string(&file).with_context(|| {
         format!(
             "Failed to read file specified in `--paths-from`: '{}'",
-            file.as_pathbuf().display()
+            file.display()
         )
     })?;
     let files = file
@@ -221,7 +221,7 @@ pub fn do_lint(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+    use std::{convert::TryFrom, io::Write};
     use tempfile::NamedTempFile;
 
     #[test]
@@ -234,11 +234,11 @@ mod tests {
         writeln!(paths_file, "{}", file1.path().display())?;
         writeln!(paths_file, "{}", file2.path().display())?;
 
-        let paths_file = AbsPath::new(paths_file.path().to_path_buf())?;
+        let paths_file = AbsPath::try_from(paths_file.path())?;
         let paths = get_paths_from_file(paths_file)?;
 
-        let file1_abspath = AbsPath::new(file1.path().to_path_buf())?;
-        let file2_abspath = AbsPath::new(file2.path().to_path_buf())?;
+        let file1_abspath = AbsPath::try_from(file1.path())?;
+        let file2_abspath = AbsPath::try_from(file2.path())?;
 
         assert!(paths.contains(&file1_abspath));
         assert!(paths.contains(&file2_abspath));

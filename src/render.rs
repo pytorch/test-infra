@@ -1,6 +1,6 @@
+use std::convert::TryFrom;
 use std::fmt;
 use std::io::Write;
-use std::path::PathBuf;
 use std::{cmp, collections::HashMap, fs};
 
 use anyhow::{anyhow, Result};
@@ -65,15 +65,12 @@ pub fn render_lint_messages(
                 // Try to render the path relative to user's current working directory.
                 // But if we fail to relativize the path, just print what the linter
                 // gave us directly.
-                let abs_path = AbsPath::new(PathBuf::from(path));
+                let abs_path = AbsPath::try_from(path);
                 let path_to_print = match abs_path {
                     Ok(abs_path) => {
                         // unwrap will never panic because we know `path` is absolute.
-                        let relative_path = path_relative_from(
-                            abs_path.as_pathbuf().as_path(),
-                            current_dir.as_path(),
-                        )
-                        .unwrap();
+                        let relative_path =
+                            path_relative_from(&abs_path, current_dir.as_path()).unwrap();
 
                         relative_path.display().to_string()
                     }

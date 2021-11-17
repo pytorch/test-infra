@@ -1,6 +1,8 @@
 use anyhow::Result;
 use std::{
+    convert::TryFrom,
     fmt,
+    ops::Deref,
     path::{Path, PathBuf},
 };
 
@@ -10,21 +12,70 @@ pub struct AbsPath {
     inner: PathBuf,
 }
 
-impl AbsPath {
-    pub fn new(p: PathBuf) -> Result<AbsPath> {
+impl fmt::Debug for AbsPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.inner.display())
+    }
+}
+
+// Ideally we could could create a generic TryFrom implementation for anything
+// that implements Into<PathBuf>, but apparently this is not possible?
+// https://github.com/rust-lang/rust/issues/50133
+impl TryFrom<PathBuf> for AbsPath {
+    type Error = anyhow::Error;
+    fn try_from(p: PathBuf) -> Result<Self> {
         Ok(AbsPath {
             inner: p.canonicalize()?,
         })
     }
+}
 
-    pub fn as_pathbuf(&self) -> &PathBuf {
-        &self.inner
+impl TryFrom<&Path> for AbsPath {
+    type Error = anyhow::Error;
+    fn try_from(p: &Path) -> Result<Self> {
+        Ok(AbsPath {
+            inner: PathBuf::from(p).canonicalize()?,
+        })
     }
 }
 
-impl fmt::Debug for AbsPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_pathbuf().display())
+impl TryFrom<&String> for AbsPath {
+    type Error = anyhow::Error;
+    fn try_from(p: &String) -> Result<Self> {
+        Ok(AbsPath {
+            inner: PathBuf::from(p).canonicalize()?,
+        })
+    }
+}
+impl TryFrom<String> for AbsPath {
+    type Error = anyhow::Error;
+    fn try_from(p: String) -> Result<Self> {
+        Ok(AbsPath {
+            inner: PathBuf::from(p).canonicalize()?,
+        })
+    }
+}
+
+impl TryFrom<&str> for AbsPath {
+    type Error = anyhow::Error;
+    fn try_from(p: &str) -> Result<Self> {
+        Ok(AbsPath {
+            inner: PathBuf::from(p).canonicalize()?,
+        })
+    }
+}
+
+impl Deref for AbsPath {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.as_path()
+    }
+}
+
+impl AsRef<Path> for AbsPath {
+    fn as_ref(&self) -> &Path {
+        self.inner.as_path()
     }
 }
 

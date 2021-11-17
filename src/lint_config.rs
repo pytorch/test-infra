@@ -182,8 +182,7 @@ pub fn get_linters_from_config(
 
 impl LintRunnerConfig {
     pub fn new(path: &AbsPath) -> Result<LintRunnerConfig> {
-        let path = path.as_pathbuf();
-        let lint_config = fs::read_to_string(path.as_path())
+        let lint_config = fs::read_to_string(&path)
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
         let config: LintRunnerConfig = toml::from_str(&lint_config).context(format!(
             "Config file '{}' had invalid schema",
