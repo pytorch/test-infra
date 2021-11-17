@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
-use crate::path::AbsPath;
+use crate::{log_utils::log_files_str, path::AbsPath};
 use anyhow::{ensure, Context, Result};
 use log::debug;
 use regex::Regex;
@@ -59,7 +59,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .filter(|line| !line.is_empty())
         .collect();
 
-    debug!("Linting commit diff files: {:?}", commit_files);
+    log_files_str("Linting commit diff files: ", &commit_files);
 
     // Retrieve changed files in the working tree
     let output = Command::new("git")
@@ -85,7 +85,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .map(|line| re.replace(line, "").to_string())
         .collect();
 
-    debug!("Linting working tree diff files: {:?}", working_tree_files);
+    log_files_str("Linting working tree diff files: ", &working_tree_files);
 
     working_tree_files
         .union(&commit_files)

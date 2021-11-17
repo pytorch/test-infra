@@ -4,6 +4,7 @@ use std::process::Command;
 
 use crate::{
     lint_message::LintMessage,
+    log_utils::log_files,
     path::{path_relative_from, AbsPath},
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -119,7 +120,7 @@ impl Linter {
 
     pub fn run(&self, files: &[AbsPath]) -> Vec<LintMessage> {
         let matches = self.get_matches(files);
-        debug!("Linter '{}' matched files: {:#?}", self.code, matches);
+        log_files(&format!("Linter '{}' matched files: ", self.code), &matches);
         if matches.is_empty() {
             return Vec::new();
         }

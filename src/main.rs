@@ -11,8 +11,9 @@ use lintrunner::{
 #[derive(Debug, StructOpt)]
 #[structopt(name = "lintrunner", about = "A lint runner")]
 struct Opt {
-    #[structopt(short, long)]
-    verbose: bool,
+    /// Verbose mode (-v, or -vv to show full list of paths being linted)
+    #[structopt(short, long, parse(from_occurrences))]
+    verbose: u8,
 
     /// Path to a toml file defining which linters to run
     #[structopt(long, default_value = ".lintrunner.toml")]
@@ -64,13 +65,17 @@ enum SubCommand {
 fn do_main() -> Result<i32> {
     let opt = Opt::from_args();
     let log_level = match (opt.verbose, opt.json) {
-        // Verbose overrides json
-        (true, true) => log::LevelFilter::Debug,
-        (true, false) => log::LevelFilter::Debug,
-        // If just json is asked for, suppress most output except hard errors.
-        (false, true) => log::LevelFilter::Error,
         // Default
-        (false, false) => log::LevelFilter::Info,
+        (0, false) => log::LevelFilter::Info,
+        // If just json is asked for, suppress most output except hard errors.
+        (0, true) => log::LevelFilter::Error,
+
+        // Verbose overrides json.
+        (1, false) => log::LevelFilter::Debug,
+        (1, true) => log::LevelFilter::Debug,
+
+        // Any higher verbosity goes to trace.
+        (_, _) => log::LevelFilter::Trace,
     };
     env_logger::Builder::new().filter_level(log_level).init();
 
@@ -91,7 +96,7 @@ fn do_main() -> Result<i32> {
 
     let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
 
-    let enable_spinners = !opt.verbose && !opt.json;
+    let enable_spinners = opt.verbose == 0 && !opt.json;
 
     let paths_to_lint = if let Some(paths_file) = opt.paths_from {
         let path_file = AbsPath::new(PathBuf::from(&paths_file))

@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod git;
+mod log_utils;
 pub mod lint_config;
 pub mod lint_message;
 pub mod linter;
@@ -139,7 +140,7 @@ pub fn do_lint(
 
     let files = Arc::new(files);
 
-    debug!("Linting files: {:#?}", files);
+    log_utils::log_files("Linting files: ", &files);
 
     let mut thread_handles = Vec::new();
     let spinners = Arc::new(MultiProgress::new());
