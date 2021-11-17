@@ -2796,6 +2796,15 @@
           "name": "module: rocm", 
           "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        }, 
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/68319/labels{/name}", 
@@ -2821,7 +2830,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68319/timeline", 
       "title": "DISABLED test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)", 
-      "updated_at": "2021-11-13T17:30:07Z", 
+      "updated_at": "2021-11-17T02:51:50Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68319", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
