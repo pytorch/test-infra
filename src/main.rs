@@ -27,6 +27,10 @@ struct Opt {
     #[structopt(long)]
     paths_cmd: Option<String>,
 
+    /// File with new-line separated paths to lint
+    #[structopt(long)]
+    paths_from: Option<String>,
+
     /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA)
     #[structopt(long)]
     skip: Option<String>,
@@ -89,7 +93,11 @@ fn do_main() -> Result<i32> {
 
     let enable_spinners = !opt.verbose && !opt.json;
 
-    let paths_to_lint = if let Some(paths_cmd) = opt.paths_cmd {
+    let paths_to_lint = if let Some(paths_file) = opt.paths_from {
+        let path_file = AbsPath::new(PathBuf::from(&paths_file))
+            .with_context(|| format!("Failed to find `--paths-from` file '{}'", paths_file))?;
+        PathsToLint::PathsFile(path_file)
+    } else if let Some(paths_cmd) = opt.paths_cmd {
         PathsToLint::PathsCmd(paths_cmd)
     } else if !opt.paths.is_empty() {
         PathsToLint::Paths(opt.paths)

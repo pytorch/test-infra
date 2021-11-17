@@ -119,9 +119,7 @@ impl Linter {
 
     pub fn run(&self, files: &[AbsPath]) -> Vec<LintMessage> {
         let matches = self.get_matches(files);
-        if matches.len() < 10 {
-            debug!("Linter '{}' matched files: {:#?}", self.code, matches);
-        }
+        debug!("Linter '{}' matched files: {:#?}", self.code, matches);
         if matches.is_empty() {
             return Vec::new();
         }

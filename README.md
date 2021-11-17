@@ -39,6 +39,8 @@ For more control, you can specify  `--paths-cmd`. If `--paths-cmd` is specified,
 lintrunner --paths-cmd='git grep -Il .'
 ```
 
+Alternatively, you can specify `--paths-file`, which just reads paths from a file, one per line.
+
 ## Linter configuration
 `lintrunner` knows which linters to run and how by looking at a configuration file, conventionally named `.lintrunner.toml`.
 

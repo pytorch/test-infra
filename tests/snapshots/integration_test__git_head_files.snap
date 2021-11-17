@@ -1,0 +1,36 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- ">>> Lint for test_file_1.txt:"
+- ""
+- "  Error (ECHOLINTER) echo lint"
+- ""
+- "    >>> 1  |Initial commit"
+- "        2  |content from commit2"
+- "        3  |content from commit2"
+- ""
+- ""
+- ""
+- "STDERR:"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::lint_config] Found linters: {\"ECHOLINTER\"}"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner] Running linters: [\"ECHOLINTER\"]"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::git] Linting commit diff files: {}"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::git] Linting working tree diff files: {\"test_file_1.txt\"}"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner] Linting files: ["
+- "        AbsPath {"
+- "            inner: \"/tmp/.tmpqSYc7w/test_file_1.txt\","
+- "        },"
+- "    ]"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::linter] Linter 'ECHOLINTER' matched files: ["
+- "        AbsPath {"
+- "            inner: \"/tmp/.tmpqSYc7w/test_file_1.txt\","
+- "        },"
+- "    ]"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::linter] Running linter ECHOLINTER: python3 /raid/suo/lintrunner/tests/fixtures/echo_linter.py -- @/tmp/.tmpAvNutT"
+- "[2021-11-15T23:53:41Z DEBUG lintrunner::linter] Linter ECHOLINTER took: 36.505041ms"
+

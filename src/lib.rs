@@ -20,7 +20,7 @@ pub mod render;
 
 use git::get_changed_files;
 use git::get_git_root;
-use git::get_paths_cmd_files;
+use git::get_paths_from_cmd;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
@@ -83,14 +83,30 @@ fn get_paths_from_input(paths: Vec<String>) -> Result<Vec<AbsPath>> {
     let mut ret = Vec::new();
     for path in &paths {
         let path = AbsPath::new(PathBuf::from(path))
-            .with_context(|| format!("Failed to lint provided file: '{}'", path))?;
+            .with_context(|| format!("Failed to find provided file: '{}'", path))?;
         ret.push(path);
     }
     Ok(ret)
 }
 
+fn get_paths_from_file(file: AbsPath) -> Result<Vec<AbsPath>> {
+    let file = std::fs::read_to_string(file.as_pathbuf()).with_context(|| {
+        format!(
+            "Failed to read file specified in `--paths-from`: '{}'",
+            file.as_pathbuf().display()
+        )
+    })?;
+    let files = file
+        .trim()
+        .lines()
+        .map(|l| l.to_string())
+        .collect::<Vec<String>>();
+    get_paths_from_input(files)
+}
+
 pub enum PathsToLint {
     Auto,
+    PathsFile(AbsPath),
     PathsCmd(String),
     Paths(Vec<String>),
 }
@@ -114,8 +130,9 @@ pub fn do_lint(
             let git_root = get_git_root()?;
             get_changed_files(git_root)?
         }
-        PathsToLint::PathsCmd(paths_cmd) => get_paths_cmd_files(paths_cmd)?,
+        PathsToLint::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
         PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
+        PathsToLint::PathsFile(file) => get_paths_from_file(file)?,
     };
     let files = Arc::new(files);
 
@@ -191,5 +208,34 @@ pub fn do_lint(
     match did_print {
         PrintedLintErrors::No => Ok(0),
         PrintedLintErrors::Yes => Ok(1),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_paths_file() -> Result<()> {
+        let file1 = NamedTempFile::new()?;
+        let file2 = NamedTempFile::new()?;
+
+        let mut paths_file = NamedTempFile::new()?;
+
+        writeln!(paths_file, "{}", file1.path().display())?;
+        writeln!(paths_file, "{}", file2.path().display())?;
+
+        let paths_file = AbsPath::new(paths_file.path().to_path_buf())?;
+        let paths = get_paths_from_file(paths_file)?;
+
+        let file1_abspath = AbsPath::new(file1.path().to_path_buf())?;
+        let file2_abspath = AbsPath::new(file2.path().to_path_buf())?;
+
+        assert!(paths.contains(&file1_abspath));
+        assert!(paths.contains(&file2_abspath));
+
+        Ok(())
     }
 }

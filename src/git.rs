@@ -5,7 +5,7 @@ use anyhow::{ensure, Context, Result};
 use log::debug;
 use regex::Regex;
 
-pub fn get_paths_cmd_files(paths_cmd: String) -> Result<Vec<AbsPath>> {
+pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
     debug!("Running paths_cmd: {}", paths_cmd);
     let output = Command::new("sh")
         .arg("-c")
@@ -59,9 +59,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .filter(|line| !line.is_empty())
         .collect();
 
-    if commit_files.len() < 10 {
-        debug!("Linting commit diff files: {:?}", commit_files);
-    }
+    debug!("Linting commit diff files: {:?}", commit_files);
 
     // Retrieve changed files in the working tree
     let output = Command::new("git")
@@ -87,9 +85,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .map(|line| re.replace(line, "").to_string())
         .collect();
 
-    if working_tree_files.len() < 10 {
-        debug!("Linting working tree diff files: {:?}", working_tree_files);
-    }
+    debug!("Linting working tree diff files: {:?}", working_tree_files);
 
     let mut all_changed_files: Vec<&String> = working_tree_files.union(&commit_files).collect();
 
