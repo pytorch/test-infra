@@ -35,6 +35,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
     // Retrieve changed files in current commit.
     let output = Command::new("git")
         .arg("diff-tree")
+        .arg("--ignore-submodules")
         .arg("--no-commit-id")
         .arg("--name-status")
         .arg("-r")
@@ -63,6 +64,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
     // Retrieve changed files in the working tree
     let output = Command::new("git")
         .arg("diff-index")
+        .arg("--ignore-submodules")
         .arg("--no-commit-id")
         .arg("--name-status")
         .arg("-r")
