@@ -788,7 +788,7 @@
       "author_association": "MEMBER", 
       "body": "Appears to be failing again after re-enabling onnx tests, going to disable for now so we can re-introduce onnx tests\r\n\r\nRe-enabling onnx tests: \r\n* https://github.com/pytorch/pytorch/pull/66513\r\n\r\nPrevious related issues:\r\n* https://github.com/pytorch/pytorch/issues/63968\r\n* https://github.com/pytorch/pytorch/issues/34658\r\n\r\ncc @BowenBao @neginraoof", 
       "closed_at": null, 
-      "comments": 3, 
+      "comments": 4, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/comments", 
       "created_at": "2021-10-12T23:58:35Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/events", 
@@ -821,6 +821,15 @@
           "name": "skipped", 
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }, 
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "triaged by ONNX team", 
+          "id": 3202390887, 
+          "name": "onnx-triaged", 
+          "node_id": "MDU6TGFiZWwzMjAyMzkwODg3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/onnx-triaged"
         }
       ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/labels{/name}", 
@@ -846,7 +855,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66528/timeline", 
       "title": "DISABLED test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)", 
-      "updated_at": "2021-10-15T20:41:31Z", 
+      "updated_at": "2021-11-20T01:10:04Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66528", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1700823?v=4", 
