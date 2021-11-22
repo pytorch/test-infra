@@ -25,11 +25,11 @@ struct Opt {
 
     /// Shell command that returns new-line separated paths to lint
     /// (e.g. --paths-cmd 'git ls-files path/to/project')
-    #[structopt(long)]
+    #[structopt(long, conflicts_with="paths-from")]
     paths_cmd: Option<String>,
 
     /// File with new-line separated paths to lint
-    #[structopt(long)]
+    #[structopt(long, conflicts_with="paths-cmd")]
     paths_from: Option<String>,
 
     /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA)
@@ -49,6 +49,7 @@ struct Opt {
     cmd: Option<SubCommand>,
 
     /// Paths to lint.
+    #[structopt(conflicts_with="paths-cmd", conflicts_with="paths-from")]
     paths: Vec<String>,
 }
 

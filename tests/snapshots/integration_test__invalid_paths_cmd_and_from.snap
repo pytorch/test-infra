@@ -1,0 +1,16 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error: The argument '--paths-cmd <paths-cmd>' cannot be used with '--paths-from <paths-from>'"
+- ""
+- "USAGE:"
+- "    lintrunner --config <config> --paths-cmd <paths-cmd> --paths-from <paths-from>"
+- ""
+- For more information try --help
+

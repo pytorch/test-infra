@@ -328,3 +328,43 @@ fn skip_nonexistent_linter() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn invalid_paths_cmd_and_from() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['wont_be_run']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.args(["--paths-cmd", "echo foo", "--paths-from", "foo"]);
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn invalid_paths_cmd_and_specified_paths() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['wont_be_run']
+        ",
+    )?;
+
+        let mut cmd = Command::cargo_bin("lintrunner")?;
+        cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+        cmd.args(["--paths-cmd", "echo foo", "bar", "foo"]);
+        cmd.assert().failure();
+        assert_output_snapshot(&mut cmd)?;
+
+    Ok(())
+}
