@@ -29,7 +29,7 @@ struct Opt {
     paths_cmd: Option<String>,
 
     /// File with new-line separated paths to lint
-    #[structopt(long, conflicts_with = "paths-cmd")]
+    #[structopt(long)]
     paths_from: Option<String>,
 
     /// Lint all files that differ between the working directory and the

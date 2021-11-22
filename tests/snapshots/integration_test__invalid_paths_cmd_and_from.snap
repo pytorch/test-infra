@@ -7,7 +7,7 @@ expression: output_lines
 - ""
 - ""
 - "STDERR:"
-- "error: The argument '--paths-cmd <paths-cmd>' cannot be used with '--paths-from <paths-from>'"
+- "error: The argument '--paths-from <paths-from>' cannot be used with '--paths-cmd <paths-cmd>'"
 - ""
 - "USAGE:"
 - "    lintrunner --config <config> --paths-cmd <paths-cmd> --paths-from <paths-from>"
