@@ -118,6 +118,7 @@ pub fn do_lint(
     should_apply_patches: bool,
     render_as_json: bool,
     enable_spinners: bool,
+    revision: Option<String>,
 ) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
@@ -127,7 +128,7 @@ pub fn do_lint(
     let mut files = match paths_to_lint {
         PathsToLint::Auto => {
             let git_root = get_git_root()?;
-            get_changed_files(git_root)?
+            get_changed_files(git_root, revision.as_deref())?
         }
         PathsToLint::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
         PathsToLint::Paths(paths) => get_paths_from_input(paths)?,

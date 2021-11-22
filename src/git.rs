@@ -1,6 +1,9 @@
 use std::{collections::HashSet, convert::TryFrom, process::Command};
 
-use crate::{log_utils::log_files, path::AbsPath};
+use crate::{
+    log_utils::{ensure_output, log_files},
+    path::AbsPath,
+};
 use anyhow::{ensure, Context, Result};
 use log::debug;
 use regex::Regex;
@@ -26,26 +29,29 @@ pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
         .collect::<Result<_>>()
 }
 
-pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
+pub fn get_changed_files(git_root: AbsPath, relative_to: Option<&str>) -> Result<Vec<AbsPath>> {
     // Output of --name-status looks like:
     // D    src/lib.rs
     // M    foo/bar.baz
     let re = Regex::new(r"^[A-Z]\s+")?;
 
     // Retrieve changed files in current commit.
+    let mut args = vec![
+        "diff-tree",
+        "--ignore-submodules",
+        "--no-commit-id",
+        "--name-status",
+        "-r",
+        "HEAD",
+    ];
+    if let Some(relative_to) = relative_to {
+        args.push(relative_to);
+    }
     let output = Command::new("git")
-        .arg("diff-tree")
-        .arg("--ignore-submodules")
-        .arg("--no-commit-id")
-        .arg("--name-status")
-        .arg("-r")
-        .arg("HEAD")
+        .args(&args)
         .current_dir(&git_root)
         .output()?;
-    ensure!(
-        output.status.success(),
-        "Failed to determine files to lint; git diff-tree failed"
-    );
+    ensure_output("git diff-tree", &output)?;
 
     let commit_files_str = std::str::from_utf8(&output.stdout)?;
 
@@ -71,10 +77,7 @@ pub fn get_changed_files(git_root: AbsPath) -> Result<Vec<AbsPath>> {
         .arg("HEAD")
         .current_dir(&git_root)
         .output()?;
-    ensure!(
-        output.status.success(),
-        "Failed to determine files to lint; git diff-index failed"
-    );
+    ensure_output("git diff-index", &output)?;
 
     let working_tree_files_str = std::str::from_utf8(&output.stdout)?;
     let working_tree_files: HashSet<String> = working_tree_files_str
@@ -172,9 +175,9 @@ mod tests {
             Ok(())
         }
 
-        fn changed_files(&self) -> Result<Vec<String>> {
+        fn changed_files(&self, relative_to: Option<&str>) -> Result<Vec<String>> {
             let git_root = AbsPath::try_from(self.root.path())?;
-            let files = get_changed_files(git_root)?;
+            let files = get_changed_files(git_root, relative_to)?;
             let files = files
                 .into_iter()
                 .map(|abs_path| abs_path.file_name().unwrap().to_string_lossy().to_string())
@@ -203,7 +206,7 @@ mod tests {
         // Add some uncomitted changes to the working tree
         git.write_file("test_3.txt", "commit 2")?;
 
-        let files = git.changed_files()?;
+        let files = git.changed_files(None)?;
         assert_eq!(files.len(), 2);
         assert!(files.contains(&"test_1.txt".to_string()));
         assert!(files.contains(&"test_3.txt".to_string()));
@@ -224,7 +227,7 @@ mod tests {
 
         git.rm_file("test_1.txt")?;
 
-        let files = git.changed_files()?;
+        let files = git.changed_files(None)?;
         assert_eq!(files.len(), 0);
 
         git.add(".")?;
@@ -233,8 +236,54 @@ mod tests {
         // Remove a file in the working tree as well.
         git.rm_file("test_2.txt")?;
 
-        let files = git.changed_files()?;
+        let files = git.changed_files(None)?;
         assert_eq!(files.len(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn relative_revision() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.write_file("test_3.txt", "Initial commit")?;
+
+        git.add(".")?;
+        git.commit("I am HEAD~2")?;
+
+        git.write_file("test_1.txt", "foo")?;
+
+        git.add(".")?;
+        git.commit("I am HEAD~1")?;
+
+        git.write_file("test_2.txt", "foo")?;
+
+        git.add(".")?;
+        git.commit("I am HEAD")?;
+
+        // Add some uncomitted changes to the working tree
+        git.write_file("test_3.txt", "commit 2")?;
+
+        {
+            // Relative to the HEAD commit, only the working tree changes should
+            // be checked.
+            let files = git.changed_files(Some("HEAD"))?;
+            assert_eq!(files.len(), 1);
+            assert!(files.contains(&"test_3.txt".to_string()));
+        }
+        {
+            let files = git.changed_files(Some("HEAD~1"))?;
+            assert_eq!(files.len(), 2);
+            assert!(files.contains(&"test_2.txt".to_string()));
+            assert!(files.contains(&"test_3.txt".to_string()));
+        }
+        {
+            let files = git.changed_files(Some("HEAD~2"))?;
+            assert_eq!(files.len(), 3);
+            assert!(files.contains(&"test_1.txt".to_string()));
+            assert!(files.contains(&"test_2.txt".to_string()));
+            assert!(files.contains(&"test_3.txt".to_string()));
+        }
         Ok(())
     }
 }

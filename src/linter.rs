@@ -4,7 +4,7 @@ use std::process::Command;
 
 use crate::{
     lint_message::LintMessage,
-    log_utils::log_files,
+    log_utils::{ensure_output, log_files},
     path::{path_relative_from, AbsPath},
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
@@ -90,6 +90,7 @@ impl Linter {
                 )
             })?;
         debug!("Linter {} took: {:?}", self.code, start.elapsed());
+        ensure_output("Linter command", &command)?;
 
         if !&command.status.success() {
             let stderr = std::str::from_utf8(&command.stderr)?;

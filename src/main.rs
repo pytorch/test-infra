@@ -25,12 +25,18 @@ struct Opt {
 
     /// Shell command that returns new-line separated paths to lint
     /// (e.g. --paths-cmd 'git ls-files path/to/project')
-    #[structopt(long, conflicts_with="paths-from")]
+    #[structopt(long, conflicts_with = "paths-from")]
     paths_cmd: Option<String>,
 
     /// File with new-line separated paths to lint
-    #[structopt(long, conflicts_with="paths-cmd")]
+    #[structopt(long, conflicts_with = "paths-cmd")]
     paths_from: Option<String>,
+
+    /// Lint all files that differ between the working directory and the
+    /// specified revision. This argument can be any <tree-ish> that is accepted
+    /// by `git diff-tree`
+    #[structopt(long, conflicts_with_all=&["paths", "paths-cmd", "paths-from"])]
+    revision: Option<String>,
 
     /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA)
     #[structopt(long)]
@@ -49,7 +55,7 @@ struct Opt {
     cmd: Option<SubCommand>,
 
     /// Paths to lint.
-    #[structopt(conflicts_with="paths-cmd", conflicts_with="paths-from")]
+    #[structopt(conflicts_with_all = &["paths-cmd", "paths-from"])]
     paths: Vec<String>,
 }
 
@@ -124,6 +130,7 @@ fn do_main() -> Result<i32> {
                 opt.apply_patches,
                 opt.json,
                 enable_spinners,
+                opt.revision,
             )
         }
     }

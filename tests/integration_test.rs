@@ -360,11 +360,11 @@ fn invalid_paths_cmd_and_specified_paths() -> Result<()> {
         ",
     )?;
 
-        let mut cmd = Command::cargo_bin("lintrunner")?;
-        cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
-        cmd.args(["--paths-cmd", "echo foo", "bar", "foo"]);
-        cmd.assert().failure();
-        assert_output_snapshot(&mut cmd)?;
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.args(["--paths-cmd", "echo foo", "bar", "foo"]);
+    cmd.assert().failure();
+    assert_output_snapshot(&mut cmd)?;
 
     Ok(())
 }
