@@ -47,6 +47,6 @@ jobs:
       - name: Deploy
         run: |
           set -eux
+          export ANSIBLE_HOST_KEY_CHECKING=False
           cd aws/websites/metrics.pytorch.org
           ansible-playbook -i ubuntu@metrics.pytorch.org, install.yml --extra-vars=@vars.yml --private-key=ssh_key.pem
-
