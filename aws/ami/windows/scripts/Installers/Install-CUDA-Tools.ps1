@@ -31,6 +31,11 @@ Switch ($cudaVersion) {
     # Add thrust for 11.3
     $installerArgs = "$installerArgs thrust_$cudaVersion"
   }
+  "11.5" {
+    $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
+    $cudnnZip = "cudnn-11.3-windows-x64-v8.2.0.53.zip"
+    $installerArgs = "$installerArgs thrust_$cudaVersion"
+  }
 }
 
 function New-TemporaryDirectory() {
