@@ -16,7 +16,7 @@ resource "random_string" "random" {
 
 resource "aws_sqs_queue" "queued_builds" {
   name                        = "${var.environment}-queued-builds.fifo"
-  visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
+  visibility_timeout_seconds  = 180
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
