@@ -2511,7 +2511,7 @@
     },
     {
       "datasource": "Metrics",
-      "description": "tests detected as flaky in all pytorch CI",
+      "description": "tests detected as flaky in all pytorch CI (both trunk and PRs)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2553,10 +2553,11 @@
         {
           "format": "table",
           "group": [],
+          "hide": false,
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT \n  name,\n  suite,\n  file,\n  sum(num_green) AS \"num_green\",\n  sum(num_red) AS \"num_red\",\n  sum(num_red) / (sum(num_red) + sum(num_green)) AS \"flakiness\"\nFROM flaky_tests\nWHERE pr <> \"68754\" -- 68754 is my test PR with fake flaky tests\nGROUP BY name, suite, file\nORDER BY \"num_red\"",
+          "rawSql": "SELECT \n  name,\n  suite,\n  file,\n  sum(num_green) AS \"num_green\",\n  sum(num_red) AS \"num_red\",\n  sum(build_environment LIKE \"%win%\") AS \"on_win\",\n  sum(build_environment LIKE \"%linux%\") AS \"on_linux\",\n  sum(build_environment LIKE \"%mac%\") AS \"on_mac\",\n  concat(\"https://github.com/pytorch/pytorch/actions/runs/\", workflow_id) AS \"example_url\"\nFROM flaky_tests\nWHERE $__timeFilter(updated_at) AND (isnull(pr) OR (pr <> \"68754\")) -- 68754 is my test PR with fake flaky tests\nGROUP BY name, suite, file\nORDER BY \"num_red\"",
           "refId": "A",
           "select": [
             [
@@ -2610,7 +2611,20 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "head_commit_message"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 286
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 7,
@@ -2620,7 +2634,8 @@
       },
       "id": 49,
       "options": {
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "8.1.1",
       "targets": [
@@ -4218,7 +4233,7 @@
       "type": "row"
     }
   ],
-  "refresh": false,
+  "refresh": "",
   "schemaVersion": 30,
   "style": "dark",
   "tags": [],
@@ -4233,5 +4248,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1
+  "version": 4
 }
