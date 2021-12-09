@@ -24,6 +24,7 @@ resource "aws_lambda_function" "scale_down" {
   runtime           = "nodejs12.x"
   timeout           = var.lambda_timeout_scale_down
   tags              = local.tags
+  memory_size       = 256
 
   environment {
     variables = {
