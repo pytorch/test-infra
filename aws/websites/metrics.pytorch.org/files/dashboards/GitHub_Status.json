@@ -2632,6 +2632,30 @@
                 "value": 92
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "example_url"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 371
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "on_trunk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 103
+              }
+            ]
           }
         ]
       },
@@ -2644,7 +2668,12 @@
       "id": 57,
       "options": {
         "showHeader": true,
-        "sortBy": []
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "num_red"
+          }
+        ]
       },
       "pluginVersion": "8.1.1",
       "targets": [
@@ -2655,7 +2684,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT \n  name,\n  suite,\n  file,\n  sum(num_green) AS \"num_green\",\n  sum(num_red) AS \"num_red\",\n  sum(build_environment LIKE \"%win%\") AS \"on_win\",\n  sum(build_environment LIKE \"%linux%\") AS \"on_linux\",\n  sum(build_environment LIKE \"%mac%\") AS \"on_mac\",\n  concat(\"https://github.com/pytorch/pytorch/actions/runs/\", workflow_id) AS \"example_url\"\nFROM flaky_tests\nWHERE $__timeFilter(updated_at) AND (isnull(pr) OR (pr <> \"68754\")) -- 68754 is my test PR with fake flaky tests\nGROUP BY name, suite, file\nORDER BY \"num_red\"",
+          "rawSql": "SELECT \n  name,\n  suite,\n  file,\n  sum(num_green) AS \"num_green\",\n  sum(num_red) AS \"num_red\",\n  sum(build_environment LIKE \"%win%\") AS \"on_win\",\n  sum(build_environment LIKE \"%linux%\") AS \"on_linux\",\n  sum(build_environment LIKE \"%mac%\") AS \"on_mac\",\n  concat(\"https://github.com/pytorch/pytorch/actions/runs/\", workflow_id) AS \"example_url\",\n  sum(isnull(pr)) AS \"on_trunk\",\n  sum(not isnull(pr)) AS \"on_prs\"\nFROM flaky_tests\nWHERE $__timeFilter(updated_at) AND (isnull(pr) OR (pr <> \"68754\")) -- 68754 is my test PR with fake flaky tests\nGROUP BY name, suite, file\nORDER BY \"num_red\"",
           "refId": "A",
           "select": [
             [
@@ -4346,5 +4375,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 5
+  "version": 6
 }
