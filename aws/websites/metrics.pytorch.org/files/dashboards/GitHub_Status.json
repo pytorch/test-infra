@@ -2536,7 +2536,104 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num_green"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 69
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "num_red"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 76
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "on_win"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 66
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "on_linux"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "on_mac"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "file"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 112
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 182
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "suite"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 92
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -2546,7 +2643,8 @@
       },
       "id": 57,
       "options": {
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "8.1.1",
       "targets": [
@@ -4248,5 +4346,5 @@
   "timezone": "",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 4
+  "version": 5
 }
