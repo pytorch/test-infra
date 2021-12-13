@@ -2880,7 +2880,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Most likely related to https://github.com/pytorch/pytorch/pull/69584\r\n\r\nError is as follows:\r\n```\r\n======================================================================\r\nERROR [0.000s]: test_conv_double_backward_cuda (__main__.TestNN) (dtype=torch.float64)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/testing/_internal/common_utils.py\", line 533, in call_helper\r\n    f(self, *args, dtype=dtype)\r\n  File \"/var/lib/jenkins/workspace/test/test_nn.py\", line 11108, in test_conv_double_backward_cuda\r\n    result = self.run_conv_double_back_test(kern, stride,\r\n  File \"/var/lib/jenkins/workspace/test/test_nn.py\", line 10964, in run_conv_double_back_test\r\n    return gradgradcheck(func, inputs, (grad_y,))\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/testing/_internal/common_utils.py\", line 2893, in gradgradcheck\r\n    return torch.autograd.gradgradcheck(fn, inputs, grad_outputs, **kwargs)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1533, in gradgradcheck\r\n    return gradcheck(\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1398, in gradcheck\r\n    return _gradcheck_helper(**args)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1412, in _gradcheck_helper\r\n    _gradcheck_real_imag(gradcheck_fn, func, func_out, tupled_inputs, outputs, eps,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1057, in _gradcheck_real_imag\r\n    gradcheck_fn(func, func_out, tupled_inputs, outputs, eps,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1287, in _fast_gradcheck\r\n    analytical_vJu = _get_analytical_vJu_backward_mode(inputs, outputs, nondet_tol, check_grad_dtypes, all_v, all_u_dense)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 555, in _get_analytical_vJu_backward_mode\r\n    all_vJ = _check_analytical_jacobian_attributes(inputs, output, nondet_tol, check_grad_dtypes,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 544, in _check_analytical_jacobian_attributes\r\n    raise GradcheckError('Backward is not reentrant, i.e., running backward with '\r\ntorch.autograd.gradcheck.GradcheckError: Backward is not reentrant, i.e., running backward with same input and grad_output multiple times gives different values, although analytical gradient matches numerical gradient.The tolerance for nondeterminism was 0.0.\r\n\r\nNOTE: If your op relies on non-deterministic operations i.e., it is listed here:\r\nhttps://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html\r\nthis failure might be expected.\r\n\r\nIf you are adding a new operator, please file an issue and then use one of the\r\nworkarounds. The workaround depends on how your test invokes gradcheck/gradgradcheck.\r\nIf the test\r\n- manually invokes gradcheck/gradgradcheck, then call gradcheck/gradgradcheck\r\n  with `nondet_tol=<tol>` as a keyword argument.\r\n- is OpInfo-based (e.g., in test_ops.py), then modify the OpInfo for the test\r\n  to have `gradcheck_nondet_tol=<tol>`.\r\n- is a Module test (e.g., in common_nn.py), then modify the corresponding\r\n  module_test entry to have `gradcheck_nondet_tol=<tol>`\r\n```", 
+      "body": "Most likely related to https://github.com/pytorch/pytorch/pull/69584\r\n\r\nError is as follows:\r\n```\r\n======================================================================\r\nERROR [0.000s]: test_conv_double_backward_cuda (__main__.TestNN) (dtype=torch.float64)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/testing/_internal/common_utils.py\", line 533, in call_helper\r\n    f(self, *args, dtype=dtype)\r\n  File \"/var/lib/jenkins/workspace/test/test_nn.py\", line 11108, in test_conv_double_backward_cuda\r\n    result = self.run_conv_double_back_test(kern, stride,\r\n  File \"/var/lib/jenkins/workspace/test/test_nn.py\", line 10964, in run_conv_double_back_test\r\n    return gradgradcheck(func, inputs, (grad_y,))\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/testing/_internal/common_utils.py\", line 2893, in gradgradcheck\r\n    return torch.autograd.gradgradcheck(fn, inputs, grad_outputs, **kwargs)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1533, in gradgradcheck\r\n    return gradcheck(\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1398, in gradcheck\r\n    return _gradcheck_helper(**args)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1412, in _gradcheck_helper\r\n    _gradcheck_real_imag(gradcheck_fn, func, func_out, tupled_inputs, outputs, eps,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1057, in _gradcheck_real_imag\r\n    gradcheck_fn(func, func_out, tupled_inputs, outputs, eps,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 1287, in _fast_gradcheck\r\n    analytical_vJu = _get_analytical_vJu_backward_mode(inputs, outputs, nondet_tol, check_grad_dtypes, all_v, all_u_dense)\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 555, in _get_analytical_vJu_backward_mode\r\n    all_vJ = _check_analytical_jacobian_attributes(inputs, output, nondet_tol, check_grad_dtypes,\r\n  File \"/opt/conda/lib/python3.9/site-packages/torch/autograd/gradcheck.py\", line 544, in _check_analytical_jacobian_attributes\r\n    raise GradcheckError('Backward is not reentrant, i.e., running backward with '\r\ntorch.autograd.gradcheck.GradcheckError: Backward is not reentrant, i.e., running backward with same input and grad_output multiple times gives different values, although analytical gradient matches numerical gradient.The tolerance for nondeterminism was 0.0.\r\n\r\nNOTE: If your op relies on non-deterministic operations i.e., it is listed here:\r\nhttps://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html\r\nthis failure might be expected.\r\n\r\nIf you are adding a new operator, please file an issue and then use one of the\r\nworkarounds. The workaround depends on how your test invokes gradcheck/gradgradcheck.\r\nIf the test\r\n- manually invokes gradcheck/gradgradcheck, then call gradcheck/gradgradcheck\r\n  with `nondet_tol=<tol>` as a keyword argument.\r\n- is OpInfo-based (e.g., in test_ops.py), then modify the OpInfo for the test\r\n  to have `gradcheck_nondet_tol=<tol>`.\r\n- is a Module test (e.g., in common_nn.py), then modify the corresponding\r\n  module_test entry to have `gradcheck_nondet_tol=<tol>`\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/69833/comments", 
@@ -2888,7 +2888,44 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/69833/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/69833", 
       "id": 1078570700, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/69833/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -2912,7 +2949,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69833/timeline", 
       "title": "DISABLED test_conv_double_backward_cuda (__main__.TestNN)", 
-      "updated_at": "2021-12-13T14:04:12Z", 
+      "updated_at": "2021-12-13T23:44:11Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/69833", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/6359743?v=4", 
