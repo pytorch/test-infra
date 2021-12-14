@@ -47,6 +47,7 @@ jobs:
       - name: Deploy
         run: |
           set -eux
+          # setting ANSIBLE_HOST_KEY_CHECKING in order to avoid GHA breaks due to known_hosts
+          export ANSIBLE_HOST_KEY_CHECKING=False
           cd aws/websites/metrics.pytorch.org
           ansible-playbook -i ubuntu@metrics.pytorch.org, install.yml --extra-vars=@vars.yml --private-key=ssh_key.pem
-
