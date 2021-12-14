@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   grafana:
-    image: grafana/grafana:8.2.3
+    image: grafana/grafana:8.3.3
     logging:
       driver: "json-file"
       options:
