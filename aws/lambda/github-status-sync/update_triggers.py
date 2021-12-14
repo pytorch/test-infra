@@ -29,7 +29,7 @@ def generate_input(repo, branches, user="pytorch", history_size=100, fetch_size=
 EVENT_TARGETS = {
     "sync-pytorch-audio": {
         "schedule": "rate(1 hour)",
-        "input": generate_input(repo="audio", branches=["main", "release/0.10"]),
+        "input": generate_input(repo="audio", branches=["main", "nightly", "release/0.10"]),
     },
     "sync-pytorch-examples": {
         "schedule": "rate(4 hours)",
@@ -41,11 +41,11 @@ EVENT_TARGETS = {
     },
     "sync-pytorch-text": {
         "schedule": "rate(2 hours)",
-        "input": generate_input(repo="text", branches=["main", "release/0.11"]),
+        "input": generate_input(repo="text", branches=["main", "nightly", "release/0.11"]),
     },
     "sync-pytorch-vision": {
         "schedule": "rate(1 hour)",
-        "input": generate_input(repo="vision", branches=["main", "release/0.11"]),
+        "input": generate_input(repo="vision", branches=["main", "nightly", "release/0.11"]),
     },
     "sync-pytorch-pytorch": {
         "schedule": "rate(1 minute)",
