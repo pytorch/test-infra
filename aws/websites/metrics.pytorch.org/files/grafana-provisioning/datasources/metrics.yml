@@ -6,7 +6,8 @@ datasources:
     url: {{ passwords.databases.metrics.host }}
     database: metrics
     user: {{ passwords.databases.metrics.user }}
-    password: {{ passwords.databases.metrics.password }}
+    secureJsonData:
+      password: {{ passwords.databases.metrics.password }}
     jsonData:
       maxOpenConns: 0
       maxIdleConns: 2

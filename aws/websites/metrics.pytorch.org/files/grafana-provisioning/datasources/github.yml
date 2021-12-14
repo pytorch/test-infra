@@ -6,7 +6,8 @@ datasources:
     url: {{ passwords.databases.github.host }}
     database: pytorch
     user: {{ passwords.databases.github.user }}
-    password: {{ passwords.databases.github.password }}
+    secureJsonData:
+      password: {{ passwords.databases.github.password }}
     jsonData:
       maxOpenConns: 0
       maxIdleConns: 2
