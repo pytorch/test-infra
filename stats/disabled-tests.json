@@ -2873,7 +2873,7 @@
       "author_association": "NONE", 
       "body": "### \ud83d\ude80 The feature, motivation and pitch\r\n\r\nCurrently, it is only possible to enable/disable TensorFloat32 at the global level (see [the docs](https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)):\r\n```\r\ntorch.backends.cuda.matmul.allow_tf32 = False\r\ntorch.backends.cudnn.allow_tf32 = False\r\n```\r\n(Similar code is possible in C++.)\r\n\r\nThe proposed feature is a context manager, something along the lines of:\r\n```python\r\nwith torch.allow_tf32(False/True):\r\n    b = torch.matmul(M, a)   # whatever\r\n```\r\nthat sets it locally for a given block of operations in both the forward and backward pass.\r\nIdeally, this would be TorchScript compatible and just act as a no-op on non-CUDA platforms.\r\n\r\n## Motivation\r\nWe work on E(3)-equivariant networks where the equivariance is enforced by the use of special constant coefficient matrices in certain operations. My initial tests seem to demonstrate that enabling TF32 makes the numerical precision of the equivariance much, much worse--- likely unacceptably so. Despite this, it would be nice to be able to take advantage of TF32 performance in parts of the model where its loss of precision shouldn't matter.\r\n\r\n### Alternatives\r\n\r\n - Don't use TensorFloat32 at all (current approach)\r\n\r\n - Enable TensorFloat32 but use `float64` for calculations that need more precision\r\n\r\nIs the second option correct? The docs say:\r\n> TF32 tensor cores are designed to achieve better performance on matmul and convolutions on torch.float32 tensors\r\n\r\nDoes this mean it is never used for `float64` tensors?\r\n\r\n - Some kind of `torch.float32_full` dtype that acts as `float32`, except TF32 is never used in calculations involving it. (So matmul `float32 * float32` would use TF32 according to the global on/off switch, but `float32_full * float32_full` wouldn't use it under ay circumstances.)\r\n\r\n### Additional context\r\n\r\nI have a lot more testing to do before I can confidently say that global TF32 is an issue and that something like this would solve it, but I wanted to post now already to get a sense of how plausible a feature request like this would be\u2014 impossible? fairly trivial?\r\n\r\nThank you for all the work done to make NVIDIA's latest performance developments available to your users in such easy-to-use ways!\n\ncc @zasdfgbnm @ptrblck", 
       "closed_at": null, 
-      "comments": 10, 
+      "comments": 11, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/69921/comments", 
       "created_at": "2021-12-14T19:10:07Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/69921/events", 
@@ -2922,7 +2922,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69921/timeline", 
       "title": "Context manager to enable/disabled TensorFloat32 on demand", 
-      "updated_at": "2021-12-15T20:48:11Z", 
+      "updated_at": "2021-12-17T21:45:59Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/69921", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1473644?v=4", 
@@ -2946,5 +2946,5 @@
       }
     }
   ], 
-  "total_count": 75
+  "total_count": 74
 }
