@@ -29,7 +29,7 @@ jobs:
           with open('disabled-tests.json', mode='w') as file:
               json.dump(disabled_tests_json, file, sort_keys=True, indent=2)
       - name: Push file to test-infra repository
-        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
            API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
