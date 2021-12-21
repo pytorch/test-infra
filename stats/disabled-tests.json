@@ -7267,7 +7267,67 @@
         "type": "User", 
         "url": "https://api.github.com/users/Linux-cpp-lisp"
       }
+    }, 
+    {
+      "active_lock_reason": null, 
+      "assignee": null, 
+      "assignees": [], 
+      "author_association": "MEMBER", 
+      "body": "Platforms: windows", 
+      "closed_at": null, 
+      "comments": 1, 
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/comments", 
+      "created_at": "2021-12-21T06:01:06Z", 
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/events", 
+      "html_url": "https://github.com/pytorch/pytorch/issues/70226", 
+      "id": 1085468256, 
+      "labels": [], 
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/labels{/name}", 
+      "locked": false, 
+      "milestone": null, 
+      "node_id": "I_kwDOA-j9z85Asu5g", 
+      "number": 70226, 
+      "performed_via_github_app": null, 
+      "reactions": {
+        "+1": 0, 
+        "-1": 0, 
+        "confused": 0, 
+        "eyes": 0, 
+        "heart": 0, 
+        "hooray": 0, 
+        "laugh": 0, 
+        "rocket": 0, 
+        "total_count": 0, 
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/reactions"
+      }, 
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
+      "score": 0.0, 
+      "state": "open", 
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/timeline", 
+      "title": "DISABLED test_cuda_memory_leak_detection (__main__.TestCuda)", 
+      "updated_at": "2021-12-21T06:01:28Z", 
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226", 
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
+        "events_url": "https://api.github.com/users/suo/events{/privacy}", 
+        "followers_url": "https://api.github.com/users/suo/followers", 
+        "following_url": "https://api.github.com/users/suo/following{/other_user}", 
+        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}", 
+        "gravatar_id": "", 
+        "html_url": "https://github.com/suo", 
+        "id": 1617424, 
+        "login": "suo", 
+        "node_id": "MDQ6VXNlcjE2MTc0MjQ=", 
+        "organizations_url": "https://api.github.com/users/suo/orgs", 
+        "received_events_url": "https://api.github.com/users/suo/received_events", 
+        "repos_url": "https://api.github.com/users/suo/repos", 
+        "site_admin": false, 
+        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}", 
+        "subscriptions_url": "https://api.github.com/users/suo/subscriptions", 
+        "type": "User", 
+        "url": "https://api.github.com/users/suo"
+      }
     }
   ], 
-  "total_count": 73
+  "total_count": 74
 }
