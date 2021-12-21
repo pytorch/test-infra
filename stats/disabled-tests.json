@@ -7273,15 +7273,34 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: windows", 
+      "body": "Platforms: windows\n\ncc @ezyang @gchanan @zou3519 @bdhirsh", 
       "closed_at": null, 
-      "comments": 1, 
+      "comments": 3, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/comments", 
       "created_at": "2021-12-21T06:01:06Z", 
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/events", 
       "html_url": "https://github.com/pytorch/pytorch/issues/70226", 
       "id": 1085468256, 
-      "labels": [], 
+      "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }
+      ], 
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/labels{/name}", 
       "locked": false, 
       "milestone": null, 
@@ -7305,7 +7324,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/timeline", 
       "title": "DISABLED test_cuda_memory_leak_detection (__main__.TestCuda)", 
-      "updated_at": "2021-12-21T06:01:28Z", 
+      "updated_at": "2021-12-21T18:44:18Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
