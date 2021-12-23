@@ -7686,6 +7686,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         }, 
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Problem is a flaky test in CI", 
@@ -7727,7 +7736,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/timeline", 
       "title": "DISABLED test_cuda_memory_leak_detection (__main__.TestCuda)", 
-      "updated_at": "2021-12-21T21:27:08Z", 
+      "updated_at": "2021-12-23T06:41:43Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
