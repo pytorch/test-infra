@@ -1,6 +1,7 @@
 name: Update disabled tests
 
 on:
+  pull_request:
   schedule:
     # Every 15 minutes
     - cron: "*/15 * * * *"
@@ -14,6 +15,9 @@ jobs:
       - name: Generate new disabled test json
         run: |
           .github/scripts/update_disabled_tests.py
+      - name: Print file
+        run: |
+          cat disabled-tests.json
       - name: Push file to test-infra repository
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
