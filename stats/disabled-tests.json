@@ -7870,7 +7870,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "This job was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_random_seed%2C%20TestDataLoaderUtils)).", 
+      "body": "This job was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_random_seed%2C%20TestDataLoaderUtils)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @SsnL @VitalyFedyunin @ejguan @NivekT", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/comments", 
@@ -7879,6 +7879,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70516", 
       "id": 1090892065, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Related to torch.utils.data.DataLoader and Sampler", 
+          "id": 1076923878, 
+          "name": "module: dataloader", 
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        }, 
         {
           "color": "bfdadc", 
           "default": false, 
@@ -7912,7 +7939,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/timeline", 
       "title": "DISABLED test_random_seed (__main__.TestDataLoaderUtils)", 
-      "updated_at": "2021-12-30T05:51:13Z", 
+      "updated_at": "2021-12-31T02:20:19Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70516", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
@@ -7940,7 +7967,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_proper_exit%2C%20TestDataLoader)).", 
+      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_proper_exit%2C%20TestDataLoader)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @SsnL @VitalyFedyunin @ejguan @NivekT", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/comments", 
@@ -7949,6 +7976,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70517", 
       "id": 1090892194, 
       "labels": [
+        {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Related to torch.utils.data.DataLoader and Sampler", 
+          "id": 1076923878, 
+          "name": "module: dataloader", 
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        }, 
         {
           "color": "bfdadc", 
           "default": false, 
@@ -7982,7 +8036,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/timeline", 
       "title": "DISABLED test_proper_exit (__main__.TestDataLoader)", 
-      "updated_at": "2021-12-30T05:51:45Z", 
+      "updated_at": "2021-12-31T02:19:57Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70517", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
