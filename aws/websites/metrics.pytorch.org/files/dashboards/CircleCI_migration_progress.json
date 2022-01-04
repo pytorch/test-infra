@@ -19,13 +19,17 @@
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 7,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "datasource": "GitHub",
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
       "description": "Number of CircleCI job types currently running on GHA",
       "fieldConfig": {
         "defaults": {
@@ -96,12 +100,16 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "mysql",
+            "uid": "PF911E414CF6BDFC5"
+          },
           "format": "time_series",
           "group": [],
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(updated_at, 12h),\n       count(distinct context) AS \"circleci_jobs\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%'\nGROUP BY 1;",
+          "rawSql": "SELECT $__timeGroupAlias(updated_at, 12h),\n       count(distinct context) AS \"circleci_jobs\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%'\nGROUP BY 1;",
           "refId": "A",
           "select": [
             [
@@ -129,7 +137,10 @@
       "type": "timeseries"
     },
     {
-      "datasource": "GitHub",
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -164,9 +175,16 @@
       },
       "id": 4,
       "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
         "showHeader": true
       },
-      "pluginVersion": "8.1.1",
+      "pluginVersion": "8.3.3",
       "targets": [
         {
           "format": "table",
@@ -203,7 +221,8 @@
       "type": "table"
     }
   ],
-  "schemaVersion": 30,
+  "refresh": "",
+  "schemaVersion": 34,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -217,5 +236,6 @@
   "timezone": "",
   "title": "CircleCI migration progress",
   "uid": "gJaYvuInk",
-  "version": 2
+  "version": 3,
+  "weekStart": ""
 }
