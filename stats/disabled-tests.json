@@ -8222,7 +8222,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_group%2C%20TestDistBackendWithSpawn)).", 
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_group%2C%20TestDistBackendWithSpawn)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70562/comments", 
@@ -8231,6 +8231,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70562", 
       "id": 1092097858, 
       "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Add this issue/PR to distributed oncall triage queue", 
+          "id": 679953883, 
+          "name": "oncall: distributed", 
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
         {
           "color": "bfdadc", 
           "default": false, 
@@ -8264,7 +8273,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70562/timeline", 
       "title": "DISABLED test_barrier_group (__main__.TestDistBackendWithSpawn)", 
-      "updated_at": "2022-01-02T20:48:34Z", 
+      "updated_at": "2022-01-04T15:47:50Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70562", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
