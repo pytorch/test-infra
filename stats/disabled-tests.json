@@ -8162,6 +8162,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         }, 
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "bfdadc", 
           "default": false, 
           "description": "Denotes a (flaky) test currently skipped in CI.", 
@@ -8194,7 +8203,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70547/timeline", 
       "title": "DISABLED test_proper_exit (__main__.TestDataLoaderPersistentWorkers)", 
-      "updated_at": "2022-01-01T04:38:41Z", 
+      "updated_at": "2022-01-05T02:54:00Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70547", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
@@ -8408,6 +8417,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         }, 
         {
+          "color": "006b75", 
+          "default": false, 
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module", 
+          "id": 1301347167, 
+          "name": "triaged", 
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        }, 
+        {
           "color": "bfdadc", 
           "default": false, 
           "description": "Denotes a (flaky) test currently skipped in CI.", 
@@ -8440,7 +8458,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70655/timeline", 
       "title": "DISABLED test_no_segfault (__main__.TestDataLoader)", 
-      "updated_at": "2022-01-05T00:53:57Z", 
+      "updated_at": "2022-01-05T02:47:32Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70655", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
