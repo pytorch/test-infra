@@ -187,13 +187,17 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
+          "datasource": {
+            "type": "mysql",
+            "uid": "PF911E414CF6BDFC5"
+          },
           "format": "table",
           "group": [],
           "hide": false,
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT DISTINCT context AS \"Job Name\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%' AND\n    context NOT LIKE 'ci/circleci: binary_%'\nORDER By context;\n",
+          "rawSql": "SELECT DISTINCT context AS \"Job Name\"\nFROM status_event\nWHERE\n    json_unquote(json_extract(branches, \"$[0].name\")) = \"master\" AND\n    $__timeFilter(updated_at) AND\n    context LIKE 'ci/circleci:%'\nORDER By context;\n",
           "refId": "A",
           "select": [
             [
@@ -236,6 +240,6 @@
   "timezone": "",
   "title": "CircleCI migration progress",
   "uid": "gJaYvuInk",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
