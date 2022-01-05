@@ -7958,7 +7958,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_tensorpipe_set_default_timeout%2C%20TensorPipeTensorPipeAgentRpcTest)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_tensorpipe_set_default_timeout%2C%20TensorPipeTensorPipeAgentRpcTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70546/comments", 
@@ -7968,6 +7968,24 @@
       "id": 1091729665, 
       "labels": [
         {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Add this issue/PR to distributed oncall triage queue", 
@@ -7975,6 +7993,15 @@
           "name": "oncall: distributed", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         }, 
         {
           "color": "bfdadc", 
@@ -8009,7 +8036,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70546/timeline", 
       "title": "DISABLED test_tensorpipe_set_default_timeout (__main__.TensorPipeTensorPipeAgentRpcTest)", 
-      "updated_at": "2022-01-01T03:26:53Z", 
+      "updated_at": "2022-01-05T23:35:13Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70546", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
@@ -8125,7 +8152,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_group%2C%20TestDistBackendWithSpawn)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_group%2C%20TestDistBackendWithSpawn)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70562/comments", 
@@ -8135,6 +8162,24 @@
       "id": 1092097858, 
       "labels": [
         {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Add this issue/PR to distributed oncall triage queue", 
@@ -8142,6 +8187,15 @@
           "name": "oncall: distributed", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         }, 
         {
           "color": "bfdadc", 
@@ -8176,7 +8230,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70562/timeline", 
       "title": "DISABLED test_barrier_group (__main__.TestDistBackendWithSpawn)", 
-      "updated_at": "2022-01-04T15:47:50Z", 
+      "updated_at": "2022-01-05T23:35:08Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70562", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
@@ -8292,7 +8346,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "MEMBER", 
-      "body": "Platforms: mac\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_gpu_simple%2C%20TensorPipeCudaDistAutogradTest)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
+      "body": "Platforms: mac\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_gpu_simple%2C%20TensorPipeCudaDistAutogradTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70753/comments", 
@@ -8302,6 +8356,24 @@
       "id": 1094598610, 
       "labels": [
         {
+          "color": "F22613", 
+          "default": false, 
+          "description": null, 
+          "id": 443484135, 
+          "name": "high priority", 
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        }, 
+        {
+          "color": "cc317c", 
+          "default": false, 
+          "description": "", 
+          "id": 466131885, 
+          "name": "triage review", 
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        }, 
+        {
           "color": "f7e101", 
           "default": false, 
           "description": "Add this issue/PR to distributed oncall triage queue", 
@@ -8309,6 +8381,15 @@
           "name": "oncall: distributed", 
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        }, 
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "Problem is a flaky test in CI", 
+          "id": 1301397902, 
+          "name": "module: flaky-tests", 
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         }, 
         {
           "color": "bfdadc", 
@@ -8343,7 +8424,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70753/timeline", 
       "title": "DISABLED test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)", 
-      "updated_at": "2022-01-05T17:45:53Z", 
+      "updated_at": "2022-01-05T23:34:44Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70753", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
