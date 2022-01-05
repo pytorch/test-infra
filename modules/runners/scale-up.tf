@@ -25,7 +25,7 @@ resource "aws_lambda_function" "scale_up" {
   timeout                        = var.lambda_timeout_scale_up
   reserved_concurrent_executions = var.scale_up_lambda_concurrency
   tags                           = local.tags
-  memory_size                    = 512
+  memory_size                    = 1024
 
   environment {
     variables = {
