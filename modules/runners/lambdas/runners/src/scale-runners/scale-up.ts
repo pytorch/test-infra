@@ -82,6 +82,8 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
         payload.repositoryOwner,
         `${payload.repositoryOwner}/${payload.repositoryName}`,
         enableOrgLevel,
+        runnerType.is_ephemeral,
+        runnerType.max_available,
       )
     ) {
       // create token
@@ -97,7 +99,7 @@ export const scaleUp = async (eventSource: string, payload: ActionRequestMessage
         runnerExtraLabels !== undefined
           ? `--labels ${runnerType.runnerTypeName},${runnerExtraLabels}`
           : `--labels ${runnerType.runnerTypeName}`;
-      const ephemeralArgument = runnerType.is_ephemeral ? "--ephemeral" : ""
+      const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
       const runnerGroupArgument = runnerGroup !== undefined ? ` --runnergroup ${runnerGroup}` : '';
       const configBaseUrl = 'https://github.com';
       try {
@@ -128,6 +130,8 @@ async function allRunnersBusy(
   org: string,
   repo: string,
   enableOrgLevel: boolean,
+  isEphemeral: boolean,
+  maxAvailable: number,
 ): Promise<boolean> {
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
   const ghRunners = await listGithubRunners(githubAppClient, org, repo, enableOrgLevel);
@@ -139,6 +143,11 @@ async function allRunnersBusy(
   const availableCount = runnersWithLabel.length - busyCount;
 
   console.info(`Found matching GitHub runners [${runnerType}], ${busyCount}/${runnersWithLabel.length} are busy`);
+  // If a runner isn't ephemeral then maxAvailable should be applied
+  if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
+    console.info(`Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}`);
+    return true;
+  }
   // Have a fail safe just in case we're likely to need more runners
   if (availableCount < NUM_ALLOWED_TO_BE_AVAILABLE) {
     return true;
