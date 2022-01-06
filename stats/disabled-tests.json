@@ -8960,7 +8960,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Platforms: rocm\r\n\r\n```\r\ntest_median_nan_values_cuda_float32 (__main__.TestReductionsCUDA) ... Memory access fault by GPU node-2 (Agent handle: 0x55d98dbd81a0) on address 0x7fba787b0000. Reason: Page not present or supervisor privilege. \r\ntest_reductions failed! Received signal: SIGIOT\r\n```", 
+      "body": "Platforms: rocm\r\n\r\n```\r\ntest_median_nan_values_cuda_float32 (__main__.TestReductionsCUDA) ... Memory access fault by GPU node-2 (Agent handle: 0x55d98dbd81a0) on address 0x7fba787b0000. Reason: Page not present or supervisor privilege. \r\ntest_reductions failed! Received signal: SIGIOT\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70878/comments", 
@@ -8969,6 +8969,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70878", 
       "id": 1094819738, 
       "labels": [
+        {
+          "color": "f7e101", 
+          "default": false, 
+          "description": "AMD GPU support for Pytorch", 
+          "id": 1078897659, 
+          "name": "module: rocm", 
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        }, 
         {
           "color": "bfdadc", 
           "default": false, 
@@ -9002,7 +9011,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70878/timeline", 
       "title": "DISABLED test_median_nan_values_cuda_float32 (__main__.TestReductionsCUDA)", 
-      "updated_at": "2022-01-05T23:13:26Z", 
+      "updated_at": "2022-01-06T05:04:14Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70878", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4", 
