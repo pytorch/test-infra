@@ -8680,7 +8680,7 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test1/19//console\r\n\r\n```\r\n13:43:03 ======================================================================\r\n13:43:03 FAIL [0.031s]: test_caching_pinned_memory_multi_gpu (__main__.TestCuda)\r\n13:43:03 ----------------------------------------------------------------------\r\n13:43:03 Traceback (most recent call last):\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"test_cuda.py\", line 1394, in test_caching_pinned_memory_multi_gpu\r\n13:43:03     self.assertNotEqual(t.data_ptr(), ptr, msg='allocation re-used too soon')\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2177, in assertNotEqual\r\n13:43:03     self.assertEqual(x, y, msg, atol=atol, rtol=rtol, **kwargs)\r\n13:43:03 AssertionError: AssertionError not raised : allocation re-used too soon\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
+      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test1/19//console\r\n\r\n```\r\n14:08:55 ======================================================================\r\n14:08:55 FAIL [0.715s]: test_sort_cuda (__main__.TestSortAndSelectCUDA)\r\n14:08:55 ----------------------------------------------------------------------\r\n14:08:55 Traceback (most recent call last):\r\n14:08:55   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n14:08:55     method(*args, **kwargs)\r\n14:08:55   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n14:08:55     method(*args, **kwargs)\r\n14:08:55   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 376, in instantiated_test\r\n14:08:55     result = test(self, **param_kwargs)\r\n14:08:55   File \"test_sort_and_select.py\", line 130, in test_sort\r\n14:08:55     'random with NaNs')\r\n14:08:55   File \"test_sort_and_select.py\", line 43, in assertIsOrdered\r\n14:08:55     'torch.sort ({}) values unordered for {}'.format(order, task))\r\n14:08:55 AssertionError: False is not true : torch.sort (ascending) values unordered for random with NaNs\r\n```\r\n\r\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
       "closed_at": null, 
       "comments": 1, 
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70874/comments", 
@@ -8731,7 +8731,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70874/timeline", 
       "title": "DISABLED test_sort_cuda (__main__.TestSortAndSelectCUDA)", 
-      "updated_at": "2022-01-06T05:07:29Z", 
+      "updated_at": "2022-01-06T09:26:02Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70874", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4", 
