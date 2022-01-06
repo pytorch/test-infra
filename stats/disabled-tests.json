@@ -9024,7 +9024,77 @@
         "type": "User", 
         "url": "https://api.github.com/users/KyleCZH"
       }
+    }, 
+    {
+      "active_lock_reason": null, 
+      "assignee": null, 
+      "assignees": [], 
+      "author_association": "CONTRIBUTOR", 
+      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test1/45//console\r\n\r\n```\r\n16:39:42   test_median_nan_values_cuda_float64 (__main__.TestReductionsCUDA) ... Memory exception on virtual address 0x7fc5a5360000, node id 2 : Page not present\r\n16:39:42 Address does not belong to a known buffer\r\n16:39:42 Memory access fault by GPU node-2 (Agent handle: 0x56050fa4e6f0) on address 0x7fc5a5360000. Reason: Page not present or supervisor privilege.\r\n16:39:42 Traceback (most recent call last):\r\n16:39:42   File \"test/run_test.py\", line 1096, in <module>\r\n16:39:42     main()\r\n16:39:42   File \"test/run_test.py\", line 1074, in main\r\n16:39:42     raise RuntimeError(err_message)\r\n16:39:42 RuntimeError: test_reductions failed! Received signal: SIGIOT\r\n```", 
+      "closed_at": null, 
+      "comments": 1, 
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70883/comments", 
+      "created_at": "2022-01-06T00:49:47Z", 
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70883/events", 
+      "html_url": "https://github.com/pytorch/pytorch/issues/70883", 
+      "id": 1094864106, 
+      "labels": [
+        {
+          "color": "bfdadc", 
+          "default": false, 
+          "description": "Denotes a (flaky) test currently skipped in CI.", 
+          "id": 1679533716, 
+          "name": "skipped", 
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ], 
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70883/labels{/name}", 
+      "locked": false, 
+      "milestone": null, 
+      "node_id": "I_kwDOA-j9z85BQkzq", 
+      "number": 70883, 
+      "performed_via_github_app": null, 
+      "reactions": {
+        "+1": 0, 
+        "-1": 0, 
+        "confused": 0, 
+        "eyes": 0, 
+        "heart": 0, 
+        "hooray": 0, 
+        "laugh": 0, 
+        "rocket": 0, 
+        "total_count": 0, 
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/70883/reactions"
+      }, 
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
+      "score": 0.0, 
+      "state": "open", 
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70883/timeline", 
+      "title": "DISABLED test_median_nan_values_cuda_float64 (__main__.TestReductionsCUDA)", 
+      "updated_at": "2022-01-06T00:49:50Z", 
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/70883", 
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4", 
+        "events_url": "https://api.github.com/users/KyleCZH/events{/privacy}", 
+        "followers_url": "https://api.github.com/users/KyleCZH/followers", 
+        "following_url": "https://api.github.com/users/KyleCZH/following{/other_user}", 
+        "gists_url": "https://api.github.com/users/KyleCZH/gists{/gist_id}", 
+        "gravatar_id": "", 
+        "html_url": "https://github.com/KyleCZH", 
+        "id": 70175284, 
+        "login": "KyleCZH", 
+        "node_id": "MDQ6VXNlcjcwMTc1Mjg0", 
+        "organizations_url": "https://api.github.com/users/KyleCZH/orgs", 
+        "received_events_url": "https://api.github.com/users/KyleCZH/received_events", 
+        "repos_url": "https://api.github.com/users/KyleCZH/repos", 
+        "site_admin": false, 
+        "starred_url": "https://api.github.com/users/KyleCZH/starred{/owner}{/repo}", 
+        "subscriptions_url": "https://api.github.com/users/KyleCZH/subscriptions", 
+        "type": "User", 
+        "url": "https://api.github.com/users/KyleCZH"
+      }
     }
   ], 
-  "total_count": 88
+  "total_count": 89
 }
