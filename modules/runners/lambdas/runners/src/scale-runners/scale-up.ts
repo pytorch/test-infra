@@ -146,7 +146,7 @@ async function allRunnersBusy(
   // If a runner isn't ephemeral then maxAvailable should be applied
   if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
     console.info(`Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}`);
-    return true;
+    return false;
   }
   // Have a fail safe just in case we're likely to need more runners
   if (availableCount < NUM_ALLOWED_TO_BE_AVAILABLE) {
