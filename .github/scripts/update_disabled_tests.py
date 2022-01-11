@@ -37,15 +37,15 @@ def get_last_page(header: Any) -> int:
 def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
     more_issues = json.loads(info)
     issues_json["items"].extend(more_issues["items"])
-    issues_json["incomplete_results"] &= more_issues["incomplete_results"]
-    issues_json["total_count"] += more_issues["total_count"]
+    issues_json["incomplete_results"] |= more_issues["incomplete_results"]
 
 
 @lru_cache()
 def get_disable_issues() -> Dict[Any, Any]:
     prefix = "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&" \
              "&per_page=100"
-    header, issues_json = request_for_labels(prefix + "&page=1")
+    header, info = request_for_labels(prefix + "&page=1")
+    issues_json = json.loads(info)
     last_page = get_last_page(header)
     assert last_page > 0, "Error reading header info to determine total number of pages of labels"
     for page_number in range(2, last_page + 1):  # skip page 1
@@ -56,6 +56,7 @@ def get_disable_issues() -> Dict[Any, Any]:
 
 
 def validate_and_sort(issues_json: Dict[str, Any]) -> None:
+    print(issues_json)
     assert issues_json["total_count"] is len(issues_json["items"]), f"# issues {len(issues_json['items'])} does not" \
          f"equal total count {issues_json['total_count']}."
     assert not issues_json["incomplete_results"], f"Results were incomplete. There may be missing issues."
