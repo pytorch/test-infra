@@ -9716,7 +9716,7 @@
       "state": "open", 
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71037/timeline", 
       "title": "DISABLED test_builtin_collection_conversion (__main__.TestDataLoader)", 
-      "updated_at": "2022-01-08T00:39:09Z", 
+      "updated_at": "2022-01-11T23:00:39Z", 
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71037", 
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4", 
