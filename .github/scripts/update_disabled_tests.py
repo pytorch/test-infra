@@ -45,12 +45,7 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
 def get_disable_issues() -> Dict[Any, Any]:
     prefix = "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&" \
              "&per_page=100"
-    header, info = request_for_labels(prefix + "&page=1")
-    issues_json: Dict[Any, Any] = {
-        "items": [],
-        "total_count": 0,
-    }
-    update_issues(issues_json, info)
+    header, issues_json = request_for_labels(prefix + "&page=1")
     last_page = get_last_page(header)
     assert last_page > 0, "Error reading header info to determine total number of pages of labels"
     for page_number in range(2, last_page + 1):  # skip page 1
