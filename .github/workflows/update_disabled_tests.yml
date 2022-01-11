@@ -12,6 +12,8 @@ jobs:
   update-disabled-tests:
     runs-on: ubuntu-18.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Generate new disabled test json
         run: |
           .github/scripts/update_disabled_tests.py

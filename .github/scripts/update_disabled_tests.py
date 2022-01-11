@@ -21,9 +21,14 @@ def request_for_labels(url: str) -> Any:
 
 
 def get_last_page(header: Any) -> int:
-    # Link info looks like: <https://api.github.com/repositories/65600975/labels?per_page=100&page=2>;
-    # rel="next", <https://api.github.com/repositories/65600975/labels?per_page=100&page=3>; rel="last"
+    # Link info looks like:
+    # Link: <https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo%3Apytorch%2Fpytorch+in%3Atitle+
+    # DISABLED&per_page=30&page=2>; rel="next", <https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+
+    # repo%3Apytorch%2Fpytorch+in%3Atitle+DISABLED&per_page=30&page=4>; rel="last"
     link_info = header['link']
+    if link_info is None:
+        print("WARNING: Link information missing, most likely because there is only one page of results.")
+        return 1
     prefix = "&page="
     suffix = ">;"
     return int(link_info[link_info.rindex(prefix) + len(prefix):link_info.rindex(suffix)])
@@ -37,16 +42,14 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
 
 @lru_cache()
 def get_disable_issues() -> Dict[Any, Any]:
-    prefix = "https://api.github.com/repos/pytorch/pytorch/issues?q=is%3Aissue+repo:pytorch/pytorch" \
-             "+in%3Atitle+DISABLED&per_page=100"
+    prefix = "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&" \
+             "&per_page=100"
     header, info = request_for_labels(prefix + "&page=1")
     issues_json: Dict[Any, Any] = {
         "items": [],
         "total_count": 0,
     }
     update_issues(issues_json, info)
-    print(header)
-    exit(0)
     last_page = get_last_page(header)
     assert last_page > 0, "Error reading header info to determine total number of pages of labels"
     for page_number in range(2, last_page + 1):  # skip page 1
