@@ -1,7 +1,6 @@
 name: Update disabled tests
 
 on:
-  pull_request:
   schedule:
     # Every 15 minutes
     - cron: "*/15 * * * *"
