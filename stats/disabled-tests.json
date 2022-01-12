@@ -6228,112 +6228,6 @@
       "assignee": null, 
       "assignees": [], 
       "author_association": "CONTRIBUTOR", 
-      "body": "Platforms: rocm\r\n\r\nSee https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/6507//console.\r\n\r\nRelevant snippet:\r\n\r\n```\r\n12:03:34   test_default_store_timeout_nccl (__main__.TimeoutTest) ... [W socket.cpp:334] The server socket has failed to bind to [::]:38655 (generic error: 98 - Address already in use).\r\n12:03:36 [W socket.cpp:334] The server socket has failed to bind to 0.0.0.0:38655 (generic error: 98 - Address already in use).\r\n12:03:36 [E socket.cpp:368] The server socket has failed to listen on any local network address.\r\n12:03:36 ERROR (2.019s)\r\n12:03:36 \r\n12:03:36 ======================================================================\r\n12:03:36 ERROR [2.019s]: test_default_store_timeout_nccl (__main__.TimeoutTest)\r\n12:03:36 ----------------------------------------------------------------------\r\n12:03:36 Traceback (most recent call last):\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 3041, in wrapper\r\n12:03:36     return func(*args, **kwargs)\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 2347, in wrapper\r\n12:03:36     return func(*args, **kwargs)\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 3041, in wrapper\r\n12:03:36     return func(*args, **kwargs)\r\n12:03:36   File \"distributed/test_c10d_nccl.py\", line 181, in test_default_store_timeout_nccl\r\n12:03:36     self._test_default_store_timeout(\"nccl\")\r\n12:03:36   File \"/var/lib/jenkins/workspace/test/distributed/test_c10d_common.py\", line 116, in _test_default_store_timeout\r\n12:03:36     raise c2p[0]\r\n12:03:36   File \"/var/lib/jenkins/workspace/test/distributed/test_c10d_common.py\", line 76, in _test_store_timeout\r\n12:03:36     timeout=timedelta(seconds=1),\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/distributed_c10d.py\", line 593, in init_process_group\r\n12:03:36     store, rank, world_size = next(rendezvous_iterator)\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rendezvous.py\", line 183, in _tcp_rendezvous_handler\r\n12:03:36     store = _create_c10d_store(result.hostname, result.port, rank, world_size, timeout)\r\n12:03:36   File \"/opt/conda/lib/python3.6/site-packages/torch/distributed/rendezvous.py\", line 158, in _create_c10d_store\r\n12:03:36     hostname, port, world_size, start_daemon, timeout, multi_tenant=True\r\n12:03:36 RuntimeError: The server socket has failed to listen on any local network address. The server socket has failed to bind to [::]:38655 (generic error: 98 - Address already in use). The server socket has failed to bind to 0.0.0.0:38655 (generic error: 98 - Address already in use).\r\n12:03:36 \r\n12:03:36 ----------------------------------------------------------------------\r\n12:03:36 Ran 94 tests in 586.865s\r\n12:03:36 \r\n12:03:36 FAILED (errors=1, skipped=11)\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH", 
-      "closed_at": null, 
-      "comments": 2, 
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68716/comments", 
-      "created_at": "2021-11-21T23:10:23Z", 
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68716/events", 
-      "html_url": "https://github.com/pytorch/pytorch/issues/68716", 
-      "id": 1059514172, 
-      "labels": [
-        {
-          "color": "F22613", 
-          "default": false, 
-          "description": null, 
-          "id": 443484135, 
-          "name": "high priority", 
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        }, 
-        {
-          "color": "cc317c", 
-          "default": false, 
-          "description": "", 
-          "id": 466131885, 
-          "name": "triage review", 
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "Add this issue/PR to distributed oncall triage queue", 
-          "id": 679953883, 
-          "name": "oncall: distributed", 
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        }, 
-        {
-          "color": "f7e101", 
-          "default": false, 
-          "description": "AMD GPU support for Pytorch", 
-          "id": 1078897659, 
-          "name": "module: rocm", 
-          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
-        }, 
-        {
-          "color": "bfdadc", 
-          "default": false, 
-          "description": "Denotes a (flaky) test currently skipped in CI.", 
-          "id": 1679533716, 
-          "name": "skipped", 
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2", 
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ], 
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/68716/labels{/name}", 
-      "locked": false, 
-      "milestone": null, 
-      "node_id": "I_kwDOA-j9z84_Juc8", 
-      "number": 68716, 
-      "performed_via_github_app": null, 
-      "reactions": {
-        "+1": 0, 
-        "-1": 0, 
-        "confused": 0, 
-        "eyes": 0, 
-        "heart": 0, 
-        "hooray": 0, 
-        "laugh": 0, 
-        "rocket": 0, 
-        "total_count": 0, 
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/68716/reactions"
-      }, 
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch", 
-      "score": 0.0, 
-      "state": "open", 
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68716/timeline", 
-      "title": "DISABLED test_default_store_timeout_nccl (__main__.TimeoutTest)", 
-      "updated_at": "2022-01-12T00:10:01Z", 
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/68716", 
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4", 
-        "events_url": "https://api.github.com/users/mruberry/events{/privacy}", 
-        "followers_url": "https://api.github.com/users/mruberry/followers", 
-        "following_url": "https://api.github.com/users/mruberry/following{/other_user}", 
-        "gists_url": "https://api.github.com/users/mruberry/gists{/gist_id}", 
-        "gravatar_id": "", 
-        "html_url": "https://github.com/mruberry", 
-        "id": 38511765, 
-        "login": "mruberry", 
-        "node_id": "MDQ6VXNlcjM4NTExNzY1", 
-        "organizations_url": "https://api.github.com/users/mruberry/orgs", 
-        "received_events_url": "https://api.github.com/users/mruberry/received_events", 
-        "repos_url": "https://api.github.com/users/mruberry/repos", 
-        "site_admin": false, 
-        "starred_url": "https://api.github.com/users/mruberry/starred{/owner}{/repo}", 
-        "subscriptions_url": "https://api.github.com/users/mruberry/subscriptions", 
-        "type": "User", 
-        "url": "https://api.github.com/users/mruberry"
-      }
-    }, 
-    {
-      "active_lock_reason": null, 
-      "assignee": null, 
-      "assignees": [], 
-      "author_association": "CONTRIBUTOR", 
       "body": "Platforms: win\r\n\r\nWas flaky several times in the last few week captured by flaky tests table [here](https://metrics.pytorch.org/d/L0r6ErGnk/github-status?orgId=1&from=1637618111572&to=1637704511572&viewPanel=57)\r\n\r\n@suo noticed that all the flakiness occurred in the smoke tests configuration for windows on PRs, meaning this seems specific to Windows or specific to the way the test cases are individually run.\r\n\r\nExample logs: https://github.com/pytorch/pytorch/runs/4226453915?check_suite_focus=true\r\n\r\n```\r\n======================================================================\r\nFAIL [65.339s]: test_fd_sharing (__main__.TestMultiprocessing)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_multiprocessing.py\", line 333, in test_fd_sharing\r\n    self._test_sharing(repeat=TEST_REPEATS)\r\n  File \"test_multiprocessing.py\", line 289, in _test_sharing\r\n    test_receive()\r\n  File \"test_multiprocessing.py\", line 284, in test_receive\r\n    self.assertFalse(p.is_alive())\r\nAssertionError: True is not false\r\n\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @peterjc123 @mszhanyi @skyline75489 @nbcsm", 
       "closed_at": null, 
       "comments": 1, 
@@ -9880,5 +9774,5 @@
       }
     }
   ], 
-  "total_count": 97
+  "total_count": 96
 }
