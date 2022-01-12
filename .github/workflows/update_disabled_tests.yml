@@ -11,23 +11,14 @@ jobs:
   update-disabled-tests:
     runs-on: ubuntu-18.04
     steps:
-      - name: Generate new disabled test list
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Generate new disabled test json
         run: |
-          # score changes every request, so we strip it out to avoid creating a commit every time we query.
-          curl 'https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&page=1&per_page=100' \
-          | sed 's/"score": [0-9\.]*/"score": 0.0/g' > disabled-tests.json
-      - name: Sort disabled-tests.json
-        shell: python
+          .github/scripts/update_disabled_tests.py
+      - name: Print file
         run: |
-          import json
-          with open('disabled-tests.json') as file:
-            disabled_tests_json = json.load(file)
-
-          # Sort disabled test issues by URL, e.g., https://api.github.com/repos/pytorch/pytorch/issues/38491
-          disabled_tests_json['items'].sort(key=lambda x: x['url'])
-
-          with open('disabled-tests.json', mode='w') as file:
-              json.dump(disabled_tests_json, file, sort_keys=True, indent=2)
+          cat disabled-tests.json
       - name: Push file to test-infra repository
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
