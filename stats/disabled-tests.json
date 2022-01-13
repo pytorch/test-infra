@@ -9857,9 +9857,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_dtypes__masked_amin_cuda%2C%20TestCommonCUDA)).\r\n\r\nIt actually is failing really consistently, but I can't figure out which commit caused it so disabling so someone else can take a look",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_dtypes__masked_amin_cuda%2C%20TestCommonCUDA)).\r\n\r\nIt actually is failing really consistently, but I can't figure out which commit caused it so disabling so someone else can take a look\n\ncc @nairbv @mruberry",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/comments",
       "created_at": "2022-01-12T23:21:35Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/events",
@@ -9874,6 +9874,24 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "",
+          "id": 2406316143,
+          "name": "module: reductions",
+          "node_id": "MDU6TGFiZWwyNDA2MzE2MTQz",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20reductions"
+        },
+        {
+          "color": "D1B2AE",
+          "default": false,
+          "description": "Masked operations",
+          "id": 3550831866,
+          "name": "module: masked operators",
+          "node_id": "LA_kwDOA-j9z87TpWT6",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20masked%20operators"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/labels{/name}",
@@ -9899,7 +9917,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/timeline",
       "title": "DISABLED test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)",
-      "updated_at": "2022-01-12T23:21:54Z",
+      "updated_at": "2022-01-13T00:21:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71248",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
