@@ -7107,7 +7107,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "## \ud83d\udc1b Bug\r\n\r\nhttps://github.com/pytorch/pytorch/runs/4421323069?check_suite_focus=true\r\n\r\n```\r\nCommand to reproduce: /opt/conda/bin/python distributed/rpc/test_tensorpipe_agent.py --import-disabled-tests -v TensorPipeRpcTest.test_future_wait_twice\r\n```\r\n\r\nstack trace:\r\n\r\n```\r\n what():  In listenFromLoop at tensorpipe/transport/uv/uv.h:176 \"rv < 0: address already in use\"\r\nSIGABRT(6), PID: 3833, Thread 3833: \r\n frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x63 (0x7f5cbe6f0a03 in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nframe #1: <unknown function> + 0x11390 (0x7f5cd2696390 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nframe #2: syscall + 0x19 (0x7f5cd23bc5d9 in /lib/x86_64-linux-gnu/libc.so.6)\r\nframe #3: std::__atomic_futex_unsigned_base::_M_futex_wait_until(unsigned int*, unsigned int, bool, std::chrono::duration<long, std::ratio<1l, 1l> >, std::chrono::duration<long, std::ratio<1l, 1000000000l> >) + 0x29 (0x7f5cbe6009e5 in /opt/conda/lib/libstdc++.so.6)\r\nframe #4: tensorpipe::transport::ListenerBoilerplate<tensorpipe::transport::uv::ContextImpl, tensorpipe::transport::uv::ListenerImpl, tensorpipe::transport::uv::ConnectionImpl>::addr[abi:cxx11]() const + 0x242 (0x7f5cc33e65d2 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nframe #5: tensorpipe::channel::mpt::ContextImpl::ContextImpl(std::vector<std::shared_ptr<tensorpipe::transport::Context>, std::allocator<std::shared_ptr<tensorpipe::transport::Context> > >, std::vector<std::shared_ptr<tensorpipe::transport::Listener>, std::allocator<std::shared_ptr<tensorpipe::transport::Listener> > >, std::unordered_map<tensorpipe::Device, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::hash<tensorpipe::Device>, std::equal_to<tensorpipe::Device>, std::allocator<std::pair<tensorpipe::Device const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >) + 0x4b5 (0x7f5cc343de15 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\n```\r\n\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "body": "## \ud83d\udc1b Bug\r\n\r\nhttps://github.com/pytorch/pytorch/runs/4421323069?check_suite_focus=true\r\n\r\n```\r\nCommand to reproduce: /opt/conda/bin/python distributed/rpc/test_tensorpipe_agent.py --import-disabled-tests -v TensorPipeRpcTest.test_future_wait_twice\r\n```\r\n\r\nstack trace:\r\n\r\n```\r\n what():  In listenFromLoop at tensorpipe/transport/uv/uv.h:176 \"rv < 0: address already in use\"\r\nSIGABRT(6), PID: 3833, Thread 3833: \r\n frame #0: c10::FatalSignalHandler::stacktraceSignalHandler(bool) + 0x63 (0x7f5cbe6f0a03 in /opt/conda/lib/python3.6/site-packages/torch/lib/libc10.so)\r\nframe #1: <unknown function> + 0x11390 (0x7f5cd2696390 in /lib/x86_64-linux-gnu/libpthread.so.0)\r\nframe #2: syscall + 0x19 (0x7f5cd23bc5d9 in /lib/x86_64-linux-gnu/libc.so.6)\r\nframe #3: std::__atomic_futex_unsigned_base::_M_futex_wait_until(unsigned int*, unsigned int, bool, std::chrono::duration<long, std::ratio<1l, 1l> >, std::chrono::duration<long, std::ratio<1l, 1000000000l> >) + 0x29 (0x7f5cbe6009e5 in /opt/conda/lib/libstdc++.so.6)\r\nframe #4: tensorpipe::transport::ListenerBoilerplate<tensorpipe::transport::uv::ContextImpl, tensorpipe::transport::uv::ListenerImpl, tensorpipe::transport::uv::ConnectionImpl>::addr[abi:cxx11]() const + 0x242 (0x7f5cc33e65d2 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\nframe #5: tensorpipe::channel::mpt::ContextImpl::ContextImpl(std::vector<std::shared_ptr<tensorpipe::transport::Context>, std::allocator<std::shared_ptr<tensorpipe::transport::Context> > >, std::vector<std::shared_ptr<tensorpipe::transport::Listener>, std::allocator<std::shared_ptr<tensorpipe::transport::Listener> > >, std::unordered_map<tensorpipe::Device, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::hash<tensorpipe::Device>, std::equal_to<tensorpipe::Device>, std::allocator<std::pair<tensorpipe::Device const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >) + 0x4b5 (0x7f5cc343de15 in /opt/conda/lib/python3.6/site-packages/torch/lib/libtorch_cpu.so)\r\n```\r\n\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd @jbschlosser",
       "closed_at": null,
       "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/69480/comments",
@@ -7153,6 +7153,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -7185,7 +7194,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69480/timeline",
       "title": "DISABLED test_future_wait_twice (__main__.TensorPipeRpcTest)",
-      "updated_at": "2021-12-21T21:27:06Z",
+      "updated_at": "2022-01-14T22:53:29Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/69480",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
@@ -8007,7 +8016,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_tensorpipe_set_default_timeout%2C%20TensorPipeTensorPipeAgentRpcTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_tensorpipe_set_default_timeout%2C%20TensorPipeTensorPipeAgentRpcTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70546/comments",
@@ -8053,6 +8062,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -8085,7 +8103,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70546/timeline",
       "title": "DISABLED test_tensorpipe_set_default_timeout (__main__.TensorPipeTensorPipeAgentRpcTest)",
-      "updated_at": "2022-01-05T23:35:13Z",
+      "updated_at": "2022-01-14T22:53:23Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70546",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -8395,7 +8413,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_gpu_simple%2C%20TensorPipeCudaDistAutogradTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "body": "Platforms: mac\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_gpu_simple%2C%20TensorPipeCudaDistAutogradTest)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70753/comments",
@@ -8441,6 +8459,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -8473,7 +8500,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70753/timeline",
       "title": "DISABLED test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)",
-      "updated_at": "2022-01-05T23:34:44Z",
+      "updated_at": "2022-01-14T22:53:19Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70753",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
