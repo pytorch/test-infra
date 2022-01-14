@@ -9857,7 +9857,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_dtypes__masked_amin_cuda%2C%20TestCommonCUDA)).\r\n\r\nIt actually is failing really consistently, but I can't figure out which commit caused it so disabling so someone else can take a look\n\ncc @nairbv @mruberry",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_dtypes__masked_amin_cuda%2C%20TestCommonCUDA)).\r\n\r\nIt actually is failing really consistently, but I can't figure out which commit caused it so disabling so someone else can take a look\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @nairbv @mruberry",
       "closed_at": null,
       "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/comments",
@@ -9866,6 +9866,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/71248",
       "id": 1100904450,
       "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -9917,7 +9944,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71248/timeline",
       "title": "DISABLED test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)",
-      "updated_at": "2022-01-13T15:39:18Z",
+      "updated_at": "2022-01-14T02:13:37Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71248",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
