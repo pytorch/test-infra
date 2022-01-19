@@ -10297,7 +10297,86 @@
         "type": "User",
         "url": "https://api.github.com/users/janeyx99"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_auto_wrap_smoke_test_fsdp_init_mode_FSDPInitMode_CUDA_BEFORE_cpu_offload_CPUOffload(offload_params%3DFalse)%2C%20TestAutoWrap)).\r\n\r\n@rohan-varma similar to the other distributed tests that have become flaky lately?\r\n\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "closed_at": null,
+      "comments": 2,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71496/comments",
+      "created_at": "2022-01-19T21:48:10Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71496/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/71496",
+      "id": 1108593734,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71496/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85CE8xG",
+      "number": 71496,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/71496/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71496/timeline",
+      "title": "DISABLED test_auto_wrap_smoke_test_fsdp_init_mode_FSDPInitMode_CUDA_BEFORE_cpu_offload_CPUOffload(offload_params=False) (__main__.TestAutoWrap)",
+      "updated_at": "2022-01-19T21:48:33Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/71496",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
+        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
+        "followers_url": "https://api.github.com/users/janeyx99/followers",
+        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
+        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/janeyx99",
+        "id": 31798555,
+        "login": "janeyx99",
+        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
+        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
+        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
+        "repos_url": "https://api.github.com/users/janeyx99/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/janeyx99"
+      }
     }
   ],
-  "total_count": 101
+  "total_count": 102
 }
