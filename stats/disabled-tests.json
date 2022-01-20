@@ -10424,7 +10424,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_interval_stat%2C%20TestMonitor)).\r\n\r\n@d4l3k since you added these tests a week ago! (r u a dr. who fan btw?) \n\ncc @ezyang @gchanan @zou3519 @bdhirsh",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71553/comments",
       "created_at": "2022-01-20T16:02:25Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71553/events",
@@ -10473,7 +10473,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71553/timeline",
       "title": "DISABLED test_interval_stat (__main__.TestMonitor)",
-      "updated_at": "2022-01-20T17:02:19Z",
+      "updated_at": "2022-01-20T18:11:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71553",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
