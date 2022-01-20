@@ -11,7 +11,7 @@ yarn install
 3. You will need to set up your `.env.local` file with various keys and
    permissions. Follow the instructions in `.env.example`.
 
-4. Run the development server
+4. Run the development server:
 
 ```bash
 yarn dev
