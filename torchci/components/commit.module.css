@@ -1,0 +1,27 @@
+.commitMessage {
+  background-color: whitesmoke;
+  white-space: pre;
+  max-height: 13em;
+  overflow: scroll;
+  margin: 10px;
+}
+
+.workflowContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 550px);
+  grid-gap: 10px;
+}
+
+.workflowBoxFail {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: mistyrose;
+}
+
+.workflowBoxSuccess {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: azure;
+}
