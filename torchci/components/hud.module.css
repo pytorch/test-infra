@@ -1,0 +1,78 @@
+.hudTable {
+  table-layout: fixed;
+  border-collapse: collapse;
+  width: max-content;
+  line-height: 1;
+}
+
+/* Fix the width of these columns to avoid layout shift when loading the HUD
+ table. */
+.colTime {
+  width: 10ch;
+}
+.colSha {
+  width: 8ch;
+}
+.colCommit {
+  width: 38ch;
+}
+.colPr {
+  width: 7ch;
+}
+.colJob {
+  width: 1.3ch;
+}
+
+.tooltip-target-no-click {
+  cursor: default;
+}
+
+/* code to roatate the workflow name headers */
+.jobHeader {
+  font-family: sans-serif;
+  height: 220px;
+  white-space: nowrap;
+  font-family: sans-serif;
+}
+
+.jobHeaderName {
+  transform: translate(10px, 100px) rotate(315deg);
+  width: 10px;
+  font-weight: 400;
+  font-size: 0.8em;
+}
+
+.regularHeader {
+  vertical-align: bottom;
+}
+
+.jobMetadata a {
+  text-decoration: none;
+  color: #0064cf;
+}
+
+.jobMetadataTruncated {
+  vertical-align: top;
+  width: auto;
+  height: 20px;
+  min-width: 0;
+  max-width: 37ch;
+  display: inline-block;
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branchForm {
+  display: inline;
+}
+
+.branchFormInput {
+  font-weight: bold;
+  font-family: monospace;
+  background-color: aliceblue;
+  font-size: 1em;
+  border: 0px;
+  padding: 0px;
+  padding-left: 5px;
+}

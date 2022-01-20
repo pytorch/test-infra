@@ -1,0 +1,77 @@
+
+.workflowBoxNone {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: lightgray;
+}
+
+.workflowBoxFail {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: mistyrose;
+}
+
+.workflowBoxPending {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: azure;
+}
+
+.workflowBoxSuccess {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: lightgreen;
+}
+
+.workflowBoxHighlight {
+  border: 15px solid #5eced4;
+  padding: 10px;
+  box-shadow: 0 0 10px rgba(81, 203, 238, 1);
+  border-radius: 25px;
+}
+
+.shaTitleElement {
+  margin-right: 0.5em;
+}
+
+.sha {
+  font-family: monospace;
+}
+.extraShaInfo {
+  font-size: smaller;
+}
+
+.commitTitle {
+  font-weight: 600;
+}
+
+.failedJob {
+  margin-top: 1em;
+  scroll-margin-top: 10em;
+}
+
+.failedJobHighlighted {
+  border: 5px solid #5eced4;
+  padding: 10px;
+  box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+  border-radius: 5px;
+}
+
+.failedJobList {
+  margin: 0;
+  margin-bottom: 0.5em;
+}
+
+.failedJobLinks {
+  height: 1.25em;
+}
+
+.revertButton {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}

@@ -1,0 +1,37 @@
+.conclusion {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.success {
+  color: green;
+}
+
+.failure {
+  color: red;
+}
+
+.skipped {
+  color: grey;
+}
+
+.neutral {
+  color: grey;
+}
+
+.cancelled {
+  color: red;
+}
+
+.timedOut {
+  color: red;
+}
+
+.pending {
+  color: goldenrod;
+}
+
+.none {
+  color: lightgray;
+}
