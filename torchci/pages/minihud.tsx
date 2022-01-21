@@ -44,6 +44,7 @@ function FailedJob({ job }: { job: JobData }) {
       const hash = window.location.hash.slice(1);
       setHighlighted(hash === job.id?.toString());
     };
+    onHashChanged();
 
     window.addEventListener("hashchange", onHashChanged);
 
@@ -247,6 +248,7 @@ function CommitSummary({ row }: { row: RowData }) {
       const hash = window.location.hash.slice(1);
       setHighlighted(hash === row.sha);
     };
+    onHashChanged();
 
     window.addEventListener("hashchange", onHashChanged);
 
