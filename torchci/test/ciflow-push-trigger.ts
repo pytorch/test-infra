@@ -28,7 +28,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("CIFlow label trigger ignores closed PR", async () => {
-    const payload = require("./fixtures/pull_request.labeled");
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "closed";
     payload.label.name = "ciflow/test";
 
@@ -37,7 +37,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("CIFlow label triggers tag push to head sha", async () => {
-    const payload = require("./fixtures/pull_request.labeled");
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
     const label = payload.label.name;
@@ -65,7 +65,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("non-CIFlow label issues no requests", async () => {
-    const payload = require("./fixtures/pull_request.labeled");
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
     // Change the label to something irrelevant
     payload.label.name = "skipped";
 
@@ -74,7 +74,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("already existing tag should cause tag delete and re-push", async () => {
-    const payload = require("./fixtures/pull_request.labeled");
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.label.name = "ciflow/test";
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
@@ -115,7 +115,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("unlabel of CIFlow label should cause tag deletion", async () => {
-    const payload = require("./fixtures/pull_request.unlabeled");
+    const payload = require("./fixtures/push-trigger/pull_request.unlabeled");
     payload.label.name = "ciflow/test";
 
     const label = payload.label.name;
@@ -147,7 +147,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("unlabel of non-CIFlow label should do nothing", async () => {
-    const payload = require("./fixtures/pull_request.unlabeled");
+    const payload = require("./fixtures/push-trigger/pull_request.unlabeled");
     payload.label.name = "foobar";
 
     // no API requests should be made
@@ -155,7 +155,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("synchronization of PR should cause all tags to update", async () => {
-    const payload = require("./fixtures/pull_request.synchronize");
+    const payload = require("./fixtures/push-trigger/pull_request.synchronize");
     const prNum = payload.pull_request.number;
     const labels = [
       "ciflow/test",
@@ -204,7 +204,7 @@ describe("Push trigger integration tests", () => {
   });
 
   test("closure of PR should cause all tags to be removed", async () => {
-    const payload = require("./fixtures/pull_request.closed");
+    const payload = require("./fixtures/push-trigger/pull_request.closed");
     const prNum = payload.pull_request.number;
     const labels = [
       "ciflow/test",
