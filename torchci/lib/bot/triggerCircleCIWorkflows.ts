@@ -1,4 +1,5 @@
-import axios from "axios";
+// @ts-nocheck
+import axios from "axios"
 import { Context, Probot } from "probot";
 import * as utils from "./utils";
 
