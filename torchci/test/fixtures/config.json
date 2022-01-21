@@ -1,0 +1,18 @@
+{
+  "name": "pytorch-probot.yml",
+  "path": ".github/pytorch-probot.yml",
+  "sha": "0afb4efc85edd842bf642509e2e11a2d0d3e40bb",
+  "size": 77,
+  "url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/contents/.github/pytorch-probot.yml?ref=master",
+  "html_url": "https://github.com/ezyang/testing-ideal-computing-machine/blob/master/.github/pytorch-probot.yml",
+  "git_url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/git/blobs/0afb4efc85edd842bf642509e2e11a2d0d3e40bb",
+  "download_url": "https://raw.githubusercontent.com/ezyang/testing-ideal-computing-machine/master/.github/pytorch-probot.yml",
+  "type": "file",
+  "content": "dHJhY2tlcjoKICBvd25lcjogZXp5YW5nCiAgcmVwbzogdGVzdGluZy1pZGVh\nbC1jb21wdXRpbmctbWFjaGluZQogIG51bWJlcjogNgo=\n",
+  "encoding": "base64",
+  "_links": {
+    "self": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/contents/.github/pytorch-probot.yml?ref=master",
+    "git": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/git/blobs/0afb4efc85edd842bf642509e2e11a2d0d3e40bb",
+    "html": "https://github.com/ezyang/testing-ideal-computing-machine/blob/master/.github/pytorch-probot.yml"
+  }
+}

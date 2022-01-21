@@ -1,0 +1,49 @@
+{
+  "url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/issues/6",
+  "repository_url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine",
+  "labels_url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/issues/6/labels{/name}",
+  "comments_url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/issues/6/comments",
+  "events_url": "https://api.github.com/repos/ezyang/testing-ideal-computing-machine/issues/6/events",
+  "html_url": "https://github.com/ezyang/testing-ideal-computing-machine/issues/6",
+  "id": 481215852,
+  "node_id": "MDU6SXNzdWU0ODEyMTU4NTI=",
+  "number": 6,
+  "title": "CC tracking",
+  "user": {
+    "login": "ezyang",
+    "id": 13564,
+    "node_id": "MDQ6VXNlcjEzNTY0",
+    "avatar_url": "https://avatars0.githubusercontent.com/u/13564?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/ezyang",
+    "html_url": "https://github.com/ezyang",
+    "followers_url": "https://api.github.com/users/ezyang/followers",
+    "following_url": "https://api.github.com/users/ezyang/following{/other_user}",
+    "gists_url": "https://api.github.com/users/ezyang/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/ezyang/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/ezyang/subscriptions",
+    "organizations_url": "https://api.github.com/users/ezyang/orgs",
+    "repos_url": "https://api.github.com/users/ezyang/repos",
+    "events_url": "https://api.github.com/users/ezyang/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/ezyang/received_events",
+    "type": "User",
+    "site_admin": false
+  },
+  "labels": [
+
+  ],
+  "state": "open",
+  "locked": false,
+  "assignee": null,
+  "assignees": [
+
+  ],
+  "milestone": null,
+  "comments": 0,
+  "created_at": "2019-08-15T15:49:53Z",
+  "updated_at": "2019-08-15T15:49:53Z",
+  "closed_at": null,
+  "author_association": "OWNER",
+  "body": "",
+  "closed_by": null
+}
