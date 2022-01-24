@@ -5,6 +5,7 @@ import ciflowBot from "./ciflowBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import webhookToDynamo from "./webhookToDynamo";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
+import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import mergeBot from "./mergeBot";
 
 export default function bot(app: Probot) {
@@ -14,5 +15,6 @@ export default function bot(app: Probot) {
   ciflowBot(app);
   ciflowPushTrigger(app);
   webhookToDynamo(app);
+  triggerCircleCIWorkflows(app);
   mergeBot(app);
 }
