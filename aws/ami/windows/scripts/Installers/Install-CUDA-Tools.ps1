@@ -16,6 +16,7 @@ Switch -Wildcard ($cudaVersion) {
 }
 
 # Switch statement for specfic CUDA versions
+$cudnn_subfolder="cuda"
 Switch ($cudaVersion) {
   "10.2" {
     $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
@@ -33,7 +34,8 @@ Switch ($cudaVersion) {
   }
   "11.5" {
     $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
-    $cudnnZip = "cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive.zip"
+    $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
+    $cudnnZip = "$cudnn_subfolder.zip"
     $installerArgs = "$installerArgs thrust_$cudaVersion"
   }
 }
@@ -83,13 +85,6 @@ function Install-Cudnn() {
   Invoke-WebRequest -Uri "$windowsS3BaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
   $tmpCudnnExtracted = New-TemporaryDirectory
   7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
-
-
-  if($cudaVersion == "11.5") {
-    $cudnn_subfolder = ([io.fileinfo]"$cudnnZip").basename
-  } else {
-    $cudnn_subfolder "cuda"
-  }
 
   Write-Output "Copying cudnn to $expectedInstallLocation"
     Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\*" "$expectedInstallLocation"
