@@ -2,6 +2,10 @@ param(
   [string] $cudaVersion = $env:CUDA_VERSION
 )
 
+function New-TemporaryDirectory() {
+  New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+}
+
 $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
@@ -37,12 +41,22 @@ Switch ($cudaVersion) {
     $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
     $cudnnZip = "$cudnn_subfolder.zip"
     $installerArgs = "$installerArgs thrust_$cudaVersion"
+
+    Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
+    $tmpZlibDll = New-TemporaryFile
+    Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
+    $tmpExtractedZlibDll = New-TemporaryDirectory
+    7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
+    Get-ChildItem -Path $tmpExtractedZlibDll
+    if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
+     Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
+       exit 1
+    }
+    Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
   }
 }
 
-function New-TemporaryDirectory() {
-  New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-}
+
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
