@@ -55,6 +55,7 @@ export interface HudParams {
   repoName: string;
   branch: string;
   page: number;
+  nameFilter?: string;
 }
 
 export interface PRData {
@@ -68,11 +69,17 @@ export function packHudParams(input: any) {
     repoName: input.repoName as string,
     branch: input.branch as string,
     page: parseInt(input.page as string),
+    nameFilter: input.name_filter as string | undefined,
   };
 }
 
 export function formatHudURL(urlPrefix: string, params: HudParams): string {
-  return `/${urlPrefix}/${params.repoOwner}/${
+  let base = `/${urlPrefix}/${params.repoOwner}/${
     params.repoName
   }/${encodeURIComponent(params.branch)}/${params.page}`;
+
+  if (params.nameFilter != null) {
+    base += `?name_filter=${encodeURIComponent(params.nameFilter)}`;
+  }
+  return base;
 }
