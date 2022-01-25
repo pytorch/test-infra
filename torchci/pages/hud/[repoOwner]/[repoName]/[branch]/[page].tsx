@@ -172,7 +172,7 @@ function FilterableHudTable({
       router.push(formatHudURL("hud", params), undefined, { shallow: true });
     } else {
       router.push(
-        formatHudURL("hud", params) + `?name_filter=${jobFilter}`,
+        formatHudURL("hud", { ...params, nameFilter: jobFilter ?? undefined }),
         undefined,
         {
           shallow: true,
