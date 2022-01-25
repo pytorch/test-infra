@@ -10297,7 +10297,86 @@
         "type": "User",
         "url": "https://api.github.com/users/janeyx99"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "MEMBER",
+      "body": "platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test-distributed/3045/console\r\n\r\n```\r\n09:10:50 ======================================================================\r\n09:10:50 FAIL [0.018s]: test_data_parallel_module_cuda_float16 (__main__.TestDataParallelDeviceTypeCUDA)\r\n09:10:50 ----------------------------------------------------------------------\r\n09:10:50 Traceback (most recent call last):\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 376, in instantiated_test\r\n09:10:50     result = test(self, **param_kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 907, in only_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 788, in dep_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"distributed/test_data_parallel.py\", line 784, in test_data_parallel_module\r\n09:10:50     self.assertEqual(out, expected_out, atol=dtype2prec_DONTUSE[dtype], rtol=0)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2078, in assertEqual\r\n09:10:50     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n09:10:50 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=0 and atol=0.01, found 25 element(s) (out of 100) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.9091796875 (-1.443359375 vs. 0.4658203125), which occurred at index (18, 3).\r\n```\r\n",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/comments",
+      "created_at": "2022-01-25T17:32:42Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/71770",
+      "id": 1114174682,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "",
+          "id": 1445192234,
+          "name": "module: data parallel",
+          "node_id": "MDU6TGFiZWwxNDQ1MTkyMjM0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20data%20parallel"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85CaPTa",
+      "number": 71770,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/timeline",
+      "title": "DISABLED test_data_parallel_module_cuda_float16 (__main__.TestDataParallelDeviceTypeCUDA)",
+      "updated_at": "2022-01-25T17:33:08Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/71770",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
+        "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
+        "followers_url": "https://api.github.com/users/rohan-varma/followers",
+        "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/rohan-varma",
+        "id": 8039770,
+        "login": "rohan-varma",
+        "node_id": "MDQ6VXNlcjgwMzk3NzA=",
+        "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
+        "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
+        "repos_url": "https://api.github.com/users/rohan-varma/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/rohan-varma"
+      }
     }
   ],
-  "total_count": 101
+  "total_count": 102
 }
