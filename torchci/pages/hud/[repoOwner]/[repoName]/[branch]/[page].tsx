@@ -1,6 +1,5 @@
 import { useRouter } from "next/router";
 import _ from "lodash";
-import { SWRConfig } from "swr";
 
 import React, {
   useState,
@@ -9,18 +8,16 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { GetStaticPaths, GetStaticProps } from "next";
 import Link from "next/link";
 
 import styles from "components/hud.module.css";
 import {
-  formatHudURL,
+  formatHudUrlForRoute,
   HudParams,
   JobData,
   packHudParams,
   RowData,
 } from "lib/types";
-import fetchHud from "lib/fetchHud";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
 import JobConclusion from "components/JobConclusion";
@@ -169,10 +166,15 @@ function FilterableHudTable({
   const handleInput = useCallback((f) => setJobFilter(f), []);
   const handleSubmit = useCallback(() => {
     if (jobFilter === "") {
-      router.push(formatHudURL("hud", params), undefined, { shallow: true });
+      router.push(formatHudUrlForRoute("hud", params), undefined, {
+        shallow: true,
+      });
     } else {
       router.push(
-        formatHudURL("hud", { ...params, nameFilter: jobFilter ?? undefined }),
+        formatHudUrlForRoute("hud", {
+          ...params,
+          nameFilter: jobFilter ?? undefined,
+        }),
         undefined,
         {
           shallow: true,
@@ -230,14 +232,19 @@ function PageSelector({ params }: { params: HudParams }) {
       {params.page !== 0 ? (
         <span>
           <Link
-            href={formatHudURL("hud", { ...params, page: params.page - 1 })}
+            href={formatHudUrlForRoute("hud", {
+              ...params,
+              page: params.page - 1,
+            })}
           >
             Prev
           </Link>{" "}
           |{" "}
         </span>
       ) : null}
-      <Link href={formatHudURL("hud", { ...params, page: params.page + 1 })}>
+      <Link
+        href={formatHudUrlForRoute("hud", { ...params, page: params.page + 1 })}
+      >
         Next
       </Link>
     </div>
@@ -250,7 +257,7 @@ function HudHeader({ params }: { params: HudParams }) {
     e.preventDefault();
     // @ts-ignore
     const branch = e.target[0].value;
-    window.location.href = formatHudURL("hud", { ...params, branch });
+    window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
 
   return (

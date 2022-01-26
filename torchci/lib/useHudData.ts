@@ -1,10 +1,16 @@
 import useSWR from "swr";
-import { formatHudURL, HudData, HudParams, JobData, RowData } from "./types";
+import {
+  formatHudUrlForFetch,
+  HudData,
+  HudParams,
+  JobData,
+  RowData,
+} from "./types";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function useHudData(params: HudParams): HudData | undefined {
-  const { data } = useSWR(formatHudURL("api/hud", params), fetcher, {
+  const { data } = useSWR(formatHudUrlForFetch("api/hud", params), fetcher, {
     refreshInterval: 60 * 1000, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab
     // will always have fresh info.
@@ -12,7 +18,7 @@ export default function useHudData(params: HudParams): HudData | undefined {
   });
 
   const { data: originalPRData } = useSWR(
-    formatHudURL("api/original_pr_hud", params),
+    formatHudUrlForFetch("api/original_pr_hud", params),
     fetcher,
     {
       refreshInterval: 60 * 1000,

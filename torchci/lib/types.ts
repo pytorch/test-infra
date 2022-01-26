@@ -73,12 +73,30 @@ export function packHudParams(input: any) {
   };
 }
 
-export function formatHudURL(urlPrefix: string, params: HudParams): string {
+export function formatHudUrlForFetch(
+  urlPrefix: string,
+  params: HudParams
+): string {
+  return formatHudURL(urlPrefix, params, /*keepFilter=*/ false);
+}
+
+export function formatHudUrlForRoute(
+  urlPrefix: string,
+  params: HudParams
+): string {
+  return formatHudURL(urlPrefix, params, /*keepFilter=*/ true);
+}
+
+function formatHudURL(
+  urlPrefix: string,
+  params: HudParams,
+  keepFilter: boolean
+): string {
   let base = `/${urlPrefix}/${params.repoOwner}/${
     params.repoName
   }/${encodeURIComponent(params.branch)}/${params.page}`;
 
-  if (params.nameFilter != null) {
+  if (params.nameFilter != null && keepFilter) {
     base += `?name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
   return base;

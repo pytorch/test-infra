@@ -11,7 +11,7 @@ import {
 import { useRouter } from "next/router";
 
 import fetchHud from "lib/fetchHud";
-import { formatHudURL, HudParams, JobData, RowData } from "lib/types";
+import { formatHudUrlForRoute, HudParams, JobData, RowData } from "lib/types";
 import styles from "components/minihud.module.css";
 import JobLinks from "components/JobLinks";
 import { LocalTimeHuman } from "components/TimeUtils";
@@ -358,7 +358,7 @@ export const getStaticProps: GetStaticProps = async () => {
   return {
     props: {
       fallback: {
-        [formatHudURL("api/hud", params)]: await fetchHud(params),
+        [formatHudUrlForRoute("api/hud", params)]: await fetchHud(params),
       },
     },
     revalidate: 60,
