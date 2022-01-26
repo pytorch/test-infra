@@ -91,7 +91,6 @@ function Page() {
     // will always have fresh info.
     refreshWhenHidden: true,
   });
-  console.log(data);
   const prData = data as PRData | undefined;
 
   if (prData === undefined) {
