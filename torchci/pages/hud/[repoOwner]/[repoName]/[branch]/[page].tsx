@@ -24,6 +24,7 @@ import JobConclusion from "components/JobConclusion";
 import JobTooltip from "components/JobTooltip";
 import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
+import { UrlWithStringQuery } from "url";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
@@ -251,39 +252,63 @@ function PageSelector({ params }: { params: HudParams }) {
   );
 }
 
-function HudHeader({ params }: { params: HudParams }) {
+function ParamSelector({
+  value,
+  handleSubmit,
+}: {
+  value: string;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}) {
   const [isInput, setIsInput] = useState(false);
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  if (isInput) {
+    return (
+      <form
+        className={styles.branchForm}
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            setIsInput(false);
+          }
+        }}
+      >
+        <input autoFocus className={styles.branchFormInput} type="text"></input>
+      </form>
+    );
+  }
+
+  return (
+    <code style={{ cursor: "pointer" }} onClick={() => setIsInput(true)}>
+      {value}
+    </code>
+  );
+}
+
+function HudHeader({ params }: { params: HudParams }) {
+  function handleBranchSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     // @ts-ignore
     const branch = e.target[0].value;
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
   }
+  function handleRepoSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // @ts-ignore
+    const repoOwnerAndName = e.target[0].value;
+    const split = repoOwnerAndName.split("/");
+    window.location.href = formatHudUrlForRoute("hud", {
+      ...params,
+      repoOwner: split[0],
+      repoName: split[1],
+    });
+  }
 
   return (
     <h1>
-      PyTorch HUD:{" "}
-      {isInput ? (
-        <form
-          className={styles.branchForm}
-          onSubmit={handleSubmit}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              setIsInput(false);
-            }
-          }}
-        >
-          <input
-            autoFocus
-            className={styles.branchFormInput}
-            type="text"
-          ></input>
-        </form>
-      ) : (
-        <code style={{ cursor: "pointer" }} onClick={() => setIsInput(true)}>
-          {params.branch}
-        </code>
-      )}
+      <ParamSelector
+        value={`${params.repoOwner}/${params.repoName}`}
+        handleSubmit={handleRepoSubmit}
+      />:{" "}
+      <ParamSelector value={params.branch} handleSubmit={handleBranchSubmit} />
     </h1>
   );
 }

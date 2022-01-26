@@ -8,10 +8,10 @@ export default async function fetchHud(params: HudParams): Promise<{
 }> {
   const rocksetClient = getRocksetClient();
   const [hudQuery, commitQuery] = await Promise.all([
-    rocksetClient.queryLambdas.executeQueryLambdaByTag(
+    rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "hud_query",
-      "prod",
+      "e7597aba6bba4320",
       {
         parameters: [
           {
@@ -23,14 +23,24 @@ export default async function fetchHud(params: HudParams): Promise<{
             name: "page",
             type: "int",
             value: params.page.toString(),
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: params.repoOwner,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: params.repoName,
           },
         ],
       }
     ),
-    rocksetClient.queryLambdas.executeQueryLambdaByTag(
+    rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "master_commits",
-      "prod",
+      "f527c15ab36276ae",
       {
         parameters: [
           {
@@ -42,6 +52,16 @@ export default async function fetchHud(params: HudParams): Promise<{
             name: "page",
             type: "int",
             value: params.page.toString(),
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: params.repoOwner,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: params.repoName,
           },
         ],
       }

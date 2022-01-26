@@ -5,5 +5,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<PRData>
 ) {
-  res.status(200).json(await fetchPR(req.query.prNumber as string));
+  const { prNumber, repoName, repoOwner } = req.query;
+  res
+    .status(200)
+    .json(
+      await fetchPR(repoOwner as string, repoName as string, prNumber as string)
+    );
 }

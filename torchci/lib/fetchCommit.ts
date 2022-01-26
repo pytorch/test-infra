@@ -6,10 +6,10 @@ import { CommitData } from "./types";
 export default async function fetchCommit(sha: string): Promise<CommitData> {
   const rocksetClient = getRocksetClient();
   const [commitQuery, commitJobsQuery] = await Promise.all([
-    rocksetClient.queryLambdas.executeQueryLambdaByTag(
+    rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "commit_query",
-      "prod",
+      "098c004f3e014e7f",
       {
         parameters: [
           {
@@ -20,10 +20,10 @@ export default async function fetchCommit(sha: string): Promise<CommitData> {
         ],
       }
     ),
-    await rocksetClient.queryLambdas.executeQueryLambdaByTag(
+    await rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "commit_jobs_query",
-      "prod",
+      "cc19958f5b6953c3",
       {
         parameters: [
           {
