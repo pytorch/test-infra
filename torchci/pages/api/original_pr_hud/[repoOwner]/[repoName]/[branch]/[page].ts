@@ -8,10 +8,10 @@ export default async function handler(
 ) {
   const params = packHudParams(req.query);
   const rocksetClient = getRocksetClient();
-  const hudQuery = await rocksetClient.queryLambdas.executeQueryLambdaByTag(
+  const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "original_pr_hud_query",
-    "prod",
+    "bd10f482796f4abd",
     {
       parameters: [
         {
@@ -23,6 +23,16 @@ export default async function handler(
           name: "page",
           type: "int",
           value: params.page.toString(),
+        },
+        {
+          name: "owner",
+          type: "string",
+          value: params.repoOwner,
+        },
+        {
+          name: "repo",
+          type: "string",
+          value: params.repoName,
         },
       ],
     }
