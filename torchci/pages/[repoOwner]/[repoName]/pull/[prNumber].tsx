@@ -7,9 +7,17 @@ import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function CommitInfo({ sha }: { sha: string }) {
+function CommitInfo({
+  repoOwner,
+  repoName,
+  sha,
+}: {
+  repoOwner: string;
+  repoName: string;
+  sha: string;
+}) {
   const { data: commit, error } = useSWR(
-    sha != null ? `/api/commit/${sha}` : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -30,9 +38,13 @@ function CommitInfo({ sha }: { sha: string }) {
 }
 
 function CommitHeader({
+  repoOwner,
+  repoName,
   prData,
   selectedSha,
 }: {
+  repoOwner: string;
+  repoName: string;
   prData: PRData;
   selectedSha: string;
 }) {
@@ -45,7 +57,9 @@ function CommitHeader({
       <select
         defaultValue={selectedSha}
         onChange={(e) => {
-          router.push(`/pr/pytorch/pytorch/${pr}?sha=${e.target.value}`);
+          router.push(
+            `/${repoName}/${repoOwner}/pull/${pr}?sha=${e.target.value}`
+          );
         }}
       >
         {prData.shas.map(({ sha, title }) => (
@@ -61,11 +75,13 @@ function CommitHeader({
 function Page() {
   const router = useRouter();
 
+  const { repoOwner, repoName, prNumber, sha } = router.query;
+
   let swrKey;
-  if (router.query.prNumber !== undefined) {
-    swrKey = `/api/pr/${router.query.prNumber}`;
+  if (prNumber !== undefined) {
+    swrKey = `/api/${repoOwner}/${repoName}/pull/${router.query.prNumber}`;
   }
-  if (router.query.sha !== undefined) {
+  if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;
   }
 
@@ -75,22 +91,32 @@ function Page() {
     // will always have fresh info.
     refreshWhenHidden: true,
   });
+  console.log(data);
   const prData = data as PRData | undefined;
 
   if (prData === undefined) {
     return <div>Loading...</div>;
   }
 
-  const sha =
-    (router.query.sha as string) ?? prData.shas[prData.shas.length - 1].sha;
+  const selectedSha = (sha ??
+    prData.shas[prData.shas.length - 1].sha) as string;
   return (
     <div>
       <h1>
         {prData.title} <code>{router.query.pr}</code>
       </h1>
-      <CommitHeader prData={prData} selectedSha={sha} />
+      <CommitHeader
+        repoOwner={repoOwner as string}
+        repoName={repoName as string}
+        prData={prData}
+        selectedSha={selectedSha}
+      />
       <ErrorBoundary>
-        <CommitInfo sha={sha} />
+        <CommitInfo
+          repoOwner={repoOwner as string}
+          repoName={repoName as string}
+          sha={selectedSha}
+        />
       </ErrorBoundary>
     </div>
   );

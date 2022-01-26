@@ -1,19 +1,33 @@
 import getRocksetClient from "./rockset";
 import { PRData } from "./types";
 
-export default async function fetchPR(pr: string): Promise<PRData> {
+export default async function fetchPR(
+  repoOwner: string,
+  repoName: string,
+  prNumber: string
+): Promise<PRData> {
   const rocksetClient = getRocksetClient();
   const [prQuery, commitHistoryQuery] = await Promise.all([
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "pr_query",
-      "70a7732df6e82401",
+      "8fe8d35745bba232",
       {
         parameters: [
           {
             name: "pr",
             type: "int",
-            value: pr,
+            value: prNumber,
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: repoOwner,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: repoName,
           },
         ],
       }
@@ -21,13 +35,23 @@ export default async function fetchPR(pr: string): Promise<PRData> {
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "pr_commit_history_query",
-      "03dcb4ad66c079f9",
+      "b36bd117e2cec4ea",
       {
         parameters: [
           {
             name: "pr",
             type: "int",
-            value: pr,
+            value: prNumber,
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: repoOwner,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: repoName,
           },
         ],
       }
