@@ -10382,9 +10382,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fn_grad_linalg_det_singular_cuda_float64%2C%20TestGradientsCUDA)).\r\n\r\nPretty certain the culprit is #71168, but since @anjali411's fix was to disable some tests, I am thinking the intention was to disable and fix soon. Tagging @terrychenism \r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano ",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fn_grad_linalg_det_singular_cuda_float64%2C%20TestGradientsCUDA)).\r\n\r\nPretty certain the culprit is #71168, but since @anjali411's fix was to disable some tests, I am thinking the intention was to disable and fix soon. Tagging @terrychenism \r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @albanD @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jianyuh @mruberry @walterddr @IvanYashchuk @xwang233 ",
       "closed_at": null,
-      "comments": 1,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71808/comments",
       "created_at": "2022-01-26T03:53:43Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71808/events",
@@ -10408,6 +10408,15 @@
           "name": "triage review",
           "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
         },
         {
           "color": "f7e101",
@@ -10451,7 +10460,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71808/timeline",
       "title": "DISABLED test_fn_grad_linalg_det_singular_cuda_float64 (__main__.TestGradientsCUDA)",
-      "updated_at": "2022-01-26T03:54:18Z",
+      "updated_at": "2022-01-26T04:21:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71808",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
