@@ -10481,7 +10481,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_neg_view_linalg_det_singular_cuda_float64%2C%20TestMathBitsCUDA)).\r\n\r\nSeems mighty connected to https://github.com/pytorch/pytorch/issues/71808#issuecomment-1022086911 \r\n\r\nDisabling this test until we have a fix PR as the seeming culprit does not seem related to det.\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/comments",
       "created_at": "2022-01-26T15:42:49Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/events",
@@ -10548,7 +10548,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/timeline",
       "title": "DISABLED test_neg_view_linalg_det_singular (__main__.TestMathBits)",
-      "updated_at": "2022-01-26T16:04:53Z",
+      "updated_at": "2022-01-26T16:26:46Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71857",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
