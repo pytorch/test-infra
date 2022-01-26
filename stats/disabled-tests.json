@@ -10479,15 +10479,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_neg_view_linalg_det_singular_cuda_float64%2C%20TestMathBitsCUDA)).\r\n\r\nSeems mighty connected to https://github.com/pytorch/pytorch/issues/71808#issuecomment-1022086911 \r\n\r\nDisabling this test until we have a fix PR as the seeming culprit does not seem related to det.\n\ncc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_neg_view_linalg_det_singular_cuda_float64%2C%20TestMathBitsCUDA)).\r\n\r\nSeems mighty connected to https://github.com/pytorch/pytorch/issues/71808#issuecomment-1022086911 \r\n\r\nDisabling this test until we have a fix PR as the seeming culprit does not seem related to det.\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/comments",
       "created_at": "2022-01-26T15:42:49Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/71857",
       "id": 1115167488,
       "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -10530,7 +10548,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71857/timeline",
       "title": "DISABLED test_neg_view_linalg_det_singular (__main__.TestMathBits)",
-      "updated_at": "2022-01-26T15:43:03Z",
+      "updated_at": "2022-01-26T16:04:53Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71857",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
