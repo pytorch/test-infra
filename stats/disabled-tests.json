@@ -7618,103 +7618,6 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
-      "author_association": "MEMBER",
-      "body": "Platforms: windows\n\ncc @ezyang @gchanan @zou3519 @bdhirsh",
-      "closed_at": null,
-      "comments": 7,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/comments",
-      "created_at": "2021-12-21T06:01:06Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/70226",
-      "id": 1085468256,
-      "labels": [
-        {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI",
-          "id": 1301397902,
-          "name": "module: flaky-tests",
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85Asu5g",
-      "number": 70226,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70226/timeline",
-      "title": "DISABLED test_cuda_memory_leak_detection (__main__.TestCuda)",
-      "updated_at": "2022-01-05T19:49:28Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/70226",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
-        "events_url": "https://api.github.com/users/suo/events{/privacy}",
-        "followers_url": "https://api.github.com/users/suo/followers",
-        "following_url": "https://api.github.com/users/suo/following{/other_user}",
-        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/suo",
-        "id": 1617424,
-        "login": "suo",
-        "node_id": "MDQ6VXNlcjE2MTc0MjQ=",
-        "organizations_url": "https://api.github.com/users/suo/orgs",
-        "received_events_url": "https://api.github.com/users/suo/received_events",
-        "repos_url": "https://api.github.com/users/suo/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/suo/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/suo"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
       "author_association": "CONTRIBUTOR",
       "body": "### \ud83d\udc1b Describe the bug\r\n\r\nPlatforms: win, linux\r\n\r\nFlaky test on windows\r\n```\r\n======================================================================\r\nERROR [4.119s]: test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 484, in wrapper\r\n    self._join_processes(fn)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 705, in _join_processes\r\n    self._check_return_codes(elapsed_time)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 750, in _check_return_codes\r\n    raise RuntimeError(error)\r\nRuntimeError: Process 0 exited with error code 10 and exception:\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 604, in run_test\r\n    getattr(self, test_name)()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 486, in wrapper\r\n    fn()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 198, in instantiated_test\r\n    test(self, **param_kwargs)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 132, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/var/lib/jenkins/workspace/test/distributed/fsdp/test_fsdp_checkpoint.py\", line 209, in test_basic_checkpoint_end_to_end\r\n    self.assertTrue(offload_occured)\r\n  File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\n    raise self.failureException(msg)\r\nAssertionError: False is not true\r\n\r\nProcess 1 exited with error code 10 and exception:\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 604, in run_test\r\n    getattr(self, test_name)()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 486, in wrapper\r\n    fn()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 198, in instantiated_test\r\n    test(self, **param_kwargs)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 132, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/var/lib/jenkins/workspace/test/distributed/fsdp/test_fsdp_checkpoint.py\", line 209, in test_basic_checkpoint_end_to_end\r\n    self.assertTrue(offload_occured)\r\n  File \"/opt/conda/lib/python3.6/unittest/case.py\", line 682, in assertTrue\r\n    raise self.failureException(msg)\r\nAssertionError: False is not true\r\n```\r\n\r\nhttps://github.com/pytorch/pytorch/runs/4622045163?check_suite_focus=true\r\n\r\n### Versions\r\n\r\nwindows for torch 1.10?\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
@@ -10572,5 +10475,5 @@
       }
     }
   ],
-  "total_count": 104
+  "total_count": 103
 }
