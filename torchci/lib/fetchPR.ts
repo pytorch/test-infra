@@ -35,7 +35,7 @@ export default async function fetchPR(
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "pr_commit_history_query",
-      "b36bd117e2cec4ea",
+      "87e52f3cfca99453",
       {
         parameters: [
           {
