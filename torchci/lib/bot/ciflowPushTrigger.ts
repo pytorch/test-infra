@@ -121,8 +121,6 @@ async function handleClosedEvent(context: Context<"pull_request.closed">) {
 
 // Add the tag corresponding to the new label.
 async function handleLabelEvent(context: Context<"pull_request.labeled">) {
-  context.log.info("test")
-  console.log("test_console_log")
   context.log.debug("START Processing label event");
   if (context.payload.pull_request.state === "closed") {
     // Ignore closed PRs. If this PR is reopened, the tags will get pushed as
