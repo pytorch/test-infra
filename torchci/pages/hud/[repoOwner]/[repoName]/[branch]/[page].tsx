@@ -24,7 +24,6 @@ import JobConclusion from "components/JobConclusion";
 import JobTooltip from "components/JobTooltip";
 import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
-import { UrlWithStringQuery } from "url";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
@@ -47,6 +46,8 @@ function JobCell({ sha, job }: { sha: string; job: JobData }) {
 }
 
 function HudRow({ rowData }: { rowData: RowData }) {
+  const router = useRouter();
+  const params = packHudParams(router.query);
   const sha = rowData.sha;
   return (
     <tr>
@@ -60,12 +61,16 @@ function HudRow({ rowData }: { rowData: RowData }) {
         <div className={styles.jobMetadataTruncated}>
           {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
-          <a href={`/commit/${sha}`}>{rowData.commitMessage}</a>
+          <a href={`/${params.repoOwner}/${params.repoName}/commit/${sha}`}>
+            {rowData.commitMessage}
+          </a>
         </div>
       </td>
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
-          <a href={`https://github.com/pytorch/pytorch/pull/${rowData.prNum}`}>
+          <a
+            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+          >
             #{rowData.prNum}
           </a>
         )}
@@ -307,7 +312,8 @@ function HudHeader({ params }: { params: HudParams }) {
       <ParamSelector
         value={`${params.repoOwner}/${params.repoName}`}
         handleSubmit={handleRepoSubmit}
-      />:{" "}
+      />
+      :{" "}
       <ParamSelector value={params.branch} handleSubmit={handleBranchSubmit} />
     </h1>
   );
