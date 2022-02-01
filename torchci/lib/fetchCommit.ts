@@ -9,7 +9,7 @@ export default async function fetchCommit(sha: string): Promise<CommitData> {
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "commit_query",
-      "098c004f3e014e7f",
+      "06a5040c34cdf9d9",
       {
         parameters: [
           {
