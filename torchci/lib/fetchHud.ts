@@ -40,7 +40,7 @@ export default async function fetchHud(params: HudParams): Promise<{
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "master_commits",
-      "f527c15ab36276ae",
+      "cf237486df000e4b",
       {
         parameters: [
           {
