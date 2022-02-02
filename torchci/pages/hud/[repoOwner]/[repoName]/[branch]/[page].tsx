@@ -13,6 +13,7 @@ import Link from "next/link";
 import styles from "components/hud.module.css";
 import {
   formatHudUrlForRoute,
+  GroupData,
   HudParams,
   JobData,
   packHudParams,
@@ -24,7 +25,9 @@ import JobConclusion from "components/JobConclusion";
 import JobTooltip from "components/JobTooltip";
 import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
-import { UrlWithStringQuery } from "url";
+import classifyGroup from "lib/GroupClassifierUtil";
+import { stringify } from "querystring";
+import { group } from "console";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
@@ -210,20 +213,22 @@ function FilterableHudTable({
 }
 
 function HudTable({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-  const { shaGrid, jobNames } = data;
+  return <GroupView params={params} />;
+  // const data = useHudData(params);
+  // if (data === undefined) {
+  //   return <div>Loading...</div>;
+  // }
+  // const { shaGrid, jobNames } = data;
 
-  // Here, we are intentionally injecting HudTableBody into the
-  // FilterableHudTable component. This is for rendering performance; we don't
-  // want React to re-render the whole table every time the filter changes.
-  return (
-    <FilterableHudTable params={params} jobNames={jobNames}>
-      <HudTableBody shaGrid={shaGrid} />
-    </FilterableHudTable>
-  );
+  // // Here, we are intentionally injecting HudTableBody into the
+  // // FilterableHudTable component. This is for rendering performance; we don't
+  // // want React to re-render the whole table every time the filter changes.
+  // return (
+
+  //   <FilterableHudTable params={params} jobNames={jobNames}>
+  //     <HudTableBody shaGrid={shaGrid} />
+  //   </FilterableHudTable>
+  // );
 }
 
 function PageSelector({ params }: { params: HudParams }) {
@@ -307,7 +312,8 @@ function HudHeader({ params }: { params: HudParams }) {
       <ParamSelector
         value={`${params.repoOwner}/${params.repoName}`}
         handleSubmit={handleRepoSubmit}
-      />:{" "}
+      />
+      :{" "}
       <ParamSelector value={params.branch} handleSubmit={handleBranchSubmit} />
     </h1>
   );
@@ -351,5 +357,48 @@ export default function Hud() {
         </div>
       )}
     </PinnedTooltipContext.Provider>
+  );
+}
+function GroupView({ params }: { params: HudParams }) {
+  const data = useHudData(params);
+  if (data === undefined) {
+    return <div>Loading...</div>;
+  }
+  const { shaGrid, jobNames } = data;
+
+  // Construct Job Groupping Mapping
+  const groupNames = new Map<string, Array<string>>();
+  const jobToGroupName = new Map<string, string>();
+  for (const name of jobNames) {
+    const groupName = classifyGroup(name);
+    const jobsInGroup = groupNames.get(groupName) ?? [];
+    jobsInGroup.push(name);
+    groupNames.set(groupName, jobsInGroup);
+    jobToGroupName.set(name, groupName);
+  }
+  const groupNamesArray = Array.from(groupNames.keys());
+
+  // Group Jobs per Row
+  for (const row of shaGrid) {
+    const groupedJobs = new Map<string, GroupData>();
+    for (const groupName of groupNamesArray) {
+      groupedJobs.set(groupName, { groupName, jobs: [] });
+    }
+    for (const job of row.jobs) {
+      const groupName = jobToGroupName.get(job.name!)!;
+      console.log(groupName);
+      groupedJobs.get(groupName)!.jobs.push(job);
+    }
+    const groupDataRow: GroupData[] = [];
+    for (const groupName of groupNamesArray) {
+      groupDataRow.push(groupedJobs.get(groupName)!);
+    }
+    row.groupedJobs = groupDataRow;
+  }
+
+  return (
+    <FilterableHudTable params={params} jobNames={groupNamesArray}>
+      <HudTableBody shaGrid={shaGrid} />
+    </FilterableHudTable>
   );
 }

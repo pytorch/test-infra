@@ -19,6 +19,11 @@ export interface JobData {
   originalPrData?: JobData;
 }
 
+export interface GroupData {
+  groupName: string;
+  jobs: JobData[];
+}
+
 export interface CommitData {
   sha: string;
   prUrl: string | null;
@@ -36,6 +41,7 @@ export interface RowData {
   diffNum: string; // like: `D123456`
   prNum: number | null;
   jobs: JobData[];
+  groupedJobs: GroupData[];
 }
 
 export interface HudData {
