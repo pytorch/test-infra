@@ -21,6 +21,8 @@ Switch -Wildcard ($cudaVersion) {
 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
+$cudnn_lib_folder="lib\x64"
+
 Switch ($cudaVersion) {
   "10.2" {
     $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
@@ -41,6 +43,7 @@ Switch ($cudaVersion) {
     $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
     $cudnnZip = "$cudnn_subfolder.zip"
     $installerArgs = "$installerArgs thrust_$cudaVersion"
+    $cudnn_lib_folder="lib"
 
     Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
     $tmpZlibDll = New-TemporaryFile
@@ -101,11 +104,15 @@ function Install-Cudnn() {
   7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
 
   Write-Output "Copying cudnn to $expectedInstallLocation"
-    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\*" "$expectedInstallLocation"
-    if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {
-      Write-Error "cudnn installation failed for CUDA version $cudaVersion, cudnn.h not found at $expectedInstallLocation\include\cudnn.h"
-      exit 1
-    }
+
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
+
+  if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {
+    Write-Error "cudnn installation failed for CUDA version $cudaVersion, cudnn.h not found at $expectedInstallLocation\include\cudnn.h"
+    exit 1
+  }
 }
 
 function Install-NvTools() {
