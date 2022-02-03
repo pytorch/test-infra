@@ -10327,7 +10327,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_memory_profiler%2C%20TestProfiler)).\n\ncc @ezyang @gchanan @zou3519 @ilia-cher @robieta @chaekit @gdankel @bitfort @ngimel @orionr @nbcsm @guotuofeng @guyang3532 @gaoteng-git",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72280/comments",
       "created_at": "2022-02-03T19:11:52Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72280/events",
@@ -10412,7 +10412,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72280/timeline",
       "title": "DISABLED test_memory_profiler (__main__.TestProfiler)",
-      "updated_at": "2022-02-03T19:11:55Z",
+      "updated_at": "2022-02-03T19:59:59Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72280",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
