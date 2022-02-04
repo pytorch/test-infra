@@ -62,6 +62,16 @@ export interface PRData {
   shas: { sha: string; title: string }[];
 }
 
+export interface FlakyTestData {
+  file: string;
+  suite: string;
+  name: string;
+  num_green: number;
+  num_red: number;
+  workflow_ids: string[];
+  workflow_names: string[];
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
