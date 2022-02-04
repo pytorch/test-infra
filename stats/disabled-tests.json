@@ -7094,6 +7094,15 @@
           "name": "triaged",
           "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "ededed",
+          "default": false,
+          "description": null,
+          "id": 2695910552,
+          "name": "Stale",
+          "node_id": "MDU6TGFiZWwyNjk1OTEwNTUy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/Stale"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/labels{/name}",
@@ -7119,7 +7128,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/timeline",
       "title": "Ensure that the message for disabled tests is printed for disabled tests in CI",
-      "updated_at": "2021-12-06T18:18:43Z",
+      "updated_at": "2022-02-04T19:02:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/69380",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
