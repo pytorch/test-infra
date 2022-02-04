@@ -20,17 +20,5 @@ export default async function fetchFlakyTests(num_hours: string): Promise<FlakyT
       }
     );
 
-  const flaky_tests = flakyTestQuery.results;
-
-  return flaky_tests.map<FlakyTestData>((flaky_test: any) => {
-    return {
-        file: flaky_test.file,
-        suite: flaky_test.suite,
-        name: flaky_test.name,
-        num_green: flaky_test.num_green,
-        num_red: flaky_test.num_red,
-        workflow_ids: flaky_test.workflow_ids,
-        workflow_names: flaky_test.workflow_names,
-    }
-  });
+   return flakyTestQuery.results ?? [];
 }
