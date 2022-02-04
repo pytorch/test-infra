@@ -20,9 +20,9 @@ export default async function fetchFlakyTests(num_hours: string): Promise<FlakyT
       }
     );
 
-  const flaky_tests: FlakyTestData[] = flakyTestQuery.results;
+  const flaky_tests = flakyTestQuery.results;
 
-  return flaky_tests.map<FlakyTestData>(flaky_test => {
+  return flaky_tests.map<FlakyTestData>((flaky_test: any) => {
     return {
         file: flaky_test.file,
         suite: flaky_test.suite,
