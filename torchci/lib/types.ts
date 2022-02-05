@@ -33,8 +33,8 @@ export interface HudCommitData {
   time: string;
   commitUrl: string;
   commitMessage: string;
-  diffNum?: string; // like: `D123456`
-  prNum?: number;
+  diffNum: string | null; // like: `D123456`
+  prNum: number | null;
 }
 
 export interface RowData extends HudCommitData {

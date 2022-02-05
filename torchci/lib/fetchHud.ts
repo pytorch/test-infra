@@ -18,13 +18,13 @@ async function getCommitData(params: HudParams): Promise<HudCommitData[]> {
   const commitData = branch.data.map((data) => {
     const message = data.commit.message;
     const prMatch = message.match(prRegex);
-    let prNum;
+    let prNum = null;
     if (prMatch) {
       prNum = parseInt(prMatch[1]);
     }
 
     const phabMatch = message.match(phabRegex);
-    let diffNum;
+    let diffNum = null;
     if (phabMatch) {
       diffNum = phabMatch[1];
     }
