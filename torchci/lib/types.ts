@@ -28,13 +28,16 @@ export interface CommitData {
   jobs: JobData[];
 }
 
-export interface RowData {
+export interface HudCommitData {
   sha: string;
   time: string;
   commitUrl: string;
   commitMessage: string;
-  diffNum: string; // like: `D123456`
-  prNum: number | null;
+  diffNum?: string; // like: `D123456`
+  prNum?: number;
+}
+
+export interface RowData extends HudCommitData {
   jobs: JobData[];
 }
 
