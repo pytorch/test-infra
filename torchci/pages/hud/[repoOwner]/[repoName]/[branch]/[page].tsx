@@ -62,7 +62,7 @@ function HudRow({ rowData }: { rowData: RowData }) {
           {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
           <a href={`/${params.repoOwner}/${params.repoName}/commit/${sha}`}>
-            {rowData.commitMessage}
+            {rowData.commitTitle}
           </a>
         </div>
       </td>
