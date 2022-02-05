@@ -1,63 +1,29 @@
+import { getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { PRData } from "./types";
 
 export default async function fetchPR(
-  repoOwner: string,
-  repoName: string,
+  owner: string,
+  repo: string,
   prNumber: string
 ): Promise<PRData> {
-  const rocksetClient = getRocksetClient();
-  const [prQuery, commitHistoryQuery] = await Promise.all([
-    rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "pr_query",
-      "8fe8d35745bba232",
-      {
-        parameters: [
-          {
-            name: "pr",
-            type: "int",
-            value: prNumber,
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: repoOwner,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: repoName,
-          },
-        ],
-      }
-    ),
-    rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "pr_commit_history_query",
-      "87e52f3cfca99453",
-      {
-        parameters: [
-          {
-            name: "pr",
-            type: "int",
-            value: prNumber,
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: repoOwner,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: repoName,
-          },
-        ],
-      }
-    ),
+  const octokit = await getOctokit(owner, repo);
+  const [pull, commits] = await Promise.all([
+    octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: parseInt(prNumber),
+    }),
+    octokit.rest.pulls.listCommits({
+      owner,
+      repo,
+      pull_number: parseInt(prNumber),
+    }),
   ]);
-  const prDataResult = prQuery.results![0];
+  const title = pull.data.title;
+  const shas = commits.data.map((data) => {
+    return { sha: data.sha, title: data.commit.message.split("\n")[0] };
+  });
 
-  return { ...prDataResult, shas: commitHistoryQuery.results! };
+  return { title, shas };
 }
