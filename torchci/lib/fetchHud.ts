@@ -1,12 +1,13 @@
 import _ from "lodash";
-import { getOctokit } from "./github";
+import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
-import { HudCommitData, HudParams, JobData, RowData } from "./types";
+import { HudParams, JobData, RowData } from "./types";
 
-async function getCommitData(params: HudParams): Promise<HudCommitData[]> {
-  const prRegex = /Pull Request resolved: .*?(\d+)/;
-  const phabRegex = /Differential Revision: (D.*)/;
-
+export default async function fetchHud(params: HudParams): Promise<{
+  shaGrid: RowData[];
+  jobNames: string[];
+}> {
+  // Retrieve commit data from GitHub
   const octokit = await getOctokit(params.repoOwner, params.repoName);
   const branch = await octokit.rest.repos.listCommits({
     owner: params.repoOwner,
@@ -15,37 +16,7 @@ async function getCommitData(params: HudParams): Promise<HudCommitData[]> {
     per_page: 50,
     page: params.page,
   });
-  const commitData = branch.data.map((data) => {
-    const message = data.commit.message;
-    const prMatch = message.match(prRegex);
-    let prNum = null;
-    if (prMatch) {
-      prNum = parseInt(prMatch[1]);
-    }
-
-    const phabMatch = message.match(phabRegex);
-    let diffNum = null;
-    if (phabMatch) {
-      diffNum = phabMatch[1];
-    }
-
-    return {
-      time: data.commit.committer!.date as string,
-      sha: data.sha,
-      commitUrl: data.html_url,
-      commitMessage: data.commit.message.split("\n")[0],
-      prNum,
-      diffNum,
-    };
-  });
-  return commitData;
-}
-
-export default async function fetchHud(params: HudParams): Promise<{
-  shaGrid: RowData[];
-  jobNames: string[];
-}> {
-  const commits = await getCommitData(params);
+  const commits = branch.data.map(commitDataFromResponse);
 
   // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);

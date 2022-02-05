@@ -16,7 +16,7 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data: commit, error } = useSWR(
+  const { data, error } = useSWR(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
@@ -30,11 +30,12 @@ function CommitInfo({
     return <div>Error occured</div>;
   }
 
-  if (commit === undefined) {
+  if (data === undefined) {
     return <div>Loading...</div>;
   }
+  const { commit, jobs } = data;
 
-  return <CommitStatus commit={commit} />;
+  return <CommitStatus commit={commit} jobs={jobs} />;
 }
 
 function CommitHeader({
