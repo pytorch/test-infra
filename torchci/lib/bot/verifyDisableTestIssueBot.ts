@@ -3,7 +3,7 @@ import { Context, Probot } from "probot";
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
 const disabledKey = "DISABLED ";
-const supportedPlatforms = new Set([
+export const supportedPlatforms = new Set([
   "asan",
   "linux",
   "mac",
