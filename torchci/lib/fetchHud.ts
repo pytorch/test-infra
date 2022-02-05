@@ -4,7 +4,7 @@ import getRocksetClient from "./rockset";
 import { HudCommitData, HudParams, JobData, RowData } from "./types";
 
 async function getCommitData(params: HudParams): Promise<HudCommitData[]> {
-  const prRegex = /Pull Request resolved: .*?(\d+)'/;
+  const prRegex = /Pull Request resolved: .*?(\d+)/;
   const phabRegex = /Differential Revision: (D.*)/;
 
   const octokit = await getOctokit(params.repoOwner, params.repoName);
