@@ -122,20 +122,11 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1
+            "align": "auto",
+            "displayMode": "auto"
           },
           "mappings": [],
           "thresholds": {
@@ -162,21 +153,16 @@
       },
       "id": 8,
       "options": {
-        "barWidth": 0.97,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single"
-        },
-        "xTickLabelRotation": 0
+        "showHeader": true
       },
+      "pluginVersion": "8.3.3",
       "targets": [
         {
           "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date:YYYY-MM-DD}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date:YYYY-MM-DD}\"\n      }\n    ]\n  }",
@@ -187,14 +173,15 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[*]"
+              "jsonPath": "$.results[*].__timestamp.value"
             },
             {
-              "jsonPath": "",
+              "jsonPath": "$.results[*].red",
               "language": "jsonpath",
               "name": ""
             }
           ],
+          "hide": false,
           "method": "POST",
           "params": [
             [
@@ -207,8 +194,8 @@
           "urlPath": "/v1/orgs/self/ws/commons/lambdas/master_jobs_by_red/tags/latest"
         }
       ],
-      "title": "Panel Title",
-      "type": "barchart"
+      "title": "% jobs red on master, by hour",
+      "type": "table"
     },
     {
       "datasource": {
@@ -400,6 +387,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 8,
+  "version": 10,
   "weekStart": ""
 }
