@@ -1,0 +1,136 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "hideControls": false,
+  "id": 12,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "rockset-backend-datasource",
+        "uid": "PC7A9E9CA9D4AE378"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "rockset-backend-datasource",
+            "uid": "PC7A9E9CA9D4AE378"
+          },
+          "queryLabelColumn": "",
+          "queryParamStart": ":startTime",
+          "queryParamStop": ":stopTime",
+          "queryText": "-- sample query\nSELECT\n TIME_BUCKET(MINUTES(60), PARSE_TIMESTAMP_ISO8601(timestamp) ) AS _event_time,\n  count(sha) as VALUE\nFROM\n  commons.commit \n-- you MUST specify a WHERE clause which scopes the query using :startTime and :stopTime\nwhere truncated_message LIKE 'Revert D%'   AND \nPARSE_TIMESTAMP_ISO8601(timestamp) >:startTime AND\nPARSE_TIMESTAMP_ISO8601(timestamp) < :stopTime\nGROUP BY\n  _event_time\nORDER BY\n  _event_time",
+          "queryTimeField": "_event_time",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of reverts",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Github dashboard (Rockset based)",
+  "uid": "1kkKNt-nk",
+  "version": 1,
+  "weekStart": ""
+}
