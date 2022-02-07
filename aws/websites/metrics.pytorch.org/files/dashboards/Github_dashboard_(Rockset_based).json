@@ -122,15 +122,39 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "green",
@@ -153,14 +177,14 @@
       },
       "id": 8,
       "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
         },
-        "showHeader": true
+        "tooltip": {
+          "mode": "single"
+        }
       },
       "pluginVersion": "8.3.3",
       "targets": [
@@ -173,12 +197,14 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[*].__timestamp.value"
+              "jsonPath": "$.results[*].hour",
+              "type": "time"
             },
             {
               "jsonPath": "$.results[*].red",
               "language": "jsonpath",
-              "name": ""
+              "name": "",
+              "type": "number"
             }
           ],
           "hide": false,
@@ -195,7 +221,7 @@
         }
       ],
       "title": "% jobs red on master, by hour",
-      "type": "table"
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -387,6 +413,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 10,
+  "version": 11,
   "weekStart": ""
 }
