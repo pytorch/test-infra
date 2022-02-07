@@ -9,8 +9,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.46.0",
-    "@aws-sdk/lib-dynamodb": "^3.46.0",
+    "@aws-sdk/client-dynamodb": "^3.49.0",
+    "@aws-sdk/lib-dynamodb": "^3.49.0",
     "@monaco-editor/react": "^4.3.1",
     "@octokit/webhooks": "^9.22.0",
     "@rockset/client": "^0.8.9",
@@ -18,26 +18,26 @@
     "dayjs": "^1.10.7",
     "dayjs-plugin-utc": "^0.1.2",
     "lodash": "^4.17.21",
-    "next": "12.0.8",
+    "next": "12.0.10",
     "octokit": "^1.7.1",
     "probot": "^12.1.4",
     "react": "17.0.2",
     "react-dom": "17.0.2",
     "recharts": "^2.1.8",
-    "swr": "^1.1.2",
+    "swr": "^1.2.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/jest": "^27.4.0",
     "@types/lodash": "^4.14.178",
-    "@types/node": "17.0.12",
-    "@types/react": "17.0.38",
+    "@types/node": "17.0.15",
+    "@types/react": "17.0.39",
     "@types/uuid": "^8.3.4",
-    "eslint": "8.7.0",
-    "eslint-config-next": "12.0.8",
-    "jest": "^27.4.7",
-    "monaco-editor": "^0.31.1",
-    "nock": "^13.2.1",
+    "eslint": "8.8.0",
+    "eslint-config-next": "12.0.10",
+    "jest": "^27.5.0",
+    "monaco-editor": "^0.32.1",
+    "nock": "^13.2.4",
     "typescript": "4.5.5"
   }
 }
