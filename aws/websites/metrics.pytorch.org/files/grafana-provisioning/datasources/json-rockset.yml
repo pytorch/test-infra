@@ -1,0 +1,12 @@
+apiVersion: 3
+
+datasources:
+  - name: JSON API Rockset
+    type: marcusolsson-json-datasource
+    url: https://api.rs2.usw2.rockset.com
+    jsonData:
+      httpHeaderName1: "Content-Type"
+      httpHeaderName2: "Authorization"
+    secureJsonData:
+      httpHeaderValue1: "application/json"
+      httpHeaderValue2: "ApiKey {{ passwords.rockset_api_key }}"
