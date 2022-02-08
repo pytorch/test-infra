@@ -106,12 +106,12 @@
           "queryLabelColumn": "",
           "queryParamStart": ":startTime",
           "queryParamStop": ":stopTime",
-          "queryText": "-- sample query\nSELECT\n TIME_BUCKET(MINUTES(60), PARSE_TIMESTAMP_ISO8601(timestamp) ) AS _event_time,\n  count(sha) as VALUE\nFROM\n  commons.commit \n-- you MUST specify a WHERE clause which scopes the query using :startTime and :stopTime\nwhere truncated_message LIKE 'Revert D%'   AND \nPARSE_TIMESTAMP_ISO8601(timestamp) >:startTime AND\nPARSE_TIMESTAMP_ISO8601(timestamp) < :stopTime\nGROUP BY\n  _event_time\nORDER BY\n  _event_time",
+          "queryText": "-- sample query\nSELECT\n TIME_BUCKET(DAYS(1), PARSE_TIMESTAMP_ISO8601(timestamp) ) AS _event_time,\n  count(sha) as VALUE\nFROM\n  commons.commit \n-- you MUST specify a WHERE clause which scopes the query using :startTime and :stopTime\nwhere truncated_message LIKE 'Revert D%'  AND url LIKE '%/pytorch/pytorch/%' AND\nPARSE_TIMESTAMP_ISO8601(timestamp) >:startTime AND\nPARSE_TIMESTAMP_ISO8601(timestamp) < :stopTime\nGROUP BY\n  _event_time\nORDER BY\n  _event_time",
           "queryTimeField": "_event_time",
           "refId": "A"
         }
       ],
-      "title": "Number of reverts",
+      "title": "Number of reverts per day",
       "type": "timeseries"
     },
     {
@@ -514,6 +514,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 12,
+  "version": 15,
   "weekStart": ""
 }
