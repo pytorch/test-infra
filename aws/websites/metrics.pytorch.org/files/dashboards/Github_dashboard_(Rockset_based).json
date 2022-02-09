@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 12,
+  "id": 3,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -514,6 +514,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 15,
+  "version": 1,
   "weekStart": ""
 }

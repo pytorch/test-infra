@@ -21,7 +21,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 8,
   "links": [],
   "panels": [
     {
@@ -1554,5 +1554,5 @@
   "timezone": "",
   "title": "Lambda Status",
   "uid": "LFSW__inz",
-  "version": 2
+  "version": 1
 }
