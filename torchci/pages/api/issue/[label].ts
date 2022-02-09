@@ -14,5 +14,5 @@ export default async function handler(
   return res
     .status(200)
     .setHeader("Cache-Control", "s-maxage=60")
-    .json({ issues: await fetchIssuesByLabel(req.query.label) });
+    .json({ issues: await fetchIssuesByLabel(req.query.label as string) });
 }
