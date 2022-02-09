@@ -8,11 +8,10 @@ import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 
-const NUM_HOURS = 6;
+const NUM_HOURS = 3;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
-disableFlakyTests();
 
 export default async function handler(
     req: NextApiRequest,

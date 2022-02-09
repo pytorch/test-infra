@@ -4,9 +4,6 @@ on:
   schedule:
     # At minute 39 past every 3rd hour Monday through Friday.
     - cron: "39 */3 * * 1-5"
-  pull_request:
-    paths:
-      - ".github/workflows/disable-flaky-tests.yml"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
