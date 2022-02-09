@@ -8,10 +8,11 @@ import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 
-const NUM_HOURS = 240;
+const NUM_HOURS = 6;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
+disableFlakyTests();
 
 export default async function handler(
     req: NextApiRequest,
@@ -28,20 +29,14 @@ async function disableFlakyTests() {
     const issues: IssueData[] = await fetchIssuesByLabel("skipped");
     flaky_tests.forEach(async function(test: FlakyTestData) {
         const issueTitle = getIssueTitle(test.name, test.suite);
-        // console.log(issueTitle);
         const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
-        // console.log(matchingIssues)
         if (matchingIssues.length !== 0) {
             // There is a matching issue
-            // console.log("there is a matching issue.");
             const matchingIssue = matchingIssues[0];
             if (matchingIssue.state === "open") {
-                // console.log("The issue is open.");
                 const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
                 Please verify the issue was opened after this instance, that the platforms list includes all of
                 [${getPlatformsAffected(test.workflow_names).join(", ")}], or disable bot might not be working as expected.`;
-                // console.log(body);
-                // console.log(`Would create a comment for issue ${matchingIssue.number}.`);
                 octokit.rest.issues.createComment({
                     owner,
                     repo,
@@ -50,7 +45,6 @@ async function disableFlakyTests() {
                 });
             } else {
                 // Re-open the issue
-                console.log("The issue is closed!");
                 octokit.rest.issues.update({
                     owner,
                     repo,
@@ -61,8 +55,6 @@ async function disableFlakyTests() {
                 const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
                 Reopening the issue to disable. Please verify that the platforms list includes all of
                 [${getPlatformsAffected(test.workflow_names).join(", ")}].`;
-                // console.log(body);
-                // console.log(`Would add a comment for issue num ${matchingIssue.number}.`);
                 octokit.rest.issues.createComment({
                     owner,
                     repo,
@@ -112,10 +104,10 @@ function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     This test was disabled because it is failing on trunk. See [recent examples](${examplesURL}) and the most recent
     [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
 
-    Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflows with
+    Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with
     ${test.num_red} red and ${test.num_green} green.`;
 
-    return encodeURIComponent(message);
+    return message;
 }
 
 
@@ -155,7 +147,6 @@ async function createIssueFromFlakyTest(test: FlakyTestData): Promise<void> {
     const title = getIssueTitle(test.name, test.suite);
     const body = getIssueBodyForFlakyTest(test);
     const labels = ["skipped", "module: flaky-tests"].concat(await getTestOwnerLabels(test.file));
-    // console.log(`For test ${JSON.stringify(test)}!!\nWould create an issue for ${title} and labels ${labels} and body: ${body}\n\n`)
     const octokit = await getOctokit(owner, repo);
     octokit.rest.issues.create({
         owner,
