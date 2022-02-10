@@ -5,8 +5,6 @@
   become_user: root
   become_method: sudo
   gather_facts: false
-  json_data_source_ver: 1.3.1
-  rockset_data_source_ver: 0.1.2
   tasks:
     - name: Setup
       # Note: The IP CIDR should be chosen carefully! Collisions with the host
@@ -26,13 +24,13 @@
           /etc/pytorch/dashboards/ \
           /etc/pytorch/grafana
 
-        wget https://github.com/marcusolsson/grafana-json-datasource/releases/download/v{{json_data_source_ver}}/marcusolsson-json-datasource-{{json_data_source_ver}}.zip
-        unzip marcusolsson-json-datasource-{{json_data_source_ver}}.zip -d /etc/pytorch/grafana/plugins
-        rm marcusolsson-json-datasource-{{json_data_source_ver}}.zip
+        wget https://github.com/marcusolsson/grafana-json-datasource/releases/download/v1.3.1/marcusolsson-json-datasource-1.3.1.zip
+        unzip marcusolsson-json-datasource-1.3.1.zip -d /etc/pytorch/grafana/plugins
+        rm marcusolsson-json-datasource-1.3.1.zip
 
-        wget https://rockset-public.s3-us-west-2.amazonaws.com/rockset-backend-datasource-{{rockset_data_source_ver}}.zip
-        unzip rockset-backend-datasource-{{rockset_data_source_ver}}.zip -d /etc/pytorch/grafana/plugins
-        rm rockset-backend-datasource-{{rockset_data_source_ver}}.zip
+        wget https://rockset-public.s3-us-west-2.amazonaws.com/rockset-backend-datasource-0.1.2.zip
+        unzip rockset-backend-datasource-0.1.2.zip -d /etc/pytorch/grafana/plugins
+        rm rockset-backend-datasource-0.1.2.zip
 
         find /etc/pytorch -type d | xargs chmod 777
     - name: Copy files
