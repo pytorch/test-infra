@@ -386,7 +386,6 @@ function GroupView({ params }: { params: HudParams }) {
     }
     for (const job of row.jobs) {
       const groupName = jobToGroupName.get(job.name!)!;
-      console.log(groupName);
       groupedJobs.get(groupName)!.jobs.push(job);
     }
     const groupDataRow: GroupData[] = [];
@@ -394,6 +393,7 @@ function GroupView({ params }: { params: HudParams }) {
       groupDataRow.push(groupedJobs.get(groupName)!);
     }
     row.groupedJobs = groupDataRow;
+    console.log(row.groupedJobs);
   }
 
   return (
