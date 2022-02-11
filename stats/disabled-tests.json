@@ -10796,13 +10796,31 @@
       "author_association": "CONTRIBUTOR",
       "body": "### \ud83d\udc1b Describe the bug\n\nCurrently many tests run in forks but they are expected to fail due to lack of credentials in forks.\r\n\r\nThis is a bit annoying to contributors:\r\n![2022-02-10_09-58](https://user-images.githubusercontent.com/1381301/153467936-0f6833ba-52f1-4506-aa03-f769abdd06d2.png)\r\n\r\nA failed job example: https://github.com/ppwwyyxx/pytorch/runs/5137367784?check_suite_focus=true\r\n\r\nI think github action should be configured to not run these in forks.\n\n### Versions\n\nlatest as of 02/09\n\ncc @seemethere @malfet @pytorch/pytorch-dev-infra",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/comments",
       "created_at": "2022-02-10T17:59:26Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/72661",
       "id": 1130575397,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "We plan to do a full writeup on the issue, and then get someone to do it for onboarding",
+          "id": 1027606656,
+          "name": "module: bootcamp",
+          "node_id": "MDU6TGFiZWwxMDI3NjA2NjU2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20bootcamp"
+        },
+        {
+          "color": "34c182",
+          "default": true,
+          "description": "",
+          "id": 1150417147,
+          "name": "good first issue",
+          "node_id": "MDU6TGFiZWwxMTUwNDE3MTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/good%20first%20issue"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -10863,7 +10881,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/timeline",
       "title": "Tests should be disabled in forks when they are expected to fail",
-      "updated_at": "2022-02-11T15:37:59Z",
+      "updated_at": "2022-02-11T16:03:55Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72661",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1381301?v=4",
