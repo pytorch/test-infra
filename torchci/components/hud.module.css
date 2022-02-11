@@ -39,7 +39,8 @@
   transform: translate(10px, 100px) rotate(315deg);
   width: 10px;
   font-weight: 400;
-  font-size: 0.8em;
+  font-size: 1.25em;
+  padding: 10px;
 }
 
 .regularHeader {

@@ -118,11 +118,45 @@ const groups = [
   },
 ];
 
-export default function classifyGroup(jobName: string): string {
+export function classifyGroup(jobName: string): string {
   for (const group of groups) {
     if (jobName.match(group.regex)) {
       return group.name;
     }
   }
   return "other";
+}
+
+export function getConclusionChar(conclusion?: string): string {
+  let conclusionChar;
+  switch (conclusion) {
+    case "success":
+      conclusionChar = "O";
+      break;
+    case "failure":
+      conclusionChar = "X";
+      break;
+    case "neutral":
+      conclusionChar = "N";
+      break;
+    case "cancelled":
+      conclusionChar = "C";
+      break;
+    case "timed_out":
+      conclusionChar = "T";
+      break;
+    case "skipped":
+      conclusionChar = "S";
+      break;
+    case "pending":
+      conclusionChar = "?";
+      break;
+    case undefined:
+      conclusionChar = "O";
+      break;
+    default:
+      // shouldn't happen
+      conclusionChar = "U";
+  }
+  return conclusionChar;
 }

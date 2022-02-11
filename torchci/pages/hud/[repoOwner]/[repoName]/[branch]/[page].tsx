@@ -25,9 +25,11 @@ import JobConclusion from "components/JobConclusion";
 import JobTooltip from "components/JobTooltip";
 import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
-import classifyGroup from "lib/GroupClassifierUtil";
-import { stringify } from "querystring";
-import { group } from "console";
+import { classifyGroup } from "lib/JobClassifierUtil";
+
+import HudGroupedCell from "components/GroupJobConclusion";
+
+const useGroupedView = true;
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
@@ -73,11 +75,31 @@ function HudRow({ rowData }: { rowData: RowData }) {
           </a>
         )}
       </td>
-      {rowData.jobs.map((job: JobData) => (
-        <JobCell sha={sha} key={job.name} job={job} />
-      ))}
+      <HudJobCells rowData={rowData} />
     </tr>
   );
+}
+
+function HudJobCells({ rowData }: { rowData: RowData }) {
+  if (!useGroupedView) {
+    return (
+      <>
+        {rowData.jobs.map((job: JobData) => (
+          <JobCell sha={rowData.sha} key={job.name} job={job} />
+        ))}
+      </>
+    );
+  } else {
+    return (
+      <>
+        {rowData.groupedJobs.map((group, ind) => {
+          return (
+            <HudGroupedCell sha={rowData.sha} key={ind} groupData={group} />
+          );
+        })}
+      </>
+    );
+  }
 }
 
 function HudTableColumns({
@@ -319,7 +341,10 @@ function HudHeader({ params }: { params: HudParams }) {
   );
 }
 
-const PinnedTooltipContext = createContext<[null | string, any]>([null, null]);
+export const PinnedTooltipContext = createContext<[null | string, any]>([
+  null,
+  null,
+]);
 
 export default function Hud() {
   const router = useRouter();
@@ -393,7 +418,6 @@ function GroupView({ params }: { params: HudParams }) {
       groupDataRow.push(groupedJobs.get(groupName)!);
     }
     row.groupedJobs = groupDataRow;
-    console.log(row.groupedJobs);
   }
 
   return (
