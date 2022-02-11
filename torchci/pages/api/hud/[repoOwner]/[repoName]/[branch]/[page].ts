@@ -1,14 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import zlib from "zlib";
+
 import fetchHud from "lib/fetchHud";
-import { HudData, packHudParams } from "lib/types";
+import { packHudParams } from "lib/types";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<HudData>
+  res: NextApiResponse
 ) {
   const params = packHudParams(req.query);
+  const hudData = await fetchHud(params);
+  const jsonData = JSON.stringify(hudData);
   res
     .status(200)
     .setHeader("Cache-Control", "s-maxage=1, stale-while-revalidate")
-    .json(await fetchHud(params));
+    .setHeader("Content-Encoding", "gzip")
+    .send(zlib.gzipSync(jsonData));
 }
