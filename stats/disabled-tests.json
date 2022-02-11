@@ -10794,15 +10794,52 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "### \ud83d\udc1b Describe the bug\n\nCurrently many tests run in forks but they are expected to fail due to lack of credentials in forks.\r\n\r\nThis is a bit annoying to contributors:\r\n![2022-02-10_09-58](https://user-images.githubusercontent.com/1381301/153467936-0f6833ba-52f1-4506-aa03-f769abdd06d2.png)\r\n\r\nA failed job example: https://github.com/ppwwyyxx/pytorch/runs/5137367784?check_suite_focus=true\r\n\r\nI think github action should be configured to not run these in forks.\n\n### Versions\n\nlatest as of 02/09",
+      "body": "### \ud83d\udc1b Describe the bug\n\nCurrently many tests run in forks but they are expected to fail due to lack of credentials in forks.\r\n\r\nThis is a bit annoying to contributors:\r\n![2022-02-10_09-58](https://user-images.githubusercontent.com/1381301/153467936-0f6833ba-52f1-4506-aa03-f769abdd06d2.png)\r\n\r\nA failed job example: https://github.com/ppwwyyxx/pytorch/runs/5137367784?check_suite_focus=true\r\n\r\nI think github action should be configured to not run these in forks.\n\n### Versions\n\nlatest as of 02/09\n\ncc @seemethere @malfet @pytorch/pytorch-dev-infra",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/comments",
       "created_at": "2022-02-10T17:59:26Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/72661",
       "id": 1130575397,
-      "labels": [],
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to continuous integration",
+          "id": 1300896147,
+          "name": "module: ci",
+          "node_id": "MDU6TGFiZWwxMzAwODk2MTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ci"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "ffc6f4",
+          "default": true,
+          "description": "Not as big of a feature, but technically not a bug. Should be easy to fix",
+          "id": 1301447942,
+          "name": "enhancement",
+          "node_id": "MDU6TGFiZWwxMzAxNDQ3OTQy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/enhancement"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to iOS support - build, API, Continuous Integration, document",
+          "id": 1535777375,
+          "name": "module: ios",
+          "node_id": "MDU6TGFiZWwxNTM1Nzc3Mzc1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ios"
+        }
+      ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/labels{/name}",
       "locked": false,
       "milestone": null,
@@ -10826,7 +10863,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/timeline",
       "title": "Tests should be disabled in forks when they are expected to fail",
-      "updated_at": "2022-02-10T17:59:26Z",
+      "updated_at": "2022-02-11T15:37:59Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72661",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1381301?v=4",
