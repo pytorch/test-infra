@@ -64,7 +64,7 @@ export function GroupHudTableHeader({
               onClick={() => {
                 if (expandedGroups.has(name)) {
                   expandedGroups.delete(name);
-                  setExpandedGroups(new Set());
+                  setExpandedGroups(new Set(expandedGroups));
                 } else {
                   expandedGroups.add(name);
                   setExpandedGroups(new Set(expandedGroups));
