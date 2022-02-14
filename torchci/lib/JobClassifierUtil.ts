@@ -1,3 +1,5 @@
+import { GroupData, RowData } from "./types";
+
 const groups = [
   {
     regex: /Lint/,
@@ -159,4 +161,36 @@ export function getConclusionChar(conclusion?: string): string {
       conclusionChar = "U";
   }
   return conclusionChar;
+}
+
+export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
+  // Construct Job Groupping Mapping
+  const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
+  const jobToGroupName = new Map<string, string>(); // job -> group
+  for (const name of jobNames) {
+    const groupName = classifyGroup(name);
+    const jobsInGroup = groupNameMapping.get(groupName) ?? [];
+    jobsInGroup.push(name);
+    groupNameMapping.set(groupName, jobsInGroup);
+    jobToGroupName.set(name, groupName);
+  }
+  const groupNamesArray = Array.from(groupNameMapping.keys());
+
+  // Group Jobs per Row
+  for (const row of shaGrid) {
+    const groupedJobs = new Map<string, GroupData>();
+    for (const groupName of groupNamesArray) {
+      groupedJobs.set(groupName, { groupName, jobs: [] });
+    }
+    for (const job of row.jobs) {
+      const groupName = jobToGroupName.get(job.name!)!;
+      groupedJobs.get(groupName)!.jobs.push(job);
+    }
+    const groupDataRow: GroupData[] = [];
+    for (const groupName of groupNamesArray) {
+      groupDataRow.push(groupedJobs.get(groupName)!);
+    }
+    row.groupedJobs = groupDataRow;
+  }
+  return { shaGrid, groupNameMapping };
 }

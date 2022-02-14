@@ -1,41 +1,33 @@
-import { useRouter } from "next/router";
-import _ from "lodash";
-
-import React, {
-  useState,
-  useContext,
-  createContext,
-  useEffect,
-  useCallback,
-} from "react";
-import Link from "next/link";
-
+import {
+  GroupHudTableColumns,
+  GroupHudTableHeader,
+} from "components/GroupHudTableHeaders";
+import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
+import JobConclusion from "components/JobConclusion";
+import JobFilterInput from "components/JobFilterInput";
+import JobTooltip from "components/JobTooltip";
+import { LocalTimeHuman } from "components/TimeUtils";
+import TooltipTarget from "components/TooltipTarget";
+import { includesCaseInsensitive } from "lib/GeneralUtils";
+import { getGroupingData } from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
-  GroupData,
+  HudData,
   HudParams,
   JobData,
   packHudParams,
   RowData,
 } from "lib/types";
-import { LocalTimeHuman } from "components/TimeUtils";
-import TooltipTarget from "components/TooltipTarget";
-import JobConclusion from "components/JobConclusion";
-import JobTooltip from "components/JobTooltip";
-import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
-import { classifyGroup } from "lib/JobClassifierUtil";
+import UserSettingContext from "lib/UserSettingsContext";
+import useTableFilter from "lib/useTableFilter";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-import HudGroupedCell from "components/GroupJobConclusion";
-
-const useGroupedView = true;
-
-function includesCaseInsensitive(value: string, pattern: string): boolean {
-  return value.toLowerCase().includes(pattern.toLowerCase());
-}
-
-function JobCell({ sha, job }: { sha: string; job: JobData }) {
+export function JobCell({ sha, job }: { sha: string; job: JobData }) {
+  console.log("IN JOB CELL");
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
@@ -51,7 +43,13 @@ function JobCell({ sha, job }: { sha: string; job: JobData }) {
   );
 }
 
-function HudRow({ rowData }: { rowData: RowData }) {
+function HudRow({
+  rowData,
+  expandedGroups,
+}: {
+  rowData: RowData;
+  expandedGroups: Set<string>;
+}) {
   const sha = rowData.sha;
   return (
     <tr>
@@ -75,13 +73,20 @@ function HudRow({ rowData }: { rowData: RowData }) {
           </a>
         )}
       </td>
-      <HudJobCells rowData={rowData} />
+      <HudJobCells rowData={rowData} expandedGroups={expandedGroups} />
     </tr>
   );
 }
 
-function HudJobCells({ rowData }: { rowData: RowData }) {
-  if (!useGroupedView) {
+function HudJobCells({
+  rowData,
+  expandedGroups,
+}: {
+  rowData: RowData;
+  expandedGroups: Set<string>;
+}) {
+  const { userSettings } = useContext(UserSettingContext);
+  if (!userSettings.useGrouping) {
     return (
       <>
         {rowData.jobs.map((job: JobData) => (
@@ -94,7 +99,12 @@ function HudJobCells({ rowData }: { rowData: RowData }) {
       <>
         {rowData.groupedJobs.map((group, ind) => {
           return (
-            <HudGroupedCell sha={rowData.sha} key={ind} groupData={group} />
+            <HudGroupedCell
+              sha={rowData.sha}
+              key={ind}
+              groupData={group}
+              isExpanded={expandedGroups.has(group.groupName)}
+            />
           );
         })}
       </>
@@ -155,11 +165,18 @@ function HudTableHeader({
   );
 }
 
-function HudTableBody({ shaGrid }: { shaGrid: RowData[] }) {
+function HudTableBody({
+  shaGrid,
+  expandedGroups = new Set(),
+}: {
+  shaGrid: RowData[];
+  expandedGroups?: Set<string>;
+}) {
+  expandedGroups;
   return (
     <tbody>
       {shaGrid.map((row: RowData) => (
-        <HudRow key={row.sha} rowData={row} />
+        <HudRow key={row.sha} rowData={row} expandedGroups={expandedGroups} />
       ))}
     </tbody>
   );
@@ -174,48 +191,8 @@ function FilterableHudTable({
   jobNames: string[];
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-
-  const [jobFilter, setJobFilter] = useState<string | null>(null);
-  // null and empty string both correspond to no filter; otherwise lowercase it
-  // to make the filter case-insensitive.
-  const normalizedJobFilter =
-    jobFilter === null || jobFilter === "" ? null : jobFilter.toLowerCase();
-
-  useEffect(() => {
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Escape") {
-        setJobFilter(null);
-      }
-    });
-  }, []);
-  const handleInput = useCallback((f) => setJobFilter(f), []);
-  const handleSubmit = useCallback(() => {
-    if (jobFilter === "") {
-      router.push(formatHudUrlForRoute("hud", params), undefined, {
-        shallow: true,
-      });
-    } else {
-      router.push(
-        formatHudUrlForRoute("hud", {
-          ...params,
-          nameFilter: jobFilter ?? undefined,
-        }),
-        undefined,
-        {
-          shallow: true,
-        }
-      );
-    }
-  }, [params, router, jobFilter]);
-
-  // We have to use an effect hook here because query params are undefined at
-  // static generation time; they only become available after hydration.
-  useEffect(() => {
-    const filterValue = (router.query.name_filter as string) || "";
-    setJobFilter(filterValue);
-    handleInput(filterValue);
-  }, [router.query.name_filter, handleInput]);
+  const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
+    useTableFilter(params);
 
   return (
     <>
@@ -224,7 +201,7 @@ function FilterableHudTable({
         handleSubmit={handleSubmit}
         handleInput={handleInput}
       />
-
+      <GroupViewCheckBox />
       <table className={styles.hudTable}>
         <HudTableColumns filter={normalizedJobFilter} names={jobNames} />
         <HudTableHeader filter={normalizedJobFilter} names={jobNames} />
@@ -234,23 +211,80 @@ function FilterableHudTable({
   );
 }
 
+function GroupFilterableHudTable({
+  params,
+  groupNameMapping,
+  children,
+  names,
+  expandedGroups,
+  setExpandedGroups,
+}: {
+  params: HudParams;
+  groupNameMapping: Map<string, string[]>;
+  children: React.ReactNode;
+  names: string[];
+  expandedGroups: Set<string>;
+  setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
+}) {
+  const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
+    useTableFilter(params);
+
+  return (
+    <>
+      <JobFilterInput
+        currentFilter={jobFilter}
+        handleSubmit={handleSubmit}
+        handleInput={handleInput}
+      />
+      <GroupViewCheckBox />
+      <table className={styles.hudTable}>
+        <GroupHudTableColumns
+          filter={normalizedJobFilter}
+          names={names}
+          expandedGroups={expandedGroups}
+        />
+        <GroupHudTableHeader
+          filter={normalizedJobFilter}
+          names={names}
+          expandedGroups={expandedGroups}
+          setExpandedGroups={setExpandedGroups}
+          groupNames={new Set(groupNameMapping.keys())}
+        />
+        {children}
+      </table>
+    </>
+  );
+}
+
+function GroupViewCheckBox() {
+  const { userSettings, setUserSettings } = useContext(UserSettingContext);
+  return (
+    <>
+      <input
+        type="checkbox"
+        name="groupView"
+        checked={userSettings.useGrouping}
+        onChange={() => {
+          setUserSettings({
+            ...userSettings,
+            useGrouping: !userSettings.useGrouping,
+          });
+        }}
+      />
+      <label htmlFor="groupView"> Use grouped view</label>
+      <br />
+    </>
+  );
+}
+
 function HudTable({ params }: { params: HudParams }) {
-  return <GroupView params={params} />;
-  // const data = useHudData(params);
-  // if (data === undefined) {
-  //   return <div>Loading...</div>;
-  // }
-  // const { shaGrid, jobNames } = data;
+  const { userSettings } = useContext(UserSettingContext);
 
-  // // Here, we are intentionally injecting HudTableBody into the
-  // // FilterableHudTable component. This is for rendering performance; we don't
-  // // want React to re-render the whole table every time the filter changes.
-  // return (
-
-  //   <FilterableHudTable params={params} jobNames={jobNames}>
-  //     <HudTableBody shaGrid={shaGrid} />
-  //   </FilterableHudTable>
-  // );
+  return userSettings.useGrouping ? (
+    <GroupedView params={params} />
+  ) : (
+    <UngroupedView params={params} />
+  );
 }
 
 function PageSelector({ params }: { params: HudParams }) {
@@ -355,6 +389,7 @@ export default function Hud() {
   // - Clicking outside the tooltip or pressing esc should unpin it.
   // This state needs to be set up at this level because we want to capture all
   // clicks.
+  const [userSettings, setUserSettings] = useState({ useGrouping: true });
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
   function handleClick() {
     setPinnedTooltip(null);
@@ -370,59 +405,82 @@ export default function Hud() {
   const params = packHudParams(router.query);
 
   return (
-    <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
-      {params.branch !== undefined && (
-        <div onClick={handleClick}>
-          <HudHeader params={params} />
-          <div>This page automatically updates.</div>
-          <div>
-            <PageSelector params={params} />
-            <HudTable params={params} />
+    <UserSettingContext.Provider value={{ userSettings, setUserSettings }}>
+      <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
+        {params.branch !== undefined && (
+          <div onClick={handleClick}>
+            <HudHeader params={params} />
+            <div>This page automatically updates.</div>
+            <div>
+              <PageSelector params={params} />
+              <HudTable params={params} />
+            </div>
           </div>
-        </div>
-      )}
-    </PinnedTooltipContext.Provider>
+        )}
+      </PinnedTooltipContext.Provider>
+    </UserSettingContext.Provider>
   );
 }
-function GroupView({ params }: { params: HudParams }) {
+
+function UngroupedView({ params }: { params: HudParams }) {
   const data = useHudData(params);
   if (data === undefined) {
     return <div>Loading...</div>;
   }
   const { shaGrid, jobNames } = data;
 
-  // Construct Job Groupping Mapping
-  const groupNames = new Map<string, Array<string>>();
-  const jobToGroupName = new Map<string, string>();
-  for (const name of jobNames) {
-    const groupName = classifyGroup(name);
-    const jobsInGroup = groupNames.get(groupName) ?? [];
-    jobsInGroup.push(name);
-    groupNames.set(groupName, jobsInGroup);
-    jobToGroupName.set(name, groupName);
-  }
-  const groupNamesArray = Array.from(groupNames.keys());
-
-  // Group Jobs per Row
-  for (const row of shaGrid) {
-    const groupedJobs = new Map<string, GroupData>();
-    for (const groupName of groupNamesArray) {
-      groupedJobs.set(groupName, { groupName, jobs: [] });
-    }
-    for (const job of row.jobs) {
-      const groupName = jobToGroupName.get(job.name!)!;
-      groupedJobs.get(groupName)!.jobs.push(job);
-    }
-    const groupDataRow: GroupData[] = [];
-    for (const groupName of groupNamesArray) {
-      groupDataRow.push(groupedJobs.get(groupName)!);
-    }
-    row.groupedJobs = groupDataRow;
-  }
-
+  // Here, we are intentionally injecting HudTableBody into the
+  // FilterableHudTable component. This is for rendering performance; we don't
+  // want React to re-render the whole table every time the filter changes.
   return (
-    <FilterableHudTable params={params} jobNames={groupNamesArray}>
+    <FilterableHudTable params={params} jobNames={jobNames}>
       <HudTableBody shaGrid={shaGrid} />
     </FilterableHudTable>
+  );
+}
+
+function GroupedView({ params }: { params: HudParams }) {
+  const data = useHudData(params);
+  if (data === undefined) {
+    return <div>Loading...</div>;
+  }
+
+  return <GroupedHudTable params={params} data={data} />;
+}
+
+function GroupedHudTable({
+  params,
+  data,
+}: {
+  params: HudParams;
+  data: HudData;
+}) {
+  const { shaGrid, groupNameMapping } = getGroupingData(
+    data.shaGrid,
+    data.jobNames
+  );
+  const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
+  const groupNames = Array.from(groupNameMapping.keys());
+  let names = groupNames;
+
+  expandedGroups.forEach((group) => {
+    const nameInd = names.indexOf(group);
+    names = [
+      ...names.slice(0, nameInd + 1),
+      ...(groupNameMapping.get(group) ?? []),
+      ...names.slice(nameInd + 1),
+    ];
+  });
+
+  return (
+    <GroupFilterableHudTable
+      params={params}
+      groupNameMapping={groupNameMapping}
+      names={names}
+      expandedGroups={expandedGroups}
+      setExpandedGroups={setExpandedGroups}
+    >
+      <HudTableBody shaGrid={shaGrid} expandedGroups={expandedGroups} />
+    </GroupFilterableHudTable>
   );
 }

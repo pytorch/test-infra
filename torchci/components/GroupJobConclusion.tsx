@@ -3,7 +3,10 @@ import { GroupData, JobData } from "lib/types";
 import styles from "./JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
 import { useContext } from "react";
-import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[page]";
+import {
+  JobCell,
+  PinnedTooltipContext,
+} from "pages/hud/[repoOwner]/[repoName]/[branch]/[page]";
 
 enum JobStatus {
   Success = "success",
@@ -18,12 +21,12 @@ enum JobStatus {
 export default function HudGroupedCell({
   sha,
   groupData,
+  isExpanded,
 }: {
   sha: string;
   groupData: GroupData;
+  isExpanded: boolean;
 }) {
-  let conclusionChar = "0";
-  let style = styles.success;
   const erroredJobs = [];
   const pendingJobs = [];
 
@@ -46,29 +49,41 @@ export default function HudGroupedCell({
     conclusion = "pending";
   }
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  console.log("EXPANDED", isExpanded);
+  console.log("EXPANDEDJOBS", groupData.jobs);
+  // <JobCell sha={sha} job={job} />;
 
   return (
-    <td>
-      <TooltipTarget
-        id={`${sha}-${groupData.groupName}`}
-        pinnedId={pinnedId}
-        setPinnedId={setPinnedId}
-        tooltipContent={
-          <GroupTooltip
-            conclusion={conclusion}
-            groupName={groupData.groupName}
-            erroredJobs={erroredJobs}
-            pendingJobs={pendingJobs}
-          />
-        }
-      >
-        <span className={styles.conclusion}>
-          <span className={styles[conclusion ?? "none"]}>
-            {getConclusionChar(conclusion)}
+    <>
+      <td>
+        <TooltipTarget
+          id={`${sha}-${groupData.groupName}`}
+          pinnedId={pinnedId}
+          setPinnedId={setPinnedId}
+          tooltipContent={
+            <GroupTooltip
+              conclusion={conclusion}
+              groupName={groupData.groupName}
+              erroredJobs={erroredJobs}
+              pendingJobs={pendingJobs}
+            />
+          }
+        >
+          <span className={styles.conclusion}>
+            <span className={styles[conclusion ?? "none"]}>
+              {getConclusionChar(conclusion)}
+            </span>
           </span>
-        </span>
-      </TooltipTarget>
-    </td>
+        </TooltipTarget>
+      </td>
+      {isExpanded ? (
+        <>
+          {groupData.jobs.map((job, ind) => {
+            return <JobCell key={ind} sha={sha} job={job} />;
+          })}
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -101,8 +116,6 @@ function GroupTooltip({
       </div>
     );
   } else if (conclusion === "pending") {
-    console.log("ERRORED JOBS ARE", pendingJobs);
-
     return (
       <div>
         {`[${conclusion}] ${groupName}`}
@@ -115,7 +128,7 @@ function GroupTooltip({
               target="_blank"
               rel="noreferrer"
             >
-              {pendingJob.jobName}
+              {pendingJob.name}
             </a>
           );
         })}
