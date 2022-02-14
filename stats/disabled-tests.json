@@ -10847,15 +10847,6 @@
           "name": "enhancement",
           "node_id": "MDU6TGFiZWwxMzAxNDQ3OTQy",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/enhancement"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to iOS support - build, API, Continuous Integration, document",
-          "id": 1535777375,
-          "name": "module: ios",
-          "node_id": "MDU6TGFiZWwxNTM1Nzc3Mzc1",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ios"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/labels{/name}",
@@ -10881,7 +10872,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/timeline",
       "title": "Tests should be disabled in forks when they are expected to fail",
-      "updated_at": "2022-02-13T18:47:30Z",
+      "updated_at": "2022-02-14T01:09:57Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72661",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1381301?v=4",
