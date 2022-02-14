@@ -27,7 +27,6 @@ import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
-  console.log("IN JOB CELL");
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
@@ -103,7 +102,7 @@ function HudJobCells({
   } else {
     return (
       <>
-        {rowData.groupedJobs.map((group, ind) => {
+        {(rowData?.groupedJobs ?? []).map((group, ind) => {
           return (
             <HudGroupedCell
               sha={rowData.sha}

@@ -49,10 +49,6 @@ export default function HudGroupedCell({
     conclusion = "pending";
   }
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  console.log("EXPANDED", isExpanded);
-  console.log("EXPANDEDJOBS", groupData.jobs);
-  // <JobCell sha={sha} job={job} />;
-
   return (
     <>
       <td>

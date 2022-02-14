@@ -36,7 +36,7 @@ export interface CommitData {
 
 export interface RowData extends CommitData {
   jobs: JobData[];
-  groupedJobs: GroupData[];
+  groupedJobs?: GroupData[];
 }
 
 export interface HudData {
