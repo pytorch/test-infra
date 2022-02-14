@@ -26,20 +26,15 @@ export interface GroupData {
 
 export interface CommitData {
   sha: string;
-  prUrl: string | null;
+  time: string;
+  prNum: number | null;
   diffNum: string | null;
+  commitUrl: string;
   commitTitle: string;
   commitMessageBody: string;
-  jobs: JobData[];
 }
 
-export interface RowData {
-  sha: string;
-  time: string;
-  commitUrl: string;
-  commitMessage: string;
-  diffNum: string; // like: `D123456`
-  prNum: number | null;
+export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs: GroupData[];
 }
@@ -67,6 +62,16 @@ export interface HudParams {
 export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
+}
+
+export interface FlakyTestData {
+  file: string;
+  suite: string;
+  name: string;
+  num_green: number;
+  num_red: number;
+  workflow_ids: string[];
+  workflow_names: string[];
 }
 
 export function packHudParams(input: any) {

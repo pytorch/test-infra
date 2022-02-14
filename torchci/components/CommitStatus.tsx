@@ -23,7 +23,13 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
   );
 }
 
-export default function CommitStatus({ commit }: { commit: CommitData }) {
+export default function CommitStatus({
+  commit,
+  jobs,
+}: {
+  commit: CommitData;
+  jobs: JobData[];
+}) {
   return (
     <>
       <VersionControlLinks sha={commit.sha} diffNum={commit.diffNum} />
@@ -34,17 +40,17 @@ export default function CommitStatus({ commit }: { commit: CommitData }) {
 
       <FilteredJobList
         filterName="Failed jobs"
-        jobs={commit.jobs}
+        jobs={jobs}
         pred={isFailedJob}
       />
 
       <FilteredJobList
         filterName="Pending jobs"
-        jobs={commit.jobs}
+        jobs={jobs}
         pred={(job) => job.conclusion === "pending"}
       />
 
-      <WorkflowsContainer jobs={commit.jobs} />
+      <WorkflowsContainer jobs={jobs} />
     </>
   );
 }

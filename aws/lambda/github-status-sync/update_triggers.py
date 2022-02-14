@@ -54,7 +54,7 @@ EVENT_TARGETS = {
     "sync-pytorch-pytorch-slow": {
         "schedule": "rate(1 hour)",
         "input": generate_input(
-            repo="pytorch", branches=["nightly", "viable/strict", "release/1.10"],
+            repo="pytorch", branches=["nightly", "viable/strict", "release/1.11"],
         ),
     },
     "sync-pytorch-lightning": {

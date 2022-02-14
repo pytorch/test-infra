@@ -1,0 +1,519 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 4,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "rockset-backend-datasource",
+        "uid": "PC7A9E9CA9D4AE378"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "rockset-backend-datasource",
+            "uid": "PC7A9E9CA9D4AE378"
+          },
+          "queryLabelColumn": "",
+          "queryParamStart": ":startTime",
+          "queryParamStop": ":stopTime",
+          "queryText": "-- sample query\nSELECT\n TIME_BUCKET(DAYS(1), PARSE_TIMESTAMP_ISO8601(timestamp) ) AS _event_time,\n  count(sha) as VALUE\nFROM\n  commons.commit \n-- you MUST specify a WHERE clause which scopes the query using :startTime and :stopTime\nwhere truncated_message LIKE 'Revert D%'  AND url LIKE '%/pytorch/pytorch/%' AND\nPARSE_TIMESTAMP_ISO8601(timestamp) >:startTime AND\nPARSE_TIMESTAMP_ISO8601(timestamp) < :stopTime\nGROUP BY\n  _event_time\nORDER BY\n  _event_time",
+          "queryTimeField": "_event_time",
+          "refId": "A"
+        }
+      ],
+      "title": "Number of reverts per day",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date:YYYY-MM-DD}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date:YYYY-MM-DD}\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].hour",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.results[*].red",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "hide": false,
+          "method": "POST",
+          "params": [
+            [
+              "",
+              ""
+            ]
+          ],
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/master_jobs_by_red/tags/latest"
+        }
+      ],
+      "title": "% jobs red on master, by hour",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date:YYYY-MM-DD}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date:YYYY-MM-DD}\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].day",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.results[*].red",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/red_commits_per_day/tags/latest"
+        }
+      ],
+      "title": "% red commits, by day",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 4,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].url"
+            },
+            {
+              "jsonPath": "$.results[*].name",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].updated_at",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/cancelled_jobs/tags/latest"
+        }
+      ],
+      "title": "Cancelled Master Jobs",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "captures"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 385
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 6,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].captures"
+            },
+            {
+              "jsonPath": "$.results[*].rule",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].count",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/failing_classifications/tags/latest"
+        }
+      ],
+      "title": "Failing Classifications",
+      "type": "table"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Github dashboard (Rockset based)",
+  "uid": "1kkKNt-nk",
+  "version": 1,
+  "weekStart": ""
+}

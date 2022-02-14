@@ -50,6 +50,8 @@ function HudRow({
   rowData: RowData;
   expandedGroups: Set<string>;
 }) {
+  const router = useRouter();
+  const params = packHudParams(router.query);
   const sha = rowData.sha;
   return (
     <tr>
@@ -63,12 +65,16 @@ function HudRow({
         <div className={styles.jobMetadataTruncated}>
           {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
-          <a href={`/commit/${sha}`}>{rowData.commitMessage}</a>
+          <a href={`/${params.repoOwner}/${params.repoName}/commit/${sha}`}>
+            {rowData.commitTitle}
+          </a>
         </div>
       </td>
       <td className={styles.jobMetadata}>
         {rowData.prNum !== null && (
-          <a href={`https://github.com/pytorch/pytorch/pull/${rowData.prNum}`}>
+          <a
+            href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
+          >
             #{rowData.prNum}
           </a>
         )}

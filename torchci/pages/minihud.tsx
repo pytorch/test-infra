@@ -152,8 +152,8 @@ function CommitSummaryLine({
       <span className={`${styles.shaTitleElement} ${styles.commitTitle}`}>
         {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
-        <a target="_blank" rel="noreferrer" href={`/commit/${row.sha}`}>
-          {row.commitMessage}
+        <a target="_blank" rel="noreferrer" href={`/pytorch/pytorch/commit/${row.sha}`}>
+          {row.commitTitle}
         </a>
       </span>
 

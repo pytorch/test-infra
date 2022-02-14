@@ -2,6 +2,10 @@ param(
   [string] $cudaVersion = $env:CUDA_VERSION
 )
 
+function New-TemporaryDirectory() {
+  New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+}
+
 $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
@@ -16,6 +20,9 @@ Switch -Wildcard ($cudaVersion) {
 }
 
 # Switch statement for specfic CUDA versions
+$cudnn_subfolder="cuda"
+$cudnn_lib_folder="lib\x64"
+
 Switch ($cudaVersion) {
   "10.2" {
     $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
@@ -33,14 +40,26 @@ Switch ($cudaVersion) {
   }
   "11.5" {
     $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
-    $cudnnZip = "cudnn-11.3-windows-x64-v8.2.0.53.zip"
+    $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
+    $cudnnZip = "$cudnn_subfolder.zip"
     $installerArgs = "$installerArgs thrust_$cudaVersion"
+    $cudnn_lib_folder="lib"
+
+    Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
+    $tmpZlibDll = New-TemporaryFile
+    Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
+    $tmpExtractedZlibDll = New-TemporaryDirectory
+    7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
+    Get-ChildItem -Path $tmpExtractedZlibDll
+    if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
+     Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
+       exit 1
+    }
+    Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
   }
 }
 
-function New-TemporaryDirectory() {
-  New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-}
+
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
@@ -83,8 +102,13 @@ function Install-Cudnn() {
   Invoke-WebRequest -Uri "$windowsS3BaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
   $tmpCudnnExtracted = New-TemporaryDirectory
   7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
+
   Write-Output "Copying cudnn to $expectedInstallLocation"
-  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\cuda\*" "$expectedInstallLocation"
+
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
+
   if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {
     Write-Error "cudnn installation failed for CUDA version $cudaVersion, cudnn.h not found at $expectedInstallLocation\include\cudnn.h"
     exit 1

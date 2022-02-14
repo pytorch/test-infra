@@ -1,57 +1,34 @@
 import _ from "lodash";
+import { getOctokit, commitDataFromResponse } from "./github";
 import getRocksetClient from "./rockset";
 
-import { CommitData } from "./types";
+import { CommitData, JobData } from "./types";
 
-export default async function fetchCommit(sha: string): Promise<CommitData> {
+export default async function fetchCommit(
+  owner: string,
+  repo: string,
+  sha: string
+): Promise<{ commit: CommitData; jobs: JobData[] }> {
+  // Retrieve commit data from GitHub
+  const octokit = await getOctokit(owner, repo);
+  const res = await octokit.rest.repos.getCommit({ owner, repo, ref: sha });
+  const commit = commitDataFromResponse(res.data);
+
   const rocksetClient = getRocksetClient();
-  const [commitQuery, commitJobsQuery] = await Promise.all([
-    rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "commit_query",
-      "098c004f3e014e7f",
-      {
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-        ],
-      }
-    ),
-    await rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "commit_jobs_query",
-      "cc19958f5b6953c3",
-      {
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-        ],
-      }
-    ),
-  ]);
-
-  const commit = commitQuery.results?.[0].commit;
-  const firstLine = commit.message.indexOf("\n");
-  const commitTitle: string = commit.message.slice(0, firstLine);
-  const commitMessageBody: string = commit.message.slice(firstLine + 1);
-
-  const pullRe = /Pull Request resolved: (.*)/;
-  const exportedPhabRegex = /Differential Revision: \[(.*)\]/;
-  const commitedPhabRegex = /Differential Revision: (D.*)/;
-
-  let match = commitMessageBody.match(pullRe);
-  const prUrl = match ? match[1] : null;
-
-  match = commitMessageBody.match(exportedPhabRegex);
-  if (match === null) {
-    match = commitMessageBody.match(commitedPhabRegex);
-  }
+  const commitJobsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "commit_jobs_query",
+    "cc19958f5b6953c3",
+    {
+      parameters: [
+        {
+          name: "sha",
+          type: "string",
+          value: sha,
+        },
+      ],
+    }
+  );
 
   let jobs = commitJobsQuery.results!;
 
@@ -63,13 +40,8 @@ export default async function fetchCommit(sha: string): Promise<CommitData> {
   // Now reverse again, because we want to display earlier jobs first in the the UI.
   jobs.reverse();
 
-  const diffNum = match ? match[1] : null;
   return {
-    sha: commit.id,
-    commitTitle,
-    commitMessageBody,
-    prUrl,
-    diffNum,
+    commit,
     jobs,
   };
 }

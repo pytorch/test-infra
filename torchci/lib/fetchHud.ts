@@ -1,4 +1,5 @@
 import _ from "lodash";
+import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 
@@ -6,70 +7,37 @@ export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
   jobNames: string[];
 }> {
-  const rocksetClient = getRocksetClient();
-  const [hudQuery, commitQuery] = await Promise.all([
-    rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "hud_query",
-      "e7597aba6bba4320",
-      {
-        parameters: [
-          {
-            name: "branch",
-            type: "string",
-            value: `refs/heads/${params.branch}`,
-          },
-          {
-            name: "page",
-            type: "int",
-            value: params.page.toString(),
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: params.repoOwner,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: params.repoName,
-          },
-        ],
-      }
-    ),
-    rocksetClient.queryLambdas.executeQueryLambda(
-      "commons",
-      "master_commits",
-      "f527c15ab36276ae",
-      {
-        parameters: [
-          {
-            name: "branch",
-            type: "string",
-            value: `refs/heads/${params.branch}`,
-          },
-          {
-            name: "page",
-            type: "int",
-            value: params.page.toString(),
-          },
-          {
-            name: "owner",
-            type: "string",
-            value: params.repoOwner,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: params.repoName,
-          },
-        ],
-      }
-    ),
-  ]);
+  // Retrieve commit data from GitHub
+  const octokit = await getOctokit(params.repoOwner, params.repoName);
+  const branch = await octokit.rest.repos.listCommits({
+    owner: params.repoOwner,
+    repo: params.repoName,
+    sha: params.branch,
+    per_page: 50,
+    page: params.page,
+  });
+  const commits = branch.data.map(commitDataFromResponse);
 
-  const commitsBySha = _.keyBy(commitQuery.results, "sha");
-  let results = hudQuery.results;
+  // Retrieve job data from rockset
+  const shas = commits.map((commit) => commit.sha);
+  const rocksetClient = getRocksetClient();
+  const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "hud_query",
+    "cee7578c7a095800",
+    {
+      parameters: [
+        {
+          name: "shas",
+          type: "string",
+          value: shas.join(","),
+        },
+      ],
+    }
+  );
+
+  const commitsBySha = _.keyBy(commits, "sha");
+  const results = hudQuery.results;
 
   const namesSet: Set<string> = new Set();
   // Built a list of all the distinct job names.
@@ -122,12 +90,7 @@ export default async function fetchHud(params: HudParams): Promise<{
     }
 
     const row: RowData = {
-      sha: sha,
-      time: commit.timestamp,
-      commitUrl: commit.url,
-      diffNum: commit.diffNum,
-      commitMessage: commit.message,
-      prNum: commit.prNum,
+      ...commit,
       jobs: jobs,
     };
     shaGrid.push(row);
