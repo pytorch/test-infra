@@ -10796,7 +10796,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "### \ud83d\udc1b Describe the bug\n\nCurrently many tests run in forks but they are expected to fail due to lack of credentials in forks.\r\n\r\nThis is a bit annoying to contributors:\r\n![2022-02-10_09-58](https://user-images.githubusercontent.com/1381301/153467936-0f6833ba-52f1-4506-aa03-f769abdd06d2.png)\r\n\r\nA failed job example: https://github.com/ppwwyyxx/pytorch/runs/5137367784?check_suite_focus=true\r\n\r\nI think github action should be configured to not run these in forks.\n\n### Versions\n\nlatest as of 02/09\n\ncc @seemethere @malfet @pytorch/pytorch-dev-infra",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/comments",
       "created_at": "2022-02-10T17:59:26Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/events",
@@ -10872,7 +10872,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72661/timeline",
       "title": "Tests should be disabled in forks when they are expected to fail",
-      "updated_at": "2022-02-14T01:09:57Z",
+      "updated_at": "2022-02-14T21:43:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72661",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1381301?v=4",
