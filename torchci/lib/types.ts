@@ -19,6 +19,11 @@ export interface JobData {
   originalPrData?: JobData;
 }
 
+export interface GroupData {
+  groupName: string;
+  jobs: JobData[];
+}
+
 export interface CommitData {
   sha: string;
   time: string;
@@ -31,6 +36,7 @@ export interface CommitData {
 
 export interface RowData extends CommitData {
   jobs: JobData[];
+  groupedJobs?: GroupData[];
 }
 
 export interface HudData {
