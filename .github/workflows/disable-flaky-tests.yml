@@ -1,0 +1,18 @@
+name: Disable Flaky Tests
+
+on:
+  schedule:
+    # At minute 39 past every 3rd hour Monday through Friday.
+    - cron: "39 */3 * * 1-5"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+jobs:
+  cron:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Fetch and file issues for flaky tests
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/flaky-tests/disable' \
+          --header 'Authorization: ${{ secrets.FLAKY_TEST_BOT_KEY }}'
