@@ -93,7 +93,7 @@ export function getIssueTitle(test_name: string, test_suite: string) {
 
 
 export function getPlatformsAffected(workflow_names: string[]): string[] {
-    let platformsToSkip: string[] = [];
+    const platformsToSkip: string[] = [];
     supportedPlatforms.forEach((platform: string) =>
         workflow_names.forEach(workflow_name => {
             if (workflow_name.includes(platform) && !platformsToSkip.includes(platform)) {
@@ -107,15 +107,13 @@ export function getPlatformsAffected(workflow_names: string[]): string[] {
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
-    const message = `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
+    return `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
 
     This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent
     [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
 
     Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with
     ${test.num_red} red and ${test.num_green} green.`;
-
-    return message;
 }
 
 

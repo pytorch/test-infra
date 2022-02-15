@@ -27,7 +27,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
   test("previously undetected flaky test should create an issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
         .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-        .reply(200, Buffer.from("# Owner(s): [\"module: fft\"]\nimport blah;\nrest of file"));
+        .reply(200, Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`));
     const scope2 = nock("https://api.github.com")
         .post("/repos/pytorch/pytorch/issues", (body) => {
             expect(body.title).toEqual("DISABLED test_a (__main__.suite_a)");
@@ -114,7 +114,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     test("getTestOwnerLabels: owned test file should return proper module along with triaged", async () => {
         const scope = nock("https://raw.githubusercontent.com/")
             .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-            .reply(200, Buffer.from("# Owner(s): [\"module: fft\"]\nimport blah;\nrest of file"));
+            .reply(200, Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`));
 
         const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
         expect(labels).toEqual(["module: fft", "triaged"]);
@@ -128,7 +128,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     test("getTestOwnerLabels: un-owned high priority test file should NOT return triaged", async () => {
         const scope = nock("https://raw.githubusercontent.com/")
             .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-            .reply(200, Buffer.from("# Owner(s): [\"high priority\"]\nimport blah;\nrest of file"));
+            .reply(200, Buffer.from(`# Owner(s): ["high priority"]\nimport blah;\nrest of file`));
 
         const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
         expect(labels).toEqual(["high priority"]);
@@ -142,7 +142,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
         const scope = nock("https://raw.githubusercontent.com/")
             .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-            .reply(200, Buffer.from("# Owner(s): [\"module: unknown\"]\nimport blah;\nrest of file"));
+            .reply(200, Buffer.from(`# Owner(s): ["module: unknown"]\nimport blah;\nrest of file`));
 
         const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
         expect(labels).toEqual(["module: unknown"]);
