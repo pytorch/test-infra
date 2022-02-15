@@ -122,7 +122,8 @@ export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
 export async function getTestOwnerLabels(test_file: string) : Promise<string[]> {
     const urlkey = "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
-    return urllib.request(`${urlkey}${test_file}.py`).then(function (result): string[] {
+    try {
+        const result = await urllib.request(`${urlkey}${test_file}.py`);
         const status_code = result.res.statusCode;
         if (status_code !== 200) {
             console.warn(`Error retrieving test file of flaky test: ${status_code}`);
@@ -144,10 +145,10 @@ export async function getTestOwnerLabels(test_file: string) : Promise<string[]> 
             }
         }
         return ["module: unknown"];
-    }).catch(function (err) : string[] {
+    } catch (err) {
         console.warn(`Error retrieving test file of flaky test: ${err}`);
         return ["module: unknown"];
-    });
+    }
 }
 
 
