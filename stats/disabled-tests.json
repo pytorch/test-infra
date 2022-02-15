@@ -10255,7 +10255,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test-distributed/3045/console\r\n\r\n```\r\n09:10:50 ======================================================================\r\n09:10:50 FAIL [0.018s]: test_data_parallel_module_cuda_float16 (__main__.TestDataParallelDeviceTypeCUDA)\r\n09:10:50 ----------------------------------------------------------------------\r\n09:10:50 Traceback (most recent call last):\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 376, in instantiated_test\r\n09:10:50     result = test(self, **param_kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 907, in only_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 788, in dep_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"distributed/test_data_parallel.py\", line 784, in test_data_parallel_module\r\n09:10:50     self.assertEqual(out, expected_out, atol=dtype2prec_DONTUSE[dtype], rtol=0)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2078, in assertEqual\r\n09:10:50     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n09:10:50 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=0 and atol=0.01, found 25 element(s) (out of 100) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.9091796875 (-1.443359375 vs. 0.4658203125), which occurred at index (18, 3).\r\n```\r\n",
+      "body": "platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test-distributed/3045/console\r\n\r\n```\r\n09:10:50 ======================================================================\r\n09:10:50 FAIL [0.018s]: test_data_parallel_module_cuda_float16 (__main__.TestDataParallelDeviceTypeCUDA)\r\n09:10:50 ----------------------------------------------------------------------\r\n09:10:50 Traceback (most recent call last):\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1553, in wrapper\r\n09:10:50     method(*args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 376, in instantiated_test\r\n09:10:50     result = test(self, **param_kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 907, in only_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 788, in dep_fn\r\n09:10:50     return fn(slf, *args, **kwargs)\r\n09:10:50   File \"distributed/test_data_parallel.py\", line 784, in test_data_parallel_module\r\n09:10:50     self.assertEqual(out, expected_out, atol=dtype2prec_DONTUSE[dtype], rtol=0)\r\n09:10:50   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2078, in assertEqual\r\n09:10:50     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n09:10:50 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=0 and atol=0.01, found 25 element(s) (out of 100) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.9091796875 (-1.443359375 vs. 0.4658203125), which occurred at index (18, 3).\r\n```\r\n\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/comments",
@@ -10264,6 +10264,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/71770",
       "id": 1114174682,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -10306,7 +10315,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71770/timeline",
       "title": "DISABLED test_data_parallel_module_cuda_float16 (__main__.TestDataParallelDeviceTypeCUDA)",
-      "updated_at": "2022-01-25T17:33:08Z",
+      "updated_at": "2022-02-15T18:38:35Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71770",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
@@ -11034,7 +11043,86 @@
         "type": "User",
         "url": "https://api.github.com/users/jaglinux"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "### \ud83d\udc1b Describe the bug\n\nplatforms: rocm\r\n\r\nhttps://our.intern.facebook.com/intern/opensource/ci/job/log/367335521549970/\r\n\r\nSee also https://github.com/pytorch/pytorch/issues/71770\r\n\r\n```\r\n2022-02-15T18:03:58.0131662Z ======================================================================\r\n2022-02-15T18:03:58.0132929Z FAIL [0.037s]: test_data_parallel_module_cuda_float64 (__main__.TestDataParallelDeviceTypeCUDA)\r\n2022-02-15T18:03:58.0137117Z ----------------------------------------------------------------------\r\n2022-02-15T18:03:58.0138538Z Traceback (most recent call last):\r\n2022-02-15T18:03:58.0140336Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1754, in wrapper\r\n2022-02-15T18:03:58.0141592Z     method(*args, **kwargs)\r\n2022-02-15T18:03:58.0143265Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 376, in instantiated_test\r\n2022-02-15T18:03:58.0144381Z     result = test(self, **param_kwargs)\r\n2022-02-15T18:03:58.0145994Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 915, in only_fn\r\n2022-02-15T18:03:58.0146942Z     return fn(slf, *args, **kwargs)\r\n2022-02-15T18:03:58.0148278Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_device_type.py\", line 796, in dep_fn\r\n2022-02-15T18:03:58.0149870Z     return fn(slf, *args, **kwargs)\r\n2022-02-15T18:03:58.0150723Z   File \"distributed/test_data_parallel.py\", line 795, in test_data_parallel_module\r\n2022-02-15T18:03:58.0151815Z     self.assertEqual(out, expected_out, atol=dtype2prec_DONTUSE[dtype], rtol=0)\r\n2022-02-15T18:03:58.0153329Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2154, in assertEqual\r\n2022-02-15T18:03:58.0154236Z     msg=msg,\r\n2022-02-15T18:03:58.0155484Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_comparison.py\", line 1081, in assert_equal\r\n2022-02-15T18:03:58.0156393Z     raise error_metas[0].to_error()\r\n2022-02-15T18:03:58.0158118Z AssertionError: Tensor-likes are not close!\r\n2022-02-15T18:03:58.0158615Z \r\n2022-02-15T18:03:58.0158878Z Mismatched elements: 75 / 100 (75.0%)\r\n2022-02-15T18:03:58.0160047Z Greatest absolute difference: 1.4500386636277105 at index (19, 3) (up to 1e-05 allowed)\r\n2022-02-15T18:03:58.0161033Z Greatest relative difference: 1.0403183913191243 at index (9, 2) (up to 0 allowed)\r\n```\n\n### Versions\n\nb9ccbe4ff285af8dc89050dac6dbeeaced63e21d\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72868/comments",
+      "created_at": "2022-02-15T18:38:17Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72868/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/72868",
+      "id": 1139067803,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72868/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85D5Mub",
+      "number": 72868,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/72868/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72868/timeline",
+      "title": "DISABLED test_data_parallel_module_cuda_float64 (__main__.TestDataParallelDeviceTypeCUDA)",
+      "updated_at": "2022-02-15T18:38:40Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/72868",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
+        "events_url": "https://api.github.com/users/ezyang/events{/privacy}",
+        "followers_url": "https://api.github.com/users/ezyang/followers",
+        "following_url": "https://api.github.com/users/ezyang/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ezyang/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/ezyang",
+        "id": 13564,
+        "login": "ezyang",
+        "node_id": "MDQ6VXNlcjEzNTY0",
+        "organizations_url": "https://api.github.com/users/ezyang/orgs",
+        "received_events_url": "https://api.github.com/users/ezyang/received_events",
+        "repos_url": "https://api.github.com/users/ezyang/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/ezyang/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ezyang/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/ezyang"
+      }
     }
   ],
-  "total_count": 108
+  "total_count": 109
 }
