@@ -12,7 +12,6 @@
     "@aws-sdk/client-dynamodb": "^3.49.0",
     "@aws-sdk/lib-dynamodb": "^3.49.0",
     "@monaco-editor/react": "^4.3.1",
-    "@octokit/auth-app": "^3.6.1",
     "@octokit/webhooks": "^9.22.0",
     "@rockset/client": "^0.8.9",
     "axios": "^0.25.0",

@@ -15,4 +15,4 @@ jobs:
         run: |
           curl --request POST \
           --url 'https://www.torch-ci.com/api/flaky-tests/disable' \
-          --header 'Authorization: Bearer ${{ secrets.ACTION_KEY }}'
+          --header 'Authorization: ${{ secrets.FLAKY_TEST_BOT_KEY }}'

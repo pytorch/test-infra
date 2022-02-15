@@ -6,6 +6,7 @@ import fetchFlakyTests from "lib/fetchFlakyTests";
 import { FlakyTestData, IssueData } from "lib/types";
 import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { Octokit } from "octokit";
 
 
 const NUM_HOURS = 3;
@@ -17,63 +18,71 @@ export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse<void>
 ) {
-    await disableFlakyTests();
-    res.status(200);
+    const authorization = req.headers.authorization;
+    if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
+        await disableFlakyTests();
+        res.status(200).end();
+    }
+    res.status(403).end();
 }
 
 
 async function disableFlakyTests() {
-    const octokit = await getOctokit(owner, repo);
-    const flaky_tests = await fetchFlakyTests(`${NUM_HOURS}`);
-    const issues: IssueData[] = await fetchIssuesByLabel("skipped");
-    flaky_tests.forEach(async function(test: FlakyTestData) {
-        const issueTitle = getIssueTitle(test.name, test.suite);
-        const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
-        if (matchingIssues.length !== 0) {
-            // There is a matching issue
-            const matchingIssue = matchingIssues[0];
-            if (matchingIssue.state === "open") {
-                const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
-                Please verify the issue was opened after this instance, that the platforms list includes all of
-                [${getPlatformsAffected(test.workflow_names).join(", ")}], or disable bot might not be working as expected.`;
-                octokit.rest.issues.createComment({
-                    owner,
-                    repo,
-                    issue_number: matchingIssue.number,
-                    body,
-                });
-            } else {
-                // Re-open the issue
-                octokit.rest.issues.update({
-                    owner,
-                    repo,
-                    issue_number: matchingIssue.number,
-                    state: "open",
-                });
-
-                const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
-                Reopening the issue to disable. Please verify that the platforms list includes all of
-                [${getPlatformsAffected(test.workflow_names).join(", ")}].`;
-                octokit.rest.issues.createComment({
-                    owner,
-                    repo,
-                    issue_number: matchingIssue.number,
-                    body,
-                });
-            }
-        } else {
-            await createIssueFromFlakyTest(test);
-        }
+    const [octokit, flaky_tests, issues] = await Promise.all([
+        getOctokit(owner, repo), fetchFlakyTests(`${NUM_HOURS}`), fetchIssuesByLabel("skipped")]);
+    flaky_tests.forEach(async function (test) {
+        await handleFlakyTest(test, issues, octokit);
     });
 }
 
 
-function getLatestWorkflowURL(workflow_ids: string[]): string {
+export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], octokit: Octokit) {
+    const issueTitle = getIssueTitle(test.name, test.suite);
+    const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+    if (matchingIssues.length !== 0) {
+        // There is a matching issue
+        const matchingIssue = matchingIssues[0];
+        if (matchingIssue.state === "open") {
+            const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
+            Please verify the issue was opened after this instance, that the platforms list includes all of
+            [${getPlatformsAffected(test.workflow_names).join(", ")}], or disable bot might not be working as expected.`;
+            await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: matchingIssue.number,
+                body,
+            });
+        } else {
+            // Re-open the issue
+            await octokit.rest.issues.update({
+                owner,
+                repo,
+                issue_number: matchingIssue.number,
+                state: "open",
+            });
+
+            const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
+            Reopening the issue to disable. Please verify that the platforms list includes all of
+            [${getPlatformsAffected(test.workflow_names).join(", ")}].`;
+            await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: matchingIssue.number,
+                body,
+            });
+        }
+    } else {
+        await createIssueFromFlakyTest(test, octokit);
+    }
+}
+
+
+export function getLatestWorkflowURL(workflow_ids: string[]): string {
     return `https://github.com/pytorch/pytorch/actions/runs/${workflow_ids[workflow_ids.length - 1]}`;
 }
 
 
-function getIssueTitle(test_name: string, test_suite: string) {
+export function getIssueTitle(test_name: string, test_suite: string) {
     let suite = test_suite;
     // If the test class is not a subclass, it belongs to __main__
     if (test_suite.indexOf(".") < 0) {
@@ -83,24 +92,24 @@ function getIssueTitle(test_name: string, test_suite: string) {
 }
 
 
-function getPlatformsAffected(workflow_names: string[]): string[] {
+export function getPlatformsAffected(workflow_names: string[]): string[] {
     let platformsToSkip: string[] = [];
-    supportedPlatforms.forEach(function(platform: string) {
+    supportedPlatforms.forEach((platform: string) =>
         workflow_names.forEach(workflow_name => {
             if (workflow_name.includes(platform) && !platformsToSkip.includes(platform)) {
                 platformsToSkip.push(platform);
             }
-        });
-    });
+        })
+    );
     return platformsToSkip;
 }
 
 
-function getIssueBodyForFlakyTest(test: FlakyTestData): string {
+export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
     const message = `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
 
-    This test was disabled because it is failing on trunk. See [recent examples](${examplesURL}) and the most recent
+    This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent
     [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
 
     Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with
@@ -110,10 +119,10 @@ function getIssueBodyForFlakyTest(test: FlakyTestData): string {
 }
 
 
-async function getTestOwnerLabels(test_file: string) : Promise<string[]> {
+export async function getTestOwnerLabels(test_file: string) : Promise<string[]> {
     const urlkey = "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
-    return await urllib.request(`${urlkey}${test_file}.py`).then(function (result): string[] {
+    return urllib.request(`${urlkey}${test_file}.py`).then(function (result): string[] {
         const status_code = result.res.statusCode;
         if (status_code !== 200) {
             console.warn(`Error retrieving test file of flaky test: ${status_code}`);
@@ -142,12 +151,11 @@ async function getTestOwnerLabels(test_file: string) : Promise<string[]> {
 }
 
 
-async function createIssueFromFlakyTest(test: FlakyTestData): Promise<void> {
+export async function createIssueFromFlakyTest(test: FlakyTestData, octokit: Octokit): Promise<void> {
     const title = getIssueTitle(test.name, test.suite);
     const body = getIssueBodyForFlakyTest(test);
     const labels = ["skipped", "module: flaky-tests"].concat(await getTestOwnerLabels(test.file));
-    const octokit = await getOctokit(owner, repo);
-    octokit.rest.issues.create({
+    await octokit.rest.issues.create({
         owner,
         repo,
         title,

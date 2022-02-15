@@ -1,4 +1,6 @@
+import { createAppAuth } from "@octokit/auth-app";
 import nock from "nock";
+import { Octokit } from "octokit";
 import { Probot, ProbotOctokit } from "probot";
 
 export function testProbot(): Probot {
@@ -12,6 +14,13 @@ export function testProbot(): Probot {
       throttle: { enabled: false },
     }),
   });
+}
+
+export function testOctokit(): Octokit {
+  return new Octokit({
+    retry: { enabled: false },
+    throttle: { enabled: false },
+  })
 }
 
 export function mockConfig(
