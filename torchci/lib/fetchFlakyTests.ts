@@ -8,7 +8,7 @@ export default async function fetchFlakyTests(num_hours: string): Promise<FlakyT
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "flaky_test_query",
-      "f9456c0b8c5a39a3",
+      "12b03f2fbf584dc0",
       {
         parameters: [
           {
