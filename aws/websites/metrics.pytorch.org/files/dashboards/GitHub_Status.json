@@ -5524,9 +5524,9 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "America/Los_Angeles",
+  "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
