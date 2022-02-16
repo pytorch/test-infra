@@ -780,6 +780,93 @@
       ],
       "title": "Failing Classifications",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Last successful workflow",
+              "url": "${__data.fields.html_url}"
+            }
+          ],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 15
+      },
+      "id": 23,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"workflowName\",\n        \"type\": \"string\",\n        \"value\": \"docker-builds\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].last_success_seconds_ago",
+              "type": "number"
+            },
+            {
+              "jsonPath": "$.results[0].html_url",
+              "language": "jsonpath",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_workflow/tags/latest"
+        }
+      ],
+      "title": "Last docker-build workflow success",
+      "type": "stat"
     }
   ],
   "refresh": "",
@@ -797,6 +884,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 22,
+  "version": 23,
   "weekStart": ""
 }
