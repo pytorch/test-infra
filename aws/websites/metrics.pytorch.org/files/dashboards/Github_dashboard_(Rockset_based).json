@@ -240,7 +240,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 5,
         "w": 4,
         "x": 16,
         "y": 0
@@ -355,6 +355,79 @@
         }
       ],
       "title": "Last viable/strict push",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 43200
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 5
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/master\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].push_seconds_ago",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+        }
+      ],
+      "title": "Last master push",
       "type": "stat"
     },
     {
@@ -603,11 +676,13 @@
         "type": "marcusolsson-json-datasource",
         "uid": "P62E83680D611FAF2"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -618,7 +693,7 @@
               },
               {
                 "color": "red",
-                "value": 43200
+                "value": 864000
               }
             ]
           },
@@ -630,9 +705,10 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 7
+        "y": 10
       },
-      "id": 19,
+      "id": 23,
+      "links": [],
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -650,7 +726,7 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/master\"\n      }\n    ]\n  }\n",
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"workflowName\",\n        \"type\": \"string\",\n        \"value\": \"docker-builds\"\n      }\n    ]\n  }\n",
           "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -658,17 +734,17 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[0].push_seconds_ago",
+              "jsonPath": "$.results[*].last_success_seconds_ago",
               "type": "number"
             }
           ],
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_successful_workflow/tags/latest"
         }
       ],
-      "title": "Last master push",
+      "title": "Last docker-build success",
       "type": "stat"
     },
     {
@@ -773,12 +849,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "yellow",
                 "value": null
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 40
               }
             ]
           }
@@ -787,20 +863,24 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "captures"
+              "options": "num"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 882
+                "value": 217
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 16,
+        "h": 9,
+        "w": 12,
         "x": 0,
         "y": 15
       },
@@ -849,57 +929,103 @@
         "type": "marcusolsson-json-datasource",
         "uid": "P62E83680D611FAF2"
       },
-      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "links": [],
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "links": [
+            {
+              "targetBlank": true,
+              "title": "Link",
+              "url": "${__data.fields.URL}"
+            }
+          ],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "yellow",
                 "value": null
               },
               {
                 "color": "red",
-                "value": 864000
+                "value": 1800
               }
             ]
           },
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time in queue"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 157
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "URL"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Machine Type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 249
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 20,
+        "h": 9,
+        "w": 12,
+        "x": 12,
         "y": 15
       },
-      "id": 23,
-      "links": [],
+      "id": 26,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+        "footer": {
           "fields": "",
-          "values": false
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "textMode": "auto"
+        "showHeader": true,
+        "sortBy": []
       },
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"workflowName\",\n        \"type\": \"string\",\n        \"value\": \"docker-builds\"\n      }\n    ]\n  }\n",
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      }\n    ]\n  }\n",
           "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -907,18 +1033,33 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[*].last_success_seconds_ago",
-              "type": "number"
+              "jsonPath": "$.results[*].queue_s",
+              "name": "Time in queue"
+            },
+            {
+              "jsonPath": "$.results[*].labels",
+              "language": "jsonpath",
+              "name": "Machine Type"
+            },
+            {
+              "jsonPath": "$.results[*].html_url",
+              "language": "jsonpath",
+              "name": "URL"
+            },
+            {
+              "jsonPath": "$.results[*].name",
+              "language": "jsonpath",
+              "name": "Name"
             }
           ],
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_successful_workflow/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/queued_jobs/tags/latest"
         }
       ],
-      "title": "Last docker-build success",
-      "type": "stat"
+      "title": "Jobs in queue",
+      "type": "table"
     }
   ],
   "refresh": "",
@@ -936,6 +1077,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 35,
+  "version": 40,
   "weekStart": ""
 }
