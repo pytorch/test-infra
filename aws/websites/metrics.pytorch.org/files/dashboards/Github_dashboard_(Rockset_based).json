@@ -73,7 +73,7 @@
                 "value": null
               },
               {
-                "color": "dark-red",
+                "color": "red",
                 "value": 0.05
               }
             ]
@@ -156,7 +156,7 @@
                 "value": null
               },
               {
-                "color": "dark-red",
+                "color": "red",
                 "value": 0.01
               }
             ]
@@ -228,10 +228,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "dark-red",
-                "value": 5
               }
             ]
           },
@@ -536,7 +532,7 @@
                 "value": null
               },
               {
-                "color": "dark-red",
+                "color": "red",
                 "value": 0.5
               }
             ]
@@ -617,7 +613,7 @@
                 "value": null
               },
               {
-                "color": "dark-red",
+                "color": "red",
                 "value": 0.5
               }
             ]
@@ -849,7 +845,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "yellow",
+                "color": "green",
                 "value": null
               },
               {
@@ -1077,6 +1073,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 40,
+  "version": 41,
   "weekStart": ""
 }
