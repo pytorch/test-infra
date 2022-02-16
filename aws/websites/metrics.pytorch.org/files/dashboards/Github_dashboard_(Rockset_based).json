@@ -792,13 +792,7 @@
           "color": {
             "mode": "thresholds"
           },
-          "links": [
-            {
-              "targetBlank": true,
-              "title": "Last successful workflow",
-              "url": "${__data.fields.html_url}"
-            }
-          ],
+          "links": [],
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -809,7 +803,7 @@
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 864000
               }
             ]
           },
@@ -824,6 +818,7 @@
         "y": 15
       },
       "id": 23,
+      "links": [],
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -849,11 +844,11 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[0].last_success_seconds_ago",
+              "jsonPath": "$.results[*].last_success_seconds_ago",
               "type": "number"
             },
             {
-              "jsonPath": "$.results[0].html_url",
+              "jsonPath": "$.results[*].html_url",
               "language": "jsonpath",
               "name": "",
               "type": "string"
@@ -884,6 +879,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 23,
+  "version": 27,
   "weekStart": ""
 }
