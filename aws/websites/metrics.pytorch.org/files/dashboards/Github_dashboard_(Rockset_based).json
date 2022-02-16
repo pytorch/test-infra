@@ -331,79 +331,6 @@
         "x": 20,
         "y": 0
       },
-      "id": 19,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "8.3.3",
-      "targets": [
-        {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/master\"\n      }\n    ]\n  }\n",
-          "cacheDurationSeconds": 0,
-          "datasource": {
-            "type": "marcusolsson-json-datasource",
-            "uid": "P62E83680D611FAF2"
-          },
-          "fields": [
-            {
-              "jsonPath": "$.results[0].push_seconds_ago",
-              "type": "number"
-            }
-          ],
-          "method": "POST",
-          "queryParams": "",
-          "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
-        }
-      ],
-      "title": "Last master push",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "marcusolsson-json-datasource",
-        "uid": "P62E83680D611FAF2"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 43200
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 20,
-        "y": 5
-      },
       "id": 20,
       "options": {
         "colorMode": "value",
@@ -441,6 +368,79 @@
         }
       ],
       "title": "Last viable/strict push",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 86400
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/nightly\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].push_seconds_ago",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+        }
+      ],
+      "title": "Last nightly push",
       "type": "stat"
     },
     {
@@ -631,7 +631,7 @@
               },
               {
                 "color": "red",
-                "value": 86400
+                "value": 43200
               }
             ]
           },
@@ -642,10 +642,10 @@
       "gridPos": {
         "h": 5,
         "w": 4,
-        "x": 20,
-        "y": 10
+        "x": 16,
+        "y": 7
       },
-      "id": 21,
+      "id": 19,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -663,7 +663,7 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/nightly\"\n      }\n    ]\n  }\n",
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/master\"\n      }\n    ]\n  }\n",
           "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -681,7 +681,89 @@
           "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
         }
       ],
-      "title": "Last nightly push",
+      "title": "Last master push",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 259200
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 10
+      },
+      "id": 24,
+      "links": [],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"workflowName\",\n        \"type\": \"string\",\n        \"value\": \"linux-docs-push\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].last_success_seconds_ago",
+              "type": "number"
+            },
+            {
+              "jsonPath": "$.results[*].html_url",
+              "language": "jsonpath",
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_workflow/tags/latest"
+        }
+      ],
+      "title": "Last docs push success",
       "type": "stat"
     },
     {
@@ -812,7 +894,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 4,
         "x": 20,
         "y": 15
@@ -860,7 +942,7 @@
           "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_workflow/tags/latest"
         }
       ],
-      "title": "Last docker-build workflow success",
+      "title": "Last docker-build success",
       "type": "stat"
     }
   ],
@@ -879,6 +961,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 27,
+  "version": 29,
   "weekStart": ""
 }
