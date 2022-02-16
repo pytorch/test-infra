@@ -22,20 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
-  "links": [
-    {
-      "asDropdown": false,
-      "icon": "external link",
-      "includeVars": false,
-      "keepTime": false,
-      "tags": [],
-      "targetBlank": false,
-      "title": "New link",
-      "tooltip": "",
-      "type": "dashboards",
-      "url": ""
-    }
-  ],
+  "links": [],
   "liveNow": false,
   "panels": [
     {
@@ -749,12 +736,6 @@
             {
               "jsonPath": "$.results[*].last_success_seconds_ago",
               "type": "number"
-            },
-            {
-              "jsonPath": "$.results[*].html_url",
-              "language": "jsonpath",
-              "name": "",
-              "type": "string"
             }
           ],
           "method": "POST",
@@ -955,6 +936,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 33,
+  "version": 35,
   "weekStart": ""
 }
