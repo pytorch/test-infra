@@ -11358,7 +11358,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\n    This test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_Sparse_to_Sparse_copy__cuda_bfloat16%2C%20TestSparseCUDA) and the most recent\n    [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1845473204).\n\n    Over the past 3 hours, it has been determined flaky in 1 workflow(s) with\n    3 red and 1 green.\n\ncc @ezyang @gchanan @zou3519 @nikitaved @pearu @cpuhrsch",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_Sparse_to_Sparse_copy__cuda_bfloat16%2C%20TestSparseCUDA) and the most recent [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1845473204).\r\n\r\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.\r\n\r\ncc @ezyang @gchanan @zou3519 @nikitaved @pearu @cpuhrsch",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72892/comments",
@@ -11445,7 +11445,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72892/timeline",
       "title": "DISABLED test_Sparse_to_Sparse_copy__cuda_bfloat16 (__main__.TestSparseCUDA)",
-      "updated_at": "2022-02-15T22:15:22Z",
+      "updated_at": "2022-02-16T20:55:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72892",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
