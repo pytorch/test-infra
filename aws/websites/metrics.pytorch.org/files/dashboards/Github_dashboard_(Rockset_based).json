@@ -534,7 +534,7 @@
           "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/tags/latest"
         }
       ],
-      "title": "Master commits by red, by day",
+      "title": "% commits red on master, by day",
       "type": "barchart"
     },
     {
@@ -760,7 +760,7 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_workflow/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_successful_workflow/tags/latest"
         }
       ],
       "title": "Last docs push success",
@@ -928,18 +928,12 @@
             {
               "jsonPath": "$.results[*].last_success_seconds_ago",
               "type": "number"
-            },
-            {
-              "jsonPath": "$.results[*].html_url",
-              "language": "jsonpath",
-              "name": "",
-              "type": "string"
             }
           ],
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_workflow/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_successful_workflow/tags/latest"
         }
       ],
       "title": "Last docker-build success",
@@ -961,6 +955,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 29,
+  "version": 33,
   "weekStart": ""
 }
