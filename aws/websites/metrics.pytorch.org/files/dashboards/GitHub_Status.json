@@ -864,7 +864,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 217
+                "value": 100
               },
               {
                 "id": "custom.displayMode",
@@ -876,7 +876,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 12,
+        "w": 9,
         "x": 0,
         "y": 15
       },
@@ -958,7 +958,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 204
+                "value": 106
               },
               {
                 "id": "custom.displayMode",
@@ -994,7 +994,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 205
+                "value": 134
               },
               {
                 "id": "custom.displayMode",
@@ -1026,8 +1026,8 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 6,
-        "x": 12,
+        "w": 7,
+        "x": 9,
         "y": 15
       },
       "id": 85,
@@ -1120,7 +1120,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 157
+                "value": 129
               },
               {
                 "id": "custom.displayMode",
@@ -1148,7 +1148,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 249
+                "value": 208
               }
             ]
           }
@@ -1156,8 +1156,8 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 6,
-        "x": 18,
+        "w": 8,
+        "x": 16,
         "y": 15
       },
       "id": 83,
@@ -5681,6 +5681,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
