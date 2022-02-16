@@ -109,11 +109,9 @@ export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
     return `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
 
-    This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent
-    [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
+This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
 
-    Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with
-    ${test.num_red} red and ${test.num_green} green.`;
+Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with ${test.num_red} red and ${test.num_green} green.`;
 }
 
 
