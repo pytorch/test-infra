@@ -10575,7 +10575,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "This test has been flaky on CI for the past week or so: https://www.torch-ci.com/failure/test_success%2C%20SpawnTest\r\n\r\nIt fails with SIGBUS and errors sometimes\n\ncc @ezyang @gchanan @zou3519 @VitalyFedyunin",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72298/comments",
       "created_at": "2022-02-03T22:27:59Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72298/events",
@@ -10660,7 +10660,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72298/timeline",
       "title": "DISABLED test_success (__main__.SpawnTest)",
-      "updated_at": "2022-02-16T06:42:17Z",
+      "updated_at": "2022-02-16T09:39:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72298",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
@@ -11582,7 +11582,113 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "NONE",
+      "body": "Platforms: linux\n\n    This test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_transformer_module_apply%2C%20TestApply) and the most recent\n    [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1851725435).\n\n    Over the past 3 hours, it has been determined flaky in 1 workflow(s) with\n    2 red and 2 green.\n\ncc @ezyang @gchanan @zou3519",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/comments",
+      "created_at": "2022-02-16T09:39:54Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/72908",
+      "id": 1139773655,
+      "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "1d76db",
+          "default": false,
+          "description": "We do not know who is responsible for this feature, bug, or test case.",
+          "id": 3500281775,
+          "name": "module: unknown",
+          "node_id": "LA_kwDOA-j9z87Qog-v",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85D75DX",
+      "number": 72908,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/timeline",
+      "title": "DISABLED test_transformer_module_apply (__main__.TestApply)",
+      "updated_at": "2022-02-16T09:39:57Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/72908",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
+        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/apps/pytorch-bot",
+        "id": 54816060,
+        "login": "pytorch-bot[bot]",
+        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
+        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
+        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
+        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
+        "type": "Bot",
+        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
+      }
     }
   ],
-  "total_count": 113
+  "total_count": 114
 }
