@@ -54,7 +54,7 @@ export function GroupHudTableHeader({
           const passesFilter =
             filter === null || includesCaseInsensitive(name, filter);
           const style = passesFilter ? {} : { visibility: "collapse" as any };
-          const cursorStyle = isGroup ? {} : { cursor: "pointer" };
+          const cursorStyle = isGroup ? { cursor: "pointer" } : {};
 
           return (
             <th
