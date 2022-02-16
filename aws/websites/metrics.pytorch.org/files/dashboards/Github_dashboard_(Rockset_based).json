@@ -46,8 +46,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "dark-red",
-            "mode": "fixed"
+            "mode": "thresholds",
+            "seriesBy": "last"
           },
           "custom": {
             "axisLabel": "",
@@ -55,7 +55,7 @@
             "barAlignment": 0,
             "drawStyle": "bars",
             "fillOpacity": 100,
-            "gradientMode": "none",
+            "gradientMode": "scheme",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -86,8 +86,8 @@
                 "value": null
               },
               {
-                "color": "green",
-                "value": 0.01
+                "color": "dark-red",
+                "value": 0.05
               }
             ]
           },
@@ -96,8 +96,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 16,
+        "h": 7,
+        "w": 12,
         "x": 0,
         "y": 0
       },
@@ -179,9 +179,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 7,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 0
       },
       "id": 12,
@@ -244,7 +244,7 @@
               },
               {
                 "color": "dark-red",
-                "value": 1
+                "value": 5
               }
             ]
           },
@@ -253,9 +253,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 7,
         "w": 4,
-        "x": 20,
+        "x": 16,
         "y": 0
       },
       "id": 17,
@@ -305,15 +305,161 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 43200
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 19,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/master\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].push_seconds_ago",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+        }
+      ],
+      "title": "Last master push",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 43200
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 5
+      },
+      "id": 20,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/viable/strict\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].push_seconds_ago",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+        }
+      ],
+      "title": "Last viable/strict push",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "fixedColor": "dark-red",
-            "mode": "fixed"
+            "mode": "thresholds"
           },
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
             "axisSoftMin": 0,
             "fillOpacity": 80,
-            "gradientMode": "none",
+            "gradientMode": "scheme",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -326,12 +472,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": null
               },
               {
-                "color": "green",
-                "value": 0.01
+                "color": "dark-red",
+                "value": 0.5
               }
             ]
           },
@@ -343,7 +489,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 7
       },
       "id": 14,
       "options": {
@@ -412,7 +558,7 @@
               },
               {
                 "color": "dark-red",
-                "value": 0.01
+                "value": 0.5
               }
             ]
           },
@@ -424,7 +570,7 @@
         "h": 8,
         "w": 4,
         "x": 12,
-        "y": 8
+        "y": 7
       },
       "id": 16,
       "options": {
@@ -463,6 +609,79 @@
         }
       ],
       "title": "% commits red on master, aggregate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 86400
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 10
+      },
+      "id": 21,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"refs/heads/nightly\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].push_seconds_ago",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_branch_push/tags/latest"
+        }
+      ],
+      "title": "Last nightly push",
       "type": "stat"
     },
     {
@@ -520,7 +739,7 @@
         "h": 8,
         "w": 16,
         "x": 0,
-        "y": 16
+        "y": 15
       },
       "id": 6,
       "options": {
@@ -578,6 +797,6 @@
   "timezone": "",
   "title": "Github dashboard (Rockset based)",
   "uid": "1kkKNt-nk",
-  "version": 21,
+  "version": 22,
   "weekStart": ""
 }
