@@ -6268,7 +6268,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: win\r\n\r\nWas flaky several times in the last few week captured by flaky tests table [here](https://metrics.pytorch.org/d/L0r6ErGnk/github-status?orgId=1&from=1637618111572&to=1637704511572&viewPanel=57)\r\n\r\n@suo noticed that all the flakiness occurred in the smoke tests configuration for windows on PRs, meaning this seems specific to Windows or specific to the way the test cases are individually run.\r\n\r\nExample logs: https://github.com/pytorch/pytorch/runs/4226453915?check_suite_focus=true\r\n\r\n```\r\n======================================================================\r\nFAIL [65.339s]: test_fd_sharing (__main__.TestMultiprocessing)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_multiprocessing.py\", line 333, in test_fd_sharing\r\n    self._test_sharing(repeat=TEST_REPEATS)\r\n  File \"test_multiprocessing.py\", line 289, in _test_sharing\r\n    test_receive()\r\n  File \"test_multiprocessing.py\", line 284, in test_receive\r\n    self.assertFalse(p.is_alive())\r\nAssertionError: True is not false\r\n\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @peterjc123 @mszhanyi @skyline75489 @nbcsm",
+      "body": "Platforms: win, linux\r\n\r\nWas flaky several times in the last few week captured by flaky tests table [here](https://metrics.pytorch.org/d/L0r6ErGnk/github-status?orgId=1&from=1637618111572&to=1637704511572&viewPanel=57)\r\n\r\n@suo noticed that all the flakiness occurred in the smoke tests configuration for windows on PRs, meaning this seems specific to Windows or specific to the way the test cases are individually run.\r\n\r\nExample logs: https://github.com/pytorch/pytorch/runs/4226453915?check_suite_focus=true\r\n\r\n```\r\n======================================================================\r\nFAIL [65.339s]: test_fd_sharing (__main__.TestMultiprocessing)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_multiprocessing.py\", line 333, in test_fd_sharing\r\n    self._test_sharing(repeat=TEST_REPEATS)\r\n  File \"test_multiprocessing.py\", line 289, in _test_sharing\r\n    test_receive()\r\n  File \"test_multiprocessing.py\", line 284, in test_receive\r\n    self.assertFalse(p.is_alive())\r\nAssertionError: True is not false\r\n\r\n```\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @peterjc123 @mszhanyi @skyline75489 @nbcsm",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68831/comments",
@@ -6346,7 +6346,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68831/timeline",
       "title": "DISABLED test_fd_sharing (__main__.TestMultiprocessing)",
-      "updated_at": "2022-02-15T22:15:19Z",
+      "updated_at": "2022-02-16T04:24:21Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68831",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
