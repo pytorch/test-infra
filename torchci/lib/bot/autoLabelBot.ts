@@ -42,10 +42,6 @@ function myBot(app: Probot): void {
       case "critical":
         addLabel(labelSet, newLabels, "triage review");
         break;
-      case "module: flaky-tests":
-        addLabel(labelSet, newLabels, "high priority");
-        addLabel(labelSet, newLabels, "triage review");
-        break;
     }
 
     if (newLabels.length) {
