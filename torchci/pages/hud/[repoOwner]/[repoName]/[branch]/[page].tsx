@@ -247,13 +247,14 @@ function GroupFilterableHudTable({
           filter={normalizedJobFilter}
           names={names}
           expandedGroups={expandedGroups}
+          groupNameMapping={groupNameMapping}
         />
         <GroupHudTableHeader
           filter={normalizedJobFilter}
           names={names}
           expandedGroups={expandedGroups}
           setExpandedGroups={setExpandedGroups}
-          groupNames={new Set(groupNameMapping.keys())}
+          groupNameMapping={groupNameMapping}
         />
         {children}
       </table>

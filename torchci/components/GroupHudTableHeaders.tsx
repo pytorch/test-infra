@@ -1,16 +1,40 @@
 import styles from "components/hud.module.css";
+import { group } from "console";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
 import React from "react";
 import { BsFillCaretDownFill, BsFillCaretRightFill } from "react-icons/bs";
+
+function groupingIncludesJobFilter(jobNames: string[], filter: string) {
+  for (const jobName of jobNames) {
+    if (includesCaseInsensitive(jobName, filter)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function passesGroupFilter(
+  filter: string | null,
+  name: string,
+  groupNameMapping: Map<string, string[]>
+) {
+  return (
+    filter === null ||
+    includesCaseInsensitive(name, filter) ||
+    groupingIncludesJobFilter(groupNameMapping.get(name) ?? [], filter)
+  );
+}
 
 export function GroupHudTableColumns({
   names,
   filter,
   expandedGroups,
+  groupNameMapping,
 }: {
   names: string[];
   filter: string | null;
   expandedGroups: Set<string>;
+  groupNameMapping: Map<string, string[]>;
 }) {
   return (
     <colgroup>
@@ -19,9 +43,9 @@ export function GroupHudTableColumns({
       <col className={styles.colCommit} />
       <col className={styles.colPr} />
       {names.map((name: string) => {
-        const passesFilter =
-          filter === null || includesCaseInsensitive(name, filter);
-        const style = passesFilter ? {} : { visibility: "collapse" as any };
+        const style = passesGroupFilter(filter, name, groupNameMapping)
+          ? {}
+          : { visibility: "collapse" as any };
 
         return <col className={styles.colJob} key={name} style={style} />;
       })}
@@ -34,14 +58,15 @@ export function GroupHudTableHeader({
   filter,
   expandedGroups,
   setExpandedGroups,
-  groupNames,
+  groupNameMapping,
 }: {
   names: string[];
   filter: string | null;
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
-  groupNames: Set<string>;
+  groupNameMapping: Map<string, string[]>;
 }) {
+  const groupNames = new Set(groupNameMapping.keys());
   return (
     <thead>
       <tr>
@@ -51,10 +76,10 @@ export function GroupHudTableHeader({
         <th className={styles.regularHeader}>PR</th>
         {names.map((name) => {
           const isGroup = groupNames.has(name);
-          const passesFilter =
-            filter === null || includesCaseInsensitive(name, filter);
-          const style = passesFilter ? {} : { visibility: "collapse" as any };
-          const cursorStyle = isGroup ? {} : { cursor: "pointer" };
+          const style = passesGroupFilter(filter, name, groupNameMapping)
+            ? {}
+            : { visibility: "collapse" as any };
+          const cursorStyle = isGroup ? { cursor: "pointer" } : {};
 
           return (
             <th
