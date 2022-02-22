@@ -12320,7 +12320,104 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "NONE",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_expanded_weight_forward_nn_functional_embedding_cuda_float16%2C%20TestExpandedWeightFunctionalCUDA) and the most recent [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1883154288).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.\n\ncc @albanD @mruberry @jbschlosser @walterddr @kshitij12345",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73248/comments",
+      "created_at": "2022-02-22T21:39:26Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/73248/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/73248",
+      "id": 1147393732,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/73248/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85EY9bE",
+      "number": 73248,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/73248/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73248/timeline",
+      "title": "DISABLED test_expanded_weight_forward_nn_functional_embedding_cuda_float16 (__main__.TestExpandedWeightFunctionalCUDA)",
+      "updated_at": "2022-02-22T21:39:28Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/73248",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
+        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/apps/pytorch-bot",
+        "id": 54816060,
+        "login": "pytorch-bot[bot]",
+        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
+        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
+        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
+        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
+        "type": "Bot",
+        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
+      }
     }
   ],
-  "total_count": 119
+  "total_count": 120
 }
