@@ -11448,24 +11448,6 @@
       "id": 1139269416,
       "labels": [
         {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Related to torch.sparse",
@@ -11525,7 +11507,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72893/timeline",
       "title": "DISABLED test_coalesce_cuda_bfloat16 (__main__.TestSparseCUDA)",
-      "updated_at": "2022-02-20T13:52:19Z",
+      "updated_at": "2022-02-22T22:15:00Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72893",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -11553,7 +11535,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\n    This test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_transformer_module_apply%2C%20TestApply) and the most recent\n    [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1851725435).\n\n    Over the past 3 hours, it has been determined flaky in 1 workflow(s) with\n    2 red and 2 green.\n\ncc @ezyang @gchanan @zou3519",
+      "body": "Platforms: linux\n\n    This test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_transformer_module_apply%2C%20TestApply) and the most recent\n    [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1851725435).\n\n    Over the past 3 hours, it has been determined flaky in 1 workflow(s) with\n    2 red and 2 green.\n\ncc @ezyang @gchanan @zou3519 @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
       "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/comments",
@@ -11563,22 +11545,22 @@
       "id": 1139773655,
       "labels": [
         {
-          "color": "F22613",
+          "color": "f7e101",
           "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
-          "color": "cc317c",
+          "color": "006b75",
           "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "f7e101",
@@ -11597,15 +11579,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/labels{/name}",
@@ -11631,7 +11604,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/timeline",
       "title": "DISABLED test_transformer_module_apply (__main__.TestApply)",
-      "updated_at": "2022-02-16T19:05:20Z",
+      "updated_at": "2022-02-22T22:13:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72908",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -12238,15 +12211,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: win\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_sparse_mask_cpu_bfloat16%2C%20TestSparseCPU) and the most recent [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1874369840).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 2 green.",
+      "body": "Platforms: win\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_sparse_mask_cpu_bfloat16%2C%20TestSparseCPU) and the most recent [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1874369840).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 2 green.\n\ncc @nikitaved @pearu @cpuhrsch",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73173/comments",
       "created_at": "2022-02-21T12:47:41Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/73173/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/73173",
       "id": 1145754955,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.sparse",
+          "id": 679954154,
+          "name": "module: sparse",
+          "node_id": "MDU6TGFiZWw2Nzk5NTQxNTQ=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20sparse"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -12264,15 +12246,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/73173/labels{/name}",
@@ -12298,7 +12271,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73173/timeline",
       "title": "DISABLED test_sparse_mask_cpu_bfloat16 (__main__.TestSparseCPU)",
-      "updated_at": "2022-02-21T18:41:31Z",
+      "updated_at": "2022-02-22T22:12:56Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73173",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
