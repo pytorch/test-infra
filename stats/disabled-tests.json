@@ -12756,7 +12756,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73302/timeline",
       "title": "DISABLED test_expanded_weight_forward_nn_functional_embedding_cuda_float32 (__main__.TestExpandedWeightFunctionalCUDA)",
-      "updated_at": "2022-02-23T20:47:35Z",
+      "updated_at": "2022-02-23T20:54:39Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73302",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
