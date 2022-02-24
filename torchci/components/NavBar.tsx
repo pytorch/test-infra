@@ -51,7 +51,9 @@ function NavBar() {
                   href="https://github.com/pytorch/test-infra/tree/main/torchci"
                   passHref
                 >
-                  <AiFillGithub />
+                  <a>
+                    <AiFillGithub />
+                  </a>
                 </Link>
               </span>
             </li>
