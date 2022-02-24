@@ -1,7 +1,8 @@
-import "styles/globals.css";
+import NavBar from "components/NavBar";
+import SevReport from "components/SevReport";
 import type { AppProps } from "next/app";
 import Head from "next/head";
-import SevReport from "components/SevReport";
+import "styles/globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -9,8 +10,11 @@ function MyApp({ Component, pageProps }: AppProps) {
       <Head>
         <title>PyTorch CI HUD</title>
       </Head>
+      <NavBar />
       <SevReport />
-      <Component {...pageProps} />
+      <div style={{ margin: "20px" }}>
+        <Component {...pageProps} />
+      </div>
     </>
   );
 }
