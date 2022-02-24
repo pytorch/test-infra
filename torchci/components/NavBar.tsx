@@ -1,4 +1,5 @@
 import styles from "components/NavBar.module.css";
+import Link from "next/link";
 import React from "react";
 import { AiFillGithub } from "react-icons/ai";
 
@@ -9,17 +10,17 @@ function NavBar() {
       <div className={styles.links}>
         <div>
           <ul className={styles.menu}>
-            <a className={styles.homeLink} href="/">
-              Pytorch CI HUD
-            </a>
+            <span className={styles.homeLink}>
+              <Link href="/">Pytorch CI HUD</Link>
+            </span>
             <li>
-              <a href="/hud/pytorch/pytorch/master">Master</a>
+              <Link href="/hud/pytorch/pytorch/master">Master</Link>
             </li>
             <li>
-              <a href="/hud/pytorch/pytorch/nightly">Nightly</a>
+              <Link href="/hud/pytorch/pytorch/nightly">Nightly</Link>
             </li>
             <li>
-              <a href="/minihud">MiniHUD</a>
+              <Link href="/minihud">MiniHUD</Link>
             </li>
           </ul>
         </div>
@@ -32,25 +33,27 @@ function NavBar() {
         >
           <ul style={{ marginBottom: "0" }} className={styles.menu}>
             <li>
-              <a href="https://github.com/pytorch/pytorch/wiki/Using-hud.pytorch.org">
+              <Link href="https://github.com/pytorch/pytorch/wiki/Using-hud.pytorch.org">
                 Help
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="https://github.com/pytorch/test-infra/issues/new?assignees=&labels=&template=feature_request.yaml&title=%5Bfeature%5D%3A+">
+              <Link href="https://github.com/pytorch/test-infra/issues/new?assignees=&labels=&template=feature_request.yaml&title=%5Bfeature%5D%3A+">
                 Requests
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="https://metrics.pytorch.org">Metrics</a>
+              <Link href="https://metrics.pytorch.org">Metrics</Link>
             </li>
             <li>
-              <a
-                style={{ color: "black" }}
-                href="https://github.com/pytorch/test-infra/tree/main/torchci"
-              >
-                <AiFillGithub />
-              </a>
+              <span style={{ color: "black", cursor: "pointer" }}>
+                <Link
+                  href="https://github.com/pytorch/test-infra/tree/main/torchci"
+                  passHref
+                >
+                  <AiFillGithub />
+                </Link>
+              </span>
             </li>
           </ul>
         </div>
