@@ -68,10 +68,10 @@ export interface FlakyTestData {
   file: string;
   suite: string;
   name: string;
-  num_green: number;
-  num_red: number;
-  workflow_ids: string[];
-  workflow_names: string[];
+  numGreen: number;
+  numRed: number;
+  workflowIds: string[];
+  workflowNames: string[];
   branches: string[];
 }
 

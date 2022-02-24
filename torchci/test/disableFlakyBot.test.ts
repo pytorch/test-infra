@@ -8,10 +8,10 @@ const flakyTestA = {
     file: "file_a",
     suite: "suite_a",
     name: "test_a",
-    num_green: 4,
-    num_red: 2,
-    workflow_ids: ["12345678", "13456789", "14253647"],
-    workflow_names: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+    numGreen: 4,
+    numRed: 2,
+    workflowIds: ["12345678", "13456789", "14253647"],
+    workflowNames: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019", "periodic-win-cuda11.3-vs-2019"],
     branches: ["master", "master", "master"]
 }
 
@@ -19,10 +19,10 @@ const flakyTestE = {
     file: "file_e",
     suite: "suite_e",
     name: "test_e",
-    num_green: 4,
-    num_red: 2,
-    workflow_ids: ["12345678", "13456789", "14253647", "15949539"],
-    workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test", "win-cpu-vs-2019"],
+    numGreen: 4,
+    numRed: 2,
+    workflowIds: ["12345678", "13456789", "14253647", "15949539"],
+    workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test", "win-cpu-vs-2019"],
     branches: ["pr-fix", "master", "master", "another-pr-fx"]
 }
 
@@ -123,55 +123,55 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     });
 
     test("filterOutPRFlakyTests: correctly filters and updates flaky test list", async () => {
-        const flaky_tests = [
+        const flakyTests = [
             flakyTestA,
             {
                 file: "file_b",
                 suite: "suite_b",
                 name: "test_b",
-                num_green: 4,
-                num_red: 2,
-                workflow_ids: ["12345678"],
-                workflow_names: ["win-cpu-vs-2019"],
+                numGreen: 4,
+                numRed: 2,
+                workflowIds: ["12345678"],
+                workflowNames: ["win-cpu-vs-2019"],
                 branches: ["ciflow/all/12345"]
             },
             {
                 file: "file_c",
                 suite: "suite_c",
                 name: "test_c",
-                num_green: 4,
-                num_red: 2,
-                workflow_ids: ["12345678", "13456789", "14253647"],
-                workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                numGreen: 4,
+                numRed: 2,
+                workflowIds: ["12345678", "13456789", "14253647"],
+                workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
                 branches: ["master", "gh/janeyx99/idk", "master"]
             },
             {
                 file: "file_d",
                 suite: "suite_d",
                 name: "test_d",
-                num_green: 4,
-                num_red: 2,
-                workflow_ids: ["12345678", "13456789"],
-                workflow_names: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+                numGreen: 4,
+                numRed: 2,
+                workflowIds: ["12345678", "13456789"],
+                workflowNames: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019"],
                 branches: ["quick-fix", "ciflow/scheduled/22222"]
             },
             flakyTestE
         ];
-        const expected_flaky_tests_on_trunk = [
+        const expectedFlakyTestsOnTrunk = [
             flakyTestA,
             {
                 file: "file_c",
                 suite: "suite_c",
                 name: "test_c",
-                num_green: 4,
-                num_red: 2,
-                workflow_ids: ["12345678", "13456789", "14253647"],
-                workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                numGreen: 4,
+                numRed: 2,
+                workflowIds: ["12345678", "13456789", "14253647"],
+                workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
                 branches: ["master", "gh/janeyx99/idk", "master"]
             },
             flakyTestE
         ];
-        expect(disableFlakyTestBot.filterOutPRFlakyTests(flaky_tests)).toEqual(expected_flaky_tests_on_trunk);
+        expect(disableFlakyTestBot.filterOutPRFlakyTests(flakyTests)).toEqual(expectedFlakyTestsOnTrunk);
     })
 
 
@@ -257,7 +257,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     });
 
     test("getPlatformsAffected: should correctly triage workflows of various platforms", async () => {
-        const workflows = flakyTestA.workflow_names.concat(["something-macos-build", "linux-blah-py3"]);
+        const workflows = flakyTestA.workflowNames.concat(["something-macos-build", "linux-blah-py3"]);
         expect(disableFlakyTestBot.getPlatformsAffected(workflows)).toEqual(["linux", "mac", "macos", "win"]);
     });
 
