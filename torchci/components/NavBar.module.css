@@ -1,0 +1,35 @@
+.menu li {
+  display: inline;
+  font: bold;
+  margin-right: 1em;
+  color: red;
+  padding-left: 1em;
+}
+
+.menu {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.linksContainer {
+  padding: 10px;
+  background: rgb(255, 227, 227);
+  background: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
+  box-shadow: 0 -4px 20px 0px #c2c2c2;
+  width: 100%;
+}
+
+.links {
+  display: flex;
+  flex-direction: row;
+  padding-bottom: 3px;
+}
+
+.links > ul {
+  margin-bottom: 0;
+}
+
+.homeLink {
+  font-weight: bold;
+  padding-right: 10px;
+}

@@ -1,6 +1,6 @@
 import {
-  GroupHudTableColumns,
-  GroupHudTableHeader,
+    GroupHudTableColumns,
+    GroupHudTableHeader
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -12,16 +12,17 @@ import TooltipTarget from "components/TooltipTarget";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
 import { getGroupingData } from "lib/JobClassifierUtil";
 import {
-  formatHudUrlForRoute,
-  HudData,
-  HudParams,
-  JobData,
-  packHudParams,
-  RowData,
+    formatHudUrlForRoute,
+    HudData,
+    HudParams,
+    JobData,
+    packHudParams,
+    RowData
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import UserSettingContext from "lib/UserSettingsContext";
 import useTableFilter from "lib/useTableFilter";
+import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -409,22 +410,29 @@ export default function Hud() {
   }, []);
 
   const params = packHudParams(router.query);
-
   return (
-    <UserSettingContext.Provider value={{ userSettings, setUserSettings }}>
-      <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
-        {params.branch !== undefined && (
-          <div onClick={handleClick}>
-            <HudHeader params={params} />
-            <div>This page automatically updates.</div>
-            <div>
-              <PageSelector params={params} />
+    <>
+      <Head>
+        <title>
+          PyTorch CI HUD (
+          {`${params.repoOwner}/${params.repoName}: ${params.branch}`})
+        </title>
+      </Head>
+      <UserSettingContext.Provider value={{ userSettings, setUserSettings }}>
+        <PinnedTooltipContext.Provider
+          value={[pinnedTooltip, setPinnedTooltip]}
+        >
+          {params.branch !== undefined && (
+            <div onClick={handleClick}>
+              <HudHeader params={params} />
+              <div>This page automatically updates.</div>
               <HudTable params={params} />
+              <PageSelector params={params} />
             </div>
-          </div>
-        )}
-      </PinnedTooltipContext.Provider>
-    </UserSettingContext.Provider>
+          )}
+        </PinnedTooltipContext.Provider>
+      </UserSettingContext.Provider>
+    </>
   );
 }
 

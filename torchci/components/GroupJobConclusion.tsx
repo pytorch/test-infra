@@ -6,7 +6,7 @@ import { useContext } from "react";
 import {
   JobCell,
   PinnedTooltipContext,
-} from "pages/hud/[repoOwner]/[repoName]/[branch]/[page]";
+} from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 
 enum JobStatus {
   Success = "success",

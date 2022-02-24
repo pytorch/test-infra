@@ -79,7 +79,7 @@ export function packHudParams(input: any) {
     repoOwner: input.repoOwner as string,
     repoName: input.repoName as string,
     branch: input.branch as string,
-    page: parseInt(input.page as string),
+    page: parseInt((input.page as string) ?? 0),
     nameFilter: input.name_filter as string | undefined,
   };
 }
