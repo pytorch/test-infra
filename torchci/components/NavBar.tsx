@@ -1,5 +1,7 @@
 import styles from "components/NavBar.module.css";
 import React from "react";
+import { AiFillGithub } from "react-icons/ai";
+
 function NavBar() {
   // TODO: Rewrite Help Link
   return (
@@ -45,8 +47,10 @@ function NavBar() {
             <li>
               <a
                 style={{ color: "black" }}
-                href="https://github.com/pytorch/pytorch-ci-hud"
-              ></a>
+                href="https://github.com/pytorch/test-infra/tree/main/torchci"
+              >
+                <AiFillGithub />
+              </a>
             </li>
           </ul>
         </div>
