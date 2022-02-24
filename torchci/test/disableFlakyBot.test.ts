@@ -12,6 +12,18 @@ const flakyTestA = {
     num_red: 2,
     workflow_ids: ["12345678", "13456789", "14253647"],
     workflow_names: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+    branches: ["master", "master", "master"]
+}
+
+const flakyTestE = {
+    file: "file_e",
+    suite: "suite_e",
+    name: "test_e",
+    num_green: 4,
+    num_red: 2,
+    workflow_ids: ["12345678", "13456789", "14253647", "15949539"],
+    workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test", "win-cpu-vs-2019"],
+    branches: ["pr-fix", "master", "master", "another-pr-fx"]
 }
 
 describe("Disable Flaky Test Bot Integration Tests", () => {
@@ -49,7 +61,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
     const scope = nock("https://api.github.com")
         .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
             const comment = JSON.stringify(body.body);
-            expect(comment).toContain("Another case of flakiness has been found");
+            expect(comment).toContain("Another case of trunk flakiness has been found");
             expect(comment).toContain("Please verify");
             return true;
         })
@@ -79,7 +91,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         .reply(200, {})
         .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
             const comment = JSON.stringify(body.body);
-            expect(comment).toContain("Another case of flakiness has been found");
+            expect(comment).toContain("Another case of trunk flakiness has been found");
             expect(comment).toContain("Reopening");
             return true;
         })
@@ -109,6 +121,58 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       nock.cleanAll();
       jest.restoreAllMocks();
     });
+
+    test("filterOutPRFlakyTests: correctly filters and updates flaky test list", async () => {
+        const flaky_tests = [
+            flakyTestA,
+            {
+                file: "file_b",
+                suite: "suite_b",
+                name: "test_b",
+                num_green: 4,
+                num_red: 2,
+                workflow_ids: ["12345678"],
+                workflow_names: ["win-cpu-vs-2019"],
+                branches: ["ciflow/all/12345"]
+            },
+            {
+                file: "file_c",
+                suite: "suite_c",
+                name: "test_c",
+                num_green: 4,
+                num_red: 2,
+                workflow_ids: ["12345678", "13456789", "14253647"],
+                workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                branches: ["master", "gh/janeyx99/idk", "master"]
+            },
+            {
+                file: "file_d",
+                suite: "suite_d",
+                name: "test_d",
+                num_green: 4,
+                num_red: 2,
+                workflow_ids: ["12345678", "13456789"],
+                workflow_names: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+                branches: ["quick-fix", "ciflow/scheduled/22222"]
+            },
+            flakyTestE
+        ];
+        const expected_flaky_tests_on_trunk = [
+            flakyTestA,
+            {
+                file: "file_c",
+                suite: "suite_c",
+                name: "test_c",
+                num_green: 4,
+                num_red: 2,
+                workflow_ids: ["12345678", "13456789", "14253647"],
+                workflow_names: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                branches: ["master", "gh/janeyx99/idk", "master"]
+            },
+            flakyTestE
+        ];
+        expect(disableFlakyTestBot.filterOutPRFlakyTests(flaky_tests)).toEqual(expected_flaky_tests_on_trunk);
+    })
 
 
     test("getTestOwnerLabels: owned test file should return proper module along with triaged", async () => {
@@ -167,8 +231,13 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         scope.done();
     });
 
-    test("getLatestWorkflowURL: should return URL of last workflow", async () => {
-        expect(disableFlakyTestBot.getLatestWorkflowURL(flakyTestA.workflow_ids))
+    test("getLatestTrunkWorkflowURL: should return URL of last trunk workflow if it exists", async () => {
+        expect(disableFlakyTestBot.getLatestTrunkWorkflowURL(flakyTestE))
+            .toEqual("https://github.com/pytorch/pytorch/actions/runs/14253647");
+    });
+
+    test("getLatestTrunkWorkflowURL: should return URL of last workflow if no trunk instance exists", async () => {
+        expect(disableFlakyTestBot.getLatestTrunkWorkflowURL(flakyTestA))
             .toEqual("https://github.com/pytorch/pytorch/actions/runs/14253647");
     });
 

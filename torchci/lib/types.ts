@@ -72,6 +72,7 @@ export interface FlakyTestData {
   num_red: number;
   workflow_ids: string[];
   workflow_names: string[];
+  branches: string[];
 }
 
 export function packHudParams(input: any) {

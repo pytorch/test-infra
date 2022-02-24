@@ -30,9 +30,19 @@ export default async function handler(
 async function disableFlakyTests() {
     const [octokit, flaky_tests, issues] = await Promise.all([
         getOctokit(owner, repo), fetchFlakyTests(`${NUM_HOURS}`), fetchIssuesByLabel("skipped")]);
-    flaky_tests.forEach(async function (test) {
+
+    // If the test is flaky only on PRs, we should not disable it yet.
+    const flaky_tests_on_trunk = filterOutPRFlakyTests(flaky_tests);
+
+    flaky_tests_on_trunk.forEach(async function (test) {
         await handleFlakyTest(test, issues, octokit);
     });
+}
+
+
+export function filterOutPRFlakyTests(tests: FlakyTestData[]) : FlakyTestData[] {
+    // Remove the PR-only instances of flakiness, but don't modify data within
+    return tests.filter(test => test.branches.includes("master"));
 }
 
 
@@ -43,7 +53,7 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
         // There is a matching issue
         const matchingIssue = matchingIssues[0];
         if (matchingIssue.state === "open") {
-            const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
+            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
             Please verify the issue was opened after this instance, that the platforms list includes all of
             [${getPlatformsAffected(test.workflow_names).join(", ")}], or disable bot might not be working as expected.`;
             await octokit.rest.issues.createComment({
@@ -61,7 +71,7 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
                 state: "open",
             });
 
-            const body = `Another case of flakiness has been found [here](${getLatestWorkflowURL(test.workflow_ids)}).
+            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
             Reopening the issue to disable. Please verify that the platforms list includes all of
             [${getPlatformsAffected(test.workflow_names).join(", ")}].`;
             await octokit.rest.issues.createComment({
@@ -77,8 +87,13 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
 }
 
 
-export function getLatestWorkflowURL(workflow_ids: string[]): string {
-    return `https://github.com/pytorch/pytorch/actions/runs/${workflow_ids[workflow_ids.length - 1]}`;
+export function getLatestTrunkWorkflowURL(test: FlakyTestData): string {
+    let index = test.branches.lastIndexOf("master");
+    if (index < 0) {
+        console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
+        index = test.workflow_ids.length - 1;
+    }
+    return `https://github.com/pytorch/pytorch/actions/runs/${test.workflow_ids[index]}`;
 }
 
 
@@ -109,7 +124,7 @@ export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
     return `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
 
-This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent [workflow logs](${getLatestWorkflowURL(test.workflow_ids)}).
+This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkWorkflowURL(test)}).
 
 Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with ${test.num_red} red and ${test.num_green} green.`;
 }
