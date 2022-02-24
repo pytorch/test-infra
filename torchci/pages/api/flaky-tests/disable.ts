@@ -28,13 +28,13 @@ export default async function handler(
 
 
 async function disableFlakyTests() {
-    const [octokit, flaky_tests, issues] = await Promise.all([
+    const [octokit, flakyTests, issues] = await Promise.all([
         getOctokit(owner, repo), fetchFlakyTests(`${NUM_HOURS}`), fetchIssuesByLabel("skipped")]);
 
     // If the test is flaky only on PRs, we should not disable it yet.
-    const flaky_tests_on_trunk = filterOutPRFlakyTests(flaky_tests);
+    const flakyTestsOnTrunk = filterOutPRFlakyTests(flakyTests);
 
-    flaky_tests_on_trunk.forEach(async function (test) {
+    flakyTestsOnTrunk.forEach(async function (test) {
         await handleFlakyTest(test, issues, octokit);
     });
 }
@@ -55,7 +55,7 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
         if (matchingIssue.state === "open") {
             const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
             Please verify the issue was opened after this instance, that the platforms list includes all of
-            [${getPlatformsAffected(test.workflow_names).join(", ")}], or disable bot might not be working as expected.`;
+            [${getPlatformsAffected(test.workflowNames).join(", ")}], or disable bot might not be working as expected.`;
             await octokit.rest.issues.createComment({
                 owner,
                 repo,
@@ -73,7 +73,7 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
 
             const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
             Reopening the issue to disable. Please verify that the platforms list includes all of
-            [${getPlatformsAffected(test.workflow_names).join(", ")}].`;
+            [${getPlatformsAffected(test.workflowNames).join(", ")}].`;
             await octokit.rest.issues.createComment({
                 owner,
                 repo,
@@ -91,27 +91,27 @@ export function getLatestTrunkWorkflowURL(test: FlakyTestData): string {
     let index = test.branches.lastIndexOf("master");
     if (index < 0) {
         console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
-        index = test.workflow_ids.length - 1;
+        index = test.workflowIds.length - 1;
     }
-    return `https://github.com/pytorch/pytorch/actions/runs/${test.workflow_ids[index]}`;
+    return `https://github.com/pytorch/pytorch/actions/runs/${test.workflowIds[index]}`;
 }
 
 
-export function getIssueTitle(test_name: string, test_suite: string) {
-    let suite = test_suite;
+export function getIssueTitle(testName: string, testSuite: string) {
+    let suite = testSuite;
     // If the test class is not a subclass, it belongs to __main__
-    if (test_suite.indexOf(".") < 0) {
+    if (testSuite.indexOf(".") < 0) {
         suite = "__main__." + suite;
     }
-    return `DISABLED ${test_name} (${suite})`;
+    return `DISABLED ${testName} (${suite})`;
 }
 
 
-export function getPlatformsAffected(workflow_names: string[]): string[] {
+export function getPlatformsAffected(workflowNames: string[]): string[] {
     const platformsToSkip: string[] = [];
     supportedPlatforms.forEach((platform: string) =>
-        workflow_names.forEach(workflow_name => {
-            if (workflow_name.includes(platform) && !platformsToSkip.includes(platform)) {
+        workflowNames.forEach(workflowName => {
+            if (workflowName.includes(platform) && !platformsToSkip.includes(platform)) {
                 platformsToSkip.push(platform);
             }
         })
@@ -122,26 +122,26 @@ export function getPlatformsAffected(workflow_names: string[]): string[] {
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
-    return `Platforms: ${getPlatformsAffected(test.workflow_names).join(", ")}
+    return `Platforms: ${getPlatformsAffected(test.workflowNames).join(", ")}
 
 This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkWorkflowURL(test)}).
 
-Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflow_ids.length} workflow(s) with ${test.num_red} red and ${test.num_green} green.`;
+Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} red and ${test.numGreen} green.`;
 }
 
 
-export async function getTestOwnerLabels(test_file: string) : Promise<string[]> {
+export async function getTestOwnerLabels(testFile: string) : Promise<string[]> {
     const urlkey = "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
     try {
-        const result = await urllib.request(`${urlkey}${test_file}.py`);
-        const status_code = result.res.statusCode;
-        if (status_code !== 200) {
-            console.warn(`Error retrieving test file of flaky test: ${status_code}`);
+        const result = await urllib.request(`${urlkey}${testFile}.py`);
+        const statusCode = result.res.statusCode;
+        if (statusCode !== 200) {
+            console.warn(`Error retrieving test file of flaky test: ${statusCode}`);
             return ["module: unknown"];
         }
-        const file_contents = result.data.toString();  // data is a Buffer
-        const lines = file_contents.split(/[\r\n]+/);
+        const fileContents = result.data.toString();  // data is a Buffer
+        const lines = fileContents.split(/[\r\n]+/);
         const prefix = "# Owner(s): ";
         for (const line of lines) {
             if (line.startsWith(prefix)) {
