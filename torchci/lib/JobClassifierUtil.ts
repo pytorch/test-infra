@@ -1,3 +1,4 @@
+import { JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
 const groups = [
@@ -132,27 +133,29 @@ export function classifyGroup(jobName: string): string {
 export function getConclusionChar(conclusion?: string): string {
   let conclusionChar;
   switch (conclusion) {
-    case "success":
+    case JobStatus.Success:
       conclusionChar = "O";
       break;
-    case "failure":
+    case JobStatus.Failure:
       conclusionChar = "X";
       break;
-    case "neutral":
+    case JobStatus.Neutral:
       conclusionChar = "N";
       break;
-    case "cancelled":
+    case JobStatus.Cancelled:
       conclusionChar = "C";
       break;
-    case "timed_out":
+    case JobStatus.Timed_out:
       conclusionChar = "T";
       break;
-    case "skipped":
+    case JobStatus.Skipped:
       conclusionChar = "S";
       break;
-    case "pending":
+    case JobStatus.Pending:
       conclusionChar = "?";
       break;
+    case JobStatus.AllSkipped:
+      conclusionChar = "O";
     case undefined:
       conclusionChar = "O";
       break;

@@ -1,6 +1,6 @@
 import {
-    GroupHudTableColumns,
-    GroupHudTableHeader
+  GroupHudTableColumns,
+  GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -12,12 +12,12 @@ import TooltipTarget from "components/TooltipTarget";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
 import { getGroupingData } from "lib/JobClassifierUtil";
 import {
-    formatHudUrlForRoute,
-    HudData,
-    HudParams,
-    JobData,
-    packHudParams,
-    RowData
+  formatHudUrlForRoute,
+  HudData,
+  HudParams,
+  JobData,
+  packHudParams,
+  RowData,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import UserSettingContext from "lib/UserSettingsContext";
@@ -389,6 +389,7 @@ export const PinnedTooltipContext = createContext<[null | string, any]>([
 
 export default function Hud() {
   const router = useRouter();
+  const params = packHudParams(router.query);
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -396,7 +397,15 @@ export default function Hud() {
   // - Clicking outside the tooltip or pressing esc should unpin it.
   // This state needs to be set up at this level because we want to capture all
   // clicks.
-  const [userSettings, setUserSettings] = useState({ useGrouping: true });
+  const [userSettings, setUserSettings] = useState({
+    useGrouping: true,
+  });
+
+  useEffect(() => {
+    if (params.nameFilter != null) {
+      setUserSettings({ useGrouping: false });
+    }
+  }, [params.nameFilter]);
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
   function handleClick() {
     setPinnedTooltip(null);
@@ -409,7 +418,6 @@ export default function Hud() {
     });
   }, []);
 
-  const params = packHudParams(router.query);
   return (
     <>
       <Head>
