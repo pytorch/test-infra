@@ -71,7 +71,10 @@ export default function HudGroupedCell({
           }
         >
           <span className={styles.conclusion}>
-            <span className={styles[conclusion ?? "none"]}>
+            <span
+              className={styles[conclusion ?? "none"]}
+              style={{ border: "3px solid gainsboro" }}
+            >
               {getConclusionChar(conclusion)}
             </span>
           </span>

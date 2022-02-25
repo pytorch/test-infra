@@ -79,13 +79,13 @@ export function GroupHudTableHeader({
           const style = passesGroupFilter(filter, name, groupNameMapping)
             ? {}
             : { visibility: "collapse" as any };
-          const cursorStyle = isGroup ? { cursor: "pointer" } : {};
-
+          const jobStyle = isGroup ? { cursor: "pointer" } : {};
+          const headerStyle = isGroup ? { fontWeight: "bold" } : {};
           return (
             <th
               className={styles.jobHeader}
               key={name}
-              style={{ ...style, ...cursorStyle }}
+              style={{ ...style, ...jobStyle }}
               onClick={() => {
                 if (expandedGroups.has(name)) {
                   expandedGroups.delete(name);
@@ -96,7 +96,7 @@ export function GroupHudTableHeader({
                 }
               }}
             >
-              <div className={styles.jobHeaderName}>
+              <div className={styles.jobHeaderName} style={headerStyle}>
                 {name}{" "}
                 {isGroup ? (
                   expandedGroups.has(name) ? (
