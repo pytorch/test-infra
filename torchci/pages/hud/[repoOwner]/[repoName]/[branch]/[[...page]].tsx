@@ -1,6 +1,6 @@
 import {
   GroupHudTableColumns,
-  GroupHudTableHeader,
+  GroupHudTableHeader
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -17,7 +17,7 @@ import {
   HudParams,
   JobData,
   packHudParams,
-  RowData,
+  RowData
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import UserSettingContext from "lib/UserSettingsContext";
@@ -247,7 +247,6 @@ function GroupFilterableHudTable({
         <GroupHudTableColumns
           filter={normalizedJobFilter}
           names={names}
-          expandedGroups={expandedGroups}
           groupNameMapping={groupNameMapping}
         />
         <GroupHudTableHeader

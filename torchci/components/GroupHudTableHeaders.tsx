@@ -1,5 +1,4 @@
 import styles from "components/hud.module.css";
-import { group } from "console";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
 import React from "react";
 import { BsFillCaretDownFill, BsFillCaretRightFill } from "react-icons/bs";
@@ -28,12 +27,10 @@ function passesGroupFilter(
 export function GroupHudTableColumns({
   names,
   filter,
-  expandedGroups,
   groupNameMapping,
 }: {
   names: string[];
   filter: string | null;
-  expandedGroups: Set<string>;
   groupNameMapping: Map<string, string[]>;
 }) {
   return (
