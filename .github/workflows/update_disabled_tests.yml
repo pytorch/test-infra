@@ -31,15 +31,3 @@ jobs:
           user_email: 'test-infra@pytorch.org'
           user_name: 'Pytorch Test Infra'
           commit_message: 'Updating disabled tests stats'
-      - name: Push file to test-infra repository
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: 'disabled-tests.json'
-          destination_repo: 'pytorch/test-infra'
-          destination_folder: 'stats'
-          destination_branch: main
-          user_email: 'test-infra@pytorch.org'
-          user_name: 'Pytorch Test Infra'
-          commit_message: 'Updating disabled tests stats'

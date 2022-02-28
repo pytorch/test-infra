@@ -43,15 +43,3 @@ jobs:
           user_email: 'test-infra@pytorch.org'
           user_name: 'PyTorch Test Infra'
           commit_message: 'Updating slow tests stats'
-      - name: Push file to this repository
-        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
-        env:
-           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: 'slow-tests.json'
-          destination_repo: 'pytorch/test-infra'
-          destination_folder: 'stats'
-          destination_branch: main
-          user_email: 'test-infra@pytorch.org'
-          user_name: 'PyTorch Test Infra'
-          commit_message: 'Updating slow tests stats'
