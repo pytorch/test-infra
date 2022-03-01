@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 5,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -6258,6 +6258,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 8,
+  "version": 1,
   "weekStart": ""
 }
