@@ -31,7 +31,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 87,
       "panels": [],
@@ -99,7 +99,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 9
       },
       "id": 61,
       "options": {
@@ -182,7 +182,7 @@
         "h": 7,
         "w": 4,
         "x": 12,
-        "y": 1
+        "y": 9
       },
       "id": 63,
       "options": {
@@ -252,7 +252,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 1
+        "y": 9
       },
       "id": 65,
       "options": {
@@ -325,7 +325,7 @@
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 1
+        "y": 9
       },
       "id": 67,
       "options": {
@@ -398,7 +398,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 6
+        "y": 14
       },
       "id": 73,
       "options": {
@@ -471,7 +471,7 @@
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 6
+        "y": 14
       },
       "id": 77,
       "options": {
@@ -558,7 +558,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 16
       },
       "id": 69,
       "options": {
@@ -639,7 +639,7 @@
         "h": 8,
         "w": 4,
         "x": 12,
-        "y": 8
+        "y": 16
       },
       "id": 71,
       "options": {
@@ -714,7 +714,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 11
+        "y": 19
       },
       "id": 75,
       "links": [],
@@ -790,7 +790,7 @@
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 11
+        "y": 19
       },
       "id": 79,
       "links": [],
@@ -891,7 +891,7 @@
         "h": 9,
         "w": 9,
         "x": 0,
-        "y": 16
+        "y": 24
       },
       "id": 81,
       "options": {
@@ -1041,7 +1041,7 @@
         "h": 9,
         "w": 7,
         "x": 9,
-        "y": 16
+        "y": 24
       },
       "id": 85,
       "options": {
@@ -1171,7 +1171,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 16
+        "y": 24
       },
       "id": 83,
       "options": {
@@ -1230,7 +1230,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "id": 89,
       "panels": [],
@@ -1242,7 +1242,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 94,
       "options": {
@@ -1341,7 +1341,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "id": 91,
       "options": {
@@ -1479,7 +1479,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 35
       },
       "id": 92,
       "options": {
@@ -1530,12 +1530,289 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TTS"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 3600
+                    },
+                    {
+                      "color": "red",
+                      "value": 7200
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 208
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 87
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "id": 96,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },      \n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"%\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].duration_sec",
+              "name": "TTS",
+              "type": "number"
+            },
+            {
+              "jsonPath": "$.results[*].count",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].name",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "params": [],
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_duration_avg/tags/latest"
+        }
+      ],
+      "title": "Job duration, all branches (avg)",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TTS"
+            },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "basic"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 3600
+                    },
+                    {
+                      "color": "red",
+                      "value": 7200
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 208
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "count"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 87
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "id": 97,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },      \n      {\n        \"name\": \"branch\",\n        \"type\": \"string\",\n        \"value\": \"master\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].duration_sec",
+              "name": "TTS",
+              "type": "number"
+            },
+            {
+              "jsonPath": "$.results[*].count",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].name",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "params": [],
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_duration_avg/tags/latest"
+        }
+      ],
+      "title": "Job duration, master-only (avg)",
+      "type": "table"
+    },
+    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 51
       },
       "id": 42,
       "panels": [
@@ -2368,7 +2645,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 52
       },
       "id": 44,
       "panels": [
@@ -3765,7 +4042,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 53
       },
       "id": 40,
       "panels": [
@@ -5649,7 +5926,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 54
       },
       "id": 51,
       "panels": [
@@ -5981,6 +6258,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
