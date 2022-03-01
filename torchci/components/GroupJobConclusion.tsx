@@ -59,10 +59,7 @@ export default function HudGroupedCell({
   } else if (noStatusJobs.length === groupData.jobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }
-  if (conclusion === GroupedJobStatus.Success) {
-    console.log("HERE", styles.conclusion, conclusion);
-    console.log("INSIDE HERE", styles[(conclusion as string) ?? "none"]);
-  }
+
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <>
