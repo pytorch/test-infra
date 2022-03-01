@@ -405,7 +405,6 @@ function GroupedHudTable({
       ...names.slice(nameInd + 1),
     ];
   });
-  console.log("RERENDERING");
 
   return (
     <GroupFilterableHudTable

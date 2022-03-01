@@ -1,4 +1,4 @@
-import { JobStatus } from "components/GroupJobConclusion";
+import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
 const groups = [
@@ -130,40 +130,42 @@ export function classifyGroup(jobName: string): string {
   return "other";
 }
 
+export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
+  switch (conclusion) {
+    case GroupedJobStatus.Success:
+      return "O";
+    case GroupedJobStatus.Failure:
+      return "X";
+    case GroupedJobStatus.Pending:
+      return "?";
+    case GroupedJobStatus.AllNull:
+      return "O";
+    default:
+      return "U";
+  }
+}
 export function getConclusionChar(conclusion?: string): string {
   let conclusionChar;
   switch (conclusion) {
     case JobStatus.Success:
-      conclusionChar = "O";
-      break;
+      return "O";
     case JobStatus.Failure:
-      conclusionChar = "X";
-      break;
+      return "X";
     case JobStatus.Neutral:
-      conclusionChar = "N";
-      break;
+      return "N";
     case JobStatus.Cancelled:
-      conclusionChar = "C";
-      break;
+      return "C";
     case JobStatus.Timed_out:
-      conclusionChar = "T";
-      break;
+      return "T";
     case JobStatus.Skipped:
-      conclusionChar = "S";
-      break;
+      return "S";
     case JobStatus.Pending:
-      conclusionChar = "?";
-      break;
-    case JobStatus.AllSkipped:
-      conclusionChar = "O";
+      return "?";
     case undefined:
-      conclusionChar = "O";
-      break;
+      return "O";
     default:
-      // shouldn't happen
-      conclusionChar = "U";
+      return "U";
   }
-  return conclusionChar;
 }
 
 export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {

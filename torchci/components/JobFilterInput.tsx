@@ -8,7 +8,7 @@ export default function JobFilterInput({
   currentFilter: string | null;
   handleSubmit: () => void;
   handleInput: (value: string) => void;
-  handleFocus: () => void;
+  handleFocus?: () => void;
   width?: string;
 }) {
   return (

@@ -1,4 +1,4 @@
-import { getConclusionChar } from "lib/JobClassifierUtil";
+import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import { GroupData, JobData } from "lib/types";
 import styles from "./JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
@@ -16,7 +16,13 @@ export enum JobStatus {
   Timed_out = "timed_out",
   Skipped = "skipped",
   Pending = "pending",
-  AllSkipped = "all_skipped",
+}
+
+export enum GroupedJobStatus {
+  Failure = "failure",
+  Pending = "pending",
+  AllNull = "all_null",
+  Success = "success",
 }
 
 export default function HudGroupedCell({
@@ -45,13 +51,17 @@ export default function HudGroupedCell({
     }
   }
 
-  let conclusion = JobStatus.Success;
+  let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
-    conclusion = JobStatus.Failure;
+    conclusion = GroupedJobStatus.Failure;
   } else if (!(pendingJobs.length === 0)) {
-    conclusion = JobStatus.Pending;
+    conclusion = GroupedJobStatus.Pending;
   } else if (noStatusJobs.length === groupData.jobs.length) {
-    conclusion = JobStatus.AllSkipped;
+    conclusion = GroupedJobStatus.AllNull;
+  }
+  if (conclusion === GroupedJobStatus.Success) {
+    console.log("HERE", styles.conclusion, conclusion);
+    console.log("INSIDE HERE", styles[(conclusion as string) ?? "none"]);
   }
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
@@ -75,7 +85,7 @@ export default function HudGroupedCell({
               className={styles[conclusion ?? "none"]}
               style={{ border: "1px solid gainsboro" }}
             >
-              {getConclusionChar(conclusion)}
+              {getGroupConclusionChar(conclusion)}
             </span>
           </span>
         </TooltipTarget>
@@ -97,12 +107,12 @@ function GroupTooltip({
   erroredJobs,
   pendingJobs,
 }: {
-  conclusion: string;
+  conclusion: GroupedJobStatus;
   groupName: string;
   erroredJobs: JobData[];
   pendingJobs: JobData[];
 }) {
-  if (conclusion === JobStatus.Failure) {
+  if (conclusion === GroupedJobStatus.Failure) {
     return (
       <JobToolTip
         conclusion={conclusion}
@@ -111,7 +121,7 @@ function GroupTooltip({
         message={"The following jobs errored out:"}
       />
     );
-  } else if (conclusion === JobStatus.Pending) {
+  } else if (conclusion === GroupedJobStatus.Pending) {
     return (
       <JobToolTip
         conclusion={conclusion}
@@ -120,7 +130,7 @@ function GroupTooltip({
         message={"The following jobs are still pending:"}
       />
     );
-  } else if (conclusion === JobStatus.Neutral) {
+  } else if (conclusion === GroupedJobStatus.AllNull) {
     return (
       <div>
         {`[${conclusion}] ${groupName}`}
