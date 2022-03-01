@@ -111,7 +111,7 @@ function GroupTooltip({
 }) {
   if (conclusion === GroupedJobStatus.Failure) {
     return (
-      <JobToolTip
+      <ToolTip
         conclusion={conclusion}
         groupName={groupName}
         jobs={erroredJobs}
@@ -120,7 +120,7 @@ function GroupTooltip({
     );
   } else if (conclusion === GroupedJobStatus.Pending) {
     return (
-      <JobToolTip
+      <ToolTip
         conclusion={conclusion}
         groupName={groupName}
         jobs={pendingJobs}
@@ -143,7 +143,7 @@ function GroupTooltip({
   );
 }
 
-function JobToolTip({
+function ToolTip({
   conclusion,
   groupName,
   message,
