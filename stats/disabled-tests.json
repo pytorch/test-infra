@@ -12839,7 +12839,104 @@
         "type": "User",
         "url": "https://api.github.com/users/rohan-varma"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "MEMBER",
+      "body": "### \ud83d\udc1b Describe the bug\n\nExample failure: https://github.com/pytorch/pytorch/runs/5365860804?check_suite_focus=true\n\n### Versions\n\nmain\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "closed_at": null,
+      "comments": 2,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73552/comments",
+      "created_at": "2022-03-01T00:45:53Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/73552/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/73552",
+      "id": 1154712811,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "0052cc",
+          "default": false,
+          "description": "",
+          "id": 3357625261,
+          "name": "sharded_tensor",
+          "node_id": "MDU6TGFiZWwzMzU3NjI1MjYx",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/sharded_tensor"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/73552/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85E04Tr",
+      "number": 73552,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/73552/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73552/timeline",
+      "title": "DISABLED test_custom_sharding_spec_shard_tensor (__main__.TestCustomShardingSpec)",
+      "updated_at": "2022-03-01T00:46:49Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/73552",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
+        "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
+        "followers_url": "https://api.github.com/users/rohan-varma/followers",
+        "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
+        "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/rohan-varma",
+        "id": 8039770,
+        "login": "rohan-varma",
+        "node_id": "MDQ6VXNlcjgwMzk3NzA=",
+        "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
+        "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
+        "repos_url": "https://api.github.com/users/rohan-varma/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/rohan-varma"
+      }
     }
   ],
-  "total_count": 125
+  "total_count": 126
 }
