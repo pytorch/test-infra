@@ -7818,6 +7818,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "ededed",
+          "default": false,
+          "description": null,
+          "id": 2695910552,
+          "name": "Stale",
+          "node_id": "MDU6TGFiZWwyNjk1OTEwNTUy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/Stale"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/labels{/name}",
@@ -7843,7 +7852,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/timeline",
       "title": "DISABLED test_random_seed (__main__.TestDataLoaderUtils)",
-      "updated_at": "2021-12-31T02:20:19Z",
+      "updated_at": "2022-03-01T02:24:55Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70516",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -7915,6 +7924,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "ededed",
+          "default": false,
+          "description": null,
+          "id": 2695910552,
+          "name": "Stale",
+          "node_id": "MDU6TGFiZWwyNjk1OTEwNTUy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/Stale"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/labels{/name}",
@@ -7940,7 +7958,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/timeline",
       "title": "DISABLED test_proper_exit (__main__.TestDataLoader)",
-      "updated_at": "2021-12-31T02:19:57Z",
+      "updated_at": "2022-03-01T02:24:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70517",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
