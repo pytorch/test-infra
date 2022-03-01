@@ -1238,6 +1238,22 @@
       "type": "row"
     },
     {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 94,
+      "options": {
+        "content": "",
+        "mode": "markdown"
+      },
+      "pluginVersion": "8.3.3",
+      "title": "Jobs are ordered by \"weight\" (count * avg tts), to reduce noise from jobs that only a few times",
+      "type": "text"
+    },
+    {
       "datasource": {
         "type": "marcusolsson-json-datasource",
         "uid": "P62E83680D611FAF2"
@@ -1325,7 +1341,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 26
+        "y": 27
       },
       "id": 91,
       "options": {
@@ -1463,7 +1479,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 26
+        "y": 27
       },
       "id": 92,
       "options": {
@@ -1519,7 +1535,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 35
       },
       "id": 42,
       "panels": [
@@ -2352,7 +2368,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 36
       },
       "id": 44,
       "panels": [
@@ -3749,7 +3765,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 37
       },
       "id": 40,
       "panels": [
@@ -5633,7 +5649,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 38
       },
       "id": 51,
       "panels": [
@@ -5965,6 +5981,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 5,
+  "version": 6,
   "weekStart": ""
 }
