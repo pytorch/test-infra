@@ -12745,7 +12745,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: macos\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_python_ir_utils_graph%2C%20TestJit)).",
+      "body": "Platforms: macos, linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_python_ir_utils_graph%2C%20TestJit)).",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73473/comments",
@@ -12796,7 +12796,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73473/timeline",
       "title": "DISABLED test_python_ir_utils_graph (__main__.TestJit)",
-      "updated_at": "2022-02-26T17:32:55Z",
+      "updated_at": "2022-03-02T22:06:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73473",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
