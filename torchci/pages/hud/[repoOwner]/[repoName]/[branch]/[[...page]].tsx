@@ -156,7 +156,7 @@ function GroupFilterableHudTable({
   expandedGroups,
   setExpandedGroups,
   useGrouping,
-  setUserGrouping,
+  setUseGrouping,
 }: {
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
@@ -166,10 +166,10 @@ function GroupFilterableHudTable({
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   useGrouping: boolean;
-  setUserGrouping: any;
+  setUseGrouping: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params, setUserGrouping);
+    useTableFilter(params, setUseGrouping);
   const headerNames = useGrouping ? groupNames : names;
   return (
     <>
@@ -178,12 +178,12 @@ function GroupFilterableHudTable({
         handleSubmit={handleSubmit}
         handleInput={handleInput}
         handleFocus={() => {
-          setUserGrouping(false);
+          setUseGrouping(false);
         }}
       />
       <GroupViewCheckBox
         useGrouping={useGrouping}
-        setUserGrouping={setUserGrouping}
+        setUseGrouping={setUseGrouping}
       />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
@@ -208,10 +208,10 @@ function GroupFilterableHudTable({
 
 function GroupViewCheckBox({
   useGrouping,
-  setUserGrouping,
+  setUseGrouping,
 }: {
   useGrouping: boolean;
-  setUserGrouping: any;
+  setUseGrouping: any;
 }) {
   return (
     <>
@@ -220,7 +220,7 @@ function GroupViewCheckBox({
         name="groupView"
         checked={useGrouping}
         onChange={() => {
-          setUserGrouping(!useGrouping);
+          setUseGrouping(!useGrouping);
         }}
       />
       <label htmlFor="groupView"> Use grouped view</label>
@@ -415,7 +415,7 @@ function GroupedHudTable({
       expandedGroups={expandedGroups}
       setExpandedGroups={setExpandedGroups}
       useGrouping={useGrouping}
-      setUserGrouping={setUseGrouping}
+      setUseGrouping={setUseGrouping}
     >
       <HudTableBody
         shaGrid={shaGrid}
