@@ -3,10 +3,12 @@ export default function JobFilterInput({
   handleSubmit,
   handleInput,
   width,
+  handleFocus,
 }: {
   currentFilter: string | null;
   handleSubmit: () => void;
   handleInput: (value: string) => void;
+  handleFocus?: () => void;
   width?: string;
 }) {
   return (
@@ -28,6 +30,7 @@ export default function JobFilterInput({
           type="search"
           name="name_filter"
           value={currentFilter || ""}
+          onFocus={handleFocus}
         />
         <input type="submit" value="Go" />
       </form>

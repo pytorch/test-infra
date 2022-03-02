@@ -1,4 +1,4 @@
-import { getConclusionChar } from "lib/JobClassifierUtil";
+import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import { GroupData, JobData } from "lib/types";
 import styles from "./JobConclusion.module.css";
 import TooltipTarget from "components/TooltipTarget";
@@ -8,7 +8,7 @@ import {
   PinnedTooltipContext,
 } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 
-enum JobStatus {
+export enum JobStatus {
   Success = "success",
   Failure = "failure",
   Neutral = "neutral",
@@ -16,6 +16,13 @@ enum JobStatus {
   Timed_out = "timed_out",
   Skipped = "skipped",
   Pending = "pending",
+}
+
+export enum GroupedJobStatus {
+  Failure = "failure",
+  Pending = "pending",
+  AllNull = "all_null",
+  Success = "success",
 }
 
 export default function HudGroupedCell({
@@ -29,7 +36,7 @@ export default function HudGroupedCell({
 }) {
   const erroredJobs = [];
   const pendingJobs = [];
-
+  const noStatusJobs = [];
   for (const job of groupData.jobs) {
     if (
       job.conclusion === JobStatus.Failure ||
@@ -39,15 +46,20 @@ export default function HudGroupedCell({
       erroredJobs.push(job);
     } else if (job.conclusion === JobStatus.Pending) {
       pendingJobs.push(job);
+    } else if (job.conclusion === undefined) {
+      noStatusJobs.push(job);
     }
   }
 
-  let conclusion = "success";
+  let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
-    conclusion = "failure";
+    conclusion = GroupedJobStatus.Failure;
   } else if (!(pendingJobs.length === 0)) {
-    conclusion = "pending";
+    conclusion = GroupedJobStatus.Pending;
+  } else if (noStatusJobs.length === groupData.jobs.length) {
+    conclusion = GroupedJobStatus.AllNull;
   }
+
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <>
@@ -66,8 +78,11 @@ export default function HudGroupedCell({
           }
         >
           <span className={styles.conclusion}>
-            <span className={styles[conclusion ?? "none"]}>
-              {getConclusionChar(conclusion)}
+            <span
+              className={styles[conclusion ?? "none"]}
+              style={{ border: "1px solid gainsboro" }}
+            >
+              {getGroupConclusionChar(conclusion)}
             </span>
           </span>
         </TooltipTarget>
@@ -89,52 +104,73 @@ function GroupTooltip({
   erroredJobs,
   pendingJobs,
 }: {
-  conclusion: string;
+  conclusion: GroupedJobStatus;
   groupName: string;
   erroredJobs: JobData[];
   pendingJobs: JobData[];
 }) {
-  if (conclusion === "failure") {
+  if (conclusion === GroupedJobStatus.Failure) {
     return (
-      <div>
-        {`[${conclusion}] ${groupName}`}
-        <div>The following jobs errored out:</div>
-        {erroredJobs.map((erroredJob, ind) => (
-          <a
-            key={ind}
-            href={erroredJob.htmlUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {erroredJob.name}
-          </a>
-        ))}
-      </div>
+      <ToolTip
+        conclusion={conclusion}
+        groupName={groupName}
+        jobs={erroredJobs}
+        message={"The following jobs errored out:"}
+      />
     );
-  } else if (conclusion === "pending") {
+  } else if (conclusion === GroupedJobStatus.Pending) {
+    return (
+      <ToolTip
+        conclusion={conclusion}
+        groupName={groupName}
+        jobs={pendingJobs}
+        message={"The following jobs are still pending:"}
+      />
+    );
+  } else if (conclusion === GroupedJobStatus.AllNull) {
     return (
       <div>
         {`[${conclusion}] ${groupName}`}
-        <div>The following jobs are still pending:</div>
-        {pendingJobs.map((pendingJob, ind) => {
-          return (
-            <a
-              key={ind}
-              href={pendingJob.htmlUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {pendingJob.name}
-            </a>
-          );
-        })}
+        <div>All jobs were skipped</div>
       </div>
     );
   }
   return (
     <div>
       {`[${conclusion}] ${groupName}`}
-      <div>All relevant jobs passed</div>
+      <div>All jobs passed</div>
+    </div>
+  );
+}
+
+function ToolTip({
+  conclusion,
+  groupName,
+  message,
+  jobs,
+}: {
+  conclusion: string;
+  groupName: string;
+  message: string;
+  jobs: JobData[];
+}) {
+  return (
+    <div>
+      {`[${conclusion}] ${groupName}`}
+      <div>{message}</div>
+      {jobs.map((job, ind) => {
+        return (
+          <a
+            key={ind}
+            href={job.htmlUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: "block" }}
+          >
+            {job.name}
+          </a>
+        );
+      })}
     </div>
   );
 }

@@ -35,3 +35,7 @@
 .none {
   color: lightgray;
 }
+
+.all_null {
+  color: grey;
+}

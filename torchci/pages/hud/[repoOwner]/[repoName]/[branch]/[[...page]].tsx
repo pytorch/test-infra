@@ -1,6 +1,6 @@
 import {
-    GroupHudTableColumns,
-    GroupHudTableHeader
+  GroupHudTableColumns,
+  GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -9,18 +9,16 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
-import { includesCaseInsensitive } from "lib/GeneralUtils";
 import { getGroupingData } from "lib/JobClassifierUtil";
 import {
-    formatHudUrlForRoute,
-    HudData,
-    HudParams,
-    JobData,
-    packHudParams,
-    RowData
+  formatHudUrlForRoute,
+  HudData,
+  HudParams,
+  JobData,
+  packHudParams,
+  RowData,
 } from "lib/types";
 import useHudData from "lib/useHudData";
-import UserSettingContext from "lib/UserSettingsContext";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import Link from "next/link";
@@ -46,9 +44,11 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
 function HudRow({
   rowData,
   expandedGroups,
+  useGrouping,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
+  useGrouping: boolean;
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
@@ -79,7 +79,11 @@ function HudRow({
           </a>
         )}
       </td>
-      <HudJobCells rowData={rowData} expandedGroups={expandedGroups} />
+      <HudJobCells
+        rowData={rowData}
+        expandedGroups={expandedGroups}
+        useGrouping={useGrouping}
+      />
     </tr>
   );
 }
@@ -87,12 +91,13 @@ function HudRow({
 function HudJobCells({
   rowData,
   expandedGroups,
+  useGrouping,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
+  useGrouping: boolean;
 }) {
-  const { userSettings } = useContext(UserSettingContext);
-  if (!userSettings.useGrouping) {
+  if (!useGrouping) {
     return (
       <>
         {rowData.jobs.map((job: JobData) => (
@@ -118,102 +123,27 @@ function HudJobCells({
   }
 }
 
-function HudTableColumns({
-  names,
-  filter,
-}: {
-  names: string[];
-  filter: string | null;
-}) {
-  return (
-    <colgroup>
-      <col className={styles.colTime} />
-      <col className={styles.colSha} />
-      <col className={styles.colCommit} />
-      <col className={styles.colPr} />
-      {names.map((name: string) => {
-        const passesFilter =
-          filter === null || includesCaseInsensitive(name, filter);
-        const style = passesFilter ? {} : { visibility: "collapse" as any };
-
-        return <col className={styles.colJob} key={name} style={style} />;
-      })}
-    </colgroup>
-  );
-}
-
-function HudTableHeader({
-  names,
-  filter,
-}: {
-  names: string[];
-  filter: string | null;
-}) {
-  return (
-    <thead>
-      <tr>
-        <th className={styles.regularHeader}>Time</th>
-        <th className={styles.regularHeader}>SHA</th>
-        <th className={styles.regularHeader}>Commit</th>
-        <th className={styles.regularHeader}>PR</th>
-        {names.map((name) => {
-          const passesFilter =
-            filter === null || includesCaseInsensitive(name, filter);
-          const style = passesFilter ? {} : { visibility: "collapse" as any };
-          return (
-            <th className={styles.jobHeader} key={name} style={style}>
-              <div className={styles.jobHeaderName}>{name}</div>
-            </th>
-          );
-        })}
-      </tr>
-    </thead>
-  );
-}
-
 function HudTableBody({
   shaGrid,
   expandedGroups = new Set(),
+  useGrouping,
 }: {
   shaGrid: RowData[];
   expandedGroups?: Set<string>;
+  useGrouping: boolean;
 }) {
   expandedGroups;
   return (
     <tbody>
       {shaGrid.map((row: RowData) => (
-        <HudRow key={row.sha} rowData={row} expandedGroups={expandedGroups} />
+        <HudRow
+          key={row.sha}
+          rowData={row}
+          expandedGroups={expandedGroups}
+          useGrouping={useGrouping}
+        />
       ))}
     </tbody>
-  );
-}
-
-function FilterableHudTable({
-  params,
-  jobNames,
-  children,
-}: {
-  params: HudParams;
-  jobNames: string[];
-  children: React.ReactNode;
-}) {
-  const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params);
-
-  return (
-    <>
-      <JobFilterInput
-        currentFilter={jobFilter}
-        handleSubmit={handleSubmit}
-        handleInput={handleInput}
-      />
-      <GroupViewCheckBox />
-      <table className={styles.hudTable}>
-        <HudTableColumns filter={normalizedJobFilter} names={jobNames} />
-        <HudTableHeader filter={normalizedJobFilter} names={jobNames} />
-        {children}
-      </table>
-    </>
   );
 }
 
@@ -222,40 +152,53 @@ function GroupFilterableHudTable({
   groupNameMapping,
   children,
   names,
+  groupNames,
   expandedGroups,
   setExpandedGroups,
+  useGrouping,
+  setUseGrouping,
 }: {
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
   children: React.ReactNode;
   names: string[];
+  groupNames: string[];
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
+  useGrouping: boolean;
+  setUseGrouping: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params);
-
+    useTableFilter(params, setUseGrouping);
+  const headerNames = useGrouping ? groupNames : names;
   return (
     <>
       <JobFilterInput
         currentFilter={jobFilter}
         handleSubmit={handleSubmit}
         handleInput={handleInput}
+        handleFocus={() => {
+          setUseGrouping(false);
+        }}
       />
-      <GroupViewCheckBox />
+      <GroupViewCheckBox
+        useGrouping={useGrouping}
+        setUseGrouping={setUseGrouping}
+      />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
           filter={normalizedJobFilter}
-          names={names}
-          expandedGroups={expandedGroups}
+          names={headerNames}
           groupNameMapping={groupNameMapping}
+          useGrouping={useGrouping}
         />
         <GroupHudTableHeader
           filter={normalizedJobFilter}
-          names={names}
+          names={headerNames}
           expandedGroups={expandedGroups}
           setExpandedGroups={setExpandedGroups}
           groupNameMapping={groupNameMapping}
+          useGrouping={useGrouping}
         />
         {children}
       </table>
@@ -263,19 +206,21 @@ function GroupFilterableHudTable({
   );
 }
 
-function GroupViewCheckBox() {
-  const { userSettings, setUserSettings } = useContext(UserSettingContext);
+function GroupViewCheckBox({
+  useGrouping,
+  setUseGrouping,
+}: {
+  useGrouping: boolean;
+  setUseGrouping: any;
+}) {
   return (
     <>
       <input
         type="checkbox"
         name="groupView"
-        checked={userSettings.useGrouping}
+        checked={useGrouping}
         onChange={() => {
-          setUserSettings({
-            ...userSettings,
-            useGrouping: !userSettings.useGrouping,
-          });
+          setUseGrouping(!useGrouping);
         }}
       />
       <label htmlFor="groupView"> Use grouped view</label>
@@ -285,13 +230,7 @@ function GroupViewCheckBox() {
 }
 
 function HudTable({ params }: { params: HudParams }) {
-  const { userSettings } = useContext(UserSettingContext);
-
-  return userSettings.useGrouping ? (
-    <GroupedView params={params} />
-  ) : (
-    <UngroupedView params={params} />
-  );
+  return <GroupedView params={params} />;
 }
 
 function PageSelector({ params }: { params: HudParams }) {
@@ -389,6 +328,7 @@ export const PinnedTooltipContext = createContext<[null | string, any]>([
 
 export default function Hud() {
   const router = useRouter();
+  const params = packHudParams(router.query);
 
   // Logic to handle tooltip pinning. The behavior we want is:
   // - If the user clicks on a tooltip, it should be pinned.
@@ -396,7 +336,7 @@ export default function Hud() {
   // - Clicking outside the tooltip or pressing esc should unpin it.
   // This state needs to be set up at this level because we want to capture all
   // clicks.
-  const [userSettings, setUserSettings] = useState({ useGrouping: true });
+
   const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
   function handleClick() {
     setPinnedTooltip(null);
@@ -409,7 +349,6 @@ export default function Hud() {
     });
   }, []);
 
-  const params = packHudParams(router.query);
   return (
     <>
       <Head>
@@ -418,38 +357,17 @@ export default function Hud() {
           {`${params.repoOwner}/${params.repoName}: ${params.branch}`})
         </title>
       </Head>
-      <UserSettingContext.Provider value={{ userSettings, setUserSettings }}>
-        <PinnedTooltipContext.Provider
-          value={[pinnedTooltip, setPinnedTooltip]}
-        >
-          {params.branch !== undefined && (
-            <div onClick={handleClick}>
-              <HudHeader params={params} />
-              <div>This page automatically updates.</div>
-              <HudTable params={params} />
-              <PageSelector params={params} />
-            </div>
-          )}
-        </PinnedTooltipContext.Provider>
-      </UserSettingContext.Provider>
+      <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
+        {params.branch !== undefined && (
+          <div onClick={handleClick}>
+            <HudHeader params={params} />
+            <div>This page automatically updates.</div>
+            <HudTable params={params} />
+            <PageSelector params={params} />
+          </div>
+        )}
+      </PinnedTooltipContext.Provider>
     </>
-  );
-}
-
-function UngroupedView({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-  const { shaGrid, jobNames } = data;
-
-  // Here, we are intentionally injecting HudTableBody into the
-  // FilterableHudTable component. This is for rendering performance; we don't
-  // want React to re-render the whole table every time the filter changes.
-  return (
-    <FilterableHudTable params={params} jobNames={jobNames}>
-      <HudTableBody shaGrid={shaGrid} />
-    </FilterableHudTable>
   );
 }
 
@@ -474,6 +392,8 @@ function GroupedHudTable({
     data.jobNames
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
+  const [useGrouping, setUseGrouping] = useState(true);
+
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
 
@@ -490,11 +410,18 @@ function GroupedHudTable({
     <GroupFilterableHudTable
       params={params}
       groupNameMapping={groupNameMapping}
-      names={names}
+      names={data.jobNames}
+      groupNames={names}
       expandedGroups={expandedGroups}
       setExpandedGroups={setExpandedGroups}
+      useGrouping={useGrouping}
+      setUseGrouping={setUseGrouping}
     >
-      <HudTableBody shaGrid={shaGrid} expandedGroups={expandedGroups} />
+      <HudTableBody
+        shaGrid={shaGrid}
+        expandedGroups={expandedGroups}
+        useGrouping={useGrouping}
+      />
     </GroupFilterableHudTable>
   );
 }
