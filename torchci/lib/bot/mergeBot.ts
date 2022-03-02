@@ -9,6 +9,16 @@ function mergeBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const commentId = ctx.payload.comment.id;
     const prNum = ctx.payload.issue.number;
+    if (!ctx.payload.issue.pull_request) {
+      // Issue, not pull request.
+      await ctx.octokit.reactions.createForIssueComment({
+        comment_id: commentId,
+        content: "confused",
+        owner,
+        repo,
+      });
+      return;
+    }
     if (commentBody.match(mergeCmdPat)) {
       await ctx.octokit.repos.createDispatchEvent({
         owner,
