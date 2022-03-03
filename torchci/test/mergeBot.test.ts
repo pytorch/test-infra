@@ -18,8 +18,18 @@ describe("merge-bot", () => {
     jest.restoreAllMocks();
   });
 
-  test("random comment no event", async() => {
+  test("random pr comment no reactoin", async() => {
     const event = require("./fixtures/pull_request_comment.json");
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("random issue comment no event", async() => {
+    const event = require("./fixtures/issue_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
     if (!scope.isDone()) {
