@@ -26,6 +26,77 @@
   "liveNow": false,
   "panels": [
     {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "title": "Panel Title",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "marcusolsson-json-datasource",
         "uid": "P62E83680D611FAF2"
@@ -91,7 +162,7 @@
         "h": 9,
         "w": 23,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 2,
       "options": {
@@ -138,6 +209,7 @@
       "type": "timeseries"
     }
   ],
+  "refresh": "",
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
@@ -154,6 +226,6 @@
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
