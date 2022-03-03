@@ -9,57 +9,42 @@ function mergeBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const commentId = ctx.payload.comment.id;
     const prNum = ctx.payload.issue.number;
-    if (commentBody.match(mergeCmdPat)) {
-      if (!ctx.payload.issue.pull_request) {
-        // Issue, not pull request.
+    async function reactOnComment(reaction: string) {
         await ctx.octokit.reactions.createForIssueComment({
           comment_id: commentId,
-          content: "confused",
+          content: reaction,
           owner,
           repo,
         });
-        return;
-      }
+    }
+    async function dispatchEvent(event_type: string) {
       await ctx.octokit.repos.createDispatchEvent({
         owner,
         repo,
-        event_type: "try-merge",
+        event_type: event_type,
         client_payload: {
           pr_num: prNum,
         },
       });
-      await ctx.octokit.reactions.createForIssueComment({
-        comment_id: commentId,
-        content: "+1",
-        owner,
-        repo,
-      });
+    }
+
+    if (commentBody.match(mergeCmdPat)) {
+      if (!ctx.payload.issue.pull_request) {
+        // Issue, not pull request.
+        await reactOnComment("confused");
+        return;
+      }
+      await dispatchEvent("try-merge");
+      await reactOnComment("+1");
     }
     if (commentBody.match(revertCmdPat)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
-        await ctx.octokit.reactions.createForIssueComment({
-          comment_id: commentId,
-          content: "confused",
-          owner,
-          repo,
-        });
+        await reactOnComment("confused");
         return;
       }
-      await ctx.octokit.repos.createDispatchEvent({
-        owner,
-        repo,
-        event_type: "try-revert",
-        client_payload: {
-          pr_num: prNum,
-        },
-      });
-      await ctx.octokit.reactions.createForIssueComment({
-        comment_id: commentId,
-        content: "+1",
-        owner,
-        repo,
-      });
+      await dispatchEvent("try-revert");
+      await reactOnComment("+1");
     }
   });
 }
