@@ -2,19 +2,9 @@
   "sql_path": "__sql/failure_samples_query.sql",
   "default_parameters": [
     {
-      "name": "branch",
-      "type": "string",
-      "value": "%"
-    },
-    {
       "name": "captures",
       "type": "string",
-      "value": "test_dtypes_argsort_cuda, TestCommonCUDA"
-    },
-    {
-      "name": "repo",
-      "type": "string",
-      "value": "pytorch/pytorch"
+      "value": "test_random_seed, TestDataLoaderUtils"
     }
   ],
   "description": ""

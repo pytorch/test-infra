@@ -1,0 +1,24 @@
+name: Push prod tags to Rockset query lambdas
+# This action pushes the "prod" tag to every query lambda version that we
+# reference from our application.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push-rockset-tags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        run: yarn install --frozen-lockfile
+      - name: Authorize rockset
+        run: yarn run rockset auth add default ${{ secrets.ROCKSET_API_KEY }}
+      - name: Download query lambdas
+        run: yarn run rockset local download -y
+      - uses: actions/setup-python@v2
+      - name: Push rockset tags for lambdas
+        run: python scripts/push_rockset_tags.py

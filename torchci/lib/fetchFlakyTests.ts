@@ -1,4 +1,5 @@
 import getRocksetClient from "./rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 import { FlakyTestData } from "./types";
 
@@ -9,7 +10,7 @@ export default async function fetchFlakyTests(numHours: string = "3",
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "flaky_test_query",
-      "2bbca6ed782f660d",
+      rocksetVersions.flaky_test_query,
       {
         parameters: [
           {

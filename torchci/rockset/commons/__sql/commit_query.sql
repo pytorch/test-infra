@@ -1,11 +1,8 @@
 SELECT
-    all_commits.commit as commit
+    workflow.head_commit as commit
 FROM
-    push,
-    UNNEST(push.commits as commit) as all_commits
+   workflow_run workflow
 WHERE
-    all_commits.commit.id = :sha
-ORDER BY
-    all_commits.commit.timestamp DESC
+    workflow.head_commit.id = :sha
 LIMIT
     1

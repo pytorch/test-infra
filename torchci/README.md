@@ -30,7 +30,7 @@ following resources:
 ## Developing Probot
 
 The easiest way to develop probot actions is to use `nock` to mock out
-interactions with the GitHub API and develop completely locally. If you *do*
+interactions with the GitHub API and develop completely locally. If you _do_
 need real webhooks, the easiest thing to do is [follow these
 instructions](https://probot.github.io/docs/development/#manually-configuring-a-github-app)
 to configure a repo to send webhooks to a Smee proxy, which will then forward
@@ -48,11 +48,11 @@ The source of truth for our query lambdas is in `rockset/`. We use the Rockset
 CLI to deploy these queries to Rockset. To edit a query:
 
 1. Follow the steps to [install and authenticate the Rockset
-CLI](https://www.npmjs.com/package/@rockset/cli#download--installation-instructions).
+   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
 2. Optionally, install the [Rockset VSCode
-extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
+   extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
 3. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
-parameter definitions are found in `rockset/<workspace>`.
+   parameter definitions are found in `rockset/<workspace>`.
 4. You can test your query lambda using the [Rockset
-CLI]https://www.npmjs.com/package/@rockset/cli/v/0.8.0#execute-and-test-query-lambda-sql).
+   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
 5. Then, run `rockset deploy -l <yourlambda>` to sync it to Rockset.

@@ -25,25 +25,6 @@ jobs:
         run: yarn tsc
       - name: Test
         run: yarn test
-
-  check-rockset:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install
-        run: yarn install --frozen-lockfile
-      - name: Authorize rockset
-        run: yarn run rockset auth add default ${{ secrets.ROCKSET_API_KEY }}
-      - name: Download query lambdas
-        run: yarn run rockset local download -y
-      - name: Check for differences
-        run: |
-          DIFF=$(git diff)
-          if [ -z "${DIFF}" ]; then
-            echo "No changes detected"
-          else
-            git diff
-            echo '::error::Diff between query lambdas in Rockset and in your local checkout, make sure they are in sync by either deploying your new code or downloading existing lambdas! See workflow log for diff.';
-            exit 1
-          fi
+      - uses: actions/setup-python@v2
+      - name: Check that Rockset query lambda matches local checkout
+        run: python scripts/check_rockset.py

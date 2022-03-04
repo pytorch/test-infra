@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import getRocksetClient from "lib/rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 interface Data {}
 
@@ -10,10 +11,10 @@ export default async function handler(
   const capture = req.query.capture;
   const rocksetClient = getRocksetClient();
 
-  const samples = await rocksetClient.queryLambdas.executeQueryLambdaByTag(
+  const samples = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "failure_samples_query",
-    "prod",
+    rocksetVersions.failure_samples_query,
     {
       parameters: [
         {

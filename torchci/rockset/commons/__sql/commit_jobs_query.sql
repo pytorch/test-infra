@@ -5,8 +5,6 @@ WITH job as (
         job.name as job_name,
         workflow.name as workflow_name,
         job.id,
-        workflow.id as workflow_id,
-        workflow.artifacts_url as github_artifact_url,
         job.conclusion,
         job.html_url,
         CONCAT(
@@ -40,8 +38,6 @@ WITH job as (
         job.workflow.name as job_name,
         job.job.name as workflow_name,
         job.job.number as id,
-        null as workflow_id,
-        null as github_artifact_id,
         case
             WHEN job.job.status = 'failed' then 'failure'
             WHEN job.job.status = 'canceled' then 'cancelled'
@@ -81,8 +77,6 @@ WITH job as (
         -- rocm doesn't have a workflow->job structure per se, so just call the workflow "rocm"
         'rocm' as workflow_name,
         job.id as id,
-        null as workflow_id,
-        null as github_artifact_url,
         CASE
             WHEN job.status = 'ABORTED' then 'cancelled'
             ELSE LOWER(job.status)
@@ -107,8 +101,6 @@ SELECT
     job_name as jobName,
     CONCAT(workflow_name, ' / ', job_name) as name,
     CAST(id as string) as id,
-    CAST(workflow_id as string) as workflowId,
-    github_artifact_url as githubArtifactUrl,
     CASE
         when conclusion is NULL then 'pending'
         else conclusion
