@@ -1079,6 +1079,7 @@
       "type": "timeseries"
     }
   ],
+  "refresh": false,
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
@@ -1093,6 +1094,6 @@
   "timezone": "",
   "title": "Recycle Bin",
   "uid": "OOc3utYnz",
-  "version": 2,
+  "version": 4,
   "weekStart": ""
 }
