@@ -4,3 +4,5 @@ export function includesCaseInsensitive(
 ): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
 }
+
+export const fetcher = (url: string) => fetch(url).then((res) => res.json());

@@ -37,19 +37,17 @@ export default function CommitStatus({
       <article className={styles.commitMessage}>
         {commit.commitMessageBody}
       </article>
-
       <FilteredJobList
         filterName="Failed jobs"
         jobs={jobs}
         pred={isFailedJob}
       />
-
       <FilteredJobList
         filterName="Pending jobs"
         jobs={jobs}
         pred={(job) => job.conclusion === "pending"}
       />
-
+      <h1>Workflows</h1>
       <WorkflowsContainer jobs={jobs} />
     </>
   );
