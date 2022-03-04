@@ -9,13 +9,13 @@ function mergeBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const commentId = ctx.payload.comment.id;
     const prNum = ctx.payload.issue.number;
-    async function reactOnComment(reaction: string) {
-        await ctx.octokit.reactions.createForIssueComment({
-          comment_id: commentId,
-          content: reaction,
-          owner,
-          repo,
-        });
+    async function reactOnComment(reaction: "+1" | "confused") {
+      await ctx.octokit.reactions.createForIssueComment({
+        comment_id: commentId,
+        content: reaction,
+        owner,
+        repo,
+      });
     }
     async function dispatchEvent(event_type: string) {
       await ctx.octokit.repos.createDispatchEvent({
