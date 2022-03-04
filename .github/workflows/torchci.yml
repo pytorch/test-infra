@@ -2,7 +2,7 @@ name: torchci
 on:
   pull_request:
     paths:
-      - 'torchci/**'
+      - "torchci/**"
   push:
     branches:
       - main
@@ -37,4 +37,11 @@ jobs:
         run: yarn run rockset local download -y
       - name: Check for differences
         run: |
-          git diff-index --quiet HEAD -- || (git diff; echo '::error::Diff between query lambdas in Rockset and in your local checkout, make sure they are in sync by either deploying your new code or downloading existing lambdas! See workflow log for diff.'; return 1)
+          DIFF=$(git diff)
+          if [ -z "${DIFF}" ]; then
+            echo "No changes detected"
+          else
+            git diff
+            echo '::error::Diff between query lambdas in Rockset and in your local checkout, make sure they are in sync by either deploying your new code or downloading existing lambdas! See workflow log for diff.';
+            exit 1
+          fi
