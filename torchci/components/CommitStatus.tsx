@@ -8,18 +8,24 @@ import { isFailedJob } from "lib/jobUtils";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
   const byWorkflow = _.groupBy(jobs, (job) => job.workflowName);
+  if (jobs.length === 0) {
+    return null;
+  }
   return (
-    <div className={styles.workflowContainer}>
-      {_.map(byWorkflow, (jobs, workflowName) => {
-        return (
-          <WorkflowBox
-            key={workflowName}
-            workflowName={workflowName}
-            jobs={jobs}
-          />
-        );
-      })}
-    </div>
+    <>
+      <h1>Workflows</h1>
+      <div className={styles.workflowContainer}>
+        {_.map(byWorkflow, (jobs, workflowName) => {
+          return (
+            <WorkflowBox
+              key={workflowName}
+              workflowName={workflowName}
+              jobs={jobs}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -47,7 +53,6 @@ export default function CommitStatus({
         jobs={jobs}
         pred={(job) => job.conclusion === "pending"}
       />
-      <h1>Workflows</h1>
       <WorkflowsContainer jobs={jobs} />
     </>
   );

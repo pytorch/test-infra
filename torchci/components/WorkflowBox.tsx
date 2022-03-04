@@ -45,6 +45,10 @@ function Artifacts({ workflowId }: { workflowId: string }) {
   if (data == null) {
     return <div>Loading...</div>;
   }
+
+  if (error != null) {
+    return <div>Error occured while fetching artifacts</div>;
+  }
   const artifacts = data as Artifact[];
   if (artifacts.length === 0) {
     return null;
