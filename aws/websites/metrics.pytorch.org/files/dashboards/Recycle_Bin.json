@@ -1,0 +1,1098 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 11,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref != \"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\"\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Execution time on master vs PR for workflow jobs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 16,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20CONCAT(CONCAT(workflow_run.name,%20%5C%22%20%2F%20%5C%22),%20workflow_job.name)%20as%20%5C%22name%5C%22,%5Cn%20%20%20%20%20%20%20(unix_timestamp(t2.sync_last_update_at)%20-%20unix_timestamp(t1.sync_last_update_at))%20%2F%2060%20%5C%22run_time%20(m)%5C%22,%5Cn%20%20%20%20%20%20%20CONCAT(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Factions%2Fruns%2F%5C%22,%20workflow_run.id)%20as%20%5C%22url%5C%22%5CnFROM%5Cn%20%20(SELECT%20dense_rank()%20over(PARTITION%20BY%20BINARY%20workflow_job_node_id%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ORDER%20BY%20sync_last_update_at)%20AS%20%5C%22rerun_num%5C%22,%5Cn%20%20%20%20%20%20%20%20%20%20action,%5Cn%20%20%20%20%20%20%20%20%20%20workflow_job_node_id,%5Cn%20%20%20%20%20%20%20%20%20%20sync_last_update_at%5Cn%20%20%20FROM%20workflow_job_event%5Cn%20%20%20WHERE%20action%20%3D%20%5C%22in_progress%5C%22%5Cn%20%20%20%20%20AND%20$__timeFilter(sync_last_update_at)%20)%20AS%20t1%5CnINNER%20JOIN%5Cn%20%20(SELECT%20dense_rank()%20over(PARTITION%20BY%20BINARY%20workflow_job_node_id%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ORDER%20BY%20sync_last_update_at)%20AS%20%5C%22rerun_num%5C%22,%5Cn%20%20%20%20%20%20%20%20%20%20action,%5Cn%20%20%20%20%20%20%20%20%20%20workflow_job_node_id,%5Cn%20%20%20%20%20%20%20%20%20%20sync_last_update_at%5Cn%20%20%20FROM%20workflow_job_event%5Cn%20%20%20WHERE%20action%20%3D%20%5C%22completed%5C%22%5Cn%20%20%20%20%20AND%20$__timeFilter(sync_last_update_at)%20)%20AS%20t2%20ON%20t1.rerun_num%20%3D%20t2.rerun_num%5CnAND%20t1.workflow_job_node_id%20%3D%20t2.workflow_job_node_id%5CnAND%20t1.sync_last_update_at%20%3C%20t2.sync_last_update_at%5CnINNER%20JOIN%20workflow_job%20ON%20workflow_job.node_id%20%3D%20t1.workflow_job_node_id%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_job.conclusion%20%3D%20%5C%22success%5C%22%20and%20(workflow_job.name%20like%20%5C%22%25build%25%5C%22%20or%20workflow_job.name%20like%20%5C%22%25test%25%5C%22)%20and%20workflow_job.name%20!%3D%20%5C%22generate-test-matrix%5C%22%5CnORDER%20BY%20t1.sync_last_update_at%20desc%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(t1.sync_last_update_at, 30m),\n       avg((unix_timestamp(t2.sync_last_update_at) - unix_timestamp(t1.sync_last_update_at)) / 60) \"windows build (m)\"\nFROM\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"in_progress\"\n     AND $__timeFilter(sync_last_update_at) ) AS t1\nINNER JOIN\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"completed\"\n     AND $__timeFilter(sync_last_update_at) ) AS t2 ON t1.rerun_num = t2.rerun_num\nAND t1.workflow_job_node_id = t2.workflow_job_node_id\nAND t1.sync_last_update_at < t2.sync_last_update_at\nINNER JOIN workflow_job ON workflow_job.node_id = t1.workflow_job_node_id\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_job.name like \"%build%\" and workflow_run.name like \"%win%\" and workflow_job.name != \"generate-test-matrix\" and workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(t1.sync_last_update_at, 30m)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(t1.sync_last_update_at, 30m),\n       avg((unix_timestamp(t2.sync_last_update_at) - unix_timestamp(t1.sync_last_update_at)) / 60) \"windows test (m)\"\nFROM\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"in_progress\"\n     AND $__timeFilter(sync_last_update_at) ) AS t1\nINNER JOIN\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"completed\"\n     AND $__timeFilter(sync_last_update_at) ) AS t2 ON t1.rerun_num = t2.rerun_num\nAND t1.workflow_job_node_id = t2.workflow_job_node_id\nAND t1.sync_last_update_at < t2.sync_last_update_at\nINNER JOIN workflow_job ON workflow_job.node_id = t1.workflow_job_node_id\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_job.name like \"%test%\" and workflow_run.name like \"%win%\" and workflow_job.name != \"generate-test-matrix\" and workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(t1.sync_last_update_at, 30m)",
+          "refId": "B",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(t1.sync_last_update_at, 30m),\n       avg((unix_timestamp(t2.sync_last_update_at) - unix_timestamp(t1.sync_last_update_at)) / 60) \"linux build (m)\"\nFROM\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"in_progress\"\n     AND $__timeFilter(sync_last_update_at) ) AS t1\nINNER JOIN\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"completed\"\n     AND $__timeFilter(sync_last_update_at) ) AS t2 ON t1.rerun_num = t2.rerun_num\nAND t1.workflow_job_node_id = t2.workflow_job_node_id\nAND t1.sync_last_update_at < t2.sync_last_update_at\nINNER JOIN workflow_job ON workflow_job.node_id = t1.workflow_job_node_id\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_job.name like \"%build%\" and workflow_run.name like \"%linux%\"  and workflow_job.name != \"generate-test-matrix\" and workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(t1.sync_last_update_at, 30m)",
+          "refId": "C",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        },
+        {
+          "format": "time_series",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(t1.sync_last_update_at, 30m),\n       avg((unix_timestamp(t2.sync_last_update_at) - unix_timestamp(t1.sync_last_update_at)) / 60) \"linux test (m)\"\nFROM\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"in_progress\"\n     AND $__timeFilter(sync_last_update_at) ) AS t1\nINNER JOIN\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"completed\"\n     AND $__timeFilter(sync_last_update_at) ) AS t2 ON t1.rerun_num = t2.rerun_num\nAND t1.workflow_job_node_id = t2.workflow_job_node_id\nAND t1.sync_last_update_at < t2.sync_last_update_at\nINNER JOIN workflow_job ON workflow_job.node_id = t1.workflow_job_node_id\nINNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\nWHERE workflow_job.name like \"%test%\" and workflow_run.name like \"%linux%\" and workflow_job.name != \"generate-test-matrix\" and workflow_job.conclusion = \"success\"\nGROUP BY 1\nORDER BY $__timeGroup(t1.sync_last_update_at, 30m)",
+          "refId": "D",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Average Build/Test Run Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "queue time (m)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "continuous-BlYlRd",
+                  "seriesBy": "last"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "id": 14,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20CONCAT(CONCAT(workflow_run.name,%20%5C%22%20%2F%20%5C%22),%20workflow_job.name)%20as%20%5C%22name%5C%22,%5Cn%20%20%20%20%20%20%20(unix_timestamp(t2.sync_last_update_at)%20-%20unix_timestamp(t1.sync_last_update_at))%20%2F%2060%20%5C%22queue_time%20(m)%5C%22,%5Cn%20%20%20%20%20%20%20CONCAT(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Factions%2Fruns%2F%5C%22,%20workflow_run.id)%20as%20%5C%22url%5C%22%5CnFROM%5Cn%20%20(SELECT%20dense_rank()%20over(PARTITION%20BY%20BINARY%20workflow_job_node_id%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ORDER%20BY%20sync_last_update_at)%20AS%20%5C%22rerun_num%5C%22,%5Cn%20%20%20%20%20%20%20%20%20%20action,%5Cn%20%20%20%20%20%20%20%20%20%20workflow_job_node_id,%5Cn%20%20%20%20%20%20%20%20%20%20sync_last_update_at%5Cn%20%20%20FROM%20workflow_job_event%5Cn%20%20%20WHERE%20action%20%3D%20%5C%22queued%5C%22%5Cn%20%20%20%20%20AND%20$__timeFilter(sync_last_update_at)%20)%20AS%20t1%5CnINNER%20JOIN%5Cn%20%20(SELECT%20dense_rank()%20over(PARTITION%20BY%20BINARY%20workflow_job_node_id%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ORDER%20BY%20sync_last_update_at)%20AS%20%5C%22rerun_num%5C%22,%5Cn%20%20%20%20%20%20%20%20%20%20action,%5Cn%20%20%20%20%20%20%20%20%20%20workflow_job_node_id,%5Cn%20%20%20%20%20%20%20%20%20%20sync_last_update_at%5Cn%20%20%20FROM%20workflow_job_event%5Cn%20%20%20WHERE%20action%20%3D%20%5C%22in_progress%5C%22%5Cn%20%20%20%20%20AND%20$__timeFilter(sync_last_update_at)%20)%20AS%20t2%20ON%20t1.rerun_num%20%3D%20t2.rerun_num%5CnAND%20t1.workflow_job_node_id%20%3D%20t2.workflow_job_node_id%5CnAND%20t1.sync_last_update_at%20%3C%20t2.sync_last_update_at%5CnINNER%20JOIN%20workflow_job%20ON%20workflow_job.node_id%20%3D%20t1.workflow_job_node_id%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnORDER%20BY%20t1.sync_last_update_at%20desc%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(t1.sync_last_update_at, 30m),\n       avg((unix_timestamp(t2.sync_last_update_at) - unix_timestamp(t1.sync_last_update_at)) / 60) \"queue_time (m)\"\nFROM\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"queued\"\n     AND $__timeFilter(sync_last_update_at) ) AS t1\nINNER JOIN\n  (SELECT dense_rank() over(PARTITION BY BINARY workflow_job_node_id\n                            ORDER BY sync_last_update_at) AS \"rerun_num\",\n          action,\n          workflow_job_node_id,\n          sync_last_update_at\n   FROM workflow_job_event\n   WHERE action = \"in_progress\"\n     AND $__timeFilter(sync_last_update_at) ) AS t2 ON t1.rerun_num = t2.rerun_num\nAND t1.workflow_job_node_id = t2.workflow_job_node_id\nAND t1.sync_last_update_at < t2.sync_last_update_at\nGROUP BY 1\nORDER BY $__timeGroup(t1.sync_last_update_at, 30m)",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Average Queue Time (GHA)",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "Failures on GHA runs on the master branch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fail Percent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "id": 12,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Workflow Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22table%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20concat(%5C%22https:%2F%2Fgithub.com%2Fpytorch%2Fpytorch%2Fruns%2F%5C%22,%20workflow_job.id)%20AS%20%5C%22url%5C%22,%5Cn%20%20%20%20%20%20%20workflow_run.name%20as%20%5C%22workflow%5C%22,%5Cn%20%20%20%20%20%20%20workflow_job.name,%5Cn%20%20%20%20%20%20%20workflow_job.completed_at,%5Cn%20%20%20%20%20%20%20workflow_job.status,%5Cn%20%20%20%20%20%20%20workflow_job.conclusion,%5Cn%20%20%20%20%20%20%20workflow_job.head_sha,%5Cn%20%20%20%20%20%20%20workflow_run.head_commit_message%5CnFROM%20workflow_job%5CnINNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5CnWHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%5CnOrder%20by%20workflow_job.completed_at%20desc;%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20time,%5Cn%20%20%20%20%20%20%20failing_jobs%20%2F%20(failing_jobs%20%2B%20passing_jobs)%20*%20100%20as%20%5C%22Fail%20Percent%5C%22%5CnFROM%5Cn%20%20(SELECT%20$__timeGroupAlias(workflow_job.completed_at,%2030m),%5Cn%20%20%20%20%20%20%20%20%20%20sum(CASE%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20WHEN%20workflow_job.conclusion%20!%3D%20%5C%22success%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22skipped%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20AND%20workflow_job.conclusion%20!%3D%20%5C%22cancelled%5C%22%20THEN%201%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ELSE%200%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20END)%20AS%20failing_jobs,%5Cn%20%20%20%20%20%20%20%20%20%20sum(CASE%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20WHEN%20workflow_job.conclusion%20%3D%20%5C%22success%5C%22%20THEN%201%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ELSE%200%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20END)%20AS%20passing_jobs%5Cn%20%20%20FROM%20workflow_job%5Cn%20%20%20INNER%20JOIN%20workflow_run%20ON%20workflow_job.run_id%20%3D%20workflow_run.id%5Cn%20%20%20WHERE%20workflow_run.head_branch%20%3D%20%5C%22master%5C%22%5Cn%20%20%20%20%20AND%20$__timeFilter(workflow_job.completed_at)%5Cn%20%20%20GROUP%20BY%201%5Cn%20%20%20ORDER%20BY%20$__timeGroup(completed_at,%2030m))%20AS%20nested%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"Fail Percent\"\nFROM\n  (SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n          sum(CASE\n                  WHEN workflow_job.conclusion != \"success\"\n                       AND workflow_job.conclusion != \"skipped\"\n                       AND workflow_job.conclusion != \"cancelled\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN workflow_job.conclusion = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM workflow_job\n   INNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\n   WHERE workflow_run.head_branch = \"master\"\n     AND $__timeFilter(workflow_job.completed_at)\n   GROUP BY 1\n   ORDER BY $__timeGroup(completed_at, 30m)) AS nested",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "title": "GitHub Actions Master Fail %",
+      "transformations": [],
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 24
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 33
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "first"
+          ],
+          "fields": "/^hours_since_push$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/nightly' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Last nightly update",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 2,
+        "x": 0,
+        "y": 37
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "first"
+          ],
+          "fields": "/^hours_since_push$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/viable/strict' and (head_commit_added!=\"[]\" or head_commit_removed!=\"[]\" or head_commit_modified!=\"[]\")\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Last viable/strict update",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "Note: Bundled commits show up as a single revert",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 2,
+        "x": 0,
+        "y": 41
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "first"
+          ],
+          "fields": "/^num_reverts$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select count(*) as \"num_reverts\"\nfrom push_event\nwhere ref = 'refs/heads/master'\n    and head_commit_message like \"Revert D%\"\n    and $__timeFilter(sync_last_update_at);",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "# Reverts",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 12
+              }
+            ]
+          },
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 45
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "first"
+          ],
+          "fields": "/^hours_since_push$/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/master'\norder by head_commit_timestamp desc \nlimit 1;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "output_annotations_count"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "check_run",
+          "timeColumn": "started_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Last master update",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "PF911E414CF6BDFC5"
+      },
+      "description": "Failures on CircleCI runs on the master branch",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fail_percent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 49
+      },
+      "id": 2,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "See Individual Jobs",
+          "url": "https://metrics.pytorch.org/explore?orgId=1&left=%5B%22now-24h%22,%22now%22,%22GitHub%22,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20context%20as%20%5C%22metric%5C%22,%5Cn%20%20%20%20%20%20%20state,%5Cn%20%20%20%20%20%20%20updated_at%20as%20%5C%22time%5C%22,%5Cn%20%20%20%20%20%20%20target_url%5CnFROM%20status_event%5CnWHERE%20state%20!%3D%20%5C%22pending%5C%22%5Cn%20%20AND%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20AND%20$__timeFilter(updated_at)%5Cn%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D,%7B%22datasource%22:%22GitHub%22,%22format%22:%22time_series%22,%22timeColumn%22:%22sync_last_update_at%22,%22metricColumn%22:%22none%22,%22group%22:%5B%5D,%22where%22:%5B%7B%22type%22:%22macro%22,%22name%22:%22$__timeFilter%22,%22params%22:%5B%5D%7D%5D,%22select%22:%5B%5B%7B%22type%22:%22column%22,%22params%22:%5B%22pk_id%22%5D%7D%5D%5D,%22rawQuery%22:true,%22rawSql%22:%22SELECT%20time,%5Cn%20%20%20%20%20%20%20failing_jobs%20%2F%20(failing_jobs%20%2B%20passing_jobs)%20*%20100%20as%20%5C%22fail_percent%5C%22%5CnFROM%5Cn%20%20(SELECT%20$__timeGroupAlias(updated_at,%2030m),%5Cn%20%20%20%20%20%20%20%20%20%20sum(CASE%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20WHEN%20state%20!%3D%20%5C%22success%5C%22%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20AND%20state%20!%3D%20%5C%22pending%5C%22%20THEN%201%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ELSE%200%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20END)%20AS%20failing_jobs,%5Cn%20%20%20%20%20%20%20%20%20%20sum(CASE%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20WHEN%20state%20%3D%20%5C%22success%5C%22%20THEN%201%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20ELSE%200%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20END)%20AS%20passing_jobs%5Cn%20%20%20FROM%20status_event%5Cn%20%20%20WHERE%20$__timeFilter(updated_at)%5Cn%20%20%20%20%20AND%20json_unquote(json_extract(branches,%20%5C%22$%5B0%5D.name%5C%22))%20%3D%20%5C%22master%5C%22%5Cn%20%20%20GROUP%20BY%201%5Cn%20%20%20ORDER%20BY%20$__timeGroup(updated_at,%2030m))%20AS%20nested%22,%22table%22:%22pull_request_review_event%22,%22timeColumnType%22:%22timestamp%22%7D%5D"
+        }
+      ],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "queryType": "randomWalk",
+          "rawQuery": true,
+          "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"fail_percent\"\nFROM\n  (SELECT $__timeGroupAlias(updated_at, 30m),\n          sum(CASE\n                  WHEN state != \"success\"\n                       AND state != \"pending\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN state = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM status_event\n   WHERE $__timeFilter(updated_at)\n     AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\n   GROUP BY 1\n   ORDER BY $__timeGroup(updated_at, 30m)) AS nested",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "pk_id"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "pull_request_review_event",
+          "timeColumn": "sync_last_update_at",
+          "timeColumnType": "timestamp",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "title": "CircleCI/Jenkins Master Fail %",
+      "transformations": [],
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Recycle Bin",
+  "uid": "OOc3utYnz",
+  "version": 2,
+  "weekStart": ""
+}
