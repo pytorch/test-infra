@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/GHA-CI-for-shas.sql",
+  "default_parameters": [
+    {
+      "name": "shas",
+      "type": "string",
+      "value": ""
+    }
+  ],
+  "description": "Get GHA results for a specific set of SHAs"
+}

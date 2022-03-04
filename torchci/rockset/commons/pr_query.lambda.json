@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/pr_query.sql",
+  "default_parameters": [
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "pr",
+      "type": "int",
+      "value": "70005"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ],
+  "description": "Get information for a single pull request"
+}

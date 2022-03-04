@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/pr_commit_history_query.sql",
+  "default_parameters": [
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "pr",
+      "type": "int",
+      "value": "71734"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ],
+  "description": ""
+}

@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/master_commits.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "refs/heads/master"
+    },
+    {
+      "name": "owner",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "page",
+      "type": "int",
+      "value": "0"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ],
+  "description": ""
+}

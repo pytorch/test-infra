@@ -41,3 +41,18 @@ them to your local server.
 We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
+
+## How to edit a Rockset query lambdas
+
+The source of truth for our query lambdas is in `rockset/`. We use the Rockset
+CLI to deploy these queries to Rockset. To edit a query:
+
+1. Follow the steps to [install and authenticate the Rockset
+CLI](https://www.npmjs.com/package/@rockset/cli#download--installation-instructions).
+2. Optionally, install the [Rockset VSCode
+extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
+3. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
+parameter definitions are found in `rockset/<workspace>`.
+4. You can test your query lambda using the [Rockset
+CLI]https://www.npmjs.com/package/@rockset/cli/v/0.8.0#execute-and-test-query-lambda-sql).
+5. Then, run `rockset deploy -l <yourlambda>` to sync it to Rockset.

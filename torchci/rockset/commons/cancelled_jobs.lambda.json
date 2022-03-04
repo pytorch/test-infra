@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/cancelled_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-31"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-02-07"
+    }
+  ],
+  "description": ""
+}
