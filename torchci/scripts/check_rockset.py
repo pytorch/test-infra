@@ -1,5 +1,7 @@
+import difflib
 import json
 import os
+import sys
 from rockset import Client
 
 API_KEY = os.environ["ROCKSET_API_KEY"]
@@ -17,9 +19,18 @@ for query, version in versions.items():
     )
     remote_query = qlambda["sql"]["query"]
     with open(f"./rockset/commons/__sql/{query}.sql") as f:
-        if remote_query != f.read():
+        local_query = f.read()
+        if remote_query != local_query:
             failed = True
             print(f"::error::{query}:{version} does not match your local checkout.")
+            diff = difflib.unified_diff(
+                remote_query.splitlines(),
+                local_query.splitlines(),
+                fromfile="Rockset remote query",
+                tofile="local checkout",
+            )
+            for line in diff:
+                print(line)
 
 if failed:
     exit(1)
