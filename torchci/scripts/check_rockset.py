@@ -1,10 +1,14 @@
 import json
+import os
 from rockset import Client
+
+API_KEY = os.environ["ROCKSET_API_KEY"]
+API_SERVER = "https://api.rs2.usw2.rockset.com"
 
 with open("./rockset/prodVersions.json") as f:
     versions = json.load(f)
 
-rs = Client()
+rs = Client(api_server=API_SERVER, api_key=API_KEY)
 for query, version in versions.items():
     print(f"Checking that query: {query}:{version} matches your local checkout.")
     qlambda = rs.QueryLambda.retrieveByVersion(
@@ -14,4 +18,3 @@ for query, version in versions.items():
     with open(f"./rockset/commons/__sql/{query}.sql") as f:
         if remote_query != f.read():
             print(f"::error::{query}:{version} does not match your local checkout.")
-

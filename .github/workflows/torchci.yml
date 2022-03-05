@@ -23,4 +23,6 @@ jobs:
       - uses: actions/setup-python@v2
       - run: pip install rockset six
       - name: Check that Rockset query lambda matches local checkout
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
         run: python scripts/check_rockset.py
