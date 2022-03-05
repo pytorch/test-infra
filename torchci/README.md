@@ -42,7 +42,7 @@ We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
 
-## How to edit a Rockset query lambdas
+## How to edit Rockset query lambdas
 
 The source of truth for our query lambdas is in `rockset/`. We use the Rockset
 CLI to deploy these queries to Rockset. To edit a query:
@@ -55,4 +55,5 @@ CLI to deploy these queries to Rockset. To edit a query:
    parameter definitions are found in `rockset/<workspace>`.
 4. You can test your query lambda using the [Rockset
    CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
-5. Then, run `rockset deploy -l <yourlambda>` to sync it to Rockset.
+5. Run `rockset deploy -l <yourlambda>` to sync it to Rockset.
+6. Update `rockset/prodVersion.json` with the new version of the lambda.

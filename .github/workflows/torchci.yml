@@ -26,5 +26,6 @@ jobs:
       - name: Test
         run: yarn test
       - uses: actions/setup-python@v2
+      - run: pip install rockset
       - name: Check that Rockset query lambda matches local checkout
         run: python scripts/check_rockset.py
