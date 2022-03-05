@@ -47,7 +47,9 @@ function Artifacts({ workflowId }: { workflowId: string }) {
   }
 
   if (error != null) {
-    return <div>Error occured while fetching artifacts</div>;
+    return (
+      <div style={{ color: "red" }}>Error occured while fetching artifacts</div>
+    );
   }
   const artifacts = data as Artifact[];
   if (artifacts.length === 0) {
