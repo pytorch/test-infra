@@ -9,7 +9,7 @@ export default async function fetchFlakyTests(numHours: string = "3",
     rocksetClient.queryLambdas.executeQueryLambda(
       "commons",
       "flaky_test_query",
-      "2bbca6ed782f660d",
+      "2778eac601839f5b",
       {
         parameters: [
           {
