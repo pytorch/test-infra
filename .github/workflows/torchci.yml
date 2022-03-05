@@ -15,17 +15,12 @@ jobs:
   test:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install
-        run: yarn install --frozen-lockfile
-      - name: Lint
-        run: yarn lint
-      - name: Type check
-        run: yarn tsc
-      - name: Test
-        run: yarn test
+      - uses: actions/checkout@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn tsc
+      - run: yarn test
       - uses: actions/setup-python@v2
-      - run: pip install rockset
+      - run: pip install rockset six
       - name: Check that Rockset query lambda matches local checkout
         run: python scripts/check_rockset.py
