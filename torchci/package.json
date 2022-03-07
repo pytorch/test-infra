@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.49.0",
+    "@aws-sdk/client-s3": "^3.53.1",
     "@aws-sdk/lib-dynamodb": "^3.49.0",
     "@monaco-editor/react": "^4.3.1",
     "@octokit/webhooks": "^9.22.0",
@@ -30,12 +31,16 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@rockset/cli": "^0.8.23",
     "@types/jest": "^27.4.0",
+    "@types/jsdom": "^16.2.14",
     "@types/lodash": "^4.14.178",
-    "@types/node": "17.0.15",
+    "@types/node": "^17.0.21",
     "@types/react": "17.0.39",
     "@types/uuid": "^8.3.4",
+    "argparse": "^2.0.1",
+    "colors": "^1.4.0",
+    "diff": "^5.0.0",
+    "dotenv": "^16.0.0",
     "eslint": "8.8.0",
     "eslint-config-next": "12.0.10",
     "jest": "^27.5.0",

@@ -45,15 +45,28 @@ the bot comments for how to view.
 ## How to edit Rockset query lambdas
 
 The source of truth for our query lambdas is in `rockset/`. We use the Rockset
-CLI to deploy these queries to Rockset. To edit a query:
+CLI to deploy these queries to Rockset. To get started:
 
-1. Follow the steps to [install and authenticate the Rockset
-   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
-2. Optionally, install the [Rockset VSCode
-   extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
-3. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
+- Follow the steps to [install and authenticate the Rockset
+  CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
+- Optionally, install the [Rockset VSCode
+  extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
+
+Then, you have two options for editing your query, locally or in the Rockset
+console.
+
+### Work on the query locally
+
+1. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
    parameter definitions are found in `rockset/<workspace>`.
-4. You can test your query lambda using the [Rockset
+2. You can test your query lambda using the [Rockset
    CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
-5. Run `rockset deploy -l <yourlambda>` to sync it to Rockset.
-6. Update `rockset/prodVersion.json` with the new version of the lambda.
+3. Run `rockset deploy -l <yourlambda>` to sync it to Rockset.
+4. Update `rockset/prodVersion.json` with the new version of the lambda.
+
+### Work on the query in Rockset console
+
+1. Edit the query on console.rockset.com.
+2. Save the query, creating a new version.
+3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`.
+4. Update `rockset/prodVersion.json` with the new version of the lambda.

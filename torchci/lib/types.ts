@@ -7,6 +7,8 @@ export interface JobData {
   jobName?: string;
   sha?: string;
   id?: string;
+  workflowId?: string;
+  githubArtifactUrl?: string;
   time?: string;
   conclusion?: string;
   htmlUrl?: string;
@@ -17,6 +19,14 @@ export interface JobData {
   failureContext?: string;
   failureCaptures?: string;
   originalPrData?: JobData;
+}
+
+export interface Artifact {
+  name: string;
+  kind: string;
+  expired: boolean;
+  sizeInBytes: number;
+  url: string;
 }
 
 export interface GroupData {
@@ -63,7 +73,6 @@ export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
 }
-
 export interface FlakyTestData {
   file: string;
   suite: string;
