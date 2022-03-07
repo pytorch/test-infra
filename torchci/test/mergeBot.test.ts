@@ -125,7 +125,7 @@ describe("merge-bot", () => {
     const pr_number = event.payload.pull_request.number;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments`,
+        `/repos/${owner}/${repo}/issues/${pr_number}/comments`,
         (body) => {
           expect(JSON.stringify(body)).toContain(
             "{\"body\":\"+1\"}"
