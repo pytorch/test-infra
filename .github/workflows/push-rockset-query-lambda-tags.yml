@@ -7,12 +7,16 @@ on:
     branches:
       - main
 
+defaults:
+  run:
+    working-directory: torchci
+
 jobs:
   push-rockset-tags:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - run: yarn install --frozen-lockfile
-      - run: yarn node pushRocksetTags.mjs
+      - run: yarn node scripts/pushRocksetTags.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
