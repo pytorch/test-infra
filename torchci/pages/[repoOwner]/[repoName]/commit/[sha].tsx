@@ -1,8 +1,7 @@
 import CommitStatus from "components/CommitStatus";
+import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function CommitInfo({
   repoOwner,
