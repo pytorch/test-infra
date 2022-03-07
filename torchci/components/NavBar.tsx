@@ -46,12 +46,12 @@ function NavBar() {
               <Link href="https://metrics.pytorch.org">Metrics</Link>
             </li>
             <li>
-              <span style={{ color: "black", cursor: "pointer" }}>
+              <span style={{ cursor: "pointer" }}>
                 <Link
                   href="https://github.com/pytorch/test-infra/tree/main/torchci"
                   passHref
                 >
-                  <a>
+                  <a style={{ color: "black" }}>
                     <AiFillGithub />
                   </a>
                 </Link>
