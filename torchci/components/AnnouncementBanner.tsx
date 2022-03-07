@@ -4,11 +4,9 @@ import styles from "./AnnouncementBanner.module.css";
 function AnnouncementBanner() {
   return (
     <div className={styles.announcementBanner}>
-      <a href="https://github.com/pytorch/pytorch/wiki/%5BWIP%5D-What-is-a-SEV">
-        HUD Migration:
-      </a>
-      HUD is being migrated. If you would like to use the old HUD, go here to
-      use the <a href={"https://hud2.pytorch.org/"}>old HUD</a> or{" "}
+      <b>HUD Migration:</b> HUD is being migrated. If you would like to use the
+      old HUD, go here to use the{" "}
+      <a href={"https://hud2.pytorch.org/"}>old HUD</a> or{" "}
       <a href="https://github.com/pytorch/test-infra/issues/new?assignees=&labels=&template=feature_request.yaml&title=%5Bfeature%5D%3A+">
         file an issue
       </a>
