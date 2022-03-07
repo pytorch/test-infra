@@ -11,12 +11,10 @@ const parser = new ArgumentParser({
 
 parser.add_argument("workspace", {
   help: "Workspace of the query, like 'commons'",
-  required: true,
 });
-parser.add_argument("query", { help: "name of the query", required: true });
+parser.add_argument("query", { help: "name of the query" });
 parser.add_argument("version", {
   help: "version hash to download",
-  required: true,
 });
 
 const args = parser.parse_args();

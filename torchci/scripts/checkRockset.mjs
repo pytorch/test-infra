@@ -3,6 +3,10 @@ import { promises as fs } from "fs";
 import { diffLines } from "diff";
 import "colors";
 
+import dotenv from "dotenv";
+import path from "path";
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+
 async function readJSON(path) {
   const rawData = await fs.readFile(path);
   return JSON.parse(rawData);
@@ -27,6 +31,7 @@ async function checkQuery(client, queryName, version) {
     queryName,
     version
   );
+  let passesCheck = true;
 
   // Check that the query SQL matches the local checkout.
   const remoteQuery = qLambda.data.sql.query;
@@ -36,9 +41,10 @@ async function checkQuery(client, queryName, version) {
   );
   if (remoteQuery !== localQuery) {
     console.log(
-      `::error::commons.${queryName}:${version} SQL does not match your local checkout.`
+      `::error::commons.${queryName}:${version} SQL does not match your local checkout. Run 'yarn node scripts/downloadQueryLambda.mjs commons ${queryName} ${version}' to overwrite your local checkout.`
     );
     printDiff(remoteQuery, localQuery);
+    passesCheck = false;
   }
 
   // Check that the query config matches the local checkout.
@@ -54,10 +60,12 @@ async function checkQuery(client, queryName, version) {
   const localParams = JSON.stringify(localConfig.default_parameters, null, 2);
   if (remoteParams !== localParams) {
     console.log(
-      `::error::commons.${queryName}:${version} config does not match your local checkout.`
+      `::error::commons.${queryName}:${version} config does not match your local checkout. Run 'yarn node scripts/downloadQueryLambda.mjs commons ${queryName} ${version}' to overwrite your local checkout.`
     );
     printDiff(remoteParams, localParams);
+    passesCheck = false;
   }
+  return passesCheck;
 }
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
@@ -67,4 +75,8 @@ const checks = Object.entries(prodVersions).map(([queryName, version]) =>
   checkQuery(client, queryName, version)
 );
 
-await Promise.all(checks);
+const checkStatuses = await Promise.all(checks);
+
+if (checkStatuses.some((status) => status === false)) {
+  process.exit(1);
+}
