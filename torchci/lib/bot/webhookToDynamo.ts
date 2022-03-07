@@ -103,9 +103,41 @@ async function handlePush(event: WebhookEvent<"push">) {
   });
 }
 
+async function handlePullRequestReview(
+  event: WebhookEvent<"pull_request_review">
+) {
+  const key_prefix = event.payload.repository.full_name;
+  const client = getDynamoClient();
+
+  await client.put({
+    TableName: "torchci-pull-request-review",
+    Item: {
+      dynamoKey: `${key_prefix}/${uuidv4()}`,
+      ...event.payload,
+    },
+  });
+}
+
+async function handlePullRequestReviewComment(
+  event: WebhookEvent<"pull_request_review_comment">
+) {
+  const key_prefix = event.payload.repository.full_name;
+  const client = getDynamoClient();
+
+  await client.put({
+    TableName: "torchci-pull-request-review-comment",
+    Item: {
+      dynamoKey: `${key_prefix}/${uuidv4()}`,
+      ...event.payload,
+    },
+  });
+}
+
 export default function webhookToDynamo(app: Probot) {
   app.on(["workflow_job", "workflow_run"], handleWorkflowJob);
   app.on("issues", handleIssues);
   app.on("pull_request", handlePullRequest);
+  app.on("pull_request_review", handlePullRequestReview);
+  app.on("pull_request_review_comment", handlePullRequestReviewComment);
   app.on("push", handlePush);
 }
