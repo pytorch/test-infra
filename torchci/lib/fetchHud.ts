@@ -2,6 +2,7 @@ import _ from "lodash";
 import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
+import rocksetVersions from "rockset/prodVersions.json";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -24,7 +25,7 @@ export default async function fetchHud(params: HudParams): Promise<{
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "hud_query",
-    "cee7578c7a095800",
+    rocksetVersions.hud_query,
     {
       parameters: [
         {

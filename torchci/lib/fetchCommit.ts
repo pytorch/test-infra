@@ -1,6 +1,7 @@
 import _ from "lodash";
 import { getOctokit, commitDataFromResponse } from "./github";
 import getRocksetClient from "./rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 import { CommitData, JobData } from "./types";
 
@@ -18,7 +19,7 @@ export default async function fetchCommit(
   const commitJobsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "commit_jobs_query",
-    "999dc65120324dd8",
+    rocksetVersions.commit_jobs_query,
     {
       parameters: [
         {

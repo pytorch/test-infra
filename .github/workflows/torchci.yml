@@ -2,21 +2,24 @@ name: torchci
 on:
   pull_request:
     paths:
-      - 'torchci/**'
+      - "torchci/**"
   push:
     branches:
       - main
+
+defaults:
+  run:
+    working-directory: torchci
+
 jobs:
   test:
     runs-on: ubuntu-20.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Install
-        run: cd torchci && yarn install --frozen-lockfile
-      - name: Lint
-        run: cd torchci && yarn lint
-      - name: Type check
-        run: cd torchci && yarn tsc
-      - name: Test
-        run: cd torchci && yarn test
+      - uses: actions/checkout@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn tsc
+      - run: yarn test
+      - run: yarn node scripts/checkRockset.mjs
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}

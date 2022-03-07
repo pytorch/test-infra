@@ -1,13 +1,14 @@
 import getRocksetClient from "./rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 import { IssueData } from "./types";
 
 export default async function fetchIssuesByLabel(label: string): Promise<IssueData[]> {
     const rocksetClient = getRocksetClient();
-    const query = await rocksetClient.queryLambdas.executeQueryLambdaByTag(
+    const query = await rocksetClient.queryLambdas.executeQueryLambda(
         "commons",
         "issue_query",
-        "prod",
+        rocksetVersions.issue_query,
         {
         parameters: [
             {

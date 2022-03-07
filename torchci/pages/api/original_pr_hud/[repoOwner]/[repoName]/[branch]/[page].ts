@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { packHudParams } from "lib/types";
 import getRocksetClient from "lib/rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,7 +12,7 @@ export default async function handler(
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "original_pr_hud_query",
-    "bd10f482796f4abd",
+    rocksetVersions.original_pr_hud_query,
     {
       parameters: [
         {

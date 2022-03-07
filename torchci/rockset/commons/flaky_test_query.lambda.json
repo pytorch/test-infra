@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/flaky_test_query.sql",
+  "default_parameters": [
+    {
+      "name": "file",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "num_hours",
+      "type": "int",
+      "value": "3"
+    },
+    {
+      "name": "suite",
+      "type": "string",
+      "value": "%"
+    }
+  ],
+  "description": "get flaky tests from the last num_hours hours"
+}

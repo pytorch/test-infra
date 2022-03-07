@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/commit_query.sql",
+  "default_parameters": [
+    {
+      "name": "sha",
+      "type": "string",
+      "value": ""
+    }
+  ],
+  "description": ""
+}

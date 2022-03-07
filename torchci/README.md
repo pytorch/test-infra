@@ -30,7 +30,7 @@ following resources:
 ## Developing Probot
 
 The easiest way to develop probot actions is to use `nock` to mock out
-interactions with the GitHub API and develop completely locally. If you *do*
+interactions with the GitHub API and develop completely locally. If you _do_
 need real webhooks, the easiest thing to do is [follow these
 instructions](https://probot.github.io/docs/development/#manually-configuring-a-github-app)
 to configure a repo to send webhooks to a Smee proxy, which will then forward
@@ -41,3 +41,32 @@ them to your local server.
 We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
+
+## How to edit Rockset query lambdas
+
+The source of truth for our query lambdas is in `rockset/`. We use the Rockset
+CLI to deploy these queries to Rockset. To get started:
+
+- Follow the steps to [install and authenticate the Rockset
+  CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#download--installation-instructions).
+- Optionally, install the [Rockset VSCode
+  extension](https://marketplace.visualstudio.com/items?itemName=RocksetInc.rockset-vscode).
+
+Then, you have two options for editing your query, locally or in the Rockset
+console.
+
+### Work on the query locally
+
+1. Edit your query lambda. The SQL is found in `rockset/<workspace>/__sql/`, and
+   parameter definitions are found in `rockset/<workspace>`.
+2. You can test your query lambda using the [Rockset
+   CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
+3. Run `rockset deploy -l <yourlambda>` to sync it to Rockset.
+4. Update `rockset/prodVersion.json` with the new version of the lambda.
+
+### Work on the query in Rockset console
+
+1. Edit the query on console.rockset.com.
+2. Save the query, creating a new version.
+3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`.
+4. Update `rockset/prodVersion.json` with the new version of the lambda.
