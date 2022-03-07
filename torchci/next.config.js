@@ -23,6 +23,10 @@ module.exports = {
         source: "/commit/:sha",
         destination: "/pytorch/pytorch/commit/:sha",
       },
+      {
+        source: "/ci/:repoOwner/:repoName/:branch",
+        destination: "/hud/:repoOwner/:repoName/:branch/0",
+      },
     ];
   },
 };

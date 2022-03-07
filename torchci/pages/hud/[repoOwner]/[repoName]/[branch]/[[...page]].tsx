@@ -1,6 +1,6 @@
 import {
   GroupHudTableColumns,
-  GroupHudTableHeader
+  GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -16,7 +16,7 @@ import {
   HudParams,
   JobData,
   packHudParams,
-  RowData
+  RowData,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
@@ -169,7 +169,7 @@ function GroupFilterableHudTable({
   setUseGrouping: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params, setUseGrouping);
+    useTableFilter(params);
   const headerNames = useGrouping ? groupNames : names;
   return (
     <>
@@ -348,14 +348,14 @@ export default function Hud() {
       }
     });
   }, []);
-
+  const title =
+    params.repoOwner != null && params.repoName != null && params.branch != null
+      ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
+      : "";
   return (
     <>
       <Head>
-        <title>
-          PyTorch CI HUD (
-          {`${params.repoOwner}/${params.repoName}: ${params.branch}`})
-        </title>
+        <title>PyTorch CI HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         {params.branch !== undefined && (
@@ -392,7 +392,9 @@ function GroupedHudTable({
     data.jobNames
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-  const [useGrouping, setUseGrouping] = useState(true);
+  const [useGrouping, setUseGrouping] = useState(
+    !(params.nameFilter != null && params.nameFilter !== "")
+  );
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
