@@ -2,10 +2,7 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useState } from "react";
 import { formatHudUrlForRoute, HudParams } from "./types";
 
-export default function useTableFilter(
-  params: HudParams,
-  setUserSettings: any
-) {
+export default function useTableFilter(params: HudParams) {
   const router = useRouter();
 
   const [jobFilter, setJobFilter] = useState<string | null>(null);
@@ -49,8 +46,7 @@ export default function useTableFilter(
     const filterValue = (router.query.name_filter as string) || "";
     setJobFilter(filterValue);
     handleInput(filterValue);
-    setUserSettings(filterValue != null);
-  }, [router.query.name_filter, handleInput, setUserSettings]);
+  }, [router.query.name_filter, handleInput]);
 
   return { jobFilter, handleSubmit, handleInput, normalizedJobFilter };
 }

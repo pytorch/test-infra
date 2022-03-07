@@ -1,6 +1,6 @@
 import {
   GroupHudTableColumns,
-  GroupHudTableHeader
+  GroupHudTableHeader,
 } from "components/GroupHudTableHeaders";
 import HudGroupedCell from "components/GroupJobConclusion";
 import styles from "components/hud.module.css";
@@ -16,7 +16,7 @@ import {
   HudParams,
   JobData,
   packHudParams,
-  RowData
+  RowData,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
@@ -169,7 +169,7 @@ function GroupFilterableHudTable({
   setUseGrouping: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
-    useTableFilter(params, setUseGrouping);
+    useTableFilter(params);
   const headerNames = useGrouping ? groupNames : names;
   return (
     <>
@@ -392,7 +392,9 @@ function GroupedHudTable({
     data.jobNames
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-  const [useGrouping, setUseGrouping] = useState(true);
+  const [useGrouping, setUseGrouping] = useState(
+    !(params.nameFilter != null && params.nameFilter !== "")
+  );
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
