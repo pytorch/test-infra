@@ -106,7 +106,7 @@ async function handlePush(event: WebhookEvent<"push">) {
 async function handlePullRequestReview(
   event: WebhookEvent<"pull_request_review">
 ) {
-  const key_prefix = event.payload.repository.full_name + "/";
+  const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
   await client.put({
@@ -121,7 +121,7 @@ async function handlePullRequestReview(
 async function handlePullRequestReviewComment(
   event: WebhookEvent<"pull_request_review_comment">
 ) {
-  const key_prefix = event.payload.repository.full_name + "/";
+  const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
   await client.put({
