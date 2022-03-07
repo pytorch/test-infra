@@ -1,3 +1,4 @@
+import AnnouncementBanner from "components/AnnouncementBanner";
 import NavBar from "components/NavBar";
 import SevReport from "components/SevReport";
 import type { AppProps } from "next/app";
@@ -11,6 +12,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <title>PyTorch CI HUD</title>
       </Head>
       <NavBar />
+      <AnnouncementBanner />
       <SevReport />
       <div style={{ margin: "20px" }}>
         <Component {...pageProps} />

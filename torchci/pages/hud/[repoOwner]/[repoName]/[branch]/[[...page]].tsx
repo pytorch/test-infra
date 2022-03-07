@@ -348,14 +348,14 @@ export default function Hud() {
       }
     });
   }, []);
-
+  const title =
+    params.repoOwner != null && params.repoName != null && params.branch != null
+      ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
+      : "";
   return (
     <>
       <Head>
-        <title>
-          PyTorch CI HUD (
-          {`${params.repoOwner}/${params.repoName}: ${params.branch}`})
-        </title>
+        <title>PyTorch CI HUD {title}</title>
       </Head>
       <PinnedTooltipContext.Provider value={[pinnedTooltip, setPinnedTooltip]}>
         {params.branch !== undefined && (

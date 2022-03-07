@@ -5,3 +5,12 @@
   padding: 10px;
   margin-bottom: 10px;
 }
+
+.announcementBanner {
+  border: 1px solid black;
+  border-radius: 5px;
+  background-color: #daedf4;
+  padding: 10px;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
