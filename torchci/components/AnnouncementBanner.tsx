@@ -1,5 +1,5 @@
 import React from "react";
-import styles from "./SevReport.module.css";
+import styles from "./AnnouncementBanner.module.css";
 
 function AnnouncementBanner() {
   return (
@@ -12,7 +12,7 @@ function AnnouncementBanner() {
       <a href="https://github.com/pytorch/test-infra/issues/new?assignees=&labels=&template=feature_request.yaml&title=%5Bfeature%5D%3A+">
         file an issue
       </a>
-      .
+      {" to let us know what's wrong."}
     </div>
   );
 }
