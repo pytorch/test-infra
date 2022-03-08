@@ -12825,6 +12825,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -12866,7 +12875,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73923/timeline",
       "title": "DISABLED test_data_parallel_module_kwargs_only_empty_list_cuda_float32 (__main__.TestDataParallelDeviceTypeCUDA)",
-      "updated_at": "2022-03-08T16:33:16Z",
+      "updated_at": "2022-03-08T22:00:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73923",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
