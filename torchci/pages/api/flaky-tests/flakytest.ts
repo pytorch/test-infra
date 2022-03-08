@@ -11,11 +11,6 @@ export default async function handler(
   const name = req.query.name;
   const suite = req.query.suite;
   const file = req.query.file;
-  // console.log(req.query);
-
-  // console.log(name);
-  // console.log(suite);
-  // console.log(file);
 
   let numHours = 14 * 24 + "";
 
