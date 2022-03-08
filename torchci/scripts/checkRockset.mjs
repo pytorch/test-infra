@@ -66,10 +66,11 @@ async function checkQuery(client, queryName, version) {
       printDiff(remoteParams, localParams);
       passesCheck = false;
     }
+    return passesCheck;
   } catch (e) {
     console.log("EXCEPTION", console.trace(), client, queryName, version);
+    return false;
   }
-  return passesCheck;
 }
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
