@@ -4083,6 +4083,24 @@
           "name": "triaged",
           "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "",
+          "id": 1883319082,
+          "name": "module: vmap",
+          "node_id": "MDU6TGFiZWwxODgzMzE5MDgy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20vmap"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "",
+          "id": 3907576162,
+          "name": "module: forward ad",
+          "node_id": "LA_kwDOA-j9z87o6OFi",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20forward%20ad"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/66357/labels{/name}",
@@ -4108,7 +4126,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/66357/timeline",
       "title": "OpInfos disabled for batched forward grad computation",
-      "updated_at": "2022-03-04T16:40:31Z",
+      "updated_at": "2022-03-08T17:03:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/66357",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13428986?v=4",
