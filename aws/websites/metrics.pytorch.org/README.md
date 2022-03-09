@@ -16,8 +16,6 @@ This is a Terraform script + Ansible playbook to spin up a Grafana instance poin
     terraform apply -var="key_name=<aws key name>" -var="name=metrics.pytorch.org" -var="type=t2.xlarge" -var="size=50"
     ```
 
-2. Acquire an SSL key and certificate and store them in `files/privkey.pem` and `files/fullchain.pem` respectively
-
 3. Create a file called `vars.yml` that looks like
 
     ```yaml
@@ -27,10 +25,6 @@ This is a Terraform script + Ansible playbook to spin up a Grafana instance poin
         aws:
             id: 123
             secret: 123
-
-    ssl_filenames:
-        key: privkey.pem
-        cert: fullchain.pem
     ```
 
 3. Run the Ansible playbook to provision the machine
