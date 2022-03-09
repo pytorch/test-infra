@@ -8,6 +8,28 @@ nock.disableNetConnect();
 describe("label-bot", () => {
   let probot: probot.Probot;
 
+  const existingRepoLabelsResponse = [
+    {
+      id: 1301447942,
+      node_id: "MDU6TGFiZWwxMzAxNDQ3OTQy",
+      url: "https://api.github.com/repos/pytorch/pytorch/labels/enhancement",
+      name: "enhancement",
+      color: "ffc6f4",
+      default: true,
+      description:
+        "Not as big of a feature, but technically not a bug. Should be easy to fix",
+    },
+    {
+      id: 1150417147,
+      node_id: "MDU6TGFiZWwxMTUwNDE3MTQ3",
+      url: "https://api.github.com/repos/pytorch/pytorch/labels/good%20first%20issue",
+      name: "good first issue",
+      color: "34c182",
+      default: true,
+      description: "",
+    },
+  ];
+
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(labelBot);
@@ -71,6 +93,8 @@ describe("label-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100&page=0`)
+      .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -102,6 +126,8 @@ describe("label-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100&page=0`)
+      .reply(200, existingRepoLabelsResponse)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -112,7 +138,14 @@ describe("label-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"labels":["enhancement","good first issue","test:111"]}`
+          `{"labels":["enhancement","good first issue"]}`
+        );
+        return true;
+      })
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          '{"body":"Didn\'t find following labels among repository labels: test:111"}'
         );
         return true;
       })
