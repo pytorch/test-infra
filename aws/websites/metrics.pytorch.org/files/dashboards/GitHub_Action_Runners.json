@@ -19,13 +19,18 @@
     ]
   },
   "editable": true,
-  "gnetId": null,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
-      "datasource": "CloudWatch",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
+      "description": "Amount of runners connected at any single point of time to our AWS/NATGateway that are accessing Github",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -50,10 +55,10 @@
               "type": "linear"
             },
             "showPoints": "auto",
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
-              "mode": "normal"
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -74,23 +79,7 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "NumberOfMessagesDeleted_Sum"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "purple",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "gridPos": {
         "h": 9,
@@ -98,7 +87,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 2,
+      "id": 8,
       "options": {
         "legend": {
           "calcs": [],
@@ -109,50 +98,46 @@
           "mode": "single"
         }
       },
+      "pluginVersion": "8.3.3",
       "targets": [
         {
           "alias": "",
+          "datasource": {
+            "type": "cloudwatch",
+            "uid": "P034F075C744B399F"
+          },
           "dimensions": {
-            "QueueName": "gh-ci-queued-builds.fifo"
+            "NatGatewayId": "nat-08768659ec8444aed"
           },
           "expression": "",
           "id": "",
           "matchExact": true,
-          "metricName": "NumberOfMessagesDeleted",
-          "namespace": "AWS/SQS",
+          "metricEditorMode": 0,
+          "metricName": "ActiveConnectionCount",
+          "metricQueryType": 0,
+          "namespace": "AWS/NATGateway",
           "period": "",
-          "queryType": "randomWalk",
+          "queryMode": "Metrics",
           "refId": "A",
           "region": "us-east-1",
-          "statistics": [
-            "Sum"
-          ]
-        },
-        {
-          "alias": "",
-          "dimensions": {
-            "QueueName": "gh-ci-queued-builds.fifo"
+          "sql": {
+            "select": {
+              "name": "AVG",
+              "type": "function"
+            }
           },
-          "expression": "",
-          "hide": false,
-          "id": "",
-          "matchExact": true,
-          "metricName": "NumberOfMessagesSent",
-          "namespace": "AWS/SQS",
-          "period": "",
-          "queryType": "randomWalk",
-          "refId": "B",
-          "region": "us-east-1",
-          "statistics": [
-            "Sum"
-          ]
+          "sqlExpression": "",
+          "statistic": "Maximum"
         }
       ],
-      "title": "Queued builds SQS",
+      "title": "# of Runners Connected",
       "type": "timeseries"
     },
     {
-      "datasource": "CloudWatch",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -247,22 +232,25 @@
           "hide": false,
           "id": "",
           "matchExact": true,
+          "metricEditorMode": 0,
           "metricName": "ApproximateAgeOfOldestMessage",
+          "metricQueryType": 0,
           "namespace": "AWS/SQS",
           "period": "",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
-          "statistics": [
-            "Average"
-          ]
+          "statistic": "Average"
         }
       ],
       "title": "Avg Age of Oldest in Queue",
       "type": "timeseries"
     },
     {
-      "datasource": "CloudWatch",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -309,8 +297,7 @@
                 "value": 80
               }
             ]
-          },
-          "unit": "none"
+          }
         },
         "overrides": [
           {
@@ -327,21 +314,6 @@
                 }
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ApproximateNumberOfMessagesDelayed_Sum"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "light-red",
-                  "mode": "fixed"
-                }
-              }
-            ]
           }
         ]
       },
@@ -351,7 +323,7 @@
         "x": 0,
         "y": 9
       },
-      "id": 4,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [],
@@ -369,25 +341,46 @@
             "QueueName": "gh-ci-queued-builds.fifo"
           },
           "expression": "",
-          "hide": false,
           "id": "",
           "matchExact": true,
-          "metricName": "ApproximateNumberOfMessagesDelayed",
+          "metricEditorMode": 0,
+          "metricName": "NumberOfMessagesDeleted",
+          "metricQueryType": 0,
           "namespace": "AWS/SQS",
           "period": "",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
-          "statistics": [
-            "Sum"
-          ]
+          "statistic": "Sum"
+        },
+        {
+          "alias": "",
+          "dimensions": {
+            "QueueName": "gh-ci-queued-builds.fifo"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricEditorMode": 0,
+          "metricName": "NumberOfMessagesSent",
+          "metricQueryType": 0,
+          "namespace": "AWS/SQS",
+          "period": "",
+          "queryType": "randomWalk",
+          "refId": "B",
+          "region": "us-east-1",
+          "statistic": "Sum"
         }
       ],
-      "title": "Number of messages delayed",
+      "title": "Queued builds SQS",
       "type": "timeseries"
     },
     {
-      "datasource": "CloudWatch",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -497,15 +490,15 @@
           "hide": false,
           "id": "",
           "matchExact": true,
+          "metricEditorMode": 0,
           "metricName": "ApproximateNumberOfMessagesVisible",
+          "metricQueryType": 0,
           "namespace": "AWS/SQS",
           "period": "",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
-          "statistics": [
-            "Sum"
-          ]
+          "statistic": "Sum"
         },
         {
           "alias": "",
@@ -516,22 +509,25 @@
           "hide": false,
           "id": "",
           "matchExact": true,
+          "metricEditorMode": 0,
           "metricName": "ApproximateNumberOfMessagesNotVisible",
+          "metricQueryType": 0,
           "namespace": "AWS/SQS",
           "period": "",
           "queryType": "randomWalk",
           "refId": "B",
           "region": "us-east-1",
-          "statistics": [
-            "Sum"
-          ]
+          "statistic": "Sum"
         }
       ],
       "title": "Number of messages visible and non-visible in queue",
       "type": "timeseries"
     },
     {
-      "datasource": "CloudWatch",
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -620,6 +616,134 @@
         "x": 0,
         "y": 18
       },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "alias": "",
+          "dimensions": {
+            "QueueName": "gh-ci-queued-builds.fifo"
+          },
+          "expression": "",
+          "hide": false,
+          "id": "",
+          "matchExact": true,
+          "metricEditorMode": 0,
+          "metricName": "ApproximateNumberOfMessagesDelayed",
+          "metricQueryType": 0,
+          "namespace": "AWS/SQS",
+          "period": "",
+          "queryType": "randomWalk",
+          "refId": "A",
+          "region": "us-east-1",
+          "statistic": "Sum"
+        }
+      ],
+      "title": "Number of messages delayed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "cloudwatch",
+        "uid": "P034F075C744B399F"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NumberOfMessagesDeleted_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ApproximateNumberOfMessagesDelayed_Sum"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
       "id": 6,
       "options": {
         "legend": {
@@ -639,22 +763,22 @@
           "hide": false,
           "id": "",
           "matchExact": true,
+          "metricEditorMode": 0,
           "metricName": "CPUUtilization",
+          "metricQueryType": 0,
           "namespace": "AWS/EC2",
           "period": "",
           "queryType": "randomWalk",
           "refId": "A",
           "region": "us-east-1",
-          "statistics": [
-            "Average"
-          ]
+          "statistic": "Average"
         }
       ],
       "title": "Github Runners CPU",
       "type": "timeseries"
     }
   ],
-  "schemaVersion": 30,
+  "schemaVersion": 34,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -668,5 +792,6 @@
   "timezone": "",
   "title": "GitHub Action Runners AWS Stats",
   "uid": "CfUZz-n7z",
-  "version": 1
+  "version": 2,
+  "weekStart": ""
 }
