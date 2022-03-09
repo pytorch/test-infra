@@ -42,4 +42,6 @@
     - name: Run compose
       shell: |
         docker stack rm monitoring || echo done
+        certbot renew
+        cp /etc/letsencrypt/live/metrics.pytorch.org-0002/*.pem /etc/pytorch/
         docker stack deploy -c /etc/pytorch/docker-compose.yml monitoring

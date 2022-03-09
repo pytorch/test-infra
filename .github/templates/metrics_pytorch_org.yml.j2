@@ -9,6 +9,8 @@ on:
     paths:
       - 'aws/websites/metrics.pytorch.org/**'
       - '.github/workflows/metrics_pytorch_org.yml'
+  schedule:
+    - cron: 0 0 * * 3
 
 concurrency:
   group: "deploy metrics.pytorch.org"
@@ -31,16 +33,11 @@ jobs:
           pip install ansible
       - name: Setup Secets
         env:
-          FULLCHAIN: ${{ secrets.METRICS_FULLCHAIN }}
-          PRIVKEY: ${{ secrets.METRICS_PRIVKEY }}
           VARS: ${{ secrets.METRICS_VARS }}
           SSH_KEY: ${{ secrets.METRICS_SSH_KEY }}
         run: |
           set -e  # NB: This needs to run without -x since GitHub will sometimes not hide secrets in the logs
           cd aws/websites/metrics.pytorch.org
-
-          echo "$FULLCHAIN" > files/fullchain.pem
-          echo "$PRIVKEY" > files/privkey.pem
           echo "$VARS" > vars.yml
           echo "$SSH_KEY" > ssh_key.pem
           chmod 600 ssh_key.pem
