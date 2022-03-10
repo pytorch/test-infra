@@ -59,10 +59,7 @@ from
             END as conclusion,
             -- cirleci doesn't provide a url, piece one together out of the info we have
             CONCAT(
-                'https://app.circleci.com/pipelines/github/pytorch/pytorch/',
-                CAST(job.pipeline.number as string),
-                '/workflows/',
-                job.workflow.id,
+                job.workflow.url,
                 '/jobs/',
                 CAST(job.job.number AS string)
             ) as html_url,
