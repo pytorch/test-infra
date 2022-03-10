@@ -22,7 +22,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 3,
+  "id": 7,
   "iteration": 1634691512228,
   "links": [],
   "panels": [
@@ -469,5 +469,5 @@
   "timezone": "",
   "title": "Framework Health",
   "uid": "SQGr-_I7k",
-  "version": 2
+  "version": 1
 }

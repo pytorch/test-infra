@@ -18,7 +18,7 @@ describe("merge-bot", () => {
     jest.restoreAllMocks();
   });
 
-  test("random pr comment no reactoin", async() => {
+  test("random pr comment no reaction", async() => {
     const event = require("./fixtures/pull_request_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -30,6 +30,16 @@ describe("merge-bot", () => {
 
   test("random issue comment no event", async() => {
     const event = require("./fixtures/issue_comment.json");
+    const scope = nock("https://api.github.com");
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("random pull request reivew no event", async() => {
+    const event = require("./fixtures/pull_request_review.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
     if (!scope.isDone()) {
@@ -80,6 +90,45 @@ describe("merge-bot", () => {
         (body) => {
           expect(JSON.stringify(body)).toContain(
             "{\"content\":\"+1\"}"
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/dispatches`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number}}}`
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      ;
+      ;
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("merge this pull request review triggers dispatch and +1 comment", async() => {
+    const event = require("./fixtures/pull_request_review.json");
+
+    event.payload.review.body = "@pytorchbot merge this";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.pull_request.number;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/${pr_number}/comments`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            "{\"body\":\"+1\"}"
           );
           return true;
         }

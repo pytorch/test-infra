@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1073,6 +1073,6 @@
   "timezone": "",
   "title": "DEPRECATED",
   "uid": "1kkKNt-nk",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }

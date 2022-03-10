@@ -40,6 +40,35 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
   });
+  app.on(["pull_request_review.submitted", "pull_request_review.edited"], async (ctx) => {
+    const reviewBody = ctx.payload.review.body;
+    const owner = ctx.payload.repository.owner.login;
+    const repo = ctx.payload.repository.name;
+    const prNum = ctx.payload.pull_request.number;
+    async function addComment(comment: string) {
+        await ctx.octokit.issues.createComment({
+          issue_number: prNum,
+          body: comment,
+          owner,
+          repo,
+        });
+    }
+    async function dispatchEvent(event_type: string) {
+      await ctx.octokit.repos.createDispatchEvent({
+        owner,
+        repo,
+        event_type: event_type,
+        client_payload: {
+          pr_num: prNum,
+        },
+      });
+    }
+
+    if (reviewBody?.match(mergeCmdPat)) {
+      await dispatchEvent("try-merge");
+      await addComment("+1"); // REST API doesn't support reactions for code reviews.
+    }
+  });
 }
 
 export default mergeBot;

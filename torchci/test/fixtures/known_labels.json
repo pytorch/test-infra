@@ -1,0 +1,21 @@
+[
+  {
+    "id": 1301447942,
+    "node_id": "MDU6TGFiZWwxMzAxNDQ3OTQy",
+    "url": "https://api.github.com/repos/pytorch/pytorch/labels/enhancement",
+    "name": "enhancement",
+    "color": "ffc6f4",
+    "default": true,
+    "description":
+      "Not as big of a feature, but technically not a bug. Should be easy to fix"
+  },
+  {
+    "id": 1150417147,
+    "node_id": "MDU6TGFiZWwxMTUwNDE3MTQ3",
+    "url": "https://api.github.com/repos/pytorch/pytorch/labels/good%20first%20issue",
+    "name": "good first issue",
+    "color": "34c182",
+    "default": true,
+    "description": ""
+  }
+]

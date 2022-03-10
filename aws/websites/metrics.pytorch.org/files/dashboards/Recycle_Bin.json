@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 11,
+  "id": 10,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1094,6 +1094,6 @@
   "timezone": "",
   "title": "Recycle Bin",
   "uid": "OOc3utYnz",
-  "version": 4,
+  "version": 1,
   "weekStart": ""
 }
