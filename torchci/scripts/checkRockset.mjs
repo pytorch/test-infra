@@ -3,10 +3,6 @@ import { promises as fs } from "fs";
 import { diffLines } from "diff";
 import "colors";
 
-import dotenv from "dotenv";
-import path from "path";
-dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
-
 async function readJSON(path) {
   const rawData = await fs.readFile(path);
   return JSON.parse(rawData);
@@ -68,7 +64,11 @@ async function checkQuery(client, queryName, version) {
   return passesCheck;
 }
 
-const client = rockset.default(process.env.ROCKSET_API_KEY);
+// NOTE: This is a special token with highly restricted access to Rockset. It
+// can only be used to list resources. It is intended for use by the CI system only.
+const client = rockset.default(
+  "4td9ejgZWF4HERUmZufILSn9kQbixwX1FwR9CiJmTkWaXbVNi90eeyfgP7dO2BZP"
+);
 
 const prodVersions = await readJSON("./rockset/prodVersions.json");
 const checks = Object.entries(prodVersions).map(([queryName, version]) =>
