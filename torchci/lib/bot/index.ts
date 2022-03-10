@@ -7,6 +7,7 @@ import webhookToDynamo from "./webhookToDynamo";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import mergeBot from "./mergeBot";
+import labelBot from "./labelBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
@@ -17,4 +18,5 @@ export default function bot(app: Probot) {
   webhookToDynamo(app);
   triggerCircleCIWorkflows(app);
   mergeBot(app);
+  labelBot(app);
 }
