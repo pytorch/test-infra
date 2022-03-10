@@ -22,6 +22,12 @@ function NavBar() {
             <li>
               <Link href="/minihud">MiniHUD</Link>
             </li>
+            <li>
+              <Link href="/hud/pytorch/vision/main">TorchVision</Link>
+            </li>
+            <li>
+              <Link href="/hud/pytorch/audio/main">TorchAudio</Link>
+            </li>
           </ul>
         </div>
         <div
