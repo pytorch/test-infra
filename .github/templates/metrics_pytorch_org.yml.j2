@@ -10,7 +10,7 @@ on:
       - 'aws/websites/metrics.pytorch.org/**'
       - '.github/workflows/metrics_pytorch_org.yml'
   schedule:
-    - cron: 0 0 * * 3
+    - cron: 0 0 3 * *
 
 concurrency:
   group: "deploy metrics.pytorch.org"
