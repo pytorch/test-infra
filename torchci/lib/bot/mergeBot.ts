@@ -1,4 +1,5 @@
 import { Probot } from "probot";
+import { reactOnComment} from './botUtils'
 
 function mergeBot(app: Probot): void {
   const mergeCmdPat = new RegExp("@pytorch(merge|)bot\\s+merge\\s+this");
@@ -7,16 +8,8 @@ function mergeBot(app: Probot): void {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
-    const commentId = ctx.payload.comment.id;
     const prNum = ctx.payload.issue.number;
-    async function reactOnComment(reaction: "+1" | "confused") {
-      await ctx.octokit.reactions.createForIssueComment({
-        comment_id: commentId,
-        content: reaction,
-        owner,
-        repo,
-      });
-    }
+
     async function dispatchEvent(event_type: string) {
       await ctx.octokit.repos.createDispatchEvent({
         owner,
@@ -31,20 +24,20 @@ function mergeBot(app: Probot): void {
     if (commentBody.match(mergeCmdPat)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
-        await reactOnComment("confused");
+        await reactOnComment(ctx, "confused");
         return;
       }
       await dispatchEvent("try-merge");
-      await reactOnComment("+1");
+      await reactOnComment(ctx, "+1");
     }
     if (commentBody.match(revertCmdPat)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
-        await reactOnComment("confused");
+        await reactOnComment(ctx, "confused");
         return;
       }
       await dispatchEvent("try-revert");
-      await reactOnComment("+1");
+      await reactOnComment(ctx, "+1");
     }
   });
 }
