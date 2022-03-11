@@ -1,7 +1,7 @@
 {
   "hud_query": "9db80569b984c37e",
   "commit_jobs_query": "999dc65120324dd8",
-  "flaky_test_query": "2778eac601839f5b",
+  "flaky_test_query": "315b58b83e5d13e8",
   "original_pr_hud_query": "bd10f482796f4abd",
   "issue_query": "f29a1afe94563601",
   "failure_samples_query": "2961636418a148c2"

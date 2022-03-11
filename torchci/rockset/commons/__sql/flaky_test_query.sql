@@ -14,3 +14,4 @@ WHERE
     flaky_tests.suite LIKE :suite AND
     flaky_tests.file LIKE :file
 GROUP BY name, suite, file
+ORDER BY flaky_tests.name
