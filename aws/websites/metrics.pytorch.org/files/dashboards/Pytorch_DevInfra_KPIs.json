@@ -37,7 +37,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "% Red",
+            "axisLabel": "Percent Red",
             "axisPlacement": "auto",
             "axisSoftMax": 0.05,
             "barAlignment": 0,
@@ -262,7 +262,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "% Ignored",
+            "axisLabel": "Percent Ignored",
             "axisPlacement": "auto",
             "axisSoftMax": 100,
             "axisSoftMin": 0,
@@ -602,6 +602,121 @@
       ],
       "title": "7d Time to Merge for External Contributors (days)",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "tts (minutes)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 180
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "week_bucket"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 42
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.[*].week_bucket"
+            },
+            {
+              "jsonPath": "$.[*].avg_tts",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/e2e_tts_weekly/tags/latest"
+        }
+      ],
+      "title": "7d e2e tts per commit",
+      "type": "timeseries"
     }
   ],
   "refresh": "",
@@ -621,6 +736,6 @@
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
