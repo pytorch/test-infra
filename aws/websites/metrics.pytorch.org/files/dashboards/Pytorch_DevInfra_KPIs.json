@@ -74,12 +74,8 @@
                 "value": null
               },
               {
-                "color": "#EAB839",
-                "value": 0.02
-              },
-              {
                 "color": "red",
-                "value": 0.05
+                "value": 0.01
               }
             ]
           },
@@ -420,12 +416,8 @@
                 "value": null
               },
               {
-                "color": "#EAB839",
-                "value": 2
-              },
-              {
                 "color": "red",
-                "value": 5
+                "value": 2
               }
             ]
           }
@@ -479,7 +471,8 @@
             {
               "jsonPath": "$.[*].metric",
               "language": "jsonpath",
-              "name": "days to merge"
+              "name": "days to merge",
+              "type": "number"
             }
           ],
           "hide": false,
@@ -487,10 +480,102 @@
           "queryParams": "",
           "refId": "A",
           "urlPath": "/v1/orgs/self/ws/metrics/lambdas/days_between_close_merge/tags/latest"
+        }
+      ],
+      "title": "7d Time to Merge for Metamates (days)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Days",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 7,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
         },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "week_bucket"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "Time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 23,
+        "x": 0,
+        "y": 33
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"mergeOrClose\",\n        \"type\": \"string\",\n        \"value\": \"close\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"metamate\"\n      }\n    ]\n  }",
-          "cacheDurationSeconds": 0,
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"mergeOrClose\",\n        \"type\": \"string\",\n        \"value\": \"merge\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"external_user\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 300,
           "datasource": {
             "type": "marcusolsson-json-datasource",
             "uid": "P62E83680D611FAF2"
@@ -498,22 +583,24 @@
           "fields": [
             {
               "jsonPath": "$.[*].week_bucket",
+              "name": "",
               "type": "time"
             },
             {
               "jsonPath": "$.[*].metric",
               "language": "jsonpath",
-              "name": "days_to_close"
+              "name": "days to merge",
+              "type": "number"
             }
           ],
-          "hide": true,
+          "hide": false,
           "method": "POST",
           "queryParams": "",
-          "refId": "B",
+          "refId": "A",
           "urlPath": "/v1/orgs/self/ws/metrics/lambdas/days_between_close_merge/tags/latest"
         }
       ],
-      "title": "7d Time to Merge for Metamates (days)",
+      "title": "7d Time to Merge for External Contributors (days)",
       "type": "timeseries"
     }
   ],
@@ -534,6 +621,6 @@
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
