@@ -12960,15 +12960,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: windows\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_pdist_norm_large_cuda%2C%20TestTorchDeviceTypeCUDA)).",
+      "body": "Platforms: windows\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_pdist_norm_large_cuda%2C%20TestTorchDeviceTypeCUDA)).\n\ncc @mruberry",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/comments",
       "created_at": "2022-03-14T00:35:22Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/74154",
       "id": 1167744935,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13002,7 +13011,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/timeline",
       "title": "DISABLED test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-03-14T00:35:26Z",
+      "updated_at": "2022-03-14T15:29:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74154",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
