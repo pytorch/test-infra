@@ -146,13 +146,10 @@ export async function getTestOwnerLabels(testFile: string) : Promise<string[]> {
         for (const line of lines) {
             if (line.startsWith(prefix)) {
                 const labels: string[] = JSON.parse(line.substring(prefix.length));
-                if (labels.length === 0 || (labels.length === 1 && labels[0] === "module: unknown")) {
+                if (labels.length === 0) {
                     return ["module: unknown"];
                 }
-                if (labels.length === 1 && labels[0] === "high priority") {
-                    return ["high priority"];
-                }
-                return labels.concat(["triaged"]);
+                return labels;
             }
         }
         return ["module: unknown"];
