@@ -13011,7 +13011,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/timeline",
       "title": "DISABLED test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-03-14T15:29:07Z",
+      "updated_at": "2022-03-14T17:07:55Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74154",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
