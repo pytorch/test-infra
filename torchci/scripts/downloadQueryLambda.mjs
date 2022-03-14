@@ -14,23 +14,35 @@ parser.add_argument("workspace", {
 });
 parser.add_argument("query", { help: "name of the query" });
 parser.add_argument("version", {
+  nargs: "?",
   help: "version hash to download",
 });
 
 const args = parser.parse_args();
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
-const qLambda = await client.queryLambdas.getQueryLambdaVersion(
-  args.workspace,
-  args.query,
-  args.version
-);
+let qLambda;
+if (args.version !== undefined) {
+  const res = await client.queryLambdas.getQueryLambdaVersion(
+    args.workspace,
+    args.query,
+    args.version
+  );
+  qLambda = res.data;
+} else {
+  const res = await client.queryLambdas.getQueryLambdaTagVersion(
+    args.workspace,
+    args.query,
+    "latest"
+  );
+  qLambda = res.data.version;
+}
 
-const sql = qLambda.data.sql.query;
+const sql = qLambda.sql.query;
 const metadata = {
   sql_path: `__sql/${args.query}.sql`,
-  default_parameters: qLambda.data.sql.default_parameters,
-  description: qLambda.data.description,
+  default_parameters: qLambda.sql.default_parameters,
+  description: qLambda.description ?? "",
 };
 await fs.writeFile(
   `./rockset/${args.workspace}/__sql/${args.query}.sql`,
