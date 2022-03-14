@@ -1,8 +1,18 @@
 {
-  "hud_query": "9db80569b984c37e",
-  "commit_jobs_query": "999dc65120324dd8",
-  "flaky_test_query": "315b58b83e5d13e8",
-  "original_pr_hud_query": "bd10f482796f4abd",
-  "issue_query": "f29a1afe94563601",
-  "failure_samples_query": "2961636418a148c2"
+  "commons": {
+    "hud_query": "9db80569b984c37e",
+    "commit_jobs_query": "999dc65120324dd8",
+    "flaky_test_query": "315b58b83e5d13e8",
+    "original_pr_hud_query": "bd10f482796f4abd",
+    "issue_query": "f29a1afe94563601",
+    "failure_samples_query": "2961636418a148c2"
+  },
+  "pytorch_dev_infra_kpis": {
+    "num_reverts": "4b5c27b8b6c6b71a",
+    "percent_commits_red": "70b879a65dc6f868",
+    "percent_jobs_red": "d9fe48177eb56389",
+    "time_to_merge": "1ef5d5aef36d1947",
+    "time_to_review": "8e11f672d28ab575",
+    "time_to_signal": "959d1b5cd6545baa"
+  }
 }

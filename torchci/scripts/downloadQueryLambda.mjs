@@ -21,7 +21,7 @@ const args = parser.parse_args();
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
 const qLambda = await client.queryLambdas.getQueryLambdaVersion(
-  "commons",
+  args.workspace,
   args.query,
   args.version
 );

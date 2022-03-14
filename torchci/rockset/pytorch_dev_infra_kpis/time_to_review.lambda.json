@@ -1,0 +1,17 @@
+{
+  "sql_path": "__sql/time_to_review.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "userType",
+      "type": "string",
+      "value": "metamate"
+    }
+  ],
+  "description": "",
+  "recursive": true
+}
