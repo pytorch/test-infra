@@ -12960,7 +12960,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: windows\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_pdist_norm_large_cuda%2C%20TestTorchDeviceTypeCUDA)).\n\ncc @mruberry",
+      "body": "Platforms: windows\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_pdist_norm_large_cuda%2C%20TestTorchDeviceTypeCUDA)).\n\ncc @ezyang @gchanan @zou3519 @mruberry",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/comments",
@@ -12970,6 +12970,15 @@
       "id": 1167744935,
       "labels": [
         {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Issues related to tests (not the torch.testing module)",
@@ -12977,6 +12986,15 @@
           "name": "module: tests",
           "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "bfdadc",
@@ -13011,7 +13029,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/timeline",
       "title": "DISABLED test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-03-14T17:07:55Z",
+      "updated_at": "2022-03-14T17:19:09Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74154",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
