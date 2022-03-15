@@ -8,7 +8,7 @@ export default function VersionControlLinks({
   return (
     <div>
       <a href={`https://github.com/pytorch/pytorch/commit/${sha}`}>GitHub</a>
-      {diffNum !== undefined ? (
+      {typeof diffNum === "string" ? (
         <span>
           {" "}
           |{" "}
