@@ -25,7 +25,7 @@ export default async function fetchHud(params: HudParams): Promise<{
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "hud_query",
-    rocksetVersions.hud_query,
+    rocksetVersions.commons.hud_query,
     {
       parameters: [
         {

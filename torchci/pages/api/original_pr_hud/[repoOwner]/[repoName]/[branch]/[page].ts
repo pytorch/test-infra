@@ -12,7 +12,7 @@ export default async function handler(
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "original_pr_hud_query",
-    rocksetVersions.original_pr_hud_query,
+    rocksetVersions.commons.original_pr_hud_query,
     {
       parameters: [
         {
