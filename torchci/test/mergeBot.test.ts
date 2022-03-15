@@ -65,8 +65,7 @@ describe("merge-bot", () => {
           return true;
         }
       )
-      .reply(200, {})
-      ;
+      .reply(200, {});
 
     await probot.receive(event);
     if (!scope.isDone()) {
@@ -104,9 +103,7 @@ describe("merge-bot", () => {
           return true;
         }
       )
-      .reply(200, {})
-      ;
-      ;
+      .reply(200, {});
 
     await probot.receive(event);
     if (!scope.isDone()) {
@@ -143,9 +140,7 @@ describe("merge-bot", () => {
           return true;
         }
       )
-      .reply(200, {})
-      ;
-      ;
+      .reply(200, {});
 
     await probot.receive(event);
     if (!scope.isDone()) {
