@@ -13050,7 +13050,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_trace_buffer_slice%2C%20TestFX)).",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/comments",
       "created_at": "2022-03-14T23:11:14Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/events",
@@ -13099,7 +13099,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/timeline",
       "title": "DISABLED test_trace_buffer_slice (__main__.TestFX)",
-      "updated_at": "2022-03-14T23:11:39Z",
+      "updated_at": "2022-03-15T22:30:47Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74208",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
