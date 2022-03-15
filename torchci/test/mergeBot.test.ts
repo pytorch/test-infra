@@ -98,7 +98,82 @@ describe("merge-bot", () => {
         `/repos/${owner}/${repo}/dispatches`,
         (body) => {
           expect(JSON.stringify(body)).toContain(
-            `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number}}}`
+            `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+          );
+          return true;
+        }
+      )
+      .reply(200, {});
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("force merge this comment on pull request triggers dispatch and like", async() => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot    force  merge this";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            "{\"content\":\"+1\"}"
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/dispatches`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"force":true}}`
+          );
+          return true;
+        }
+      )
+      .reply(200, {});
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+  test("revert this comment on pull request triggers dispatch and like", async() => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot  revert this";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            "{\"content\":\"+1\"}"
+          );
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/dispatches`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
           );
           return true;
         }
