@@ -1,5 +1,5 @@
 SELECT
-    CAST(DATE_TRUNC('WEEK', time) as string) AS week,
+    CAST(DATE_TRUNC(:granularity, time) as string) AS granularity_bucket,
     AVG(
         CASE
             when conclusion = 'failure' THEN 1
@@ -24,6 +24,7 @@ FROM
             AND push.repository.owner.name = 'pytorch'
             AND push.repository.name = 'pytorch'
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
         UNION ALL
         SELECT
             job._event_time as time,
@@ -40,8 +41,9 @@ FROM
             AND push.repository.owner.name = 'pytorch'
             AND push.repository.name = 'pytorch'
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+            AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
     ) as all_job
 GROUP BY
-    DATE_TRUNC('WEEK', time)
+    DATE_TRUNC(:granularity, time)
 ORDER BY
-    DATE_TRUNC('WEEK', time) DESC
+    DATE_TRUNC(:granularity, time) DESC

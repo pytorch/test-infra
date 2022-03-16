@@ -30,6 +30,7 @@ with any_red as (
                 AND push.repository.owner.name = 'pytorch'
                 AND push.repository.name = 'pytorch'
                 AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+                AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
             UNION ALL
             SELECT
                 push._event_time as time,
@@ -47,22 +48,23 @@ with any_red as (
                 AND push.repository.owner.name = 'pytorch'
                 AND push.repository.name = 'pytorch'
                 AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+                AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
         ) as all_job
     GROUP BY
         time,
         sha
     HAVING
-        -- count(*) > 10 -- Filter out jobs that didn't run anything.
-        SUM(IF(conclusion is NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
+        count(*) > 10 -- Filter out jobs that didn't run anything.
+        AND SUM(IF(conclusion is NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
     ORDER BY
         time DESC
 )
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC('week', time)) AS week,
+    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
     AVG(any_red) as red,
 from
     any_red
 GROUP BY
-    week
+    granularity_bucket
 ORDER BY
-    week ASC
+    granularity_bucket ASC
