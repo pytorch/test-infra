@@ -22,43 +22,307 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 4,
-  "iteration": 1647029333582,
+  "iteration": 1647121507894,
   "links": [],
   "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n\n    ]\n  }\n",
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].failure_rate"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_aggregate_metrics/tags/latest"
+        }
+      ],
+      "title": "Failure rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 3600
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n\n    ]\n  }\n",
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].tts_sec"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_aggregate_metrics/tags/latest"
+        }
+      ],
+      "title": "Avg time to signal",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 3600
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n\n    ]\n  }\n",
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].duration_sec"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_aggregate_metrics/tags/latest"
+        }
+      ],
+      "title": "Avg job duration",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n\n    ]\n  }\n",
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[0].num_runs"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_aggregate_metrics/tags/latest"
+        }
+      ],
+      "title": "Total # runs",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "align": "auto",
+            "displayMode": "auto"
           },
           "mappings": [],
           "thresholds": {
@@ -75,27 +339,187 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "conclusion"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 106
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 6,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 2,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "tooltip": {
-          "mode": "single"
-        }
+        "showHeader": true,
+        "sortBy": []
       },
-      "title": "Panel Title",
-      "type": "timeseries"
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].name"
+            },
+            {
+              "jsonPath": "$.results[*].count",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_failed_steps/tags/latest"
+        }
+      ],
+      "title": "Failed jobs by step",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "conclusion"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 106
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 9,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"job\",\n        \"type\": \"string\",\n        \"value\": \"${job}\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      },\n      {\n        \"name\": \"repoBranch\",\n        \"type\": \"string\",\n        \"value\": \"${repoBranch}\"\n      }\n    ]\n  }\n",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].time",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.results[*].name",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].conclusion",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].commit_message",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].sha",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].failure_classification",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].failure_rule",
+              "language": "jsonpath",
+              "name": ""
+            },
+            {
+              "jsonPath": "$.results[*].html_url",
+              "language": "jsonpath",
+              "name": ""
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/job_failure_examples/tags/latest"
+        }
+      ],
+      "title": "Failure instances",
+      "type": "table"
     }
   ],
   "refresh": "",
@@ -107,12 +531,8 @@
       {
         "current": {
           "selected": true,
-          "text": [
-            "win-vs2019-cuda11.3-py3 / build"
-          ],
-          "value": [
-            "win-vs2019-cuda11.3-py3 / build"
-          ]
+          "text": "win-vs2019-cuda11.3-py3 / build",
+          "value": "win-vs2019-cuda11.3-py3 / build"
         },
         "datasource": {
           "type": "marcusolsson-json-datasource",
@@ -121,8 +541,8 @@
         "definition": "$.results[*].name",
         "hide": 0,
         "includeAll": false,
-        "multi": true,
-        "name": "jobs",
+        "multi": false,
+        "name": "job",
         "options": [],
         "query": {
           "cacheDurationSeconds": 300,
@@ -140,6 +560,34 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "allValue": "%",
+        "current": {
+          "selected": true,
+          "text": "pytorch/pytorch:master",
+          "value": "pytorch/pytorch:master"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "multi": false,
+        "name": "repoBranch",
+        "options": [
+          {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": true,
+            "text": "pytorch/pytorch:master",
+            "value": "pytorch/pytorch:master"
+          }
+        ],
+        "query": "pytorch/pytorch:master",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
       }
     ]
   },
@@ -151,6 +599,6 @@
   "timezone": "",
   "title": "Job deep dive",
   "uid": "1kkKNt-nk",
-  "version": 4,
+  "version": 19,
   "weekStart": ""
 }
