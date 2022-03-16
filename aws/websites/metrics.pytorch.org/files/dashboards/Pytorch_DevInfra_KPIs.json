@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1165,6 +1165,6 @@
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 13,
+  "version": 1,
   "weekStart": ""
 }
