@@ -2,9 +2,9 @@
   "sql_path": "__sql/time_to_merge.sql",
   "default_parameters": [
     {
-      "name": "mergeOrClose",
-      "type": "string",
-      "value": "merge"
+      "name": "closeSLO",
+      "type": "int",
+      "value": "2"
     },
     {
       "name": "startTime",
@@ -17,6 +17,5 @@
       "value": "metamate"
     }
   ],
-  "description": "",
-  "recursive": true
+  "description": ""
 }

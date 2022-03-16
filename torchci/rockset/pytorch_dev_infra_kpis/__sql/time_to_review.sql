@@ -22,16 +22,27 @@ with pr_data as (
     group by
         pr_number,
         user_type
+),
+date_diffs as(
+    select
+        created_at,
+        DATE_DIFF('hour', created_at, reviewed_on) /(24.0) as day_diff,
+    from
+        pr_data
+    where
+        user_type = :userType
 )
 select
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC('week', reviewed_on)) AS week_bucket,
-    AVG(
-        DATE_DIFF('minute', created_at, reviewed_on) /(60.0 * 24)
-    ) as day_diff,
+    date_trunc('week', created_at) week_bucket,
+    sum(
+        case
+            when day_diff < 2 then 1
+            else 0
+        end
+    ) * 100.0 / count(*) as metric
 from
-    pr_data
-where
-    DATE_DIFF('minute', created_at, reviewed_on) /(60.0 * 24) < 15
-    and user_type = :userType
+    date_diffs
 group by
+    week_bucket
+order by
     week_bucket
