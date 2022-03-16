@@ -1,0 +1,23 @@
+name: Backfill workflow jobs in Rockset
+
+on:
+  schedule:
+    # Run every hour at the 30th minute
+    - cron: "30 * * * *"
+
+defaults:
+  run:
+    working-directory: torchci
+jobs:
+  backfill-rockset:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn node scripts/backfillJobs.mjs
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+          OUR_AWS_ACCESS_KEY_ID: ${{ secrets.OUR_AWS_ACCESS_KEY_ID }}
+          OUR_AWS_SECRET_ACCESS_KEY: ${{ secrets.OUR_AWS_SECRET_ACCESS_KEY }}
+          APP_ID: ${{ secrets.APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
