@@ -33,11 +33,12 @@
   height: 220px;
   white-space: nowrap;
   font-family: sans-serif;
+  padding-right:4px;
 }
 
 .jobHeaderName {
   transform: translate(10px, 100px) rotate(315deg);
-  width: 10px;
+  width: 12px;
   font-weight: 400;
   font-size: 0.8em;
 }
@@ -74,5 +75,5 @@
   font-size: 1em;
   border: 0px;
   padding: 0px;
-  padding-left: 5px;
+  padding-left: 4px;
 }

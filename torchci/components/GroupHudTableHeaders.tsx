@@ -28,12 +28,10 @@ export function GroupHudTableColumns({
   names,
   filter,
   groupNameMapping,
-  useGrouping,
 }: {
   names: string[];
   filter: string | null;
   groupNameMapping: Map<string, string[]>;
-  useGrouping: boolean;
 }) {
   return (
     <colgroup>
@@ -58,14 +56,12 @@ export function GroupHudTableHeader({
   expandedGroups,
   setExpandedGroups,
   groupNameMapping,
-  useGrouping,
 }: {
   names: string[];
   filter: string | null;
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   groupNameMapping: Map<string, string[]>;
-  useGrouping: boolean;
 }) {
   const groupNames = new Set(groupNameMapping.keys());
   return (
