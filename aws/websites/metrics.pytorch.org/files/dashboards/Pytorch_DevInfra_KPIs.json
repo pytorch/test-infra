@@ -115,21 +115,23 @@
       },
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"CURRENT_TIMESTAMP\"\n      }\n    ]\n  }",
-          "cacheDurationSeconds": 300,
+          "body": "{\n  \"parameters\": [\n    {\n      \"name\": \"granularity\",\n      \"type\": \"string\",\n      \"value\": \"week\"\n    },\n    {\n      \"name\": \"startTime\",\n      \"type\": \"string\",\n      \"value\": \"${__from:date}\"\n    },\n    {\n      \"name\": \"stopTime\",\n      \"type\": \"string\",\n      \"value\": \"${__to:date}\"\n    }\n  ]\n}\n",
+          "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
             "uid": "P62E83680D611FAF2"
           },
           "fields": [
             {
-              "jsonPath": "$.results[*].week",
-              "name": "Time"
+              "jsonPath": "$.results[*].granularity_bucket",
+              "name": "Time",
+              "type": "time"
             },
             {
               "jsonPath": "$.results[*].red",
               "language": "jsonpath",
-              "name": "% Red"
+              "name": "% Red",
+              "type": "number"
             }
           ],
           "method": "POST",
@@ -141,10 +143,10 @@
           ],
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/weekly_percent_red_jobs/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_jobs_red/tags/latest"
         }
       ],
-      "title": "7D Jobs Percent Red",
+      "title": "7d Jobs Percent Red",
       "type": "timeseries"
     },
     {
@@ -224,7 +226,7 @@
       },
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"${__from:date}\"\n      },\n      {\n        \"name\": \"stopTime\",\n        \"type\": \"string\",\n        \"value\": \"${__to:date}\"\n      }\n    ]\n  }\n",
+          "body": "{\n  \"parameters\": [\n    {\n      \"name\": \"granularity\",\n      \"type\": \"string\",\n      \"value\": \"week\"\n    },\n    {\n      \"name\": \"startTime\",\n      \"type\": \"string\",\n      \"value\": \"${__from:date}\"\n    },\n    {\n      \"name\": \"stopTime\",\n      \"type\": \"string\",\n      \"value\": \"${__to:date}\"\n    }\n  ]\n}\n",
           "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -236,7 +238,7 @@
               "type": "number"
             },
             {
-              "jsonPath": "$,results[*].week",
+              "jsonPath": "$,results[*].granularity_bucket",
               "language": "jsonpath",
               "name": "",
               "type": "time"
@@ -245,10 +247,113 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/commons/lambdas/weekly_percent_red_commits/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/tags/latest"
         }
       ],
       "title": "7d Percent Commits Red on Trunk",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 7
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 23,
+        "x": 0,
+        "y": 17
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      }\n    ]\n}",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.[*].week_bucket",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.[*].num",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/num_reverts/tags/latest"
+        }
+      ],
+      "title": "7d Number of Reverts",
       "type": "timeseries"
     },
     {
@@ -327,7 +432,7 @@
         "h": 7,
         "w": 23,
         "x": 0,
-        "y": 17
+        "y": 23
       },
       "id": 10,
       "options": {
@@ -362,7 +467,7 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/commons/lambdas/percent_signal_ignored/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/percent_ignored_signal/tags/latest"
         }
       ],
       "title": "7d Percent Signal Ignored ",
@@ -379,7 +484,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "Days",
+            "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -407,7 +512,7 @@
             }
           },
           "mappings": [],
-          "max": 7,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -416,11 +521,220 @@
                 "value": null
               },
               {
-                "color": "red",
-                "value": 2
+                "color": "blue",
+                "value": 50
               }
             ]
-          }
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 30
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"metamate\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.[*].week_bucket",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.[*].metric",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_review/tags/latest"
+        }
+      ],
+      "title": "7d % PRs Reviewed under 2 Days for Metamates",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 38
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"external_user\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.[*].week_bucket",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.[*].metric",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_review/tags/latest"
+        }
+      ],
+      "title": "7d % PRs Reviewed under 2 Days for Metamates",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Days",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "percent"
         },
         "overrides": [
           {
@@ -441,7 +755,7 @@
         "h": 9,
         "w": 23,
         "x": 0,
-        "y": 24
+        "y": 46
       },
       "id": 8,
       "options": {
@@ -457,32 +771,31 @@
       "targets": [
         {
           "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"mergeOrClose\",\n        \"type\": \"string\",\n        \"value\": \"merge\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"metamate\"\n      }\n    ]\n  }",
-          "cacheDurationSeconds": 300,
+          "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
             "uid": "P62E83680D611FAF2"
           },
           "fields": [
             {
-              "jsonPath": "$.[*].week_bucket",
+              "jsonPath": "$.[*].week_bucket.value",
               "name": "",
               "type": "time"
             },
             {
               "jsonPath": "$.[*].metric",
               "language": "jsonpath",
-              "name": "days to merge",
-              "type": "number"
+              "name": "% closed under 2 days"
             }
           ],
           "hide": false,
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/days_between_close_merge/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_merge/tags/latest"
         }
       ],
-      "title": "7d Time to Merge for Metamates (days)",
+      "title": "7d % PRs closed under 2 Days for Metamates",
       "type": "timeseries"
     },
     {
@@ -524,20 +837,22 @@
             }
           },
           "mappings": [],
-          "max": 7,
+          "max": 100,
+          "min": 0,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
               {
                 "color": "green",
                 "value": null
               },
               {
-                "color": "red",
-                "value": 2
+                "color": "blue",
+                "value": 50
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": [
           {
@@ -558,7 +873,7 @@
         "h": 9,
         "w": 23,
         "x": 0,
-        "y": 33
+        "y": 55
       },
       "id": 14,
       "options": {
@@ -574,7 +889,7 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"mergeOrClose\",\n        \"type\": \"string\",\n        \"value\": \"merge\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"external_user\"\n      }\n    ]\n  }",
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"closeSLO\",\n        \"type\": \"int\",\n        \"value\": \"2\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      },\n      {\n        \"name\": \"userType\",\n        \"type\": \"string\",\n        \"value\": \"external_user\"\n      }\n    ]\n  }",
           "cacheDurationSeconds": 300,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -582,25 +897,24 @@
           },
           "fields": [
             {
-              "jsonPath": "$.[*].week_bucket",
+              "jsonPath": "$.[*].week_bucket.value",
               "name": "",
               "type": "time"
             },
             {
               "jsonPath": "$.[*].metric",
               "language": "jsonpath",
-              "name": "days to merge",
-              "type": "number"
+              "name": ""
             }
           ],
           "hide": false,
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/days_between_close_merge/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_merge/tags/latest"
         }
       ],
-      "title": "7d Time to Merge for External Contributors (days)",
+      "title": "7d % PRs closed under 2 Days for External Contributors",
       "type": "timeseries"
     },
     {
@@ -677,7 +991,7 @@
         "h": 8,
         "w": 23,
         "x": 0,
-        "y": 42
+        "y": 64
       },
       "id": 16,
       "options": {
@@ -712,14 +1026,129 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/commons/lambdas/e2e_tts_weekly/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_signal/tags/latest"
         }
       ],
       "title": "7d e2e tts per commit",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "tts (minutes)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 45
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "week_bucket"
+            },
+            "properties": [
+              {
+                "id": "custom.axisLabel",
+                "value": "time"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 23,
+        "x": 0,
+        "y": 72
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"buildOrAll\",\n        \"type\": \"string\",\n        \"value\": \"build\"\n      },\n      {\n        \"name\": \"startTime\",\n        \"type\": \"string\",\n        \"value\": \"2022-01-01T00:00:00.000Z\"\n      }\n    ]\n  }",
+          "cacheDurationSeconds": 0,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.[*].week_bucket"
+            },
+            {
+              "jsonPath": "$.[*].avg_tts",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/pytorch_dev_infra_kpis/lambdas/time_to_signal/tags/latest"
+        }
+      ],
+      "title": "7d e2e tts per commit (builds)",
+      "type": "timeseries"
     }
   ],
-  "refresh": "",
+  "refresh": false,
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
@@ -731,11 +1160,11 @@
     "to": "now"
   },
   "timepicker": {
-    "hidden": true
+    "hidden": false
   },
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 5,
+  "version": 13,
   "weekStart": ""
 }
