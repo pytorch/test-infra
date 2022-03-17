@@ -2,8 +2,16 @@ WITH job as (
     SELECT
         job._event_time as time,
         workflow.head_commit.id as sha,
-        job.name as job_name,
-        workflow.name as workflow_name,
+        IF(
+            workflow.name IN ('pull', 'nightly', 'trunk', 'periodic'),
+            SPLIT_PART(job.name, ' / ', 2), -- job.name looks like 'linux-cpu / build'
+            job.name
+        ) as job_name,
+        IF(
+            workflow.name IN ('pull', 'nightly', 'trunk', 'periodic'),
+            SPLIT_PART(job.name, ' / ', 1), -- job.name looks like 'linux-cpu / build'
+            workflow.name
+        ) as workflow_name,
         job.id,
         workflow.id as workflow_id,
         workflow.artifacts_url as github_artifact_url,
@@ -72,34 +80,6 @@ WITH job as (
         circleci.job job
     WHERE
         job.pipeline.vcs.revision = :sha
-    UNION
-        -- Handle Jenkins lol
-    SELECT
-        job._event_time as time,
-        job.sha as sha,
-        job.job_name as job_name,
-        -- rocm doesn't have a workflow->job structure per se, so just call the workflow "rocm"
-        'rocm' as workflow_name,
-        job.id as id,
-        null as workflow_id,
-        null as github_artifact_url,
-        CASE
-            WHEN job.status = 'ABORTED' then 'cancelled'
-            ELSE LOWER(job.status)
-        END as conclusion,
-        job.html_url,
-        CONCAT(job.html_url, 'Text') as log_url,
-        -- duration not supported yet
-        null,
-        -- Classifications not yet supported
-        null,
-        null,
-        null,
-        null,
-    FROM
-        jenkins.job job
-    where
-        job.sha = :sha
 )
 SELECT
     sha,
