@@ -2,16 +2,8 @@ WITH job as (
     SELECT
         job._event_time as time,
         workflow.head_commit.id as sha,
-        IF(
-            workflow.name IN ('pull', 'nightly', 'trunk', 'periodic'),
-            SPLIT_PART(job.name, ' / ', 2), -- job.name looks like 'linux-cpu / build'
-            job.name
-        ) as job_name,
-        IF(
-            workflow.name IN ('pull', 'nightly', 'trunk', 'periodic'),
-            SPLIT_PART(job.name, ' / ', 1), -- job.name looks like 'linux-cpu / build'
-            workflow.name
-        ) as workflow_name,
+        job.name as job_name,
+        workflow.name as workflow_name,
         job.id,
         workflow.id as workflow_id,
         workflow.artifacts_url as github_artifact_url,
