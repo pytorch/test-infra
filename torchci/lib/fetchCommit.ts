@@ -37,6 +37,7 @@ export default async function fetchCommit(
   // to avoid noising up the display with many duplicate jobs.
   jobs = _.sortBy(jobs, "id").reverse();
   jobs = _.uniqBy(jobs, "name");
+  jobs = _.sortBy(jobs, "name").reverse();
   // Now reverse again, because we want to display earlier jobs first in the the UI.
   jobs.reverse();
 
