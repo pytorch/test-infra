@@ -8,7 +8,7 @@
 
 .workflowContainer {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 550px);
+  grid-template-columns: 1fr 1fr;
   grid-gap: 10px;
 }
 
