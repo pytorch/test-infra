@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 8,
+  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -778,6 +778,7 @@
       "type": "timeseries"
     }
   ],
+  "refresh": "30m",
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
@@ -785,13 +786,13 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "GitHub Action Runners AWS Stats",
   "uid": "CfUZz-n7z",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

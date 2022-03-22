@@ -1,5 +1,17 @@
 ## Getting Started
 
+### Prerequisites
+
+Here is a checklist of all the different services used by the HUD. Ask
+@janeyx99 or @suo for help getting access to these services.
+
+- [Rockset](https://rockset.com/): primary data and metrics backend.
+- [Vercel](https://vercel.com/): hosting the website.
+- [Sematext](https://sematext.com/): log drain for our Vercel instance.
+- [AWS](http://aws.com/): data pipelines for populating Rockset, Lambda, S3, etc.
+
+### Quickstart
+
 1. Install [`yarn`](https://yarnpkg.com/getting-started/install), which we
    use for package and project management.
 2. Install the required dependencies for the project:
@@ -36,11 +48,13 @@ instructions](https://probot.github.io/docs/development/#manually-configuring-a-
 to configure a repo to send webhooks to a Smee proxy, which will then forward
 them to your local server.
 
-## Deployment
+## Deployment and monitoring
 
 We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
+
+Logs for the Vercel instance can be found in [Sematext](https://sematext.com/).
 
 ## How to edit Rockset query lambdas
 

@@ -190,7 +190,6 @@ function GroupFilterableHudTable({
           filter={normalizedJobFilter}
           names={headerNames}
           groupNameMapping={groupNameMapping}
-          useGrouping={useGrouping}
         />
         <GroupHudTableHeader
           filter={normalizedJobFilter}
@@ -198,7 +197,6 @@ function GroupFilterableHudTable({
           expandedGroups={expandedGroups}
           setExpandedGroups={setExpandedGroups}
           groupNameMapping={groupNameMapping}
-          useGrouping={useGrouping}
         />
         {children}
       </table>

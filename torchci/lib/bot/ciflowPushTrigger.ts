@@ -132,6 +132,34 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
   if (!isCIFlowLabel(label)) {
     return;
   }
+  const isOldCIFlowLabel =
+    label !== "ciflow/nightly" &&
+    label !== "ciflow/all" &&
+    label !== "ciflow/trunk" &&
+    label !== "ciflow/periodic" &&
+    !label.startsWith("ciflow/binaries");
+
+  if (isOldCIFlowLabel) {
+    let body = `We have recently simplified the CIFlow labels and \`${label}\` is no longer in use.\n`;
+    body += "You can use any of the following\n";
+    body +=
+      "- `ciflow/trunk` (`.github/workflowss/trunk.yml`): all jobs we run per-commit on master\n";
+    body +=
+      "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
+    body += "- `ciflow/all`: trunk + periodic; all jobs we run in master CI\n";
+    body +=
+      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
+    body += "- `ciflow/binaries`: all binary build and upload jobs";
+
+    await context.octokit.issues.createComment(
+      context.repo({
+        body,
+        issue_number: context.payload.pull_request.number,
+      })
+    );
+    return;
+  }
+
   const prNum = context.payload.pull_request.number;
   const tag = labelToTag(context.payload.label.name, prNum);
   await syncTag(context, tag, context.payload.pull_request.head.sha);
