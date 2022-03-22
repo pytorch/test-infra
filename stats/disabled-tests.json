@@ -8568,7 +8568,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test2/19//console\r\n\r\n```\r\n13:43:03 ======================================================================\r\n13:43:03 FAIL [0.031s]: test_caching_pinned_memory_multi_gpu (__main__.TestCuda)\r\n13:43:03 ----------------------------------------------------------------------\r\n13:43:03 Traceback (most recent call last):\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"test_cuda.py\", line 1394, in test_caching_pinned_memory_multi_gpu\r\n13:43:03     self.assertNotEqual(t.data_ptr(), ptr, msg='allocation re-used too soon')\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2177, in assertNotEqual\r\n13:43:03     self.assertEqual(x, y, msg, atol=atol, rtol=rtol, **kwargs)\r\n13:43:03 AssertionError: AssertionError not raised : allocation re-used too soon\r\n13:43:03 \r\n13:43:03 ----------------------------------------------------------------------\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.5-py3.7-test2/19//console\r\n\r\n```\r\n13:43:03 ======================================================================\r\n13:43:03 FAIL [0.031s]: test_caching_pinned_memory_multi_gpu (__main__.TestCuda)\r\n13:43:03 ----------------------------------------------------------------------\r\n13:43:03 Traceback (most recent call last):\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 1566, in wrapper\r\n13:43:03     method(*args, **kwargs)\r\n13:43:03   File \"test_cuda.py\", line 1394, in test_caching_pinned_memory_multi_gpu\r\n13:43:03     self.assertNotEqual(t.data_ptr(), ptr, msg='allocation re-used too soon')\r\n13:43:03   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 2177, in assertNotEqual\r\n13:43:03     self.assertEqual(x, y, msg, atol=atol, rtol=rtol, **kwargs)\r\n13:43:03 AssertionError: AssertionError not raised : allocation re-used too soon\r\n13:43:03 \r\n13:43:03 ----------------------------------------------------------------------\r\n```\n\ncc @ngimel @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70875/comments",
@@ -8577,6 +8577,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70875",
       "id": 1094811252,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.cuda, and CUDA support in general",
+          "id": 1076930055,
+          "name": "module: cuda",
+          "node_id": "MDU6TGFiZWwxMDc2OTMwMDU1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cuda"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -8619,7 +8628,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70875/timeline",
       "title": "DISABLED test_caching_pinned_memory_multi_gpu (__main__.TestCuda)",
-      "updated_at": "2022-01-07T22:22:55Z",
+      "updated_at": "2022-03-22T22:50:03Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70875",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -8647,7 +8656,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\n```\r\ntest_median_nan_values_cuda_float16 (__main__.TestReductionsCUDA) ... Memory exception on virtual address 0x7f765efd8000, node id 2 : Page not present\r\nAddress does not belong to a known buffer\r\nMemory access fault by GPU node-2 (Agent handle: 0x56076309ef10) on address 0x7f765efd8000. Reason: Page not present or supervisor privilege.\r\n\r\n2021-09-28 20:11:15,199 INFO \r\ntest_reductions failed! Received signal: SIGIOT\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "body": "Platforms: rocm\r\n\r\n```\r\ntest_median_nan_values_cuda_float16 (__main__.TestReductionsCUDA) ... Memory exception on virtual address 0x7f765efd8000, node id 2 : Page not present\r\nAddress does not belong to a known buffer\r\nMemory access fault by GPU node-2 (Agent handle: 0x56076309ef10) on address 0x7f765efd8000. Reason: Page not present or supervisor privilege.\r\n\r\n2021-09-28 20:11:15,199 INFO \r\ntest_reductions failed! Received signal: SIGIOT\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH @mruberry",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70876/comments",
@@ -8664,6 +8673,15 @@
           "name": "module: rocm",
           "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
         },
         {
           "color": "bfdadc",
@@ -8698,7 +8716,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70876/timeline",
       "title": "DISABLED test_median_nan_values_cuda_float16 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-01-06T05:07:33Z",
+      "updated_at": "2022-03-22T22:51:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70876",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -8726,7 +8744,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\n```\r\n======================================================================\r\nERROR: test_broadcast_stress_cuda (__main__.ProcessGroupGlooTest)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 423, in wrapper\r\n    self._join_processes(fn)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 642, in _join_processes\r\n    self._check_return_codes(elapsed_time)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 687, in _check_return_codes\r\n    raise RuntimeError(error)\r\nRuntimeError: Process 1 exited with error code 10 and exception:\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 541, in run_test\r\n    getattr(self, test_name)()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 425, in wrapper\r\n    fn()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 112, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 2888, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/var/lib/jenkins/pytorch/test/distributed/test_c10d_gloo.py\", line 384, in test_broadcast_stress_cuda\r\n    self._test_broadcast_stress(inputs)\r\n  File \"/var/lib/jenkins/pytorch/test/distributed/test_c10d_gloo.py\", line 366, in _test_broadcast_stress\r\n    work_handle.wait()\r\nRuntimeError: [/var/lib/jenkins/pytorch/third_party/gloo/gloo/transport/tcp/unbound_buffer.cc:84] Timed out waiting 5000ms for recv operation to complete\r\n```\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "body": "Platforms: rocm\r\n\r\n```\r\n======================================================================\r\nERROR: test_broadcast_stress_cuda (__main__.ProcessGroupGlooTest)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 423, in wrapper\r\n    self._join_processes(fn)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 642, in _join_processes\r\n    self._check_return_codes(elapsed_time)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 687, in _check_return_codes\r\n    raise RuntimeError(error)\r\nRuntimeError: Process 1 exited with error code 10 and exception:\r\nTraceback (most recent call last):\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 541, in run_test\r\n    getattr(self, test_name)()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 425, in wrapper\r\n    fn()\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 112, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 2888, in wrapper\r\n    return func(*args, **kwargs)\r\n  File \"/var/lib/jenkins/pytorch/test/distributed/test_c10d_gloo.py\", line 384, in test_broadcast_stress_cuda\r\n    self._test_broadcast_stress(inputs)\r\n  File \"/var/lib/jenkins/pytorch/test/distributed/test_c10d_gloo.py\", line 366, in _test_broadcast_stress\r\n    work_handle.wait()\r\nRuntimeError: [/var/lib/jenkins/pytorch/third_party/gloo/gloo/transport/tcp/unbound_buffer.cc:84] Timed out waiting 5000ms for recv operation to complete\r\n```\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70877/comments",
@@ -8735,6 +8753,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70877",
       "id": 1094818825,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -8777,7 +8804,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70877/timeline",
       "title": "DISABLED test_broadcast_stress_cuda (__main__.ProcessGroupGlooTest)",
-      "updated_at": "2022-01-07T22:20:03Z",
+      "updated_at": "2022-03-22T22:52:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70877",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -9398,7 +9425,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_forward_overlap%2C%20TestForwardOverlapWorldSizeTwo)).",
+      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_forward_overlap%2C%20TestForwardOverlapWorldSizeTwo)).\n\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71183/comments",
@@ -9408,6 +9435,15 @@
       "id": 1099667390,
       "labels": [
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -9415,6 +9451,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "d4c5f9",
+          "default": false,
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71183/labels{/name}",
@@ -9440,7 +9485,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71183/timeline",
       "title": "DISABLED test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo)",
-      "updated_at": "2022-01-11T22:17:14Z",
+      "updated_at": "2022-03-22T22:53:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71183",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
