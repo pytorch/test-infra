@@ -23,6 +23,7 @@ import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import useGroupingPreference from "pages/settings/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
@@ -391,9 +392,15 @@ function GroupedHudTable({
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
   const [useGrouping, setUseGrouping] = useState(
+    params.nameFilter == null || params.nameFilter === ""
+  );
+  console.log(
+    "FILTER IS",
+    params.nameFilter == null || params.nameFilter === ""
+  );
+  useGroupingPreference(
     !(params.nameFilter != null && params.nameFilter !== "")
   );
-
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
 
