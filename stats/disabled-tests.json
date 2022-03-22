@@ -4327,7 +4327,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Flaky failures in the last week: https://fburl.com/scuba/opensource_ci_jobs/inmj698k. They only appear to be on windows\r\n\r\nPlatforms: windows\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm",
+      "body": "Flaky failures in the last week: https://fburl.com/scuba/opensource_ci_jobs/inmj698k. They only appear to be on windows\r\n\r\nPlatforms: windows\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @VitalyFedyunin",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67002/comments",
@@ -4344,6 +4344,15 @@
           "name": "module: windows",
           "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.multiprocessing",
+          "id": 1040695894,
+          "name": "module: multiprocessing",
+          "node_id": "MDU6TGFiZWwxMDQwNjk1ODk0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20multiprocessing"
         },
         {
           "color": "006b75",
@@ -4387,7 +4396,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67002/timeline",
       "title": "DISABLED test_fs_sharing (__main__.TestMultiprocessing)",
-      "updated_at": "2021-12-21T21:27:35Z",
+      "updated_at": "2022-03-22T22:36:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67002",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -4417,7 +4426,7 @@
       "author_association": "MEMBER",
       "body": "## \ud83d\udc1b Bug\r\n\r\nPlatforms: rocm\r\n\r\ntest_nccl_barrier_timeout_new_group_non_member (__main__.CommTest) is flaky, see failure - \r\n\r\n```\r\nERROR [100.094s]: test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)\r\n02:56:49 ----------------------------------------------------------------------\r\n02:56:49 Traceback (most recent call last):\r\n02:56:49   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 424, in wrapper\r\n02:56:49     self._join_processes(fn)\r\n02:56:49   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 643, in _join_processes\r\n02:56:49     self._check_return_codes(elapsed_time)\r\n02:56:49   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_distributed.py\", line 695, in _check_return_codes\r\n02:56:49     i, elapsed_time\r\n02:56:49 RuntimeError: Process 1 terminated or timed out after 100.07976341247559 seconds\r\n```\r\n\r\nlink to example failure: https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/1309/console\r\n\r\nOnly seen it on ROCM so far. \r\n\r\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67154/comments",
       "created_at": "2021-10-24T08:27:05Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/67154/events",
@@ -5001,7 +5010,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "This is action following https://github.com/pytorch/pytorch/issues/67448--let's disable the test that seemed to have deadlocked. Using the discover tests feature and matching it up against the logs, it ends up being test_nested.\r\n\r\n```\r\n(pytorch) janeyx@janeyx-mbp pytorch % python test/test_multiprocessing_spawn.py --discover-tests\r\nForkTest.test_exception_all\r\nForkTest.test_exception_single\r\nForkTest.test_first_argument_index\r\nForkTest.test_nested\r\nForkTest.test_success\r\nForkTest.test_success_first_then_exception\r\nForkTest.test_success_non_blocking\r\nForkTest.test_terminate_exit\r\nForkTest.test_terminate_signal\r\nSpawnTest.test_exception_all\r\nSpawnTest.test_exception_raises\r\nSpawnTest.test_exception_single\r\nSpawnTest.test_first_argument_index\r\nSpawnTest.test_nested\r\nSpawnTest.test_process_exited\r\nSpawnTest.test_signal_raises\r\nSpawnTest.test_success\r\nSpawnTest.test_success_first_then_exception\r\nSpawnTest.test_success_non_blocking\r\nSpawnTest.test_terminate_exit\r\nSpawnTest.test_terminate_signal\r\n```",
+      "body": "This is action following https://github.com/pytorch/pytorch/issues/67448--let's disable the test that seemed to have deadlocked. Using the discover tests feature and matching it up against the logs, it ends up being test_nested.\r\n\r\n```\r\n(pytorch) janeyx@janeyx-mbp pytorch % python test/test_multiprocessing_spawn.py --discover-tests\r\nForkTest.test_exception_all\r\nForkTest.test_exception_single\r\nForkTest.test_first_argument_index\r\nForkTest.test_nested\r\nForkTest.test_success\r\nForkTest.test_success_first_then_exception\r\nForkTest.test_success_non_blocking\r\nForkTest.test_terminate_exit\r\nForkTest.test_terminate_signal\r\nSpawnTest.test_exception_all\r\nSpawnTest.test_exception_raises\r\nSpawnTest.test_exception_single\r\nSpawnTest.test_first_argument_index\r\nSpawnTest.test_nested\r\nSpawnTest.test_process_exited\r\nSpawnTest.test_signal_raises\r\nSpawnTest.test_success\r\nSpawnTest.test_success_first_then_exception\r\nSpawnTest.test_success_non_blocking\r\nSpawnTest.test_terminate_exit\r\nSpawnTest.test_terminate_signal\r\n```\n\ncc @VitalyFedyunin",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67881/comments",
@@ -5010,6 +5019,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/67881",
       "id": 1045274446,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.multiprocessing",
+          "id": 1040695894,
+          "name": "module: multiprocessing",
+          "node_id": "MDU6TGFiZWwxMDQwNjk1ODk0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20multiprocessing"
+        },
         {
           "color": "006b75",
           "default": false,
@@ -5052,7 +5070,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67881/timeline",
       "title": "DISABLED test_nested (__main__.ForkTest)",
-      "updated_at": "2021-12-21T21:27:01Z",
+      "updated_at": "2022-03-22T22:38:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67881",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
@@ -5409,121 +5427,6 @@
         "subscriptions_url": "https://api.github.com/users/mruberry/subscriptions",
         "type": "User",
         "url": "https://api.github.com/users/mruberry"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nSee https://hud.pytorch.org/ci/pytorch/pytorch/master?name_filter=rocm.*distributed \r\nFor example, see https://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test-distributed/4890//console\r\nSeems to be caused by https://github.com/pytorch/pytorch/pull/67901\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
-      "closed_at": null,
-      "comments": 1,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68189/comments",
-      "created_at": "2021-11-11T19:05:54Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68189/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/68189",
-      "id": 1051276707,
-      "labels": [
-        {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue",
-          "id": 679953883,
-          "name": "oncall: distributed",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "AMD GPU support for Pytorch",
-          "id": 1078897659,
-          "name": "module: rocm",
-          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/68189/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z84-qTWj",
-      "number": 68189,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/68189/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68189/timeline",
-      "title": "DISABLED test_ddp_profiling_torch_profiler (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2021-12-21T21:27:02Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/68189",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
-        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
-        "followers_url": "https://api.github.com/users/malfet/followers",
-        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
-        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/malfet",
-        "id": 2453524,
-        "login": "malfet",
-        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
-        "organizations_url": "https://api.github.com/users/malfet/orgs",
-        "received_events_url": "https://api.github.com/users/malfet/received_events",
-        "repos_url": "https://api.github.com/users/malfet/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/malfet"
       }
     },
     {
@@ -6649,7 +6552,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nExample:\r\n- https://github.com/pytorch/pytorch/runs/4373039878?check_suite_focus=true\r\n\r\n\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "body": "Platforms: mac\r\n\r\nExample:\r\n- https://github.com/pytorch/pytorch/runs/4373039878?check_suite_focus=true\r\n\r\n\n\ncc @ezyang @gchanan @zou3519 @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd @bdhirsh @jbschlosser",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/69178/comments",
@@ -6704,6 +6607,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -6736,7 +6648,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69178/timeline",
       "title": "DISABLED test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)",
-      "updated_at": "2021-12-21T21:27:06Z",
+      "updated_at": "2022-03-22T22:46:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/69178",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -7563,6 +7475,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "d4c5f9",
+          "default": false,
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70368/labels{/name}",
@@ -7588,7 +7509,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70368/timeline",
       "title": "DISABLED test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2021-12-30T05:50:23Z",
+      "updated_at": "2022-03-22T22:47:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70368",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
@@ -13397,5 +13318,5 @@
       }
     }
   ],
-  "total_count": 130
+  "total_count": 129
 }
