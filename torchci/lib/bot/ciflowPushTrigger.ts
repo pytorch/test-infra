@@ -148,7 +148,8 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
       "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
     body += "- `ciflow/all`: trunk + periodic; all jobs we run in master CI\n";
     body +=
-      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly";
+      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
+    body += "- `ciflow/binaries`: all binary build and upload jobs";
 
     await context.octokit.issues.createComment(
       context.repo({
