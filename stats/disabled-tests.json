@@ -2164,9 +2164,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "COLLABORATOR",
-      "body": "https://app.circleci.com/jobs/github/pytorch/pytorch/14298550?utm_campaign=vcs-integration-link&utm_medium=referral&utm_source=github-build-link\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd @cbalioglu @gcramer23",
+      "body": "https://app.circleci.com/jobs/github/pytorch/pytorch/14298550?utm_campaign=vcs-integration-link&utm_medium=referral&utm_source=github-build-link\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd @agolynski @cbalioglu @gcramer23",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/60494/comments",
       "created_at": "2021-06-22T22:34:25Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/60494/events",
@@ -2181,6 +2181,24 @@
           "name": "oncall: distributed",
           "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
         },
         {
           "color": "bfdadc",
@@ -2215,7 +2233,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/60494/timeline",
       "title": "DISABLED test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)",
-      "updated_at": "2021-12-21T21:27:30Z",
+      "updated_at": "2022-03-23T18:14:19Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/60494",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/5248122?v=4",
