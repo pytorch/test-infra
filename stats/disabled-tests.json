@@ -13369,7 +13369,7 @@
       "author_association": "NONE",
       "body": "Platforms: \n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_multiple_dataloaders%2C%20TestDataLoader) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/actions/runs/2026000938).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74598/comments",
       "created_at": "2022-03-23T03:44:49Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/74598/events",
@@ -13384,6 +13384,15 @@
           "name": "module: dataloader",
           "node_id": "MDU6TGFiZWwxMDc2OTIzODc4",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "f7e101",
@@ -13427,7 +13436,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74598/timeline",
       "title": "DISABLED test_multiple_dataloaders (__main__.TestDataLoader)",
-      "updated_at": "2022-03-23T03:44:50Z",
+      "updated_at": "2022-03-23T13:44:42Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74598",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
