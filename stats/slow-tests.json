@@ -1,22 +1,6 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 63.299,
-    "test_binary_tensor_scalar_ops (__main__.TestTEFuserDynamic)": 83.98949999999999,
-    "test_binary_tensor_scalar_ops (__main__.TestTEFuserStatic)": 71.076,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 187.518,
-    "test_collect_cpp_callgrind (__main__.TestBenchmarkUtils)": 131.625,
-    "test_contig_vs_every_other_special_zeta_cuda_int16 (__main__.TestBinaryUfuncsCUDA)": 82.30833333333332,
-    "test_dtypes_special_zeta_cuda (__main__.TestCommonCUDA)": 83.49233333333333,
-    "test_fs_sharing (__main__.TestMultiprocessing)": 617.828,
-    "test_iterable_style_dataset (__main__.TestDataLoader)": 150.315,
-    "test_jit_cuda_archflags (__main__.TestCppExtensionJIT)": 179.53,
-    "test_noncontiguous_samples_polygamma_polygamma_n_0_cuda_int64 (__main__.TestCommonCUDA)": 60.36266666666667,
-    "test_trunc_normal (__main__.TestNNInit)": 219.342,
-    "test_variant_consistency_jit_linalg_solve_triangular_cpu_complex64 (__main__.TestJitCPU)": 69.689,
-    "test_variant_consistency_jit_nn_functional_max_pool1d_cpu_float32 (__main__.TestJitCPU)": 94.423,
-    "test_variant_consistency_jit_nn_functional_max_pool1d_cuda_float32 (__main__.TestJitCUDA)": 64.886,
-    "test_variant_consistency_jit_nn_functional_max_pool2d_cpu_float32 (__main__.TestJitCPU)": 177.422,
-    "test_variant_consistency_jit_nn_functional_max_pool2d_cuda_float32 (__main__.TestJitCUDA)": 120.837,
-    "test_variant_consistency_jit_nn_functional_max_pool3d_cpu_float32 (__main__.TestJitCPU)": 64.063,
-    "test_variant_consistency_jit_svd_cpu_complex64 (__main__.TestJitCPU)": 78.385,
-    "test_variant_consistency_jit_svd_cuda_complex64 (__main__.TestJitCUDA)": 68.196
+    "test_batch_norm (__main__.TestTEFuserDynamic)": 93.1685,
+    "test_batch_norm (__main__.TestTEFuserStatic)": 85.9695,
+    "test_contig_vs_every_other_special_zeta_cuda_bool (__main__.TestBinaryUfuncsCUDA)": 237.838,
+    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 94.73400000000001
 }
