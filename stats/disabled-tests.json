@@ -230,112 +230,6 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "Previous failed runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682966\r\n\r\nSubsequent succeeded runs:\r\nhttps://circleci.com/gh/pytorch/pytorch/4682247\r\nhttps://circleci.com/gh/pytorch/pytorch/4682241\r\n\r\nToday, it consistently fails:\r\nhttps://circleci.com/gh/pytorch/pytorch/4687625\r\nhttps://circleci.com/gh/pytorch/pytorch/4687610\r\nhttps://circleci.com/gh/pytorch/pytorch/4686149\r\n\r\n@ljk53 tried reverting the seemingly culprit PR #32814 and #34055, but the error persist. \r\n\r\nI am going to disable this test while JIT team investigating it. \n\ncc @ezyang @gchanan @zou3519 @bdhirsh @suo",
-      "closed_at": null,
-      "comments": 1,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/comments",
-      "created_at": "2020-03-04T15:29:15Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/34213",
-      "id": 575502768,
-      "labels": [
-        {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "c5def5",
-          "default": false,
-          "description": "Add this issue/PR to JIT oncall triage queue",
-          "id": 679953983,
-          "name": "oncall: jit",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI",
-          "id": 1301397902,
-          "name": "module: flaky-tests",
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "MDU6SXNzdWU1NzU1MDI3Njg=",
-      "number": 34213,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/34213/timeline",
-      "title": "DISABLED test_script_pack_padded_sequence (test_jit.TestScript)",
-      "updated_at": "2021-12-21T21:29:57Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/34213",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
-        "events_url": "https://api.github.com/users/mrshenli/events{/privacy}",
-        "followers_url": "https://api.github.com/users/mrshenli/followers",
-        "following_url": "https://api.github.com/users/mrshenli/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mrshenli/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/mrshenli",
-        "id": 16999635,
-        "login": "mrshenli",
-        "node_id": "MDQ6VXNlcjE2OTk5NjM1",
-        "organizations_url": "https://api.github.com/users/mrshenli/orgs",
-        "received_events_url": "https://api.github.com/users/mrshenli/received_events",
-        "repos_url": "https://api.github.com/users/mrshenli/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/mrshenli/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mrshenli/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/mrshenli"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
       "author_association": "NONE",
       "body": "I think there is a compatibility issue with disabled batch sampling and subset dataset\r\nThe use-case - define custom batch sampling, and split the dataset using PyTorch split utility function\r\nHere's a minimal working example\r\n```\r\nself.train_dataset, self.val_dataset, self.test_dataset = torch.utils.data.random_split(\r\n            self.dataset, [100, 100, 100])\r\n\r\nloader = DataLoader(\r\n                dataset=self.train_dataset,\r\n                batch_size=None,\r\n                batch_sampler=None,\r\n                sampler=BatchSampler(\r\n                    SequentialSampler(dataset), batch_size=self.hparams.batch_size, drop_last=False),\r\n                num_workers=self.hparams.num_data_workers,\r\n            )\r\n```\r\nAnd when iterating the subset datasets this is the error\r\n```\r\nException has occurred: TypeError\r\nlist indices must be integers or slices, not list\r\n  File \"/path/utils/data/dataset.py\", line 257, in __getitem__\r\n    return self.dataset[self.indices[idx]]\r\n  File \"/path/utils/data/_utils/fetch.py\", line 46, in fetch\r\n    data = self.dataset[possibly_batched_index]\r\n  File \"/path/utils/data/dataloader.py\", line 385, in _next_data\r\n    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration\r\n  File \"/path/utils/data/dataloader.py\", line 345, in __next__\r\n    data = self._next_data()\r\n  File \"/path/lib/python3.7/site-packages/pytorch_lightning/trainer/evaluation_loop.py\", line 251, in _evaluate\r\n    for batch_idx, batch in enumerate(dataloader):\r\n  File \"/path/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py\", line 843, in run_pretrain_routine\r\n    False)\r\n  File \"/path/lib/python3.7/site-packages/pytorch_lightning/trainer/distrib_parts.py\", line 477, in single_gpu_train\r\n    self.run_pretrain_routine(model)\r\n  File \"/path/lib/python3.7/site-packages/pytorch_lightning/trainer/trainer.py\", line 704, in fit\r\n    self.single_gpu_train(model)\r\n  File \"/path/train.py\", line 152, in main_train\r\n    trainer.fit(model)\r\n  File \"/path/train.py\", line 66, in main\r\n    main_train(model_class_pointer, hyperparams, logger)\r\n  File \"/path/train.py\", line 161, in <module>\r\n    main()\r\n  File \"/path/lib/python3.7/runpy.py\", line 85, in _run_code\r\n    exec(code, run_globals)\r\n  File \"/path/lib/python3.7/runpy.py\", line 96, in _run_module_code\r\n    mod_name, mod_spec, pkg_name, script_name)\r\n  File \"/path/lib/python3.7/runpy.py\", line 263, in run_path\r\n    pkg_name=pkg_name, script_name=fname)\r\n  File \"/path/lib/python3.7/runpy.py\", line 85, in _run_code\r\n    exec(code, run_globals)\r\n  File \"/path/lib/python3.7/runpy.py\", line 193, in _run_module_as_main\r\n    \"__main__\", mod_spec)\r\n```\r\n\r\nAs the self.indices of the `subset` object is a simple python list.\r\n\r\nPlease refer to the forum post, where @ptrblck  approves reproducing the bug and offering a workaround.\n\ncc @SsnL",
       "closed_at": null,
@@ -13225,5 +13119,5 @@
       }
     }
   ],
-  "total_count": 126
+  "total_count": 125
 }
