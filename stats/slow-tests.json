@@ -1,6 +1,17 @@
 {
-    "test_batch_norm (__main__.TestTEFuserDynamic)": 93.1685,
-    "test_batch_norm (__main__.TestTEFuserStatic)": 85.9695,
-    "test_contig_vs_every_other_special_zeta_cuda_bool (__main__.TestBinaryUfuncsCUDA)": 237.838,
-    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 94.73400000000001
+    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 60.243,
+    "test_batch_norm (__main__.TestTEFuserDynamic)": 64.513,
+    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 113.35,
+    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 92.59325,
+    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 166.425,
+    "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": 111.4825,
+    "test_fn_fwgrad_bwgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 80.2055,
+    "test_fn_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 100.2465,
+    "test_inplace_gradgrad_cumprod_cuda_complex128 (__main__.TestGradientsCUDA)": 103.31299999999999,
+    "test_nnc_correctness__masked_var_cpu_float32 (__main__.TestNNCOpInfoCPU)": 63.4,
+    "test_nnc_correctness__masked_var_cpu_float64 (__main__.TestNNCOpInfoCPU)": 63.126,
+    "test_noncontiguous_samples_special_zeta_cuda_int64 (__main__.TestCommonCUDA)": 161.53533333333334,
+    "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": 80.9565,
+    "test_trunc_normal (__main__.TestNNInit)": 147.07933333333332,
+    "test_variant_consistency_jit_nn_functional_max_pool2d_cpu_float32 (__main__.TestJitCPU)": 95.777
 }
