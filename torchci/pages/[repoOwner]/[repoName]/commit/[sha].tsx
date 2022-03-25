@@ -43,11 +43,17 @@ export function CommitInfo({
 export default function Page() {
   const router = useRouter();
   const { sha, repoOwner, repoName } = router.query;
+  const fancyName =
+    (repoOwner === "pytorch" && repoName === "pytorch") ? "PyTorch"
+    : (repoOwner === "pytorch" && repoName === "vision") ? "TorchVision"
+    : (repoOwner === "pytorch" && repoName === "audio") ? "TorchAudio"
+    : `${repoOwner}/${repoName}`;
+
 
   return (
     <div>
       <h1 id="hud-header">
-        PyTorch Commit: <code>{sha}</code>
+        {fancyName} Commit: <code>{sha}</code>
       </h1>
       {sha !== undefined && (
         <CommitInfo
