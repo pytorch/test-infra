@@ -1,9 +1,14 @@
 import { useState } from "react";
 
-export default function useGroupingPreference(hasParams: boolean) {
-  const useGroupingFromStorage = localStorage.getItem("useGrouping");
+export default function useGroupingPreference(
+  hasParams: boolean
+): [boolean, (grouping: boolean) => void] {
+  const useGroupingFromStorage =
+    typeof window === "undefined"
+      ? "true"
+      : window.localStorage.getItem("useGrouping") ?? "true";
   const [useGrouping, setUseGrouping] = useState<boolean>(
-    useGroupingFromStorage === "true"
+    !hasParams && useGroupingFromStorage === "true"
   );
 
   const setGrouping = (grouping: boolean) => {

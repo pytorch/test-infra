@@ -391,15 +391,9 @@ function GroupedHudTable({
     data.jobNames
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-  const [useGrouping, setUseGrouping] = useState(
-    params.nameFilter == null || params.nameFilter === ""
-  );
-  console.log(
-    "FILTER IS",
-    params.nameFilter == null || params.nameFilter === ""
-  );
-  useGroupingPreference(
-    !(params.nameFilter != null && params.nameFilter !== "")
+
+  const [useGrouping, setUseGrouping] = useGroupingPreference(
+    params.nameFilter != null && params.nameFilter !== ""
   );
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
