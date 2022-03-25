@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 9,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -793,6 +793,6 @@
   "timezone": "",
   "title": "GitHub Action Runners AWS Stats",
   "uid": "CfUZz-n7z",
-  "version": 2,
+  "version": 1,
   "weekStart": ""
 }

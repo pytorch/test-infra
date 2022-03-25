@@ -174,7 +174,6 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         expect(disableFlakyTestBot.filterOutPRFlakyTests(flakyTests)).toEqual(expectedFlakyTestsOnTrunk);
     })
 
-
     test("getTestOwnerLabels: owned test file should return proper module", async () => {
         const scope = nock("https://raw.githubusercontent.com/")
             .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
@@ -182,20 +181,6 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
         const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
         expect(labels).toEqual(["module: fft"]);
-
-        if (!scope.isDone()) {
-            console.error("pending mocks: %j", scope.pendingMocks());
-        }
-        scope.done();
-    });
-
-    test("getTestOwnerLabels: un-owned high priority test file should return high priority", async () => {
-        const scope = nock("https://raw.githubusercontent.com/")
-            .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-            .reply(200, Buffer.from(`# Owner(s): ["high priority"]\nimport blah;\nrest of file`));
-
-        const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
-        expect(labels).toEqual(["high priority"]);
 
         if (!scope.isDone()) {
             console.error("pending mocks: %j", scope.pendingMocks());

@@ -150,6 +150,11 @@ export default async function handler(
         priority: 700,
       },
       {
+        name: "ASAN failure",
+        pattern: r`^AddressSanitizer:DEADLYSIGNAL`,
+        priority: 699,
+      },
+      {
         name: "undefined reference linker error",
         pattern: r`undefined reference to .*`,
         priority: 200,
