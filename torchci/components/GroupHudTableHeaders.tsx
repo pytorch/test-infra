@@ -71,6 +71,7 @@ export function GroupHudTableHeader({
         <th className={styles.regularHeader}>SHA</th>
         <th className={styles.regularHeader}>Commit</th>
         <th className={styles.regularHeader}>PR</th>
+        <th className={styles.regularHeader}>Author</th>
         {names.map((name) => {
           const isGroup = groupNames.has(name);
           const style = passesGroupFilter(filter, name, groupNameMapping)

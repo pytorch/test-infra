@@ -24,7 +24,6 @@ export default function useHudData(params: HudParams): HudData | undefined {
       refreshInterval: 60 * 1000,
     }
   );
-
   // Add job name info back into the data (it was stripped out as technically it's redundant)
   if (data === undefined) {
     return data;
@@ -39,7 +38,11 @@ export default function useHudData(params: HudParams): HudData | undefined {
     // Merge the original PR data into the main data.
     data.shaGrid.forEach((row: RowData) => {
       row.jobs.forEach((job: JobData) => {
-        job.originalPrData = originalPRData[job.sha!]?.[job.name!];
+        const origPrData = originalPRData[job.sha!]?.[job.name!];
+        job.originalPrData = origPrData;
+        if (origPrData != null && origPrData.master_author != null) {
+          row.author = origPrData.master_author;
+        }
       });
     });
   }

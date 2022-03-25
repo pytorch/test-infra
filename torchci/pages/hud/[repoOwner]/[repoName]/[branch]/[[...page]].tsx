@@ -79,6 +79,11 @@ function HudRow({
           </a>
         )}
       </td>
+      <td className={styles.jobMetadata}>
+        {rowData.author !== null && (
+          <a href={`https://github.com/${rowData.author}`}>{rowData.author}</a>
+        )}
+      </td>
       <HudJobCells
         rowData={rowData}
         expandedGroups={expandedGroups}
@@ -132,7 +137,6 @@ function HudTableBody({
   expandedGroups?: Set<string>;
   useGrouping: boolean;
 }) {
-  expandedGroups;
   return (
     <tbody>
       {shaGrid.map((row: RowData) => (
