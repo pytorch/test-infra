@@ -453,15 +453,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
         },
         {
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue",
-          "id": 679953883,
-          "name": "oncall: distributed",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        },
-        {
           "color": "006b75",
           "default": false,
           "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
@@ -503,7 +494,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/38491/timeline",
       "title": "DISABLED ParallelWorkersTest.testParallelWorkersShutdownFun ",
-      "updated_at": "2022-03-25T17:56:00Z",
+      "updated_at": "2022-03-25T22:27:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/38491",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
@@ -899,8 +890,48 @@
     },
     {
       "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
+      "assignee": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/8310727?v=4",
+        "events_url": "https://api.github.com/users/cbalioglu/events{/privacy}",
+        "followers_url": "https://api.github.com/users/cbalioglu/followers",
+        "following_url": "https://api.github.com/users/cbalioglu/following{/other_user}",
+        "gists_url": "https://api.github.com/users/cbalioglu/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/cbalioglu",
+        "id": 8310727,
+        "login": "cbalioglu",
+        "node_id": "MDQ6VXNlcjgzMTA3Mjc=",
+        "organizations_url": "https://api.github.com/users/cbalioglu/orgs",
+        "received_events_url": "https://api.github.com/users/cbalioglu/received_events",
+        "repos_url": "https://api.github.com/users/cbalioglu/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/cbalioglu/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/cbalioglu/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/cbalioglu"
+      },
+      "assignees": [
+        {
+          "avatar_url": "https://avatars.githubusercontent.com/u/8310727?v=4",
+          "events_url": "https://api.github.com/users/cbalioglu/events{/privacy}",
+          "followers_url": "https://api.github.com/users/cbalioglu/followers",
+          "following_url": "https://api.github.com/users/cbalioglu/following{/other_user}",
+          "gists_url": "https://api.github.com/users/cbalioglu/gists{/gist_id}",
+          "gravatar_id": "",
+          "html_url": "https://github.com/cbalioglu",
+          "id": 8310727,
+          "login": "cbalioglu",
+          "node_id": "MDQ6VXNlcjgzMTA3Mjc=",
+          "organizations_url": "https://api.github.com/users/cbalioglu/orgs",
+          "received_events_url": "https://api.github.com/users/cbalioglu/received_events",
+          "repos_url": "https://api.github.com/users/cbalioglu/repos",
+          "site_admin": false,
+          "starred_url": "https://api.github.com/users/cbalioglu/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/cbalioglu/subscriptions",
+          "type": "User",
+          "url": "https://api.github.com/users/cbalioglu"
+        }
+      ],
       "author_association": "CONTRIBUTOR",
       "body": "Started to fail pretty consistently sometime after https://github.com/pytorch/pytorch/tree/4a2fb3404215c774fdf2805ba8d495bb7dc1bbbf \r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/236917/workflows/7f73ea98-2cfa-4a7c-b26e-2eaca2661f34/jobs/8801912/steps\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd",
       "closed_at": null,
@@ -980,7 +1011,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/timeline",
       "title": "DISABLED test_broadcast_cuda (__main__.TestDistBackendWithFork)",
-      "updated_at": "2022-03-24T05:37:58Z",
+      "updated_at": "2022-03-25T22:26:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/47645",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
