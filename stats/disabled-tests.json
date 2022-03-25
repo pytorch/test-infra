@@ -6512,134 +6512,6 @@
     },
     {
       "active_lock_reason": null,
-      "assignee": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/4273004?v=4",
-        "events_url": "https://api.github.com/users/tenpercent/events{/privacy}",
-        "followers_url": "https://api.github.com/users/tenpercent/followers",
-        "following_url": "https://api.github.com/users/tenpercent/following{/other_user}",
-        "gists_url": "https://api.github.com/users/tenpercent/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/tenpercent",
-        "id": 4273004,
-        "login": "tenpercent",
-        "node_id": "MDQ6VXNlcjQyNzMwMDQ=",
-        "organizations_url": "https://api.github.com/users/tenpercent/orgs",
-        "received_events_url": "https://api.github.com/users/tenpercent/received_events",
-        "repos_url": "https://api.github.com/users/tenpercent/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/tenpercent/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/tenpercent/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/tenpercent"
-      },
-      "assignees": [
-        {
-          "avatar_url": "https://avatars.githubusercontent.com/u/4273004?v=4",
-          "events_url": "https://api.github.com/users/tenpercent/events{/privacy}",
-          "followers_url": "https://api.github.com/users/tenpercent/followers",
-          "following_url": "https://api.github.com/users/tenpercent/following{/other_user}",
-          "gists_url": "https://api.github.com/users/tenpercent/gists{/gist_id}",
-          "gravatar_id": "",
-          "html_url": "https://github.com/tenpercent",
-          "id": 4273004,
-          "login": "tenpercent",
-          "node_id": "MDQ6VXNlcjQyNzMwMDQ=",
-          "organizations_url": "https://api.github.com/users/tenpercent/orgs",
-          "received_events_url": "https://api.github.com/users/tenpercent/received_events",
-          "repos_url": "https://api.github.com/users/tenpercent/repos",
-          "site_admin": false,
-          "starred_url": "https://api.github.com/users/tenpercent/starred{/owner}{/repo}",
-          "subscriptions_url": "https://api.github.com/users/tenpercent/subscriptions",
-          "type": "User",
-          "url": "https://api.github.com/users/tenpercent"
-        }
-      ],
-      "author_association": "CONTRIBUTOR",
-      "body": "Following issue #69014, we should ensure the skipped tests from the disable bot print the error message. \n\ncc @seemethere @malfet @pytorch/pytorch-dev-infra",
-      "closed_at": null,
-      "comments": 0,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/comments",
-      "created_at": "2021-12-03T19:51:59Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/69380",
-      "id": 1070903979,
-      "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to continuous integration",
-          "id": 1300896147,
-          "name": "module: ci",
-          "node_id": "MDU6TGFiZWwxMzAwODk2MTQ3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ci"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "ededed",
-          "default": false,
-          "description": null,
-          "id": 2695910552,
-          "name": "Stale",
-          "node_id": "MDU6TGFiZWwyNjk1OTEwNTUy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/Stale"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z84_1LKr",
-      "number": 69380,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 1,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 1,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/69380/timeline",
-      "title": "Ensure that the message for disabled tests is printed for disabled tests in CI",
-      "updated_at": "2022-03-16T02:15:38Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/69380",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
-        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
-        "followers_url": "https://api.github.com/users/janeyx99/followers",
-        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
-        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/janeyx99",
-        "id": 31798555,
-        "login": "janeyx99",
-        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
-        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
-        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
-        "repos_url": "https://api.github.com/users/janeyx99/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/janeyx99"
-      }
-    },
-    {
-      "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
@@ -13495,7 +13367,35 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/74747/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/74747",
       "id": 1180936810,
-      "labels": [],
+      "labels": [
+        {
+          "color": "c5def5",
+          "default": false,
+          "description": "Add this issue/PR to JIT oncall triage queue",
+          "id": 679953983,
+          "name": "oncall: jit",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        }
+      ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/74747/labels{/name}",
       "locked": false,
       "milestone": null,
@@ -13519,7 +13419,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74747/timeline",
       "title": "DISABLED test_batch_norm (__main__.TestTEFuserDynamic)",
-      "updated_at": "2022-03-25T15:30:11Z",
+      "updated_at": "2022-03-25T21:07:20Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74747",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/5067123?v=4",
@@ -13543,5 +13443,5 @@
       }
     }
   ],
-  "total_count": 126
+  "total_count": 125
 }
