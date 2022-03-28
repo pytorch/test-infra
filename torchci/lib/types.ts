@@ -42,7 +42,8 @@ export interface CommitData {
   commitUrl: string;
   commitTitle: string;
   commitMessageBody: string;
-  author?: string;
+  author: string;
+  authorUrl: string | null;
 }
 
 export interface RowData extends CommitData {
