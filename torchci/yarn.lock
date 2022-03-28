@@ -1336,7 +1336,7 @@
     "@codemirror/state" "^0.19.0"
     "@codemirror/view" "^0.19.23"
 
-"@codemirror/highlight@^0.19.0", "@codemirror/highlight@^0.19.7":
+"@codemirror/highlight@^0.19.0":
   version "0.19.7"
   resolved "https://registry.yarnpkg.com/@codemirror/highlight/-/highlight-0.19.7.tgz#91a0c9994c759f5f153861e3aae74ff9e7c7c35b"
   integrity sha512-3W32hBCY0pbbv/xidismw+RDMKuIag+fo4kZIbD7WoRj+Ttcaxjf+vP6RttRHXLaaqbWh031lTeON8kMlDhMYw==
