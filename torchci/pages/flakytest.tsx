@@ -5,9 +5,9 @@ import styles from "components/flakytest.module.css";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function convertWorkflowIDtoURLs(workflowIds: string[]): string[] {
-  return workflowIds.map((element) => {
-    return `https://github.com/pytorch/pytorch/actions/runs/${element}`;
+function convertJobIDtoURLs(jobIds: number[]): string[] {
+  return jobIds.map((element) => {
+    return `https://github.com/pytorch/pytorch/actions/jobs/${element}`;
   });
 }
 
@@ -47,8 +47,9 @@ export default function Page() {
               <th className={styles.table}>Test File</th>
               <th className={styles.table}># Green</th>
               <th className={styles.table}># Red</th>
-              <th className={styles.table}>Workflow URLs</th>
+              <th className={styles.table}>Workflow Job URLs</th>
               <th className={styles.table}>Workflow Names</th>
+              <th className={styles.table}>Job Names</th>
               <th className={styles.table}>Branches</th>
             </tr>
           </thead>
@@ -62,9 +63,10 @@ export default function Page() {
                   <td className={styles.table}>{test.numGreen}</td>
                   <td className={styles.table}>{test.numRed}</td>
                   <td className={styles.table}>
-                    {convertWorkflowIDtoURLs(test.workflowIds).join("\n")}
+                    {convertJobIDtoURLs(test.jobIds).join("\n")}
                   </td>
                   <td className={styles.table}>{test.workflowNames.join("\n")}</td>
+                  <td className={styles.table}>{test.jobNames.join("\n")}</td>
                   <td className={styles.table}>{test.branches.join("\n")}</td>
                 </tr>
               );
