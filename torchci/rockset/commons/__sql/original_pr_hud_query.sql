@@ -2,8 +2,7 @@ with master_commit as (
     SELECT
         commit.timestamp,
         commit.sha,
-        CAST(commit.pr_num as int) as pr_num,
-        commit.author
+        CAST(commit.pr_num as int) as pr_num
     from
         commit
     where
@@ -21,7 +20,6 @@ original_pr as (
         p.head.sha as pr_head_sha,
         master_commit.sha as master_commit_sha,
         master_commit.timestamp as master_commit_time,
-        master_commit.author as master_author
     FROM
         pull_request p
         INNER JOIN master_commit on p.number = master_commit.pr_num
@@ -42,7 +40,6 @@ SELECT
     failure_context as failureContext,
     failure_captures as failureCaptures,
     failure_line_number as failureLineNumber,
-    master_author
 from
     (
         SELECT
@@ -76,7 +73,6 @@ from
             classification.context as failure_context,
             classification.captures as failure_captures,
             classification.line_num as failure_line_number,
-            original_pr.master_author as master_author
         FROM
             workflow_job job
             JOIN workflow_run workflow on workflow.id = job.run_id
@@ -121,7 +117,6 @@ from
             null,
             null,
             null,
-            original_pr.master_author as master_author
         FROM
             circleci.job job
             INNER JOIN original_pr on job.pipeline.vcs.revision = original_pr.pr_head_sha

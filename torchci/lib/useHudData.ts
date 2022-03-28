@@ -38,11 +38,7 @@ export default function useHudData(params: HudParams): HudData | undefined {
     // Merge the original PR data into the main data.
     data.shaGrid.forEach((row: RowData) => {
       row.jobs.forEach((job: JobData) => {
-        const origPrData = originalPRData[job.sha!]?.[job.name!];
-        job.originalPrData = origPrData;
-        if (origPrData != null && origPrData.master_author != null) {
-          row.author = origPrData.master_author;
-        }
+        job.originalPrData = originalPRData[job.sha!]?.[job.name!];
       });
     });
   }
