@@ -8,21 +8,23 @@
 /* Fix the width of these columns to avoid layout shift when loading the HUD
  table. */
 .colTime {
-  width: 10ch;
+  width: 12ch;
 }
 .colSha {
   width: 8ch;
 }
 .colCommit {
-  width: 38ch;
+  width: 40ch;
 }
 .colPr {
-  width: 7ch;
+  width: 8ch;
 }
 .colJob {
   width: 1.3ch;
 }
-
+.colAuthor {
+  width: 16h;
+}
 .tooltip-target-no-click {
   cursor: default;
 }
@@ -33,7 +35,7 @@
   height: 220px;
   white-space: nowrap;
   font-family: sans-serif;
-  padding-right:4px;
+  padding-right: 4px;
 }
 
 .jobHeaderName {

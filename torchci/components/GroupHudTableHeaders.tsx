@@ -39,6 +39,7 @@ export function GroupHudTableColumns({
       <col className={styles.colSha} />
       <col className={styles.colCommit} />
       <col className={styles.colPr} />
+      <col className={styles.colAuthor} />
       {names.map((name: string) => {
         const style = passesGroupFilter(filter, name, groupNameMapping)
           ? {}
