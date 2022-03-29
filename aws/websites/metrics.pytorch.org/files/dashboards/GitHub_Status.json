@@ -811,7 +811,7 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"workflowName\",\n        \"type\": \"string\",\n        \"value\": \"linux-docs-push\"\n      }\n    ]\n  }\n",
+          "body": "{\n    \"parameters\": [\n      {\n        \"name\": \"jobCount\",\n        \"type\": \"int\",\n        \"value\": \"2\"\n      },\n      {\n        \"name\": \"jobName1\",\n        \"type\": \"string\",\n        \"value\": \"docs push / build-docs (python)\"\n      },\n      {\n        \"name\": \"jobName2\",\n        \"type\": \"string\",\n        \"value\": \"docs push / build-docs (cpp)\"\n      }\n    ]\n  }",
           "cacheDurationSeconds": 0,
           "datasource": {
             "type": "marcusolsson-json-datasource",
@@ -826,7 +826,7 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/last_successful_workflow/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/last_successful_jobs/tags/latest"
         }
       ],
       "title": "Last docs push success",
@@ -6258,6 +6258,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
