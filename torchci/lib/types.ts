@@ -83,6 +83,8 @@ export interface FlakyTestData {
   numRed: number;
   workflowIds: string[];
   workflowNames: string[];
+  jobIds: number[];
+  jobNames: string[];
   branches: string[];
 }
 

@@ -49,13 +49,14 @@ export function filterOutPRFlakyTests(tests: FlakyTestData[]) : FlakyTestData[] 
 export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], octokit: Octokit) {
     const issueTitle = getIssueTitle(test.name, test.suite);
     const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+    const workflowJobNames = getWorkflowJobNames(test);
     if (matchingIssues.length !== 0) {
         // There is a matching issue
         const matchingIssue = matchingIssues[0];
         if (matchingIssue.state === "open") {
-            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
+            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(test)}).
             Please verify the issue was opened after this instance, that the platforms list includes all of
-            [${getPlatformsAffected(test.workflowNames).join(", ")}], or disable bot might not be working as expected.`;
+            [${getPlatformsAffected(workflowJobNames).join(", ")}], or disable bot might not be working as expected.`;
             await octokit.rest.issues.createComment({
                 owner,
                 repo,
@@ -71,9 +72,9 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
                 state: "open",
             });
 
-            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkWorkflowURL(test)}).
+            const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(test)}).
             Reopening the issue to disable. Please verify that the platforms list includes all of
-            [${getPlatformsAffected(test.workflowNames).join(", ")}].`;
+            [${getPlatformsAffected(workflowJobNames).join(", ")}].`;
             await octokit.rest.issues.createComment({
                 owner,
                 repo,
@@ -87,13 +88,13 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
 }
 
 
-export function getLatestTrunkWorkflowURL(test: FlakyTestData): string {
+export function getLatestTrunkJobURL(test: FlakyTestData): string {
     let index = test.branches.lastIndexOf("master");
     if (index < 0) {
         console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
-        index = test.workflowIds.length - 1;
+        index = test.jobIds.length - 1;
     }
-    return `https://github.com/pytorch/pytorch/actions/runs/${test.workflowIds[index]}`;
+    return `https://github.com/pytorch/pytorch/actions/jobs/${test.jobIds[index]}`;
 }
 
 
@@ -107,11 +108,16 @@ export function getIssueTitle(testName: string, testSuite: string) {
 }
 
 
-export function getPlatformsAffected(workflowNames: string[]): string[] {
+export function getWorkflowJobNames(test: FlakyTestData): string[] {
+    return test.workflowNames.map((value, index) => `${value} / ${test.jobNames[index]}`)
+}
+
+
+export function getPlatformsAffected(workflowJobNames: string[]): string[] {
     const platformsToSkip: string[] = [];
     supportedPlatforms.forEach((platform: string) =>
-        workflowNames.forEach(workflowName => {
-            if (workflowName.includes(platform) && !platformsToSkip.includes(platform)) {
+        workflowJobNames.forEach(workflowJobNames => {
+            if (workflowJobNames.includes(platform) && !platformsToSkip.includes(platform)) {
                 platformsToSkip.push(platform);
             }
         })
@@ -122,9 +128,9 @@ export function getPlatformsAffected(workflowNames: string[]): string[] {
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
     const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(`${test.name}, ${test.suite}`)}`;
-    return `Platforms: ${getPlatformsAffected(test.workflowNames).join(", ")}
+    return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(", ")}
 
-This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkWorkflowURL(test)}).
+This test was disabled because it is failing in CI. See [recent examples](${examplesURL}) and the most recent trunk [workflow logs](${getLatestTrunkJobURL(test)}).
 
 Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} red and ${test.numGreen} green.`;
 }
