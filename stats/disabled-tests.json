@@ -3715,94 +3715,6 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
-      "author_association": "MEMBER",
-      "body": "Platforms: rocm\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser",
-      "closed_at": null,
-      "comments": 10,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/comments",
-      "created_at": "2021-09-30T06:21:13Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/65884",
-      "id": 1011764222,
-      "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "AMD GPU support for Pytorch",
-          "id": 1078897659,
-          "name": "module: rocm",
-          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z848Tkv-",
-      "number": 65884,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/65884/timeline",
-      "title": "DISABLED test_fn_grad_min_binary_cuda_float64 (__main__.TestGradientsCUDA)",
-      "updated_at": "2022-03-23T14:53:17Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/65884",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
-        "events_url": "https://api.github.com/users/suo/events{/privacy}",
-        "followers_url": "https://api.github.com/users/suo/followers",
-        "following_url": "https://api.github.com/users/suo/following{/other_user}",
-        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/suo",
-        "id": 1617424,
-        "login": "suo",
-        "node_id": "MDQ6VXNlcjE2MTc0MjQ=",
-        "organizations_url": "https://api.github.com/users/suo/orgs",
-        "received_events_url": "https://api.github.com/users/suo/received_events",
-        "repos_url": "https://api.github.com/users/suo/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/suo/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/suo"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
       "author_association": "CONTRIBUTOR",
       "body": "Flaky on CI, for example in this https://github.com/pytorch/pytorch/runs/3816958493?check_suite_focus=true.\r\n\r\nThis was on the 10.2 linux build.\r\n\r\nA better log view can be found by expanding on the linux 10.2 distributed tests here: https://hud.pytorch.org/commit/b8e19992533a2257f457926e6535f54054fc2003\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
@@ -12970,5 +12882,5 @@
       }
     }
   ],
-  "total_count": 117
+  "total_count": 116
 }
