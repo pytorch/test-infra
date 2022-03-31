@@ -103,7 +103,7 @@ function Page() {
   return (
     <div>
       <h1>
-        {prData.title} <code>{router.query.pr}</code>
+        {prData.title} <code><a href={`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`}>#{prNumber}</a></code>
       </h1>
       <CommitHeader
         repoOwner={repoOwner as string}
