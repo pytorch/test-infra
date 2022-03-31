@@ -129,6 +129,16 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
   }
 
   const label = context.payload.label.name;
+  if (label === "ci/master") {
+    let body = " `ci/master` label does not do anything. Did you mean `ciflow/trunk`?";
+    await context.octokit.issues.createComment(
+      context.repo({
+        body,
+        issue_number: context.payload.pull_request.number,
+      })
+    );
+    return;
+  }
   if (!isCIFlowLabel(label)) {
     return;
   }
