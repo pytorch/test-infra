@@ -12388,7 +12388,67 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "### \ud83d\udc1b Describe the bug\n\n- [ ] test_linear_1d_weight_mismatch_bias_dtype (M60, https://github.com/pytorch/pytorch/runs/5775045801?check_suite_focus=true)\r\n- [ ] test_int_tensor_input (M60, https://github.com/pytorch/pytorch/runs/5775045801?check_suite_focus=true)\r\n- [ ] test_native_batch_norm_backward (M60, https://github.com/pytorch/pytorch/runs/5775045801?check_suite_focus=true)\r\n- [ ] test_reduction_empty_axes (M60, https://github.com/pytorch/pytorch/runs/5775045801?check_suite_focus=true)\r\n\r\n```\r\n2022-03-31T17:11:07.8343008Z ======================================================================\r\n2022-03-31T17:11:07.8345843Z ERROR [0.014s]: test_linear_1d_weight_mismatch_bias_dtype (__main__.TestCudaFuser)\r\n2022-03-31T17:11:07.8347205Z ----------------------------------------------------------------------\r\n2022-03-31T17:11:07.8347834Z Traceback (most recent call last):\r\n2022-03-31T17:11:07.8348239Z   File \"test_jit_cuda_fuser.py\", line 3322, in test_linear_1d_weight_mismatch_bias_dtype\r\n2022-03-31T17:11:07.8348595Z     jit_o = jitted(x, w, b)\r\n2022-03-31T17:11:07.8349122Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 428, in prof_func_call\r\n2022-03-31T17:11:07.8349661Z     return prof_callable(func_call, *args, **kwargs)\r\n2022-03-31T17:11:07.8350336Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/common_utils.py\", line 425, in prof_callable\r\n2022-03-31T17:11:07.8351373Z     return callable(*args, **kwargs)\r\n2022-03-31T17:11:07.8355944Z RuntimeError: The following operation failed in the TorchScript interpreter.\r\n2022-03-31T17:11:07.8356484Z Traceback of TorchScript (most recent call last):\r\n2022-03-31T17:11:07.8357053Z   File \"test_jit_cuda_fuser.py\", line 3312, in t\r\n2022-03-31T17:11:07.8357728Z         def t(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor):\r\n2022-03-31T17:11:07.8358665Z             o = torch.nn.functional.linear(x, w, b)\r\n2022-03-31T17:11:07.8359542Z                 ~~~~~~~~~~~~~~~~~~~~~~~~~~ <--- HERE\r\n2022-03-31T17:11:07.8360079Z             return o.relu()\r\n2022-03-31T17:11:07.8360774Z RuntimeError: mat2 must be a matrix, got 1-D tensor\r\n2022-03-31T17:11:07.8361193Z \r\n2022-03-31T17:11:07.8361223Z \r\n2022-03-31T17:11:07.8361691Z ======================================================================\r\n2022-03-31T17:11:07.8362326Z FAIL [0.006s]: test_int_tensor_input (__main__.TestCudaFuser)\r\n2022-03-31T17:11:07.8363398Z ----------------------------------------------------------------------\r\n2022-03-31T17:11:07.8364030Z Traceback (most recent call last):\r\n2022-03-31T17:11:07.8364752Z   File \"test_jit_cuda_fuser.py\", line 4060, in test_int_tensor_input\r\n2022-03-31T17:11:07.8365442Z     self._run_helper(t_jit, t, x)\r\n2022-03-31T17:11:07.8366108Z   File \"test_jit_cuda_fuser.py\", line 154, in _run_helper\r\n2022-03-31T17:11:07.8366768Z     self.assertGraphContainsExactly(jit_op.graph_for(*args), FUSION_GUARD, 1, consider_subgraphs=True)\r\n2022-03-31T17:11:07.8367464Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/jit_utils.py\", line 326, in assertGraphContainsExactly\r\n2022-03-31T17:11:07.8367878Z     consider_subgraphs)\r\n2022-03-31T17:11:07.8368360Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/jit_utils.py\", line 320, in perform_assert\r\n2022-03-31T17:11:07.8368781Z     graph, actual, kind, subgraph, expected))\r\n2022-03-31T17:11:07.8369104Z AssertionError: graph(%x.1 : Tensor):\r\n2022-03-31T17:11:07.8369413Z   %1 : bool = prim::Constant[value=0]()\r\n2022-03-31T17:11:07.8369720Z   %2 : int[] = prim::Constant[value=[0]]()\r\n2022-03-31T17:11:07.8370062Z   %3 : Tensor = aten::amax(%x.1, %2, %1) # test_jit_cuda_fuser.py:4057:23\r\n2022-03-31T17:11:07.8370369Z   return (%3)\r\n2022-03-31T17:11:07.8370503Z \r\n2022-03-31T17:11:07.8370734Z Error: graph contains 0 prim::CudaFusionGuard nodes (including subgraphs) but expected 1\r\n2022-03-31T17:11:07.8370999Z \r\n2022-03-31T17:11:07.8371142Z ======================================================================\r\n2022-03-31T17:11:07.8371486Z FAIL [0.012s]: test_native_batch_norm_backward (__main__.TestCudaFuser)\r\n2022-03-31T17:11:07.8371946Z ----------------------------------------------------------------------\r\n2022-03-31T17:11:07.8372293Z Traceback (most recent call last):\r\n2022-03-31T17:11:07.8372652Z   File \"test_jit_cuda_fuser.py\", line 4195, in test_native_batch_norm_backward\r\n2022-03-31T17:11:07.8373127Z     save_invstd, True, 1e-5, [True, True, True]), FUSION_GUARD)\r\n2022-03-31T17:11:07.8373673Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/jit_utils.py\", line 311, in assertGraphContains\r\n2022-03-31T17:11:07.8374091Z     self.assertTrue(len(out_nodes) > 0)\r\n2022-03-31T17:11:07.8374393Z AssertionError: False is not true\r\n2022-03-31T17:11:07.8374576Z \r\n2022-03-31T17:11:07.8374694Z ======================================================================\r\n2022-03-31T17:11:07.8375029Z FAIL [0.006s]: test_reduction_empty_axes (__main__.TestCudaFuser)\r\n2022-03-31T17:11:07.8375493Z ----------------------------------------------------------------------\r\n2022-03-31T17:11:07.8375838Z Traceback (most recent call last):\r\n2022-03-31T17:11:07.8376169Z   File \"test_jit_cuda_fuser.py\", line 4047, in test_reduction_empty_axes\r\n2022-03-31T17:11:07.8376506Z     self._run_helper(t_jit, t, x)\r\n2022-03-31T17:11:07.8376834Z   File \"test_jit_cuda_fuser.py\", line 154, in _run_helper\r\n2022-03-31T17:11:07.8377260Z     self.assertGraphContainsExactly(jit_op.graph_for(*args), FUSION_GUARD, 1, consider_subgraphs=True)\r\n2022-03-31T17:11:07.8377929Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/jit_utils.py\", line 326, in assertGraphContainsExactly\r\n2022-03-31T17:11:07.8378338Z     consider_subgraphs)\r\n2022-03-31T17:11:07.8378834Z   File \"/opt/conda/lib/python3.7/site-packages/torch/testing/_internal/jit_utils.py\", line 320, in perform_assert\r\n2022-03-31T17:11:07.8379234Z     graph, actual, kind, subgraph, expected))\r\n2022-03-31T17:11:07.8379550Z AssertionError: graph(%x.1 : Tensor):\r\n2022-03-31T17:11:07.8379941Z   %1 : bool = prim::Constant[value=0]()\r\n2022-03-31T17:11:07.8380231Z   %2 : NoneType = prim::Constant()\r\n2022-03-31T17:11:07.8380560Z   %3 : int[] = prim::Constant[value=annotate(List[int], [])]()\r\n2022-03-31T17:11:07.8380932Z   %4 : Tensor = aten::sum(%x.1, %3, %1, %2) # test_jit_cuda_fuser.py:4044:23\r\n2022-03-31T17:11:07.8381272Z   return (%4)\r\n2022-03-31T17:11:07.8381421Z \r\n2022-03-31T17:11:07.8381651Z Error: graph contains 0 prim::CudaFusionGuard nodes (including subgraphs) but expected 1\r\n```\n\n### Versions\n\nVarious CI machines, as mentioned above",
+      "closed_at": null,
+      "comments": 0,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/comments",
+      "created_at": "2022-03-31T18:06:03Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/75029",
+      "id": 1188447427,
+      "labels": [],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85G1kTD",
+      "number": 75029,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/timeline",
+      "title": "2022-03-31 disabled nvfuser tests",
+      "updated_at": "2022-03-31T18:06:03Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/75029",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/5067123?v=4",
+        "events_url": "https://api.github.com/users/davidberard98/events{/privacy}",
+        "followers_url": "https://api.github.com/users/davidberard98/followers",
+        "following_url": "https://api.github.com/users/davidberard98/following{/other_user}",
+        "gists_url": "https://api.github.com/users/davidberard98/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/davidberard98",
+        "id": 5067123,
+        "login": "davidberard98",
+        "node_id": "MDQ6VXNlcjUwNjcxMjM=",
+        "organizations_url": "https://api.github.com/users/davidberard98/orgs",
+        "received_events_url": "https://api.github.com/users/davidberard98/received_events",
+        "repos_url": "https://api.github.com/users/davidberard98/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/davidberard98/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/davidberard98/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/davidberard98"
+      }
     }
   ],
-  "total_count": 110
+  "total_count": 111
 }
