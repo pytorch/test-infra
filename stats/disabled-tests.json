@@ -12402,7 +12402,17 @@
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/75029",
       "id": 1188447427,
-      "labels": [],
+      "labels": [
+        {
+          "color": "c5def5",
+          "default": false,
+          "description": "Add this issue/PR to JIT oncall triage queue",
+          "id": 679953983,
+          "name": "oncall: jit",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
+        }
+      ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/labels{/name}",
       "locked": false,
       "milestone": null,
@@ -12426,7 +12436,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75029/timeline",
       "title": "2022-03-31 disabled nvfuser tests",
-      "updated_at": "2022-03-31T23:21:53Z",
+      "updated_at": "2022-04-01T04:06:00Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75029",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/5067123?v=4",
