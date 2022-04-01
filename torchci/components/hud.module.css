@@ -23,7 +23,7 @@
   width: 1.3ch;
 }
 .colAuthor {
-  width: 16h;
+  width: 12ch;
 }
 .tooltip-target-no-click {
   cursor: default;
@@ -60,6 +60,18 @@
   height: 20px;
   min-width: 0;
   max-width: 37ch;
+  display: inline-block;
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jobMetadataTruncatedAuthor {
+  vertical-align: top;
+  width: auto;
+  height: 20px;
+  min-width: 0;
+  max-width: 12ch;
   display: inline-block;
   overflow: clip;
   text-overflow: ellipsis;

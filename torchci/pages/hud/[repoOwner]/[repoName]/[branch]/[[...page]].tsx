@@ -80,13 +80,15 @@ function HudRow({
           </a>
         )}
       </td>
-      {rowData.authorUrl !== null ? (
-        <td className={styles.jobMetadata}>
-          <a href={rowData.authorUrl}>{rowData.author}</a>
-        </td>
-      ) : (
-        <td>{rowData.author}</td>
-      )}
+      <td className={styles.jobMetadata}>
+        <div className={styles.jobMetadataTruncatedAuthor}>
+          {rowData.authorUrl !== null ? (
+            <a href={rowData.authorUrl}>{rowData.author}</a>
+          ) : (
+            rowData.author
+          )}
+        </div>
+      </td>
       <HudJobCells
         rowData={rowData}
         expandedGroups={expandedGroups}

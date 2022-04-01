@@ -14,13 +14,13 @@ function NavBar() {
               <Link href="/">Pytorch CI HUD</Link>
             </span>
             <li>
+              <Link href="/minihud">MiniHUD</Link>
+            </li>
+            <li>
               <Link href="/hud/pytorch/pytorch/master">Master</Link>
             </li>
             <li>
               <Link href="/hud/pytorch/pytorch/nightly">Nightly</Link>
-            </li>
-            <li>
-              <Link href="/minihud">MiniHUD</Link>
             </li>
             <li>
               <Link href="/hud/pytorch/vision/main">TorchVision</Link>
