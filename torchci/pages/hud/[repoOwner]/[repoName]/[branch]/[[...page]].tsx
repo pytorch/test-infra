@@ -82,7 +82,11 @@ function HudRow({
       </td>
       <td className={styles.jobMetadata}>
         <div className={styles.jobMetadataTruncatedAuthor}>
-          <a href={rowData.authorUrl ?? ""}>{rowData.author}</a>
+          {rowData.authorUrl !== null ? (
+            <a href={rowData.authorUrl}>{rowData.author}</a>
+          ) : (
+            rowData.author
+          )}
         </div>
       </td>
       <HudJobCells
