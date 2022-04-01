@@ -12448,7 +12448,77 @@
         "type": "User",
         "url": "https://api.github.com/users/davidberard98"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: rocm\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd%2C%20TestDistBackendWithSpawn)).",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/comments",
+      "created_at": "2022-04-01T00:58:09Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/75052",
+      "id": 1189063950,
+      "labels": [
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85G360O",
+      "number": 75052,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/timeline",
+      "title": "DISABLED test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)",
+      "updated_at": "2022-04-01T00:58:11Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/75052",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
+        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
+        "followers_url": "https://api.github.com/users/malfet/followers",
+        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
+        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/malfet",
+        "id": 2453524,
+        "login": "malfet",
+        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
+        "organizations_url": "https://api.github.com/users/malfet/orgs",
+        "received_events_url": "https://api.github.com/users/malfet/received_events",
+        "repos_url": "https://api.github.com/users/malfet/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/malfet"
+      }
     }
   ],
-  "total_count": 111
+  "total_count": 112
 }
