@@ -8,7 +8,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Temporarily disabling a flakey test.",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/31750/comments",
       "created_at": "2019-12-31T19:03:16Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/31750/events",
@@ -57,7 +57,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/31750/timeline",
       "title": "DISABLED test/onnx/test_pytorch_onnx_onnxruntime.py::TestONNXRuntime_opset10::test_interpolate_downsample",
-      "updated_at": "2021-12-21T21:29:53Z",
+      "updated_at": "2022-04-01T15:55:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/31750",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/5086322?v=4",
