@@ -5,7 +5,7 @@ module.exports = {
     return [
       {
         source: "/",
-        destination: "/hud/pytorch/pytorch/master/0",
+        destination: "/hud/pytorch/pytorch/master/1",
       },
       {
         source: "/commit/:repoOwner/:repoName/:sha",
@@ -25,7 +25,7 @@ module.exports = {
       },
       {
         source: "/ci/:repoOwner/:repoName/:branch",
-        destination: "/hud/:repoOwner/:repoName/:branch/0",
+        destination: "/hud/:repoOwner/:repoName/:branch/1",
       },
     ];
   },

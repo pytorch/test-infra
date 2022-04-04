@@ -244,7 +244,7 @@ function PageSelector({ params }: { params: HudParams }) {
   return (
     <div>
       Page {params.page}:{" "}
-      {params.page !== 0 ? (
+      {params.page > 1 ? (
         <span>
           <Link
             href={formatHudUrlForRoute("hud", {
