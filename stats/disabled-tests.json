@@ -1845,7 +1845,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "See: https://github.com/pytorch/pytorch/runs/3065374723\r\nplatforms: windows\r\n\r\n```\r\n======================================================================\r\nERROR [20.716s]: test_jit_cuda_extension (__main__.TestCppExtensionJIT)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_cpp_extensions_jit.py\", line 109, in test_jit_cuda_extension\r\n    z = module.sigmoid_add(x, y).cpu()\r\nRuntimeError: CUDA error: the provided PTX was compiled with an unsupported toolchain.\r\nCUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.\r\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1.\r\n\r\n----------------------------------------------------------------------\r\n```\r\n\r\nalso trying out the new platform DISABLED capability in #61427\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @peterjc123 @mszhanyi @skyline75489 @nbcsm @gmagogsfm",
       "closed_at": null,
-      "comments": 5,
+      "comments": 6,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/comments",
       "created_at": "2021-07-14T15:20:02Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/events",
@@ -1921,7 +1921,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/timeline",
       "title": "DISABLED test_jit_cuda_extension (__main__.TestCppExtensionJIT)",
-      "updated_at": "2021-12-21T21:27:30Z",
+      "updated_at": "2022-04-04T20:48:01Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/61655",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/3581352?v=4",
