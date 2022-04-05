@@ -230,12 +230,12 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     test("getLatestTrunkJobURL: should return URL of last trunk job if it exists", async () => {
         expect(disableFlakyTestBot.getLatestTrunkJobURL(flakyTestE))
-            .toEqual("https://github.com/pytorch/pytorch/actions/jobs/56789876");
+            .toEqual("https://github.com/pytorch/pytorch/runs/56789876");
     });
 
     test("getLatestTrunkJobURL: should return URL of last job if no trunk instance exists", async () => {
         expect(disableFlakyTestBot.getLatestTrunkJobURL(flakyTestA))
-            .toEqual("https://github.com/pytorch/pytorch/actions/jobs/56789876");
+            .toEqual("https://github.com/pytorch/pytorch/runs/56789876");
     });
 
     test("getIssueTitle: test suite in subclass should not have __main__", async () => {

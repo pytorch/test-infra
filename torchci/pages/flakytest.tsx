@@ -54,7 +54,7 @@ export default function Page() {
                     {test.workflowNames.map((value, index) => {
                       return (
                         <li><a
-                          href={`https://github.com/pytorch/pytorch/actions/jobs/${test.jobIds[index]}`}
+                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
                         >{`${value} / ${test.jobNames[index]}`}</a></li>
                       );
                     })}
