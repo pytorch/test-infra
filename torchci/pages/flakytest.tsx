@@ -1,5 +1,4 @@
 import { FlakyTestData } from "lib/types";
-import {getWorkflowJobNames} from "pages/api/flaky-tests/disable";
 import { useRouter } from "next/router";
 import useSWR from "swr";
 import styles from "components/flakytest.module.css";
@@ -61,7 +60,8 @@ export default function Page() {
                   <td className={styles.table}>
                     {convertJobIDtoURLs(test.jobIds).join("\n")}
                   </td>
-                  <td className={styles.table}>{getWorkflowJobNames(test)}</td>
+                  {/* The following is the same as getWorkflowJobNames in disable.ts but I couldn't figure out how to import correctly */}
+                  <td className={styles.table}>{test.workflowNames.map((value, index) => `${value} / ${test.jobNames[index]}`)}</td>
                   <td className={styles.table}>{test.branches.join("\n")}</td>
                 </tr>
               );
