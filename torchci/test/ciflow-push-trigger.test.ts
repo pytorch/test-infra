@@ -39,7 +39,7 @@ describe("Push trigger integration tests", () => {
   test("CIFlow label triggers tag push to head sha", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
-    payload.label.name = "ciflow/test";
+    payload.label.name = "ciflow/trunk";
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
 
@@ -75,7 +75,7 @@ describe("Push trigger integration tests", () => {
 
   test("already existing tag should cause tag delete and re-push", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
-    payload.label.name = "ciflow/test";
+    payload.label.name = "ciflow/trunk";
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
 
@@ -116,7 +116,7 @@ describe("Push trigger integration tests", () => {
 
   test("unlabel of CIFlow label should cause tag deletion", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.unlabeled");
-    payload.label.name = "ciflow/test";
+    payload.label.name = "ciflow/trunk";
 
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
@@ -236,6 +236,30 @@ describe("Push trigger integration tests", () => {
         )
         .reply(200);
     }
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
+  test("old/invalid CIFlow label creates comment", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
+    payload.pull_request.state = "open";
+
+    payload.label.name = "ciflow/test";
+    nock("https://api.github.com")
+      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
+        expect(body.body).toContain("We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use.");
+        return true;
+      })
+      .reply(200);
+    await probot.receive({ name: "pull_request", id: "123", payload });
+
+    payload.label.name = "ci/test";
+    nock("https://api.github.com")
+      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
+        expect(body.body).toContain("We have recently simplified the CIFlow labels and `ci/test` is no longer in use.");
+        return true;
+      })
+      .reply(200);
+
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 });
