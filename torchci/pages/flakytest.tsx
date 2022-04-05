@@ -27,13 +27,13 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Flaky Tests</h1>
       <h2>
-        Test Name: <code>{name}</code>
+        Test Name Filter: <code>{name === "%" ? "" : name}</code>
       </h2>
       <h2>
-        Test Suite: <code>{suite}</code>
+        Test Suite Filter: <code>{suite === "%" ? "" : suite}</code>
       </h2>
       <h2>
-        Test File: <code>{file}</code>
+        Test File Filter: <code>{file === "%" ? "" : file}</code>
       </h2>
       <em>Showing last 14 days of data.</em>
       {data === undefined ? (
