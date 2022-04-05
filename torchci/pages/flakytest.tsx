@@ -53,7 +53,7 @@ export default function Page() {
                   <td className={styles.table}>
                     {test.workflowNames.map((value, index) => {
                       return (
-                        <li><a
+                        <li key={index}><a
                           href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
                         >{`${value} / ${test.jobNames[index]}`}</a></li>
                       );
