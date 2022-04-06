@@ -132,16 +132,21 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const valid_labels = ["ciflow/pull", "ciflow/trunk", "ciflow/periodic", "ciflow/lint", "ciflow/all", "ciflow/binaries"];
+
+  // collected from .github/workflows/*
+  const valid_labels = ["ciflow/trunk", "ciflow/periodic", "ciflow/all", "ciflow/android", "ciflow/binaries",
+    "ciflow/binaries_conda", "ciflow/binaries_libtorch", "ciflow/binaries_wheel"];
   if (!valid_labels.includes(label)) {
     let body = `We have recently simplified the CIFlow labels and \`${label}\` is no longer in use.\n`;
     body += "You can use any of the following\n";
-    body += "- `ciflow/pull` (`.github/workflows/pull.yml`): all jobs we run on PRs\n";
     body += "- `ciflow/trunk` (`.github/workflows/trunk.yml`): all jobs we run per-commit on master\n";
     body += "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
-    body += "- `ciflow/lint` (`.github/workflows/lint.yml`): all lint jobs\n";
     body += "- `ciflow/all`: trunk + periodic; all jobs we run in master CI\n";
-    body += "- `ciflow/binaries`: all binary build and upload jobs";
+    body += "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
+    body += "- `ciflow/binaries`: all binary build and upload jobs\n";
+    body += " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
+    body += " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
+    body += " - `ciflow/binaries_wheel`: binary build and upload job for wheel";
     await context.octokit.issues.createComment(
       context.repo({
         body,
