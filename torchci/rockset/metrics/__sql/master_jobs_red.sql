@@ -46,4 +46,4 @@ FROM
 GROUP BY
     DATE_TRUNC(:granularity, time)
 ORDER BY
-    DATE_TRUNC(:granularity, time) DESC
+    DATE_TRUNC(:granularity, time) ASC
