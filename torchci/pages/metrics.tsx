@@ -110,31 +110,46 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { text: "% commits red on master, by day" },
+    title: { text: "Commits red on master, by day" },
     grid: { top: 48, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "category" },
     yAxis: {
       type: "value",
-      axisLabel: {
-        formatter: (value: number) => {
-          return (value * 100).toString() + "%";
-        },
-      },
     },
     series: [
       {
         type: "bar",
+        stack: "all",
+        emphasis: {
+          focus: "series",
+        },
+        encode: {
+          x: "granularity_bucket",
+          y: "green",
+        },
+      },
+      {
+        type: "bar",
+        stack: "all",
+        emphasis: {
+          focus: "series",
+        },
         encode: {
           x: "granularity_bucket",
           y: "red",
         },
       },
     ],
+    color: ["#3ba272", "#ee6666"],
     tooltip: {
       trigger: "axis",
-      valueFormatter: (value: any) => {
-        return (value * 100).toFixed(2) + "%";
+      formatter: (params: any) => {
+        const red = params[0].data.red;
+        const green = params[0].data.green;
+        const redPct = ((red / (red + green)) * 100).toFixed(2) + "%";
+        const greenPct = ((green / (red + green)) * 100).toFixed(2) + "%";
+        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})`;
       },
     },
   };

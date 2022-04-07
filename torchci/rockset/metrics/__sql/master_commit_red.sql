@@ -12,7 +12,7 @@ with any_red as (
                 END
             ) > 0 as int
         ) as any_red,
-        COUNT(*)
+        1 as total,
     FROM
         (
             SELECT
@@ -62,7 +62,9 @@ with any_red as (
 )
 SELECT
     FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
-    AVG(any_red) as red,
+    SUM(any_red) as red,
+    SUM(total) - SUM(any_red) as green,
+    SUM(total) as total,
 from
     any_red
 GROUP BY
