@@ -12194,7 +12194,149 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "platforms: windows\r\n\r\nThis test is failing on Windows with CUDA 11.6. Example log: https://github.com/pytorch/pytorch/runs/5861322515?check_suite_focus=true. \r\n\r\nExample snippet:\r\n\r\n```\r\n======================================================================\r\nERROR [0.894s]: test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 251, in test_fn\r\n    test_forward_backward(\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 134, in test_forward_backward\r\n    script_module, python_output, python_grad_dict = run_python_forward_backward(unit_test_class, test_params)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 103, in run_python_forward_backward\r\n    python_output = module(*inputs)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\modules\\module.py\", line 1110, in _call_impl\r\n    return forward_call(*input, **kwargs)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\modules\\loss.py\", line 1163, in forward\r\n    return F.cross_entropy(input, target, weight=self.weight,\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\functional.py\", line 2961, in cross_entropy\r\n    return torch._C._nn.cross_entropy_loss(input, target, weight, _Reduction.get_enum(reduction), ignore_index, label_smoothing)\r\nRuntimeError: CUDA error: invalid device function\r\nCUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.\r\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1.\r\n\r\n```\r\n\r\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @jbschlosser @albanD @mruberry @walterddr @kshitij12345 @ngimel",
+      "closed_at": null,
+      "comments": 2,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/comments",
+      "created_at": "2022-04-07T13:20:43Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/75417",
+      "id": 1196040239,
+      "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to C++ API",
+          "id": 917150434,
+          "name": "module: cpp",
+          "node_id": "MDU6TGFiZWw5MTcxNTA0MzQ=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cpp"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is related to loss function",
+          "id": 1076923012,
+          "name": "module: loss",
+          "node_id": "MDU6TGFiZWwxMDc2OTIzMDEy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20loss"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.cuda, and CUDA support in general",
+          "id": 1076930055,
+          "name": "module: cuda",
+          "node_id": "MDU6TGFiZWwxMDc2OTMwMDU1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cuda"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85HSiAv",
+      "number": 75417,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/timeline",
+      "title": "DISABLED test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)",
+      "updated_at": "2022-04-07T13:24:42Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/75417",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4",
+        "events_url": "https://api.github.com/users/mruberry/events{/privacy}",
+        "followers_url": "https://api.github.com/users/mruberry/followers",
+        "following_url": "https://api.github.com/users/mruberry/following{/other_user}",
+        "gists_url": "https://api.github.com/users/mruberry/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/mruberry",
+        "id": 38511765,
+        "login": "mruberry",
+        "node_id": "MDQ6VXNlcjM4NTExNzY1",
+        "organizations_url": "https://api.github.com/users/mruberry/orgs",
+        "received_events_url": "https://api.github.com/users/mruberry/received_events",
+        "repos_url": "https://api.github.com/users/mruberry/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/mruberry/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/mruberry/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/mruberry"
+      }
     }
   ],
-  "total_count": 111
+  "total_count": 112
 }
