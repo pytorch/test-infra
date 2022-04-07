@@ -5,12 +5,6 @@ import styles from "components/flakytest.module.css";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function convertWorkflowIDtoURLs(workflowIds: string[]): string[] {
-  return workflowIds.map((element) => {
-    return `https://github.com/pytorch/pytorch/actions/runs/${element}`;
-  });
-}
-
 export default function Page() {
   const router = useRouter();
   const name = (router.query.name || "%") as string;
@@ -27,13 +21,13 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Flaky Tests</h1>
       <h2>
-        Test Name: <code>{name}</code>
+        Test Name Filter: {name === "%" ? "<any>" : name}
       </h2>
       <h2>
-        Test Suite: <code>{suite}</code>
+        Test Suite Filter: {suite === "%" ? "<any>" : suite}
       </h2>
       <h2>
-        Test File: <code>{file}</code>
+        Test File Filter: {file === "%" ? "<any>" : file}
       </h2>
       <em>Showing last 14 days of data.</em>
       {data === undefined ? (
@@ -45,10 +39,7 @@ export default function Page() {
               <th className={styles.table}>Test Name</th>
               <th className={styles.table}>Test Suite</th>
               <th className={styles.table}>Test File</th>
-              <th className={styles.table}># Green</th>
-              <th className={styles.table}># Red</th>
-              <th className={styles.table}>Workflow URLs</th>
-              <th className={styles.table}>Workflow Names</th>
+              <th className={styles.table}>Workflow Jobs</th>
               <th className={styles.table}>Branches</th>
             </tr>
           </thead>
@@ -59,12 +50,15 @@ export default function Page() {
                   <td className={styles.table}>{test.name}</td>
                   <td className={styles.table}>{test.suite}</td>
                   <td className={styles.table}>{test.file}</td>
-                  <td className={styles.table}>{test.numGreen}</td>
-                  <td className={styles.table}>{test.numRed}</td>
                   <td className={styles.table}>
-                    {convertWorkflowIDtoURLs(test.workflowIds).join("\n")}
+                    {test.workflowNames.map((value, index) => {
+                      return (
+                        <li key={index}><a
+                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
+                        >{`${value} / ${test.jobNames[index]}`}</a></li>
+                      );
+                    })}
                   </td>
-                  <td className={styles.table}>{test.workflowNames.join("\n")}</td>
                   <td className={styles.table}>{test.branches.join("\n")}</td>
                 </tr>
               );

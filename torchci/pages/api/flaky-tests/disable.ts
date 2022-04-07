@@ -94,7 +94,7 @@ export function getLatestTrunkJobURL(test: FlakyTestData): string {
         console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
         index = test.jobIds.length - 1;
     }
-    return `https://github.com/pytorch/pytorch/actions/jobs/${test.jobIds[index]}`;
+    return `https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`;
 }
 
 

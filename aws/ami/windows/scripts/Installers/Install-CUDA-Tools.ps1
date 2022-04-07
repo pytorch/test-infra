@@ -32,14 +32,20 @@ Switch ($cudaVersion) {
     $toolkitInstaller = "cuda_11.1.0_456.43_win10.exe"
     $cudnnZip = "cudnn-11.1-windows-x64-v8.0.5.39.zip"
   }
-  "11.3" {
-    $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
-    $cudnnZip = "cudnn-11.3-windows-x64-v8.2.0.53.zip"
-    # Add thrust for 11.3
-    $installerArgs = "$installerArgs thrust_$cudaVersion"
-  }
-  "11.5" {
-    $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
+  {($_ -eq "11.3") -or ($_ -eq "11.5") -or ($_ -eq "11.6")} {
+
+    Switch ($cudaVersion) {
+      "11.3" {
+        $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
+      }
+      "11.5" {
+        $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
+      }
+      "11.6" {
+        $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
+      }
+    }
+
     $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
     $cudnnZip = "$cudnn_subfolder.zip"
     $installerArgs = "$installerArgs thrust_$cudaVersion"
@@ -57,9 +63,8 @@ Switch ($cudaVersion) {
     }
     Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
   }
+
 }
-
-
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"

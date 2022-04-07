@@ -136,6 +136,57 @@ function FailedJobs({ failedJobs }: { failedJobs: JobData[] }) {
   );
 }
 
+function CommitLinks({ row }: { row: RowData }) {
+  return (
+    <div>
+      <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+        Commit:
+        <span className={`${styles.sha}`}>
+          <a target="_blank" rel="noreferrer" href={row.commitUrl}>
+            {` ${row.sha.substring(0, 7)}`}
+          </a>
+        </span>
+      </span>
+      {row.prNum !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Pull:
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href={`https://github.com/pytorch/pytorch/pull/${row.prNum}`}
+          >
+            {` #${row.prNum}`}
+          </a>
+        </span>
+      )}
+      {row.diffNum !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Diff:
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href={`https://www.internalfb.com/diff/${row.diffNum}`}
+          >
+            {` ${row.diffNum}`}
+          </a>
+        </span>
+      )}
+      {row.author !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Author:{" "}
+          {row.authorUrl !== null ? (
+            <a target="_blank" rel="noreferrer" href={row.authorUrl}>
+              {row.author}
+            </a>
+          ) : (
+            <>{row.author}</>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function CommitSummaryLine({
   showAnchorLink,
   row,
@@ -167,39 +218,12 @@ function CommitSummaryLine({
         <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${row.sha}`} />
       </span>
 
-      <span
-        className={`${styles.shaTitleElement} ${styles.sha} ${styles.extraShaInfo}`}
-      >
-        <a target="_blank" rel="noreferrer" href={row.commitUrl}>
-          {row.sha.substring(0, 7)}
-        </a>
-      </span>
-      {row.prNum !== null && (
-        <span className={`${styles.shaTitleElement} ${styles.extraShaInfo}`}>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href={`https://github.com/pytorch/pytorch/pull/${row.prNum}`}
-          >
-            Pull
-          </a>
-        </span>
-      )}
-      <span className={`${styles.shaTitleElement} ${styles.extraShaInfo}`}>
-        <a
-          target="_blank"
-          rel="noreferrer"
-          href={`https://www.internalfb.com/diff/${row.diffNum}`}
-        >
-          Diff
-        </a>
-      </span>
       {numPending > 0 && (
         <span className={styles.shaTitleElement}>
           <em>{numPending} pending</em>
         </span>
       )}
-      {showRevert && (
+      {showRevert && row.diffNum != null && (
         <span className={styles.shaTitleElement}>
           <a
             target="_blank"
@@ -215,6 +239,7 @@ function CommitSummaryLine({
           <a href={`#${row.sha}`}>link to this commit</a>
         </span>
       )}
+      <CommitLinks row={row} />
     </div>
   );
 }

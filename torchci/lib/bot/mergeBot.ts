@@ -2,8 +2,8 @@ import { Probot } from "probot";
 import { reactOnComment} from './botUtils'
 
 function mergeBot(app: Probot): void {
-  const mergeCmdPat = new RegExp("@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
-  const revertCmdPat = new RegExp("@pytorch(merge|)bot\\s+revert\\s+this");
+  const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
+  const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;

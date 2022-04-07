@@ -1,4 +1,3 @@
-
 .workflowBoxNone {
   border: 1px solid gray;
   padding: 10px;
@@ -36,6 +35,10 @@
 
 .shaTitleElement {
   margin-right: 0.5em;
+}
+
+.metadataLink {
+  margin-right: 1em;
 }
 
 .sha {
