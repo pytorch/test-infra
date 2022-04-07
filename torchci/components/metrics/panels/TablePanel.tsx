@@ -8,6 +8,8 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function TablePanel({
   // Human-readable title for this panel.
   title,
+  // Query lambda collection in Rockset.
+  queryCollection = "metrics",
   // Query lambda name in Rockset, ("metrics" collection is assumed).
   queryName,
   // Params to pass to the Rockset query.
@@ -18,6 +20,7 @@ export default function TablePanel({
   dataGridProps,
 }: {
   title: string;
+  queryCollection?: string;
   queryName: string;
   queryParams: RocksetParam[];
   columns: GridColDef[];

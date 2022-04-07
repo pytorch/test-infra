@@ -20,11 +20,9 @@ import { DateTimePicker } from "@mui/lab";
 import { useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
-
+import { fetcher } from "lib/GeneralUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 // Given a number of seconds, convert it to the biggest possible unit of
 // measurement and display with a scale of 1.

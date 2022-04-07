@@ -4,14 +4,15 @@
 
 import { RocksetParam } from "lib/rockset";
 import { Box, Paper, Typography, Skeleton } from "@mui/material";
+import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ScalarPanel({
   // Human-readable title of the panel.
   title,
-  // Query lambda name in Rockset, ("metrics" collection is assumed).
+  // Query lambda collection in Rockset.
+  queryCollection = "metrics",
+  // Query lambda name in Rockset.
   queryName,
   // Rockset query parameters
   queryParams,
@@ -21,12 +22,13 @@ export default function ScalarPanel({
   metricName,
 }: {
   title: string;
+  queryCollection?: string;
   queryName: string;
   queryParams: RocksetParam[];
   valueRenderer: (value: any) => string;
   metricName: string;
 }) {
-  const url = `/api/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
