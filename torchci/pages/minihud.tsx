@@ -20,6 +20,13 @@ import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
 import { isFailedJob } from "lib/jobUtils";
 import LogViewer from "components/LogViewer";
+import CopyLink from "components/CopyLink";
+
+function getOrigin() {
+  return typeof window !== "undefined" && window.location.origin
+    ? window.location.origin
+    : "";
+}
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
@@ -97,11 +104,7 @@ function FailedJob({ job }: { job: JobData }) {
           {" "}
           {job.name}
         </a>
-        {thisJobHovered && (
-          <a href={`#${job.id}`} className={styles.extraShaInfo}>
-            link to this job
-          </a>
-        )}
+        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${job.id}`} />
       </div>
       <div className={styles.failedJobLinks}>
         <input
@@ -195,6 +198,8 @@ function CommitSummaryLine({
   numPending: number;
   showRevert: boolean;
 }) {
+  const router = useRouter();
+
   return (
     <div>
       <span className={`${styles.shaTitleElement} ${styles.timestamp}`}>
@@ -208,8 +213,9 @@ function CommitSummaryLine({
           rel="noreferrer"
           href={`/pytorch/pytorch/commit/${row.sha}`}
         >
-          {row.commitTitle}
+          {row.commitTitle + " "}
         </a>
+        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${row.sha}`} />
       </span>
 
       {numPending > 0 && (
