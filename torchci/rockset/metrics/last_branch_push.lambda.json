@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/last_branch_push.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "refs/heads/master"
+    }
+  ],
+  "description": ""
+}

@@ -28,7 +28,7 @@ export default function ScalarPanel({
   valueRenderer: (value: any) => string;
   metricName: string;
 }) {
-  const url = `/api/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 

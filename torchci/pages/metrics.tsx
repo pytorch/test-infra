@@ -44,7 +44,7 @@ function durationDisplay(seconds: number): string {
 }
 
 function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/metrics/master_jobs_red?parameters=${encodeURIComponent(
+  const url = `/api/query/metrics/master_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify(params)
   )}`;
 
@@ -97,7 +97,7 @@ function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
 }
 
 function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/metrics/master_commit_red?parameters=${encodeURIComponent(
+  const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify(params)
   )}`;
 

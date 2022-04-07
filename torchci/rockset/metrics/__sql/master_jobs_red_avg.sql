@@ -1,5 +1,4 @@
 SELECT
-    CAST(DATE_TRUNC(:granularity, time) as string) AS granularity_bucket,
     AVG(
         CASE
             when conclusion = 'failure' THEN 1
@@ -44,7 +43,3 @@ FROM
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
             AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
     ) as all_job
-GROUP BY
-    DATE_TRUNC(:granularity, time)
-ORDER BY
-    DATE_TRUNC(:granularity, time) ASC

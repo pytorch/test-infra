@@ -61,11 +61,6 @@ with any_red as (
         time DESC
 )
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
     AVG(any_red) as red,
 from
     any_red
-GROUP BY
-    granularity_bucket
-ORDER BY
-    granularity_bucket ASC

@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/master_jobs_red_avg.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-02-09T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-02-16T00:06:32.839Z"
+    }
+  ],
+  "description": ""
+}
