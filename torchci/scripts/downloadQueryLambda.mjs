@@ -22,7 +22,7 @@ const args = parser.parse_args();
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
 let qLambda;
-if (args.version !== undefined) {
+if (args.version !== undefined && args.version !== "latest") {
   const res = await client.queryLambdas.getQueryLambdaVersion(
     args.workspace,
     args.query,

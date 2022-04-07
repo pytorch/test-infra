@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/time_to_merge.sql",
+  "default_parameters": [
+    {
+      "name": "closeSLO",
+      "type": "int",
+      "value": "2"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "userType",
+      "type": "string",
+      "value": "metamate"
+    }
+  ],
+  "description": ""
+}

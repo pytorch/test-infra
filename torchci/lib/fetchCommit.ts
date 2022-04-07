@@ -19,7 +19,7 @@ export default async function fetchCommit(
   const commitJobsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "commit_jobs_query",
-    rocksetVersions.commit_jobs_query,
+    rocksetVersions.commons.commit_jobs_query as string,
     {
       parameters: [
         {

@@ -14,7 +14,7 @@ export default async function handler(
   const samples = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
     "failure_samples_query",
-    rocksetVersions.failure_samples_query,
+    rocksetVersions.commons.failure_samples_query,
     {
       parameters: [
         {

@@ -18,26 +18,38 @@ function printDiff(first, second) {
   });
 }
 
-async function checkQuery(client, queryName, version) {
+async function checkQuery(client, workspace, queryName, version) {
   console.log(
-    `Checking that commons.${queryName}:${version} is matches your local checkout`
+    `Checking that ${workspace}.${queryName}:${version} is matches your local checkout`
   );
-  const qLambda = await client.queryLambdas.getQueryLambdaVersion(
-    "commons",
-    queryName,
-    version
-  );
+  let qLambda;
+  if (version === "latest") {
+    const res = await client.queryLambdas.getQueryLambdaTagVersion(
+      workspace,
+      queryName,
+      version
+    );
+    qLambda = res.data.version;
+  } else {
+    const res = await client.queryLambdas.getQueryLambdaVersion(
+      workspace,
+      queryName,
+      version
+    );
+    qLambda = res.data;
+  }
   let passesCheck = true;
 
   // Check that the query SQL matches the local checkout.
-  const remoteQuery = qLambda.data.sql.query;
+  const remoteQuery = qLambda.sql.query;
   const localQuery = await fs.readFile(
-    `./rockset/commons/__sql/${queryName}.sql`,
+    `./rockset/${workspace}/__sql/${queryName}.sql`,
     "utf8"
   );
   if (remoteQuery !== localQuery) {
     console.log(
-      `::error::commons.${queryName}:${version} SQL does not match your local checkout. Run 'yarn node scripts/downloadQueryLambda.mjs commons ${queryName} ${version}' to overwrite your local checkout.`
+      `::error::${workspace}.${queryName}:${version} SQL does not match your local checkout.
+       Run 'yarn node scripts/downloadQueryLambda.mjs ${workspace} ${queryName} ${version}' to overwrite your local checkout.`
     );
     printDiff(remoteQuery, localQuery);
     passesCheck = false;
@@ -45,18 +57,14 @@ async function checkQuery(client, queryName, version) {
 
   // Check that the query config matches the local checkout.
   const localConfig = await readJSON(
-    `./rockset/commons/${queryName}.lambda.json`
+    `./rockset/${workspace}/${queryName}.lambda.json`
   );
 
-  const remoteParams = JSON.stringify(
-    qLambda.data.sql.default_parameters,
-    null,
-    2
-  );
+  const remoteParams = JSON.stringify(qLambda.sql.default_parameters, null, 2);
   const localParams = JSON.stringify(localConfig.default_parameters, null, 2);
   if (remoteParams !== localParams) {
     console.log(
-      `::error::commons.${queryName}:${version} config does not match your local checkout. Run 'yarn node scripts/downloadQueryLambda.mjs commons ${queryName} ${version}' to overwrite your local checkout.`
+      `::error::${workspace}.${queryName}:${version} config does not match your local checkout. Run 'yarn node scripts/downloadQueryLambda.mjs ${workspace} ${queryName} ${version}' to overwrite your local checkout.`
     );
     printDiff(remoteParams, localParams);
     passesCheck = false;
@@ -70,10 +78,13 @@ const client = rockset.default(
   "4td9ejgZWF4HERUmZufILSn9kQbixwX1FwR9CiJmTkWaXbVNi90eeyfgP7dO2BZP"
 );
 
+const checks = [];
 const prodVersions = await readJSON("./rockset/prodVersions.json");
-const checks = Object.entries(prodVersions).map(([queryName, version]) =>
-  checkQuery(client, queryName, version)
-);
+Object.keys(prodVersions).forEach((workspace) => {
+  Object.entries(prodVersions[workspace]).forEach(([queryName, version]) =>
+    checks.push(checkQuery(client, workspace, queryName, version))
+  );
+});
 
 const checkStatuses = await Promise.all(checks);
 

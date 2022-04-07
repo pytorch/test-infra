@@ -1,8 +1,20 @@
 {
-  "hud_query": "86804e2dcb570a13",
-  "commit_jobs_query": "8eba563cd0fb72a7",
-  "flaky_test_query": "482db17169272025",
-  "original_pr_hud_query": "a07ff9976e0363e8",
-  "issue_query": "f29a1afe94563601",
-  "failure_samples_query": "2961636418a148c2"
+  "commons": {
+    "hud_query": "86804e2dcb570a13",
+    "commit_jobs_query": "8eba563cd0fb72a7",
+    "flaky_test_query": "482db17169272025",
+    "original_pr_hud_query": "a07ff9976e0363e8",
+    "issue_query": "f29a1afe94563601",
+    "failure_samples_query": "2961636418a148c2"
+  },
+  "pytorch_dev_infra_kpis": {
+    "num_reverts": "latest",
+    "time_to_merge": "latest",
+    "time_to_review": "latest",
+    "time_to_signal": "latest"
+  },
+  "metrics": {
+    "master_jobs_red": "latest",
+    "master_commit_red": "latest"
+  }
 }

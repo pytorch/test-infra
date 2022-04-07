@@ -8,7 +8,7 @@ export default async function fetchIssuesByLabel(label: string): Promise<IssueDa
     const query = await rocksetClient.queryLambdas.executeQueryLambda(
         "commons",
         "issue_query",
-        rocksetVersions.issue_query,
+        rocksetVersions.commons.issue_query,
         {
         parameters: [
             {
