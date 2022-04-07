@@ -4,14 +4,11 @@ import dayjs from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import {
-  DataGrid,
   GridRenderCellParams,
   GridValueFormatterParams,
-  GridColDef,
 } from "@mui/x-data-grid";
 import useSWR from "swr";
 import {
-  Box,
   Grid,
   Paper,
   TextField,
@@ -23,6 +20,9 @@ import { DateTimePicker } from "@mui/lab";
 import { useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
+
+import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import TablePanel from "components/metrics/panels/TablePanel";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -43,52 +43,6 @@ function durationDisplay(seconds: number): string {
   }
   const days = hours / 24.0;
   return days.toFixed(1) + "d";
-}
-
-function NumberPanel({
-  title,
-  queryName,
-  valueRenderer,
-  metricName,
-  params,
-}: {
-  title: string;
-  queryName: string;
-  valueRenderer: (value: any) => string;
-  metricName: string;
-  params: RocksetParam[];
-}) {
-  const url = `/api/metrics/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(params)
-  )}`;
-
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const value = data[0][metricName];
-
-  return (
-    <Paper sx={{ p: 2 }} elevation={3}>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
-          {title}
-        </Typography>
-        <Typography sx={{ fontSize: "4rem", my: "auto", alignSelf: "center" }}>
-          {valueRenderer(value)}
-        </Typography>
-      </Box>
-    </Paper>
-  );
 }
 
 function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
@@ -197,156 +151,37 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   );
 }
 
-function QueuedJobsByLabelPanel() {
-  const { data } = useSWR(
-    "/api/metrics/queued_jobs_by_label?parameters=[]",
-    fetcher,
-    {
-      refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-    }
-  );
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const columns: GridColDef[] = [
-    { field: "count", headerName: "Count", flex: 1 },
-    {
-      field: "avg_queue_s",
-      headerName: "Avg queue time",
-      flex: 1,
-      valueFormatter: (params: GridValueFormatterParams<number>) =>
-        durationDisplay(params.value),
-    },
-    { field: "labels", headerName: "Machine Type", flex: 4 },
-  ];
-  function Header() {
-    return (
-      <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
-        Queued Jobs by Machine Type
-      </Typography>
-    );
-  }
-  return (
-    <DataGrid
-      density={"compact"}
-      rows={data}
-      columns={columns}
-      getRowId={(el: any) => el.labels[0]}
-      hideFooter
-      components={{
-        Toolbar: Header,
-      }}
-    />
-  );
-}
-
+// Specialized version of TablePanel for TTS metrics.
 function TTSPanel({
-  params,
+  title,
   queryName,
+  queryParams,
   metricHeaderName,
   metricName,
-  panelTitle,
 }: {
-  params: RocksetParam[];
+  title: string;
   queryName: string;
+  queryParams: RocksetParam[];
   metricHeaderName: string;
   metricName: string;
-  panelTitle: string;
 }) {
-  const url = `/api/metrics/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(params)
-  )}`;
-
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const columns: GridColDef[] = [
-    {
-      field: metricName,
-      headerName: metricHeaderName,
-      flex: 1,
-      valueFormatter: (params: GridValueFormatterParams<number>) =>
-        durationDisplay(params.value),
-    },
-    { field: "count", headerName: "Count", flex: 1 },
-    { field: "name", headerName: "Name", flex: 5 },
-  ];
-  function Header() {
-    return (
-      <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
-        {panelTitle}
-      </Typography>
-    );
-  }
   return (
-    <DataGrid
-      density={"compact"}
-      rows={data}
-      columns={columns}
-      getRowId={(el: any) => el.name}
-      hideFooter
-      components={{
-        Toolbar: Header,
-      }}
-    />
-  );
-}
-
-function QueuedJobsPanel() {
-  const { data } = useSWR("/api/metrics/queued_jobs?parameters=[]", fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const columns: GridColDef[] = [
-    {
-      field: "queue_s",
-      headerName: "Time in Queue",
-      flex: 1,
-      valueFormatter: (params: GridValueFormatterParams<number>) =>
-        durationDisplay(params.value),
-    },
-    { field: "labels", headerName: "Machine Type", flex: 1 },
-    {
-      field: "name",
-      headerName: "Job Name",
-      flex: 4,
-      renderCell: (params: GridRenderCellParams<string>) => (
-        <a href={params.row.html_url}>{params.value}</a>
-      ),
-    },
-    { field: "html_url" },
-  ];
-  function Header() {
-    return (
-      <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
-        Jobs in Queue
-      </Typography>
-    );
-  }
-  return (
-    <DataGrid
-      density={"compact"}
-      columnVisibilityModel={{
-        html_url: false,
-      }}
-      rows={data}
-      columns={columns}
-      getRowId={(el: any) => el.html_url}
-      hideFooter
-      components={{
-        Toolbar: Header,
-      }}
+    <TablePanel
+      title={title}
+      queryName={queryName}
+      queryParams={queryParams}
+      columns={[
+        {
+          field: metricName,
+          headerName: metricHeaderName,
+          flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<number>) =>
+            durationDisplay(params.value),
+        },
+        { field: "count", headerName: "Count", flex: 1 },
+        { field: "name", headerName: "Name", flex: 5 },
+      ]}
+      dataGridProps={{ getRowId: (el: any) => el.name }}
     />
   );
 }
@@ -408,32 +243,32 @@ export default function Page() {
           <MasterJobsRedPanel params={timeParams} />
         </Grid>
         <Grid item xs={2}>
-          <NumberPanel
+          <ScalarPanel
             title={"% red jobs red on master, aggregate"}
             queryName={"master_jobs_red_avg"}
             metricName={"red"}
             valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-            params={timeParams}
+            queryParams={timeParams}
           />
         </Grid>
 
         <Grid item xs={2}>
-          <NumberPanel
+          <ScalarPanel
             title={"# reverts"}
             queryName={"reverts"}
             metricName={"num"}
             valueRenderer={(value: string) => value}
-            params={timeParams}
+            queryParams={timeParams}
           />
         </Grid>
 
         <Grid item xs={2}>
-          <NumberPanel
+          <ScalarPanel
             title={"Last viable/strict push"}
             queryName={"last_branch_push"}
             metricName={"push_seconds_ago"}
             valueRenderer={(value) => durationDisplay(value)}
-            params={[
+            queryParams={[
               {
                 name: "branch",
                 type: "string",
@@ -448,23 +283,23 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={2}>
-          <NumberPanel
+          <ScalarPanel
             title={"% commits red on master, aggregate"}
             queryName={"master_commit_red_avg"}
             metricName={"red"}
             valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-            params={timeParams}
+            queryParams={timeParams}
           />
         </Grid>
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <NumberPanel
+            <ScalarPanel
               title={"Last master push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              params={[
+              queryParams={[
                 {
                   name: "branch",
                   type: "string",
@@ -472,12 +307,12 @@ export default function Page() {
                 },
               ]}
             />
-            <NumberPanel
+            <ScalarPanel
               title={"Last nightly push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              params={[
+              queryParams={[
                 {
                   name: "branch",
                   type: "string",
@@ -490,12 +325,12 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <NumberPanel
+            <ScalarPanel
               title={"Last docker build"}
               queryName={"last_successful_workflow"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              params={[
+              queryParams={[
                 {
                   name: "workflowName",
                   type: "string",
@@ -503,12 +338,12 @@ export default function Page() {
                 },
               ]}
             />
-            <NumberPanel
+            <ScalarPanel
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
               metricName={"last_success_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
-              params={[
+              queryParams={[
                 {
                   name: "jobNames",
                   type: "string",
@@ -521,30 +356,74 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <QueuedJobsByLabelPanel />
+          <TablePanel
+            title={"Queued Jobs by Machine Type"}
+            queryName={"queued_jobs_by_label"}
+            queryParams={[]}
+            columns={[
+              { field: "count", headerName: "Count", flex: 1 },
+              {
+                field: "avg_queue_s",
+                headerName: "Avg queue time",
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<number>) =>
+                  durationDisplay(params.value),
+              },
+              { field: "labels", headerName: "Machine Type", flex: 4 },
+            ]}
+            dataGridProps={{ getRowId: (el: any) => el.labels[0] }}
+          />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <QueuedJobsPanel />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TTSPanel
-            panelTitle={"Job time-to-signal, all branches"}
-            queryName={"tts_avg"}
-            metricName={"tts_sec"}
-            metricHeaderName={"Time-to-signal"}
-            params={timeParams}
+          <TablePanel
+            title={"Jobs in Queue"}
+            queryName={"queued_jobs"}
+            queryParams={[]}
+            columns={[
+              {
+                field: "queue_s",
+                headerName: "Time in Queue",
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<number>) =>
+                  durationDisplay(params.value),
+              },
+              { field: "labels", headerName: "Machine Type", flex: 1 },
+              {
+                field: "name",
+                headerName: "Job Name",
+                flex: 4,
+                renderCell: (params: GridRenderCellParams<string>) => (
+                  <a href={params.row.html_url}>{params.value}</a>
+                ),
+              },
+              { field: "html_url" },
+            ]}
+            dataGridProps={{
+              columnVisibilityModel: {
+                // Hide this column, since we turn it into a link
+                html_url: false,
+              },
+              getRowId: (el: any) => el.html_url,
+            }}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
-            panelTitle={"Job time-to-signal, master-only"}
+            title={"Job time-to-signal, all branches"}
             queryName={"tts_avg"}
+            queryParams={timeParams}
             metricName={"tts_sec"}
             metricHeaderName={"Time-to-signal"}
-            params={[
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TTSPanel
+            title={"Job time-to-signal, master-only"}
+            queryName={"tts_avg"}
+            queryParams={[
               ...timeParams,
               {
                 name: "branch",
@@ -552,26 +431,26 @@ export default function Page() {
                 value: "master",
               },
             ]}
+            metricName={"tts_sec"}
+            metricHeaderName={"Time-to-signal"}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
-            panelTitle={"Job duration, all branches"}
+            title={"Job duration, all branches"}
             queryName={"job_duration_avg"}
+            queryParams={timeParams}
             metricName={"duration_sec"}
             metricHeaderName={"Duration"}
-            params={timeParams}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
-            panelTitle={"Job duration, master-only"}
+            title={"Job duration, master-only"}
             queryName={"job_duration_avg"}
-            metricName={"duration_sec"}
-            metricHeaderName={"Duration"}
-            params={[
+            queryParams={[
               ...timeParams,
               {
                 name: "branch",
@@ -579,6 +458,8 @@ export default function Page() {
                 value: "master",
               },
             ]}
+            metricName={"duration_sec"}
+            metricHeaderName={"Duration"}
           />
         </Grid>
       </Grid>
