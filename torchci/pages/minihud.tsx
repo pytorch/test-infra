@@ -213,7 +213,7 @@ function CommitSummaryLine({
           rel="noreferrer"
           href={`/pytorch/pytorch/commit/${row.sha}`}
         >
-          {row.commitTitle}{" "}
+          {row.commitTitle + " "}
         </a>
         <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${row.sha}`} />
       </span>
