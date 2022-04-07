@@ -26,7 +26,7 @@ export default function TablePanel({
   columns: GridColDef[];
   dataGridProps: any;
 }) {
-  const url = `/api/metrics/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 

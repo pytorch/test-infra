@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/last_successful_workflow.sql",
+  "default_parameters": [
+    {
+      "name": "workflowName",
+      "type": "string",
+      "value": "docker-builds"
+    }
+  ],
+  "description": ""
+}

@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/tts_avg.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-02-22T00:08:03.395Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-03-01T00:08:03.395Z"
+    }
+  ],
+  "description": ""
+}

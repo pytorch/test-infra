@@ -14,7 +14,17 @@
     "time_to_signal": "670e34fc86adb3ad"
   },
   "metrics": {
-    "master_jobs_red": "0baad59521ad669b",
-    "master_commit_red": "f5bd7d531d5c8dad"
+    "job_duration_avg": "1dcc2360ccfb454d",
+    "last_branch_push": "3d995ac2143586dc",
+    "last_successful_jobs": "8ce513bc65c75b8c",
+    "last_successful_workflow": "ff4b611647c21e4c",
+    "master_commit_red_avg": "039988db87a03a94",
+    "master_commit_red": "c35c92c7c0231943",
+    "master_jobs_red_avg": "29b138b4454f2a63",
+    "master_jobs_red": "bd04d300f24b4fa0",
+    "queued_jobs_by_label": "0ec7d5348138b3fc",
+    "queued_jobs": "8d6064d1ed890fe2",
+    "reverts": "4446ee821236f997",
+    "tts_avg": "597897063acde94c"
   }
 }
