@@ -8,13 +8,13 @@
     "failure_samples_query": "2961636418a148c2"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "latest",
-    "time_to_merge": "latest",
-    "time_to_review": "latest",
-    "time_to_signal": "latest"
+    "num_reverts": "4b5c27b8b6c6b71a",
+    "time_to_merge": "be1c2a28cf75fe32",
+    "time_to_review": "adfbcdfc51ede11a",
+    "time_to_signal": "670e34fc86adb3ad"
   },
   "metrics": {
-    "master_jobs_red": "latest",
-    "master_commit_red": "latest"
+    "master_jobs_red": "0baad59521ad669b",
+    "master_commit_red": "f5bd7d531d5c8dad"
   }
 }

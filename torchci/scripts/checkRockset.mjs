@@ -23,21 +23,12 @@ async function checkQuery(client, workspace, queryName, version) {
     `Checking that ${workspace}.${queryName}:${version} is matches your local checkout`
   );
   let qLambda;
-  if (version === "latest") {
-    const res = await client.queryLambdas.getQueryLambdaTagVersion(
-      workspace,
-      queryName,
-      version
-    );
-    qLambda = res.data.version;
-  } else {
-    const res = await client.queryLambdas.getQueryLambdaVersion(
-      workspace,
-      queryName,
-      version
-    );
-    qLambda = res.data;
-  }
+  const res = await client.queryLambdas.getQueryLambdaVersion(
+    workspace,
+    queryName,
+    version
+  );
+  qLambda = res.data;
   let passesCheck = true;
 
   // Check that the query SQL matches the local checkout.
