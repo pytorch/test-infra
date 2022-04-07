@@ -12,7 +12,8 @@ export default async function fetchS3Links(
 
   const artifacts =
     response.Contents?.map((jobs) => {
-      const name = jobs.Key?.split("/").slice(-1)[0];
+      const basename = jobs.Key?.split("/").slice(-1)[0];
+      const name = basename !== "artifacts.zip" ? basename : jobs.Key?.split("/").slice(-2).join("/");
       return {
         kind: "s3",
         name: name ?? "",

@@ -57,6 +57,8 @@ export function commitDataFromResponse(data: any): CommitData {
   }
 
   return {
+    author: data.author?.login ?? data.commit.author.name,
+    authorUrl: data.author?.html_url ?? null,
     time: data.commit.committer!.date as string,
     sha: data.sha,
     commitUrl: data.html_url,

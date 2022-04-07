@@ -20,6 +20,13 @@ import JobFilterInput from "components/JobFilterInput";
 import useHudData from "lib/useHudData";
 import { isFailedJob } from "lib/jobUtils";
 import LogViewer from "components/LogViewer";
+import CopyLink from "components/CopyLink";
+
+function getOrigin() {
+  return typeof window !== "undefined" && window.location.origin
+    ? window.location.origin
+    : "";
+}
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
@@ -97,11 +104,7 @@ function FailedJob({ job }: { job: JobData }) {
           {" "}
           {job.name}
         </a>
-        {thisJobHovered && (
-          <a href={`#${job.id}`} className={styles.extraShaInfo}>
-            link to this job
-          </a>
-        )}
+        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${job.id}`} />
       </div>
       <div className={styles.failedJobLinks}>
         <input
@@ -133,6 +136,57 @@ function FailedJobs({ failedJobs }: { failedJobs: JobData[] }) {
   );
 }
 
+function CommitLinks({ row }: { row: RowData }) {
+  return (
+    <div>
+      <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+        Commit:
+        <span className={`${styles.sha}`}>
+          <a target="_blank" rel="noreferrer" href={row.commitUrl}>
+            {` ${row.sha.substring(0, 7)}`}
+          </a>
+        </span>
+      </span>
+      {row.prNum !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Pull:
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href={`https://github.com/pytorch/pytorch/pull/${row.prNum}`}
+          >
+            {` #${row.prNum}`}
+          </a>
+        </span>
+      )}
+      {row.diffNum !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Diff:
+          <a
+            target="_blank"
+            rel="noreferrer"
+            href={`https://www.internalfb.com/diff/${row.diffNum}`}
+          >
+            {` ${row.diffNum}`}
+          </a>
+        </span>
+      )}
+      {row.author !== null && (
+        <span className={`${styles.metadataLink} ${styles.extraShaInfo}`}>
+          Author:{" "}
+          {row.authorUrl !== null ? (
+            <a target="_blank" rel="noreferrer" href={row.authorUrl}>
+              {row.author}
+            </a>
+          ) : (
+            <>{row.author}</>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function CommitSummaryLine({
   showAnchorLink,
   row,
@@ -144,6 +198,8 @@ function CommitSummaryLine({
   numPending: number;
   showRevert: boolean;
 }) {
+  const router = useRouter();
+
   return (
     <div>
       <span className={`${styles.shaTitleElement} ${styles.timestamp}`}>
@@ -152,44 +208,22 @@ function CommitSummaryLine({
       <span className={`${styles.shaTitleElement} ${styles.commitTitle}`}>
         {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
-        <a target="_blank" rel="noreferrer" href={`/pytorch/pytorch/commit/${row.sha}`}>
-          {row.commitTitle}
-        </a>
-      </span>
-
-      <span
-        className={`${styles.shaTitleElement} ${styles.sha} ${styles.extraShaInfo}`}
-      >
-        <a target="_blank" rel="noreferrer" href={row.commitUrl}>
-          {row.sha.substring(0, 7)}
-        </a>
-      </span>
-      {row.prNum !== null && (
-        <span className={`${styles.shaTitleElement} ${styles.extraShaInfo}`}>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href={`https://github.com/pytorch/pytorch/pull/${row.prNum}`}
-          >
-            Pull
-          </a>
-        </span>
-      )}
-      <span className={`${styles.shaTitleElement} ${styles.extraShaInfo}`}>
         <a
           target="_blank"
           rel="noreferrer"
-          href={`https://www.internalfb.com/diff/${row.diffNum}`}
+          href={`/pytorch/pytorch/commit/${row.sha}`}
         >
-          Diff
+          {row.commitTitle + " "}
         </a>
+        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${row.sha}`} />
       </span>
+
       {numPending > 0 && (
         <span className={styles.shaTitleElement}>
           <em>{numPending} pending</em>
         </span>
       )}
-      {showRevert && (
+      {showRevert && row.diffNum != null && (
         <span className={styles.shaTitleElement}>
           <a
             target="_blank"
@@ -205,6 +239,7 @@ function CommitSummaryLine({
           <a href={`#${row.sha}`}>link to this commit</a>
         </span>
       )}
+      <CommitLinks row={row} />
     </div>
   );
 }

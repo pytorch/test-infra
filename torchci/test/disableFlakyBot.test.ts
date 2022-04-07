@@ -11,7 +11,9 @@ const flakyTestA = {
     numGreen: 4,
     numRed: 2,
     workflowIds: ["12345678", "13456789", "14253647"],
-    workflowNames: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+    workflowNames: ["trunk", "periodic", "periodic"],
+    jobIds: [55443322, 55667788, 56789876],
+    jobNames: ["win-cpu-vs-2019 / test", "win-cuda11.3-vs-2019 / test", "win-cuda11.3-vs-2019 / test"],
     branches: ["master", "master", "master"]
 }
 
@@ -22,7 +24,9 @@ const flakyTestE = {
     numGreen: 4,
     numRed: 2,
     workflowIds: ["12345678", "13456789", "14253647", "15949539"],
-    workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test", "win-cpu-vs-2019"],
+    workflowNames: ["pull", "periodic", "trunk", "pull"],
+    jobIds: [55443322, 55667788, 56789876, 56677889],
+    jobNames: ["win-cpu-vs-2019 / test", "linux-xenial-cuda11.5-py3 / test", "macos-11-x86 / test", "win-cpu-vs-2019 / test"],
     branches: ["pr-fix", "master", "master", "another-pr-fx"]
 }
 
@@ -132,7 +136,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
                 numGreen: 4,
                 numRed: 2,
                 workflowIds: ["12345678"],
-                workflowNames: ["win-cpu-vs-2019"],
+                workflowNames: ["pull"],
+                jobIds: [56789123],
+                jobNames: ["win-cpu-vs-2019 / test"],
                 branches: ["ciflow/all/12345"]
             },
             {
@@ -142,7 +148,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
                 numGreen: 4,
                 numRed: 2,
                 workflowIds: ["12345678", "13456789", "14253647"],
-                workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                workflowNames: ["pull", "periodic", "trunk"],
+                jobIds: [54545454, 55555555, 56565656],
+                jobNames: ["win-cpu-vs-2019 / test", "linux-xenial-cuda11.5-py3 / test", "macos-11-x86 / test"],
                 branches: ["master", "gh/janeyx99/idk", "master"]
             },
             {
@@ -152,7 +160,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
                 numGreen: 4,
                 numRed: 2,
                 workflowIds: ["12345678", "13456789"],
-                workflowNames: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+                workflowNames: ["pull", "periodic"],
+                jobIds: [54545454, 55555555],
+                jobNames: ["win-cpu-vs-2019 / test", "win-cuda11.3-vs-2019 / test"],
                 branches: ["quick-fix", "ciflow/scheduled/22222"]
             },
             flakyTestE
@@ -166,14 +176,15 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
                 numGreen: 4,
                 numRed: 2,
                 workflowIds: ["12345678", "13456789", "14253647"],
-                workflowNames: ["win-cpu-vs-2019", "linux-xenial-cuda11.5-py3", "macos-11-x86-test"],
+                workflowNames: ["pull", "periodic", "trunk"],
+                jobIds: [54545454, 55555555, 56565656],
+                jobNames: ["win-cpu-vs-2019 / test", "linux-xenial-cuda11.5-py3 / test", "macos-11-x86 / test"],
                 branches: ["master", "gh/janeyx99/idk", "master"]
             },
             flakyTestE
         ];
         expect(disableFlakyTestBot.filterOutPRFlakyTests(flakyTests)).toEqual(expectedFlakyTestsOnTrunk);
     })
-
 
     test("getTestOwnerLabels: owned test file should return proper module", async () => {
         const scope = nock("https://raw.githubusercontent.com/")
@@ -182,20 +193,6 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
         const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
         expect(labels).toEqual(["module: fft"]);
-
-        if (!scope.isDone()) {
-            console.error("pending mocks: %j", scope.pendingMocks());
-        }
-        scope.done();
-    });
-
-    test("getTestOwnerLabels: un-owned high priority test file should return high priority", async () => {
-        const scope = nock("https://raw.githubusercontent.com/")
-            .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-            .reply(200, Buffer.from(`# Owner(s): ["high priority"]\nimport blah;\nrest of file`));
-
-        const labels = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
-        expect(labels).toEqual(["high priority"]);
 
         if (!scope.isDone()) {
             console.error("pending mocks: %j", scope.pendingMocks());
@@ -231,14 +228,14 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         scope.done();
     });
 
-    test("getLatestTrunkWorkflowURL: should return URL of last trunk workflow if it exists", async () => {
-        expect(disableFlakyTestBot.getLatestTrunkWorkflowURL(flakyTestE))
-            .toEqual("https://github.com/pytorch/pytorch/actions/runs/14253647");
+    test("getLatestTrunkJobURL: should return URL of last trunk job if it exists", async () => {
+        expect(disableFlakyTestBot.getLatestTrunkJobURL(flakyTestE))
+            .toEqual("https://github.com/pytorch/pytorch/runs/56789876");
     });
 
-    test("getLatestTrunkWorkflowURL: should return URL of last workflow if no trunk instance exists", async () => {
-        expect(disableFlakyTestBot.getLatestTrunkWorkflowURL(flakyTestA))
-            .toEqual("https://github.com/pytorch/pytorch/actions/runs/14253647");
+    test("getLatestTrunkJobURL: should return URL of last job if no trunk instance exists", async () => {
+        expect(disableFlakyTestBot.getLatestTrunkJobURL(flakyTestA))
+            .toEqual("https://github.com/pytorch/pytorch/runs/56789876");
     });
 
     test("getIssueTitle: test suite in subclass should not have __main__", async () => {
@@ -251,14 +248,21 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
             .toEqual("DISABLED test_cool_op_cpu (__main__.TestLinAlgCPU)");
     });
 
+    test("getWorkflowJobNames: should zip the workflow and job names of a test", async () => {
+        expect(disableFlakyTestBot.getWorkflowJobNames(flakyTestA))
+            .toEqual(["trunk / win-cpu-vs-2019 / test",
+                      "periodic / win-cuda11.3-vs-2019 / test",
+                      "periodic / win-cuda11.3-vs-2019 / test"],)
+    });
+
     test("getPlatformsAffected: should correctly triage workflows of one platform", async () => {
-        const workflows = ["periodic-linux-cuda11.1-py3", "whatever-whatever-linux"]
-        expect(disableFlakyTestBot.getPlatformsAffected(workflows)).toEqual(["linux"]);
+        const workflowJobNames = ["periodic / linux-cuda11.1-py3 / test", "pull / whatever-whatever-linux / build"]
+        expect(disableFlakyTestBot.getPlatformsAffected(workflowJobNames)).toEqual(["linux"]);
     });
 
     test("getPlatformsAffected: should correctly triage workflows of various platforms", async () => {
-        const workflows = flakyTestA.workflowNames.concat(["something-macos-build", "linux-blah-py3"]);
-        expect(disableFlakyTestBot.getPlatformsAffected(workflows)).toEqual(["linux", "mac", "macos", "win"]);
+        const workflowJobs = disableFlakyTestBot.getWorkflowJobNames(flakyTestE);
+        expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual(["linux", "mac", "macos", "win"]);
     });
 
     test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {

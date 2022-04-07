@@ -35,7 +35,7 @@ function Log({ url, line }: { url: string; line: number }) {
     return () => {
       view.destroy();
     };
-  }, [data]);
+  }, [data, line]);
 
   return <div ref={viewer}></div>;
 }

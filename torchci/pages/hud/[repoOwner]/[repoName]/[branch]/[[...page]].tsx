@@ -23,6 +23,7 @@ import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import useGroupingPreference from "pages/settings/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
@@ -79,6 +80,15 @@ function HudRow({
           </a>
         )}
       </td>
+      <td className={styles.jobMetadata}>
+        <div className={styles.jobMetadataTruncatedAuthor}>
+          {rowData.authorUrl !== null ? (
+            <a href={rowData.authorUrl}>{rowData.author}</a>
+          ) : (
+            rowData.author
+          )}
+        </div>
+      </td>
       <HudJobCells
         rowData={rowData}
         expandedGroups={expandedGroups}
@@ -132,7 +142,6 @@ function HudTableBody({
   expandedGroups?: Set<string>;
   useGrouping: boolean;
 }) {
-  expandedGroups;
   return (
     <tbody>
       {shaGrid.map((row: RowData) => (
@@ -390,10 +399,10 @@ function GroupedHudTable({
     data.jobNames
   );
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
-  const [useGrouping, setUseGrouping] = useState(
-    !(params.nameFilter != null && params.nameFilter !== "")
-  );
 
+  const [useGrouping, setUseGrouping] = useGroupingPreference(
+    params.nameFilter != null && params.nameFilter !== ""
+  );
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
 

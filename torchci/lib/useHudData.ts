@@ -24,7 +24,6 @@ export default function useHudData(params: HudParams): HudData | undefined {
       refreshInterval: 60 * 1000,
     }
   );
-
   // Add job name info back into the data (it was stripped out as technically it's redundant)
   if (data === undefined) {
     return data;

@@ -42,6 +42,8 @@ export interface CommitData {
   commitUrl: string;
   commitTitle: string;
   commitMessageBody: string;
+  author: string;
+  authorUrl: string | null;
 }
 
 export interface RowData extends CommitData {
@@ -81,6 +83,8 @@ export interface FlakyTestData {
   numRed: number;
   workflowIds: string[];
   workflowNames: string[];
+  jobIds: number[];
+  jobNames: string[];
   branches: string[];
 }
 

@@ -48,6 +48,21 @@ describe("merge-bot", () => {
     scope.done();
   });
 
+  test("quoted merge/revert command no event", async() => {
+    const merge_event = require("./fixtures/issue_comment.json");
+    merge_event.payload.comment.body = "> @pytorchbot merge this";
+    const revert_event = require("./fixtures/issue_comment.json");
+    revert_event.payload.comment.body = "> @pytorchbot revert this";
+    const scope = nock("https://api.github.com");
+    await probot.receive(merge_event);
+    await probot.receive(revert_event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+
   test("merge this comment on issue triggers confused reaction", async() => {
     const event = require("./fixtures/issue_comment.json");
     event.payload.comment.body = "@pytorchbot merge this";
