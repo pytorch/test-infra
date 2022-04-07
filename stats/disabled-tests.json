@@ -12202,7 +12202,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "platforms: windows\r\n\r\nThis test is failing on Windows with CUDA 11.6. Example log: https://github.com/pytorch/pytorch/runs/5861322515?check_suite_focus=true. \r\n\r\nExample snippet:\r\n\r\n```\r\n======================================================================\r\nERROR [0.894s]: test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 251, in test_fn\r\n    test_forward_backward(\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 134, in test_forward_backward\r\n    script_module, python_output, python_grad_dict = run_python_forward_backward(unit_test_class, test_params)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\test\\cpp_api_parity\\module_impl_check.py\", line 103, in run_python_forward_backward\r\n    python_output = module(*inputs)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\modules\\module.py\", line 1110, in _call_impl\r\n    return forward_call(*input, **kwargs)\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\modules\\loss.py\", line 1163, in forward\r\n    return F.cross_entropy(input, target, weight=self.weight,\r\n  File \"C:\\actions-runner\\_work\\pytorch\\pytorch\\build\\win_tmp\\build\\torch\\nn\\functional.py\", line 2961, in cross_entropy\r\n    return torch._C._nn.cross_entropy_loss(input, target, weight, _Reduction.get_enum(reduction), ignore_index, label_smoothing)\r\nRuntimeError: CUDA error: invalid device function\r\nCUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.\r\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1.\r\n\r\n```\r\n\r\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @jbschlosser @albanD @mruberry @walterddr @kshitij12345 @ngimel",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/comments",
       "created_at": "2022-04-07T13:20:43Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/events",
@@ -12314,7 +12314,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75417/timeline",
       "title": "DISABLED test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)",
-      "updated_at": "2022-04-07T13:24:42Z",
+      "updated_at": "2022-04-07T14:45:57Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75417",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4",
