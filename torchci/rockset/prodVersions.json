@@ -1,9 +1,9 @@
 {
   "commons": {
-    "hud_query": "86804e2dcb570a13",
-    "commit_jobs_query": "8eba563cd0fb72a7",
+    "hud_query": "a08c69a5d20cab55",
+    "commit_jobs_query": "0705e283a78dd425",
     "flaky_test_query": "482db17169272025",
-    "original_pr_hud_query": "a07ff9976e0363e8",
+    "original_pr_hud_query": "ac04505036da4c7a",
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2"
   },
