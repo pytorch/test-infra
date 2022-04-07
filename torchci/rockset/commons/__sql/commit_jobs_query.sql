@@ -29,7 +29,8 @@ WITH job as (
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
-        and workflow.head_commit.id = :sha
+        AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+        AND workflow.head_commit.id = :sha
     UNION
         -- Handle CircleCI
         -- IMPORTANT: this needs to have the same order as the query above

@@ -71,6 +71,7 @@ from
         WHERE
             job.name != 'ciflow_should_run'
             AND job.name != 'generate-test-matrix'
+            AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         UNION
             -- Handle CircleCI
             -- IMPORTANT: this needs to have the same order as the query above
