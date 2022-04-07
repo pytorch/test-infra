@@ -1,15 +1,14 @@
 {
-    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 61.646,
-    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 121.217,
-    "test_contig_vs_every_other_special_zeta_cuda_bool (__main__.TestBinaryUfuncsCUDA)": 234.014,
-    "test_conv1d_basic (__main__.TestXNNPACKConv1dTransformPass)": 88.979,
-    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 167.25,
-    "test_fs_sharing (__main__.TestMultiprocessing)": 3086.096,
-    "test_iterable_style_dataset (__main__.TestDataLoader)": 87.595,
-    "test_nnc_correctness__masked_std_cpu_float32 (__main__.TestNNCOpInfoCPU)": 62.234,
-    "test_nnc_correctness__masked_std_cpu_float64 (__main__.TestNNCOpInfoCPU)": 61.96,
-    "test_nnc_correctness__masked_var_cpu_float32 (__main__.TestNNCOpInfoCPU)": 61.534,
-    "test_nnc_correctness__masked_var_cpu_float64 (__main__.TestNNCOpInfoCPU)": 61.604,
-    "test_trunc_normal (__main__.TestNNInit)": 212.375,
-    "test_variant_consistency_jit_nn_functional_max_pool2d_cpu_float32 (__main__.TestJitCPU)": 119.16833333333334
+    "testNBit (__main__.operator_test.fused_nbit_rowwise_conversion_ops_test.TestNBitGreedyFused)": 61.121,
+    "test_collect_callgrind (__main__.TestBenchmarkUtils)": 120.875,
+    "test_contig_vs_every_other_special_zeta_cuda_bool (__main__.TestBinaryUfuncsCUDA)": 261.961,
+    "test_conv1d_with_relu_fc (__main__.TestXNNPACKConv1dTransformPass)": 166.879,
+    "test_nnc_correctness__masked_std_cpu_float32 (__main__.TestNNCOpInfoCPU)": 61.233,
+    "test_nnc_correctness__masked_std_cpu_float64 (__main__.TestNNCOpInfoCPU)": 60.988,
+    "test_nnc_correctness__masked_var_cpu_float32 (__main__.TestNNCOpInfoCPU)": 60.497,
+    "test_nnc_correctness__masked_var_cpu_float64 (__main__.TestNNCOpInfoCPU)": 60.617,
+    "test_noncontiguous_samples_polygamma_polygamma_n_0_cuda_int64 (__main__.TestCommonCUDA)": 85.912,
+    "test_trunc_normal (__main__.TestNNInit)": 172.0285,
+    "test_variant_consistency_jit_nn_functional_max_pool1d_cpu_float32 (__main__.TestJitCPU)": 62.419666666666664,
+    "test_variant_consistency_jit_nn_functional_max_pool2d_cpu_float32 (__main__.TestJitCPU)": 81.10499999999999
 }
