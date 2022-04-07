@@ -17,8 +17,10 @@ async function pushProdTag(client, queryName, version) {
 const client = rockset.default(process.env.ROCKSET_API_KEY);
 
 const prodVersions = await readJSON("./rockset/prodVersions.json");
-const tasks = Object.entries(prodVersions).map(([queryName, version]) =>
-  pushProdTag(client, queryName, version)
-);
+const tasks = Object.keys(prodVersions).forEach((workspace) => {
+  Object.entries(prodVersions[workspace]).map(([queryName, version]) =>
+    pushProdTag(client, queryName, version)
+  );
+});
 
 await Promise.all(tasks);
