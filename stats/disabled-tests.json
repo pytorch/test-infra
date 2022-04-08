@@ -1930,7 +1930,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/timeline",
       "title": "DISABLED test_jit_cuda_extension (__main__.TestCppExtensionJIT)",
-      "updated_at": "2022-04-08T22:25:27Z",
+      "updated_at": "2022-04-08T23:10:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/61655",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/3581352?v=4",
