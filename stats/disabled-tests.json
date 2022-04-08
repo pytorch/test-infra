@@ -1843,9 +1843,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "See: https://github.com/pytorch/pytorch/runs/3065374723\r\nplatforms: windows\r\n\r\n```\r\n======================================================================\r\nERROR [20.716s]: test_jit_cuda_extension (__main__.TestCppExtensionJIT)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_cpp_extensions_jit.py\", line 109, in test_jit_cuda_extension\r\n    z = module.sigmoid_add(x, y).cpu()\r\nRuntimeError: CUDA error: the provided PTX was compiled with an unsupported toolchain.\r\nCUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.\r\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1.\r\n\r\n----------------------------------------------------------------------\r\n```\r\n\r\nalso trying out the new platform DISABLED capability in #61427\r\n\r\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @anjali411 @peterjc123 @mszhanyi @skyline75489 @nbcsm @gmagogsfm",
+      "body": "See: https://github.com/pytorch/pytorch/runs/3065374723\r\nplatforms: windows\r\n\r\n```\r\n======================================================================\r\nERROR [20.716s]: test_jit_cuda_extension (__main__.TestCppExtensionJIT)\r\n----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"test_cpp_extensions_jit.py\", line 109, in test_jit_cuda_extension\r\n    z = module.sigmoid_add(x, y).cpu()\r\nRuntimeError: CUDA error: the provided PTX was compiled with an unsupported toolchain.\r\nCUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.\r\nFor debugging consider passing CUDA_LAUNCH_BLOCKING=1.\r\n\r\n----------------------------------------------------------------------\r\n```\r\n\r\nalso trying out the new platform DISABLED capability in #61427\r\n\r\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @malfet @bdhirsh @jbschlosser @anjali411 @gmagogsfm",
       "closed_at": null,
-      "comments": 7,
+      "comments": 8,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/comments",
       "created_at": "2021-07-14T15:20:02Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/events",
@@ -1878,6 +1878,15 @@
           "name": "module: windows",
           "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.utils.cpp_extension",
+          "id": 884152160,
+          "name": "module: cpp-extensions",
+          "node_id": "MDU6TGFiZWw4ODQxNTIxNjA=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cpp-extensions"
         },
         {
           "color": "f7e101",
@@ -1921,7 +1930,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/61655/timeline",
       "title": "DISABLED test_jit_cuda_extension (__main__.TestCppExtensionJIT)",
-      "updated_at": "2022-04-04T21:18:45Z",
+      "updated_at": "2022-04-08T22:25:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/61655",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/3581352?v=4",
