@@ -61,7 +61,11 @@ with any_red as (
         time DESC
 )
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+    FORMAT_TIMESTAMP(
+        '%m-%d-%y',
+        DATE_TRUNC('hour', time),
+        :timezone
+    ) AS granularity_bucket,
     SUM(any_red) as red,
     SUM(total) - SUM(any_red) as green,
     SUM(total) as total,

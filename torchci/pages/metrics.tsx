@@ -98,7 +98,14 @@ function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
 
 function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
-    JSON.stringify(params)
+    JSON.stringify([
+      ...params,
+      {
+        name: "timezone",
+        type: "string",
+        value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+    ])
   )}`;
 
   const { data } = useSWR(url, fetcher, {
@@ -121,9 +128,6 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
       {
         type: "bar",
         stack: "all",
-        emphasis: {
-          focus: "series",
-        },
         encode: {
           x: "granularity_bucket",
           y: "green",
@@ -132,9 +136,6 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
       {
         type: "bar",
         stack: "all",
-        emphasis: {
-          focus: "series",
-        },
         encode: {
           x: "granularity_bucket",
           y: "red",
@@ -149,7 +150,8 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
         const green = params[0].data.green;
         const redPct = ((red / (red + green)) * 100).toFixed(2) + "%";
         const greenPct = ((green / (red + green)) * 100).toFixed(2) + "%";
-        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})`;
+        const total = red + green;
+        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Total: ${total}`;
       },
     },
   };
