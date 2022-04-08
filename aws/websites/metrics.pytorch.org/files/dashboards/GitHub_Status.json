@@ -600,7 +600,7 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/versions/f5bd7d531d5c8dad"
         }
       ],
       "title": "% commits red on master, by day",
@@ -6258,6 +6258,6 @@
   "timezone": "browser",
   "title": "GitHub Status",
   "uid": "L0r6ErGnk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

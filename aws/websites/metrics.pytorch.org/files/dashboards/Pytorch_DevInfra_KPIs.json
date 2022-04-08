@@ -247,7 +247,7 @@
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/metrics/lambdas/master_commit_red/versions/f5bd7d531d5c8dad"
         }
       ],
       "title": "7d Percent Commits Red on Trunk",
@@ -1165,6 +1165,6 @@
   "timezone": "",
   "title": "Pytorch DevInfra KPIs",
   "uid": "pvUmIvLnz",
-  "version": 1,
+  "version": 3,
   "weekStart": ""
 }
