@@ -1,13 +1,17 @@
 use anyhow::{bail, Result};
 use std::process::Output;
 
-use log::{debug, trace};
+use log::Level::Trace;
+use log::{debug, log_enabled, trace};
 
 pub fn log_files<T>(message: &str, files: &T)
 where
     T: std::fmt::Debug,
 {
-    debug!("{} <use -vv to see this list>", message);
+    if !log_enabled!(Trace) {
+        debug!("{} <use -vv to see this list>", message);
+    }
+
     trace!("{}{:?}", message, files);
 }
 
