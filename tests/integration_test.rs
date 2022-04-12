@@ -6,7 +6,7 @@ use regex::Regex;
 use serde_json;
 use std::io::Write;
 
-fn assert_output_snapshot(cmd: &mut Command) -> Result<()> {
+fn assert_output_snapshot(name: &str, cmd: &mut Command) -> Result<()> {
     let re = Regex::new("'.*test-lintrunner-config.*toml'").unwrap();
     let output = cmd.output()?;
 
@@ -18,6 +18,7 @@ fn assert_output_snapshot(cmd: &mut Command) -> Result<()> {
     let output_lines = output_string.lines().collect::<Vec<_>>();
 
     assert_yaml_snapshot!(
+        name,
         output_lines,
         // Define a dynamic redaction on all lines. This will replace the config
         // name (which is a tempfile that changes from run to run) with a fixed value.
@@ -62,7 +63,7 @@ fn unknown_config_fails() -> Result<()> {
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg("--config=asdfasdfasdf");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("unknown_config_fails", &mut cmd)?;
 
     Ok(())
 }
@@ -74,7 +75,7 @@ fn invalid_config_fails() -> Result<()> {
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("invalid_config_fails", &mut cmd)?;
 
     Ok(())
 }
@@ -93,7 +94,7 @@ fn no_op_config_succeeds() -> Result<()> {
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.assert().success();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("no_op_config_succeeds", &mut cmd)?;
 
     Ok(())
 }
@@ -112,7 +113,7 @@ fn empty_command_fails() -> Result<()> {
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("empty_command_fails", &mut cmd)?;
 
     Ok(())
 }
@@ -137,7 +138,7 @@ fn simple_linter() -> Result<()> {
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("simple_linter", &mut cmd)?;
 
     Ok(())
 }
@@ -157,7 +158,7 @@ fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.arg("blahblahblah");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("simple_linter_fails_on_nonexistent_file", &mut cmd)?;
 
     Ok(())
 }
@@ -183,7 +184,10 @@ fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot(
+        "linter_providing_nonexistent_path_degrades_gracefully",
+        &mut cmd,
+    )?;
 
     Ok(())
 }
@@ -204,7 +208,7 @@ fn linter_hard_failure_is_caught() -> Result<()> {
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("linter_hard_failure_is_caught", &mut cmd)?;
 
     Ok(())
 }
@@ -225,7 +229,7 @@ fn linter_nonexistent_command() -> Result<()> {
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("linter_nonexistent_command", &mut cmd)?;
 
     Ok(())
 }
@@ -282,7 +286,7 @@ fn simple_linter_replacement_message() -> Result<()> {
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("simple_linter_replacement_message", &mut cmd)?;
 
     Ok(())
 }
@@ -303,7 +307,7 @@ fn take_nonexistent_linter() -> Result<()> {
     cmd.arg("--take=MENOEXIST");
 
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("take_nonexistent_linter", &mut cmd)?;
 
     Ok(())
 }
@@ -324,7 +328,7 @@ fn skip_nonexistent_linter() -> Result<()> {
     cmd.arg("--skip=MENOEXIST");
 
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("skip_nonexistent_linter", &mut cmd)?;
 
     Ok(())
 }
@@ -344,7 +348,7 @@ fn invalid_paths_cmd_and_from() -> Result<()> {
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.args(["--paths-cmd", "echo foo", "--paths-from", "foo"]);
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("invalid_paths_cmd_and_from", &mut cmd)?;
 
     Ok(())
 }
@@ -364,7 +368,7 @@ fn invalid_paths_cmd_and_specified_paths() -> Result<()> {
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     cmd.args(["--paths-cmd", "echo foo", "bar", "foo"]);
     cmd.assert().failure();
-    assert_output_snapshot(&mut cmd)?;
+    assert_output_snapshot("invalid_paths_cmd_and_specified_paths", &mut cmd)?;
 
     Ok(())
 }

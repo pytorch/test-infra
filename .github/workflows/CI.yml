@@ -1,14 +1,22 @@
 name: CI
 
 on:
-  push:
   pull_request:
+  push:
+    branches:
+      - master
+    tags:
+      - refs/tags/*
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Initialize git config for testing
+        run: |
+          git config --global user.email "fake@email.com"
+          git config --global user.name "mr fake"
       - run: cargo test
         env:
           TMPDIR: ${{ runner.temp }}
