@@ -57,6 +57,11 @@ struct Opt {
     /// Paths to lint.
     #[structopt(conflicts_with_all = &["paths-cmd", "paths-from"])]
     paths: Vec<String>,
+
+    /// If set, always output with ANSI colors, even if we detect the output is
+    /// not a user-attended terminal.
+    #[structopt(long, conflicts_with = "json")]
+    force_color: bool,
 }
 
 #[derive(StructOpt, Debug)]
@@ -71,6 +76,10 @@ enum SubCommand {
 
 fn do_main() -> Result<i32> {
     let opt = Opt::from_args();
+    if opt.force_color {
+        console::set_colors_enabled(true);
+        console::set_colors_enabled_stderr(true);
+    }
     let log_level = match (opt.verbose, opt.json) {
         // Default
         (0, false) => log::LevelFilter::Info,
