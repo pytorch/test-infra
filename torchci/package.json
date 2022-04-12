@@ -21,6 +21,7 @@
     "@mui/lab": "^5.0.0-alpha.75",
     "@mui/material": "^5.5.3",
     "@mui/x-data-grid": "^5.8.0",
+    "@mui/x-date-pickers": "^5.0.0-alpha.0",
     "@octokit/webhooks": "^9.22.0",
     "@rockset/client": "^0.8.9",
     "axios": "^0.26.0",

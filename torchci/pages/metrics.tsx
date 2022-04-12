@@ -1,5 +1,4 @@
-import AdapterDayjs from "@mui/lab/AdapterDayjs";
-import LocalizationProvider from "@mui/lab/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
@@ -15,9 +14,15 @@ import {
   Typography,
   Stack,
   Skeleton,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
 } from "@mui/material";
-import { DateTimePicker } from "@mui/lab";
-import { useState } from "react";
+import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
+
+import { useEffect, useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
@@ -214,6 +219,91 @@ function TimePicker({ label, value, setValue }: any) {
   );
 }
 
+/**
+ * Allows the user to pick from common time ranges, or manually set their own.
+ */
+function TimeRangePicker({
+  startTime,
+  stopTime,
+  setStartTime,
+  setStopTime,
+}: {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
+  setStartTime: any;
+  setStopTime: any;
+}) {
+  // User-selected time range. If it's a number, the range is (#days to now). If
+  // it's -1, the time range has been to a custom value.
+  const [timeRange, setTimeRange] = useState<number>(7);
+
+  function updateTimeRange() {
+    if (timeRange === -1) {
+      return;
+    }
+    const startTime = dayjs().subtract(timeRange, "day");
+    setStartTime(startTime);
+    const stopTime = dayjs();
+    setStopTime(stopTime);
+  }
+
+  // Keep the current time range updated.
+  useEffect(() => {
+    const id = setInterval(updateTimeRange, 1000 * 60 * 5 /*5 minutes*/);
+    return () => clearInterval(id);
+  }, [timeRange]);
+
+  function handleChange(e: SelectChangeEvent<number>) {
+    setTimeRange(e.target.value as number);
+    // The user wants to set a custom time, don't change the start and stop
+    // time.
+    if (e.target.value !== -1) {
+      const startTime = dayjs().subtract(e.target.value as number, "day");
+      setStartTime(startTime);
+      const stopTime = dayjs();
+      setStopTime(stopTime);
+    }
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="time-picker-select-label">Time Range</InputLabel>
+        <Select
+          defaultValue={7}
+          label="Time Range"
+          labelId="time-picker-select-label"
+          onChange={handleChange}
+        >
+          <MenuItem value={1}>Last 1 Day</MenuItem>
+          <MenuItem value={3}>Last 3 Days</MenuItem>
+          <MenuItem value={7}>Last 7 Days</MenuItem>
+          <MenuItem value={14}>Last 14 Days</MenuItem>
+          <MenuItem value={30}>Last Month</MenuItem>
+          <MenuItem value={90}>Last Quarter</MenuItem>
+          <MenuItem value={180}>Last Half</MenuItem>
+          <MenuItem value={365}>Last Year</MenuItem>
+          <MenuItem value={-1}>Custom Time Range</MenuItem>
+        </Select>
+      </FormControl>
+      {timeRange === -1 && (
+        <>
+          <TimePicker
+            label={"Start Time"}
+            value={startTime}
+            setValue={setStartTime}
+          />
+          <TimePicker
+            label={"Stop Time"}
+            value={stopTime}
+            setValue={setStopTime}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 const ROW_HEIGHT = 340;
 
 export default function Page() {
@@ -239,15 +329,11 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch CI Metrics
         </Typography>
-        <TimePicker
-          label={"Start Time"}
-          value={startTime}
-          setValue={setStartTime}
-        />
-        <TimePicker
-          label={"Stop Time"}
-          value={stopTime}
-          setValue={setStopTime}
+        <TimeRangePicker
+          startTime={startTime}
+          stopTime={stopTime}
+          setStartTime={setStartTime}
+          setStopTime={setStopTime}
         />
       </Stack>
 
