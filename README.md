@@ -120,7 +120,7 @@ its contents as a list of arguments.
 ### Output
 Any lint messages a linter would like to communicate the user must be
 represented as a `LintMessage`. The linter, must print `LintMessage`s  as [JSON
-Lines] (https://jsonlines.org/) to `stdout`, one message per line. Output to
+Lines](https://jsonlines.org/) to `stdout`, one message per line. Output to
 `stderr` will be ignored.
 
 A complete description of the LintMessage schema can be found
