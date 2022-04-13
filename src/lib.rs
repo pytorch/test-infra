@@ -201,6 +201,9 @@ pub fn do_lint(
     // Unwrap is fine because all other owners hsould have been joined.
     let all_lints = all_lints.lock().unwrap();
 
+    // Flush the logger before rendering results.
+    log::logger().flush();
+
     let mut stdout = Term::stdout();
 
     let did_print = if render_as_json {
