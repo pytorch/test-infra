@@ -6,9 +6,17 @@ import LogViewer from "components/LogViewer";
 import styles from "components/minihud.module.css";
 import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
+import fetchHud from "lib/fetchHud";
 import { isFailedJob } from "lib/jobUtils";
-import { HudParams, JobData, packHudParams, RowData } from "lib/types";
+import {
+  formatHudUrlForFetch,
+  HudParams,
+  JobData,
+  packHudParams,
+  RowData,
+} from "lib/types";
 import useHudData from "lib/useHudData";
+import { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import { useRouter } from "next/router";
 import {
   createContext,
@@ -385,4 +393,23 @@ export default function Page() {
       </JobFilterContext.Provider>
     </SWRConfig>
   );
+}
+
+export async function getServerSideProps(
+  context: GetServerSidePropsContext
+): Promise<GetServerSidePropsResult<Record<string, unknown>>> {
+  const page = context?.query?.page ?? ["1"];
+  const params: HudParams = {
+    branch: (context?.params?.branch ?? "master") as string,
+    repoOwner: (context?.params?.repoOwner ?? "pytorch") as string,
+    repoName: (context?.params?.repoName ?? "pytorch") as string,
+    page: parseInt(page[0] ?? "1"),
+  };
+  return {
+    props: {
+      fallback: {
+        [formatHudUrlForFetch("api/hud", params)]: await fetchHud(params),
+      },
+    },
+  };
 }

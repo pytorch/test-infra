@@ -7,10 +7,13 @@ import styles from "components/hud.module.css";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
+import PageSelector from "components/PageSelector";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
+import fetchHud from "lib/fetchHud";
 import { getGroupingData } from "lib/JobClassifierUtil";
 import {
+  formatHudUrlForFetch,
   formatHudUrlForRoute,
   HudData,
   HudParams,
@@ -18,14 +21,13 @@ import {
   packHudParams,
   RowData,
 } from "lib/types";
+import useGroupingPreference from "lib/useGroupingPreference";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
+import { GetServerSidePropsContext, GetServerSidePropsResult } from "next";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
-import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import PageSelector from "components/PageSelector";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -408,4 +410,23 @@ function GroupedHudTable({
       />
     </GroupFilterableHudTable>
   );
+}
+
+export async function getServerSideProps(
+  context: GetServerSidePropsContext
+): Promise<GetServerSidePropsResult<Record<string, unknown>>> {
+  const page = context?.query?.page ?? ["1"];
+  const params: HudParams = {
+    branch: (context?.params?.branch ?? "master") as string,
+    repoOwner: (context?.params?.repoOwner ?? "pytorch") as string,
+    repoName: (context?.params?.repoName ?? "pytorch") as string,
+    page: parseInt(page[0] ?? "1"),
+  };
+  return {
+    props: {
+      fallback: {
+        [formatHudUrlForFetch("api/hud", params)]: await fetchHud(params),
+      },
+    },
+  };
 }
