@@ -12557,7 +12557,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_large_cumsum_cuda_float16%2C%20TestTorchDeviceTypeCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6002054004).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @mruberry",
+      "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_large_cumsum_cuda_float16%2C%20TestTorchDeviceTypeCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6002054004).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75726/comments",
@@ -12566,6 +12566,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/75726",
       "id": 1203053201,
       "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -12617,7 +12644,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75726/timeline",
       "title": "DISABLED test_large_cumsum_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-04-13T09:40:57Z",
+      "updated_at": "2022-04-13T13:45:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75726",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -12639,7 +12666,113 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_large_cumprod_cuda_float16%2C%20TestTorchDeviceTypeCUDA)).\r\n\r\nSeems similar to https://github.com/pytorch/pytorch/issues/75726 where they both fail to allocate enough memory.\n\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/comments",
+      "created_at": "2022-04-13T13:45:55Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/75731",
+      "id": 1203326258,
+      "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85HuU0y",
+      "number": 75731,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/timeline",
+      "title": "DISABLED test_large_cumprod_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)",
+      "updated_at": "2022-04-13T13:46:29Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/75731",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
+        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
+        "followers_url": "https://api.github.com/users/janeyx99/followers",
+        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
+        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/janeyx99",
+        "id": 31798555,
+        "login": "janeyx99",
+        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
+        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
+        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
+        "repos_url": "https://api.github.com/users/janeyx99/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/janeyx99"
+      }
     }
   ],
-  "total_count": 116
+  "total_count": 117
 }
