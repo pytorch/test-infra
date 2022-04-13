@@ -10,6 +10,7 @@ import {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function useHudData(params: HudParams): HudData | undefined {
+  console.log("PARAMS", params);
   const { data } = useSWR(formatHudUrlForFetch("api/hud", params), fetcher, {
     refreshInterval: 60 * 1000, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab

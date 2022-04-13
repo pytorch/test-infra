@@ -23,8 +23,9 @@ import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import useGroupingPreference from "pages/settings/useGroupingPreference";
+import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import PageSelector from "components/PageSelector";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -240,32 +241,6 @@ function HudTable({ params }: { params: HudParams }) {
   return <GroupedView params={params} />;
 }
 
-function PageSelector({ params }: { params: HudParams }) {
-  return (
-    <div>
-      Page {params.page}:{" "}
-      {params.page !== 0 ? (
-        <span>
-          <Link
-            href={formatHudUrlForRoute("hud", {
-              ...params,
-              page: params.page - 1,
-            })}
-          >
-            Prev
-          </Link>{" "}
-          |{" "}
-        </span>
-      ) : null}
-      <Link
-        href={formatHudUrlForRoute("hud", { ...params, page: params.page + 1 })}
-      >
-        Next
-      </Link>
-    </div>
-  );
-}
-
 function ParamSelector({
   value,
   handleSubmit,
@@ -370,7 +345,7 @@ export default function Hud() {
             <HudHeader params={params} />
             <div>This page automatically updates.</div>
             <HudTable params={params} />
-            <PageSelector params={params} />
+            <PageSelector params={params} baseUrl="hud" />
           </div>
         )}
       </PinnedTooltipContext.Provider>
