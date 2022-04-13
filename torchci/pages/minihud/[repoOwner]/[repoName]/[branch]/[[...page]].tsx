@@ -1,5 +1,15 @@
-import { GetStaticProps } from "next";
-import { SWRConfig } from "swr";
+import CopyLink from "components/CopyLink";
+import JobConclusion from "components/JobConclusion";
+import JobFilterInput from "components/JobFilterInput";
+import JobLinks from "components/JobLinks";
+import LogViewer from "components/LogViewer";
+import styles from "components/minihud.module.css";
+import PageSelector from "components/PageSelector";
+import { LocalTimeHuman } from "components/TimeUtils";
+import { isFailedJob } from "lib/jobUtils";
+import { HudParams, JobData, packHudParams, RowData } from "lib/types";
+import useHudData from "lib/useHudData";
+import { useRouter } from "next/router";
 import {
   createContext,
   CSSProperties,
@@ -8,19 +18,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { useRouter } from "next/router";
-
-import fetchHud from "lib/fetchHud";
-import { formatHudUrlForFetch, HudParams, JobData, RowData } from "lib/types";
-import styles from "components/minihud.module.css";
-import JobLinks from "components/JobLinks";
-import { LocalTimeHuman } from "components/TimeUtils";
-import JobConclusion from "components/JobConclusion";
-import JobFilterInput from "components/JobFilterInput";
-import useHudData from "lib/useHudData";
-import { isFailedJob } from "lib/jobUtils";
-import LogViewer from "components/LogViewer";
-import CopyLink from "components/CopyLink";
+import { SWRConfig } from "swr";
 
 function getOrigin() {
   return typeof window !== "undefined" && window.location.origin
@@ -310,13 +308,7 @@ function CommitSummary({ row }: { row: RowData }) {
   );
 }
 
-function MiniHud() {
-  const params: HudParams = {
-    branch: "master",
-    repoOwner: "pytorch",
-    repoName: "pytorch",
-    page: 0,
-  };
+function MiniHud({ params }: { params: HudParams }) {
   const data = useHudData(params);
   if (data === undefined) {
     return <div>Loading...</div>;
@@ -341,8 +333,9 @@ const JobHoverContext = createContext<
   [null | string, (name: null | string) => void]
 >([null, (_n) => {}]);
 
-export default function Page({ fallback }: any) {
+export default function Page() {
   const router = useRouter();
+  const params = packHudParams(router.query);
   const [jobFilter, setJobFilter] = useState<string | null>(null);
   const [jobHover, setJobHover] = useState<string | null>(null);
 
@@ -364,7 +357,13 @@ export default function Page({ fallback }: any) {
   }, [router.query.name_filter]);
 
   return (
-    <SWRConfig value={{ fallback }}>
+    <SWRConfig
+      value={{
+        refreshInterval: 60 * 1000,
+        fetcher: (resource, init) =>
+          fetch(resource, init).then((res) => res.json()),
+      }}
+    >
       <JobFilterInput
         width="50%"
         currentFilter={jobFilter}
@@ -375,27 +374,15 @@ export default function Page({ fallback }: any) {
       <JobFilterContext.Provider value={[jobFilter, setJobFilter]}>
         <JobHoverContext.Provider value={[jobHover, setJobHover]}>
           <div style={{ display: "grid" }}>
-            <MiniHud />
+            {params.branch != undefined && (
+              <>
+                <MiniHud params={params} />
+                <PageSelector params={params} baseUrl="minihud" />
+              </>
+            )}
           </div>
         </JobHoverContext.Provider>
       </JobFilterContext.Provider>
     </SWRConfig>
   );
 }
-
-export const getStaticProps: GetStaticProps = async () => {
-  const params: HudParams = {
-    branch: "master",
-    repoOwner: "pytorch",
-    repoName: "pytorch",
-    page: 0,
-  };
-  return {
-    props: {
-      fallback: {
-        [formatHudUrlForFetch("api/hud", params)]: await fetchHud(params),
-      },
-    },
-    revalidate: 60,
-  };
-};
