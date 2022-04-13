@@ -12383,7 +12383,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fft_plan_repeatable_cuda%2C%20TestFFTCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH @mruberry @peterbell10",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75664/comments",
       "created_at": "2022-04-12T14:57:30Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75664/events",
@@ -12441,7 +12441,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75664/timeline",
       "title": "DISABLED test_fft_plan_repeatable_cuda (__main__.TestFFTCUDA)",
-      "updated_at": "2022-04-12T22:43:30Z",
+      "updated_at": "2022-04-13T20:05:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75664",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
