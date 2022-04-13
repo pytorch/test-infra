@@ -13,7 +13,6 @@ export default function bot(app: Probot) {
   autoCcBot(app);
   autoLabelBot(app);
   verifyDisableTestIssueBot(app);
-  // ciflowBot(app);
   ciflowPushTrigger(app);
   webhookToDynamo(app);
   triggerCircleCIWorkflows(app);
