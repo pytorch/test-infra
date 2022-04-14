@@ -11,12 +11,9 @@ which is useful on large polyglot projects.
 The design of `lintrunner` is heavily inspired by `linttool`, a project that exists internally at Meta.
 
 ## Installation
-Currently, do:
 ```
-cargo install lintrunner --force
+pip install lintrunner
 ```
-
-In the future we’ll probably do binary releases through GitHub, `pip`, or `conda`.
 
 ## Usage
 First, you need to add a configuration file to your repo. See the [Linter
