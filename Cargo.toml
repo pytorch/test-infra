@@ -7,7 +7,7 @@ description = "A lint running tool and framework."
 license = "BSD-3-Clause"
 
 [dependencies]
-structopt = "0.3.25"
+clap = { version = "3.1.8", features = ["derive"] }
 anyhow = "1.0"
 glob = "0.3"
 tempfile = "3.2"
