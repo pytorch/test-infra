@@ -21,7 +21,7 @@ configuration](#linter-configuration) section for more info.
 
 Then, simply run `lintrunner` to lint your changes!
 
-## How `lintrunner` decides what paths to lint
+## How to control what paths to lint `lintrunner`
 When run with no arguments, `lintrunner` will check:
 - The files changed in the `HEAD` commit.
 - The files changed in the user’s working tree.
@@ -65,6 +65,15 @@ This value can be any `<tree-ish>` accepted by `git diff-tree`, like a commit
 hash or revspec. If this is specified, `lintrunner` will check:
 - All paths changed from `<tree-ish>` to `HEAD`
 - All paths changed in the user's working tree.
+
+### `--merge-base-with`
+Like `--revision`, except the revision is determined by computing the merge-base 
+of `HEAD` and the provided `<tree-ish>`. This is useful for linting all commits 
+in a specific pull request. For example, for a pull request targeting master, 
+you can run:
+```
+lintrunner -m master
+```
 
 ## Linter configuration
 `lintrunner` knows which linters to run and how by looking at a configuration
