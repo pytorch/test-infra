@@ -29,7 +29,23 @@ pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
         .collect::<Result<_>>()
 }
 
-pub fn get_changed_files(git_root: AbsPath, relative_to: Option<&str>) -> Result<Vec<AbsPath>> {
+pub fn get_merge_base_with(git_root: &AbsPath, merge_base_with: &str) -> Result<String> {
+    let output = Command::new("git")
+        .arg("merge-base")
+        .arg("HEAD")
+        .arg(merge_base_with)
+        .current_dir(git_root)
+        .output()?;
+
+    ensure!(
+        output.status.success(),
+        format!("Failed to get merge-base between HEAD and {merge_base_with}")
+    );
+    let merge_base = std::str::from_utf8(&output.stdout)?.trim();
+    Ok(merge_base.to_string())
+}
+
+pub fn get_changed_files(git_root: &AbsPath, relative_to: Option<&str>) -> Result<Vec<AbsPath>> {
     // Output of --name-status looks like:
     // D    src/lib.rs
     // M    foo/bar.baz
@@ -49,7 +65,7 @@ pub fn get_changed_files(git_root: AbsPath, relative_to: Option<&str>) -> Result
     }
     let output = Command::new("git")
         .args(&args)
-        .current_dir(&git_root)
+        .current_dir(git_root)
         .output()?;
     ensure_output("git diff-tree", &output)?;
 
@@ -75,7 +91,7 @@ pub fn get_changed_files(git_root: AbsPath, relative_to: Option<&str>) -> Result
         .arg("--name-status")
         .arg("-r")
         .arg("HEAD")
-        .current_dir(&git_root)
+        .current_dir(git_root)
         .output()?;
     ensure_output("git diff-index", &output)?;
 
@@ -157,6 +173,15 @@ mod tests {
             Ok(())
         }
 
+        fn checkout_new_branch(&self, branch_name: &str) -> Result<()> {
+            let output = Command::new("git")
+                .args(&["checkout", "-b", branch_name])
+                .current_dir(self.root.path())
+                .output()?;
+            assert!(output.status.success());
+            Ok(())
+        }
+
         fn add(&self, pathspec: &str) -> Result<()> {
             let output = Command::new("git")
                 .args(&["add", pathspec])
@@ -177,12 +202,17 @@ mod tests {
 
         fn changed_files(&self, relative_to: Option<&str>) -> Result<Vec<String>> {
             let git_root = AbsPath::try_from(self.root.path())?;
-            let files = get_changed_files(git_root, relative_to)?;
+            let files = get_changed_files(&git_root, relative_to)?;
             let files = files
                 .into_iter()
                 .map(|abs_path| abs_path.file_name().unwrap().to_string_lossy().to_string())
                 .collect::<Vec<_>>();
             Ok(files)
+        }
+
+        fn merge_base_with(&self, merge_base_with: &str) -> Result<String> {
+            let git_root = AbsPath::try_from(self.root.path())?;
+            get_merge_base_with(&git_root, merge_base_with)
         }
     }
 
@@ -283,6 +313,53 @@ mod tests {
             assert!(files.contains(&"test_1.txt".to_string()));
             assert!(files.contains(&"test_2.txt".to_string()));
             assert!(files.contains(&"test_3.txt".to_string()));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn merge_base_with() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.write_file("test_3.txt", "Initial commit")?;
+        git.write_file("test_4.txt", "Initial commit")?;
+
+        git.add(".")?;
+        git.commit("I am main")?;
+
+        git.checkout_new_branch("branch1")?;
+        git.write_file("test_1.txt", "foo")?;
+        git.add(".")?;
+        git.commit("I am on branch1")?;
+
+        git.checkout_new_branch("branch2")?;
+        git.write_file("test_2.txt", "foo")?;
+        git.add(".")?;
+        git.commit("I am branch2")?;
+
+        git.checkout_new_branch("branch3")?;
+        git.write_file("test_3.txt", "blah")?;
+        git.add(".")?;
+        git.commit("I am branch3")?;
+
+        // Add some uncomitted changes to the working tree
+        git.write_file("test_4.txt", "blahblah")?;
+
+        {
+            let merge_base = Some(git.merge_base_with("branch2")?);
+            let files = git.changed_files(merge_base.as_deref())?;
+            assert_eq!(files.len(), 2);
+            assert!(files.contains(&"test_4.txt".to_string()));
+            assert!(files.contains(&"test_3.txt".to_string()));
+        }
+        {
+            let merge_base = Some(git.merge_base_with("branch1")?);
+            let files = git.changed_files(merge_base.as_deref())?;
+            assert_eq!(files.len(), 3);
+            assert!(files.contains(&"test_4.txt".to_string()));
+            assert!(files.contains(&"test_3.txt".to_string()));
+            assert!(files.contains(&"test_2.txt".to_string()));
         }
         Ok(())
     }

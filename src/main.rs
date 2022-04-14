@@ -5,7 +5,7 @@ use structopt::StructOpt;
 
 use lintrunner::{
     do_init, do_lint, lint_config::get_linters_from_config, path::AbsPath, render::print_error,
-    PathsToLint,
+    PathsToLint, RevisionOpt,
 };
 
 #[derive(Debug, StructOpt)]
@@ -24,7 +24,8 @@ struct Opt {
     apply_patches: bool,
 
     /// Shell command that returns new-line separated paths to lint
-    /// (e.g. --paths-cmd 'git ls-files path/to/project')
+    ///
+    /// Example: --paths-cmd 'git ls-files path/to/project'
     #[structopt(long, conflicts_with = "paths-from")]
     paths_cmd: Option<String>,
 
@@ -35,8 +36,16 @@ struct Opt {
     /// Lint all files that differ between the working directory and the
     /// specified revision. This argument can be any <tree-ish> that is accepted
     /// by `git diff-tree`
-    #[structopt(long, conflicts_with_all=&["paths", "paths-cmd", "paths-from"])]
+    #[structopt(long, short, conflicts_with_all=&["paths", "paths-cmd", "paths-from"])]
     revision: Option<String>,
+
+    /// Lint all files that differ between the merge base of HEAD with the
+    /// specified revision and HEAD. This argument can be any <tree-sh> that is
+    /// accepted by `git diff-tree`
+    ///
+    /// Example: lintrunner -m master
+    #[structopt(long, short, conflicts_with_all=&["paths", "paths-cmd", "paths-from", "revision"])]
+    merge_base_with: Option<String>,
 
     /// Comma-separated list of linters to skip (e.g. --skip CLANGFORMAT,NOQA)
     #[structopt(long)]
@@ -126,6 +135,14 @@ fn do_main() -> Result<i32> {
         PathsToLint::Auto
     };
 
+    let revision_opt = if let Some(revision) = opt.revision {
+        RevisionOpt::Revision(revision)
+    } else if let Some(merge_base_with) = opt.merge_base_with {
+        RevisionOpt::MergeBaseWith(merge_base_with)
+    } else {
+        RevisionOpt::Head
+    };
+
     match opt.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
@@ -139,7 +156,7 @@ fn do_main() -> Result<i32> {
                 opt.apply_patches,
                 opt.json,
                 enable_spinners,
-                opt.revision,
+                revision_opt,
             )
         }
     }

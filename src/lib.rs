@@ -25,6 +25,8 @@ use git::get_paths_from_cmd;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
+use crate::git::get_merge_base_with;
+
 fn group_lints_by_file(
     all_lints: &mut HashMap<Option<String>, Vec<LintMessage>>,
     lints: Vec<LintMessage>,
@@ -105,11 +107,25 @@ fn get_paths_from_file(file: AbsPath) -> Result<Vec<AbsPath>> {
     get_paths_from_input(files)
 }
 
+/// Represents the set of paths the user wants to lint.
 pub enum PathsToLint {
+    /// The user didn't specify any paths, so we'll automatically determine
+    /// which paths to check.
     Auto,
     PathsFile(AbsPath),
     PathsCmd(String),
     Paths(Vec<String>),
+}
+
+/// Represents the scope of revisions that the auto paths finder will look at to
+/// determine which paths to lint.
+pub enum RevisionOpt {
+    /// Look at changes in HEAD and changes in the working tree.
+    Head,
+    /// Look at changes from revision..HEAD and changes in the working tree.
+    Revision(String),
+    /// Look at changes from merge_base(revision, HEAD)..HEAD and changes in the working tree.
+    MergeBaseWith(String),
 }
 
 pub fn do_lint(
@@ -118,7 +134,7 @@ pub fn do_lint(
     should_apply_patches: bool,
     render_as_json: bool,
     enable_spinners: bool,
-    revision: Option<String>,
+    revision_opt: RevisionOpt,
 ) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
@@ -128,7 +144,14 @@ pub fn do_lint(
     let mut files = match paths_to_lint {
         PathsToLint::Auto => {
             let git_root = get_git_root()?;
-            get_changed_files(git_root, revision.as_deref())?
+            let relative_to = match revision_opt {
+                RevisionOpt::Head => None,
+                RevisionOpt::Revision(revision) => Some(revision),
+                RevisionOpt::MergeBaseWith(merge_base_with) => {
+                    Some(get_merge_base_with(&git_root, &merge_base_with)?)
+                }
+            };
+            get_changed_files(&git_root, relative_to.as_deref())?
         }
         PathsToLint::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
         PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
