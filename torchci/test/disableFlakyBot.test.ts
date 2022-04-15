@@ -17,6 +17,19 @@ const flakyTestA = {
     branches: ["master", "master", "master"]
 }
 
+const flakyTestB = {
+    file: "file_b",
+    suite: "suite_b",
+    name: "test_b",
+    numGreen: 4,
+    numRed: 2,
+    workflowIds: ["12345678", "13456789", "14253647"],
+    workflowNames: ["win-cpu-vs-2019", "periodic-win-cuda11.3-vs-2019", "periodic-win-cuda11.3-vs-2019"],
+    jobIds: [55443322, 55667788, 56789876],
+    jobNames: ["win-cpu-vs-2019 / test", "win-cuda11.3-vs-2019 / test", "win-cuda11.3-vs-2019 / test"],
+    branches: ["main", "main", "main"]
+}
+
 const flakyTestE = {
     file: "file_e",
     suite: "suite_e",
@@ -60,6 +73,27 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
             console.error("pending mocks: %j", scope2.pendingMocks());
         }
     });
+
+    test("previously undetected flaky test should create an issue on main", async () => {
+        const scope = nock("https://raw.githubusercontent.com")
+            .get(`/pytorch/pytorch/master/test/${flakyTestB.file}.py`)
+            .reply(200, Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`));
+        const scope2 = nock("https://api.github.com")
+            .post("/repos/pytorch/pytorch/issues", (body) => {
+                expect(body.title).toEqual("DISABLED test_b (__main__.suite_b)");
+                expect(body.labels).toEqual(["skipped", "module: flaky-tests", "module: fft"]);
+                expect(JSON.stringify(body.body)).toContain("Platforms: ");
+                return true;
+            })
+            .reply(200, {});
+
+        await disableFlakyTestBot.handleFlakyTest(flakyTestB, [], octokit);
+
+        if (!nock.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+            console.error("pending mocks: %j", scope2.pendingMocks());
+        }
+      });
 
     test("flaky test associated with an open issue should comment", async () => {
         const scope = nock("https://api.github.com")
@@ -269,5 +303,3 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain("Platforms: ");
     });
 })
-
-

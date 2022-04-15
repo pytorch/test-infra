@@ -34,7 +34,7 @@ def get_branch_name(ref: str) -> str:
 
 
 def is_branch_important(branch: str) -> bool:
-    return branch in ['master', 'nightly', 'viable/strict'] or branch.startswith('release/')
+    return branch in ['master', 'main', 'nightly', 'viable/strict'] or branch.startswith('release/')
 
 
 def handle_commits(commits, ref) -> None:
@@ -88,9 +88,11 @@ def get_workflow_name(job_id):
 
 def lambda_handler(event, context):
     body = json.loads(event["body"])
+    branch_name = "master"
 
     # push
     if 'commits' in body:
+        branch_name = get_branch_name(body['ref'])
         handle_commits(body['commits'], body['ref'])
         return
 
@@ -107,7 +109,8 @@ def lambda_handler(event, context):
         status = body["check_run"]["conclusion"]
         committer = body["sender"]["login"]
         # For some reason actions aren't facebook-github-bot..
-        is_master = body["check_run"]["check_suite"]["head_branch"] == "master"
+        branch_name = body["check_run"]["check_suite"]["head_branch"]
+        is_default_branch = branch_name in {"master", "main"}
 
     # status
     else:
@@ -125,11 +128,11 @@ def lambda_handler(event, context):
             print(json.dumps(body))
             committer = "(unknown)"
         # master commits are always made by facebook-github-bot
-        is_master = committer == "facebook-github-bot"
+        is_default_branch = committer == "facebook-github-bot"
 
     commit_source = ''
-    if is_master:
-        commit_source = 'master'
+    if is_default_branch:
+        commit_source = branch_name
     else:
         commit_source = 'pr'
 

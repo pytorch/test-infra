@@ -46,7 +46,7 @@ async def run_query(query: str, params: Any = None) -> List[Dict[str, Any]]:
 
 PR_RE = re.compile(r"(.*)\(#([0-9]+)\)$")
 NUM_COMMITS = int(os.getenv("num_commits", 100))
-BRANCHES = os.getenv("branches", "master,release/1.9,nightly").split(",")
+BRANCHES = os.getenv("branches", "master,main,release/1.9,nightly").split(",")
 
 
 async def get_commits(branch: str) -> List[Dict[str, Any]]:

@@ -49,7 +49,7 @@ EVENT_TARGETS = {
     },
     "sync-pytorch-pytorch": {
         "schedule": "rate(1 minute)",
-        "input": generate_input(repo="pytorch", branches=["master"]),
+        "input": generate_input(repo="pytorch", branches=["master", "main"]),
     },
     "sync-pytorch-pytorch-slow": {
         "schedule": "rate(1 hour)",

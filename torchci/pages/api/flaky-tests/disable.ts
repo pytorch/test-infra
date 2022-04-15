@@ -42,7 +42,7 @@ async function disableFlakyTests() {
 
 export function filterOutPRFlakyTests(tests: FlakyTestData[]) : FlakyTestData[] {
     // Remove the PR-only instances of flakiness, but don't modify data within
-    return tests.filter(test => test.branches.includes("master"));
+    return tests.filter(test => test.branches.includes("master") || test.branches.includes("main"));
 }
 
 
@@ -91,8 +91,11 @@ export async function handleFlakyTest(test: FlakyTestData, issues: IssueData[], 
 export function getLatestTrunkJobURL(test: FlakyTestData): string {
     let index = test.branches.lastIndexOf("master");
     if (index < 0) {
-        console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
-        index = test.jobIds.length - 1;
+        let index = test.branches.lastIndexOf("main");
+        if (index < 0) {
+            console.warn(`Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`);
+            index = test.workflowIds.length - 1;
+        }
     }
     return `https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`;
 }
