@@ -21,7 +21,7 @@ FROM
             job.name != 'ciflow_should_run'
             AND job.name != 'generate-test-matrix'
             AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-            AND push.ref = 'refs/heads/master'
+            AND push.ref IN ('refs/heads/master', 'refs/heads/main')
             AND push.repository.owner.name = 'pytorch'
             AND push.repository.name = 'pytorch'
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
@@ -38,7 +38,7 @@ FROM
             circleci.job job
             JOIN push on job.pipeline.vcs.revision = push.head_commit.id
         WHERE
-            push.ref = 'refs/heads/master'
+            push.ref IN ('refs/heads/master', 'refs/heads/main')
             AND push.repository.owner.name = 'pytorch'
             AND push.repository.name = 'pytorch'
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)

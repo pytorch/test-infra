@@ -8,7 +8,7 @@ from
     workflow_run workflow
     JOIN push on workflow.head_commit.id = push.head_commit.id
 where
-    push.ref = 'refs/heads/master'
+    push.ref IN ('refs/heads/master', 'refs/heads/main')
     AND push.repository.owner.name = 'pytorch'
     AND push.repository.name = 'pytorch'
     AND workflow.conclusion = 'success'
