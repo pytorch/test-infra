@@ -3,7 +3,7 @@
 
 ### Features
 
-* add --oneline arg for compact lint rendering ([d1dead9](https://github.com/suo/lintrunner/commit/d1dead9fcda6ffd7d0e3f7b5fa5ba9c52befe20f))
+* add --oneline arg for compact lint rendering ([d1dead9](https://github.com/suo/lintrunner/commit/a0a9e878781a2ead70ff7bfc94064275eeb79020))
 
 
 
