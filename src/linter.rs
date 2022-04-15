@@ -8,7 +8,7 @@ use crate::{
     path::{path_relative_from, AbsPath},
 };
 use anyhow::{anyhow, bail, ensure, Context, Result};
-use glob::Pattern;
+use glob::{MatchOptions, Pattern};
 use log::{debug, info};
 
 pub struct Linter {
@@ -23,7 +23,17 @@ pub struct Linter {
 fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
     // Unwrap ok because we already checked that both paths are absolute.
     let relative_path = path_relative_from(from, base).unwrap();
-    pattern.matches(relative_path.to_str().unwrap())
+    pattern.matches_with(
+        relative_path.to_str().unwrap(),
+        MatchOptions {
+            case_sensitive: true,
+            // Explicitly set this option to true. Most unix implementations do
+            // not allow `*` to match across path segments, so the default
+            // (false) behavior is unexpected for people.
+            require_literal_separator: true,
+            require_literal_leading_dot: false,
+        },
+    )
 }
 
 impl Linter {
@@ -181,5 +191,23 @@ impl Linter {
             }
             None => Ok(()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    // Check that `*` does not match across path segments.
+    #[test]
+    fn test_glob_with_separator() -> Result<()> {
+        assert!(!matches_relative_path(
+            &PathBuf::from(""),
+            &PathBuf::from("foo/bar/baz"),
+            &Pattern::new("foo/b*")?,
+        ));
+        Ok(())
     }
 }

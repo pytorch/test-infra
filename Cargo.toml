@@ -1,6 +1,6 @@
 [package]
 name = "lintrunner"
-version = "0.6.1"
+version = "0.6.2"
 authors = ["Michael Suo <suo@fb.com>"]
 edition = "2021"
 description = "A lint running tool and framework."
