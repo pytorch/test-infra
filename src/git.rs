@@ -58,11 +58,12 @@ pub fn get_changed_files(git_root: &AbsPath, relative_to: Option<&str>) -> Resul
         "--no-commit-id",
         "--name-status",
         "-r",
-        "HEAD",
     ];
     if let Some(relative_to) = relative_to {
         args.push(relative_to);
     }
+    args.push("HEAD");
+
     let output = Command::new("git")
         .args(&args)
         .current_dir(git_root)
