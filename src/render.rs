@@ -49,11 +49,12 @@ pub fn render_lint_messages_oneline(
             Some(desc) => desc.as_str(),
         };
         let description = description.lines().join(" ");
+        let severity = lint_message.severity.label();
 
         writeln!(
             stdout,
-            "{}:{}:{}: {} [{}]",
-            display_path, line_number, column, description, lint_message.code
+            "{}:{}:{}:{} {} [{}]",
+            display_path, line_number, column, severity, description, lint_message.code
         )?;
     }
 

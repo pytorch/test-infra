@@ -4,7 +4,7 @@ expression: output_lines
 
 ---
 - "STDOUT:"
-- "tests/fixtures/fake_source_file.rs:9:1: A dummy linter failure [DUMMY]"
+- "tests/fixtures/fake_source_file.rs:9:1:Advice A dummy linter failure [DUMMY]"
 - ""
 - ""
 - "STDERR:"
