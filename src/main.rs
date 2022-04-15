@@ -5,7 +5,7 @@ use clap::Parser;
 
 use lintrunner::{
     do_init, do_lint, lint_config::get_linters_from_config, path::AbsPath, render::print_error,
-    PathsToLint, RevisionOpt,
+    PathsToLint, RenderOpt, RevisionOpt,
 };
 
 #[derive(Debug, Parser)]
@@ -60,6 +60,11 @@ struct Args {
     #[clap(long)]
     json: bool,
 
+    /// If set, lintrunner will render lint messages in a compact format, one
+    /// line per message
+    #[clap(long, conflicts_with = "json")]
+    oneline: bool,
+
     #[clap(subcommand)]
     cmd: Option<SubCommand>,
 
@@ -69,7 +74,7 @@ struct Args {
 
     /// If set, always output with ANSI colors, even if we detect the output is
     /// not a user-attended terminal.
-    #[clap(long, conflicts_with = "json")]
+    #[clap(long)]
     force_color: bool,
 }
 
@@ -143,6 +148,14 @@ fn do_main() -> Result<i32> {
         RevisionOpt::Head
     };
 
+    let render_opt = if args.json {
+        RenderOpt::Json
+    } else if args.oneline {
+        RenderOpt::Oneline
+    } else {
+        RenderOpt::Default
+    };
+
     match args.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
@@ -154,7 +167,7 @@ fn do_main() -> Result<i32> {
                 linters,
                 paths_to_lint,
                 args.apply_patches,
-                args.json,
+                render_opt,
                 enable_spinners,
                 revision_opt,
             )

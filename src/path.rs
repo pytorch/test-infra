@@ -125,3 +125,19 @@ pub fn path_relative_from(path: &Path, base: &Path) -> Option<PathBuf> {
         Some(comps.iter().map(|c| c.as_os_str()).collect())
     }
 }
+
+//
+pub fn get_display_path(path: &str, current_dir: &Path) -> String {
+    let abs_path = AbsPath::try_from(path);
+    match abs_path {
+        Ok(abs_path) => {
+            // unwrap will never panic because we know `abs_path` is absolute.
+            let relative_path = path_relative_from(&abs_path, &current_dir).unwrap();
+
+            relative_path.display().to_string()
+        }
+        // If we can't relativize for some reason, just return the path as
+        // reported by the linter.
+        Err(_) => path.to_string(),
+    }
+}

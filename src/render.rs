@@ -1,21 +1,67 @@
-use std::convert::TryFrom;
 use std::fmt;
 use std::io::Write;
 use std::{cmp, collections::HashMap, fs};
 
 use anyhow::{anyhow, Result};
 use console::{style, Style, Term};
+use itertools::Itertools;
 use similar::{ChangeTag, DiffableStr, TextDiff};
 use textwrap::indent;
 
 use crate::lint_message::{LintMessage, LintSeverity};
-use crate::path::{path_relative_from, AbsPath};
+use crate::path::get_display_path;
 
 static CONTEXT_LINES: usize = 3;
 
 pub enum PrintedLintErrors {
     Yes,
     No,
+}
+
+pub fn render_lint_messages_oneline(
+    stdout: &mut impl Write,
+    lint_messages: &HashMap<Option<String>, Vec<LintMessage>>,
+) -> Result<PrintedLintErrors> {
+    let mut printed = false;
+    let current_dir = std::env::current_dir()?;
+
+    for lint_message in lint_messages.values().flatten() {
+        printed = true;
+        let display_path = match &lint_message.path {
+            None => "[General linter failure]".to_string(),
+            Some(path) => {
+                // Try to render the path relative to user's current working directory.
+                // But if we fail to relativize the path, just print what the linter
+                // gave us directly.
+                get_display_path(&path, &current_dir)
+            }
+        };
+        let line_number = match lint_message.line {
+            None => "".to_string(),
+            Some(line) => format!("{}", line),
+        };
+        let column = match lint_message.char {
+            None => "".to_string(),
+            Some(char) => format!("{}", char),
+        };
+        let description = match &lint_message.description {
+            None => "",
+            Some(desc) => desc.as_str(),
+        };
+        let description = description.lines().join(" ");
+
+        writeln!(
+            stdout,
+            "{}:{}:{}: {} [{}]",
+            display_path, line_number, column, description, lint_message.code
+        )?;
+    }
+
+    if printed {
+        Ok(PrintedLintErrors::Yes)
+    } else {
+        Ok(PrintedLintErrors::No)
+    }
 }
 
 pub fn render_lint_messages_json(
@@ -53,29 +99,19 @@ pub fn render_lint_messages(
     let mut paths: Vec<&Option<String>> = lint_messages.keys().collect();
     paths.sort();
 
+    let current_dir = std::env::current_dir()?;
     for path in paths {
         let lint_messages = lint_messages.get(path).unwrap();
 
         stdout.write_all(b"\n\n")?;
 
-        let current_dir = std::env::current_dir()?;
         match path {
             None => write!(stdout, ">>> General linter failure:\n\n")?,
             Some(path) => {
                 // Try to render the path relative to user's current working directory.
                 // But if we fail to relativize the path, just print what the linter
                 // gave us directly.
-                let abs_path = AbsPath::try_from(path);
-                let path_to_print = match abs_path {
-                    Ok(abs_path) => {
-                        // unwrap will never panic because we know `path` is absolute.
-                        let relative_path =
-                            path_relative_from(&abs_path, current_dir.as_path()).unwrap();
-
-                        relative_path.display().to_string()
-                    }
-                    Err(_) => path.clone(),
-                };
+                let path_to_print = get_display_path(&path, &current_dir);
 
                 write!(
                     stdout,

@@ -26,6 +26,7 @@ use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
 use crate::git::get_merge_base_with;
+use crate::render::render_lint_messages_oneline;
 
 fn group_lints_by_file(
     all_lints: &mut HashMap<Option<String>, Vec<LintMessage>>,
@@ -128,11 +129,17 @@ pub enum RevisionOpt {
     MergeBaseWith(String),
 }
 
+pub enum RenderOpt {
+    Default,
+    Json,
+    Oneline,
+}
+
 pub fn do_lint(
     linters: Vec<Linter>,
     paths_to_lint: PathsToLint,
     should_apply_patches: bool,
-    render_as_json: bool,
+    render_opt: RenderOpt,
     enable_spinners: bool,
     revision_opt: RevisionOpt,
 ) -> Result<i32> {
@@ -229,10 +236,10 @@ pub fn do_lint(
 
     let mut stdout = Term::stdout();
 
-    let did_print = if render_as_json {
-        render_lint_messages_json(&mut stdout, &all_lints)?
-    } else {
-        render_lint_messages(&mut stdout, &all_lints)?
+    let did_print = match render_opt {
+        RenderOpt::Default => render_lint_messages(&mut stdout, &all_lints)?,
+        RenderOpt::Json => render_lint_messages_json(&mut stdout, &all_lints)?,
+        RenderOpt::Oneline => render_lint_messages_oneline(&mut stdout, &all_lints)?,
     };
 
     if should_apply_patches {

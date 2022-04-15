@@ -144,6 +144,32 @@ fn simple_linter() -> Result<()> {
 }
 
 #[test]
+fn simple_linter_oneline() -> Result<()> {
+    let lint_message = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
+    cmd.arg("--oneline");
+    cmd.assert().failure();
+    assert_output_snapshot("simple_linter_oneline", &mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
 fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
     let config = temp_config(
         "\
