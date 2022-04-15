@@ -55,15 +55,11 @@ struct Args {
     #[clap(long)]
     take: Option<String>,
 
-    /// If set, lintrunner will render lint messages as JSON, according to the
-    /// LintMessage spec.
-    #[clap(long)]
-    json: bool,
-
-    /// If set, lintrunner will render lint messages in a compact format, one
-    /// line per message
-    #[clap(long, conflicts_with = "json")]
-    oneline: bool,
+    /// With 'default' show lint issues in human-readable format, for interactive use.
+    /// With 'json', show lint issues as machine-readable JSON (one per line)
+    /// With 'oneline', show lint issues in compact format (one per line)
+    #[clap(long, arg_enum, default_value_t = RenderOpt::Default)]
+    output: RenderOpt,
 
     #[clap(subcommand)]
     cmd: Option<SubCommand>,
@@ -94,7 +90,7 @@ fn do_main() -> Result<i32> {
         console::set_colors_enabled(true);
         console::set_colors_enabled_stderr(true);
     }
-    let log_level = match (args.verbose, args.json) {
+    let log_level = match (args.verbose, args.output != RenderOpt::Default) {
         // Default
         (0, false) => log::LevelFilter::Info,
         // If just json is asked for, suppress most output except hard errors.
@@ -126,7 +122,7 @@ fn do_main() -> Result<i32> {
 
     let linters = get_linters_from_config(&config_path, skipped_linters, taken_linters)?;
 
-    let enable_spinners = args.verbose == 0 && !args.json;
+    let enable_spinners = args.verbose == 0 && args.output == RenderOpt::Default;
 
     let paths_to_lint = if let Some(paths_file) = args.paths_from {
         let path_file = AbsPath::try_from(&paths_file)
@@ -148,14 +144,6 @@ fn do_main() -> Result<i32> {
         RevisionOpt::Head
     };
 
-    let render_opt = if args.json {
-        RenderOpt::Json
-    } else if args.oneline {
-        RenderOpt::Oneline
-    } else {
-        RenderOpt::Default
-    };
-
     match args.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
@@ -167,7 +155,7 @@ fn do_main() -> Result<i32> {
                 linters,
                 paths_to_lint,
                 args.apply_patches,
-                render_opt,
+                args.output,
                 enable_spinners,
                 revision_opt,
             )

@@ -162,7 +162,7 @@ fn simple_linter_oneline() -> Result<()> {
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
-    cmd.arg("--oneline");
+    cmd.arg("--output=oneline");
     cmd.assert().failure();
     assert_output_snapshot("simple_linter_oneline", &mut cmd)?;
 

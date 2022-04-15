@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use clap::ArgEnum;
 use console::{style, Term};
 use indicatif::{MultiProgress, ProgressBar};
 use linter::Linter;
@@ -129,6 +130,7 @@ pub enum RevisionOpt {
     MergeBaseWith(String),
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
 pub enum RenderOpt {
     Default,
     Json,
