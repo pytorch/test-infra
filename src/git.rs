@@ -318,6 +318,35 @@ mod tests {
         Ok(())
     }
 
+    // File deletions should work correctly even if a relative revision is
+    // specified.
+    #[test]
+    fn deleted_files_relative_revision() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.write_file("test_3.txt", "Initial commit")?;
+
+        git.add(".")?;
+        git.commit("commit 1")?;
+
+        git.rm_file("test_1.txt")?;
+
+        let files = git.changed_files(None)?;
+        assert_eq!(files.len(), 0);
+
+        git.add(".")?;
+        git.commit("removal commit")?;
+
+        git.write_file("test_2.txt", "Initial commit")?;
+        git.add(".")?;
+        git.commit("another commit")?;
+
+        let files = git.changed_files(Some("HEAD~2"))?;
+        assert_eq!(files.len(), 1);
+        Ok(())
+    }
+
     #[test]
     fn merge_base_with() -> Result<()> {
         let git = GitCheckout::new()?;
