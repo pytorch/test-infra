@@ -7,9 +7,9 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct LintRunnerConfig {
+pub struct LintRunnerConfig {
     #[serde(rename = "linter")]
-    linters: Vec<LintConfig>,
+    pub linters: Vec<LintConfig>,
 }
 
 /// Represents a single linter, along with all the information necessary to invoke it.
@@ -107,13 +107,13 @@ pub struct LintConfig {
 
 /// Given options specified by the user, return a list of linters to run.
 pub fn get_linters_from_config(
-    config_path: &AbsPath,
+    linter_configs: &[LintConfig],
     skipped_linters: Option<HashSet<String>>,
     taken_linters: Option<HashSet<String>>,
+    config_path: &AbsPath,
 ) -> Result<Vec<Linter>> {
-    let lint_runner_config = LintRunnerConfig::new(config_path)?;
     let mut linters = Vec::new();
-    for lint_config in lint_runner_config.linters {
+    for lint_config in linter_configs {
         let include_patterns = patterns_from_strs(&lint_config.include_patterns)?;
         let exclude_patterns = if let Some(exclude_patterns) = &lint_config.exclude_patterns {
             patterns_from_strs(exclude_patterns)?
@@ -127,11 +127,11 @@ pub fn get_linters_from_config(
             lint_config.code
         );
         linters.push(Linter {
-            code: lint_config.code,
+            code: lint_config.code.clone(),
             include_patterns,
             exclude_patterns,
-            commands: lint_config.command,
-            init_commands: lint_config.init_command,
+            commands: lint_config.command.clone(),
+            init_commands: lint_config.init_command.clone(),
             config_path: config_path.clone(),
         });
     }

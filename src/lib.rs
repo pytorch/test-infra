@@ -9,10 +9,12 @@ use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 mod git;
+pub mod init;
 pub mod lint_config;
 pub mod lint_message;
 pub mod linter;
@@ -27,6 +29,7 @@ use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
 use crate::git::get_merge_base_with;
+use crate::init::write_config;
 use crate::render::render_lint_messages_oneline;
 
 fn group_lints_by_file(
@@ -64,7 +67,12 @@ fn apply_patches(lint_messages: &[LintMessage]) -> Result<()> {
     Ok(())
 }
 
-pub fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
+pub fn do_init(
+    config_path: &AbsPath,
+    data_path: &Path,
+    linters: Vec<Linter>,
+    dry_run: bool,
+) -> Result<i32> {
     debug!(
         "Initializing linters: {:?}",
         linters.iter().map(|l| &l.code).collect::<Vec<_>>()
@@ -73,6 +81,8 @@ pub fn do_init(linters: Vec<Linter>, dry_run: bool) -> Result<i32> {
     for linter in linters {
         linter.init(dry_run)?;
     }
+
+    write_config(config_path, data_path)?;
 
     Ok(0)
 }

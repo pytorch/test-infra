@@ -82,6 +82,7 @@ fn invalid_config_fails() -> Result<()> {
 
 #[test]
 fn no_op_config_succeeds() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let config = temp_config(
         "\
             [[linter]]
@@ -93,6 +94,10 @@ fn no_op_config_succeeds() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
     cmd.assert().success();
     assert_output_snapshot("no_op_config_succeeds", &mut cmd)?;
 
@@ -120,6 +125,7 @@ fn empty_command_fails() -> Result<()> {
 
 #[test]
 fn simple_linter() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
         path: Some("tests/fixtures/fake_source_file.rs".to_string()),
         line: Some(9),
@@ -135,6 +141,10 @@ fn simple_linter() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
     cmd.assert().failure();
@@ -145,6 +155,7 @@ fn simple_linter() -> Result<()> {
 
 #[test]
 fn simple_linter_oneline() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
         path: Some("tests/fixtures/fake_source_file.rs".to_string()),
         line: Some(9),
@@ -160,6 +171,10 @@ fn simple_linter_oneline() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
     cmd.arg("--output=oneline");
@@ -191,6 +206,7 @@ fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
 
 #[test]
 fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
         path: Some("i_dont_exist_wow".to_string()),
         line: Some(3),
@@ -206,6 +222,10 @@ fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
 
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
@@ -220,6 +240,7 @@ fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
 
 #[test]
 fn linter_hard_failure_is_caught() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let config = temp_config(
         "\
             [[linter]]
@@ -230,6 +251,10 @@ fn linter_hard_failure_is_caught() -> Result<()> {
     )?;
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
 
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
@@ -241,6 +266,7 @@ fn linter_hard_failure_is_caught() -> Result<()> {
 
 #[test]
 fn linter_nonexistent_command() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let config = temp_config(
         "\
             [[linter]]
@@ -251,6 +277,10 @@ fn linter_nonexistent_command() -> Result<()> {
     )?;
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
 
     // Run the linter on this file.
     cmd.arg("tests/integration_test.rs");
@@ -262,6 +292,7 @@ fn linter_nonexistent_command() -> Result<()> {
 
 #[test]
 fn simple_linter_replacement_message() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
         path: Some("tests/fixtures/fake_source_file.rs".to_string()),
         line: Some(9),
@@ -309,6 +340,10 @@ fn simple_linter_replacement_message() -> Result<()> {
 
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
     // Run on a file to ensure that the linter is run.
     cmd.arg("README.md");
     cmd.assert().failure();
@@ -395,6 +430,43 @@ fn invalid_paths_cmd_and_specified_paths() -> Result<()> {
     cmd.args(["--paths-cmd", "echo foo", "bar", "foo"]);
     cmd.assert().failure();
     assert_output_snapshot("invalid_paths_cmd_and_specified_paths", &mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+fn init_suppresses_warning() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['echo', 'foo']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    cmd.arg("init");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+
+    cmd.assert().success();
+
+    // Should not receive a warning about the init being out of date.
+    let stderr = cmd.output()?.stderr;
+    assert!(stderr.is_empty());
 
     Ok(())
 }

@@ -7,6 +7,7 @@ expression: output_lines
 - ""
 - ""
 - "STDERR:"
+- "No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`"
 - "error:        Failed to find provided file: 'blahblahblah'"
 - "caused_by:             No such file or directory (os error 2)"
 
