@@ -184,10 +184,12 @@ impl LintRunnerConfig {
     pub fn new(path: &AbsPath) -> Result<LintRunnerConfig> {
         let lint_config = fs::read_to_string(&path)
             .context(format!("Failed to read config file: '{}'.", path.display()))?;
-        let config: LintRunnerConfig = toml::from_str(&lint_config).context(format!(
-            "Config file '{}' had invalid schema",
-            path.display()
-        ))?;
+        LintRunnerConfig::new_from_string(&lint_config)
+    }
+
+    pub fn new_from_string(config_str: &str) -> Result<LintRunnerConfig> {
+        let config: LintRunnerConfig =
+            toml::from_str(&config_str).context(format!("Config file had invalid schema",))?;
         for linter in &config.linters {
             if let Some(init_args) = &linter.init_command {
                 if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {

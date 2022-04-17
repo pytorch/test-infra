@@ -1,14 +1,14 @@
 use std::{collections::HashSet, convert::TryFrom, io::Write};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use clap::Parser;
 
-use directories::ProjectDirs;
 use lintrunner::{
     do_init, do_lint,
     init::check_init_changed,
     lint_config::{get_linters_from_config, LintRunnerConfig},
     path::AbsPath,
+    persistent_data::PersistentDataStore,
     render::print_error,
     PathsToLint, RenderOpt, RevisionOpt,
 };
@@ -162,18 +162,16 @@ fn do_main() -> Result<i32> {
         RevisionOpt::Head
     };
 
-    let project_dirs = ProjectDirs::from("", "", "lintrunner");
-    let project_dirs = project_dirs.ok_or(anyhow!("Could not find project directories"))?;
-    let data_dir = project_dirs.data_dir();
+    let persistent_data_store = PersistentDataStore::new(&config_path)?;
 
     match args.cmd {
         Some(SubCommand::Init { dry_run }) => {
             // Just run initialization commands, don't actually lint.
-            do_init(&config_path, data_dir, linters, dry_run)
+            do_init(linters, dry_run, &persistent_data_store, &config_path)
         }
         None => {
             // Default command is to just lint.
-            check_init_changed(&config_path, data_dir, &lint_runner_config)?;
+            check_init_changed(&persistent_data_store, &lint_runner_config)?;
             do_lint(
                 linters,
                 paths_to_lint,

@@ -1,0 +1,11 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ok No lint issues.
+- ""
+- ""
+- "STDERR:"
+

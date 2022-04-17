@@ -5,11 +5,11 @@ use indicatif::{MultiProgress, ProgressBar};
 use linter::Linter;
 use log::debug;
 use path::AbsPath;
+use persistent_data::PersistentDataStore;
 use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryFrom;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -20,6 +20,7 @@ pub mod lint_message;
 pub mod linter;
 mod log_utils;
 pub mod path;
+pub mod persistent_data;
 pub mod render;
 
 use git::get_changed_files;
@@ -68,10 +69,10 @@ fn apply_patches(lint_messages: &[LintMessage]) -> Result<()> {
 }
 
 pub fn do_init(
-    config_path: &AbsPath,
-    data_path: &Path,
     linters: Vec<Linter>,
     dry_run: bool,
+    persistent_data_store: &PersistentDataStore,
+    config_path: &AbsPath,
 ) -> Result<i32> {
     debug!(
         "Initializing linters: {:?}",
@@ -82,7 +83,7 @@ pub fn do_init(
         linter.init(dry_run)?;
     }
 
-    write_config(config_path, data_path)?;
+    write_config(persistent_data_store, config_path)?;
 
     Ok(0)
 }
