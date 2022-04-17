@@ -540,3 +540,25 @@ fn changed_init_causes_warning() -> Result<()> {
     assert_output_snapshot("changed_init_causes_warning_2", &mut cmd)?;
     Ok(())
 }
+
+// If you forgot to include a `@{{DRYRUN}}` argument in the init command, there
+// should be an error.
+#[test]
+fn excluding_dryrun_fails() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['echo', 'foo']
+            init_command = ['echo', 'bar']
+        ",
+    )?;
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+
+    cmd.assert().failure();
+    assert_output_snapshot("excluding_dryrun_fails", &mut cmd)?;
+
+    Ok(())
+}
