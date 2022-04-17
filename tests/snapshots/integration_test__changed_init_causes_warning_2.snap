@@ -1,0 +1,12 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ok No lint issues.
+- ""
+- ""
+- "STDERR:"
+- "WARNING: The init commands have changed since you last ran lintrunner. You may need to run `lintrunner init`."
+

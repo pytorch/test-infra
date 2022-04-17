@@ -470,3 +470,73 @@ fn init_suppresses_warning() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn changed_init_causes_warning() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['echo', 'foo']
+            init_command = ['echo', 'bar', '@{{DRYRUN}}']
+        ",
+    )?;
+
+    // Try linting before running init
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    // This should contain a warning.
+    assert_output_snapshot("changed_init_causes_warning_1", &mut cmd)?;
+
+    // Run init
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    cmd.arg("init");
+    cmd.assert().success();
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+
+    cmd.assert().success();
+
+    // Should not receive a warning about the init being out of date.
+    let stderr = cmd.output()?.stderr;
+    assert!(stderr.is_empty());
+
+    // Now mutate the init command
+    std::fs::write(
+        &config,
+        "\
+            [[linter]]
+            code = 'TESTLINTER'
+            include_patterns = []
+            command = ['echo', 'foo']
+            init_command = ['echo', 'something besides bar', '@{{DRYRUN}}']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+
+    // This should contain a warning.
+    assert_output_snapshot("changed_init_causes_warning_2", &mut cmd)?;
+    Ok(())
+}
