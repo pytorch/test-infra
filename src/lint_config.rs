@@ -189,7 +189,7 @@ impl LintRunnerConfig {
 
     pub fn new_from_string(config_str: &str) -> Result<LintRunnerConfig> {
         let config: LintRunnerConfig =
-            toml::from_str(&config_str).context(format!("Config file had invalid schema",))?;
+            toml::from_str(config_str).context("Config file had invalid schema")?;
         for linter in &config.linters {
             if let Some(init_args) = &linter.init_command {
                 if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {

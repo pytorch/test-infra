@@ -33,7 +33,7 @@ pub fn render_lint_messages_oneline(
                 // Try to render the path relative to user's current working directory.
                 // But if we fail to relativize the path, just print what the linter
                 // gave us directly.
-                get_display_path(&path, &current_dir)
+                get_display_path(path, &current_dir)
             }
         };
         let line_number = match lint_message.line {
@@ -112,7 +112,7 @@ pub fn render_lint_messages(
                 // Try to render the path relative to user's current working directory.
                 // But if we fail to relativize the path, just print what the linter
                 // gave us directly.
-                let path_to_print = get_display_path(&path, &current_dir);
+                let path_to_print = get_display_path(path, &current_dir);
 
                 write!(
                     stdout,

@@ -132,7 +132,7 @@ pub fn get_display_path(path: &str, current_dir: &Path) -> String {
     match abs_path {
         Ok(abs_path) => {
             // unwrap will never panic because we know `abs_path` is absolute.
-            let relative_path = path_relative_from(&abs_path, &current_dir).unwrap();
+            let relative_path = path_relative_from(&abs_path, current_dir).unwrap();
 
             relative_path.display().to_string()
         }

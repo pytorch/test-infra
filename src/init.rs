@@ -4,7 +4,7 @@ use log::debug;
 
 use crate::{lint_config::LintRunnerConfig, path::AbsPath, persistent_data::PersistentDataStore};
 
-const CONFIG_DATA_NAME: &'static str = ".lintrunner.toml";
+const CONFIG_DATA_NAME: &str = ".lintrunner.toml";
 
 // Check whether or not the currently configured init commands are different
 // from the last time we ran `init`, and warn the user if so.

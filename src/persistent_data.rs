@@ -23,7 +23,8 @@ impl PersistentDataStore {
     pub fn new(config_path: &AbsPath) -> Result<PersistentDataStore> {
         // Retrieve the lintrunner-wide data directory.
         let project_dirs = ProjectDirs::from("", "", "lintrunner");
-        let project_dirs = project_dirs.ok_or(anyhow!("Could not find project directories"))?;
+        let project_dirs =
+            project_dirs.ok_or_else(|| anyhow!("Could not find project directories"))?;
         let project_data_dir = project_dirs.data_dir();
         if !project_data_dir.exists() {
             std::fs::create_dir_all(project_data_dir)?;
@@ -38,7 +39,7 @@ impl PersistentDataStore {
         }
 
         Ok(PersistentDataStore {
-            data_dir: config_data_dir.to_owned(),
+            data_dir: config_data_dir,
         })
     }
 
