@@ -12859,7 +12859,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing flakily on master ([recent examples](http://torch-ci.com/failure/test_zero_model_parallel_parameters_as_bucket_view_True%2C%20TestZeroRedundancyOptimizerDistributed)).\r\n\r\nCulprit could be related to https://github.com/pytorch/pytorch/pull/75753 @pritamdamania \n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75984/comments",
       "created_at": "2022-04-18T18:20:38Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75984/events",
@@ -12917,7 +12917,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75984/timeline",
       "title": "DISABLED test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)",
-      "updated_at": "2022-04-18T18:20:41Z",
+      "updated_at": "2022-04-18T18:37:01Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75984",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
