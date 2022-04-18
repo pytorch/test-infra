@@ -3,12 +3,12 @@
     "hud_query": "a08c69a5d20cab55",
     "commit_jobs_query": "0705e283a78dd425",
     "flaky_test_query": "482db17169272025",
-    "original_pr_hud_query": "ac04505036da4c7a",
+    "original_pr_hud_query": "09377767e3178ee4",
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "4b5c27b8b6c6b71a",
+    "num_reverts": "2a62d48a0b3fc309",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "670e34fc86adb3ad"
@@ -16,15 +16,15 @@
   "metrics": {
     "job_duration_avg": "1dcc2360ccfb454d",
     "last_branch_push": "3d995ac2143586dc",
-    "last_successful_jobs": "8ce513bc65c75b8c",
-    "last_successful_workflow": "ff4b611647c21e4c",
+    "last_successful_jobs": "fd8bc3a2afc989a2",
+    "last_successful_workflow": "5d22927dd0b0956b",
     "master_commit_red_avg": "039988db87a03a94",
-    "master_commit_red": "2aebf9e805912bab",
-    "master_jobs_red_avg": "29b138b4454f2a63",
+    "master_commit_red": "a98acf09b50b3e5c",
+    "master_jobs_red_avg": "fbb27c782608d52d",
     "master_jobs_red": "bd04d300f24b4fa0",
     "queued_jobs_by_label": "0ec7d5348138b3fc",
-    "queued_jobs": "3724769f76ad4ecc",
-    "reverts": "4446ee821236f997",
+    "queued_jobs": "8d6064d1ed890fe2",
+    "reverts": "235c444d865a5e48",
     "tts_avg": "597897063acde94c"
   }
 }
