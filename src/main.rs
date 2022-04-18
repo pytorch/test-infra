@@ -30,7 +30,7 @@ struct Args {
 
     /// Shell command that returns new-line separated paths to lint
     ///
-    /// Example: --paths-cmd 'git ls-files path/to/project'
+    /// Example: To run on all files in the repo, use `--paths-cmd='git grep -Il .'`.
     #[clap(long, conflicts_with = "paths-from")]
     paths_cmd: Option<String>,
 
@@ -69,7 +69,9 @@ struct Args {
     #[clap(subcommand)]
     cmd: Option<SubCommand>,
 
-    /// Paths to lint.
+    /// Paths to lint. lintrunner will still respect the inclusions and
+    /// exclusions defined in .lintrunner.toml; manually specifying a path will
+    /// not override them.
     #[clap(conflicts_with_all = &["paths-cmd", "paths-from"])]
     paths: Vec<String>,
 
