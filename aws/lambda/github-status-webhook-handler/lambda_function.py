@@ -127,7 +127,7 @@ def lambda_handler(event, context):
         except TypeError:
             print(json.dumps(body))
             committer = "(unknown)"
-        # master commits are always made by facebook-github-bot
+        # default branch commits are always made by facebook-github-bot
         is_default_branch = committer == "facebook-github-bot"
 
     commit_source = ''

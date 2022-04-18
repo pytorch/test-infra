@@ -1919,7 +1919,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"fail_percent\"\nFROM\n  (SELECT $__timeGroupAlias(updated_at, 30m),\n          sum(CASE\n                  WHEN state != \"success\"\n                       AND state != \"pending\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN state = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM status_event\n   WHERE $__timeFilter(updated_at)\n     AND json_unquote(json_extract(branches, \"$[0].name\")) = \"master\"\n   GROUP BY 1\n   ORDER BY $__timeGroup(updated_at, 30m)) AS nested",
+              "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"fail_percent\"\nFROM\n  (SELECT $__timeGroupAlias(updated_at, 30m),\n          sum(CASE\n                  WHEN state != \"success\"\n                       AND state != \"pending\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN state = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM status_event\n   WHERE $__timeFilter(updated_at)\n     AND json_unquote(json_extract(branches, \"$[0].name\")) IN (\"master\", \"main\")\n   GROUP BY 1\n   ORDER BY $__timeGroup(updated_at, 30m)) AS nested",
               "refId": "A",
               "select": [
                 [
@@ -2051,7 +2051,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"Fail Percent\"\nFROM\n  (SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n          sum(CASE\n                  WHEN workflow_job.conclusion != \"success\"\n                       AND workflow_job.conclusion != \"skipped\"\n                       AND workflow_job.conclusion != \"cancelled\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN workflow_job.conclusion = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM workflow_job\n   INNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\n   WHERE workflow_run.head_branch = \"master\"\n     AND $__timeFilter(workflow_job.completed_at)\n   GROUP BY 1\n   ORDER BY $__timeGroup(completed_at, 30m)) AS nested",
+              "rawSql": "SELECT time,\n       failing_jobs / (failing_jobs + passing_jobs) * 100 as \"Fail Percent\"\nFROM\n  (SELECT $__timeGroupAlias(workflow_job.completed_at, 30m),\n          sum(CASE\n                  WHEN workflow_job.conclusion != \"success\"\n                       AND workflow_job.conclusion != \"skipped\"\n                       AND workflow_job.conclusion != \"cancelled\" THEN 1\n                  ELSE 0\n              END) AS failing_jobs,\n          sum(CASE\n                  WHEN workflow_job.conclusion = \"success\" THEN 1\n                  ELSE 0\n              END) AS passing_jobs\n   FROM workflow_job\n   INNER JOIN workflow_run ON workflow_job.run_id = workflow_run.id\n   WHERE workflow_run.head_branch IN (\"master\", \"main\")\n     AND $__timeFilter(workflow_job.completed_at)\n   GROUP BY 1\n   ORDER BY $__timeGroup(completed_at, 30m)) AS nested",
               "refId": "A",
               "select": [
                 [
@@ -2138,7 +2138,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref='refs/heads/master'\norder by head_commit_timestamp desc \nlimit 1;",
+              "rawSql": "select\n  ref,\n  head_commit_message, (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - 25200 - UNIX_TIMESTAMP(head_commit_timestamp)) / 60 / 60 as \"hours_since_push\"\nfrom push_event\nwhere ref in ('refs/heads/master', 'refs/heads/main')\norder by head_commit_timestamp desc \nlimit 1;",
               "refId": "A",
               "select": [
                 [
@@ -2223,7 +2223,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "select count(*) as \"num_reverts\"\nfrom push_event\nwhere ref = 'refs/heads/master'\n    and head_commit_message like \"Revert D%\"\n    and $__timeFilter(sync_last_update_at);",
+              "rawSql": "select count(*) as \"num_reverts\"\nfrom push_event\nwhere ref in ('refs/heads/master', 'refs/heads/main')\n    and head_commit_message like \"Revert D%\"\n    and $__timeFilter(sync_last_update_at);",
               "refId": "A",
               "select": [
                 [
@@ -2608,7 +2608,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", id) AS \"url\",\n       name,\n       head_sha,\n       head_commit_message,\n       updated_at\nFROM workflow_run\nWHERE head_branch = \"master\"\n  AND conclusion = \"cancelled\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at desc",
+              "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", id) AS \"url\",\n       name,\n       head_sha,\n       head_commit_message,\n       updated_at\nFROM workflow_run\nWHERE head_branch IN (\"master\", \"main\")\n  AND conclusion = \"cancelled\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at desc",
               "refId": "A",
               "select": [
                 [
@@ -2998,7 +2998,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(completed_at, 30m),\n        count(*) as \"too long\"\nFROM workflow_job\nINNER JOIN workflow_run ON run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(completed_at)\n  AND (unix_timestamp(completed_at) - unix_timestamp(started_at)) / 60 > 120\nGROUP BY 1\nORDER BY $__timeGroup(completed_at,30m)",
+              "rawSql": "SELECT $__timeGroupAlias(completed_at, 30m),\n        count(*) as \"too long\"\nFROM workflow_job\nINNER JOIN workflow_run ON run_id = workflow_run.id\nWHERE workflow_run.head_branch IN (\"master\", \"main\")\n  AND $__timeFilter(completed_at)\n  AND (unix_timestamp(completed_at) - unix_timestamp(started_at)) / 60 > 120\nGROUP BY 1\nORDER BY $__timeGroup(completed_at,30m)",
               "refId": "A",
               "select": [
                 [
@@ -3027,7 +3027,7 @@
               "hide": false,
               "metricColumn": "none",
               "rawQuery": true,
-              "rawSql": "SELECT $__timeGroupAlias(completed_at, 30m),\n        count(*) as \"not too long\"\nFROM workflow_job\nINNER JOIN workflow_run ON run_id = workflow_run.id\nWHERE workflow_run.head_branch = \"master\"\n  AND $__timeFilter(completed_at)\n  AND (unix_timestamp(completed_at) - unix_timestamp(started_at)) / 60 <= 120\nGROUP BY 1\nORDER BY $__timeGroup(completed_at,30m)",
+              "rawSql": "SELECT $__timeGroupAlias(completed_at, 30m),\n        count(*) as \"not too long\"\nFROM workflow_job\nINNER JOIN workflow_run ON run_id = workflow_run.id\nWHERE workflow_run.head_branch IN (\"master\", \"main\")\n  AND $__timeFilter(completed_at)\n  AND (unix_timestamp(completed_at) - unix_timestamp(started_at)) / 60 <= 120\nGROUP BY 1\nORDER BY $__timeGroup(completed_at,30m)",
               "refId": "B",
               "select": [
                 [
@@ -3443,7 +3443,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "select push_event.ref,\n    status_event.sha,\n    (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - UNIX_TIMESTAMP(status_event.updated_at)) / 60 / 60 as \"hours_since_push\"\nfrom status_event\n    inner join push_event on sha = push_event.head_commit_id\nwhere push_event.ref = \"refs/heads/master\"\n    and context like \"ci/circleci: pytorch_python_doc_build\"\n    and state = \"success\"\norder by updated_at desc\nlimit 1;",
+              "rawSql": "select push_event.ref,\n    status_event.sha,\n    (UNIX_TIMESTAMP(CURRENT_TIMESTAMP()) - UNIX_TIMESTAMP(status_event.updated_at)) / 60 / 60 as \"hours_since_push\"\nfrom status_event\n    inner join push_event on sha = push_event.head_commit_id\nwhere push_event.ref in (\"refs/heads/master\", \"refs/heads/main\")\n    and context like \"ci/circleci: pytorch_python_doc_build\"\n    and state = \"success\"\norder by updated_at desc\nlimit 1;",
               "refId": "A",
               "select": [
                 [
@@ -4327,7 +4327,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", workflow_id) AS \"url\",\n       concat(concat(suite, \".\"), name) AS \"test_name\",\n       build_environment,\n       ref,\n       updated_at\nFROM test_failures\nWHERE branch = \"master\"\n  AND $__timeFilter(updated_at);",
+              "rawSql": "SELECT concat(\"https://github.com/pytorch/pytorch/actions/runs/\", workflow_id) AS \"url\",\n       concat(concat(suite, \".\"), name) AS \"test_name\",\n       build_environment,\n       ref,\n       updated_at\nFROM test_failures\nWHERE branch IN (\"master\", \"main\")\n  AND $__timeFilter(updated_at);",
               "refId": "A",
               "select": [
                 [
@@ -4635,7 +4635,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "SELECT head_commit_message, head_commit_author_username as \"reverter\", head_commit_id as \"sha\", head_commit_timestamp\nFROM push_event\nWHERE ref = \"refs/heads/master\"\n  AND head_commit_message like \"Revert D%\"\n  AND $__timeFilter(head_commit_timestamp)\nORDER BY head_commit_timestamp DESC;",
+              "rawSql": "SELECT head_commit_message, head_commit_author_username as \"reverter\", head_commit_id as \"sha\", head_commit_timestamp\nFROM push_event\nWHERE ref IN (\"refs/heads/master\", \"refs/heads/main\")\n  AND head_commit_message like \"Revert D%\"\n  AND $__timeFilter(head_commit_timestamp)\nORDER BY head_commit_timestamp DESC;",
               "refId": "A",
               "select": [
                 [
@@ -4732,7 +4732,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref != \"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\"\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
+              "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref not in (\"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\", \"refs/heads/main\")\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
               "refId": "A",
               "select": [
                 [
@@ -6211,7 +6211,7 @@
               "metricColumn": "none",
               "queryType": "randomWalk",
               "rawQuery": true,
-              "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref != \"refs/heads/master\"\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref = \"refs/heads/master\"\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
+              "rawSql": "select replace(\n        replace(replace(workflow_job.labels, \"]\", \"\"), \"[\", \"\"),\n        '\"',\n        \"\"\n    ) as \"instance\",\n    sum(\n        UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n    ) / 60 as \"trunk_minutes\",\n    pr_query.total_minutes as \"pr_minutes\"\nfrom workflow_job\n    inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n    inner join (\n        select workflow_job.labels as \"instance\",\n            sum(\n                UNIX_TIMESTAMP(workflow_job.completed_at) - UNIX_TIMESTAMP(workflow_job.started_at)\n            ) / 60 as \"total_minutes\"\n        from workflow_job\n            inner join push_event on workflow_job.head_sha = push_event.head_commit_id\n        where push_event.ref not in (\"refs/heads/master\", \"refs/heads/main\")\n            and workflow_job.status = \"completed\"\n            and workflow_job.labels != \"[]\"\n            and $__timeFilter(workflow_job.completed_at)\n            and $__timeFilter(workflow_job.started_at)\n        group by workflow_job.labels\n    ) as pr_query on pr_query.instance = workflow_job.labels\nwhere push_event.ref IN (\"refs/heads/master\", \"refs/heads/main\")\n    and workflow_job.status = \"completed\"\n    and workflow_job.labels != \"[]\"\n    and $__timeFilter(workflow_job.completed_at)\n    and $__timeFilter(workflow_job.started_at)\ngroup by workflow_job.labels",
               "refId": "A",
               "select": [
                 [

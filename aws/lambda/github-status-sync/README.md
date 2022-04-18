@@ -10,7 +10,7 @@ Mandatory:
 
 Optional:
 
-- `branches` - comma separated list of branches to handle: `main,master,nightly,viable/strict,release/1.10`
+- `branches` - comma separated list of branches to handle: `master,main,nightly,viable/strict,release/1.10`
 - `repo` - GitHub repository (e.g. `vision`)
 - `user` - GitHub username (e.g. `pytorch`)
 - `history_size` - number of commits to fetch in the past (e.g. `100`)
