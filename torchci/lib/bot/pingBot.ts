@@ -6,12 +6,12 @@ import {
   removeLabels,
 } from "./botUtils";
 
-export default function pingBot(app: Probot): void {
-  const openOnGreen = new RegExp("^s*@pytorchbots+?mergeOnGreen.*");
-  const LAND_PENDING = "land-pending";
-  const LAND_ATTEMPT = "landed-attempt";
-  const LAND_FAILED = "land-failed";
+const openOnGreen = new RegExp("^s*@pytorchbots+?mergeOnGreen.*");
+const LAND_PENDING = "land-pending";
+const LAND_ATTEMPT = "landed-attempt";
+const LAND_FAILED = "land-failed";
 
+export default function pingBot(app: Probot): void {
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     if (commentBody.match(openOnGreen)) {
@@ -49,13 +49,7 @@ export default function pingBot(app: Probot): void {
       );
       // If all jobs are successful or neutral, then try merge, else do nothing
       if (nonSuccessfulChecks.length === 0) {
-        await ctx.octokit.repos.createDispatchEvent({
-          ...payloadData,
-          event_type: "try_merge",
-          client_payload: {
-            pr_num: prNum,
-          },
-        });
+        tryLandPR(ctx, prNum);
       }
     }
   });
@@ -84,12 +78,10 @@ export default function pingBot(app: Probot): void {
     }
 
     if (landPendingPrs.length > 1) {
-      const errMessage =
-        "There are multiple land pending PRs that rely on this check run. Aborting due to potential land race.";
-      console.error(errMessage);
-      addComment(ctx, errMessage);
-      await addLabels(ctx, [LAND_FAILED]);
-      await removeLabels(ctx, [LAND_PENDING]);
+      await failPR(
+        ctx,
+        "There are multiple land pending PRs that rely on this check run. Aborting due to potential land race."
+      );
       return;
     }
 
@@ -108,30 +100,34 @@ export default function pingBot(app: Probot): void {
     const conclusion = ctx.payload["check_run"].conclusion;
 
     if (conclusion != "success" && conclusion != "neutral") {
-      // @ the author that it's failed to land and add land-failed
-      await addComment(
+      await failPR(
         ctx,
         "Failed to land due to red signal: " + ctx.payload["check_run"].name
       );
-      await addLabels(ctx, [LAND_FAILED]);
-      await removeLabels(ctx, [LAND_PENDING]);
     } else {
       if (successfulChecks.length === checks.data.check_runs.length) {
-        await addComment(
-          ctx,
-          "All jobs finished successfully. Attempting to land."
-        );
-        await removeLabels(ctx, [LAND_PENDING]);
-        await addLabels(ctx, [LAND_ATTEMPT]);
-        await ctx.octokit.repos.createDispatchEvent({
-          ...getPayloadData(ctx),
-          event_type: "try_merge",
-          client_payload: {
-            pr_num: landPendingPr.data.number,
-          },
-        });
+        await tryLandPR(ctx, landPendingPr.data.number);
       }
     }
+  });
+}
+
+async function failPR(ctx: any, comment: string) {
+  await addComment(ctx, comment);
+  await addLabels(ctx, [LAND_FAILED]);
+  await removeLabels(ctx, [LAND_PENDING]);
+}
+
+async function tryLandPR(ctx: any, prNum: number) {
+  await addComment(ctx, "All jobs finished successfully. Attempting to land.");
+  await removeLabels(ctx, [LAND_PENDING]);
+  await addLabels(ctx, [LAND_ATTEMPT]);
+  await ctx.octokit.repos.createDispatchEvent({
+    ...getPayloadData(ctx),
+    event_type: "try_merge",
+    client_payload: {
+      pr_num: prNum,
+    },
   });
 }
 
