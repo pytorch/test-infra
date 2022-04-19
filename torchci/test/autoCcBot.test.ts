@@ -28,7 +28,7 @@ describe("auto-cc-bot", () => {
       .get(
         `/repos/ezyang/.github/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
-        )}`au
+        )}`
       )
       .reply(404, { message: "There is nothing here" });
 
