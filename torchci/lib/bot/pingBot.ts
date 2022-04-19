@@ -1,10 +1,15 @@
 import { Context, Probot } from "probot";
-import { reactOnComment, addLabels } from "./botUtils";
+import {
+  reactOnComment,
+  addLabels,
+  addComment,
+  removeLabels,
+} from "./botUtils";
 
 export default function pingBot(app: Probot): void {
   const openOnGreen = new RegExp("^s*@pytorchbots+?mergeOnGreen.*");
   const LAND_PENDING = "land-pending";
-  const LANDED = "landed";
+  const LAND_ATTEMPT = "landed-attempt";
   const LAND_FAILED = "land-failed";
 
   app.on("issue_comment.created", async (ctx) => {
@@ -29,7 +34,7 @@ export default function pingBot(app: Probot): void {
     if (labelNames.includes(LAND_PENDING)) {
       // Check pull request's head ref and check runs to see if it has all green and merge if it's good
       // TODO: Add pagination if checks go above 100
-      const payloadData = getPayloadDataForMerge(ctx);
+      const payloadData = getPayloadData(ctx);
       const ref = ctx.payload.pull_request.head.sha;
       const prNum = ctx.payload.pull_request.number;
       const checks = await ctx.octokit.checks.listForRef({
@@ -38,12 +43,12 @@ export default function pingBot(app: Probot): void {
         per_page: 100,
       });
 
-      const notSuccessfulJobs = checks?.data.check_runs.filter(
+      const nonSuccessfulChecks = checks?.data.check_runs.filter(
         (check) =>
           check.conclusion !== "success" && check.conclusion !== "neutral"
       );
-      // If there's any jobs that aren't successful yet
-      if (notSuccessfulJobs.length === 0) {
+      // If all jobs are successful or neutral, then try merge, else do nothing
+      if (nonSuccessfulChecks.length === 0) {
         await ctx.octokit.repos.createDispatchEvent({
           ...payloadData,
           event_type: "try_merge",
@@ -56,16 +61,81 @@ export default function pingBot(app: Probot): void {
   });
 
   app.on("check_run.completed", async (ctx) => {
+    // Check that there are associated PRs that have the label
+    const prWithLabelsAwaitable = ctx.payload.check_run.pull_requests.map(
+      (pr) => {
+        return ctx.octokit.pulls.get({
+          ...getPayloadData(ctx),
+          pull_number: pr.number,
+        });
+      }
+    );
+    const prs = await Promise.all(prWithLabelsAwaitable);
+    const landPendingPrs = prs.filter((pr) => {
+      return (
+        pr.data.labels.find((label) => {
+          return label.name === LAND_PENDING;
+        }) != undefined
+      );
+    });
+
+    if (landPendingPrs.length === 0) {
+      return;
+    }
+
+    if (landPendingPrs.length > 1) {
+      const errMessage =
+        "There are multiple land pending PRs that rely on this check run. Aborting due to potential land race.";
+      console.error(errMessage);
+      addComment(ctx, errMessage);
+      await addLabels(ctx, [LAND_FAILED]);
+      await removeLabels(ctx, [LAND_PENDING]);
+      return;
+    }
+
+    const landPendingPr = prs[0];
+    // Check the other land signals
+    const checks = await ctx.octokit.checks.listForRef({
+      ...getPayloadData(ctx),
+      ref: landPendingPr.data.head.ref,
+      per_page: 100,
+    });
+
+    const successfulChecks = checks.data.check_runs.filter(
+      (check) => check.conclusion == "success" || check.conclusion == "neutral"
+    );
+
     const conclusion = ctx.payload["check_run"].conclusion;
-    if (conclusion === "success") {
-      // Check pull requests and see if it has all green and merge
-    } else if (conclusion === "failure") {
+
+    if (conclusion != "success" && conclusion != "neutral") {
       // @ the author that it's failed to land and add land-failed
+      await addComment(
+        ctx,
+        "Failed to land due to red signal: " + ctx.payload["check_run"].name
+      );
+      await addLabels(ctx, [LAND_FAILED]);
+      await removeLabels(ctx, [LAND_PENDING]);
+    } else {
+      if (successfulChecks.length === checks.data.check_runs.length) {
+        await addComment(
+          ctx,
+          "All jobs finished successfully. Attempting to land."
+        );
+        await removeLabels(ctx, [LAND_PENDING]);
+        await addLabels(ctx, [LAND_ATTEMPT]);
+        await ctx.octokit.repos.createDispatchEvent({
+          ...getPayloadData(ctx),
+          event_type: "try_merge",
+          client_payload: {
+            pr_num: landPendingPr.data.number,
+          },
+        });
+      }
     }
   });
 }
 
-function getPayloadDataForMerge(ctx: any) {
+function getPayloadData(ctx: any) {
   return {
     owner: ctx.payload.repository.owner.login,
     repo: ctx.payload.repository.name,
