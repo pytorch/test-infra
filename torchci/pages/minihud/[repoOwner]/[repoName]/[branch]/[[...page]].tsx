@@ -20,12 +20,6 @@ import {
 } from "react";
 import { SWRConfig } from "swr";
 
-function getOrigin() {
-  return typeof window !== "undefined" && window.location.origin
-    ? window.location.origin
-    : "";
-}
-
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
     return true;
@@ -37,7 +31,6 @@ function FailedJob({ job }: { job: JobData }) {
   const [jobFilter, setJobFilter] = useContext(JobFilterContext);
   const [jobHoverContext, setJobHoverContext] = useContext(JobHoverContext);
   const [highlighted, setHighlighted] = useState(false);
-  const [thisJobHovered, setThisJobHovered] = useState(false);
 
   const router = useRouter();
 
@@ -83,11 +76,9 @@ function FailedJob({ job }: { job: JobData }) {
       className={jobStyle}
       id={job.id}
       onMouseEnter={() => {
-        setThisJobHovered(true);
         setJobHoverContext(job.name!);
       }}
       onMouseLeave={() => {
-        setThisJobHovered(false);
         setJobHoverContext(null);
       }}
     >
@@ -102,7 +93,9 @@ function FailedJob({ job }: { job: JobData }) {
           {" "}
           {job.name}
         </a>
-        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${job.id}`} />
+        <CopyLink
+          textToCopy={`${location.href.replace(location.hash, "")}#${job.id}`}
+        />
       </div>
       <div className={styles.failedJobLinks}>
         <input
@@ -186,18 +179,14 @@ function CommitLinks({ row }: { row: RowData }) {
 }
 
 function CommitSummaryLine({
-  showAnchorLink,
   row,
   numPending,
   showRevert,
 }: {
-  showAnchorLink: boolean;
   row: RowData;
   numPending: number;
   showRevert: boolean;
 }) {
-  const router = useRouter();
-
   return (
     <div>
       <span className={`${styles.shaTitleElement} ${styles.timestamp}`}>
@@ -213,7 +202,9 @@ function CommitSummaryLine({
         >
           {row.commitTitle + " "}
         </a>
-        <CopyLink textToCopy={`${getOrigin()}${router.pathname}#${row.sha}`} />
+        <CopyLink
+          textToCopy={`${location.href.replace(location.hash, "")}#${row.sha}`}
+        />
       </span>
 
       {numPending > 0 && (
@@ -232,11 +223,6 @@ function CommitSummaryLine({
           </a>
         </span>
       )}
-      {showAnchorLink && (
-        <span className={`${styles.shaTitleElement} ${styles.extraShaInfo}`}>
-          <a href={`#${row.sha}`}>link to this commit</a>
-        </span>
-      )}
       <CommitLinks row={row} />
     </div>
   );
@@ -244,7 +230,6 @@ function CommitSummaryLine({
 
 function CommitSummary({ row }: { row: RowData }) {
   const [jobFilter, _setJobFilter] = useContext(JobFilterContext);
-  const [hover, setHover] = useState(false);
   const [highlighted, setHighlighted] = useState(false);
 
   const existingJobs = row.jobs.filter((job) => job.conclusion !== undefined);
@@ -291,17 +276,11 @@ function CommitSummary({ row }: { row: RowData }) {
   }, [row.sha]);
 
   return (
-    <div
-      id={row.sha}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className={className}
-    >
+    <div id={row.sha} className={className}>
       <CommitSummaryLine
         row={row}
         numPending={pendingJobs.length}
         showRevert={failedJobs.length !== 0}
-        showAnchorLink={hover}
       />
       <FailedJobs failedJobs={failedJobs} />
     </div>
