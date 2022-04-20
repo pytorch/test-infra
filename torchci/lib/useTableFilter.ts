@@ -18,7 +18,7 @@ export default function useTableFilter(params: HudParams) {
       }
     });
   }, []);
-  const handleInput = useCallback((f) => {
+  const handleInput = useCallback((f: any) => {
     setJobFilter(f);
   }, []);
   const handleSubmit = useCallback(() => {
