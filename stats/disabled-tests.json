@@ -13155,7 +13155,95 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: rocm \r\n\r\nThis test was disabled because it is flaky on master ([recent examples](http://torch-ci.com/failure/test_multiple_joinable_disable%2C%20TestJoin)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/comments",
+      "created_at": "2022-04-20T14:15:32Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/76109",
+      "id": 1209755756,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85IG2hs",
+      "number": 76109,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/timeline",
+      "title": "DISABLED test_multiple_joinable_disable (__main__.TestJoin)",
+      "updated_at": "2022-04-20T14:15:35Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/76109",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
+        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
+        "followers_url": "https://api.github.com/users/janeyx99/followers",
+        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
+        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/janeyx99",
+        "id": 31798555,
+        "login": "janeyx99",
+        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
+        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
+        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
+        "repos_url": "https://api.github.com/users/janeyx99/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/janeyx99"
+      }
     }
   ],
-  "total_count": 121
+  "total_count": 122
 }
