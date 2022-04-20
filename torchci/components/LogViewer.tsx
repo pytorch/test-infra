@@ -6,9 +6,8 @@ import {
   ViewPlugin,
   DecorationSet,
   Decoration,
-  Range,
 } from "@codemirror/view";
-import { RangeSet } from "@codemirror/rangeset";
+import { RangeSet, Range } from "@codemirror/state";
 import { parse } from "ansicolor";
 
 import { JobData } from "lib/types";
