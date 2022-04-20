@@ -1,23 +1,23 @@
-with any_red as (
+with commit_overall_conclusion as (
     SELECT
         time,
         sha,
-        CAST(
-            SUM(
-                CASE
-                    when conclusion = 'failure' THEN 1
-                    when conclusion = 'timed_out' THEN 1
-                    when conclusion = 'cancelled' THEN 1
-                    ELSE 0
-                END
-            ) > 0 as int
-        ) as any_red,
-        1 as total,
+        CASE
+            WHEN COUNT_IF(conclusion = 'red') > 0 THEN 'red'
+            WHEN COUNT_IF(conclusion = 'pending') > 0 THEN 'pending'
+            ELSE 'green'
+        END as overall_conclusion
     FROM
         (
             SELECT
                 push._event_time as time,
-                job.conclusion as conclusion,
+                CASE
+                    WHEN job.conclusion = 'failure' THEN 'red'
+                    WHEN job.conclusion = 'timed_out' THEN 'red'
+                    WHEN job.conclusion = 'cancelled' THEN 'red'
+                    WHEN job.conclusion IS NULL THEN 'pending'
+                    ELSE 'green'
+                END as conclusion,
                 push.head_commit.id as sha,
             FROM
                 commons.workflow_job job
@@ -35,10 +35,12 @@ with any_red as (
             UNION ALL
             SELECT
                 push._event_time as time,
-                case
-                    WHEN job.job.status = 'failed' then 'failure'
-                    WHEN job.job.status = 'canceled' then 'cancelled'
-                    else job.job.status
+                CASE
+                    WHEN job.job.status = 'failed' THEN 'red'
+                    WHEN job.job.status = 'timed_out' THEN 'red'
+                    WHEN job.job.status = 'canceled' THEN 'red'
+                    WHEN job.job.status IS NULL THEN 'pending'
+                    ELSE 'green'
                 END as conclusion,
                 push.head_commit.id as sha,
             FROM
@@ -55,8 +57,7 @@ with any_red as (
         time,
         sha
     HAVING
-        count(*) > 10 -- Filter out jobs that didn't run anything.
-        AND SUM(IF(conclusion is NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
+        COUNT(*) > 10 -- Filter out jobs that didn't run anything.
     ORDER BY
         time DESC
 )
@@ -66,11 +67,12 @@ SELECT
         DATE_TRUNC('hour', time),
         :timezone
     ) AS granularity_bucket,
-    SUM(any_red) as red,
-    SUM(total) - SUM(any_red) as green,
-    SUM(total) as total,
-from
-    any_red
+    COUNT_IF(overall_conclusion = 'red') AS red,
+    COUNT_IF(overall_conclusion = 'pending') AS pending,
+    COUNT_IF(overall_conclusion = 'green') AS green,
+    COUNT(*) as total,
+FROM
+    commit_overall_conclusion
 GROUP BY
     granularity_bucket
 ORDER BY

@@ -146,17 +146,28 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
           y: "red",
         },
       },
+      {
+        type: "bar",
+        stack: "all",
+        encode: {
+          x: "granularity_bucket",
+          y: "pending",
+        },
+      },
     ],
-    color: ["#3ba272", "#ee6666"],
+    color: ["#3ba272", "#ee6666", "#f2d643"],
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
         const red = params[0].data.red;
         const green = params[0].data.green;
-        const redPct = ((red / (red + green)) * 100).toFixed(2) + "%";
-        const greenPct = ((green / (red + green)) * 100).toFixed(2) + "%";
-        const total = red + green;
-        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Total: ${total}`;
+        const pending = params[0].data.pending;
+        const total = params[0].data.total;
+
+        const redPct = ((red / total) * 100).toFixed(2) + "%";
+        const greenPct = ((green / total) * 100).toFixed(2) + "%";
+        const pendingPct = ((pending / total) * 100).toFixed(2) + "%";
+        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
       },
     },
   };
