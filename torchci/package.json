@@ -24,6 +24,7 @@
     "@mui/x-date-pickers": "^5.0.0-alpha.0",
     "@octokit/webhooks": "^9.22.0",
     "@rockset/client": "^0.8.9",
+    "ansicolor": "^1.1.100",
     "axios": "^0.26.0",
     "dayjs": "^1.10.8",
     "dayjs-plugin-utc": "^0.1.2",
