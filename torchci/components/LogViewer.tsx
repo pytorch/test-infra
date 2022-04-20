@@ -76,8 +76,8 @@ function computeDecorations(view: EditorView) {
   return RangeSet.of(builder, /*sort=*/ true);
 }
 
-// View plugin for displaying ANSI colors in the log vewer correctly.
-// The real logic is in in computeDecorations()
+// View plugin for displaying ANSI colors in the log viewer correctly.
+// The real logic is in computeDecorations()
 const ansiColors = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
