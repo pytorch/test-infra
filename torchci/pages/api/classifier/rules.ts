@@ -29,6 +29,11 @@ export default async function handler(
     .setHeader("Cache-Control", "s-maxage=60")
     .json([
       {
+        name: "GHA timeout",
+        pattern: r`^##\[error\]The action has timed out.`,
+        priority: 1004,
+      },
+      {
         name: "GHA cancellation",
         pattern:
           "The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
