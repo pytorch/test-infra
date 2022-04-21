@@ -1,15 +1,18 @@
-import { Context, Probot } from "probot";
-import {
-  reactOnComment,
-  addLabels,
-  addComment,
-  removeLabels,
-} from "./botUtils";
+import { Probot, ProbotOctokit } from "probot";
+import { reactOnComment, addLabels } from "./botUtils";
 
-const openOnGreen = new RegExp("^s*@pytorchbots+?mergeOnGreen.*");
-const LAND_PENDING = "land-pending";
+const openOnGreen = new RegExp("^s*@pytorchbot\\s+?mergeOnGreen.*");
+export const LAND_PENDING = "land-pending";
 const LAND_ATTEMPT = "landed-attempt";
 const LAND_FAILED = "land-failed";
+
+type OctokitData = {
+  octokit: InstanceType<typeof ProbotOctokit>;
+  owner: string;
+  repo: string;
+  issue_number: number;
+  comment: string;
+};
 
 export default function pingBot(app: Probot): void {
   app.on("issue_comment.created", async (ctx) => {
@@ -18,7 +21,6 @@ export default function pingBot(app: Probot): void {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await reactOnComment(ctx, "confused");
-        return;
       } else {
         await reactOnComment(ctx, "+1");
         await addLabels(ctx, [LAND_PENDING]);
@@ -27,11 +29,7 @@ export default function pingBot(app: Probot): void {
   });
 
   app.on(["pull_request.labeled"], async (ctx) => {
-    const labelNames = ctx.payload["pull_request"].labels.map(
-      (label) => label.name
-    );
-
-    if (labelNames.includes(LAND_PENDING)) {
+    if (ctx.payload.label.name === LAND_PENDING) {
       // Check pull request's head ref and check runs to see if it has all green and merge if it's good
       // TODO: Add pagination if checks go above 100
       const payloadData = getPayloadData(ctx);
@@ -43,13 +41,27 @@ export default function pingBot(app: Probot): void {
         per_page: 100,
       });
 
-      const nonSuccessfulChecks = checks?.data.check_runs.filter(
-        (check) =>
-          check.conclusion !== "success" && check.conclusion !== "neutral"
+      const [successfulChecks, failedChecks] = categorizeChecks(
+        checks.data.check_runs
       );
       // If all jobs are successful or neutral, then try merge, else do nothing
-      if (nonSuccessfulChecks.length === 0) {
-        tryLandPR(ctx, prNum);
+      if (successfulChecks.length === checks.data.check_runs.length) {
+        await tryLandPR({
+          octokit: ctx.octokit,
+          ...payloadData,
+          issue_number: prNum,
+          comment: "All checks passed. Attempting to merge.",
+        });
+      }
+      // If any failed, alert the author
+      else if (failedChecks.length > 0) {
+        console.log("INSIDE FAILED");
+        await failPR({
+          octokit: ctx.octokit,
+          ...payloadData,
+          issue_number: prNum,
+          comment: "Failed to land PR due to red signal.",
+        });
       }
     }
   });
@@ -66,11 +78,10 @@ export default function pingBot(app: Probot): void {
     );
     const prs = await Promise.all(prWithLabelsAwaitable);
     const landPendingPrs = prs.filter((pr) => {
-      return (
-        pr.data.labels.find((label) => {
-          return label.name === LAND_PENDING;
-        }) != undefined
-      );
+      const ind = pr.data.labels.find((label) => {
+        return label.name === LAND_PENDING;
+      });
+      return ind != null;
     });
 
     if (landPendingPrs.length === 0) {
@@ -78,10 +89,8 @@ export default function pingBot(app: Probot): void {
     }
 
     if (landPendingPrs.length > 1) {
-      await failPR(
-        ctx,
-        "There are multiple land pending PRs that rely on this check run. Aborting due to potential land race."
-      );
+      // If there's more than 1 land pending PR with the same checks,
+      // then we don't know which one to land
       return;
     }
 
@@ -93,40 +102,111 @@ export default function pingBot(app: Probot): void {
       per_page: 100,
     });
 
-    const successfulChecks = checks.data.check_runs.filter(
-      (check) => check.conclusion == "success" || check.conclusion == "neutral"
+    const [successfulChecks, failedChecks] = categorizeChecks(
+      checks.data.check_runs
     );
 
     const conclusion = ctx.payload["check_run"].conclusion;
 
-    if (conclusion != "success" && conclusion != "neutral") {
-      await failPR(
-        ctx,
-        "Failed to land due to red signal: " + ctx.payload["check_run"].name
-      );
-    } else {
-      if (successfulChecks.length === checks.data.check_runs.length) {
-        await tryLandPR(ctx, landPendingPr.data.number);
+    const prData = {
+      octokit: ctx.octokit,
+      ...getPayloadData(ctx),
+      issue_number: landPendingPr.data.number,
+    };
+    console.log(
+      "CONCLUSION IS",
+      conclusion,
+      conclusion != "success" && conclusion != "neutral"
+    );
+    if (conclusion !== "success" && conclusion !== "neutral") {
+      // Only alert if this is the first failure
+      if (failedChecks.length < 1) {
+        await failPR({
+          ...prData,
+          comment: "Failed to land PR due to failing signal",
+        });
       }
+    } else if (successfulChecks.length === checks.data.check_runs.length) {
+      console.log("GOING IN HERE");
+      await tryLandPR({
+        ...prData,
+        comment: "All checks passed. Attempting to merge.",
+      });
     }
   });
 }
 
-async function failPR(ctx: any, comment: string) {
-  await addComment(ctx, comment);
-  await addLabels(ctx, [LAND_FAILED]);
-  await removeLabels(ctx, [LAND_PENDING]);
+function categorizeChecks(check_runs: any[]) {
+  const successfulChecks = check_runs.filter(
+    (check) => check.conclusion === "success" || check.conclusion === "neutral"
+  );
+  const failedChecks = check_runs.filter(
+    (check) =>
+      check.conclusion !== "success" &&
+      check.conclusion !== "neutral" &&
+      check.conclusion != null
+  );
+  return [successfulChecks, failedChecks];
 }
 
-async function tryLandPR(ctx: any, prNum: number) {
-  await addComment(ctx, "All jobs finished successfully. Attempting to land.");
-  await removeLabels(ctx, [LAND_PENDING]);
-  await addLabels(ctx, [LAND_ATTEMPT]);
-  await ctx.octokit.repos.createDispatchEvent({
-    ...getPayloadData(ctx),
+async function failPR({
+  octokit,
+  owner,
+  repo,
+  issue_number,
+  comment,
+}: OctokitData) {
+  await octokit.issues.createComment({
+    owner,
+    repo,
+    issue_number,
+    body: comment,
+  });
+  await octokit.issues.addLabels({
+    owner,
+    repo,
+    issue_number,
+    labels: [LAND_FAILED],
+  });
+  await octokit.issues.removeLabel({
+    owner: owner,
+    repo: repo,
+    issue_number,
+    name: LAND_PENDING,
+  });
+}
+
+async function tryLandPR({
+  octokit,
+  owner,
+  repo,
+  issue_number,
+  comment,
+}: OctokitData) {
+  await octokit.issues.createComment({
+    owner,
+    repo,
+    issue_number,
+    body: comment,
+  });
+  await octokit.issues.addLabels({
+    owner: owner,
+    repo: repo,
+    issue_number,
+    labels: [LAND_ATTEMPT],
+  });
+  await octokit.issues.removeLabel({
+    owner: owner,
+    repo: repo,
+    issue_number,
+    name: LAND_PENDING,
+  });
+  await octokit.repos.createDispatchEvent({
+    owner,
+    repo,
     event_type: "try_merge",
     client_payload: {
-      pr_num: prNum,
+      pr_num: issue_number,
     },
   });
 }
