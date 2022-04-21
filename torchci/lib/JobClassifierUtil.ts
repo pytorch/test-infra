@@ -102,8 +102,23 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "U";
   }
 }
+
+export function isFailure(conclusion?: string): boolean {
+  switch (conclusion) {
+    case JobStatus.Failure:
+    case JobStatus.Cancelled:
+    case JobStatus.Timed_out:
+      return true;
+    case JobStatus.Success:
+    case JobStatus.Neutral:
+    case JobStatus.Skipped:
+    case JobStatus.Pending:
+    case undefined:
+    default:
+      return false;
+  }
+}
 export function getConclusionChar(conclusion?: string): string {
-  let conclusionChar;
   switch (conclusion) {
     case JobStatus.Success:
       return "O";
