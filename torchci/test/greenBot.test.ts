@@ -1,6 +1,6 @@
 import nock from "nock";
 import * as utils from "./utils";
-import pingBot, { LAND_PENDING } from "../lib/bot/pingBot";
+import pingBot, { LAND_PENDING } from "../lib/bot/greenBot";
 import * as probot from "probot";
 
 nock.disableNetConnect();

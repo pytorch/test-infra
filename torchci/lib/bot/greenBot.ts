@@ -14,7 +14,7 @@ type OctokitData = {
   comment: string;
 };
 
-export default function pingBot(app: Probot): void {
+export default function greenBot(app: Probot): void {
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     if (commentBody.match(openOnGreen)) {
@@ -55,7 +55,6 @@ export default function pingBot(app: Probot): void {
       }
       // If any failed, alert the author
       else if (failedChecks.length > 0) {
-        console.log("INSIDE FAILED");
         await failPR({
           octokit: ctx.octokit,
           ...payloadData,
@@ -113,11 +112,6 @@ export default function pingBot(app: Probot): void {
       ...getPayloadData(ctx),
       issue_number: landPendingPr.data.number,
     };
-    console.log(
-      "CONCLUSION IS",
-      conclusion,
-      conclusion != "success" && conclusion != "neutral"
-    );
     if (conclusion !== "success" && conclusion !== "neutral") {
       // Only alert if this is the first failure
       if (failedChecks.length < 1) {
@@ -127,7 +121,6 @@ export default function pingBot(app: Probot): void {
         });
       }
     } else if (successfulChecks.length === checks.data.check_runs.length) {
-      console.log("GOING IN HERE");
       await tryLandPR({
         ...prData,
         comment: "All checks passed. Attempting to merge.",

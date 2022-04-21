@@ -8,13 +8,13 @@ import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import mergeBot from "./mergeBot";
 import labelBot from "./labelBot";
-import pingBot from "./pingBot";
+import greenBot from "./greenBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
   autoLabelBot(app);
   verifyDisableTestIssueBot(app);
-  pingBot(app);
+  greenBot(app);
   // ciflowBot(app);
   ciflowPushTrigger(app);
   webhookToDynamo(app);
