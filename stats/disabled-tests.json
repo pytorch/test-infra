@@ -7193,6 +7193,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -7200,6 +7209,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "d4c5f9",
+          "default": false,
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71009/labels{/name}",
@@ -7225,7 +7243,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71009/timeline",
       "title": "DISABLED test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=False)_offload_activations_True (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-01-08T01:53:41Z",
+      "updated_at": "2022-04-22T18:02:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71009",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -8568,152 +8586,6 @@
       "title": "DISABLED test_ddp_comparison_uneven_inputs (__main__.TensorPipeDdpComparisonTest)",
       "updated_at": "2022-03-24T05:35:10Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/72891",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
-        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
-        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
-        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
-        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/apps/pytorch-bot",
-        "id": 54816060,
-        "login": "pytorch-bot[bot]",
-        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
-        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
-        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
-        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
-        "type": "Bot",
-        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
-        "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
-        "followers_url": "https://api.github.com/users/rohan-varma/followers",
-        "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
-        "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/rohan-varma",
-        "id": 8039770,
-        "login": "rohan-varma",
-        "node_id": "MDQ6VXNlcjgwMzk3NzA=",
-        "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
-        "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
-        "repos_url": "https://api.github.com/users/rohan-varma/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/rohan-varma"
-      },
-      "assignees": [
-        {
-          "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
-          "events_url": "https://api.github.com/users/rohan-varma/events{/privacy}",
-          "followers_url": "https://api.github.com/users/rohan-varma/followers",
-          "following_url": "https://api.github.com/users/rohan-varma/following{/other_user}",
-          "gists_url": "https://api.github.com/users/rohan-varma/gists{/gist_id}",
-          "gravatar_id": "",
-          "html_url": "https://github.com/rohan-varma",
-          "id": 8039770,
-          "login": "rohan-varma",
-          "node_id": "MDQ6VXNlcjgwMzk3NzA=",
-          "organizations_url": "https://api.github.com/users/rohan-varma/orgs",
-          "received_events_url": "https://api.github.com/users/rohan-varma/received_events",
-          "repos_url": "https://api.github.com/users/rohan-varma/repos",
-          "site_admin": false,
-          "starred_url": "https://api.github.com/users/rohan-varma/starred{/owner}{/repo}",
-          "subscriptions_url": "https://api.github.com/users/rohan-varma/subscriptions",
-          "type": "User",
-          "url": "https://api.github.com/users/rohan-varma"
-        }
-      ],
-      "author_association": "NONE",
-      "body": "Platforms: linux\n\n    This test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_transformer_module_apply%2C%20TestApply) and the most recent\n    [workflow logs](https://github.com/pytorch/pytorch/actions/runs/1851725435).\n\n    Over the past 3 hours, it has been determined flaky in 1 workflow(s) with\n    2 red and 2 green.\n\ncc @ezyang @gchanan @zou3519 @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
-      "closed_at": null,
-      "comments": 7,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/comments",
-      "created_at": "2022-02-16T09:39:54Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/72908",
-      "id": 1139773655,
-      "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue",
-          "id": 679953883,
-          "name": "oncall: distributed",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI",
-          "id": 1301397902,
-          "name": "module: flaky-tests",
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "d4c5f9",
-          "default": false,
-          "description": "",
-          "id": 3315252117,
-          "name": "module: fsdp",
-          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85D75DX",
-      "number": 72908,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/72908/timeline",
-      "title": "DISABLED test_transformer_module_apply (__main__.TestApply)",
-      "updated_at": "2022-03-24T05:35:06Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/72908",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
         "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
@@ -13266,5 +13138,5 @@
       }
     }
   ],
-  "total_count": 123
+  "total_count": 122
 }
