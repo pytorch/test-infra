@@ -221,7 +221,7 @@ describe("merge-bot", () => {
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain(
-            "{\"content\":\"+1\"}"
+            `{"content":"+1"}`
           );
           return true;
         }
