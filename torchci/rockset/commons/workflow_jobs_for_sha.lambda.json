@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/workflow_jobs_for_sha.sql",
+  "default_parameters": [
+    {
+      "name": "sha",
+      "type": "string",
+      "value": "cab3849ee0a61e6ba368c2332d367d2553fbc53c"
+    }
+  ],
+  "description": ""
+}

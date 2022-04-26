@@ -5,7 +5,9 @@
     "flaky_test_query": "482db17169272025",
     "original_pr_hud_query": "ac04505036da4c7a",
     "issue_query": "f29a1afe94563601",
-    "failure_samples_query": "2961636418a148c2"
+    "failure_samples_query": "2961636418a148c2",
+    "workflow_jobs_for_sha": "1bc5f57540846184",
+    "prs_with_label": "0522a033a92b2f3b"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "4b5c27b8b6c6b71a",

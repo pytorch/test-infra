@@ -87,8 +87,6 @@ describe("Green Bot Tests", () => {
     const pr_number = payload.pull_request.number;
 
     const scope = nock("https://api.github.com")
-      .get(getCheckRunUri(owner, repo, commit))
-      .reply(200, { check_runs: [] })
       .post(getPostLabelUri(owner, repo, pr_number))
       .reply(200, {})
       .delete(getDeleteLabelUri(owner, repo, pr_number, LAND_PENDING))
@@ -102,30 +100,27 @@ describe("Green Bot Tests", () => {
         return true;
       })
       .reply(200, {});
+
+    const rocksetScope = nock(new RegExp(".*rockset.*"))
+      .post(new RegExp(".*workflow_jobs_for_sha.*"))
+      .reply(200, { results: [{ name: "test_job", conclusion: "success" }] });
+
     await probot.receive({ name: "pull_request", payload, id: "2" });
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
+    rocksetScope.done();
     scope.done();
   });
 
   test("Check run completed triggers merge", async () => {
-    const payload = require("./fixtures/check_run_completed.json");
+    const payload = require("./fixtures/workflow_job_completed.json");
 
     const owner = payload.repository.owner.login;
     const repo = payload.repository.name;
-    const headSha = payload.check_run.head_sha;
-    const prNumber = payload.check_run.check_suite.pull_requests[0].number;
+    const prNumber = "2";
 
     const scope = nock("https://api.github.com")
-      .get(getPullUri(owner, repo, "2"))
-      .reply(200, {
-        labels: [{ name: LAND_PENDING }],
-        head: { ref: headSha },
-        number: prNumber,
-      })
-      .get(getCheckRunUri(owner, repo, headSha))
-      .reply(200, { check_runs: [] })
       .post(getPostCommentUri(owner, repo, prNumber), (body) => {
         expect(JSON.stringify(body)).toContain(
           "All checks passed. Attempting to merge."
@@ -139,10 +134,18 @@ describe("Green Bot Tests", () => {
       .reply(200, {})
       .post(getPostDispatchUri(owner, repo))
       .reply(200, {});
-    await probot.receive({ payload, name: "check_run", id: "2" });
+
+    const rocksetScope = nock(new RegExp(".*rockset.*"))
+      .post(new RegExp(".*workflow_jobs_for_sha.*"))
+      .reply(200, { results: [{ name: "test_job", conclusion: "success" }] })
+      .post(new RegExp(".*prs_with_label.*"))
+      .reply(200, { results: [{ sha: "testSha", number: prNumber }] });
+
+    await probot.receive({ payload, name: "workflow_job", id: "2" });
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
     scope.done();
+    rocksetScope.done();
   });
 });

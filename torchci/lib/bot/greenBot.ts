@@ -1,5 +1,7 @@
 import { Probot, ProbotOctokit } from "probot";
 import { reactOnComment, addLabels } from "./botUtils";
+import getRocksetClient from "lib/rockset";
+import rocksetVersions from "rockset/prodVersions.json";
 
 const openOnGreen = new RegExp("^s*@pytorchbot\\s+?mergeOnGreen.*");
 export const LAND_PENDING = "land-pending";
@@ -35,17 +37,10 @@ export default function greenBot(app: Probot): void {
       const payloadData = getPayloadData(ctx);
       const ref = ctx.payload.pull_request.head.sha;
       const prNum = ctx.payload.pull_request.number;
-      const checks = await ctx.octokit.checks.listForRef({
-        ...payloadData,
-        ref,
-        per_page: 100,
-      });
-
-      const [successfulChecks, failedChecks] = categorizeChecks(
-        checks.data.check_runs
-      );
+      const jobs = await getJobsBySha(ref);
+      const [successfulJobs, failedJobs] = categorizeJobs(jobs);
       // If all jobs are successful or neutral, then try merge, else do nothing
-      if (successfulChecks.length === checks.data.check_runs.length) {
+      if (successfulJobs.length === jobs.length) {
         await tryLandPR({
           octokit: ctx.octokit,
           ...payloadData,
@@ -54,7 +49,7 @@ export default function greenBot(app: Probot): void {
         });
       }
       // If any failed, alert the author
-      else if (failedChecks.length > 0) {
+      else if (failedJobs.length > 0) {
         await failPR({
           octokit: ctx.octokit,
           ...payloadData,
@@ -65,54 +60,54 @@ export default function greenBot(app: Probot): void {
     }
   });
 
-  app.on("check_run.completed", async (ctx) => {
-    // Check that there are associated PRs that have the label
-    const prWithLabelsAwaitable = ctx.payload.check_run.pull_requests.map(
-      (pr) => {
-        return ctx.octokit.pulls.get({
-          ...getPayloadData(ctx),
-          pull_number: pr.number,
-        });
-      }
-    );
-    const prs = await Promise.all(prWithLabelsAwaitable);
-    const landPendingPrs = prs.filter((pr) => {
-      const ind = pr.data.labels.find((label) => {
-        return label.name === LAND_PENDING;
-      });
-      return ind != null;
-    });
+  app.on("workflow_job.completed", async (ctx) => {
+    const rocksetClient = getRocksetClient();
+    // Get all PRs that have this as the head SHA and the land pending label
+    const landPendingPrQuery =
+      await rocksetClient.queryLambdas.executeQueryLambda(
+        "commons",
+        "prs_with_label",
+        rocksetVersions.commons.prs_with_label,
+        {
+          parameters: [
+            {
+              name: "label",
+              type: "string",
+              value: LAND_PENDING,
+            },
+            {
+              name: "sha",
+              type: "string",
+              value: ctx.payload.workflow_job.head_sha,
+            },
+          ],
+        }
+      );
 
-    if (landPendingPrs.length === 0) {
+    const prs = landPendingPrQuery?.results;
+    if (prs == null || prs?.length === 0) {
       return;
     }
 
-    if (landPendingPrs.length > 1) {
-      // If there's more than 1 land pending PR with the same checks,
-      // then we don't know which one to land
+    if (prs.length > 1) {
+      // If there's more than 1 PR with the same sha and the land-pending label,
+      // Then we don't want to potentially race.
       return;
     }
 
     const landPendingPr = prs[0];
-    // Check the other land signals
-    const checks = await ctx.octokit.checks.listForRef({
-      ...getPayloadData(ctx),
-      ref: landPendingPr.data.head.ref,
-      per_page: 100,
-    });
 
-    const [successfulChecks, failedChecks] = categorizeChecks(
-      checks.data.check_runs
-    );
+    const jobs = await getJobsBySha(landPendingPr.sha);
+    const [successfulChecks, failedChecks] = categorizeJobs(jobs);
 
-    const conclusion = ctx.payload["check_run"].conclusion;
+    const conclusion = ctx.payload.workflow_job.conclusion;
 
     const prData = {
       octokit: ctx.octokit,
       ...getPayloadData(ctx),
-      issue_number: landPendingPr.data.number,
+      issue_number: landPendingPr.number,
     };
-    if (conclusion !== "success" && conclusion !== "neutral") {
+    if (conclusion == "failure") {
       // Only alert if this is the first failure
       if (failedChecks.length < 1) {
         await failPR({
@@ -120,7 +115,7 @@ export default function greenBot(app: Probot): void {
           comment: "Failed to land PR due to failing signal",
         });
       }
-    } else if (successfulChecks.length === checks.data.check_runs.length) {
+    } else if (successfulChecks.length === jobs.length) {
       await tryLandPR({
         ...prData,
         comment: "All checks passed. Attempting to merge.",
@@ -129,16 +124,40 @@ export default function greenBot(app: Probot): void {
   });
 }
 
-function categorizeChecks(check_runs: any[]) {
-  const successfulChecks = check_runs.filter(
-    (check) => check.conclusion === "success" || check.conclusion === "neutral"
+async function getJobsBySha(sha: string) {
+  const rocksetClient = getRocksetClient();
+
+  const jobsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "workflow_jobs_for_sha",
+    rocksetVersions.commons.workflow_jobs_for_sha,
+    {
+      parameters: [
+        {
+          name: "sha",
+          type: "string",
+          value: sha,
+        },
+      ],
+    }
   );
-  const failedChecks = check_runs.filter(
-    (check) =>
-      check.conclusion !== "success" &&
-      check.conclusion !== "neutral" &&
-      check.conclusion != null
-  );
+  return jobsQuery.results ?? [];
+}
+
+function categorizeJobs(jobs: any[]) {
+  const successfulChecks = [];
+  const failedChecks = [];
+  for (const job of jobs) {
+    if (
+      job.conclusion === "success" ||
+      job.conclusion === "neutral" ||
+      job.conclusion === "skipped"
+    ) {
+      successfulChecks.push(job);
+    } else {
+      failedChecks.push(job);
+    }
+  }
   return [successfulChecks, failedChecks];
 }
 
