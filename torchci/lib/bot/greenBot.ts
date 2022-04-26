@@ -90,7 +90,7 @@ export default function greenBot(app: Probot): void {
     }
 
     if (prs.length > 1) {
-      // If there's more than 1 PR with the same sha and the land-pending label,
+      // If there's more than 1 PR with the same head sha and the land-pending label,
       // Then we don't want to potentially race.
       return;
     }
@@ -109,7 +109,7 @@ export default function greenBot(app: Probot): void {
     };
     if (conclusion == "failure") {
       // Only alert if this is the first failure
-      if (failedChecks.length < 1) {
+      if (failedChecks.length <= 1) {
         await failPR({
           ...prData,
           comment: "Failed to land PR due to failing signal",
