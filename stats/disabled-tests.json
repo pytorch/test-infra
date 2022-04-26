@@ -11493,7 +11493,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view%2C%20TestDistBackendWithSpawn)).",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75139/comments",
       "created_at": "2022-04-02T00:57:16Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75139/events",
@@ -11533,7 +11533,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75139/timeline",
       "title": "DISABLED test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-04-02T00:57:19Z",
+      "updated_at": "2022-04-26T22:42:33Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75139",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
