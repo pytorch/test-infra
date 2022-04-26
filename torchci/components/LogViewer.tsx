@@ -47,6 +47,10 @@ function computeDecorations(view: EditorView) {
           const decoTo = decoFrom + segment.text.length;
 
           // Add a decoration based on the computed style.
+          if (segment.css === "color:rgba(0,0,0,0.5);") {
+            // LogViewer has a dark background, so rewrite black to be...not black.
+            segment.css = "color:rgba(171,178,191,0.75);";
+          }
           builder.push(
             Decoration.mark({ attributes: { style: segment.css } }).range(
               decoFrom,
