@@ -29,6 +29,11 @@ export default async function handler(
     .setHeader("Cache-Control", "s-maxage=60")
     .json([
       {
+        name: "Lintrunner failure",
+        pattern: r`^>>> Lint for.*`,
+        priority: 1005,
+      },
+      {
         name: "GHA timeout",
         pattern: r`^##\[error\]The action has timed out.`,
         priority: 1004,
