@@ -198,10 +198,10 @@ export default function LogViewer({ job }: { job: JobData }) {
 
   return (
     <div>
-      {showLogViewer ? "▼ " : "▶ "}
-      <code style={{ cursor: "pointer" }} onClick={handleClick}>
-        {job.failureLine ?? "Show log"}
-      </code>
+      <div style={{ cursor: "pointer" }} onClick={handleClick}>
+        {showLogViewer ? "▼ " : "▶ "}
+        <code>{job.failureLine ?? "Show log"}</code>
+      </div>
       {showLogViewer && <Log url={job.logUrl!} line={job.failureLineNumber!} />}
     </div>
   );
