@@ -24,12 +24,3 @@ export async function addLabels(ctx: any, labelsToAdd: string[]) {
     labels: labelsToAdd,
   });
 }
-
-export async function removeLabels(ctx: any, labelsToRemove: string[]) {
-  await ctx.octokit.issues.removeLabels({
-    owner: ctx.payload.repository.owner.login,
-    repo: ctx.payload.repository.name,
-    issue_number: ctx.payload.issue.number,
-    labels: labelsToRemove,
-  });
-}
