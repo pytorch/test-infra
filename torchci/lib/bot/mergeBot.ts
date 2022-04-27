@@ -1,9 +1,10 @@
 import { Probot } from "probot";
-import { reactOnComment} from './botUtils'
+import { reactOnComment } from './botUtils'
 
 function mergeBot(app: Probot): void {
   const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
   const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
+  const rebaseCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)");
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -37,13 +38,22 @@ function mergeBot(app: Probot): void {
       await dispatchEvent("try-merge", typeof match[2] === "string");
       await reactOnComment(ctx, "+1");
     }
-    if (commentBody.match(revertCmdPat)) {
+    else if (commentBody.match(revertCmdPat)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await reactOnComment(ctx, "confused");
         return;
       }
       await dispatchEvent("try-revert");
+      await reactOnComment(ctx, "+1");
+    }
+    else if (commentBody.match(rebaseCmdPat) && ctx.payload.comment.user.login == "clee2000") {
+      if (!ctx.payload.issue.pull_request) {
+        // Issue, not pull request.
+        await reactOnComment(ctx, "confused");
+        return;
+      }
+      await dispatchEvent("try-rebase");
       await reactOnComment(ctx, "+1");
     }
   });
@@ -53,12 +63,12 @@ function mergeBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const prNum = ctx.payload.pull_request.number;
     async function addComment(comment: string) {
-        await ctx.octokit.issues.createComment({
-          issue_number: prNum,
-          body: comment,
-          owner,
-          repo,
-        });
+      await ctx.octokit.issues.createComment({
+        issue_number: prNum,
+        body: comment,
+        owner,
+        repo,
+      });
     }
     async function dispatchEvent(event_type: string) {
       await ctx.octokit.repos.createDispatchEvent({
