@@ -54,14 +54,15 @@ function mergeBot(app: Probot): void {
         await addComment(
           ctx,
           "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
-            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+          "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
         );
         return;
       }
       await dispatchEvent("try-revert");
       await reactOnComment(ctx, "+1");
     }
-    else if (commentBody.match(rebaseCmdPat) && rebaseAllowList.includes(ctx.payload.comment.user.login)) {
+    else if (commentBody.match(rebaseCmdPat) && rebaseAllowList.includes(ctx.payload.comment.user.login) &&
+      rebaseAllowList.includes(ctx.payload.issue.user.login)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await reactOnComment(ctx, "confused");

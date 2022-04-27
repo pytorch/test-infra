@@ -178,7 +178,7 @@ describe("merge-bot", () => {
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "Revert unsuccessful: please retry the command explaining why the revert is " +
-            "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+          "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
         );
         return true;
       })
@@ -236,6 +236,7 @@ describe("merge-bot", () => {
 
     event.payload.comment.body = "@pytorchbot rebase this";
     event.payload.comment.user.login = "clee2000";
+    event.payload.issue.user.login = "clee2000";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
