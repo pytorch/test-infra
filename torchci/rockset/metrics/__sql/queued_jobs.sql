@@ -12,4 +12,4 @@ WHERE
     AND job._event_time > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
     AND job._event_time < (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
 ORDER BY
-    queue_s ASC
+    queue_s DESC
