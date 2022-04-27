@@ -187,10 +187,37 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("revert this comment on pull request triggers dispatch and like", async () => {
+  test("revert this comment w/o explanation on pull request triggers comment only", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot  revert this";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "Revert unsuccessful: please retry the command explaining why the revert is " +
+            "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+        );
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("revert this comment w/ explanation on pull request triggers dispatch and like", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body =
+      "@pytorchbot  revert this--it breaks ios tests on trunk " +
+      "see https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
