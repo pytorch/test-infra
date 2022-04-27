@@ -2,9 +2,7 @@ import { Probot } from "probot";
 import { addComment, reactOnComment } from "./botUtils";
 
 function mergeBot(app: Probot): void {
-  const mergeCmdPat = new RegExp(
-    "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this"
-  );
+  const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
   const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
   const rebaseCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)");
   app.on("issue_comment.created", async (ctx) => {
@@ -14,16 +12,14 @@ function mergeBot(app: Probot): void {
     const prNum = ctx.payload.issue.number;
 
     async function dispatchEvent(event_type: string, force: boolean = false) {
-      let payload = force
-        ? {
-            pr_num: prNum,
-            comment_id: ctx.payload.comment.id,
-            force: true,
-          }
-        : {
-            pr_num: prNum,
-            comment_id: ctx.payload.comment.id,
-          };
+      let payload = force ? {
+        pr_num: prNum,
+        comment_id: ctx.payload.comment.id,
+        force: true,
+      } : {
+        pr_num: prNum,
+        comment_id: ctx.payload.comment.id,
+      };
       await ctx.octokit.repos.createDispatchEvent({
         owner,
         repo,
@@ -97,12 +93,11 @@ function mergeBot(app: Probot): void {
       });
     }
 
-      if (reviewBody?.match(mergeCmdPat)) {
-        await dispatchEvent("try-merge");
-        await addComment("+1"); // REST API doesn't support reactions for code reviews.
-      }
+    if (reviewBody?.match(mergeCmdPat)) {
+      await dispatchEvent("try-merge");
+      await addComment("+1"); // REST API doesn't support reactions for code reviews.
     }
-  );
+  });
 }
 
 export default mergeBot;
