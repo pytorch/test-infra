@@ -236,6 +236,7 @@ describe("merge-bot", () => {
 
     event.payload.comment.body = "@pytorchbot rebase this";
     event.payload.comment.user.login = "clee2000";
+    event.payload.issue.user.login = "clee2000";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
