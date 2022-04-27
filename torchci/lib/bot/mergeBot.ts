@@ -1,5 +1,5 @@
 import { Probot } from "probot";
-import { reactOnComment } from './botUtils'
+import { addComment, reactOnComment } from "./botUtils";
 
 function mergeBot(app: Probot): void {
   const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
@@ -42,6 +42,18 @@ function mergeBot(app: Probot): void {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await reactOnComment(ctx, "confused");
+        return;
+      }
+      const revertWithReasonCmdPat = new RegExp(
+        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this.*(\\s+\\w+){3,}"
+      );
+      if (commentBody.match(revertWithReasonCmdPat) === null) {
+        // revert reason of 3+ words not given
+        await addComment(
+          ctx,
+          "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
+            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+        );
         return;
       }
       await dispatchEvent("try-revert");
