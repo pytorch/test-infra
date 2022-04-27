@@ -5,6 +5,8 @@ function mergeBot(app: Probot): void {
   const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
   const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
   const rebaseCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)");
+  const rebaseAllowList = ["clee2000", "zengk95", "janeyx99", "albanD", "cpuhrsch", "suo", "ngimel", "rohan-varma"];
+
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -59,7 +61,7 @@ function mergeBot(app: Probot): void {
       await dispatchEvent("try-revert");
       await reactOnComment(ctx, "+1");
     }
-    else if (commentBody.match(rebaseCmdPat) && ctx.payload.comment.user.login == "clee2000") {
+    else if (commentBody.match(rebaseCmdPat) && rebaseAllowList.includes(ctx.payload.comment.user.login)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await reactOnComment(ctx, "confused");
