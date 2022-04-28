@@ -4126,7 +4126,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test2/9605//console\r\n\r\n```\r\n10:35:33 ======================================================================\r\n10:35:33 FAIL [0.421s]: test_nadam (__main__.TestOptim)\r\n10:35:33 ----------------------------------------------------------------------\r\n10:35:33 Traceback (most recent call last):\r\n10:35:33   File \"test_optim.py\", line 630, in test_nadam\r\n10:35:33     lambda weight, bias: optimizer(\r\n10:35:33   File \"test_optim.py\", line 231, in _test_basic_cases\r\n10:35:33     make_two_arg_constructor(constructor, maximize),\r\n10:35:33   File \"test_optim.py\", line 209, in _test_state_dict\r\n10:35:33     self.assertEqual(bias, bias_cuda)\r\n10:35:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1928, in assertEqual\r\n10:35:33     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n10:35:33 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=1.3e-06 and atol=1e-05, found 1 element(s) (out of 10) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.9073486328125e-05 (-1.0852036476135254 vs. -1.0851845741271973), which occurred at index 1.\r\n10:35:33 \r\n10:35:33 ----------------------------------------------------------------------\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @vincentqb @albanD @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/comments",
       "created_at": "2021-11-11T14:17:12Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/events",
@@ -4211,7 +4211,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/timeline",
       "title": "DISABLED test_nadam (__main__.TestOptim)",
-      "updated_at": "2021-12-21T21:27:01Z",
+      "updated_at": "2022-04-28T17:23:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/68171",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4",
