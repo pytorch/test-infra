@@ -10,7 +10,7 @@ function mergeBot(app: Probot): void {
     "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
   );
   const mergeOnGreenCmdPat = new RegExp(
-    "^\\s*@pytorch(merge|)bot\\s+mergeOnGreen\\s+(me|this)"
+    "^\\s*@pytorch(merge|)bot\\s+land\\s+(me|this)"
   );
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
@@ -23,20 +23,17 @@ function mergeBot(app: Probot): void {
       force: boolean = false,
       onGreen: boolean = false
     ) {
-      let payload: any = force
-        ? {
-            pr_num: prNum,
-            comment_id: ctx.payload.comment.id,
-            force: true,
-          }
-        : {
-            pr_num: prNum,
-            comment_id: ctx.payload.comment.id,
-          };
+      let payload: any = {
+        pr_num: prNum,
+        comment_id: ctx.payload.comment.id,
+      };
 
       if (onGreen) {
         payload.on_green = true;
+      } else if (force) {
+        payload.force = true;
       }
+
       await ctx.octokit.repos.createDispatchEvent({
         owner,
         repo,
