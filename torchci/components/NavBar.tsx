@@ -49,7 +49,7 @@ function NavBar() {
               </Link>
             </li>
             <li>
-              <Link href="https://metrics.pytorch.org">Metrics</Link>
+              <Link href="https://hud.pytorch.org/metrics">Metrics</Link>
             </li>
             <li>
               <span style={{ cursor: "pointer" }}>
