@@ -4124,121 +4124,6 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test2/9605//console\r\n\r\n```\r\n10:35:33 ======================================================================\r\n10:35:33 FAIL [0.421s]: test_nadam (__main__.TestOptim)\r\n10:35:33 ----------------------------------------------------------------------\r\n10:35:33 Traceback (most recent call last):\r\n10:35:33   File \"test_optim.py\", line 630, in test_nadam\r\n10:35:33     lambda weight, bias: optimizer(\r\n10:35:33   File \"test_optim.py\", line 231, in _test_basic_cases\r\n10:35:33     make_two_arg_constructor(constructor, maximize),\r\n10:35:33   File \"test_optim.py\", line 209, in _test_state_dict\r\n10:35:33     self.assertEqual(bias, bias_cuda)\r\n10:35:33   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1928, in assertEqual\r\n10:35:33     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n10:35:33 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=1.3e-06 and atol=1e-05, found 1 element(s) (out of 10) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 1.9073486328125e-05 (-1.0852036476135254 vs. -1.0851845741271973), which occurred at index 1.\r\n10:35:33 \r\n10:35:33 ----------------------------------------------------------------------\r\n```\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @jbschlosser @vincentqb @albanD @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
-      "closed_at": null,
-      "comments": 3,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/comments",
-      "created_at": "2021-11-11T14:17:12Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/68171",
-      "id": 1051026090,
-      "labels": [
-        {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to torch.optim",
-          "id": 1076923626,
-          "name": "module: optimizer",
-          "node_id": "MDU6TGFiZWwxMDc2OTIzNjI2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20optimizer"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "AMD GPU support for Pytorch",
-          "id": 1078897659,
-          "name": "module: rocm",
-          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI",
-          "id": 1301397902,
-          "name": "module: flaky-tests",
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z84-pWKq",
-      "number": 68171,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/68171/timeline",
-      "title": "DISABLED test_nadam (__main__.TestOptim)",
-      "updated_at": "2022-04-28T17:23:28Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/68171",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/38511765?v=4",
-        "events_url": "https://api.github.com/users/mruberry/events{/privacy}",
-        "followers_url": "https://api.github.com/users/mruberry/followers",
-        "following_url": "https://api.github.com/users/mruberry/following{/other_user}",
-        "gists_url": "https://api.github.com/users/mruberry/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/mruberry",
-        "id": 38511765,
-        "login": "mruberry",
-        "node_id": "MDQ6VXNlcjM4NTExNzY1",
-        "organizations_url": "https://api.github.com/users/mruberry/orgs",
-        "received_events_url": "https://api.github.com/users/mruberry/received_events",
-        "repos_url": "https://api.github.com/users/mruberry/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/mruberry/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/mruberry/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/mruberry"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
-      "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nhttps://ci.pytorch.org/jenkins/job/pytorch-builds/job/pytorch-linux-bionic-rocm4.3.1-py3.6-test2/9624//console\r\n\r\n12:34:17 ======================================================================\r\n12:34:17 FAIL [4.075s]: test_Conv2d_naive_groups_cuda_float16 (__main__.TestNNDeviceTypeCUDA)\r\n12:34:17 ----------------------------------------------------------------------\r\n12:34:17 Traceback (most recent call last):\r\n12:34:17   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1447, in wrapper\r\n12:34:17     method(*args, **kwargs)\r\n12:34:17   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1447, in wrapper\r\n12:34:17     method(*args, **kwargs)\r\n12:34:17   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_device_type.py\", line 371, in instantiated_test\r\n12:34:17     result = test(self, **param_kwargs)\r\n12:34:17   File \"test_nn.py\", line 16621, in test_Conv2d_naive_groups\r\n12:34:17     self.assertEqual(output, torch.cat([output1, output2], 1))\r\n12:34:17   File \"/opt/conda/lib/python3.6/site-packages/torch/testing/_internal/common_utils.py\", line 1928, in assertEqual\r\n12:34:17     super().assertTrue(result, msg=self._get_assert_msg(msg, debug_msg=debug_msg))\r\n12:34:17 AssertionError: False is not true : Tensors failed to compare as equal!With rtol=0.001 and atol=1e-05, found 34 element(s) (out of 128) whose difference(s) exceeded the margin of error (including 0 nan comparisons). The greatest difference was 0.0009765625 (-0.51953125 vs. -0.5205078125), which occurred at index (0, 3, 0, 2).\r\n12:34:17 \r\n12:34:17 ----------------------------------------------------------------------\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 2,
@@ -13530,5 +13415,5 @@
       }
     }
   ],
-  "total_count": 126
+  "total_count": 125
 }
