@@ -1,3 +1,19 @@
+# [0.8.0](https://github.com/suo/lintrunner/compare/v0.7.0...v) (2022-05-02)
+
+
+### Bug Fixes
+
+* add severity to oneline message ([14495be](https://github.com/suo/lintrunner/commit/14495be590d1b8c223a07f59ccdb6600d22e92c4))
+* unify output controlling commands into --output ([8b95e7b](https://github.com/suo/lintrunner/commit/8b95e7b76c65dc4187b17b9851ce902aebc58944))
+
+
+### Features
+
+* format command ([bf7925d](https://github.com/suo/lintrunner/commit/bf7925df7b1aac0265e3bf88ef8ca05d720e0560))
+* warn if init seems out of date ([4050dd7](https://github.com/suo/lintrunner/commit/4050dd7fe883c419e0af110a7d2c6887b6ba08f0))
+
+
+
 # [0.7.0](https://github.com/suo/lintrunner/compare/v0.6.2...v0.7.0) (2022-04-15)
 
 
