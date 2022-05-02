@@ -5,7 +5,7 @@ function mergeBot(app: Probot): void {
   const mergeCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this");
   const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
   const rebaseCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)");
-  const rebaseAllowList = ["clee2000", "zengk95", "janeyx99", "albanD", "cpuhrsch", "suo", "ngimel", "rohan-varma"];
+  const rebaseAllowList = ["clee2000", "zengk95", "janeyx99", "albanD", "cpuhrsch", "suo", "ngimel", "rohan-varma", "ezyang"];
 
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
@@ -54,7 +54,7 @@ function mergeBot(app: Probot): void {
         await addComment(
           ctx,
           "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
-            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+          "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
         );
         return;
       }
