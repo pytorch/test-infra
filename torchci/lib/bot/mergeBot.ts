@@ -47,14 +47,14 @@ function mergeBot(app: Probot): void {
         return;
       }
       const revertWithReasonCmdPat = new RegExp(
-        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this.*(\\s+\\w+){3,}"
+        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this(.|\\s)*(\\s+\\w+){3,}"
       );
       if (commentBody.match(revertWithReasonCmdPat) === null) {
         // revert reason of 3+ words not given
         await addComment(
           ctx,
           "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
-            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return;
       }

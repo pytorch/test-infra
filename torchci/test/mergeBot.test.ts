@@ -178,7 +178,7 @@ describe("merge-bot", () => {
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "Revert unsuccessful: please retry the command explaining why the revert is " +
-            "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+            "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return true;
       })
@@ -195,7 +195,7 @@ describe("merge-bot", () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body =
-      "@pytorchbot  revert this--it breaks ios tests on trunk " +
+      "@pytorchbot  revert this--\n\nit breaks ios tests on trunk " +
       "see https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
 
     const owner = event.payload.repository.owner.login;
