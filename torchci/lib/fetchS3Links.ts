@@ -18,7 +18,7 @@ export default async function fetchS3Links(
         kind: "s3",
         name: name ?? "",
         sizeInBytes: jobs.Size ?? 0,
-        url: `https://gha-artifacts.s3.amazonaws.com/${jobs.Key}`,
+        url: `https://gha-artifacts.s3.amazonaws.com/${jobs.Key?.split("/").map(x => encodeURIComponent(x)).join("/")}`,
         expired: false,
       };
     }) ?? [];
