@@ -12,6 +12,10 @@ pub struct LintRunnerConfig {
     pub linters: Vec<LintConfig>,
 }
 
+fn is_false(b: &bool) -> bool {
+    return *b == false;
+}
+
 /// Represents a single linter, along with all the information necessary to invoke it.
 ///
 /// This goes in the linter configuration TOML file.
@@ -30,7 +34,7 @@ pub struct LintRunnerConfig {
 ///     '@{{PATHSFILE}}'
 /// ]
 /// ```
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LintConfig {
     /// The name of the linter, conventionally capitals and numbers, no spaces,
     /// dashes, or underscores
@@ -103,6 +107,13 @@ pub struct LintConfig {
     /// ```toml
     /// command = ['python3', 'my_linter_init.py', '--dry-run={{DRYRUN}}']
     pub init_command: Option<Vec<String>>,
+
+    /// If true, this linter will be considered a formatter, and will invoked by
+    /// `lintrunner format`. Formatters should be *safe*: people should be able
+    /// to blindly accept the output without worrying that it will change the
+    /// meaning of their code.
+    #[serde(skip_serializing_if = "is_false", default = "bool::default")]
+    pub is_formatter: bool,
 }
 
 /// Given options specified by the user, return a list of linters to run.

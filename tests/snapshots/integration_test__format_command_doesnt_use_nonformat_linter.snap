@@ -1,0 +1,13 @@
+---
+source: tests/integration_test.rs
+assertion_line: 20
+expression: output_lines
+---
+- "STDOUT:"
+- ok No lint issues.
+- Successfully applied all patches.
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+

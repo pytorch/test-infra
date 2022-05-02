@@ -121,7 +121,7 @@ fn get_paths_from_file(file: AbsPath) -> Result<Vec<AbsPath>> {
 }
 
 /// Represents the set of paths the user wants to lint.
-pub enum PathsToLint {
+pub enum PathsOpt {
     /// The user didn't specify any paths, so we'll automatically determine
     /// which paths to check.
     Auto,
@@ -150,7 +150,7 @@ pub enum RenderOpt {
 
 pub fn do_lint(
     linters: Vec<Linter>,
-    paths_to_lint: PathsToLint,
+    paths_opt: PathsOpt,
     should_apply_patches: bool,
     render_opt: RenderOpt,
     enable_spinners: bool,
@@ -161,8 +161,8 @@ pub fn do_lint(
         linters.iter().map(|l| &l.code).collect::<Vec<_>>()
     );
 
-    let mut files = match paths_to_lint {
-        PathsToLint::Auto => {
+    let mut files = match paths_opt {
+        PathsOpt::Auto => {
             let git_root = get_git_root()?;
             let relative_to = match revision_opt {
                 RevisionOpt::Head => None,
@@ -173,9 +173,9 @@ pub fn do_lint(
             };
             get_changed_files(&git_root, relative_to.as_deref())?
         }
-        PathsToLint::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
-        PathsToLint::Paths(paths) => get_paths_from_input(paths)?,
-        PathsToLint::PathsFile(file) => get_paths_from_file(file)?,
+        PathsOpt::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
+        PathsOpt::Paths(paths) => get_paths_from_input(paths)?,
+        PathsOpt::PathsFile(file) => get_paths_from_file(file)?,
     };
 
     // Sort and unique the files so we pass a consistent ordering to linters
