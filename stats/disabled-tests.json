@@ -13419,7 +13419,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params%3DFalse)_offload_activations_False%2C%20TestFSDPCheckpoint)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params%3DFalse)_offload_activations_False%2C%20TestFSDPCheckpoint)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76680/comments",
@@ -13428,6 +13428,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76680",
       "id": 1223201994,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13461,7 +13470,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76680/timeline",
       "title": "DISABLED test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params=False)_offload_activations_False (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-05-02T18:26:41Z",
+      "updated_at": "2022-05-03T22:03:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76680",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -13489,7 +13498,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_False%2C%20TestFSDPCheckpoint)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_False%2C%20TestFSDPCheckpoint)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76696/comments",
@@ -13498,6 +13507,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76696",
       "id": 1223414755,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13531,7 +13549,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76696/timeline",
       "title": "DISABLED test_basic_checkpoint_end_to_end_cpu_offload_CPUOffload(offload_params=True)_offload_activations_False (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-05-02T22:13:15Z",
+      "updated_at": "2022-05-03T22:03:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76696",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -13559,7 +13577,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DFalse)_offload_activations_False%2C%20TestFSDPCheckpoint)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DFalse)_offload_activations_False%2C%20TestFSDPCheckpoint)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76697/comments",
@@ -13568,6 +13586,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76697",
       "id": 1223429705,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13601,7 +13628,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76697/timeline",
       "title": "DISABLED test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=False)_offload_activations_False (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-05-02T22:33:03Z",
+      "updated_at": "2022-05-03T22:03:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76697",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -13629,7 +13656,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_False%2C%20TestFSDPCheckpoint)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_False%2C%20TestFSDPCheckpoint)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76721/comments",
@@ -13638,6 +13665,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76721",
       "id": 1223732920,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13671,7 +13707,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76721/timeline",
       "title": "DISABLED test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_False (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-05-03T06:21:43Z",
+      "updated_at": "2022-05-03T22:03:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76721",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -13699,7 +13735,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fsdp_memory_ckpt_no_ckpt%2C%20TestFSDPMemory)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fsdp_memory_ckpt_no_ckpt%2C%20TestFSDPMemory)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76741/comments",
@@ -13708,6 +13744,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76741",
       "id": 1224250038,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13741,7 +13786,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76741/timeline",
       "title": "DISABLED test_fsdp_memory_ckpt_no_ckpt (__main__.TestFSDPMemory)",
-      "updated_at": "2022-05-03T15:26:26Z",
+      "updated_at": "2022-05-03T22:03:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76741",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -13769,7 +13814,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fsdp_memory_ckpt_ckpt%2C%20TestFSDPMemory)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fsdp_memory_ckpt_ckpt%2C%20TestFSDPMemory)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76742/comments",
@@ -13778,6 +13823,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76742",
       "id": 1224268863,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13811,7 +13865,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76742/timeline",
       "title": "DISABLED test_fsdp_memory_ckpt_ckpt (__main__.TestFSDPMemory)",
-      "updated_at": "2022-05-03T15:43:50Z",
+      "updated_at": "2022-05-03T22:03:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76742",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
