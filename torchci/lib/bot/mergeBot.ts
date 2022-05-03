@@ -5,13 +5,25 @@ function mergeBot(app: Probot): void {
     const mergeCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
     );
-
     const revertCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+revert\\s+this"
     );
     const rebaseCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
     );
+    const rebaseAllowList = [
+        "clee2000",
+        "zengk95",
+        "janeyx99",
+        "albanD",
+        "cpuhrsch",
+        "suo",
+        "ngimel",
+        "rohan-varma",
+        "ezyang",
+        "davidberard98",
+    ];
+
     app.on("issue_comment.created", async (ctx) => {
         const commentBody = ctx.payload.comment.body;
         const owner = ctx.payload.repository.owner.login;
@@ -62,14 +74,14 @@ function mergeBot(app: Probot): void {
                 return;
             }
             const revertWithReasonCmdPat = new RegExp(
-                "^\\s*@pytorch(merge|)bot\\s+revert\\s+this.*(\\s+\\w+){3,}"
+                "^\\s*@pytorch(merge|)bot\\s+revert\\s+this(.|\\s)*(\\s+\\w+){3,}"
             );
             if (commentBody.match(revertWithReasonCmdPat) === null) {
                 // revert reason of 3+ words not given
                 await addComment(
                     ctx,
                     "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
-                        "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see <url to logs>."
+                        "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
                 );
                 return;
             }
@@ -77,7 +89,8 @@ function mergeBot(app: Probot): void {
             await reactOnComment(ctx, "+1");
         } else if (
             commentBody.match(rebaseCmdPat) &&
-            ctx.payload.comment.user.login == "clee2000"
+            rebaseAllowList.includes(ctx.payload.comment.user.login) &&
+            rebaseAllowList.includes(ctx.payload.issue.user.login)
         ) {
             if (!ctx.payload.issue.pull_request) {
                 // Issue, not pull request.
