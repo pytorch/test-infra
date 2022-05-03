@@ -12,9 +12,9 @@ export function nockTracker(
   nock("https://api.github.com")
     .get(
       "/repos/" +
-        ghaPath +
-        "/contents/" +
-        encodeURIComponent(".github/pytorch-probot.yml")
+      ghaPath +
+      "/contents/" +
+      encodeURIComponent(".github/pytorch-probot.yml")
     )
     .reply(200, configContent);
 

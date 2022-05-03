@@ -95,8 +95,7 @@ async function triggerCircleCI(
 
   if (resp.status !== 201) {
     throw Error(
-      `Error triggering downstream circleci workflow (${
-        resp.status
+      `Error triggering downstream circleci workflow (${resp.status
       }): ${JSON.stringify(resp.data)}`
     );
   }
