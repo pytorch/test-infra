@@ -146,7 +146,7 @@ export class Ruleset {
     readonly ctx: Context,
     readonly pr_number: number,
     readonly labels: string[]
-  ) {}
+  ) { }
 
   async fetchRulesetJson(): Promise<IRulesetJson | null> {
     const prRes = await this.ctx.octokit.pulls.get(
