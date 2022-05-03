@@ -81,7 +81,7 @@ function mergeBot(app: Probot): void {
                 await addComment(
                     ctx,
                     "Revert unsuccessful: please retry the command explaining why the revert is necessary, " +
-                        "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
+                    "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
                 );
                 return;
             }

@@ -31,90 +31,90 @@ const flakyTestE = {
 }
 
 describe("Disable Flaky Test Bot Integration Tests", () => {
-  const octokit = utils.testOctokit();
+    const octokit = utils.testOctokit();
 
-  beforeEach(() => {
-  });
+    beforeEach(() => {
+    });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
 
-  test("previously undetected flaky test should create an issue", async () => {
-    const scope = nock("https://raw.githubusercontent.com")
-        .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
-        .reply(200, Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`));
-    const scope2 = nock("https://api.github.com")
-        .post("/repos/pytorch/pytorch/issues", (body) => {
-            expect(body.title).toEqual("DISABLED test_a (__main__.suite_a)");
-            expect(body.labels).toEqual(["skipped", "module: flaky-tests", "module: fft"]);
-            expect(JSON.stringify(body.body)).toContain("Platforms: ");
-            return true;
-        })
-        .reply(200, {});
+    test("previously undetected flaky test should create an issue", async () => {
+        const scope = nock("https://raw.githubusercontent.com")
+            .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+            .reply(200, Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`));
+        const scope2 = nock("https://api.github.com")
+            .post("/repos/pytorch/pytorch/issues", (body) => {
+                expect(body.title).toEqual("DISABLED test_a (__main__.suite_a)");
+                expect(body.labels).toEqual(["skipped", "module: flaky-tests", "module: fft"]);
+                expect(JSON.stringify(body.body)).toContain("Platforms: ");
+                return true;
+            })
+            .reply(200, {});
 
-    await disableFlakyTestBot.handleFlakyTest(flakyTestA, [], octokit);
+        await disableFlakyTestBot.handleFlakyTest(flakyTestA, [], octokit);
 
-    if (!nock.isDone()) {
-        console.error("pending mocks: %j", scope.pendingMocks());
-        console.error("pending mocks: %j", scope2.pendingMocks());
-    }
-  });
+        if (!nock.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+            console.error("pending mocks: %j", scope2.pendingMocks());
+        }
+    });
 
-  test("flaky test associated with an open issue should comment", async () => {
-    const scope = nock("https://api.github.com")
-        .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
-            const comment = JSON.stringify(body.body);
-            expect(comment).toContain("Another case of trunk flakiness has been found");
-            expect(comment).toContain("Please verify");
-            return true;
-        })
-        .reply(200, {});
+    test("flaky test associated with an open issue should comment", async () => {
+        const scope = nock("https://api.github.com")
+            .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+                const comment = JSON.stringify(body.body);
+                expect(comment).toContain("Another case of trunk flakiness has been found");
+                expect(comment).toContain("Please verify");
+                return true;
+            })
+            .reply(200, {});
 
-    const issues = [{
-        number: 1,
-        title: "DISABLED test_a (__main__.suite_a)",
-        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
-        state: ("open" as "open" | "closed")
-    }];
+        const issues = [{
+            number: 1,
+            title: "DISABLED test_a (__main__.suite_a)",
+            html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+            state: ("open" as "open" | "closed")
+        }];
 
-    await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
+        await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
 
-    if (!scope.isDone()) {
-        console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
-  });
+        if (!scope.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+        }
+        scope.done();
+    });
 
-  test("flaky test associated with a closed issue should reopen issue and comment", async () => {
-    const scope = nock("https://api.github.com")
-        .patch("/repos/pytorch/pytorch/issues/1", (body) => {
-            expect(body).toMatchObject({state: "open"});
-            return true;
-        })
-        .reply(200, {})
-        .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
-            const comment = JSON.stringify(body.body);
-            expect(comment).toContain("Another case of trunk flakiness has been found");
-            expect(comment).toContain("Reopening");
-            return true;
-        })
-        .reply(200, {});
+    test("flaky test associated with a closed issue should reopen issue and comment", async () => {
+        const scope = nock("https://api.github.com")
+            .patch("/repos/pytorch/pytorch/issues/1", (body) => {
+                expect(body).toMatchObject({ state: "open" });
+                return true;
+            })
+            .reply(200, {})
+            .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+                const comment = JSON.stringify(body.body);
+                expect(comment).toContain("Another case of trunk flakiness has been found");
+                expect(comment).toContain("Reopening");
+                return true;
+            })
+            .reply(200, {});
 
-    const issues = [{
-        number: 1,
-        title: "DISABLED test_a (__main__.suite_a)",
-        html_url: "https://api.github.com/pytorch/pytorch/issues/1",
-        state: ("closed" as "open" | "closed")
-    }];
+        const issues = [{
+            number: 1,
+            title: "DISABLED test_a (__main__.suite_a)",
+            html_url: "https://api.github.com/pytorch/pytorch/issues/1",
+            state: ("closed" as "open" | "closed")
+        }];
 
-    await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
+        await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
 
-    if (!scope.isDone()) {
-        console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
-  });
+        if (!scope.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+        }
+        scope.done();
+    });
 });
 
 describe("Disable Flaky Test Bot Unit Tests", () => {
@@ -122,8 +122,8 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     });
 
     afterEach(() => {
-      nock.cleanAll();
-      jest.restoreAllMocks();
+        nock.cleanAll();
+        jest.restoreAllMocks();
     });
 
     test("filterOutPRFlakyTests: correctly filters and updates flaky test list", async () => {
@@ -251,8 +251,8 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     test("getWorkflowJobNames: should zip the workflow and job names of a test", async () => {
         expect(disableFlakyTestBot.getWorkflowJobNames(flakyTestA))
             .toEqual(["trunk / win-cpu-vs-2019 / test",
-                      "periodic / win-cuda11.3-vs-2019 / test",
-                      "periodic / win-cuda11.3-vs-2019 / test"],)
+                "periodic / win-cuda11.3-vs-2019 / test",
+                "periodic / win-cuda11.3-vs-2019 / test"])
     });
 
     test("getPlatformsAffected: should correctly triage workflows of one platform", async () => {
@@ -268,6 +268,6 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
         expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain("Platforms: ");
     });
-  })
+})
 
 
