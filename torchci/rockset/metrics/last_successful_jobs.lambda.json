@@ -1,11 +1,5 @@
 {
   "sql_path": "__sql/last_successful_jobs.sql",
-  "default_parameters": [
-    {
-      "name": "jobNames",
-      "type": "string",
-      "value": "docs push / build-docs (python),docs push / build-docs (cpp)"
-    }
-  ],
+  "default_parameters": [],
   "description": "given a comma-separated list of jobs, return the number of seconds since master built all the jobs successfully"
 }
