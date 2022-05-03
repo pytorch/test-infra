@@ -43,7 +43,7 @@ function mergeBot(app: Probot): void {
             if (force) {
                 payload.force = true;
             } else if (onGreen) {
-                payload.force = true;
+                payload.on_green = true;
             }
 
             await ctx.octokit.repos.createDispatchEvent({
@@ -64,7 +64,7 @@ function mergeBot(app: Probot): void {
             await dispatchEvent(
                 "try-merge",
                 typeof match[2] === "string",
-                typeof match[3] == "string"
+                typeof match[3] === "string"
             );
             await reactOnComment(ctx, "+1");
         } else if (commentBody.match(revertCmdPat)) {
