@@ -1,4 +1,4 @@
-with master_commit as (
+with default_branch_commit as (
     SELECT
         commit.timestamp,
         commit.sha,
@@ -18,15 +18,15 @@ original_pr as (
     SELECT
         p.number as number,
         p.head.sha as pr_head_sha,
-        master_commit.sha as master_commit_sha,
-        master_commit.timestamp as master_commit_time,
+        default_branch_commit.sha as default_branch_commit_sha,
+        default_branch_commit.timestamp as default_branch_commit_time,
     FROM
         pull_request p
-        INNER JOIN master_commit on p.number = master_commit.pr_num
+        INNER JOIN default_branch_commit on p.number = default_branch_commit.pr_num
 )
 SELECT
     pr_head_sha,
-    master_commit_sha,
+    default_branch_commit_sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
     id,
     CASE
@@ -44,7 +44,7 @@ from
     (
         SELECT
             workflow.head_commit.id as pr_head_sha,
-            original_pr.master_commit_sha as master_commit_sha,
+            original_pr.default_branch_commit_sha as default_branch_commit_sha,
             job.name as job_name,
             workflow.name as workflow_name,
             job.id,
@@ -77,7 +77,7 @@ from
             -- IMPORTANT: this needs to have the same order as the query above
         SELECT
             job.pipeline.vcs.revision,
-            original_pr.master_commit_sha,
+            original_pr.default_branch_commit_sha,
             -- Swap workflow and job name for consistency with GHA naming style.
             job.workflow.name as job_name,
             job.job.name as workflow_name,

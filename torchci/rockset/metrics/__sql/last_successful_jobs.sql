@@ -12,7 +12,7 @@ with successful_jobs as (
         JOIN workflow_run workflow on workflow.id = job.run_id
     where
         workflow.repository.full_name = 'pytorch/pytorch'
-        AND workflow.head_branch = 'master'
+        AND workflow.head_branch IN ('master', 'main')
         AND job.conclusion = 'success'
         AND ARRAY_CONTAINS(SPLIT(:jobNames, ','), job.name)
     order by

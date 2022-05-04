@@ -4,7 +4,7 @@ SELECT
 FROM
     push
 WHERE
-    push.ref = 'refs/heads/master'
+    push.ref IN ('refs/heads/master', 'refs/heads/main')
     AND push.repository.owner.name = 'pytorch'
     AND push.repository.name = 'pytorch'
     AND (
