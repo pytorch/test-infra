@@ -1,7 +1,6 @@
 import { FlakyTestData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
-import styles from "components/flakytest.module.css";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -20,51 +19,49 @@ export default function Page() {
   return (
     <div>
       <h1>PyTorch CI Flaky Tests</h1>
-      <h2>
-        Test Name Filter: {name === "%" ? "<any>" : name}
-      </h2>
-      <h2>
-        Test Suite Filter: {suite === "%" ? "<any>" : suite}
-      </h2>
-      <h2>
-        Test File Filter: {file === "%" ? "<any>" : file}
-      </h2>
-      <em>Showing last 14 days of data.</em>
+      <h3>
+        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> |
+        Test Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> |
+        Test File Filter: <code>{file === "%" ? "<any>" : file}</code>
+      </h3>
+      <em>Showing last 30 days of data.</em>
       {data === undefined ? (
         <div>Loading...</div>
       ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th className={styles.table}>Test Name</th>
-              <th className={styles.table}>Test Suite</th>
-              <th className={styles.table}>Test File</th>
-              <th className={styles.table}>Workflow Jobs</th>
-              <th className={styles.table}>Branches</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data.flakyTests as FlakyTestData[]).map((test) => {
-              return (
-                <tr key={`${test.name} ${test.suite}`}>
-                  <td className={styles.table}>{test.name}</td>
-                  <td className={styles.table}>{test.suite}</td>
-                  <td className={styles.table}>{test.file}</td>
-                  <td className={styles.table}>
-                    {test.workflowNames.map((value, index) => {
-                      return (
-                        <li key={index}><a
-                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
-                        >{`${value} / ${test.jobNames[index]}`}</a></li>
-                      );
-                    })}
-                  </td>
-                  <td className={styles.table}>{test.branches.join("\n")}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        (data.flakyTests as FlakyTestData[]).map((test) => {
+          return (
+            <div key={`${test.name} ${test.suite}`}>
+              <h1>
+                <code>{`${test.name}, ${test.suite}`}</code>
+              </h1>
+              from file <code>{`${test.file}`}</code>
+              <div>
+                <h4> Test workflow job URLs: </h4>
+                <ul>
+                {test.workflowNames.map((value, index) => {
+                  return (
+                    <li key={index}><a
+                      href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
+                    >{`${value} / ${test.jobNames[index]}`}</a> on branch {test.branches[index]}</li>
+                  );
+                })}
+                </ul>
+              </div>
+              <h4>Debugging instructions:</h4>
+              <p>As flaky tests will soon show as green, it will be harder to parse the logs. To find relevant
+              log snippets:</p>
+              <ol>
+                <li>Click on any of the workflow job links above, for example <a
+                      href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
+                    >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a></li>
+                <li>Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.</li>
+                <li>Grep for <code>{test.name}</code></li>
+                <li>There should be several instances run (as flaky tests are rerun in CI) from
+                  which you can study the logs.</li>
+              </ol>
+            </div>
+          );
+        })
       )}
     </div>
   );
