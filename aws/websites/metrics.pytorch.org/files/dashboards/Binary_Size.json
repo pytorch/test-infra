@@ -108,7 +108,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT updated_at as \"time\",\n       library,\n       (SIZE / 1024 / 1024) AS \"MB\"\nFROM binary_size\nWHERE branch IN (\"master\", \"main\")\n  AND build_environment = \"$build_environment\"\n  AND library like \"libtorch%\"\n  AND $__timeFilter(updated_at);",
+          "rawSql": "SELECT updated_at as \"time\",\n       library,\n       (SIZE / 1024 / 1024) AS \"MB\"\nFROM binary_size\nWHERE branch = \"master\"\n  AND build_environment = \"$build_environment\"\n  AND library like \"libtorch%\"\n  AND $__timeFilter(updated_at);",
           "refId": "A",
           "select": [
             [
@@ -218,7 +218,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT updated_at as \"time\",\n       test_name,\n       (peak_memory_bytes / 1024 / 1024) as \"Maximum RSS (MB)\"\nFROM import_stats\nWHERE branch IN (\"master\", \"main\")\n  AND build_environment = \"$build_environment-default\"\n  AND $__timeFilter(updated_at);\n  \n",
+          "rawSql": "SELECT updated_at as \"time\",\n       test_name,\n       (peak_memory_bytes / 1024 / 1024) as \"Maximum RSS (MB)\"\nFROM import_stats\nWHERE branch = \"master\"\n  AND build_environment = \"$build_environment-default\"\n  AND $__timeFilter(updated_at);\n  \n",
           "refId": "A",
           "select": [
             [
@@ -327,7 +327,7 @@
           "metricColumn": "none",
           "queryType": "randomWalk",
           "rawQuery": true,
-          "rawSql": "SELECT updated_at AS \"time\",\n       cache_hits,\n       cache_misses,\n       compile_requests\nFROM sccache_stats\nWHERE branch IN (\"master\", \"main\")\n  AND build_environment=\"$build_environment\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at DESC;",
+          "rawSql": "SELECT updated_at AS \"time\",\n       cache_hits,\n       cache_misses,\n       compile_requests\nFROM sccache_stats\nWHERE branch = \"master\"\n  AND build_environment=\"$build_environment\"\n  AND $__timeFilter(updated_at)\nORDER BY updated_at DESC;",
           "refId": "A",
           "select": [
             [
