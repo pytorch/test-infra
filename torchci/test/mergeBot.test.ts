@@ -156,6 +156,37 @@ describe("merge-bot", () => {
         scope.done();
     });
 
+    test("merge this on green comment on pull request triggers dispatch and like", async () => {
+        const event = require("./fixtures/pull_request_comment.json");
+
+        event.payload.comment.body = "@pytorchbot merge this on green";
+
+        const owner = event.payload.repository.owner.login;
+        const repo = event.payload.repository.name;
+        const pr_number = event.payload.issue.number;
+        const comment_number = event.payload.comment.id;
+        const scope = nock("https://api.github.com")
+            .post(
+                `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+                (body) => {
+                    expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+                    return true;
+                }
+            )
+            .reply(200, {})
+            .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+                expect(JSON.stringify(body)).toContain(
+                    `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
+                );
+                return true;
+            })
+            .reply(200, {});
+        await probot.receive(event);
+        if (!scope.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+        }
+        scope.done();
+    });
     test("revert this comment w/o explanation on pull request triggers comment only", async () => {
         const event = require("./fixtures/pull_request_comment.json");
 
@@ -170,7 +201,7 @@ describe("merge-bot", () => {
                 (body) => {
                     expect(JSON.stringify(body)).toContain(
                         "Revert unsuccessful: please retry the command explaining why the revert is " +
-                            "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
+                        "necessary, e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
                     );
                     return true;
                 }
