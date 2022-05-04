@@ -16,6 +16,15 @@
       "id": 544251558,
       "labels": [
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.onnx",
+          "id": 693805995,
+          "name": "module: onnx",
+          "node_id": "MDU6TGFiZWw2OTM4MDU5OTU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20onnx"
+        },
+        {
           "color": "006b75",
           "default": false,
           "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
@@ -32,6 +41,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "triaged by ONNX team",
+          "id": 3202390887,
+          "name": "onnx-triaged",
+          "node_id": "MDU6TGFiZWwzMjAyMzkwODg3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/onnx-triaged"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/31750/labels{/name}",
@@ -57,7 +75,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/31750/timeline",
       "title": "DISABLED test/onnx/test_pytorch_onnx_onnxruntime.py::TestONNXRuntime_opset10::test_interpolate_downsample",
-      "updated_at": "2022-04-01T15:55:28Z",
+      "updated_at": "2022-05-04T20:51:05Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/31750",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/5086322?v=4",
