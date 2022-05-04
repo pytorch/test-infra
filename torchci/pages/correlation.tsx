@@ -51,9 +51,6 @@ export default function Page() {
         name: "correlation",
         type: "heatmap",
         data: correlationMatrix.data,
-        // label: {
-        //   show: true,
-        // },
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
@@ -69,7 +66,8 @@ export default function Page() {
       <p>
         Note: this data is static. To regenerate it, run{" "}
         <code>python scripts/compute_correlation.py</code> in the{" "}
-        <code>torchci/</code> directory of <code>pytorch/test-infra</code>
+        <code>torchci/</code> directory of <code>pytorch/test-infra</code> and
+        commit the result.
       </p>
       <ReactECharts
         style={{ height: "100%", width: "100%" }}

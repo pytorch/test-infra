@@ -11,12 +11,17 @@ ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
 if ROCKSET_API_KEY is None:
     raise RuntimeError("ROCKSET_API_KEY not set")
 
+with open("rockset/prodVersions.json") as f:
+    prod_versions = json.load(f)
+
 client = Client(
     api_key=ROCKSET_API_KEY,
     api_server="https://api.rs2.usw2.rockset.com",
 )
 qlambda = client.QueryLambda.retrieve(
-    "correlation_matrix", version="4960260cbb0c5b48", workspace="metrics"
+    "correlation_matrix",
+    version=prod_versions["metrics"]["correlation_matrix"],
+    workspace="metrics",
 )
 
 params = ParamDict()
@@ -64,4 +69,4 @@ for xIdx, xName in enumerate(correlation_matrix):
         data.append((xIdx, yIdx, value))
 
 with open("lib/correlation_matrix.json", "w") as f:
-    json.dump({"names": list(correlation_matrix.keys()), "data": data}, f)
+    json.dump({"names": list(correlation_matrix.keys()), "data": data}, f, indent=4)
