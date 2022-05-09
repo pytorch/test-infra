@@ -9,7 +9,7 @@ use lintrunner::{
     lint_config::{get_linters_from_config, LintRunnerConfig},
     log_utils::setup_logger,
     path::AbsPath,
-    persistent_data::PersistentDataStore,
+    persistent_data::{PersistentDataStore},
     render::print_error,
     PathsOpt, RenderOpt, RevisionOpt,
 };
@@ -106,6 +106,10 @@ enum SubCommand {
 
 fn do_main() -> Result<i32> {
     let args = Args::parse();
+
+    let config_path = AbsPath::try_from(&args.config)
+        .with_context(|| format!("Could not read lintrunner config at: '{}'", args.config))?;
+
     if args.force_color {
         console::set_colors_enabled(true);
         console::set_colors_enabled_stderr(true);
@@ -123,8 +127,8 @@ fn do_main() -> Result<i32> {
         // Any higher verbosity goes to trace.
         (_, _) => log::LevelFilter::Trace,
     };
-    let config_path = AbsPath::try_from(&args.config)
-        .with_context(|| format!("Could not read lintrunner config at: '{}'", args.config))?;
+
+    let persistent_data_store = PersistentDataStore::new(&config_path)?;
 
     setup_logger(log_level, args.force_color)?;
 
@@ -169,7 +173,6 @@ fn do_main() -> Result<i32> {
         get_linters_from_config(all_linters, skipped_linters, taken_linters, &config_path)?;
 
     let enable_spinners = args.verbose == 0 && args.output == RenderOpt::Default;
-    let persistent_data_store = PersistentDataStore::new(&config_path)?;
 
     let revision_opt = if let Some(revision) = args.revision {
         RevisionOpt::Revision(revision)

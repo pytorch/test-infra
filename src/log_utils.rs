@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use console::{Term, style};
+use console::{style, Term};
 use fern::colors::{Color, ColoredLevelConfig};
 use std::process::Output;
 

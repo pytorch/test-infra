@@ -30,7 +30,6 @@ use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
 use crate::git::get_merge_base_with;
-use crate::init::write_config;
 use crate::render::render_lint_messages_oneline;
 
 fn group_lints_by_file(
@@ -83,7 +82,7 @@ pub fn do_init(
         linter.init(dry_run)?;
     }
 
-    write_config(persistent_data_store, config_path)?;
+    persistent_data_store.update_last_init(config_path)?;
 
     Ok(0)
 }

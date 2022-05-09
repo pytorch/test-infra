@@ -8,15 +8,17 @@
 
 use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
-use serde::{de::DeserializeOwned, Serialize};
-use std::{fs::File, path::PathBuf};
+use log::debug;
+use std::path::{Path, PathBuf};
 
 use crate::path::AbsPath;
+
+const CONFIG_DATA_NAME: &str = ".lintrunner.toml";
 
 /// Single way to interact with persistent data for a given run of lintrunner.
 /// This is scoped to a single .lintrunner.toml config.
 pub struct PersistentDataStore {
-    pub data_dir: PathBuf,
+    data_dir: PathBuf,
 }
 
 impl PersistentDataStore {
@@ -26,54 +28,47 @@ impl PersistentDataStore {
         let project_dirs =
             project_dirs.ok_or_else(|| anyhow!("Could not find project directories"))?;
         let project_data_dir = project_dirs.data_dir();
-        if !project_data_dir.exists() {
-            std::fs::create_dir_all(project_data_dir)?;
-        }
 
-        // Now compute one specific to lthis lintrunner config.
+        // Now compute one specific to this lintrunner config.
         let config_path_hash = blake3::hash(config_path.to_string_lossy().as_bytes()).to_string();
         let config_data_dir = project_data_dir.join(config_path_hash);
 
-        if !config_data_dir.exists() {
-            std::fs::create_dir(&config_data_dir)?;
-        }
+        std::fs::create_dir_all(&config_data_dir)?;
 
         Ok(PersistentDataStore {
             data_dir: config_data_dir,
         })
     }
 
-    pub fn exists(&self, key: &str) -> bool {
-        self.data_dir.join(key).exists()
+    pub fn last_init(&self) -> Result<Option<String>> {
+        debug!(
+            "Checking data file '{}/{}' to see if config has changed",
+            self.data_dir.display(),
+            CONFIG_DATA_NAME
+        );
+        let init_path = self.relative_path(CONFIG_DATA_NAME);
+        if !init_path.exists() {
+            return Ok(None);
+        }
+
+        Ok(Some(std::fs::read_to_string(init_path)?))
     }
 
-    pub fn load_json<T: Serialize + DeserializeOwned>(&self, key: &str) -> Result<T> {
-        let path = self.data_dir.join(key);
-        let file = File::open(path)?;
+    pub fn update_last_init(&self, config_path: &AbsPath) -> Result<()> {
+        debug!(
+            "Writing used config to {}/{}",
+            self.data_dir.display(),
+            CONFIG_DATA_NAME
+        );
 
-        Ok(serde_json::from_reader(file)?)
-    }
+        let config_contents = std::fs::read_to_string(config_path)?;
+        let path = self.relative_path(CONFIG_DATA_NAME);
 
-    pub fn store_json(&self, key: &str, value: &impl Serialize) -> Result<()> {
-        let path = self.data_dir.join(key);
-        let file = File::create(path)?;
-
-        serde_json::to_writer(file, value)?;
-
+        std::fs::write(path, &config_contents)?;
         Ok(())
     }
 
-    pub fn load_string(&self, key: &str) -> Result<String> {
-        let path = self.data_dir.join(key);
-
-        Ok(std::fs::read_to_string(path)?)
-    }
-
-    pub fn store_string(&self, key: &str, value: &str) -> Result<()> {
-        let path = self.data_dir.join(key);
-
-        std::fs::write(path, value)?;
-
-        Ok(())
+    fn relative_path(&self, path: impl AsRef<Path>) -> PathBuf {
+        self.data_dir.join(path)
     }
 }
