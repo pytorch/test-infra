@@ -124,7 +124,17 @@ pub fn get_linters_from_config(
     config_path: &AbsPath,
 ) -> Result<Vec<Linter>> {
     let mut linters = Vec::new();
+    let mut all_linters: HashSet<String> = HashSet::new();
+
     for lint_config in linter_configs {
+        if all_linters.contains(&lint_config.code) {
+            bail!(
+                "Invalid linter configuration: linter '{}' is defined multiple times.",
+                lint_config.code
+            );
+        }
+        all_linters.insert(lint_config.code.clone());
+
         let include_patterns = patterns_from_strs(&lint_config.include_patterns)?;
         let exclude_patterns = if let Some(exclude_patterns) = &lint_config.exclude_patterns {
             patterns_from_strs(exclude_patterns)?
@@ -137,6 +147,7 @@ pub fn get_linters_from_config(
             "Invalid linter configuration: '{}' has an empty command list.",
             lint_config.code
         );
+
         linters.push(Linter {
             code: lint_config.code.clone(),
             include_patterns,
@@ -146,13 +157,8 @@ pub fn get_linters_from_config(
             config_path: config_path.clone(),
         });
     }
-    let all_linters = linters
-        .iter()
-        .map(|l| &l.code)
-        .cloned()
-        .collect::<HashSet<_>>();
 
-    debug!("Found linters: {:?}", all_linters,);
+    debug!("Found linters: {:?}", all_linters);
 
     // Apply --take
     if let Some(taken_linters) = taken_linters {

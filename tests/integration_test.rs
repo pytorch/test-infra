@@ -205,6 +205,30 @@ fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
 }
 
 #[test]
+fn duplicate_code_fails() -> Result<()> {
+    let config = temp_config(
+        "\
+            [[linter]]
+            code = 'DUPE'
+            include_patterns = ['**']
+            command = ['wont_be_run']
+
+            [[linter]]
+            code = 'DUPE'
+            include_patterns = ['**']
+            command = ['wont_be_run']
+        ",
+    )?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.assert().failure();
+    assert_output_snapshot("duplicate_code_fails", &mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
 fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
