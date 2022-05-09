@@ -1,8 +1,10 @@
 use anyhow::{bail, Result};
+use console::{Term, style};
+use fern::colors::{Color, ColoredLevelConfig};
 use std::process::Output;
 
 use log::Level::Trace;
-use log::{debug, log_enabled, trace};
+use log::{debug, log_enabled, trace, LevelFilter};
 
 pub fn log_files<T>(message: &str, files: &T)
 where
@@ -26,6 +28,57 @@ pub fn ensure_output(program_name: &str, output: &Output) -> Result<()> {
             stderr,
             stdout,
         );
+    }
+    Ok(())
+}
+
+pub fn setup_logger(log_level: LevelFilter, force_color: bool) -> Result<()> {
+    let builder = fern::Dispatch::new();
+
+    let isatty = Term::stderr().features().is_attended();
+    if isatty || force_color {
+        // Use colors in our terminal output if we're on a tty
+        let log_colors = ColoredLevelConfig::new()
+            .trace(Color::Cyan)
+            .debug(Color::Blue)
+            .info(Color::Green)
+            .warn(Color::Yellow)
+            .error(Color::Red);
+        builder
+            .chain(
+                fern::Dispatch::new()
+                    .format(move |out, message, record| {
+                        out.finish(format_args!(
+                            "{}{} {} {}{} {}",
+                            style("[").dim(),
+                            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                            log_colors.color(record.level()),
+                            record.target(),
+                            style("]").dim(),
+                            message
+                        ))
+                    })
+                    .level(log_level)
+                    .chain(std::io::stderr()),
+            )
+            .apply()?;
+    } else {
+        builder
+            .format(move |out, message, record| {
+                out.finish(format_args!(
+                    "[{} {} {}] {}",
+                    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                    record.level(),
+                    record.target(),
+                    message
+                ))
+            })
+            .chain(
+                fern::Dispatch::new()
+                    .level(log_level)
+                    .chain(std::io::stderr()),
+            )
+            .apply()?;
     }
     Ok(())
 }

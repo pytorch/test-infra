@@ -18,7 +18,7 @@ pub mod init;
 pub mod lint_config;
 pub mod lint_message;
 pub mod linter;
-mod log_utils;
+pub mod log_utils;
 pub mod path;
 pub mod persistent_data;
 pub mod render;

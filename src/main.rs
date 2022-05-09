@@ -7,6 +7,7 @@ use lintrunner::{
     do_init, do_lint,
     init::check_init_changed,
     lint_config::{get_linters_from_config, LintRunnerConfig},
+    log_utils::setup_logger,
     path::AbsPath,
     persistent_data::PersistentDataStore,
     render::print_error,
@@ -122,10 +123,10 @@ fn do_main() -> Result<i32> {
         // Any higher verbosity goes to trace.
         (_, _) => log::LevelFilter::Trace,
     };
-    env_logger::Builder::new().filter_level(log_level).init();
-
     let config_path = AbsPath::try_from(&args.config)
         .with_context(|| format!("Could not read lintrunner config at: '{}'", args.config))?;
+
+    setup_logger(log_level, args.force_color)?;
 
     let cmd = args.cmd.unwrap_or(SubCommand::Lint);
     let lint_runner_config = LintRunnerConfig::new(&config_path)?;
