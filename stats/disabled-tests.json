@@ -14539,7 +14539,77 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_data_parallel_module_cuda_float32%2C%20TestDataParallelDeviceTypeCUDA)).",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77085/comments",
+      "created_at": "2022-05-09T17:01:57Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77085/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/77085",
+      "id": 1230002826,
+      "labels": [
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77085/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85JUFqK",
+      "number": 77085,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77085/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77085/timeline",
+      "title": "DISABLED test_data_parallel_module_cuda_float32 (__main__.TestDataParallelDeviceTypeCUDA)",
+      "updated_at": "2022-05-09T17:02:00Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77085",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/554101?v=4",
+        "events_url": "https://api.github.com/users/b0noI/events{/privacy}",
+        "followers_url": "https://api.github.com/users/b0noI/followers",
+        "following_url": "https://api.github.com/users/b0noI/following{/other_user}",
+        "gists_url": "https://api.github.com/users/b0noI/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/b0noI",
+        "id": 554101,
+        "login": "b0noI",
+        "node_id": "MDQ6VXNlcjU1NDEwMQ==",
+        "organizations_url": "https://api.github.com/users/b0noI/orgs",
+        "received_events_url": "https://api.github.com/users/b0noI/received_events",
+        "repos_url": "https://api.github.com/users/b0noI/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/b0noI/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/b0noI/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/b0noI"
+      }
     }
   ],
-  "total_count": 141
+  "total_count": 142
 }
