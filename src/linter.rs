@@ -85,7 +85,11 @@ impl Linter {
             "Running linter {}: {} {}",
             self.code,
             program[0],
-            arguments.join(" ")
+            arguments
+                .iter()
+                .map(|x| format!("'{x}'"))
+                .collect::<Vec<_>>()
+                .join(" ")
         );
 
         let start = std::time::Instant::now();
