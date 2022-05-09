@@ -14,7 +14,7 @@ use lintrunner::{
 };
 
 #[derive(Debug, Parser)]
-#[clap(name = "lintrunner", about = "A lint runner", infer_subcommands(true))]
+#[clap(version, name = "lintrunner", infer_subcommands(true))]
 struct Args {
     /// Verbose mode (-v, or -vv to show full list of paths being linted)
     #[clap(short, long, parse(from_occurrences), global = true)]
