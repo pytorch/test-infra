@@ -9576,7 +9576,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: macos, linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_python_ir_utils_graph%2C%20TestJit)).",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73473/comments",
       "created_at": "2022-02-26T17:32:05Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/73473/events",
@@ -9625,7 +9625,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73473/timeline",
       "title": "DISABLED test_python_ir_utils_graph (__main__.TestJit)",
-      "updated_at": "2022-03-02T22:06:34Z",
+      "updated_at": "2022-05-09T12:57:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73473",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
@@ -14871,7 +14871,95 @@
         "type": "User",
         "url": "https://api.github.com/users/mruberry"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "NONE",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_dist_optim_none_grads%2C%20TensorPipeDistOptimizerTest) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6351104379).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77075/comments",
+      "created_at": "2022-05-09T12:57:13Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77075/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/77075",
+      "id": 1229668585,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77075/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85JS0Dp",
+      "number": 77075,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77075/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77075/timeline",
+      "title": "DISABLED test_dist_optim_none_grads (__main__.TensorPipeDistOptimizerTest)",
+      "updated_at": "2022-05-09T12:57:15Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77075",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
+        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/apps/pytorch-bot",
+        "id": 54816060,
+        "login": "pytorch-bot[bot]",
+        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
+        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
+        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
+        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
+        "type": "Bot",
+        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
+      }
     }
   ],
-  "total_count": 146
+  "total_count": 147
 }
