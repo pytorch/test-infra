@@ -170,7 +170,10 @@ impl PersistentDataStore {
             .collect::<Result<Vec<_>, std::io::Error>>()?;
 
         run_dirs.sort_unstable();
+        run_dirs.pop(); // Don't include the current run.
         run_dirs.reverse();
+
+        debug!("Found past runs: {:?}", run_dirs);
         Ok(run_dirs)
     }
 
@@ -180,8 +183,11 @@ impl PersistentDataStore {
         let dir = run_dirs.get(invocation);
         match dir {
             Some(dir) => {
+                debug!("Reading run info from {}", dir.display());
+                let run_info = std::fs::read_to_string(dir.join("run_info.json"))
+                    .context("couldn't read run info json")?;
                 let run_info: RunInfo =
-                    serde_json::from_str(&std::fs::read_to_string(dir.join("run_info.json"))?)?;
+                    serde_json::from_str(&run_info).context("couldn't deserialize run info")?;
                 Ok(run_info)
             }
             None => {
@@ -199,7 +205,7 @@ impl PersistentDataStore {
         let mut ret = Vec::new();
 
         // Skip the first one as it is the current run.
-        for dir in run_dirs.into_iter().skip(1) {
+        for dir in run_dirs.into_iter() {
             debug!("Reading run info from {}", dir.display());
 
             let run_info: RunInfo =
