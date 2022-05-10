@@ -2,15 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.9.0] - 2022-05-10
 
 ### Bug Fixes
 
 - Add --version command-line arg ([7932c44](https://github.com/suo/lintrunner/commit/7932c44d80279e54b67e02d256b356104ba4bcc2))
+- Escape command-line args in log ([1018103](https://github.com/suo/lintrunner/commit/10181032e2093bcf0cb233300b982da459a71975))
+- Error if duplicate linters found ([89064c1](https://github.com/suo/lintrunner/commit/89064c1f808d7e76ecc183c182b9c1ac4d765704))
+- Escape linter initializer in logs ([0a0f0ec](https://github.com/suo/lintrunner/commit/0a0f0ec1d86b02f77a680ad8e4560ed80219b849))
+- Properly ignore current run on `rage -i` ([#6](https://github.com/orhun/git-cliff/issues/6)) ([e4989eb](https://github.com/suo/lintrunner/commit/e4989ebe598d7268d4ae715484ec21a57aadd426))
+- Show milliseconds in rage run timestamp ([9780a2b](https://github.com/suo/lintrunner/commit/9780a2b8774b3c6e52b29414435a038840a3aabf))
 
 ### Documentation
 
 - Update changelog ([82c3335](https://github.com/suo/lintrunner/commit/82c33359f0cde758e7153d4ba450751afbc6c6c8))
+
+### Features
+
+- Add rage command for bug reporting ([bb80fef](https://github.com/suo/lintrunner/commit/bb80fef49fabad5558e77786e157b4ea822d0f23))
 
 ## [0.8.0] - 2022-05-02
 
