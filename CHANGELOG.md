@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 - Escape command-line args in log ([1018103](https://github.com/suo/lintrunner/commit/10181032e2093bcf0cb233300b982da459a71975))
 - Error if duplicate linters found ([89064c1](https://github.com/suo/lintrunner/commit/89064c1f808d7e76ecc183c182b9c1ac4d765704))
 - Escape linter initializer in logs ([0a0f0ec](https://github.com/suo/lintrunner/commit/0a0f0ec1d86b02f77a680ad8e4560ed80219b849))
-- Properly ignore current run on `rage -i` ([#6](https://github.com/orhun/git-cliff/issues/6)) ([e4989eb](https://github.com/suo/lintrunner/commit/e4989ebe598d7268d4ae715484ec21a57aadd426))
+- Properly ignore current run on `rage -i` ([#6](https://github.com/suo/lintrunner/issues/6)) ([e4989eb](https://github.com/suo/lintrunner/commit/e4989ebe598d7268d4ae715484ec21a57aadd426))
 - Show milliseconds in rage run timestamp ([9780a2b](https://github.com/suo/lintrunner/commit/9780a2b8774b3c6e52b29414435a038840a3aabf))
 
 ### Documentation
