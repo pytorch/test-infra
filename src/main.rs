@@ -1,6 +1,7 @@
 use std::{collections::HashSet, convert::TryFrom, io::Write};
 
 use anyhow::{Context, Result};
+use chrono::SecondsFormat;
 use clap::Parser;
 
 use lintrunner::{
@@ -9,7 +10,8 @@ use lintrunner::{
     lint_config::{get_linters_from_config, LintRunnerConfig},
     log_utils::setup_logger,
     path::AbsPath,
-    persistent_data::{PersistentDataStore},
+    persistent_data::{ExitInfo, PersistentDataStore, RunInfo},
+    rage::do_rage,
     render::print_error,
     PathsOpt, RenderOpt, RevisionOpt,
 };
@@ -102,6 +104,13 @@ enum SubCommand {
 
     /// Run linters. This is the default if no subcommand is provided.
     Lint,
+
+    /// Create a bug report for a past invocation of lintrunner.
+    Rage {
+        /// Choose a specific invocation to report on. 0 is the most recent run.
+        #[clap(long, short)]
+        invocation: Option<usize>,
+    },
 }
 
 fn do_main() -> Result<i32> {
@@ -128,9 +137,17 @@ fn do_main() -> Result<i32> {
         (_, _) => log::LevelFilter::Trace,
     };
 
-    let persistent_data_store = PersistentDataStore::new(&config_path)?;
+    let run_info = RunInfo {
+        args: std::env::args().collect(),
+        timestamp: chrono::Local::now().to_rfc3339_opts(SecondsFormat::Secs, true),
+    };
+    let persistent_data_store = PersistentDataStore::new(&config_path, run_info)?;
 
-    setup_logger(log_level, args.force_color)?;
+    setup_logger(
+        log_level,
+        &persistent_data_store.log_file(),
+        args.force_color,
+    )?;
 
     let cmd = args.cmd.unwrap_or(SubCommand::Lint);
     let lint_runner_config = LintRunnerConfig::new(&config_path)?;
@@ -194,7 +211,7 @@ fn do_main() -> Result<i32> {
         PathsOpt::Auto
     };
 
-    match cmd {
+    let res = match cmd {
         SubCommand::Init { dry_run } => {
             // Just run initialization commands, don't actually lint.
             do_init(linters, dry_run, &persistent_data_store, &config_path)
@@ -222,7 +239,24 @@ fn do_main() -> Result<i32> {
                 revision_opt,
             )
         }
-    }
+        SubCommand::Rage { invocation } => do_rage(&persistent_data_store, invocation),
+    };
+
+    let exit_info = match &res {
+        Ok(code) => ExitInfo {
+            code: *code,
+            err: None,
+        },
+        Err(err) => ExitInfo {
+            code: 1,
+            err: Some(err.to_string()),
+        },
+    };
+
+    // Write data related to this run out to the persistent data store.
+    persistent_data_store.write_run_info(exit_info)?;
+
+    res
 }
 
 fn main() {

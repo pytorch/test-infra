@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use console::{style, Term};
 use fern::colors::{Color, ColoredLevelConfig};
+use std::path::Path;
 use std::process::Output;
 
 use log::Level::Trace;
@@ -32,7 +33,7 @@ pub fn ensure_output(program_name: &str, output: &Output) -> Result<()> {
     Ok(())
 }
 
-pub fn setup_logger(log_level: LevelFilter, force_color: bool) -> Result<()> {
+pub fn setup_logger(log_level: LevelFilter, log_file: &Path, force_color: bool) -> Result<()> {
     let builder = fern::Dispatch::new();
 
     let isatty = Term::stderr().features().is_attended();
@@ -61,6 +62,20 @@ pub fn setup_logger(log_level: LevelFilter, force_color: bool) -> Result<()> {
                     .level(log_level)
                     .chain(std::io::stderr()),
             )
+            .chain(
+                fern::Dispatch::new()
+                    .format(move |out, message, record| {
+                        out.finish(format_args!(
+                            "[{} {} {}] {}",
+                            chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                            record.level(),
+                            record.target(),
+                            message
+                        ))
+                    })
+                    .level(LevelFilter::Trace)
+                    .chain(fern::log_file(log_file)?),
+            )
             .apply()?;
     } else {
         builder
@@ -77,6 +92,11 @@ pub fn setup_logger(log_level: LevelFilter, force_color: bool) -> Result<()> {
                 fern::Dispatch::new()
                     .level(log_level)
                     .chain(std::io::stderr()),
+            )
+            .chain(
+                fern::Dispatch::new()
+                    .level(LevelFilter::Trace)
+                    .chain(fern::log_file(log_file)?),
             )
             .apply()?;
     }

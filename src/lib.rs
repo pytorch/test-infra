@@ -21,6 +21,7 @@ pub mod linter;
 pub mod log_utils;
 pub mod path;
 pub mod persistent_data;
+pub mod rage;
 pub mod render;
 
 use git::get_changed_files;
