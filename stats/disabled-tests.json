@@ -12937,6 +12937,15 @@
         {
           "color": "f7e101",
           "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
           "description": "Problem is a flaky test in CI",
           "id": 1301397902,
           "name": "module: flaky-tests",
@@ -12951,15 +12960,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/76429/labels{/name}",
@@ -13141,7 +13141,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_pointwise_op_fastpath__foreach_addcmul_cuda_int8%2C%20TestForeachCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6231260637).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_pointwise_op_fastpath__foreach_addcmul_cuda_int8%2C%20TestForeachCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6231260637).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76599/comments",
@@ -13169,13 +13169,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "FBCA04",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/76599/labels{/name}",
@@ -13201,7 +13201,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76599/timeline",
       "title": "DISABLED test_pointwise_op_fastpath__foreach_addcmul_cuda_int8 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-04-29T18:44:00Z",
+      "updated_at": "2022-05-10T12:49:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76599",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -13561,13 +13561,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "E83C95",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "related to torch.utils.benchmark e.g. Timer",
+          "id": 3307971793,
+          "name": "module: benchmark",
+          "node_id": "MDU6TGFiZWwzMzA3OTcxNzkz",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20benchmark"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/76932/labels{/name}",
@@ -13593,7 +13593,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76932/timeline",
       "title": "DISABLED test_collect_callgrind (__main__.TestBenchmarkUtils)",
-      "updated_at": "2022-05-06T00:58:18Z",
+      "updated_at": "2022-05-10T12:48:30Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76932",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
