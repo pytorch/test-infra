@@ -181,7 +181,15 @@ impl Linter {
                     .map(|arg| arg.replace("{{DRYRUN}}", dry_run))
                     .collect();
                 let (program, arguments) = init_commands.split_at(1);
-                debug!("Running: {} {}", program[0], arguments.join(" "));
+                debug!(
+                    "Running: {} {}",
+                    program[0],
+                    arguments
+                        .iter()
+                        .map(|i| format!("'{i}'"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
                 let status = Command::new(&program[0])
                     .args(arguments)
                     .current_dir(self.get_config_dir())
