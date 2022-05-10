@@ -139,7 +139,7 @@ fn do_main() -> Result<i32> {
 
     let run_info = RunInfo {
         args: std::env::args().collect(),
-        timestamp: chrono::Local::now().to_rfc3339_opts(SecondsFormat::Secs, true),
+        timestamp: chrono::Local::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     };
     let persistent_data_store = PersistentDataStore::new(&config_path, run_info)?;
 
