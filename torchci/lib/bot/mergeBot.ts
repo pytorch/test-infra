@@ -5,9 +5,7 @@ function mergeBot(app: Probot): void {
     const mergeCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
     );
-    const revertCmdPat = new RegExp(
-        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this"
-    );
+    const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
     const rebaseCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
     );
@@ -89,8 +87,9 @@ function mergeBot(app: Probot): void {
             await reactOnComment(ctx, "+1");
         } else if (
             commentBody.match(rebaseCmdPat) &&
-            rebaseAllowList.includes(ctx.payload.comment.user.login) &&
-            rebaseAllowList.includes(ctx.payload.issue.user.login)
+            ((rebaseAllowList.includes(ctx.payload.comment.user.login) &&
+                rebaseAllowList.includes(ctx.payload.issue.user.login)) ||
+                ctx.payload.comment.user.login == ctx.payload.issue.user.login)
         ) {
             if (!ctx.payload.issue.pull_request) {
                 // Issue, not pull request.
