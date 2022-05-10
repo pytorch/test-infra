@@ -14657,7 +14657,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda%2C%20TestNNDeviceTypeCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6359595952).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @albanD @mruberry @jbschlosser @walterddr @kshitij12345",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77124/comments",
       "created_at": "2022-05-10T00:57:27Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77124/events",
@@ -14715,7 +14715,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77124/timeline",
       "title": "DISABLED test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)",
-      "updated_at": "2022-05-10T00:57:30Z",
+      "updated_at": "2022-05-10T16:39:25Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77124",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
