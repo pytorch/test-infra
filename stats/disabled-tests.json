@@ -12925,7 +12925,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64%2C%20TestGradientsCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6185628356).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64%2C%20TestGradientsCUDA) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6185628356).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76429/comments",
@@ -12985,7 +12985,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76429/timeline",
       "title": "DISABLED test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64 (__main__.TestGradientsCUDA)",
-      "updated_at": "2022-04-27T03:57:39Z",
+      "updated_at": "2022-05-10T12:49:55Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76429",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
