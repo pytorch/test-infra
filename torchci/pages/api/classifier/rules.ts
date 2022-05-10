@@ -204,5 +204,10 @@ export default async function handler(
         pattern: r`An unexpected error has occurred. Conda has prepared the above report.`,
         priority: 95,
       },
+      {
+        name: "GHA error",
+        pattern: r`^##\[error\]`,
+        priority: 94,
+      },
     ]);
 }
