@@ -361,33 +361,62 @@ export default function Page() {
             metricName={"red"}
             valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
             queryParams={timeParams}
+            badThreshold={(value) => value > 0.01}
           />
         </Grid>
 
-        <Grid item xs={2}>
-          <ScalarPanel
-            title={"# reverts"}
-            queryName={"reverts"}
-            metricName={"num"}
-            valueRenderer={(value: string) => value}
-            queryParams={timeParams}
-          />
+        <Grid container item xs={2} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1}>
+            <ScalarPanel
+              title={"# reverts"}
+              queryName={"reverts"}
+              metricName={"num"}
+              valueRenderer={(value: string) => value}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 10}
+            />
+            <ScalarPanel
+              title={"Pull workflow duration avg"}
+              queryName={"workflow_duration_avg"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "pull" },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+            />
+          </Stack>
         </Grid>
 
-        <Grid item xs={2}>
-          <ScalarPanel
-            title={"Last viable/strict push"}
-            queryName={"last_branch_push"}
-            metricName={"push_seconds_ago"}
-            valueRenderer={(value) => durationDisplay(value)}
-            queryParams={[
-              {
-                name: "branch",
-                type: "string",
-                value: "refs/heads/viable/strict",
-              },
-            ]}
-          />
+        <Grid container item xs={2} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1}>
+            <ScalarPanel
+              title={"Last viable/strict push"}
+              queryName={"last_branch_push"}
+              metricName={"push_seconds_ago"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                {
+                  name: "branch",
+                  type: "string",
+                  value: "refs/heads/viable/strict",
+                },
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
+            />
+            <ScalarPanel
+              title={"Trunk workflow duration avg"}
+              queryName={"workflow_duration_avg"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "trunk" },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+            />
+          </Stack>
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
@@ -401,6 +430,7 @@ export default function Page() {
             metricName={"red"}
             valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
             queryParams={timeParams}
+            badThreshold={(value) => value > 0.5}
           />
         </Grid>
 
@@ -418,6 +448,7 @@ export default function Page() {
                   value: "refs/heads/master",
                 },
               ]}
+              badThreshold={(_) => false} // never bad
             />
             <ScalarPanel
               title={"Last nightly push"}
@@ -431,6 +462,7 @@ export default function Page() {
                   value: "refs/heads/nightly",
                 },
               ]}
+              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
           </Stack>
         </Grid>
@@ -449,6 +481,7 @@ export default function Page() {
                   value: "docker-builds",
                 },
               ]}
+              badThreshold={(value) => value > 10 * 24 * 60 * 60} // 10 day
             />
             <ScalarPanel
               title={"Last docs push"}
@@ -463,6 +496,7 @@ export default function Page() {
                     "docs push / build-docs (python),docs push / build-docs (cpp)",
                 },
               ]}
+              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
           </Stack>
         </Grid>

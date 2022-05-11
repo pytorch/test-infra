@@ -20,6 +20,8 @@ export default function ScalarPanel({
   valueRenderer,
   // The name of field to use when retrieving the value from the Rockset result.
   metricName,
+  // Callback to decide whether the scalar value is "bad" and should be displayed red.
+  badThreshold,
 }: {
   title: string;
   queryCollection?: string;
@@ -27,6 +29,7 @@ export default function ScalarPanel({
   queryParams: RocksetParam[];
   valueRenderer: (value: any) => string;
   metricName: string;
+  badThreshold: (value: any) => boolean;
 }) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -41,6 +44,7 @@ export default function ScalarPanel({
   }
 
   const value = data[0][metricName];
+  let fontColor = badThreshold(value) ? "#ee6666" : "black";
 
   return (
     <Paper sx={{ p: 2 }} elevation={3}>
@@ -53,7 +57,14 @@ export default function ScalarPanel({
         <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
           {title}
         </Typography>
-        <Typography sx={{ fontSize: "4rem", my: "auto", alignSelf: "center" }}>
+        <Typography
+          sx={{
+            fontSize: "4rem",
+            my: "auto",
+            alignSelf: "center",
+            color: fontColor,
+          }}
+        >
           {valueRenderer(value)}
         </Typography>
       </Box>
