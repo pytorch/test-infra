@@ -72,7 +72,7 @@ function mergeBot(app: Probot): void {
                 return;
             }
             const revertWithReasonCmdPat = new RegExp(
-                "^\\s*@pytorch(merge|)bot\\s+revert\\s+this(.|\\s)*(\\s+\\w+){3,}"
+                "^\\s*@pytorch(merge|)bot\\s+revert\\s+this(.|\\s)*(\\s+\\w+.*){3,}"
             );
             if (commentBody.match(revertWithReasonCmdPat) === null) {
                 // revert reason of 3+ words not given
