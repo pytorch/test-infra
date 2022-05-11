@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2022-05-11
+
+### Features
+
+- Add --tee-json option ([5978ec0](https://github.com/suo/lintrunner/commit/5978ec0e47f38bd0252c3f5afa02d27314edd875))
+
 ## [0.9.0] - 2022-05-10
 
 ### Bug Fixes
