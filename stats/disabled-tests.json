@@ -14761,7 +14761,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/comments",
@@ -14770,6 +14770,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77237",
       "id": 1232158945,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14803,7 +14812,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/timeline",
       "title": "DISABLED test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)",
-      "updated_at": "2022-05-11T07:48:27Z",
+      "updated_at": "2022-05-11T14:09:14Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77237",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
