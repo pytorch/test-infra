@@ -15274,7 +15274,86 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "MEMBER",
+      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input_prod_cuda_int8%2C%20TestReductionsCUDA)).\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/comments",
+      "created_at": "2022-05-11T22:37:04Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/77305",
+      "id": 1233248455,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85JgeDH",
+      "number": 77305,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/timeline",
+      "title": "DISABLED test_ref_small_input_prod_cuda (__main__.TestReductionsCUDA)",
+      "updated_at": "2022-05-11T22:41:35Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77305",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
+        "events_url": "https://api.github.com/users/suo/events{/privacy}",
+        "followers_url": "https://api.github.com/users/suo/followers",
+        "following_url": "https://api.github.com/users/suo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/suo",
+        "id": 1617424,
+        "login": "suo",
+        "node_id": "MDQ6VXNlcjE2MTc0MjQ=",
+        "organizations_url": "https://api.github.com/users/suo/orgs",
+        "received_events_url": "https://api.github.com/users/suo/received_events",
+        "repos_url": "https://api.github.com/users/suo/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/suo/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/suo"
+      }
     }
   ],
-  "total_count": 149
+  "total_count": 150
 }
