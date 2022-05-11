@@ -15282,7 +15282,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input_prod_cuda_int8%2C%20TestReductionsCUDA)).\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/comments",
       "created_at": "2022-05-11T22:37:04Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/events",
@@ -15331,7 +15331,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77305/timeline",
       "title": "DISABLED test_ref_small_input_prod_cuda (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-05-11T22:41:35Z",
+      "updated_at": "2022-05-11T23:38:37Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77305",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
