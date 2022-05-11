@@ -19,7 +19,7 @@ fn select_past_runs(persistent_data_store: &PersistentDataStore) -> Result<Optio
             format!(
                 "{} {}: {}",
                 starting_glyph,
-                run_info.timestamp.to_string(),
+                run_info.timestamp,
                 run_info.args.join(" "),
             )
         })

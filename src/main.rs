@@ -89,9 +89,8 @@ struct Args {
     #[clap(long, global = true)]
     data_path: Option<String>,
 
-
     /// If set, output json to the provided path as well as the terminal.
-    #[clap(long, global=true)]
+    #[clap(long, global = true)]
     tee_json: Option<String>,
 }
 
@@ -182,7 +181,7 @@ fn do_main() -> Result<i32> {
             .linters
             .iter()
             .filter(|l| l.is_formatter)
-            .map(|l| l.clone());
+            .cloned();
         placeholder.extend(iter);
         &placeholder
     } else {
@@ -215,7 +214,6 @@ fn do_main() -> Result<i32> {
     } else {
         PathsOpt::Auto
     };
-
 
     let res = match cmd {
         SubCommand::Init { dry_run } => {

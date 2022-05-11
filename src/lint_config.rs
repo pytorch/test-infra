@@ -13,7 +13,7 @@ pub struct LintRunnerConfig {
 }
 
 fn is_false(b: &bool) -> bool {
-    return *b == false;
+    !(*b)
 }
 
 /// Represents a single linter, along with all the information necessary to invoke it.
