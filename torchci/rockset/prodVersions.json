@@ -26,6 +26,7 @@
     "queued_jobs_by_label": "0ec7d5348138b3fc",
     "queued_jobs": "3724769f76ad4ecc",
     "reverts": "235c444d865a5e48",
-    "tts_avg": "597897063acde94c"
+    "tts_avg": "597897063acde94c",
+    "workflow_duration_avg": "34e698a78cb36669"
   }
 }
