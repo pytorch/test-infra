@@ -14,7 +14,7 @@ use std::fs::OpenOptions;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-mod git;
+pub mod git;
 pub mod init;
 pub mod lint_config;
 pub mod lint_message;

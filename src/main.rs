@@ -13,8 +13,11 @@ use lintrunner::{
     persistent_data::{ExitInfo, PersistentDataStore, RunInfo},
     rage::do_rage,
     render::print_error,
-    PathsOpt, RenderOpt, RevisionOpt,
+    PathsOpt, RenderOpt, RevisionOpt, git::get_head,
 };
+use log::debug;
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Parser)]
 #[clap(version, name = "lintrunner", infer_subcommands(true))]
@@ -156,6 +159,11 @@ fn do_main() -> Result<i32> {
         &persistent_data_store.log_file(),
         args.force_color,
     )?;
+
+    debug!("Version: {VERSION}");
+    debug!("Passed args: {:?}", std::env::args());
+    debug!("Computed args: {:?}", args);
+    debug!("Current rev: {}", get_head()?);
 
     let cmd = args.cmd.unwrap_or(SubCommand::Lint);
     let lint_runner_config = LintRunnerConfig::new(&config_path)?;
