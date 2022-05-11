@@ -10,6 +10,7 @@ use render::{render_lint_messages, render_lint_messages_json};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryFrom;
+use std::fs::OpenOptions;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -155,6 +156,7 @@ pub fn do_lint(
     render_opt: RenderOpt,
     enable_spinners: bool,
     revision_opt: RevisionOpt,
+    tee_json: Option<String>,
 ) -> Result<i32> {
     debug!(
         "Running linters: {:?}",
@@ -254,6 +256,15 @@ pub fn do_lint(
         RenderOpt::Json => render_lint_messages_json(&mut stdout, &all_lints)?,
         RenderOpt::Oneline => render_lint_messages_oneline(&mut stdout, &all_lints)?,
     };
+
+    if let Some(tee_json) = tee_json {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(tee_json)
+            .context("Couldn't open file for --tee-json")?;
+        render_lint_messages_json(&mut file, &all_lints)?;
+    }
 
     if should_apply_patches {
         stdout.write_line("Successfully applied all patches.")?;

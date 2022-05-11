@@ -1,6 +1,6 @@
 use anyhow::Result;
 use assert_cmd::Command;
-use insta::assert_yaml_snapshot;
+use insta::{assert_yaml_snapshot, assert_snapshot};
 use lintrunner::lint_message::{LintMessage, LintSeverity};
 use regex::Regex;
 use serde_json;
@@ -664,5 +664,42 @@ fn rage_command_basic() -> Result<()> {
     cmd.arg("rage");
     cmd.arg("--invocation=0");
     cmd.assert().success();
+    Ok(())
+}
+
+#[test]
+fn tee_json() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
+    let lint_message = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!("--config={}", config.path().to_str().unwrap()));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    cmd.arg(format!(
+        "--tee-json={}",
+        data_path.path().join("foo.json").display()
+    ));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
+    cmd.assert().failure();
+
+    let tee_json = std::fs::read_to_string(data_path.path().join("foo.json"))?;
+
+    assert_snapshot!("tee_json", tee_json);
+
     Ok(())
 }

@@ -88,6 +88,11 @@ struct Args {
     /// application data (e.g. $XDG_DATA_HOME for UNIX systems.)
     #[clap(long, global = true)]
     data_path: Option<String>,
+
+
+    /// If set, output json to the provided path as well as the terminal.
+    #[clap(long, global=true)]
+    tee_json: Option<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -211,6 +216,7 @@ fn do_main() -> Result<i32> {
         PathsOpt::Auto
     };
 
+
     let res = match cmd {
         SubCommand::Init { dry_run } => {
             // Just run initialization commands, don't actually lint.
@@ -225,6 +231,7 @@ fn do_main() -> Result<i32> {
                 args.output,
                 enable_spinners,
                 revision_opt,
+                args.tee_json,
             )
         }
         SubCommand::Lint => {
@@ -237,6 +244,7 @@ fn do_main() -> Result<i32> {
                 args.output,
                 enable_spinners,
                 revision_opt,
+                args.tee_json,
             )
         }
         SubCommand::Rage { invocation } => do_rage(&persistent_data_store, invocation),
