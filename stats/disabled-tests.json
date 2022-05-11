@@ -14930,7 +14930,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_ddp_buffer_hook_allreduce_return_future%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6390632220).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 3 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77261/comments",
       "created_at": "2022-05-11T15:47:22Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77261/events",
@@ -14988,7 +14988,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77261/timeline",
       "title": "DISABLED test_ddp_buffer_hook_allreduce_return_future (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-05-11T15:47:24Z",
+      "updated_at": "2022-05-11T21:07:14Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77261",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
