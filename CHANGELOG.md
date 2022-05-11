@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2022-05-11
+
+### Bug Fixes
+
+- Add more runtime info to logs ([80e78de](https://github.com/suo/lintrunner/commit/80e78dee128f834f4f696c652bcec32a4f0e0d1c))
+
+### Features
+
+- Add --all-files command ([3d64ad3](https://github.com/suo/lintrunner/commit/3d64ad33ca94172ee27830fb772c35d469b41028))
+
 ## [0.9.1] - 2022-05-11
 
 ### Features
