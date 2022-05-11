@@ -126,6 +126,7 @@ pub enum PathsOpt {
     /// The user didn't specify any paths, so we'll automatically determine
     /// which paths to check.
     Auto,
+    AllFiles,
     PathsFile(AbsPath),
     PathsCmd(String),
     Paths(Vec<String>),
@@ -175,9 +176,10 @@ pub fn do_lint(
             };
             get_changed_files(&git_root, relative_to.as_deref())?
         }
-        PathsOpt::PathsCmd(paths_cmd) => get_paths_from_cmd(paths_cmd)?,
+        PathsOpt::PathsCmd(paths_cmd) => get_paths_from_cmd(&paths_cmd)?,
         PathsOpt::Paths(paths) => get_paths_from_input(paths)?,
         PathsOpt::PathsFile(file) => get_paths_from_file(file)?,
+        PathsOpt::AllFiles => get_paths_from_cmd("git grep -Il .")?,
     };
 
     // Sort and unique the files so we pass a consistent ordering to linters

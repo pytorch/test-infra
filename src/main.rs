@@ -69,10 +69,10 @@ struct Args {
     #[clap(long, arg_enum, default_value_t = RenderOpt::Default, global=true)]
     output: RenderOpt,
 
-    /// Paths to lint. lintrunner will still respect the inclusions and
     #[clap(subcommand)]
     cmd: Option<SubCommand>,
 
+    /// Paths to lint. lintrunner will still respect the inclusions and
     /// exclusions defined in .lintrunner.toml; manually specifying a path will
     /// not override them.
     #[clap(conflicts_with_all = &["paths-cmd", "paths-from"], global = true)]
@@ -92,6 +92,10 @@ struct Args {
     /// If set, output json to the provided path as well as the terminal.
     #[clap(long, global = true)]
     tee_json: Option<String>,
+
+    /// Run lintrunner on all files in the repo. This could take a while!
+    #[clap(long, conflicts_with_all=&["paths", "paths-cmd", "paths-from", "revision", "merge-base-with"], global = true)]
+    all_files: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -211,6 +215,8 @@ fn do_main() -> Result<i32> {
         PathsOpt::PathsCmd(paths_cmd)
     } else if !args.paths.is_empty() {
         PathsOpt::Paths(args.paths)
+    } else if args.all_files {
+        PathsOpt::AllFiles
     } else {
         PathsOpt::Auto
     };

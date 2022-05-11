@@ -8,7 +8,7 @@ use anyhow::{ensure, Context, Result};
 use log::debug;
 use regex::Regex;
 
-pub fn get_paths_from_cmd(paths_cmd: String) -> Result<Vec<AbsPath>> {
+pub fn get_paths_from_cmd(paths_cmd: &str) -> Result<Vec<AbsPath>> {
     debug!("Running paths_cmd: {}", paths_cmd);
     let output = Command::new("sh")
         .arg("-c")
