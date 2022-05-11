@@ -219,8 +219,8 @@ describe("merge-bot", () => {
         const event = require("./fixtures/pull_request_comment.json");
 
         event.payload.comment.body =
-            "@pytorchbot  revert this--\n\nit breaks ios tests on trunk " +
-            "see https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
+            "@pytorchbot  revert this--\n\nbreaks master: " +
+            "https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
 
         const owner = event.payload.repository.owner.login;
         const repo = event.payload.repository.name;
