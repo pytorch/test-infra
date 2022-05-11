@@ -14763,7 +14763,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/comments",
       "created_at": "2022-05-11T07:48:24Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/events",
@@ -14812,7 +14812,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/timeline",
       "title": "DISABLED test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)",
-      "updated_at": "2022-05-11T14:09:14Z",
+      "updated_at": "2022-05-11T16:35:29Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77237",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
