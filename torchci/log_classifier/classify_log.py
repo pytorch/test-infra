@@ -188,11 +188,6 @@ def classify(rules, id):
     log_obj = s3.Object(BUCKET_NAME, f"log/{id}")
     log_obj.load()
 
-    if log_obj.metadata.get("conclusion") != "failure":
-        # only classify failed jobs
-        logger.info("skipping non-failing job")
-        return
-
     log = log_obj.get()
 
     # logs are stored gzip-compressed
