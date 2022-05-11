@@ -14569,7 +14569,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6360390897).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 3 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77123/comments",
       "created_at": "2022-05-10T00:57:27Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77123/events",
@@ -14627,7 +14627,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77123/timeline",
       "title": "DISABLED test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-05-10T00:57:29Z",
+      "updated_at": "2022-05-11T21:26:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77123",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
