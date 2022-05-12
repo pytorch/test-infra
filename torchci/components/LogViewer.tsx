@@ -96,7 +96,8 @@ const foldUninteresting = foldService.of(
     // the document.
     if (
       startingLine.text.includes(".github/actions/teardown") ||
-      startingLine.text.includes("github/actions/get-workflow-job-id")
+      startingLine.text.includes("github/actions/get-workflow-job-id") ||
+      startingLine.text.includes("Post job cleanup.")
     ) {
       return { from: lineStart, to: state.doc.length };
     }
