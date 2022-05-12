@@ -441,7 +441,7 @@ describe("merge-bot", () => {
     test("revert using CLI", async () => {
         const event = require("./fixtures/pull_request_comment.json");
 
-        event.payload.comment.body = '@pytorchbot revert -m="test test test" -l="someUrl"';
+        event.payload.comment.body = '@pytorchbot revert -m="test test test" -c="ghfirst"';
 
         const owner = event.payload.repository.owner.login;
         const repo = event.payload.repository.name;

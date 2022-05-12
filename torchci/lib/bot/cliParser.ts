@@ -9,8 +9,8 @@ const cliOptions: { [key: string]: any } = {
                 type: "string",
             },
             {
-                key: "link",
-                alternatives: ["l", "link"],
+                key: "classification",
+                alternatives: ["c", "classification"],
                 type: "string",
             },
         ],

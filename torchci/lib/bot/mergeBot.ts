@@ -24,6 +24,13 @@ function mergeBot(app: Probot): void {
         "ezyang",
         "davidberard98",
     ];
+    const revertClassifications = new Set([
+        "nosignal",
+        "ignoredsignal",
+        "landrace",
+        "weird",
+        "ghfirst",
+    ]);
 
     app.on("issue_comment.created", async (ctx) => {
         const commentBody = ctx.payload.comment.body;
@@ -141,15 +148,27 @@ function mergeBot(app: Probot): void {
                     await addComment(
                         ctx,
                         "Revert unsuccessful: please retry the command and provide a revert reason, " +
-                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -l="{failureUrl}".`
+                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ghfirst".`
                     );
                     return;
                 }
-                if (option["link"] == null || option["link"].length == 0) {
+                if (
+                    option["classification"] == null ||
+                    !revertClassifications.has(
+                        option["classification"].replace(/['"]+/g, "")
+                    )
+                ) {
+                    console.log("OPTIONS ARE", option);
+                    console.log(
+                        "HELLO",
+                        revertClassifications.has(option["classification"]),
+                        revertClassifications,
+                        option["classification"].replace(/['"]+/g, "")
+                    );
                     await addComment(
                         ctx,
-                        "Revert unsuccessful: please retry the command and provide a revert reason, " +
-                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -l="{failureUrl}".`
+                        "Revert unsuccessful: please retry the command and provide a classification, " +
+                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ghfirst".`
                     );
                     return;
                 }
