@@ -6,7 +6,9 @@ function mergeBot(app: Probot): void {
     const mergeCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
     );
-    const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
+    const revertCmdPat = new RegExp(
+        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this"
+    );
     const rebaseCmdPat = new RegExp(
         "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
     );
@@ -139,7 +141,15 @@ function mergeBot(app: Probot): void {
                     await addComment(
                         ctx,
                         "Revert unsuccessful: please retry the command and provide a revert reason, " +
-                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk".`
+                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -l="{failureUrl}".`
+                    );
+                    return;
+                }
+                if (option["link"] == null || option["link"].length == 0) {
+                    await addComment(
+                        ctx,
+                        "Revert unsuccessful: please retry the command and provide a revert reason, " +
+                            `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -l="{failureUrl}".`
                     );
                     return;
                 }

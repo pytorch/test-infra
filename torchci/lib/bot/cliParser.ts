@@ -8,6 +8,11 @@ const cliOptions: { [key: string]: any } = {
                 alternatives: ["m", "message"],
                 type: "string",
             },
+            {
+                key: "link",
+                alternatives: ["l", "link"],
+                type: "string",
+            },
         ],
     },
     help: {
