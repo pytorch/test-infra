@@ -158,13 +158,6 @@ function mergeBot(app: Probot): void {
                         option["classification"].replace(/['"]+/g, "")
                     )
                 ) {
-                    console.log("OPTIONS ARE", option);
-                    console.log(
-                        "HELLO",
-                        revertClassifications.has(option["classification"]),
-                        revertClassifications,
-                        option["classification"].replace(/['"]+/g, "")
-                    );
                     await addComment(
                         ctx,
                         "Revert unsuccessful: please retry the command and provide a classification, " +
