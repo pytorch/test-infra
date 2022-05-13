@@ -14,7 +14,12 @@ export default async function handler(
 
   let numHours = 30 * 24 + "";
 
-  const flakyTests: FlakyTestData[] = await fetchFlakyTests(numHours, name as string, suite as string, file as string);
+  const flakyTests: FlakyTestData[] = await fetchFlakyTests(
+    numHours,
+    name as string,
+    suite as string,
+    file as string
+  );
 
-  res.status(200).json({flakyTests});
+  res.status(200).json({ flakyTests });
 }

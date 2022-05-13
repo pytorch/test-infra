@@ -20,7 +20,7 @@ export function testOctokit(): Octokit {
   return new Octokit({
     retry: { enabled: false },
     throttle: { enabled: false },
-  })
+  });
 }
 
 export function mockConfig(

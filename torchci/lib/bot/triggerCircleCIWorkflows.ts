@@ -1,5 +1,5 @@
 // @ts-nocheck
-import axios from "axios"
+import axios from "axios";
 import { Context, Probot } from "probot";
 import * as utils from "./utils";
 
@@ -73,10 +73,7 @@ async function getAppliedLabels(context: Context): Promise<string[]> {
   return appliedLabels;
 }
 
-async function triggerCircleCI(
-  context: Context,
-  data: object
-): Promise<void> {
+async function triggerCircleCI(context: Context, data: object): Promise<void> {
   const repoKey = utils.repoKey(context);
   context.log.info({ repoKey, data }, "triggerCircleCI");
   const resp = await axios.post(
@@ -95,7 +92,8 @@ async function triggerCircleCI(
 
   if (resp.status !== 201) {
     throw Error(
-      `Error triggering downstream circleci workflow (${resp.status
+      `Error triggering downstream circleci workflow (${
+        resp.status
       }): ${JSON.stringify(resp.data)}`
     );
   }
@@ -154,10 +152,7 @@ export function genCircleParametersForPR(
   return parameters;
 }
 
-function genCircleParametersForPush(
-  config: Config,
-  context: Context
-): Params {
+function genCircleParametersForPush(config: Config, context: Context): Params {
   const {
     default_params: parameters = {},
     labels_to_circle_params: labelsToParams,

@@ -10,7 +10,10 @@ export class CachedConfigTracker {
 
   constructor(app: Probot) {
     app.on("push", async (context) => {
-      if (context.payload.ref === "refs/heads/master" || context.payload.ref ==="refs/heads/main") {
+      if (
+        context.payload.ref === "refs/heads/master" ||
+        context.payload.ref === "refs/heads/main"
+      ) {
         await this.loadConfig(context, /* force */ true);
       }
     });
