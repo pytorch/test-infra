@@ -19,9 +19,6 @@ export default async function fetchPR(
       repo,
       pull_number: parseInt(prNumber),
       per_page: 100,
-      endpoint: {
-        url: "/repos/{owner}/{repo}/commits",
-      },
     }),
   ]);
   const title = pull.data.title;
