@@ -19,7 +19,7 @@ WITH queued_jobs as (
 )
 SELECT
     COUNT(*) as count,
-    AVG(queue_s) as avg_queue_s,
+    MAX(queue_s) as avg_queue_s,
     labels,
 FROM
     queued_jobs
