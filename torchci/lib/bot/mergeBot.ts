@@ -54,6 +54,9 @@ function mergeBot(app: Probot): void {
                 payload.on_green = true;
             }
 
+            ctx.log(
+              `Creating dispatch event of type "${event_type}" for comment ${ctx.payload.comment.html_url}`
+            );
             await ctx.octokit.repos.createDispatchEvent({
                 owner,
                 repo,
@@ -185,6 +188,9 @@ function mergeBot(app: Probot): void {
             const repo = ctx.payload.repository.name;
             const prNum = ctx.payload.pull_request.number;
             async function addComment(comment: string) {
+                ctx.log(
+                  `Commenting with "${comment}" for pull request ${ctx.payload.pull_request.html_url}`
+                );
                 await ctx.octokit.issues.createComment({
                     issue_number: prNum,
                     body: comment,
@@ -193,6 +199,9 @@ function mergeBot(app: Probot): void {
                 });
             }
             async function dispatchEvent(event_type: string) {
+                ctx.log(
+                  `Creating dispatch event of type "${event_type}" for pull request review ${ctx.payload.review.html_url}`
+                );
                 await ctx.octokit.repos.createDispatchEvent({
                     owner,
                     repo,
