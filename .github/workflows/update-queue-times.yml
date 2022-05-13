@@ -1,0 +1,19 @@
+name: Update queue times dataset
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: "*/5 * * * *"
+
+defaults:
+  run:
+    working-directory: torchci
+jobs:
+  backfill-rockset:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn node scripts/updateQueueTimes.mjs
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
