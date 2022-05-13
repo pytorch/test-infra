@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/queue_times_historical.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "hour"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-05-13T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-05-21T00:06:32.839Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": ""
+}

@@ -28,25 +28,8 @@ import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
-
-// Given a number of seconds, convert it to the biggest possible unit of
-// measurement and display with a scale of 1.
-// e.g. 5400 -> "1.5h"
-function durationDisplay(seconds: number): string {
-  if (seconds < 60) {
-    return seconds + "s";
-  }
-  const minutes = seconds / 60.0;
-  if (minutes < 60) {
-    return minutes.toFixed(1) + "m";
-  }
-  const hours = minutes / 60.0;
-  if (hours < 24) {
-    return hours.toFixed(1) + "h";
-  }
-  const days = hours / 24.0;
-  return days.toFixed(1) + "d";
-}
+import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import { durationDisplay } from "components/TimeUtils"
 
 function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
   const url = `/api/query/metrics/master_jobs_red?parameters=${encodeURIComponent(
@@ -552,6 +535,46 @@ export default function Page() {
               },
               getRowId: (el: any) => el.html_url,
             }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Queue times historical"}
+            queryName={"queue_times_historical"}
+            queryParams={[
+              {
+                name: "timezone",
+                type: "string",
+                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+              ...timeParams,
+            ]}
+            granularity={"hour"}
+            groupByFieldName={"machine_type"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"avg_queue_s"}
+            yAxisRenderer={durationDisplay}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Workflow load"}
+            queryName={"workflow_load"}
+            queryParams={[
+              {
+                name: "timezone",
+                type: "string",
+                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+              ...timeParams,
+            ]}
+            granularity={"hour"}
+            groupByFieldName={"name"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"count"}
+            yAxisRenderer={(value) => value}
           />
         </Grid>
 

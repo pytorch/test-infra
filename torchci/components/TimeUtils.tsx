@@ -38,3 +38,23 @@ export function durationHuman(seconds: number) {
   }
   return `${seconds}s`;
 }
+
+// Display duration in human-readable format, specialized for metrics.
+// Given a number of seconds, convert it to the biggest possible unit of
+// measurement and display with a scale of 1.
+// e.g. 5400 -> "1.5h"
+export function durationDisplay(seconds: number): string {
+  if (seconds < 60) {
+    return seconds + "s";
+  }
+  const minutes = seconds / 60.0;
+  if (minutes < 60) {
+    return minutes.toFixed(1) + "m";
+  }
+  const hours = minutes / 60.0;
+  if (hours < 24) {
+    return hours.toFixed(1) + "h";
+  }
+  const days = hours / 24.0;
+  return days.toFixed(1) + "d";
+}
