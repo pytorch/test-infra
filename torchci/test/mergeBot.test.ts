@@ -441,7 +441,8 @@ describe("merge-bot", () => {
     test("revert using CLI", async () => {
         const event = require("./fixtures/pull_request_comment.json");
 
-        event.payload.comment.body = '@pytorchbot revert -m="test test test" -c="ghfirst"';
+        event.payload.comment.body =
+            '@pytorchbot revert -m="test test test" -c="ghfirst"';
 
         const owner = event.payload.repository.owner.login;
         const repo = event.payload.repository.name;
@@ -465,6 +466,29 @@ describe("merge-bot", () => {
             .reply(200, {});
 
         await probot.receive(event);
+        if (!scope.isDone()) {
+            console.error("pending mocks: %j", scope.pendingMocks());
+        }
+        scope.done();
+    });
+
+    test("Random commands won't trigger CLI", async () => {
+        const eventCantMerge = require("./fixtures/pull_request_comment.json");
+        const eventWithQuotes = require("./fixtures/pull_request_comment.json");
+        const eventQuoted = require("./fixtures/pull_request_comment.json");
+        const testCommand = require("./fixtures/pull_request_comment.json");
+
+        eventCantMerge.payload.comment.body = "Can't merge closed PR #77376";
+        eventWithQuotes.payload.comment.body = `"@pytorchbot merge" use this command`;
+        eventQuoted.payload.comment.body = `> @pytorchbot merge -f`;
+        testCommand.payload.comment.body = `@pytorchbot testCommand`;
+
+        const scope = nock("https://api.github.com");
+        await probot.receive(eventCantMerge);
+        await probot.receive(eventWithQuotes);
+        await probot.receive(eventQuoted);
+        await probot.receive(testCommand);
+
         if (!scope.isDone()) {
             console.error("pending mocks: %j", scope.pendingMocks());
         }

@@ -44,7 +44,11 @@ export function parseComment(commentBody: string) {
 }
 
 export function getCommand(opts: any): string | null {
-    if ("_" in opts && opts["_"].length < 2 && opts["_"][0] !== "@pytorchbot") {
+    if (
+        !("_" in opts) ||
+        opts["_"].length < 2 ||
+        opts["_"][0] !== "@pytorchbot"
+    ) {
         return null;
     }
     const cmd = opts["_"][1];
