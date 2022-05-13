@@ -2,14 +2,14 @@ name: Update queue times dataset
 
 on:
   schedule:
-    # Run every 5 minutes
-    - cron: "*/5 * * * *"
+    # Run every 15 minutes
+    - cron: "*/15 * * * *"
 
 defaults:
   run:
     working-directory: torchci
 jobs:
-  backfill-rockset:
+  update-queue-rockset:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
