@@ -44,11 +44,13 @@ export default function Page() {
   const router = useRouter();
   const { sha, repoOwner, repoName } = router.query;
   const fancyName =
-    (repoOwner === "pytorch" && repoName === "pytorch") ? "PyTorch"
-    : (repoOwner === "pytorch" && repoName === "vision") ? "TorchVision"
-    : (repoOwner === "pytorch" && repoName === "audio") ? "TorchAudio"
-    : `${repoOwner}/${repoName}`;
-
+    repoOwner === "pytorch" && repoName === "pytorch"
+      ? "PyTorch"
+      : repoOwner === "pytorch" && repoName === "vision"
+      ? "TorchVision"
+      : repoOwner === "pytorch" && repoName === "audio"
+      ? "TorchAudio"
+      : `${repoOwner}/${repoName}`;
 
   return (
     <div>

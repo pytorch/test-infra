@@ -13,12 +13,17 @@ export default async function fetchS3Links(
   const artifacts =
     response.Contents?.map((jobs) => {
       const basename = jobs.Key?.split("/").slice(-1)[0];
-      const name = basename !== "artifacts.zip" ? basename : jobs.Key?.split("/").slice(-2).join("/");
+      const name =
+        basename !== "artifacts.zip"
+          ? basename
+          : jobs.Key?.split("/").slice(-2).join("/");
       return {
         kind: "s3",
         name: name ?? "",
         sizeInBytes: jobs.Size ?? 0,
-        url: `https://gha-artifacts.s3.amazonaws.com/${jobs.Key?.split("/").map(x => encodeURIComponent(x)).join("/")}`,
+        url: `https://gha-artifacts.s3.amazonaws.com/${jobs.Key?.split("/")
+          .map((x) => encodeURIComponent(x))
+          .join("/")}`,
         expired: false,
       };
     }) ?? [];

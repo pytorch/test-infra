@@ -20,9 +20,9 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Flaky Tests</h1>
       <h3>
-        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> |
-        Test Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> |
-        Test File Filter: <code>{file === "%" ? "<any>" : file}</code>
+        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> | Test
+        Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> | Test File
+        Filter: <code>{file === "%" ? "<any>" : file}</code>
       </h3>
       <em>Showing last 30 days of data.</em>
       {data === undefined ? (
@@ -38,26 +38,41 @@ export default function Page() {
               <div>
                 <h4> Test workflow job URLs: </h4>
                 <ul>
-                {test.workflowNames.map((value, index) => {
-                  return (
-                    <li key={index}><a
-                      href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
-                    >{`${value} / ${test.jobNames[index]}`}</a> on branch {test.branches[index]}</li>
-                  );
-                })}
+                  {test.workflowNames.map((value, index) => {
+                    return (
+                      <li key={index}>
+                        <a
+                          href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[index]}`}
+                        >{`${value} / ${test.jobNames[index]}`}</a>{" "}
+                        on branch {test.branches[index]}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
               <h4>Debugging instructions:</h4>
-              <p>As flaky tests will soon show as green, it will be harder to parse the logs. To find relevant
-              log snippets:</p>
+              <p>
+                As flaky tests will soon show as green, it will be harder to
+                parse the logs. To find relevant log snippets:
+              </p>
               <ol>
-                <li>Click on any of the workflow job links above, for example <a
-                      href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
-                    >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a></li>
-                <li>Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.</li>
-                <li>Grep for <code>{test.name}</code></li>
-                <li>There should be several instances run (as flaky tests are rerun in CI) from
-                  which you can study the logs.</li>
+                <li>
+                  Click on any of the workflow job links above, for example{" "}
+                  <a
+                    href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
+                  >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a>
+                </li>
+                <li>
+                  Click on the Test step of the job so that it is expanded.
+                  Otherwise, the grepping will not work.
+                </li>
+                <li>
+                  Grep for <code>{test.name}</code>
+                </li>
+                <li>
+                  There should be several instances run (as flaky tests are
+                  rerun in CI) from which you can study the logs.
+                </li>
               </ol>
             </div>
           );

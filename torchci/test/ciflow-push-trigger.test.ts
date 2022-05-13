@@ -246,7 +246,9 @@ describe("Push trigger integration tests", () => {
     payload.label.name = "ciflow/test";
     nock("https://api.github.com")
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain("We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use.");
+        expect(body.body).toContain(
+          "We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use."
+        );
         return true;
       })
       .reply(200);
@@ -255,7 +257,9 @@ describe("Push trigger integration tests", () => {
     payload.label.name = "ci/test";
     nock("https://api.github.com")
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain("We have recently simplified the CIFlow labels and `ci/test` is no longer in use.");
+        expect(body.body).toContain(
+          "We have recently simplified the CIFlow labels and `ci/test` is no longer in use."
+        );
         return true;
       })
       .reply(200);

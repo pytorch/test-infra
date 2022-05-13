@@ -38,7 +38,10 @@ export default function CommitStatus({
 }) {
   return (
     <>
-      <VersionControlLinks githubUrl={commit.commitUrl} diffNum={commit.diffNum} />
+      <VersionControlLinks
+        githubUrl={commit.commitUrl}
+        diffNum={commit.diffNum}
+      />
 
       <article className={styles.commitMessage}>
         {commit.commitMessageBody}

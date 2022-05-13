@@ -23,3 +23,9 @@ jobs:
       - run: yarn node scripts/checkRockset.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+      - run: |
+          yarn format
+          git_status=$(git status --porcelain)
+          if [[ "${git_status}" ]]; then
+            echo "Dirty git status after running formatting, did you run 'yarn format'?"
+          fi
