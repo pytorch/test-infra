@@ -14,15 +14,16 @@ export default async function fetchPR(
       repo,
       pull_number: parseInt(prNumber),
     }),
-    octokit.rest.pulls.listCommits({
+    octokit.paginate(octokit.rest.pulls.listCommits, {
       owner,
       repo,
       pull_number: parseInt(prNumber),
+      per_page: 100,
     }),
   ]);
   const title = pull.data.title;
-  const shas = commits.data.map((data) => {
-    return { sha: data.sha, title: data.commit.message.split("\n")[0] };
+  const shas = commits.map((commit) => {
+    return { sha: commit.sha, title: commit.commit.message.split("\n")[0] };
   });
 
   return { title, shas };
