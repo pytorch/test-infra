@@ -16419,7 +16419,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_backward_multiple_round_trips%2C%20TensorPipeDistAutogradTest) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6428014822).\n\nOver the past 3 hours, it has been determined flaky in 3 workflow(s) with 3 red and 9 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
-      "comments": 1,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77453/comments",
       "created_at": "2022-05-13T21:40:58Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77453/events",
@@ -16477,7 +16477,7 @@
       "state": "open",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77453/timeline",
       "title": "DISABLED test_backward_multiple_round_trips (__main__.TensorPipeDistAutogradTest)",
-      "updated_at": "2022-05-13T21:41:00Z",
+      "updated_at": "2022-05-16T18:48:29Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77453",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
