@@ -75,7 +75,7 @@ console.
    parameter definitions are found in `rockset/<workspace>`.
 2. You can test your query lambda using the [Rockset
    CLI](https://github.com/rockset/rockset-js/tree/master/packages/cli#execute-and-test-query-lambda-sql).
-3. Run `rockset deploy -l <yourlambda>` to sync it to Rockset.
+3. Run `rockset local deploy -l <yourlambda>` to sync it to Rockset.
 4. Update `rockset/prodVersion.json` with the new version of the lambda.
 
 ### Work on the query in Rockset console
