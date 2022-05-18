@@ -26,6 +26,11 @@ const cliOptions: { [key: string]: any } = {
         type: "flag",
       },
       {
+        key: "allGreen",
+        alternatives: ["ag", "allGreen", "onAllGreen"],
+        type: "flag",
+      },
+      {
         key: "force",
         alternatives: ["f", "force"],
         type: "flag",

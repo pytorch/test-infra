@@ -44,6 +44,7 @@ function mergeBot(app: Probot): void {
       event_type: string,
       force: boolean = false,
       onGreen: boolean = false,
+      allGreen: boolean = false,
       reason: string = ""
     ) {
       let payload: any = {
@@ -53,6 +54,8 @@ function mergeBot(app: Probot): void {
 
       if (force) {
         payload.force = true;
+      } else if (allGreen) {
+        payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
       }
@@ -75,8 +78,8 @@ function mergeBot(app: Probot): void {
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
     }
-    async function handleMerge(force: boolean, mergeOnGreen: boolean) {
-      await dispatchEvent("try-merge", force, mergeOnGreen);
+    async function handleMerge(force: boolean, mergeOnGreen: boolean, allGreen: boolean) {
+      await dispatchEvent("try-merge", force, mergeOnGreen, allGreen);
       await reactOnComment(ctx, "+1");
     }
 
@@ -112,7 +115,8 @@ function mergeBot(app: Probot): void {
       }
       await handleMerge(
         typeof match[2] === "string",
-        typeof match[3] === "string"
+        typeof match[3] === "string",
+        false,
       );
       return;
     }
@@ -185,7 +189,8 @@ function mergeBot(app: Probot): void {
         // Pass the message without quotes
         await handleRevert(option["message"].replace(/^"|"$/g, ""));
       } else if (cmd === "merge") {
-        await handleMerge(option["force"], option["green"]);
+        console.log("OPTIONS ARE", option, commentBody)
+        await handleMerge(option["force"], option["green"], option['allGreen']);
       } else if (cmd === "rebase") {
         await handleRebase();
       } else if (cmd === "help") {
