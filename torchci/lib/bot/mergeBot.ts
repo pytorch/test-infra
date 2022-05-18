@@ -10,6 +10,10 @@ function mergeBot(app: Probot): void {
   const rebaseCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
   );
+
+  const revertExplaination = '`@pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"`' +
+    '. See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.';
+
   const rebaseAllowList = [
     "clee2000",
     "zengk95",
@@ -148,9 +152,8 @@ function mergeBot(app: Probot): void {
         ) {
           await addComment(
             ctx,
-            "Revert unsuccessful: please retry the command and provide a revert reason, " +
-            `\`e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"\`.` +
-            ' See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.'
+            "Revert unsuccessful: please retry the command and provide a revert reason, e.g. " +
+            revertExplaination
 
           );
           return;
@@ -162,13 +165,12 @@ function mergeBot(app: Probot): void {
           )
         ) {
           const invalidClassificationMessage = option['classification'] != null ?
-          `(the classification you provided was: ${option['classification']})` :
-           "";
+            `(the classification you provided was: ${option['classification']})` :
+            "";
           await addComment(
             ctx,
-            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}, ` +
-            `\`e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"\`.` +
-            ' See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.'
+            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}, e.g ` +
+            revertExplaination
           );
           return;
         }
