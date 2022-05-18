@@ -377,7 +377,7 @@ describe("merge-bot", () => {
   test("revert fail due to not long enough reason using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = `@pytorchbot revert -m="test test`;
+    event.payload.comment.body = `@pytorchbot revert -m="test test"`;
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
@@ -385,8 +385,9 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "Revert unsuccessful: please retry the command and provide a revert reason, " +
-            `e.g. @pytorchbot revert -m=\\\"this breaks mac tests on trunk\\\"`
+          "Revert unsuccessful: please retry the command and provide a revert reason, "+
+          "`e.g. @pytorchbot revert -m=\\\"this breaks mac tests on trunk\\\" -c=\\\"ignoredsignal\\\"`."+
+          " See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands."
         );
         return true;
       })
@@ -428,7 +429,7 @@ describe("merge-bot", () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body =
-      '@pytorchbot revert -m="test test test" -c="ghfirst"';
+      '@pytorchbot revert -m="this is breaking test_meta" -c="ghfirst"';
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

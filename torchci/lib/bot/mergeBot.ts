@@ -85,7 +85,7 @@ function mergeBot(app: Probot): void {
       await addComment(
         ctx,
         "To see all options for pytorchbot, " +
-          "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
+        "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
       );
     }
 
@@ -115,7 +115,7 @@ function mergeBot(app: Probot): void {
         await addComment(
           ctx,
           "Revert unsuccessful: please retry the command and provide a revert reason, " +
-            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
+          "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return;
       }
@@ -149,7 +149,9 @@ function mergeBot(app: Probot): void {
           await addComment(
             ctx,
             "Revert unsuccessful: please retry the command and provide a revert reason, " +
-              `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ghfirst".`
+            `\`e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"\`.` +
+            ' See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.'
+
           );
           return;
         }
@@ -159,10 +161,14 @@ function mergeBot(app: Probot): void {
             option["classification"].replace(/['"]+/g, "")
           )
         ) {
+          const invalidClassificationMessage = option['classification'] != null ?
+          `(the classification you provided was: ${option['classification']})` :
+           "";
           await addComment(
             ctx,
-            "Revert unsuccessful: please retry the command and provide a classification, " +
-              `e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ghfirst".`
+            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}, ` +
+            `\`e.g. @pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"\`.` +
+            ' See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.'
           );
           return;
         }
