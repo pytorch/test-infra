@@ -39,7 +39,8 @@ function mergeBot(app: Probot): void {
     async function dispatchEvent(
       event_type: string,
       force: boolean = false,
-      onGreen: boolean = false
+      onGreen: boolean = false,
+      reason: string = ""
     ) {
       let payload: any = {
         pr_num: prNum,
@@ -50,6 +51,10 @@ function mergeBot(app: Probot): void {
         payload.force = true;
       } else if (onGreen) {
         payload.on_green = true;
+      }
+
+      if (reason.length > 0) {
+        payload.reason = reason;
       }
 
       ctx.log(
@@ -71,8 +76,8 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRevert() {
-      await dispatchEvent("try-revert");
+    async function handleRevert(reason: string = "") {
+      await dispatchEvent("try-revert", false, false, reason);
       await reactOnComment(ctx, "+1");
     }
 
@@ -89,6 +94,11 @@ function mergeBot(app: Probot): void {
       );
     }
 
+    // Valid reason contains 3+ word
+    function isReasonValid(reason: string) {
+      return reason.split(" ").filter((x) => x.trim().length > 1).length >= 3;
+    }
+
     const match = commentBody.match(mergeCmdPat);
     if (match) {
       if (!ctx.payload.issue.pull_request) {
@@ -101,16 +111,16 @@ function mergeBot(app: Probot): void {
         typeof match[3] === "string"
       );
       return;
-    } else if (commentBody.match(revertCmdPat)) {
+    }
+    const revert_match = commentBody.match(revertCmdPat);
+    if (revert_match) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await handleConfused();
         return;
       }
-      const revertWithReasonCmdPat = new RegExp(
-        "^\\s*@pytorch(merge|)bot\\s+revert\\s+this(.|\\s)*(\\s+\\w+.*){3,}"
-      );
-      if (commentBody.match(revertWithReasonCmdPat) === null) {
+      const reason = commentBody.substring(revert_match[0].length).trim();
+      if (!isReasonValid(reason)) {
         // revert reason of 3+ words not given
         await addComment(
           ctx,
@@ -119,9 +129,10 @@ function mergeBot(app: Probot): void {
         );
         return;
       }
-      await handleRevert();
+      await handleRevert(reason.trim());
       return;
-    } else if (
+    }
+    if (
       commentBody.match(rebaseCmdPat) &&
       ((rebaseAllowList.includes(ctx.payload.comment.user.login) &&
         rebaseAllowList.includes(ctx.payload.issue.user.login)) ||
@@ -142,10 +153,7 @@ function mergeBot(app: Probot): void {
     // TODO: Remove old way of parsing inputs
     if (cmd != null && option != null) {
       if (cmd === "revert") {
-        if (
-          option["message"] == null ||
-          option["message"].split(" ").length < 3
-        ) {
+        if (option["message"] == null || !isReasonValid(option["message"])) {
           await addComment(
             ctx,
             "Revert unsuccessful: please retry the command and provide a revert reason, " +
@@ -166,7 +174,8 @@ function mergeBot(app: Probot): void {
           );
           return;
         }
-        await handleRevert();
+        // Pass the message without quotes
+        await handleRevert(option["message"].replace(/^"|"$/g, ""));
       } else if (cmd === "merge") {
         await handleMerge(option["force"], option["green"]);
       } else if (cmd === "rebase") {

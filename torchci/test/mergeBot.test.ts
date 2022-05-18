@@ -212,10 +212,10 @@ describe("merge-bot", () => {
 
   test("revert this comment w/ explanation on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
-
-    event.payload.comment.body =
-      "@pytorchbot  revert this--\n\nbreaks master: " +
+    const reason =
+      "--\n\nbreaks master: " +
       "https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
+    event.payload.comment.body = "@pytorchbot  revert this" + reason;
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -232,7 +232,10 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"${reason.replace(
+            /\n/g,
+            "\\n"
+          )}"}}`
         );
         return true;
       })
@@ -445,7 +448,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"test test test"}}`
         );
         return true;
       })
