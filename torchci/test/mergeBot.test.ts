@@ -430,9 +430,9 @@ describe("merge-bot", () => {
 
   test("revert using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
-
+    const reason = "this is breaking test_meta"
     event.payload.comment.body =
-      '@pytorchbot revert -m="this is breaking test_meta" -c="ghfirst"';
+      '@pytorchbot revert -m="' + reason + '" -c="ghfirst"';
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -449,7 +449,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"test test test"}}`
+          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"${reason}"}}`
         );
         return true;
       })
