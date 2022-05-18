@@ -17,7 +17,7 @@ WHERE
     AND workflow.repository.full_name = 'pytorch/pytorch'
     AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-    AND job.status = 'completed'
+    AND job.conclusion = 'success'
     AND workflow.head_branch LIKE :branch
 GROUP BY
     name
