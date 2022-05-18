@@ -241,7 +241,7 @@ export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
 // Set cache to expire every 10 seconds, we just want to avoid grabbing this for every scale request
-export const ghRunnersCache = new LRU({ maxAge: 10 * 1000 });
+export const ghRunnersCache = new LRU({ maxAge: 30 * 1000 });
 
 export async function listGithubRunners(
   client: Octokit,
