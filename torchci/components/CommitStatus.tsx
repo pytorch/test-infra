@@ -50,7 +50,6 @@ export default function CommitStatus({
         filterName="Failed jobs"
         jobs={jobs}
         pred={isFailedJob}
-        showJobLinks={true}
       />
       <FilteredJobList
         filterName="Pending jobs"

@@ -7,12 +7,11 @@ export default function FilteredJobList({
   filterName,
   jobs,
   pred,
-  showJobLinks = false
+
 }: {
   filterName: string;
   jobs: JobData[];
   pred: (job: JobData) => boolean;
-  showJobLinks?: boolean;
 }) {
   const filteredJobs = jobs.filter(pred);
   if (filteredJobs.length === 0) {
@@ -25,9 +24,9 @@ export default function FilteredJobList({
         {filteredJobs.map((job) => (
           <li key={job.id}>
             <JobSummary job={job} />
-            {showJobLinks && <div>
+             <div>
               <JobLinks job={job} />
-            </div>}
+            </div>
             <LogViewer job={job} />
           </li>
         ))}
