@@ -156,7 +156,6 @@ function mergeBot(app: Probot): void {
     }
 
     const commentOptions = parseComment(commentBody);
-    console.log("COMMENT OPTIONS ARE", commentOptions)
     const cmd = getCommand(commentOptions);
     const option = getOptions(cmd, commentOptions);
     // TODO: Remove old way of parsing inputs
@@ -190,7 +189,6 @@ function mergeBot(app: Probot): void {
         // Pass the message without quotes
         await handleRevert(option["message"].replace(/^"|"$/g, ""));
       } else if (cmd === "merge") {
-        console.log("OPTIONS ARE", option, commentBody)
         await handleMerge(option["force"], option["green"], option['allGreen']);
       } else if (cmd === "rebase") {
         await handleRebase();

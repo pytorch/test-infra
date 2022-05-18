@@ -65,12 +65,10 @@ export function getOptions(command: string | null, opts: any): any {
     return null;
   }
   const options = cliOptions[command]["options"];
-  console.log("OPTIONS ARE", options)
   const out: any = {};
   for (const option of options) {
     if (option["type"] === "flag") {
       const flag = getFlag(opts, option["alternatives"]);
-      console.log("FLAG IS", flag, option["alternative"])
       out[option["key"]] = flag;
     } else if (option["type"] === "string") {
       const str = getString(opts, option["alternatives"]);
