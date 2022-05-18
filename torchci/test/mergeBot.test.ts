@@ -380,7 +380,7 @@ describe("merge-bot", () => {
   test("merge on all green using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -allGreen";
+    event.payload.comment.body = "@pytorchbot merge --allGreen";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -397,7 +397,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"allGreen":true}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"all_green":true}}`
         );
         return true;
       })

@@ -84,7 +84,7 @@ function mergeBot(app: Probot): void {
     }
 
     async function handleRevert(reason: string = "") {
-      await dispatchEvent("try-revert", false, false, reason);
+      await dispatchEvent("try-revert", false, false, false, reason);
       await reactOnComment(ctx, "+1");
     }
 
@@ -156,6 +156,7 @@ function mergeBot(app: Probot): void {
     }
 
     const commentOptions = parseComment(commentBody);
+    console.log("COMMENT OPTIONS ARE", commentOptions)
     const cmd = getCommand(commentOptions);
     const option = getOptions(cmd, commentOptions);
     // TODO: Remove old way of parsing inputs
