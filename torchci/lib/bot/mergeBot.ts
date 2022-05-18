@@ -177,7 +177,8 @@ function mergeBot(app: Probot): void {
             "";
           await addComment(
             ctx,
-            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}, e.g ` +
+            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}.` +
+            `The options for classifications are ${[...revertClassifications].join(", ")}. Example: ` +
             revertExplaination
           );
           return;
