@@ -13,7 +13,7 @@ SELECT
     failure_context as failureContext,
     failure_captures as failureCaptures,
     failure_line_number as failureLineNumber,
-from
+FROM
     (
         SELECT
             workflow.head_commit.id as sha,
@@ -37,8 +37,8 @@ from
             classification.line_num as failure_line_number,
         FROM
             workflow_job job
-            JOIN workflow_run workflow on workflow.id = job.run_id
-            LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id
+            INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
+            LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
         WHERE
             job.name != 'ciflow_should_run'
             AND job.name != 'generate-test-matrix'
