@@ -510,7 +510,7 @@ export default function Page() {
               { field: "count", headerName: "Count", flex: 1 },
               {
                 field: "avg_queue_s",
-                headerName: "Avg queue time",
+                headerName: "Queue time",
                 flex: 1,
                 valueFormatter: (params: GridValueFormatterParams<number>) =>
                   durationDisplay(params.value),
