@@ -515,9 +515,9 @@ export default function Page() {
                 valueFormatter: (params: GridValueFormatterParams<number>) =>
                   durationDisplay(params.value),
               },
-              { field: "labels", headerName: "Machine Type", flex: 4 },
+              { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.labels[0] }}
+            dataGridProps={{ getRowId: (el: any) => el.machine_type }}
           />
         </Grid>
 
@@ -534,7 +534,7 @@ export default function Page() {
                 valueFormatter: (params: GridValueFormatterParams<number>) =>
                   durationDisplay(params.value),
               },
-              { field: "labels", headerName: "Machine Type", flex: 1 },
+              { field: "machine_type", headerName: "Machine Type", flex: 1 },
               {
                 field: "name",
                 headerName: "Job Name",

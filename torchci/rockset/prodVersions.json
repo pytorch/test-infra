@@ -8,7 +8,7 @@
     "failure_samples_query": "2961636418a148c2"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "2a62d48a0b3fc309",
+    "num_reverts": "57e5562a57427ae3",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "670e34fc86adb3ad"
@@ -19,13 +19,13 @@
     "last_branch_push": "3d995ac2143586dc",
     "last_successful_jobs": "fd8bc3a2afc989a2",
     "last_successful_workflow": "5d22927dd0b0956b",
-    "master_commit_red_avg": "fbb27c782608d52d",
-    "master_commit_red": "e5003789ace2ca6a",
-    "master_jobs_red_avg": "a017cf67c6a503a5",
-    "master_jobs_red": "739a319fd5133800",
-    "queued_jobs_by_label": "6ddd544c9608d394",
-    "queued_jobs": "3724769f76ad4ecc",
-    "reverts": "235c444d865a5e48",
+    "master_commit_red_avg": "70391ac17f1c45bd",
+    "master_commit_red": "e4e5cb062864bf1f",
+    "master_jobs_red_avg": "e5cc28eb51fc9fe9",
+    "master_jobs_red": "aa08fa7af455e1b9",
+    "queued_jobs_by_label": "cbfdab021c22f823",
+    "queued_jobs": "f5cadeeb8d274b79",
+    "reverts": "f5bc84a10c4065a3",
     "tts_avg": "c0049352a4c38aa5",
     "workflow_duration_avg": "34e698a78cb36669"
   }

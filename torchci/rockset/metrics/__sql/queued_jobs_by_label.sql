@@ -3,7 +3,11 @@ WITH queued_jobs as (
         DATE_DIFF('second', job._event_time, CURRENT_TIMESTAMP()) as queue_s,
         CONCAT(workflow.name, ' / ', job.name) as name,
         job.html_url,
-        job.labels,
+        IF(
+            LENGTH(job.labels) > 1,
+            ELEMENT_AT(job.labels, 2),
+            ELEMENT_AT(job.labels, 1)
+        ) as machine_type,
     FROM
         commons.workflow_job job
         JOIN commons.workflow_run workflow on workflow.id = job.run_id
@@ -20,10 +24,10 @@ WITH queued_jobs as (
 SELECT
     COUNT(*) as count,
     MAX(queue_s) as avg_queue_s,
-    labels,
+    machine_type,
 FROM
     queued_jobs
 GROUP BY
-    labels
+    machine_type
 ORDER BY
     count DESC
