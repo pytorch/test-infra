@@ -253,13 +253,17 @@ describe("merge-bot", () => {
 
     event.payload.comment.body = "@pytorchbot rebase this";
     event.payload.comment.user.login = "clee2000";
-    event.payload.issue.user.login = "clee2000";
+    event.payload.issue.user.login = "random";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
+      .reply(200, {
+        state: "active"
+      })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -275,6 +279,37 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
+
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("rebase does not have permissions", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot rebase this";
+    event.payload.comment.user.login = "random1";
+    event.payload.issue.user.login = "random2";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const scope = nock("https://api.github.com")
+      .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
+      .reply(404, {
+        message: "Not Found"
+      })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "You don't have permissions to rebase this PR, only the PR author and pytorch organization members may rebase this PR."
+        );
+        return true;
+      })
+      .reply(200);
 
     await probot.receive(event);
     if (!scope.isDone()) {
