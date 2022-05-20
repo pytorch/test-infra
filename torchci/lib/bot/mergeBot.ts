@@ -14,18 +14,6 @@ function mergeBot(app: Probot): void {
   const revertExplaination = '`@pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"`' +
     '. See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.';
 
-  const rebaseAllowList = [
-    "clee2000",
-    "zengk95",
-    "janeyx99",
-    "albanD",
-    "cpuhrsch",
-    "suo",
-    "ngimel",
-    "rohan-varma",
-    "ezyang",
-    "davidberard98",
-  ];
   const revertClassifications = new Set([
     "nosignal",
     "ignoredsignal",
@@ -89,8 +77,26 @@ function mergeBot(app: Probot): void {
     }
 
     async function handleRebase() {
-      await dispatchEvent("try-rebase");
-      await reactOnComment(ctx, "+1");
+      async function comment_author_in_pytorch_org() {
+        try {
+          return (await ctx.octokit.rest.orgs.getMembershipForUser({
+            org: "pytorch",
+            username: ctx.payload.comment.user.login,
+          }))?.data?.state == "active";
+        } catch (error) {
+          return false;
+        }
+      }
+
+      if (ctx.payload.comment.user.login == ctx.payload.issue.user.login || await comment_author_in_pytorch_org()) {
+        await dispatchEvent("try-rebase");
+        await reactOnComment(ctx, "+1");
+      } else {
+        await addComment(
+          ctx,
+          "You don't have permissions to rebase this PR, only the PR author and pytorch organization members may rebase this PR."
+        );
+      }
     }
 
     async function handleHelp() {
@@ -140,12 +146,7 @@ function mergeBot(app: Probot): void {
       await handleRevert(reason.trim());
       return;
     }
-    if (
-      commentBody.match(rebaseCmdPat) &&
-      ((rebaseAllowList.includes(ctx.payload.comment.user.login) &&
-        rebaseAllowList.includes(ctx.payload.issue.user.login)) ||
-        ctx.payload.comment.user.login == ctx.payload.issue.user.login)
-    ) {
+    if (commentBody.match(rebaseCmdPat)) {
       if (!ctx.payload.issue.pull_request) {
         // Issue, not pull request.
         await handleConfused();
