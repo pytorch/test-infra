@@ -17833,7 +17833,113 @@
         "type": "User",
         "url": "https://api.github.com/users/adamjstewart"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: linux, rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_mm_cuda_float64%2C%20TestSparseCSRCUDA)).\r\n\r\nError message pretty clearly indicates, that test have to be skipped:\r\n```\r\nRuntimeError: Calling addmm with sparse GPU tensors requires compiling PyTorch with CUDA 11+. Please use PyTorch built with newer CUDA version.\r\n\r\n```\r\n\r\ncc @ezyang @gchanan @zou3519 @nikitaved @pearu @cpuhrsch @amjames",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77944/comments",
+      "created_at": "2022-05-20T05:48:29Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77944/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/77944",
+      "id": 1242650990,
+      "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.sparse",
+          "id": 679954154,
+          "name": "module: sparse",
+          "node_id": "MDU6TGFiZWw2Nzk5NTQxNTQ=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20sparse"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "It used to work, and now it doesn't",
+          "id": 1313495464,
+          "name": "module: regression",
+          "node_id": "MDU6TGFiZWwxMzEzNDk1NDY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20regression"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77944/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85KEVlu",
+      "number": 77944,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77944/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77944/timeline",
+      "title": "DISABLED test_mm_cuda_float64 (__main__.TestSparseCSRCUDA)",
+      "updated_at": "2022-05-20T05:49:03Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77944",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
+        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
+        "followers_url": "https://api.github.com/users/malfet/followers",
+        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
+        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/malfet",
+        "id": 2453524,
+        "login": "malfet",
+        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
+        "organizations_url": "https://api.github.com/users/malfet/orgs",
+        "received_events_url": "https://api.github.com/users/malfet/received_events",
+        "repos_url": "https://api.github.com/users/malfet/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/malfet"
+      }
     }
   ],
-  "total_count": 178
+  "total_count": 179
 }
