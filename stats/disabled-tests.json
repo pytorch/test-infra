@@ -18019,7 +18019,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing flakily ([recent examples](http://torch-ci.com/failure/test_Conv2d_groups_nobias%2C%20TestNN)).",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/comments",
       "created_at": "2022-05-20T16:59:48Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/events",
@@ -18060,7 +18060,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/timeline",
       "title": "DISABLED test_Conv2d_groups_nobias (__main__.TestNN)",
-      "updated_at": "2022-05-20T16:59:51Z",
+      "updated_at": "2022-05-20T17:35:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77976",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
