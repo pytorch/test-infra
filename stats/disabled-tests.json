@@ -15235,7 +15235,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/comments",
       "created_at": "2022-05-11T07:48:24Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/events",
@@ -15285,7 +15285,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/timeline",
       "title": "DISABLED test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)",
-      "updated_at": "2022-05-16T22:01:45Z",
+      "updated_at": "2022-05-23T02:49:29Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77237",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -18275,7 +18275,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_init_from_local_shards%2C%20TestShardedTensorFromLocalShards) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6546960161).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 3 red and 5 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_init_from_local_shards%2C%20TestShardedTensorFromLocalShards) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6546960161).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 3 red and 5 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @gqchen @aazzolini @rohan-varma @jjlilley @osalpekar @jiayisuse @mrzzd",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78068/comments",
@@ -18294,6 +18294,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -18301,15 +18310,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/78068/labels{/name}",
@@ -18336,7 +18336,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78068/timeline",
       "title": "DISABLED test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)",
-      "updated_at": "2022-05-23T00:57:39Z",
+      "updated_at": "2022-05-23T03:06:18Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78068",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
