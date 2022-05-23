@@ -29,6 +29,11 @@ export default async function handler(
     .setHeader("Cache-Control", "s-maxage=60")
     .json([
       {
+        name: "Operator backwards compatibility",
+        pattern: r`^The PR is introducing backward incompatible changes to the operator library.`,
+        priority: 1006
+      },
+      {
         name: "Lintrunner failure",
         pattern: r`^>>> Lint for.*`,
         priority: 1005,
