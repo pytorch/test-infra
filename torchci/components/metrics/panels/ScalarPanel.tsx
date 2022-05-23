@@ -43,7 +43,7 @@ export default function ScalarPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const value = data[0][metricName];
+  const value = data.length > 0 ? data[0][metricName] : undefined;
   let fontColor = badThreshold(value) ? "#ee6666" : "black";
 
   return (
