@@ -18420,7 +18420,78 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms:  rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_complex_half_reference_testing_as_strided_scatter_cuda_complex32%2C%20TestCommonCUDA)).",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/comments",
+      "created_at": "2022-05-24T20:58:14Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/78205",
+      "id": 1247118893,
+      "labels": [
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85KVYYt",
+      "number": 78205,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": null,
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/timeline",
+      "title": "DISABLED test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)",
+      "updated_at": "2022-05-24T20:58:17Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/78205",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
+        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
+        "followers_url": "https://api.github.com/users/malfet/followers",
+        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
+        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/malfet",
+        "id": 2453524,
+        "login": "malfet",
+        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
+        "organizations_url": "https://api.github.com/users/malfet/orgs",
+        "received_events_url": "https://api.github.com/users/malfet/received_events",
+        "repos_url": "https://api.github.com/users/malfet/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/malfet"
+      }
     }
   ],
-  "total_count": 183
+  "total_count": 184
 }
