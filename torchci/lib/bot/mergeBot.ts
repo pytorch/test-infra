@@ -33,7 +33,8 @@ function mergeBot(app: Probot): void {
       force: boolean = false,
       onGreen: boolean = false,
       allGreen: boolean = false,
-      reason: string = ""
+      reason: string = "",
+      stable: boolean = false
     ) {
       let payload: any = {
         pr_num: prNum,
@@ -46,6 +47,8 @@ function mergeBot(app: Probot): void {
         payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
+      } else if (stable) {
+        payload.stable = true
       }
 
       if (reason.length > 0) {
@@ -89,7 +92,7 @@ function mergeBot(app: Probot): void {
       }
 
       if (ctx.payload.comment.user.login == ctx.payload.issue.user.login || await comment_author_in_pytorch_org()) {
-        await dispatchEvent("try-rebase", stable);
+        await dispatchEvent("try-rebase", false, false, false, "", stable);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(

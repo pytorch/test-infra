@@ -43,7 +43,7 @@ const cliOptions: { [key: string]: any } = {
         key: "stable",
         alternatives: ["s", "stable", "viableStrict"],
         type: "flag",
-      }
+      },
     ],
   },
 };
