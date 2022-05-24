@@ -76,7 +76,7 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRebase() {
+    async function handleRebase(stable: boolean) {
       async function comment_author_in_pytorch_org() {
         try {
           return (await ctx.octokit.rest.orgs.getMembershipForUser({
@@ -89,7 +89,7 @@ function mergeBot(app: Probot): void {
       }
 
       if (ctx.payload.comment.user.login == ctx.payload.issue.user.login || await comment_author_in_pytorch_org()) {
-        await dispatchEvent("try-rebase");
+        await dispatchEvent("try-rebase", stable);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(
@@ -152,7 +152,7 @@ function mergeBot(app: Probot): void {
         await handleConfused();
         return;
       }
-      await handleRebase();
+      await handleRebase(false);
       return;
     }
 
@@ -193,7 +193,7 @@ function mergeBot(app: Probot): void {
       } else if (cmd === "merge") {
         await handleMerge(option["force"], option["green"], option['allGreen']);
       } else if (cmd === "rebase") {
-        await handleRebase();
+        await handleRebase(option["stable"]);
       } else if (cmd === "help") {
         await handleHelp();
       } else {
