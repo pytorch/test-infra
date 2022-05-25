@@ -200,6 +200,11 @@ export default async function handler(
         priority: 97,
       },
       {
+        name: "Uncaught C++ exception",
+        pattern: r`^terminate called after throwing an instance of '(.*)'`,
+        priority: 97
+      },
+      {
         name: "Docker login failure",
         pattern: r`Docker login for '.*' failed.*`,
         priority: 96,
