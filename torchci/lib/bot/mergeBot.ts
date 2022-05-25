@@ -33,7 +33,8 @@ function mergeBot(app: Probot): void {
       force: boolean = false,
       onGreen: boolean = false,
       allGreen: boolean = false,
-      reason: string = ""
+      reason: string = "",
+      stable: boolean = false
     ) {
       let payload: any = {
         pr_num: prNum,
@@ -46,6 +47,8 @@ function mergeBot(app: Probot): void {
         payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
+      } else if (stable) {
+        payload.stable = true
       }
 
       if (reason.length > 0) {
@@ -76,7 +79,7 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRebase() {
+    async function handleRebase(stable: boolean) {
       async function comment_author_in_pytorch_org() {
         try {
           return (await ctx.octokit.rest.orgs.getMembershipForUser({
@@ -89,7 +92,7 @@ function mergeBot(app: Probot): void {
       }
 
       if (ctx.payload.comment.user.login == ctx.payload.issue.user.login || await comment_author_in_pytorch_org()) {
-        await dispatchEvent("try-rebase");
+        await dispatchEvent("try-rebase", false, false, false, "", stable);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(
@@ -152,7 +155,7 @@ function mergeBot(app: Probot): void {
         await handleConfused();
         return;
       }
-      await handleRebase();
+      await handleRebase(false);
       return;
     }
 
@@ -193,7 +196,7 @@ function mergeBot(app: Probot): void {
       } else if (cmd === "merge") {
         await handleMerge(option["force"], option["green"], option['allGreen']);
       } else if (cmd === "rebase") {
-        await handleRebase();
+        await handleRebase(option["stable"]);
       } else if (cmd === "help") {
         await handleHelp();
       } else {

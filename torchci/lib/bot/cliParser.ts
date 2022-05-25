@@ -38,7 +38,13 @@ const cliOptions: { [key: string]: any } = {
     ],
   },
   rebase: {
-    options: [],
+    options: [
+      {
+        key: "stable",
+        alternatives: ["s", "stable", "viableStrict"],
+        type: "flag",
+      },
+    ],
   },
 };
 
