@@ -17900,77 +17900,6 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
-      "author_association": "MEMBER",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing flakily ([recent examples](http://torch-ci.com/failure/test_Conv2d_groups_nobias%2C%20TestNN)).",
-      "closed_at": null,
-      "comments": 2,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/comments",
-      "created_at": "2022-05-20T16:59:48Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/77976",
-      "id": 1243409101,
-      "labels": [
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85KHOrN",
-      "number": 77976,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "state_reason": null,
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77976/timeline",
-      "title": "DISABLED test_Conv2d_groups_nobias (__main__.TestNN)",
-      "updated_at": "2022-05-20T17:35:43Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77976",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
-        "events_url": "https://api.github.com/users/suo/events{/privacy}",
-        "followers_url": "https://api.github.com/users/suo/followers",
-        "following_url": "https://api.github.com/users/suo/following{/other_user}",
-        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/suo",
-        "id": 1617424,
-        "login": "suo",
-        "node_id": "MDQ6VXNlcjE2MTc0MjQ=",
-        "organizations_url": "https://api.github.com/users/suo/orgs",
-        "received_events_url": "https://api.github.com/users/suo/received_events",
-        "repos_url": "https://api.github.com/users/suo/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/suo/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/suo"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_ddp_control_flow_different_across_ranks%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6527234679).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 4 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
@@ -18588,7 +18517,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_ddp_control_flow_same_across_ranks%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6584829235).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 4 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78235/comments",
       "created_at": "2022-05-25T03:52:56Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/78235/events",
@@ -18647,7 +18576,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78235/timeline",
       "title": "DISABLED test_ddp_control_flow_same_across_ranks (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-05-25T03:52:58Z",
+      "updated_at": "2022-05-25T19:12:52Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78235",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18671,5 +18600,5 @@
       }
     }
   ],
-  "total_count": 186
+  "total_count": 185
 }
