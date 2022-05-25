@@ -6881,6 +6881,11 @@ react-lifecycles-compat@^3.0.4:
   resolved "https://registry.yarnpkg.com/react-lifecycles-compat/-/react-lifecycles-compat-3.0.4.tgz#4f1a273afdfc8f3488a8c516bfda78f872352362"
   integrity sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==
 
+react-linkify-it@1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/react-linkify-it/-/react-linkify-it-1.0.5.tgz#7173fa611daa09c2ff4fd15f5bc325d232d4226d"
+  integrity sha512-p2XUl7VrKFb5AmLbj1R8SgaI56mJTrbV2PLGiBS6uTp+xfTN4eAIbrK+h4xWWmBsvF8l8yq9bb6n4qKJawoGNg==
+
 react-resize-detector@^6.6.3:
   version "6.7.8"
   resolved "https://registry.yarnpkg.com/react-resize-detector/-/react-resize-detector-6.7.8.tgz#318c85d1335e50f99d4fb8eb9ec34e066db597d0"
