@@ -16,8 +16,14 @@ WITH queued_jobs as (
         push.repository.owner.name = 'pytorch'
         AND push.repository.name = 'pytorch'
         AND job.status = 'queued'
-        AND job._event_time > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
-        AND job._event_time < (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
+        AND job._event_time < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+        /* These two conditions are workarounds for GitHub's broken API. Sometimes */
+        /* jobs get stuck in a permanently "queued" state but definitely ran. We can */
+        /* detect this by looking at whether any steps executed (if there were, */
+        /* obviously the job started running), and whether the workflow was marked as */
+        /* complete (somehow more reliable than the job-level API) */
+        AND LENGTH(job.steps) = 0
+        AND workflow.status != 'completed'
     ORDER BY
         job._event_time DESC
 )
