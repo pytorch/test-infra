@@ -19,6 +19,8 @@ export interface JobData {
   failureContext?: string;
   failureCaptures?: string;
   originalPrData?: JobData;
+  repo?: string;
+  failureAnnotation?: string
 }
 
 export interface Artifact {

@@ -13,6 +13,8 @@ SELECT
     failure_context as failureContext,
     failure_captures as failureCaptures,
     failure_line_number as failureLineNumber,
+    repo as repo,
+    failure_annotation as failureAnnotation,
 FROM
     (
         SELECT
@@ -35,10 +37,13 @@ FROM
             classification.context as failure_context,
             classification.captures as failure_captures,
             classification.line_num as failure_line_number,
+            workflow.repository.full_name as repo,
+            job_annotation.annotation as failure_annotation
         FROM
             workflow_job job
             INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
             LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
+            LEFT JOIN job_annotation ON job_annotation.jobID = job.id HINT(join_strategy = lookup)
         WHERE
             job.name != 'ciflow_should_run'
             AND job.name != 'generate-test-matrix'
@@ -76,6 +81,8 @@ FROM
             null,
             null,
             null,
+            null,
+            CONCAT(job.organization.name, "/", job.project.name) as repo,
             null,
         FROM
             circleci.job job

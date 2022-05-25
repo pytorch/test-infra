@@ -1,23 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
-import { DynamoDB } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { Context, Probot } from "probot";
 import {
   EmitterWebhookEvent as WebhookEvent,
   EmitterWebhookEventName as WebhookEvents,
 } from "@octokit/webhooks";
-
-function getDynamoClient(): DynamoDBDocument {
-  return DynamoDBDocument.from(
-    new DynamoDB({
-      credentials: {
-        accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY!,
-      },
-      region: "us-east-1",
-    })
-  );
-}
+import { getDynamoClient } from "lib/dynamo";
 
 function narrowType<E extends WebhookEvents>(
   event: E,
