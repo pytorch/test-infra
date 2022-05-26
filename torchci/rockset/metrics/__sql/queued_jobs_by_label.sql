@@ -11,10 +11,8 @@ WITH queued_jobs as (
     FROM
         commons.workflow_job job
         JOIN commons.workflow_run workflow on workflow.id = job.run_id
-        JOIN push on workflow.head_commit.id = push.head_commit.id
     WHERE
-        push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
+        workflow.repository.full_name = 'pytorch/pytorch'
         AND job.status = 'queued'
         AND job._event_time < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         /* These two conditions are workarounds for GitHub's broken API. Sometimes */
@@ -25,7 +23,7 @@ WITH queued_jobs as (
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
     ORDER BY
-        job._event_time DESC
+        queue_s DESC
 )
 SELECT
     COUNT(*) as count,

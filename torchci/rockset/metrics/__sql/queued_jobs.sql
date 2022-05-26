@@ -7,8 +7,6 @@ SELECT
         ELEMENT_AT(job.labels, 2),
         ELEMENT_AT(job.labels, 1)
     ) as machine_type,
-    job.steps,
-    workflow.status
 FROM
     commons.workflow_job job
     JOIN commons.workflow_run workflow on workflow.id = job.run_id
