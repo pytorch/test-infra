@@ -10,6 +10,20 @@ import useSWR from "swr";
 import { EChartsOption } from "echarts";
 import _ from "lodash";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
+
+// Adapted from echarts
+// see: https://github.com/apache/echarts/blob/master/src/util/format.ts
+export function getTooltipMarker(color: string) {
+  return (
+    '<span style="display:inline-block;margin-right:4px;' +
+    "border-radius:10px;width:10px;height:10px;background-color:" +
+    color +
+    ";" +
+    '"></span>'
+  );
+}
 
 export default function TimeSeriesPanel({
   // Human-readable title of the panel.
@@ -125,7 +139,11 @@ export default function TimeSeriesPanel({
     // @ts-ignore
     tooltip: {
       trigger: "item",
-      valueFormatter: yAxisRenderer,
+      formatter: (params: any) =>
+        `${params.seriesName}` +
+        `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
+        `${getTooltipMarker(params.color)}` +
+        `<b>${yAxisRenderer(params.value[1])}</b>`,
     },
   };
 
