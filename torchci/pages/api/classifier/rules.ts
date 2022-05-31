@@ -211,7 +211,7 @@ export default async function handler(
       },
       {
         name: "GHA error",
-        pattern: r`^##\[error\]`,
+        pattern: r`^##\[error\](.*)`,
         priority: 94,
       },
     ]);
