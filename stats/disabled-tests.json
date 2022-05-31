@@ -18835,7 +18835,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_mem_leak%2C%20TestProfilerCUDA)).\r\n\r\ncc @robieta can you take a look? Based on the link above seems like this failure started relatively recently.",
+      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_mem_leak%2C%20TestProfilerCUDA)).\r\n\r\ncc @ilia-cher @robieta @chaekit @gdankel @bitfort @ngimel @nbcsm @guotuofeng @guyang3532 @gaoteng-git can you take a look? Based on the link above seems like this failure started relatively recently.",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78457/comments",
@@ -18852,6 +18852,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "79C48B",
+          "default": false,
+          "description": "profiler-related issues (cpu, gpu, kineto)",
+          "id": 1883229970,
+          "name": "oncall: profiler",
+          "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/78457/labels{/name}",
@@ -18878,7 +18887,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78457/timeline",
       "title": "DISABLED test_mem_leak (__main__.TestProfilerCUDA)",
-      "updated_at": "2022-05-28T17:19:29Z",
+      "updated_at": "2022-05-31T14:01:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78457",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
