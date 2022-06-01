@@ -11,8 +11,9 @@ function mergeBot(app: Probot): void {
     "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
   );
 
-  const revertExplaination = '`@pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"`' +
-    '. See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.';
+  const revertExplaination =
+    '`@pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"`' +
+    ". See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.";
 
   const revertClassifications = new Set([
     "nosignal",
@@ -48,7 +49,7 @@ function mergeBot(app: Probot): void {
       } else if (onGreen) {
         payload.on_green = true;
       } else if (stable) {
-        payload.stable = true
+        payload.stable = true;
       }
 
       if (reason.length > 0) {
@@ -69,7 +70,11 @@ function mergeBot(app: Probot): void {
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
     }
-    async function handleMerge(force: boolean, mergeOnGreen: boolean, allGreen: boolean) {
+    async function handleMerge(
+      force: boolean,
+      mergeOnGreen: boolean,
+      allGreen: boolean
+    ) {
       await dispatchEvent("try-merge", force, mergeOnGreen, allGreen);
       await reactOnComment(ctx, "+1");
     }
@@ -82,16 +87,23 @@ function mergeBot(app: Probot): void {
     async function handleRebase(stable: boolean) {
       async function comment_author_in_pytorch_org() {
         try {
-          return (await ctx.octokit.rest.orgs.getMembershipForUser({
-            org: "pytorch",
-            username: ctx.payload.comment.user.login,
-          }))?.data?.state == "active";
+          return (
+            (
+              await ctx.octokit.rest.orgs.getMembershipForUser({
+                org: "pytorch",
+                username: ctx.payload.comment.user.login,
+              })
+            )?.data?.state == "active"
+          );
         } catch (error) {
           return false;
         }
       }
 
-      if (ctx.payload.comment.user.login == ctx.payload.issue.user.login || await comment_author_in_pytorch_org()) {
+      if (
+        ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
+        (await comment_author_in_pytorch_org())
+      ) {
         await dispatchEvent("try-rebase", false, false, false, "", stable);
         await reactOnComment(ctx, "+1");
       } else {
@@ -106,7 +118,7 @@ function mergeBot(app: Probot): void {
       await addComment(
         ctx,
         "To see all options for pytorchbot, " +
-        "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
+          "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
       );
     }
 
@@ -125,7 +137,7 @@ function mergeBot(app: Probot): void {
       await handleMerge(
         typeof match[2] === "string",
         typeof match[3] === "string",
-        false,
+        false
       );
       return;
     }
@@ -141,8 +153,8 @@ function mergeBot(app: Probot): void {
         // revert reason of 3+ words not given
         await addComment(
           ctx,
-          "Revert unsuccessful: please retry the command and provide a revert reason, " +
-          "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
+          "Revert unsuccessful: please retry the command and provide at least 3 word long revert reason, " +
+            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return;
       }
@@ -168,9 +180,8 @@ function mergeBot(app: Probot): void {
         if (option["message"] == null || !isReasonValid(option["message"])) {
           await addComment(
             ctx,
-            "Revert unsuccessful: please retry the command and provide a revert reason, e.g. " +
-            revertExplaination
-
+            "Revert unsuccessful: please retry the command and provide at least 3 world long revert reason, e.g. " +
+              revertExplaination
           );
           return;
         }
@@ -180,21 +191,24 @@ function mergeBot(app: Probot): void {
             option["classification"].replace(/['"]+/g, "")
           )
         ) {
-          const invalidClassificationMessage = option['classification'] != null ?
-            `(the classification you provided was: ${option['classification']})` :
-            "";
+          const invalidClassificationMessage =
+            option["classification"] != null
+              ? `(the classification you provided was: ${option["classification"]})`
+              : "";
           await addComment(
             ctx,
             `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}.` +
-            `The options for classifications are ${[...revertClassifications].join(", ")}. Example: ` +
-            revertExplaination
+              `The options for classifications are ${[
+                ...revertClassifications,
+              ].join(", ")}. Example: ` +
+              revertExplaination
           );
           return;
         }
         // Pass the message without quotes
         await handleRevert(option["message"].replace(/^"|"$/g, ""));
       } else if (cmd === "merge") {
-        await handleMerge(option["force"], option["green"], option['allGreen']);
+        await handleMerge(option["force"], option["green"], option["allGreen"]);
       } else if (cmd === "rebase") {
         await handleRebase(option["stable"]);
       } else if (cmd === "help") {

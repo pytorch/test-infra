@@ -31,7 +31,7 @@ export default async function handler(
       {
         name: "Operator backwards compatibility",
         pattern: r`^The PR is introducing backward incompatible changes to the operator library.`,
-        priority: 1006
+        priority: 1006,
       },
       {
         name: "Lintrunner failure",

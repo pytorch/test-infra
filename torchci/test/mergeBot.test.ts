@@ -196,8 +196,8 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "Revert unsuccessful: please retry the command and provide a revert reason, " +
-          "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
+          "Revert unsuccessful: please retry the command and provide at least 3 word long revert reason, " +
+            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return true;
       })
@@ -262,7 +262,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
       .reply(200, {
-        state: "active"
+        state: "active",
       })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -279,7 +279,6 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
-
 
     await probot.receive(event);
     if (!scope.isDone()) {
@@ -299,11 +298,11 @@ describe("merge-bot", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
-    
+
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
       .reply(200, {
-        state: "active"
+        state: "active",
       })
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -341,7 +340,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
       .reply(404, {
-        message: "Not Found"
+        message: "Not Found",
       })
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
@@ -495,9 +494,9 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "Revert unsuccessful: please retry the command and provide a revert reason, e.g. " +
-          "`@pytorchbot revert -m=\\\"this breaks mac tests on trunk\\\" -c=\\\"ignoredsignal\\\"`" +
-          ". See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands."
+          "Revert unsuccessful: please retry the command and provide at least 3 world long revert reason, e.g. " +
+            '`@pytorchbot revert -m=\\"this breaks mac tests on trunk\\" -c=\\"ignoredsignal\\"`' +
+            ". See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands."
         );
         return true;
       })
@@ -522,7 +521,7 @@ describe("merge-bot", () => {
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "To see all options for pytorchbot, " +
-          "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
+            "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
         );
         return true;
       })
@@ -537,7 +536,7 @@ describe("merge-bot", () => {
 
   test("revert using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
-    const reason = "this is breaking test_meta"
+    const reason = "this is breaking test_meta";
     event.payload.comment.body =
       '@pytorchbot revert -m="' + reason + '" -c="ghfirst"';
 

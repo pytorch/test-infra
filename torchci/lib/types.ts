@@ -20,7 +20,7 @@ export interface JobData {
   failureCaptures?: string;
   originalPrData?: JobData;
   repo?: string;
-  failureAnnotation?: string
+  failureAnnotation?: string;
 }
 
 export interface Artifact {
