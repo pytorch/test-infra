@@ -17811,95 +17811,6 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "### \ud83d\udc1b Describe the bug\n\nI'm trying to build PyTorch 1.11.0 from source using the [Spack](https://spack.io) package manager on macOS 12.3.1 and Apple M1 Pro with Apple Clang 13.1.6 and Python 3.9.12. During installation, I see the following error message:\r\n```\r\n    [471/1268] Linking C static library lib/libpsimd.a\r\n    FAILED: lib/libpsimd.a\r\n    : && /Users/ajstewart/spack/opt/spack/darwin-monterey-m1/apple-clang-13.1.6/cmake-3.23.1-2ipwayeri23f5s5wp4bpwmtmp3itsvlf/bin/cmake -E rm -f lib/libpsimd.a && /usr/bin/ar qc lib/libpsimd.a   && /usr/bin/ranlib lib/libpsimd.a && /Users/ajstewart/spack/opt/spack/darwin-monterey-m1/apple-clang-13.1.6/cmake-3.23.1-2ipwayeri23f5s5wp4bpwmtmp3itsvlf/bin/cmake -E touch lib/libpsimd.a && :\r\n    ar: no archive members specified\r\n    usage:  ar -d [-TLsv] archive file ...\r\n        ar -m [-TLsv] archive file ...\r\n        ar -m [-abiTLsv] position archive file ...\r\n        ar -p [-TLsv] archive [file ...]\r\n        ar -q [-cTLsv] archive file ...\r\n        ar -r [-cuTLsv] archive file ...\r\n        ar -r [-abciuTLsv] position archive file ...\r\n        ar -t [-TLsv] archive [file ...]\r\n        ar -x [-ouTLsv] archive [file ...]\r\n    [472/1268] Linking C static library lib/libfxdiv.a\r\n    FAILED: lib/libfxdiv.a\r\n    : && /Users/ajstewart/spack/opt/spack/darwin-monterey-m1/apple-clang-13.1.6/cmake-3.23.1-2ipwayeri23f5s5wp4bpwmtmp3itsvlf/bin/cmake -E rm -f lib/libfxdiv.a && /usr/bin/ar qc lib/libfxdiv.a   && /usr/bin/ranlib lib/libfxdiv.a && /Users/ajstewart/spack/opt/spack/darwin-monterey-m1/apple-clang-13.1.6/cmake-3.23.1-2ipwayeri23f5s5wp4bpwmtmp3itsvlf/bin/cmake -E touch lib/libfxdiv.a && :\r\n    ar: no archive members specified\r\n    usage:  ar -d [-TLsv] archive file ...\r\n        ar -m [-TLsv] archive file ...\r\n        ar -m [-abiTLsv] position archive file ...\r\n        ar -p [-TLsv] archive [file ...]\r\n        ar -q [-cTLsv] archive file ...\r\n        ar -r [-cuTLsv] archive file ...\r\n        ar -r [-abciuTLsv] position archive file ...\r\n        ar -t [-TLsv] archive [file ...]\r\n        ar -x [-ouTLsv] archive [file ...]\r\n```\r\nHere are the full build logs:\r\n\r\n* [build log](https://github.com/pytorch/pytorch/files/8721819/spack-build-out.txt)\r\n* [build env](https://github.com/pytorch/pytorch/files/8721821/spack-build-env-mods.txt)\n\n### Versions\n\nPyTorch version: 1.11.0\r\nIs debug build: no\r\nCUDA used to build PyTorch: no\r\nROCM used to build PyTorch: no\r\n\r\nOS: macOS 12.3.1 (arm64)\r\nGCC version: 11.2.0 (gfortran only)\r\nClang version: 13.1.6 (clang-1316.0.21.2.5)\r\nCMake version: 3.23.1\r\nLibc version: N/A\r\n\r\nPython version: 3.9.12 (main, May 17 2022, 17:23:23) [Clang 13.1.6 (clang-1316.0.21.2.5)] on darwin\r\nPython platform: macOS-12.3.1-arm64-arm-64bit\r\nIs CUDA available: N/A\r\nCUDA runtime version: Could not collect\r\nGPU models and configuration: Could not collect\r\nNvidia driver version: Could not collect\r\ncuDNN version: Could not collect\r\nHIP runtime version: N/A\r\nMIOpen runtime version: N/A\r\nIs XNNPACK available: N/A\r\n\r\nVersions of relevant libraries:\r\n[pip3] No relevant packages\r\n[conda] Could not collect\r\n\n\ncc @malfet @seemethere @albanD",
-      "closed_at": null,
-      "comments": 9,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77811/comments",
-      "created_at": "2022-05-19T00:53:33Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77811/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/77811",
-      "id": 1240865661,
-      "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Build system issues",
-          "id": 778855555,
-          "name": "module: build",
-          "node_id": "MDU6TGFiZWw3Nzg4NTU1NTU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20build"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Mac OS related issues",
-          "id": 1301432832,
-          "name": "module: macos",
-          "node_id": "MDU6TGFiZWwxMzAxNDMyODMy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20macos"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77811/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85J9ht9",
-      "number": 77811,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77811/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "state_reason": null,
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77811/timeline",
-      "title": "qnnpack cannot be built on Apple M1 and is disabled",
-      "updated_at": "2022-05-20T16:59:59Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77811",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/12021217?v=4",
-        "events_url": "https://api.github.com/users/adamjstewart/events{/privacy}",
-        "followers_url": "https://api.github.com/users/adamjstewart/followers",
-        "following_url": "https://api.github.com/users/adamjstewart/following{/other_user}",
-        "gists_url": "https://api.github.com/users/adamjstewart/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/adamjstewart",
-        "id": 12021217,
-        "login": "adamjstewart",
-        "node_id": "MDQ6VXNlcjEyMDIxMjE3",
-        "organizations_url": "https://api.github.com/users/adamjstewart/orgs",
-        "received_events_url": "https://api.github.com/users/adamjstewart/received_events",
-        "repos_url": "https://api.github.com/users/adamjstewart/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/adamjstewart/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/adamjstewart/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/adamjstewart"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_ddp_control_flow_different_across_ranks%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6527234679).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 4 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
@@ -19000,5 +18911,5 @@
       }
     }
   ],
-  "total_count": 190
+  "total_count": 189
 }
