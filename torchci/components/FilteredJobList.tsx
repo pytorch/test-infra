@@ -7,7 +7,6 @@ export default function FilteredJobList({
   filterName,
   jobs,
   pred,
-
 }: {
   filterName: string;
   jobs: JobData[];
@@ -24,7 +23,7 @@ export default function FilteredJobList({
         {filteredJobs.map((job) => (
           <li key={job.id}>
             <JobSummary job={job} />
-             <div>
+            <div>
               <JobLinks job={job} />
             </div>
             <LogViewer job={job} />

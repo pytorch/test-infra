@@ -30,7 +30,8 @@ export default function JobAnnotationToggle({ job }: { job: JobData }) {
   // Don't show this button if we know this is a test failure, since we do not
   // consider test failures to be infra failures.
   const isFailure = job.failureLine != null;
-  const isTestFailure = isFailure && job.failureLine!.match(testFailureRe) !== null;
+  const isTestFailure =
+    isFailure && job.failureLine!.match(testFailureRe) !== null;
   if (isTestFailure) {
     return null;
   }

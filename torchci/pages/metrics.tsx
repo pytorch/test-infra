@@ -29,7 +29,7 @@ import { fetcher } from "lib/GeneralUtils";
 import ScalarPanel from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils"
+import { durationDisplay } from "components/TimeUtils";
 
 function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
   const url = `/api/query/metrics/master_jobs_red?parameters=${encodeURIComponent(
