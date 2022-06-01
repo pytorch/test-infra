@@ -2,6 +2,7 @@
   "commons": {
     "hud_query": "8d82c48b124ffd71",
     "commit_jobs_query": "c2a4dbce081d0144",
+    "flaky_tests": "2cfdf84f013e6d0f",
     "flaky_test_query": "482db17169272025",
     "original_pr_hud_query": "65174273ce3e602a",
     "issue_query": "f29a1afe94563601",

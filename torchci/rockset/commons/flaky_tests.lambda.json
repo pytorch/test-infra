@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/flaky_tests.sql",
+  "default_parameters": [
+    {
+      "name": "file",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "48"
+    },
+    {
+      "name": "suite",
+      "type": "string",
+      "value": "%"
+    }
+  ],
+  "description": "Using test_run statistics"
+}
