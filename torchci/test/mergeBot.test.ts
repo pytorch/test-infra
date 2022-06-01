@@ -196,7 +196,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "Revert unsuccessful: please retry the command and provide a revert reason, " +
+          "Revert unsuccessful: please retry the command and provide at least 3 word long revert reason, " +
             "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return true;
@@ -494,7 +494,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "Revert unsuccessful: please retry the command and provide a revert reason, e.g. " +
+          "Revert unsuccessful: please retry the command and provide at least 3 world long revert reason, e.g. " +
             '`@pytorchbot revert -m=\\"this breaks mac tests on trunk\\" -c=\\"ignoredsignal\\"`' +
             ". See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands."
         );
