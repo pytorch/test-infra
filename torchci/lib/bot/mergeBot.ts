@@ -141,7 +141,7 @@ function mergeBot(app: Probot): void {
         // revert reason of 3+ words not given
         await addComment(
           ctx,
-          "Revert unsuccessful: please retry the command and provide a revert reason, " +
+          "Revert unsuccessful: please retry the command and provide at least 3 word long revert reasone, " +
           "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
         );
         return;
@@ -168,7 +168,7 @@ function mergeBot(app: Probot): void {
         if (option["message"] == null || !isReasonValid(option["message"])) {
           await addComment(
             ctx,
-            "Revert unsuccessful: please retry the command and provide a revert reason, e.g. " +
+            "Revert unsuccessful: please retry the command and provide at least 3 world long revert reason, e.g. " +
             revertExplaination
 
           );
