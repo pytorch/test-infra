@@ -1,103 +1,89 @@
-import minimist from "minimist";
+import { ArgumentParser } from "argparse";
 
-const cliOptions: { [key: string]: any } = {
-  revert: {
-    options: [
-      {
-        key: "message",
-        alternatives: ["m", "message"],
-        type: "string",
-      },
-      {
-        key: "classification",
-        alternatives: ["c", "classification"],
-        type: "string",
-      },
-    ],
-  },
-  help: {
-    options: [],
-  },
-  merge: {
-    options: [
-      {
-        key: "green",
-        alternatives: ["g", "green", "onGreen"],
-        type: "flag",
-      },
-      {
-        key: "allGreen",
-        alternatives: ["a", "allGreen", "onAllGreen"],
-        type: "flag",
-      },
-      {
-        key: "force",
-        alternatives: ["f", "force"],
-        type: "flag",
-      },
-    ],
-  },
-  rebase: {
-    options: [
-      {
-        key: "stable",
-        alternatives: ["s", "stable", "viableStrict"],
-        type: "flag",
-      },
-    ],
-  },
-};
-
-export function parseComment(commentBody: string) {
-  const parsedBody = commentBody.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
-  const commentOptions = minimist(parsedBody);
-  return commentOptions;
+// The default ArgumentParser is designed to be used from the command line, so
+// when it encounters an error it calls process.exit. We want to throw an
+// exception that we can catch and present to the user instead.
+class NonExitingArgumentParser extends ArgumentParser {
+  error(message: string) {
+    // @ts-expect-error
+    throw Error(`${this.prog}: error: ${message}\n\n${this.format_usage()}`);
+  }
 }
 
-export function getCommand(opts: any): string | null {
-  if (
-    !("_" in opts) ||
-    opts["_"].length < 2 ||
-    opts["_"][0] !== "@pytorchbot"
-  ) {
-    return null;
-  }
-  const cmd = opts["_"][1];
-  return cmd in cliOptions ? cmd : null;
+// NOTE: When adding a new command, make sure to add it to the getHelp function!
+const parser = new NonExitingArgumentParser({
+  prog: "@pytorchbot",
+  add_help: false,
+});
+const commands = parser.add_subparsers({ title: "command", dest: "command" });
+
+// Merge
+const merge = commands.add_parser("merge", {
+  help: "Merge a PR",
+  add_help: false,
+});
+merge.add_argument("-g", "--green", {
+  action: "store_true",
+  help: "Merge when required tests pass",
+});
+merge.add_argument("-a", "--all-green", {
+  action: "store_true",
+  help: "Merge when all tests pass",
+});
+merge.add_argument("-f", "--force", {
+  action: "store_true",
+  help: "Merge without checking anything",
+});
+
+// Revert
+const revert = commands.add_parser("revert", {
+  help: "Revert a merged PR",
+  add_help: false,
+});
+revert.add_argument("-m", "--message", {
+  required: true,
+  help: "The reason you are reverting, will be put in the commit message.",
+});
+revert.add_argument("-c", "--classification", {
+  choices: ["nosignal", "ignoredsignal", "landrace", "weird", "ghfirst"],
+  help: "A machine-friendly classification of the revert reason.",
+});
+
+// Rebase
+const rebase = commands.add_parser("rebase", {
+  help: "Rebase a PR",
+  add_help: false,
+});
+rebase.add_argument("-s", "--stable", {
+  action: "store_true",
+  help: "Rebase to viable/strict",
+});
+
+// Help
+commands.add_parser("help", {
+  help: "Show help",
+  add_help: false,
+});
+
+export function getParser() {
+  return parser;
 }
 
-export function getOptions(command: string | null, opts: any): any {
-  if (command === null || !(command in cliOptions)) {
-    return null;
-  }
-  const options = cliOptions[command]["options"];
-  const out: any = {};
-  for (const option of options) {
-    if (option["type"] === "flag") {
-      const flag = getFlag(opts, option["alternatives"]);
-      out[option["key"]] = flag;
-    } else if (option["type"] === "string") {
-      const str = getString(opts, option["alternatives"]);
-      out[option["key"]] = str;
-    }
-  }
-  return out;
-}
-
-function getFlag(opts: any, alternatives: string): boolean {
-  for (const alternative of alternatives) {
-    if (alternative in opts) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function getString(opts: any, alternatives: string): string | null {
-  for (const alternative of alternatives) {
-    if (alternative in opts) {
-      return opts[alternative];
-    }
-  }
-  return null;
+export function getHelp(): string {
+  return `
+# PyTorchBot Help
+\`\`\`
+${parser.format_help()}\`\`\`
+## Merge
+\`\`\`
+${merge.format_help()}\`\`\`
+## Revert
+\`\`\`
+${revert.format_help()}\`\`\`
+## Rebase
+\`\`\`
+${rebase.format_help()}\`\`\`
+---
+For more info, consult the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
+`;
 }

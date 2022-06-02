@@ -1,27 +1,14 @@
 import { Probot } from "probot";
 import { addComment, reactOnComment } from "./botUtils";
-import { getCommand, getOptions, parseComment } from "./cliParser";
+import { getHelp, getParser } from "./cliParser";
+import shlex from "shlex";
 
 function mergeBot(app: Probot): void {
+  const botCommandPattern = new RegExp("^@pytorchbot");
+
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
-  const revertCmdPat = new RegExp("^\\s*@pytorch(merge|)bot\\s+revert\\s+this");
-  const rebaseCmdPat = new RegExp(
-    "^\\s*@pytorch(merge|)bot\\s+rebase\\s+(me|this)"
-  );
-
-  const revertExplaination =
-    '`@pytorchbot revert -m="this breaks mac tests on trunk" -c="ignoredsignal"`' +
-    ". See the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands) for more details on the commands.";
-
-  const revertClassifications = new Set([
-    "nosignal",
-    "ignoredsignal",
-    "landrace",
-    "weird",
-    "ghfirst",
-  ]);
 
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
@@ -79,7 +66,7 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRevert(reason: string = "") {
+    async function handleRevert(reason: string) {
       await dispatchEvent("try-revert", false, false, false, reason);
       await reactOnComment(ctx, "+1");
     }
@@ -114,108 +101,43 @@ function mergeBot(app: Probot): void {
       }
     }
 
-    async function handleHelp() {
+    if (!botCommandPattern.test(commentBody)) {
+      return;
+    }
+
+    if (!ctx.payload.issue.pull_request) {
+      // Issue, not pull request.
+      return await handleConfused();
+    }
+
+    let inputArgs = commentBody.replace(botCommandPattern, "");
+    let args;
+    const parser = getParser();
+    try {
+      args = parser.parse_args(shlex.split(inputArgs));
+    } catch (err: any) {
+      // If the args are invalid, comment with the error + some help.
       await addComment(
         ctx,
-        "To see all options for pytorchbot, " +
-          "please refer to this [page](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
-      );
-    }
-
-    // Valid reason contains 3+ word
-    function isReasonValid(reason: string) {
-      return reason.split(" ").filter((x) => x.trim().length > 1).length >= 3;
-    }
-
-    const match = commentBody.match(mergeCmdPat);
-    if (match) {
-      if (!ctx.payload.issue.pull_request) {
-        // Issue, not pull request.
-        await handleConfused();
-        return;
-      }
-      await handleMerge(
-        typeof match[2] === "string",
-        typeof match[3] === "string",
-        false
+        "❌ 🤖 pytorchbot command failed: \n```\n" +
+          err.message +
+          "\n```.\n" +
+          "Try `@pytorchbot help` for more info."
       );
       return;
     }
-    const revert_match = commentBody.match(revertCmdPat);
-    if (revert_match) {
-      if (!ctx.payload.issue.pull_request) {
-        // Issue, not pull request.
-        await handleConfused();
-        return;
-      }
-      const reason = commentBody.substring(revert_match[0].length).trim();
-      if (!isReasonValid(reason)) {
-        // revert reason of 3+ words not given
-        await addComment(
-          ctx,
-          "Revert unsuccessful: please retry the command and provide at least 3 word long revert reason, " +
-            "e.g. @pytorchbot revert this as it breaks mac tests on trunk, see {url to logs}."
-        );
-        return;
-      }
-      await handleRevert(reason.trim());
-      return;
-    }
-    if (commentBody.match(rebaseCmdPat)) {
-      if (!ctx.payload.issue.pull_request) {
-        // Issue, not pull request.
-        await handleConfused();
-        return;
-      }
-      await handleRebase(false);
-      return;
-    }
 
-    const commentOptions = parseComment(commentBody);
-    const cmd = getCommand(commentOptions);
-    const option = getOptions(cmd, commentOptions);
-    // TODO: Remove old way of parsing inputs
-    if (cmd != null && option != null) {
-      if (cmd === "revert") {
-        if (option["message"] == null || !isReasonValid(option["message"])) {
-          await addComment(
-            ctx,
-            "Revert unsuccessful: please retry the command and provide at least 3 world long revert reason, e.g. " +
-              revertExplaination
-          );
-          return;
-        }
-        if (
-          option["classification"] == null ||
-          !revertClassifications.has(
-            option["classification"].replace(/['"]+/g, "")
-          )
-        ) {
-          const invalidClassificationMessage =
-            option["classification"] != null
-              ? `(the classification you provided was: ${option["classification"]})`
-              : "";
-          await addComment(
-            ctx,
-            `Revert unsuccessful: please retry the command and provide a valid classification ${invalidClassificationMessage}.` +
-              `The options for classifications are ${[
-                ...revertClassifications,
-              ].join(", ")}. Example: ` +
-              revertExplaination
-          );
-          return;
-        }
-        // Pass the message without quotes
-        await handleRevert(option["message"].replace(/^"|"$/g, ""));
-      } else if (cmd === "merge") {
-        await handleMerge(option["force"], option["green"], option["allGreen"]);
-      } else if (cmd === "rebase") {
-        await handleRebase(option["stable"]);
-      } else if (cmd === "help") {
-        await handleHelp();
-      } else {
-        await handleConfused();
-      }
+    switch (args.command) {
+      case "revert":
+        return await handleRevert(args.message);
+      case "merge":
+        return await handleMerge(args.force, args.green, args.all_green);
+      case "rebase":
+        return await handleRebase(args.stable);
+      case "help":
+        return await addComment(ctx, getHelp());
+      default:
+        return await handleConfused();
     }
   });
   app.on(
