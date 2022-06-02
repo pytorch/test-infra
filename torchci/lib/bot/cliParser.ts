@@ -24,15 +24,15 @@ const merge = commands.add_parser("merge", {
 });
 merge.add_argument("-g", "--green", {
   action: "store_true",
-  help: "Merge when required tests pass",
+  help: "Merge when required status checks pass. Currently, we only require lint and builds to pass.",
 });
 merge.add_argument("-a", "--all-green", {
   action: "store_true",
-  help: "Merge when all tests pass",
+  help: "Merge when all status checks pass",
 });
 merge.add_argument("-f", "--force", {
   action: "store_true",
-  help: "Merge without checking anything",
+  help: "Merge without checking anything. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
 
 // Revert
@@ -84,6 +84,6 @@ ${revert.format_help()}\`\`\`
 \`\`\`
 ${rebase.format_help()}\`\`\`
 ---
-For more info, consult the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands)."
+For more info, consult the [wiki](https://github.com/pytorch/pytorch/wiki/Bot-commands).
 `;
 }
