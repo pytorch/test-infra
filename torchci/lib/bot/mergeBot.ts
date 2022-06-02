@@ -4,7 +4,7 @@ import { getHelp, getParser } from "./cliParser";
 import shlex from "shlex";
 
 function mergeBot(app: Probot): void {
-  const botCommandPattern = new RegExp("^@pytorchbot");
+  const botCommandPattern = new RegExp(/^@pytorchbot.*$/m);
 
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
@@ -101,16 +101,19 @@ function mergeBot(app: Probot): void {
       }
     }
 
-    if (!botCommandPattern.test(commentBody)) {
+    const match = commentBody.match(botCommandPattern);
+    if (!match) {
       return;
     }
+
+    const command = match[0];
 
     if (!ctx.payload.issue.pull_request) {
       // Issue, not pull request.
       return await handleConfused();
     }
 
-    let inputArgs = commentBody.replace(botCommandPattern, "");
+    const inputArgs = command.replace(/@pytorchbot/, "");
     let args;
     const parser = getParser();
     try {
