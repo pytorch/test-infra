@@ -100,6 +100,10 @@ function mergeBot(app: Probot): void {
         );
       }
     }
+    if (ctx.payload.comment.user.id == 54816060) {
+      // This comment was made by this bot, ignore it.
+      return;
+    }
 
     const match = commentBody.match(botCommandPattern);
     if (!match) {
