@@ -56,7 +56,10 @@ const rebase = commands.add_parser("rebase", {
 });
 rebase.add_argument("-s", "--stable", {
   action: "store_true",
-  help: "Rebase to viable/strict",
+  help: "Rebase to viable/strict, takes priority over the --branch flag",
+});
+rebase.add_argument("-b", "--branch", {
+  help: "Branch you would like to rebase to",
 });
 
 // Help
