@@ -35,12 +35,14 @@ function mergeBot(app: Probot): void {
         payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
-      } else if (branch != "") {
-        payload.branch = branch;
       }
 
       if (reason.length > 0) {
         payload.reason = reason;
+      }
+
+      if (branch.length > 0) {
+        payload.branch = branch;
       }
 
       ctx.log(
