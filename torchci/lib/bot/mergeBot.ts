@@ -27,6 +27,7 @@ function mergeBot(app: Probot): void {
       let payload: any = {
         pr_num: prNum,
         comment_id: ctx.payload.comment.id,
+        merge_initiator: ctx.payload.sender.login
       };
 
       if (force) {
@@ -171,6 +172,7 @@ function mergeBot(app: Probot): void {
           event_type: event_type,
           client_payload: {
             pr_num: prNum,
+            merge_initiator: ctx.payload.sender.login
           },
         });
       }
