@@ -38,7 +38,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("random pull request reivew no event", async () => {
+  test("random pull request review no event", async () => {
     const event = require("./fixtures/pull_request_review.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -64,7 +64,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("merge this comment on issue triggers confused reaction", async () => {
+  test("merge command on issue triggers confused reaction", async () => {
     const event = require("./fixtures/issue_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
 
@@ -88,7 +88,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("merge this comment on pull request triggers dispatch and like", async () => {
+  test("merge command on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge";
@@ -121,7 +121,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("force merge this comment on pull request triggers dispatch and like", async () => {
+  test("merge -f on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f";
@@ -154,7 +154,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("merge this on green comment on pull request triggers dispatch and like", async () => {
+  test("merge -g command on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -g";
@@ -185,7 +185,30 @@ describe("merge-bot", () => {
     }
     scope.done();
   });
-  test("revert this comment w/o explanation on pull request triggers comment only", async () => {
+
+  test("merge this command raises an error", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge this";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain("error: unrecognized arguments");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("revert command w/o explanation on pull request triggers comment only", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot revert";
@@ -209,7 +232,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("revert this comment w/ explanation on pull request triggers dispatch and like", async () => {
+  test("revert command w/ explanation on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
     const reason =
       "--\n\nbreaks master: " +
@@ -247,7 +270,7 @@ describe("merge-bot", () => {
     scope.done();
   });
 
-  test("rebase this comment on pull request triggers dispatch and like", async () => {
+  test("rebase command on pull request triggers dispatch and like", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase";
