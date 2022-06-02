@@ -171,7 +171,7 @@ export default async function handler(
       },
       {
         name: "ASAN failure",
-        pattern: r`^AddressSanitizer:DEADLYSIGNAL`,
+        pattern: r`^ERROR: AddressSanitizer`,
         priority: 699,
       },
       {
