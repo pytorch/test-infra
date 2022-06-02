@@ -128,7 +128,7 @@ function mergeBot(app: Probot): void {
         ctx,
         "❌ 🤖 pytorchbot command failed: \n```\n" +
           err.message +
-          "\n```.\n" +
+          "```\n" +
           "Try `@pytorchbot help` for more info."
       );
       return;
