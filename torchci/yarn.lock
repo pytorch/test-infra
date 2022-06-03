@@ -1336,10 +1336,10 @@
     "@codemirror/view" "^0.20.0"
     "@lezer/highlight" "^0.16.0"
 
-"@codemirror/view@^0.20.0", "@codemirror/view@^0.20.1":
-  version "0.20.1"
-  resolved "https://registry.yarnpkg.com/@codemirror/view/-/view-0.20.1.tgz#071f192b2586e3122f1b8b2a9edcd06709a31e9d"
-  integrity sha512-DpTtg/w4LxgYmEYq67LY4k7ZDRJ97ppeQVg0+VsUi7CqHjfedi3zmjiUq9gA9is5DKIpGARDKyHigslpw3cX5w==
+"@codemirror/view@^0.20.0", "@codemirror/view@^0.20.7":
+  version "0.20.7"
+  resolved "https://registry.yarnpkg.com/@codemirror/view/-/view-0.20.7.tgz#1d0acc740f71f92abef4b437c030d4e6c39ab6dc"
+  integrity sha512-pqEPCb9QFTOtHgAH5XU/oVy9UR/Anj6r+tG5CRmkNVcqSKEPmBU05WtN/jxJCFZBXf6HumzWC9ydE4qstO3TxQ==
   dependencies:
     "@codemirror/state" "^0.20.0"
     style-mod "^4.0.0"
