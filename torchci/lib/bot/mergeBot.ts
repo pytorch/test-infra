@@ -22,7 +22,7 @@ function mergeBot(app: Probot): void {
       onGreen: boolean = false,
       allGreen: boolean = false,
       reason: string = "",
-      stable: boolean = false
+      branch: string = ""
     ) {
       let payload: any = {
         pr_num: prNum,
@@ -35,12 +35,14 @@ function mergeBot(app: Probot): void {
         payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
-      } else if (stable) {
-        payload.stable = true;
       }
 
       if (reason.length > 0) {
         payload.reason = reason;
+      }
+
+      if (branch.length > 0) {
+        payload.branch = branch;
       }
 
       ctx.log(
@@ -71,7 +73,7 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRebase(stable: boolean) {
+    async function handleRebase(branch: string) {
       async function comment_author_in_pytorch_org() {
         try {
           return (
@@ -91,7 +93,7 @@ function mergeBot(app: Probot): void {
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
       ) {
-        await dispatchEvent("try-rebase", false, false, false, "", stable);
+        await dispatchEvent("try-rebase", false, false, false, "", branch);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(
@@ -139,8 +141,12 @@ function mergeBot(app: Probot): void {
         return await handleRevert(args.message);
       case "merge":
         return await handleMerge(args.force, args.green, args.all_green);
-      case "rebase":
-        return await handleRebase(args.stable);
+      case "rebase": {
+        if (args.stable) {
+          args.branch = "viable/strict";
+        }
+        return await handleRebase(args.branch);
+      }
       case "help":
         return await addComment(ctx, getHelp());
       default:

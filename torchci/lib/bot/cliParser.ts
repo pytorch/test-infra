@@ -54,9 +54,13 @@ const rebase = commands.add_parser("rebase", {
   help: "Rebase a PR",
   add_help: false,
 });
-rebase.add_argument("-s", "--stable", {
+const branch_selection = rebase.add_mutually_exclusive_group();
+branch_selection.add_argument("-s", "--stable", {
   action: "store_true",
   help: "Rebase to viable/strict",
+});
+branch_selection.add_argument("-b", "--branch", {
+  help: "Branch you would like to rebase to",
 });
 
 // Help
