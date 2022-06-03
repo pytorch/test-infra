@@ -10337,7 +10337,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: windows\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_pdist_norm_large_cuda%2C%20TestTorchDeviceTypeCUDA)).\n\ncc @ezyang @gchanan @zou3519 @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
-      "comments": 5,
+      "comments": 6,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/comments",
       "created_at": "2022-03-14T00:35:22Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/events",
@@ -10414,7 +10414,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74154/timeline",
       "title": "DISABLED test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-06-01T19:40:42Z",
+      "updated_at": "2022-06-03T18:48:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74154",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
