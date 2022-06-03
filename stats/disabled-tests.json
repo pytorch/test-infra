@@ -15673,6 +15673,77 @@
       "active_lock_reason": null,
       "assignee": null,
       "assignees": [],
+      "author_association": "MEMBER",
+      "body": "Platforms: win",
+      "closed_at": null,
+      "comments": 2,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/comments",
+      "created_at": "2022-05-12T06:34:09Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/77336",
+      "id": 1233512528,
+      "labels": [
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85JhehQ",
+      "number": 77336,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": "reopened",
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/timeline",
+      "title": "DISABLED test_ref_small_input__masked_prod_cuda_int16 (__main__.TestReductionsCUDA)",
+      "updated_at": "2022-06-03T03:39:08Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/77336",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
+        "events_url": "https://api.github.com/users/suo/events{/privacy}",
+        "followers_url": "https://api.github.com/users/suo/followers",
+        "following_url": "https://api.github.com/users/suo/following{/other_user}",
+        "gists_url": "https://api.github.com/users/suo/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/suo",
+        "id": 1617424,
+        "login": "suo",
+        "node_id": "MDQ6VXNlcjE2MTc0MjQ=",
+        "organizations_url": "https://api.github.com/users/suo/orgs",
+        "received_events_url": "https://api.github.com/users/suo/received_events",
+        "repos_url": "https://api.github.com/users/suo/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/suo/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/suo/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/suo"
+      }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_ddp_profiling_autograd_profiler%2C%20TestDistBackendWithSpawn) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6399576647).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 4 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang",
       "closed_at": null,
@@ -18375,5 +18446,5 @@
       }
     }
   ],
-  "total_count": 181
+  "total_count": 182
 }
