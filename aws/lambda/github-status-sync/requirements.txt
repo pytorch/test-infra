@@ -2,4 +2,4 @@ boto3==1.16.52
 aiohttp==3.7.4
 cryptography==35.0.0
 requests==2.24.0
-PyJWT==2.1.0
+PyJWT==2.4.0
