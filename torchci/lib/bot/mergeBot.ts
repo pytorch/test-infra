@@ -3,6 +3,9 @@ import { addComment, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import shlex from "shlex";
 
+const PYTORCH_BOT_USER_ID = 54816060;
+const PYTORCH_MERGE_BOT_USER_ID = 97764156;
+
 function mergeBot(app: Probot): void {
   const botCommandPattern = new RegExp(/^@pytorchbot.*$/m);
 
@@ -102,8 +105,13 @@ function mergeBot(app: Probot): void {
         );
       }
     }
-    if (ctx.payload.comment.user.id == 54816060) {
-      // This comment was made by this bot, ignore it.
+
+    const userId = ctx.payload.comment.user.id;
+    if (
+      userId === PYTORCH_BOT_USER_ID ||
+      userId === PYTORCH_MERGE_BOT_USER_ID
+    ) {
+      // This comment was made by a bot, ignore it.
       return;
     }
 
