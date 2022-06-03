@@ -3,6 +3,8 @@ import { addComment, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import shlex from "shlex";
 
+const PYTORCH_BOT_USER_ID = 54816060;
+
 function mergeBot(app: Probot): void {
   const botCommandPattern = new RegExp(/^@pytorchbot.*$/m);
 
@@ -11,66 +13,29 @@ function mergeBot(app: Probot): void {
   );
 
   app.on("issue_comment.created", async (ctx) => {
-    const commentBody = ctx.payload.comment.body;
-    const owner = ctx.payload.repository.owner.login;
-    const repo = ctx.payload.repository.name;
-    const prNum = ctx.payload.issue.number;
-
-    async function dispatchEvent(
-      event_type: string,
-      force: boolean = false,
-      onGreen: boolean = false,
-      allGreen: boolean = false,
-      reason: string = "",
-      branch: string = ""
-    ) {
-      let payload: any = {
-        pr_num: prNum,
+    async function dispatchEvent(event_type: string, payload: any) {
+      // Add common arguments to dispatched payload
+      payload = {
+        pr_num: ctx.payload.issue.number,
         comment_id: ctx.payload.comment.id,
+        ...payload,
       };
-
-      if (force) {
-        payload.force = true;
-      } else if (allGreen) {
-        payload.all_green = true;
-      } else if (onGreen) {
-        payload.on_green = true;
-      }
-
-      if (reason.length > 0) {
-        payload.reason = reason;
-      }
-
-      if (branch.length > 0) {
-        payload.branch = branch;
-      }
 
       ctx.log(
         `Creating dispatch event of type "${event_type}" for comment ${ctx.payload.comment.html_url}`
       );
-      await ctx.octokit.repos.createDispatchEvent({
-        owner,
-        repo,
-        event_type: event_type,
-        client_payload: payload,
-      });
+      ctx.log(`Payload: ${JSON.stringify(payload)}`);
+      await ctx.octokit.repos.createDispatchEvent(
+        ctx.repo({
+          event_type: event_type,
+          client_payload: payload,
+        })
+      );
+      await reactOnComment(ctx, "+1");
     }
 
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
-    }
-    async function handleMerge(
-      force: boolean,
-      mergeOnGreen: boolean,
-      allGreen: boolean
-    ) {
-      await dispatchEvent("try-merge", force, mergeOnGreen, allGreen);
-      await reactOnComment(ctx, "+1");
-    }
-
-    async function handleRevert(reason: string) {
-      await dispatchEvent("try-revert", false, false, false, reason);
-      await reactOnComment(ctx, "+1");
     }
 
     async function handleRebase(branch: string) {
@@ -93,8 +58,7 @@ function mergeBot(app: Probot): void {
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
       ) {
-        await dispatchEvent("try-rebase", false, false, false, "", branch);
-        await reactOnComment(ctx, "+1");
+        await dispatchEvent("try-rebase", { branch });
       } else {
         await addComment(
           ctx,
@@ -102,11 +66,13 @@ function mergeBot(app: Probot): void {
         );
       }
     }
-    if (ctx.payload.comment.user.id == 54816060) {
+
+    if (ctx.payload.comment.user.id == PYTORCH_BOT_USER_ID) {
       // This comment was made by this bot, ignore it.
       return;
     }
 
+    const commentBody = ctx.payload.comment.body;
     const match = commentBody.match(botCommandPattern);
     if (!match) {
       return;
@@ -138,14 +104,23 @@ function mergeBot(app: Probot): void {
 
     switch (args.command) {
       case "revert":
-        return await handleRevert(args.message);
+        return await dispatchEvent("try-revert", {
+          reason: args.message,
+        });
       case "merge":
-        return await handleMerge(args.force, args.green, args.all_green);
+        return await dispatchEvent("try-merge", {
+          force: args.force,
+          on_green: args.green,
+          all_green: args.all_green,
+        });
       case "rebase": {
+        let branch = "master";
         if (args.stable) {
-          args.branch = "viable/strict";
+          branch = "viable/strict";
+        } else if (args.branch) {
+          branch = args.branch;
         }
-        return await handleRebase(args.branch);
+        return await handleRebase(branch);
       }
       case "help":
         return await addComment(ctx, getHelp());

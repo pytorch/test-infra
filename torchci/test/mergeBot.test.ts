@@ -70,10 +70,10 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const comment_number = event.payload.comment.id;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"confused"}');
           return true;
@@ -95,11 +95,11 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -107,9 +107,14 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: false,
+          on_green: false,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -128,11 +133,11 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -140,9 +145,14 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"force":true}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: true,
+          on_green: false,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -161,11 +171,11 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -173,9 +183,14 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: false,
+          on_green: true,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -192,10 +207,10 @@ describe("merge-bot", () => {
     event.payload.comment.body = "@pytorchbot merge this";
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
+    const pr_num = event.payload.issue.number;
 
     const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain("error: unrecognized arguments");
         return true;
       })
@@ -214,10 +229,10 @@ describe("merge-bot", () => {
     event.payload.comment.body = "@pytorchbot revert";
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
+    const pr_num = event.payload.issue.number;
 
     const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "the following arguments are required"
         );
@@ -241,11 +256,11 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -253,12 +268,12 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"${reason.replace(
-            /\n/g,
-            "\\n"
-          )}"}}`
-        );
+        expect(body.event_type).toBe("try-revert");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          reason,
+        });
         return true;
       })
       .reply(200, {});
@@ -279,15 +294,15 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
       .reply(200, {
         state: "active",
       })
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain(`{"content":"+1"}`);
           return true;
@@ -295,9 +310,12 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-rebase","client_payload":{"pr_num":${pr_number}`
-        );
+        expect(body.event_type).toBe("try-rebase");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          branch: "master",
+        });
         return true;
       })
       .reply(200, {});
@@ -318,8 +336,8 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
 
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
@@ -327,7 +345,7 @@ describe("merge-bot", () => {
         state: "active",
       })
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain(`{"content":"+1"}`);
           return true;
@@ -335,9 +353,12 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-rebase","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"branch":"viable/strict"}}`
-        );
+        expect(body.event_type).toBe("try-rebase");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          branch: "viable/strict",
+        });
         return true;
       })
       .reply(200, {});
@@ -358,8 +379,8 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
 
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
@@ -367,7 +388,7 @@ describe("merge-bot", () => {
         state: "active",
       })
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain(`{"content":"+1"}`);
           return true;
@@ -375,9 +396,12 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-rebase","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"branch":"randombranch"}}`
-        );
+        expect(body.event_type).toBe("try-rebase");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          branch: "randombranch",
+        });
         return true;
       })
       .reply(200, {});
@@ -396,10 +420,10 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
+    const pr_num = event.payload.issue.number;
 
     const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "@pytorchbot rebase: error: argument -s/--stable: not allowed with argument -b/--branch"
         );
@@ -423,13 +447,13 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
+    const pr_num = event.payload.issue.number;
     const scope = nock("https://api.github.com")
       .get(`/orgs/pytorch/memberships/${event.payload.comment.user.login}`)
       .reply(404, {
         message: "Not Found",
       })
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "You don't have permissions to rebase this PR, only the PR author and pytorch organization members may rebase this PR."
         );
@@ -451,16 +475,16 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.pull_request.number;
+    const pr_num = event.payload.pull_request.number;
     const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain('{"body":"+1"}');
         return true;
       })
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number}}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_num}}}`
         );
         return true;
       })
@@ -480,11 +504,11 @@ describe("merge-bot", () => {
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -492,9 +516,14 @@ describe("merge-bot", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: false,
+          on_green: true,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -516,11 +545,11 @@ some other text lol
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -528,9 +557,14 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: false,
+          on_green: false,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -548,11 +582,11 @@ some other text lol
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -560,9 +594,14 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"force":true}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: true,
+          on_green: false,
+          all_green: false,
+        });
         return true;
       })
       .reply(200, {});
@@ -581,11 +620,11 @@ some other text lol
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -593,9 +632,14 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"all_green":true}}`
-        );
+        expect(body.event_type).toBe("try-merge");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          force: false,
+          on_green: false,
+          all_green: true,
+        });
         return true;
       })
       .reply(200, {});
@@ -613,10 +657,10 @@ some other text lol
     event.payload.comment.body = `@pytorchbot help`;
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
+    const pr_num = event.payload.issue.number;
 
     const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+      .post(`/repos/${owner}/${repo}/issues/${pr_num}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain("# PyTorchBot Help");
         return true;
       })
@@ -637,11 +681,11 @@ some other text lol
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const comment_number = event.payload.comment.id;
+    const pr_num = event.payload.issue.number;
+    const comment_id = event.payload.comment.id;
     const scope = nock("https://api.github.com")
       .post(
-        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        `/repos/${owner}/${repo}/issues/comments/${comment_id}/reactions`,
         (body) => {
           expect(JSON.stringify(body)).toContain('{"content":"+1"}');
           return true;
@@ -649,9 +693,12 @@ some other text lol
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"reason":"${reason}"}}`
-        );
+        expect(body.event_type).toBe("try-revert");
+        expect(body.client_payload).toMatchObject({
+          pr_num,
+          comment_id,
+          reason,
+        });
         return true;
       })
       .reply(200, {});
@@ -667,7 +714,6 @@ some other text lol
     const eventCantMerge = require("./fixtures/pull_request_comment.json");
     const eventWithQuotes = require("./fixtures/pull_request_comment.json");
     const eventQuoted = require("./fixtures/pull_request_comment.json");
-    const testCommand = require("./fixtures/pull_request_comment.json");
 
     eventCantMerge.payload.comment.body = "Can't merge closed PR #77376";
     eventWithQuotes.payload.comment.body = `"@pytorchbot merge" use this command`;
