@@ -10,7 +10,7 @@
     "format": "yarn prettier --write ."
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.72.0",
+    "@aws-sdk/client-dynamodb": "^3.100.0",
     "@aws-sdk/client-s3": "^3.72.0",
     "@aws-sdk/lib-dynamodb": "^3.72.0",
     "@codemirror/basic-setup": "^0.20.0",
