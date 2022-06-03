@@ -102,7 +102,11 @@ function mergeBot(app: Probot): void {
         );
       }
     }
-    if (ctx.payload.comment.user.id == 54816060) {
+    const skipUsers = [
+      54816060, // pytorch-bot
+      97764156, // pytorchmergebot
+    ];
+    if (skipUsers.includes(ctx.payload.comment.user.id)) {
       // This comment was made by this bot, ignore it.
       return;
     }
