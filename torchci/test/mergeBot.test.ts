@@ -389,6 +389,31 @@ describe("merge-bot", () => {
     scope.done();
   });
 
+  test("rebase fail because -b and -s", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot rebase -b randombranch -s";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "@pytorchbot rebase: error: argument -s/--stable: not allowed with argument -b/--branch"
+        );
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
   test("rebase does not have permissions", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 

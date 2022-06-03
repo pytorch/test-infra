@@ -73,7 +73,7 @@ function mergeBot(app: Probot): void {
       await reactOnComment(ctx, "+1");
     }
 
-    async function handleRebase(stable: boolean, branch: string) {
+    async function handleRebase(branch: string) {
       async function comment_author_in_pytorch_org() {
         try {
           return (
@@ -93,9 +93,6 @@ function mergeBot(app: Probot): void {
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
       ) {
-        if (stable) {
-          branch = "viable/strict";
-        }
         await dispatchEvent("try-rebase", false, false, false, "", branch);
         await reactOnComment(ctx, "+1");
       } else {
@@ -140,8 +137,12 @@ function mergeBot(app: Probot): void {
         return await handleRevert(args.message);
       case "merge":
         return await handleMerge(args.force, args.green, args.all_green);
-      case "rebase":
-        return await handleRebase(args.stable, args.branch);
+      case "rebase": {
+        if (args.stable) {
+          args.branch = "viable/strict";
+        }
+        return await handleRebase(args.branch);
+      }
       case "help":
         return await addComment(ctx, getHelp());
       default:
