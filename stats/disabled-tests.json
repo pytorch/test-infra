@@ -742,113 +742,6 @@
     },
     {
       "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "Started to fail pretty consistently sometime after https://github.com/pytorch/pytorch/tree/4a2fb3404215c774fdf2805ba8d495bb7dc1bbbf \r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/236917/workflows/7f73ea98-2cfa-4a7c-b26e-2eaca2661f34/jobs/8801912/steps\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @agolynski @SciPioneer @H-Huang @mrzzd",
-      "closed_at": null,
-      "comments": 0,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/comments",
-      "created_at": "2020-11-10T01:37:18Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/47645",
-      "id": 739496947,
-      "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue",
-          "id": 679953883,
-          "name": "oncall: distributed",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        },
-        {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Problem is a flaky test in CI",
-          "id": 1301397902,
-          "name": "module: flaky-tests",
-          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
-        },
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Issues/PRs related to collective communications and process groups",
-          "id": 2391776253,
-          "name": "module: c10d",
-          "node_id": "MDU6TGFiZWwyMzkxNzc2MjUz",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20c10d"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "MDU6SXNzdWU3Mzk0OTY5NDc=",
-      "number": 47645,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "state_reason": null,
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/47645/timeline",
-      "title": "DISABLED test_broadcast_cuda (__main__.TestDistBackendWithFork)",
-      "updated_at": "2022-05-05T15:52:22Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/47645",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
-        "events_url": "https://api.github.com/users/malfet/events{/privacy}",
-        "followers_url": "https://api.github.com/users/malfet/followers",
-        "following_url": "https://api.github.com/users/malfet/following{/other_user}",
-        "gists_url": "https://api.github.com/users/malfet/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/malfet",
-        "id": 2453524,
-        "login": "malfet",
-        "node_id": "MDQ6VXNlcjI0NTM1MjQ=",
-        "organizations_url": "https://api.github.com/users/malfet/orgs",
-        "received_events_url": "https://api.github.com/users/malfet/received_events",
-        "repos_url": "https://api.github.com/users/malfet/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/malfet/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/malfet/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/malfet"
-      }
-    },
-    {
-      "active_lock_reason": null,
       "assignee": {
         "avatar_url": "https://avatars.githubusercontent.com/u/9958665?v=4",
         "events_url": "https://api.github.com/users/pritamdamania87/events{/privacy}",
@@ -17278,5 +17171,5 @@
       }
     }
   ],
-  "total_count": 171
+  "total_count": 170
 }
