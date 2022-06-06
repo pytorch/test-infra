@@ -14,7 +14,7 @@
     {
       "name": "numHours",
       "type": "int",
-      "value": "48"
+      "value": "6"
     },
     {
       "name": "suite",
@@ -22,5 +22,5 @@
       "value": "%"
     }
   ],
-  "description": "Using test_run statistics"
+  "description": "Flaky tests from the last numHours hours, using test_run"
 }
