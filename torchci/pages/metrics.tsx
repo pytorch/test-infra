@@ -375,17 +375,11 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"Last viable/strict push"}
-              queryName={"last_branch_push"}
-              metricName={"push_seconds_ago"}
+              title={"viable/strict lag"}
+              queryName={"strict_lag_sec"}
+              metricName={"strict_lag_sec"}
               valueRenderer={(value) => durationDisplay(value)}
-              queryParams={[
-                {
-                  name: "branch",
-                  type: "string",
-                  value: "refs/heads/viable/strict",
-                },
-              ]}
+              queryParams={[]}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
             />
             <ScalarPanel
