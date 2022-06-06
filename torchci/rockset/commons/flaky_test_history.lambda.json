@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/flaky_test_history.sql",
+  "default_parameters": [
+    {
+      "name": "file",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "value": "test_ddp_uneven_inputs"
+    },
+    {
+      "name": "suite",
+      "type": "string",
+      "value": "%"
+    }
+  ],
+  "description": "Get flaky test instances by test name"
+}
