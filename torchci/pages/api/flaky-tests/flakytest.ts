@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import fetchFlakyTests from "lib/fetchFlakyTests";
+import { fetchFlakyTestHistory } from "lib/fetchFlakyTests";
 import { FlakyTestData } from "lib/types";
 
 interface Data {}
@@ -12,10 +12,7 @@ export default async function handler(
   const suite = req.query.suite;
   const file = req.query.file;
 
-  let numHours = 30 * 24 + "";
-
-  const flakyTests: FlakyTestData[] = await fetchFlakyTests(
-    numHours,
+  const flakyTests: FlakyTestData[] = await fetchFlakyTestHistory(
     name as string,
     suite as string,
     file as string

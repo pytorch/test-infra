@@ -6,7 +6,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function Page() {
   const router = useRouter();
-  const name = (router.query.name || "%") as string;
+  const name = (router.query.name || "test_ddp_uneven_inputs") as string;
   const suite = (router.query.suite || "%") as string;
   const file = (router.query.file || "%") as string;
 
@@ -20,11 +20,11 @@ export default function Page() {
     <div>
       <h1>PyTorch CI Flaky Tests</h1>
       <h3>
-        Test Name Filter: <code>{name === "%" ? "<any>" : name}</code> | Test
+        Test Name (Must Be Exact): <code>{name}</code> | Test
         Suite Filter: <code>{suite === "%" ? "<any>" : suite}</code> | Test File
         Filter: <code>{file === "%" ? "<any>" : file}</code>
       </h3>
-      <em>Showing last 30 days of data.</em>
+      <em>Showing all data since June 2022.</em>
       {data === undefined ? (
         <div>Loading...</div>
       ) : (

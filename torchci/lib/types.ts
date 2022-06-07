@@ -88,6 +88,7 @@ export interface FlakyTestData {
   jobIds: number[];
   jobNames: string[];
   branches: string[];
+  runAttempts?: number[];
 }
 
 export function packHudParams(input: any) {
