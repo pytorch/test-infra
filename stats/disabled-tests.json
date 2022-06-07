@@ -17142,7 +17142,87 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_forward_overlap%2C%20TestForwardOverlapWorldSizeOne)).\r\n\r\nPlatforms: rocm\r\n\r\ncc @zhaojuanmao @mrshenli @rohan-varma",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/comments",
+      "created_at": "2022-06-07T15:36:10Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/79017",
+      "id": 1263492002,
+      "labels": [
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "d4c5f9",
+          "default": false,
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85LT1ui",
+      "number": 79017,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": null,
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/timeline",
+      "title": "DISABLED test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)",
+      "updated_at": "2022-06-07T15:36:45Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/79017",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
+        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
+        "followers_url": "https://api.github.com/users/janeyx99/followers",
+        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
+        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/janeyx99",
+        "id": 31798555,
+        "login": "janeyx99",
+        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
+        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
+        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
+        "repos_url": "https://api.github.com/users/janeyx99/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/janeyx99"
+      }
     }
   ],
-  "total_count": 170
+  "total_count": 171
 }
