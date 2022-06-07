@@ -1,6 +1,7 @@
 import { FlakyTestData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
+import LogViewer from "components/LogViewer";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -29,8 +30,9 @@ export default function Page() {
         <div>Loading...</div>
       ) : (
         (data.flakyTests as FlakyTestData[]).map((test) => {
+          const samples = data.flakySamples[`${test.name}, ${test.suite}`];
           return (
-            <div key={`${test.name} ${test.suite}`}>
+            <div key={`${test.name} ${test.suite} ${test.file}`}>
               <h1>
                 <code>{`${test.name}, ${test.suite}`}</code>
               </h1>
@@ -50,6 +52,7 @@ export default function Page() {
                   })}
                 </ul>
               </div>
+              {samples?.length > 0 && <div><p>Example logs: </p> <LogViewer job={samples[0]} /></div>}
               <h4>Debugging instructions:</h4>
               <p>
                 As flaky tests will soon show as green, it will be harder to
