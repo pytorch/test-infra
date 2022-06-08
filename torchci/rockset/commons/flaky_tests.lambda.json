@@ -2,9 +2,24 @@
   "sql_path": "__sql/flaky_tests.sql",
   "default_parameters": [
     {
+      "name": "file",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "value": "%"
+    },
+    {
       "name": "numHours",
       "type": "int",
       "value": "6"
+    },
+    {
+      "name": "suite",
+      "type": "string",
+      "value": "%"
     }
   ],
   "description": "Flaky tests from the last numHours hours, using test_run"

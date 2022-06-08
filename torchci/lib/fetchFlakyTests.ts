@@ -5,12 +5,15 @@ import { FlakyTestData } from "./types";
 
 export default async function fetchFlakyTests(
   numHours: string = "3",
+  testName: string = "%",
+  testSuite: string = "%",
+  testFile: string = "%"
 ): Promise<FlakyTestData[]> {
   const rocksetClient = getRocksetClient();
   const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
-    "flaky_tests",
-    rocksetVersions.commons.flaky_tests,
+    "flaky_test_query",
+    rocksetVersions.commons.flaky_test_query,
     {
       parameters: [
         {
@@ -18,28 +21,10 @@ export default async function fetchFlakyTests(
           type: "int",
           value: numHours,
         },
-      ],
-    }
-  );
-  return flakyTestQuery.results ?? [];
-}
-
-export async function fetchFlakyTestHistory(
-  testName: string = "test_ddp_uneven_inputs",
-  testSuite: string = "%",
-  testFile: string = "%"
-): Promise<FlakyTestData[]> {
-  const rocksetClient = getRocksetClient();
-  const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "flaky_test_history",
-    rocksetVersions.commons.flaky_test_history,
-    {
-      parameters: [
         {
           name: "name",
           type: "string",
-          value: `${testName}`,
+          value: `%${testName}%`,
         },
         {
           name: "suite",
