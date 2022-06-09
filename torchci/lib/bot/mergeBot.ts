@@ -20,7 +20,6 @@ function mergeBot(app: Probot): void {
       event_type: string,
       force: boolean = false,
       onGreen: boolean = false,
-      allGreen: boolean = false,
       reason: string = "",
       branch: string = ""
     ) {
@@ -31,8 +30,6 @@ function mergeBot(app: Probot): void {
 
       if (force) {
         payload.force = true;
-      } else if (allGreen) {
-        payload.all_green = true;
       } else if (onGreen) {
         payload.on_green = true;
       }
@@ -62,14 +59,13 @@ function mergeBot(app: Probot): void {
     async function handleMerge(
       force: boolean,
       mergeOnGreen: boolean,
-      allGreen: boolean
     ) {
-      await dispatchEvent("try-merge", force, mergeOnGreen, allGreen);
+      await dispatchEvent("try-merge", force, mergeOnGreen);
       await reactOnComment(ctx, "+1");
     }
 
     async function handleRevert(reason: string) {
-      await dispatchEvent("try-revert", false, false, false, reason);
+      await dispatchEvent("try-revert", false, false, reason);
       await reactOnComment(ctx, "+1");
     }
 
@@ -93,7 +89,7 @@ function mergeBot(app: Probot): void {
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
       ) {
-        await dispatchEvent("try-rebase", false, false, false, "", branch);
+        await dispatchEvent("try-rebase", false, false, "", branch);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(
@@ -144,7 +140,7 @@ function mergeBot(app: Probot): void {
       case "revert":
         return await handleRevert(args.message);
       case "merge":
-        return await handleMerge(args.force, args.green, args.all_green);
+        return await handleMerge(args.force, args.green);
       case "rebase": {
         if (args.stable) {
           args.branch = "viable/strict";

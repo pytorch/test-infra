@@ -24,11 +24,7 @@ const merge = commands.add_parser("merge", {
 });
 merge.add_argument("-g", "--green", {
   action: "store_true",
-  help: "Merge when required status checks pass. Currently, we only require lint and builds to pass.",
-});
-merge.add_argument("-a", "--all-green", {
-  action: "store_true",
-  help: "Merge when all status checks pass",
+  help: "Merge when all status checks pass.",
 });
 merge.add_argument("-f", "--force", {
   action: "store_true",
