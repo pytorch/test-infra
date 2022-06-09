@@ -185,6 +185,11 @@ export default async function handler(
         priority: 100,
       },
       {
+        name: "Python Test File RuntimeError",
+        pattern: r`^RuntimeError: test.* failed`,
+        priority: 100,
+      },
+      {
         name: "Python RuntimeError",
         pattern: r`^RuntimeError: .*`,
         priority: 99,
