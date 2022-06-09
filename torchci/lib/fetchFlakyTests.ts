@@ -12,12 +12,12 @@ export default async function fetchFlakyTests(
   const rocksetClient = getRocksetClient();
   const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
-    "flaky_test_query",
-    rocksetVersions.commons.flaky_test_query,
+    "flaky_tests",
+    rocksetVersions.commons.flaky_tests,
     {
       parameters: [
         {
-          name: "num_hours",
+          name: "numHours",
           type: "int",
           value: numHours,
         },
