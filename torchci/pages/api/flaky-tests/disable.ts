@@ -142,9 +142,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
-    `${test.name}, ${test.suite}`
-  )}`;
+  const examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}&file=${test.file}`;
   return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
     ", "
   )}

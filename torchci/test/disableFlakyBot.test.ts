@@ -386,4 +386,10 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       "Platforms: "
     );
   });
+
+  test("getIssueBodyForFlakyTest: should contain correct examples URL", async () => {
+    expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
+      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a&file=file_a"
+    );
+  });
 });
