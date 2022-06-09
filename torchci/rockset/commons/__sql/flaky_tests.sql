@@ -15,9 +15,11 @@ FROM
     INNER JOIN commons.test_run ON test_run.job_id = job.id HINT(join_strategy=lookup)
     INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id 
 WHERE 
-	test_run.skipped IS NOT NULL
-    AND STRPOS(test_run.skipped.message, 'num_red') > 0  
+    test_run.skipped.message LIKE '{"flaky": True%'
     AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours)) 
+    AND test_run.name LIKE :name
+    AND test_run.classname LIKE :suite
+    AND test_run.file LIKE :file
 GROUP BY
 	name,
     suite,
