@@ -110,11 +110,6 @@ export default async function handler(
         priority: 997,
       },
       {
-        name: "Python flaky unittest",
-        pattern: r`^\s*(test.*) (fail|error|succeed)?ed - num_retries_left:`,
-        priority: 996,
-      },
-      {
         name: "MSVC out of memory",
         pattern: r`Catastrophic error: .*`,
         priority: 996,
@@ -218,6 +213,11 @@ export default async function handler(
         name: "GHA error",
         pattern: r`^##\[error\](.*)`,
         priority: 94,
+      },
+      {
+        name: "Python flaky unittest",
+        pattern: r`^\s*(test.*) (fail|error|succeed)?ed - num_retries_left:`,
+        priority: 93,
       },
     ]);
 }
