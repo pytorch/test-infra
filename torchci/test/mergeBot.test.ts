@@ -3,6 +3,12 @@ import * as probot from "probot";
 import * as utils from "./utils";
 import mergeBot from "../lib/bot/mergeBot";
 
+function handleScope(scope: nock.Scope) {
+  if (!scope.isDone()) {
+    console.error("pending mocks: %j", scope.pendingMocks());
+  }
+  scope.done();
+}
 nock.disableNetConnect();
 
 describe("merge-bot", () => {
@@ -22,30 +28,21 @@ describe("merge-bot", () => {
     const event = require("./fixtures/pull_request_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("random issue comment no event", async () => {
     const event = require("./fixtures/issue_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("random pull request review no event", async () => {
     const event = require("./fixtures/pull_request_review.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("quoted merge/revert command no event", async () => {
@@ -58,10 +55,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com");
     await probot.receive(merge_event);
     await probot.receive(revert_event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("merge command on issue triggers confused reaction", async () => {
@@ -80,12 +74,9 @@ describe("merge-bot", () => {
         }
       )
       .reply(200, {});
-
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("merge command on pull request triggers dispatch and like", async () => {
@@ -113,12 +104,8 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
-
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("merge -f on pull request triggers dispatch and like", async () => {
@@ -148,10 +135,7 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("merge -g command on pull request triggers dispatch and like", async () => {
@@ -180,10 +164,8 @@ describe("merge-bot", () => {
       })
       .reply(200, {});
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("merge this command raises an error", async () => {
@@ -202,10 +184,8 @@ describe("merge-bot", () => {
       .reply(200);
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("revert command w/o explanation on pull request triggers comment only", async () => {
@@ -226,10 +206,8 @@ describe("merge-bot", () => {
       .reply(200);
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("revert command w/ explanation on pull request triggers dispatch and like", async () => {
@@ -264,10 +242,8 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("rebase command on pull request triggers dispatch and like", async () => {
@@ -303,10 +279,8 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("rebase to viable/strict", async () => {
@@ -343,10 +317,8 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("rebase to any branch", async () => {
@@ -383,10 +355,8 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("rebase fail because -b and -s", async () => {
@@ -408,10 +378,8 @@ describe("merge-bot", () => {
       .reply(200);
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("rebase does not have permissions", async () => {
@@ -438,10 +406,8 @@ describe("merge-bot", () => {
       .reply(200);
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("merge this pull request review triggers dispatch and +1 comment", async () => {
@@ -467,10 +433,38 @@ describe("merge-bot", () => {
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
+  });
+
+  test("merge on green using CLI", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot merge -g";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
   });
 
   test("merge on green using CLI", async () => {
@@ -499,10 +493,8 @@ describe("merge-bot", () => {
       })
       .reply(200, {});
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+
+    handleScope(scope);
   });
 
   test("merge using CLI + other content in comment", async () => {
@@ -535,10 +527,7 @@ some other text lol
       })
       .reply(200, {});
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("force merge using CLI", async () => {
@@ -568,10 +557,7 @@ some other text lol
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
   test("help using CLI", async () => {
@@ -590,17 +576,12 @@ some other text lol
       .reply(200);
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 
-  test("revert using CLI", async () => {
+  async function handleRevertTest(commentBody: string, reason: string) {
     const event = require("./fixtures/pull_request_comment.json");
-    const reason = "this is breaking test_meta";
-    event.payload.comment.body =
-      '@pytorchbot revert -m="' + reason + '" -c="ghfirst"';
+    event.payload.comment.body = commentBody;
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -624,10 +605,22 @@ some other text lol
       .reply(200, {});
 
     await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
+  }
+  test("revert using @pytorchmergebot CLI", async () => {
+    const reason = "this is breaking test_meta";
+    await handleRevertTest(
+      '@pytorchmergebot revert -m="' + reason + '" -c="ghfirst"',
+      reason
+    );
+  });
+
+  test("revert using CLI", async () => {
+    const reason = "this is breaking test_meta";
+    await handleRevertTest(
+      '@pytorchbot revert -m="' + reason + '" -c="ghfirst"',
+      reason
+    );
   });
 
   test("Random commands won't trigger CLI", async () => {
@@ -645,9 +638,6 @@ some other text lol
     await probot.receive(eventWithQuotes);
     await probot.receive(eventQuoted);
 
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
+    handleScope(scope);
   });
 });
