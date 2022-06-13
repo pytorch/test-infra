@@ -22,11 +22,12 @@ const merge = commands.add_parser("merge", {
   help: "Merge a PR",
   add_help: false,
 });
-merge.add_argument("-g", "--green", {
+const mergeOption = merge.add_mutually_exclusive_group();
+mergeOption.add_argument("-g", "--green", {
   action: "store_true",
   help: "Merge when all status checks pass.",
 });
-merge.add_argument("-f", "--force", {
+mergeOption.add_argument("-f", "--force", {
   action: "store_true",
   help: "Merge without checking anything. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
