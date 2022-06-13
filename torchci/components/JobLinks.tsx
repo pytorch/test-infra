@@ -2,7 +2,6 @@ import { durationHuman } from "./TimeUtils";
 import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
-import { isFailedJob } from "lib/jobUtils";
 import styles from "./JobLinks.module.css";
 
 export default function JobLinks({ job }: { job: JobData }) {
@@ -39,7 +38,6 @@ export default function JobLinks({ job }: { job: JobData }) {
       {rawLogs}
       {failureCaptures}
       {durationS}
-      <OriginalPRInfo job={job} />
       <DisableIssue job={job} />
     </span>
   );
@@ -116,42 +114,6 @@ function DisableIssue({ job }: { job: JobData }) {
       <a target="_blank" rel="noreferrer" href={issueLink}>
         <button className={buttonStyle}>{linkText}</button>
       </a>
-    </span>
-  );
-}
-
-export function OriginalPRInfo({ job }: { job: JobData }) {
-  const originalPrJob = job.originalPrData;
-  if (originalPrJob === undefined) {
-    return null;
-  }
-
-  const sameFailureConclusion =
-    isFailedJob(job) && originalPrJob.conclusion === job.conclusion;
-  const sameClassification =
-    originalPrJob.failureCaptures !== null &&
-    originalPrJob.failureCaptures === job.failureCaptures;
-
-  let sameFailureWarning = null;
-  if (sameFailureConclusion) {
-    sameFailureWarning = (
-      <span className={styles.originalPRJobFailure}>
-        {" "}
-        also failed
-        <span style={{ color: "darkred" }}>
-          {sameClassification && " WITH SAME ERROR!"}
-        </span>
-      </span>
-    );
-  }
-
-  return (
-    <span>
-      {" | "}
-      <a target="_blank" rel="noreferrer" href={originalPrJob.htmlUrl}>
-        original PR job
-      </a>
-      {sameFailureWarning}
     </span>
   );
 }
