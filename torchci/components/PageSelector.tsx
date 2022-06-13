@@ -15,6 +15,7 @@ export default function PageSelector({
       {params.page > 1 ? (
         <span>
           <Link
+            prefetch={false}
             href={formatHudUrlForRoute(baseUrl, {
               ...params,
               page: params.page - 1,
@@ -26,6 +27,7 @@ export default function PageSelector({
         </span>
       ) : null}
       <Link
+        prefetch={false}
         href={formatHudUrlForRoute(baseUrl, {
           ...params,
           page: params.page + 1,
