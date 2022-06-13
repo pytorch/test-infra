@@ -359,6 +359,29 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
+  test("merge fail because mutually exclusive options", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -g -f";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -g/--green"
+        );
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("rebase fail because -b and -s", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
