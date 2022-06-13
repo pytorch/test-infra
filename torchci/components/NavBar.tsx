@@ -11,22 +11,34 @@ function NavBar() {
         <div>
           <ul className={styles.menu}>
             <span className={styles.homeLink}>
-              <Link href="/">Pytorch CI HUD</Link>
+              <Link prefetch={false} href="/">
+                Pytorch CI HUD
+              </Link>
             </span>
             <li>
-              <Link href="/minihud">MiniHUD</Link>
+              <Link prefetch={false} href="/minihud">
+                MiniHUD
+              </Link>
             </li>
             <li>
-              <Link href="/hud/pytorch/pytorch/master">Master</Link>
+              <Link prefetch={false} href="/hud/pytorch/pytorch/master">
+                Master
+              </Link>
             </li>
             <li>
-              <Link href="/hud/pytorch/pytorch/nightly">Nightly</Link>
+              <Link prefetch={false} href="/hud/pytorch/pytorch/nightly">
+                Nightly
+              </Link>
             </li>
             <li>
-              <Link href="/hud/pytorch/vision/main">TorchVision</Link>
+              <Link prefetch={false} href="/hud/pytorch/vision/main">
+                TorchVision
+              </Link>
             </li>
             <li>
-              <Link href="/hud/pytorch/audio/main">TorchAudio</Link>
+              <Link prefetch={false} href="/hud/pytorch/audio/main">
+                TorchAudio
+              </Link>
             </li>
           </ul>
         </div>
@@ -49,7 +61,9 @@ function NavBar() {
               </Link>
             </li>
             <li>
-              <Link href="https://hud.pytorch.org/metrics">Metrics</Link>
+              <Link prefetch={false} href="https://hud.pytorch.org/metrics">
+                Metrics
+              </Link>
             </li>
             <li>
               <span style={{ cursor: "pointer" }}>
