@@ -13,7 +13,7 @@ export default async function handler(
   const jsonData = JSON.stringify(hudData);
   res
     .status(200)
-    .setHeader("Cache-Control", "s-maxage=1, stale-while-revalidate")
+    .setHeader("Cache-Control", "s-maxage=60")
     .setHeader("Content-Encoding", "gzip")
     .send(zlib.gzipSync(jsonData));
 }
