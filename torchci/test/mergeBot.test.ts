@@ -586,7 +586,7 @@ some other text lol
   test("help using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = `@pytorchbot help`;
+    event.payload.comment.body = `@pytorchbot --help`;
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;

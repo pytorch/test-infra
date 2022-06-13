@@ -132,6 +132,10 @@ function mergeBot(app: Probot): void {
       return;
     }
 
+    if (args.help) {
+      return await addComment(ctx, getHelp());
+    }
+
     switch (args.command) {
       case "revert":
         return await handleRevert(args.message);
@@ -143,8 +147,6 @@ function mergeBot(app: Probot): void {
         }
         return await handleRebase(args.branch);
       }
-      case "help":
-        return await addComment(ctx, getHelp());
       default:
         return await handleConfused();
     }
