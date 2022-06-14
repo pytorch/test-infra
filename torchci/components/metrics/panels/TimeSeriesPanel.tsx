@@ -25,6 +25,61 @@ export function getTooltipMarker(color: string) {
   );
 }
 
+export function seriesWithInterpolatedTimes(
+  data: any,
+  granularity: any,
+  groupByFieldName: string,
+  timeFieldName: string,
+  yAxisFieldName: string
+) {
+  // We want to interpolate the data, filling any "holes" in our time series
+  // with 0.
+  const allTimes: Set<string> = new Set();
+  data.forEach((d: any) => allTimes.add(d[timeFieldName]));
+  const times: Array<string> = Array.from(allTimes).sort();
+  const startTime = dayjs(times[0]);
+  const endTime = dayjs(times[-1]);
+  const interpolatedTimes: Array<string> = [];
+  for (let t = startTime; t.isBefore(endTime); t = t.add(1, granularity)) {
+    interpolatedTimes.push(t.toISOString());
+  }
+
+  // Group the data by the provided field and generate a time series for each
+  // one.
+  let byGroup = _.groupBy(data, (d) => "");
+  if (groupByFieldName !== undefined) {
+    byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
+  }
+
+  return _.map(byGroup, (value, key) => {
+    const byTime = _.keyBy(value, timeFieldName);
+    // Roundtrip each timestamp to make the format uniform.
+    const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
+      dayjs(k).toISOString()
+    );
+
+    // Fill with 0, see the above comment on interpolation.
+    const data = interpolatedTimes.map((t) => {
+      const item = byTimeNormalized[t];
+      if (item === undefined) {
+        return [t, 0];
+      } else {
+        return [t, item[yAxisFieldName]];
+      }
+    });
+    return {
+      name: key,
+      type: "line",
+      symbol: "circle",
+      symbolSize: 4,
+      data,
+      emphasis: {
+        focus: "series",
+      },
+    };
+  });
+}
+
 export default function TimeSeriesPanel({
   // Human-readable title of the panel.
   title,
@@ -74,48 +129,13 @@ export default function TimeSeriesPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  // We want to interpolate the data, filling any "holes" in our time series
-  // with 0.
-  const allTimes: Set<string> = new Set();
-  data.forEach((d: any) => allTimes.add(d[timeFieldName]));
-  const times: Array<string> = Array.from(allTimes).sort();
-  const startTime = dayjs(times[0]);
-  const endTime = dayjs(times[-1]);
-  const interpolatedTimes: Array<string> = [];
-  for (let t = startTime; t.isBefore(endTime); t = t.add(1, granularity)) {
-    interpolatedTimes.push(t.toISOString());
-  }
-
-  // Group the data by the provided field and generate a time series for each
-  // one.
-  const byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
-  const series = _.map(byGroup, (value, key) => {
-    const byTime = _.keyBy(value, timeFieldName);
-    // Roundtrip each timestamp to make the format uniform.
-    const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
-      dayjs(k).toISOString()
-    );
-
-    // Fill with 0, see the above comment on interpolation.
-    const data = interpolatedTimes.map((t) => {
-      const item = byTimeNormalized[t];
-      if (item === undefined) {
-        return [t, 0];
-      } else {
-        return [t, item[yAxisFieldName]];
-      }
-    });
-    return {
-      name: key,
-      type: "line",
-      symbol: "circle",
-      symbolSize: 4,
-      data,
-      emphasis: {
-        focus: "series",
-      },
-    };
-  });
+  const series = seriesWithInterpolatedTimes(
+    data,
+    granularity,
+    groupByFieldName,
+    timeFieldName,
+    yAxisFieldName
+  );
 
   const options: EChartsOption = {
     title: { text: title },
