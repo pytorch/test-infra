@@ -83,11 +83,11 @@ FROM
             null,
             null,
             null,
-            CONCAT(job.organization.name, "/", job.project.name) as repo,
+            CONCAT(job.organization.name, '/', job.project.name) as repo,
             null,
         FROM
             circleci.job job
         WHERE
             ARRAY_CONTAINS(SPLIT(:shas, ','), job.pipeline.vcs.revision)
-            AND CONCAT(job.organization.name, "/", job.project.name) = :repo
+            AND CONCAT(job.organization.name, '/', job.project.name) = :repo
     ) as job
