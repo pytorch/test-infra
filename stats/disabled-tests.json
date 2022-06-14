@@ -17499,15 +17499,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/labels{/name}",
@@ -17534,7 +17525,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/timeline",
       "title": "DISABLED test_launch_user_script (__main__.TestDistributedLaunch)",
-      "updated_at": "2022-06-14T00:58:27Z",
+      "updated_at": "2022-06-14T17:11:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79488",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17562,7 +17553,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_caching_pinned_memory&suite=TestCuda&file=test_cuda.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872881686).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_caching_pinned_memory&suite=TestCuda&file=test_cuda.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872881686).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79508/comments",
@@ -17571,6 +17562,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/79508",
       "id": 1270330462,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.cuda, and CUDA support in general",
+          "id": 1076930055,
+          "name": "module: cuda",
+          "node_id": "MDU6TGFiZWwxMDc2OTMwMDU1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cuda"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -17588,15 +17588,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79508/labels{/name}",
@@ -17623,7 +17614,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79508/timeline",
       "title": "DISABLED test_caching_pinned_memory (__main__.TestCuda)",
-      "updated_at": "2022-06-14T06:43:39Z",
+      "updated_at": "2022-06-14T17:09:51Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79508",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17651,7 +17642,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32&suite=TestCommonCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872850782).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32&suite=TestCommonCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872850782).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @ezyang @gchanan @zou3519",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/comments",
@@ -17660,6 +17651,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/79509",
       "id": 1270330463,
       "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -17677,15 +17677,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/labels{/name}",
@@ -17712,7 +17703,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/timeline",
       "title": "DISABLED test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-06-14T06:43:39Z",
+      "updated_at": "2022-06-14T17:09:06Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79509",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17740,7 +17731,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_checkpoint_wrapper_parity&suite=CheckpointWrapperTest&file=distributed/fsdp/test_checkpoint_wrapper.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872974643).\n\nOver the past 3 hours, it has been determined flaky in 13 workflow(s) with 13 red and 13 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_checkpoint_wrapper_parity&suite=CheckpointWrapperTest&file=distributed/fsdp/test_checkpoint_wrapper.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872974643).\n\nOver the past 3 hours, it has been determined flaky in 13 workflow(s) with 13 red and 13 green.\n\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/comments",
@@ -17768,13 +17759,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "d4c5f9",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/labels{/name}",
@@ -17801,7 +17792,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/timeline",
       "title": "DISABLED test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)",
-      "updated_at": "2022-06-14T09:41:48Z",
+      "updated_at": "2022-06-14T17:11:39Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79510",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
