@@ -27,6 +27,11 @@ export default async function fetchCommit(
           type: "string",
           value: sha,
         },
+        {
+          name: "repo",
+          type: "string",
+          value: `${owner}/${repo}`,
+        },
       ],
     }
   );
