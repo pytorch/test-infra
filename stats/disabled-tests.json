@@ -17642,7 +17642,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32&suite=TestCommonCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872850782).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @ezyang @gchanan @zou3519",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32&suite=TestCommonCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872850782).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @ezyang @gchanan @zou3519 @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @saketh-are",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/comments",
@@ -17659,6 +17659,15 @@
           "name": "high priority",
           "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
         },
         {
           "color": "f7e101",
@@ -17703,7 +17712,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/timeline",
       "title": "DISABLED test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-06-14T17:09:06Z",
+      "updated_at": "2022-06-14T17:12:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79509",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
