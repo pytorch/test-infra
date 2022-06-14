@@ -50,6 +50,7 @@ FROM
             AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
             AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
             AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_commit.id)
+            AND workflow.repository.full_name = :repo
         UNION
             -- Handle CircleCI
             -- IMPORTANT: this needs to have the same order as the query above
@@ -88,4 +89,5 @@ FROM
             circleci.job job
         WHERE
             ARRAY_CONTAINS(SPLIT(:shas, ','), job.pipeline.vcs.revision)
+            AND CONCAT(job.organization.name, "/", job.project.name) = :repo
     ) as job
