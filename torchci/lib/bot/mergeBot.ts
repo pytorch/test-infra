@@ -10,6 +10,7 @@ function mergeBot(app: Probot): void {
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
 
+  const landtimeChecksAllowlist = new Set(["zengk95"]);
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -20,6 +21,7 @@ function mergeBot(app: Probot): void {
       event_type: string,
       force: boolean = false,
       onGreen: boolean = false,
+      landChecks: boolean = false,
       reason: string = "",
       branch: string = ""
     ) {
@@ -32,6 +34,8 @@ function mergeBot(app: Probot): void {
         payload.force = true;
       } else if (onGreen) {
         payload.on_green = true;
+      } else if (landChecks) {
+        payload.land_checks = true;
       }
 
       if (reason.length > 0) {
@@ -56,13 +60,17 @@ function mergeBot(app: Probot): void {
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
     }
-    async function handleMerge(force: boolean, mergeOnGreen: boolean) {
-      await dispatchEvent("try-merge", force, mergeOnGreen);
+    async function handleMerge(
+      force: boolean,
+      mergeOnGreen: boolean,
+      landChecks: boolean
+    ) {
+      await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
       await reactOnComment(ctx, "+1");
     }
 
     async function handleRevert(reason: string) {
-      await dispatchEvent("try-revert", false, false, reason);
+      await dispatchEvent("try-revert", false, false, false, reason);
       await reactOnComment(ctx, "+1");
     }
 
@@ -81,12 +89,11 @@ function mergeBot(app: Probot): void {
           return false;
         }
       }
-
       if (
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
       ) {
-        await dispatchEvent("try-rebase", false, false, "", branch);
+        await dispatchEvent("try-rebase", false, false, false, "", branch);
         await reactOnComment(ctx, "+1");
       } else {
         await addComment(
@@ -135,12 +142,17 @@ function mergeBot(app: Probot): void {
     if (args.help) {
       return await addComment(ctx, getHelp());
     }
-
     switch (args.command) {
       case "revert":
         return await handleRevert(args.message);
       case "merge":
-        return await handleMerge(args.force, args.green);
+        return await handleMerge(
+          args.force,
+          args.green,
+          args.land_checks ||
+            (ctx.payload.comment.user.login != null &&
+              landtimeChecksAllowlist.has(ctx.payload.comment.user.login))
+        );
       case "rebase": {
         if (args.stable) {
           args.branch = "viable/strict";
