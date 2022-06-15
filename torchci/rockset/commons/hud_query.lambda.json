@@ -2,11 +2,6 @@
   "sql_path": "__sql/hud_query.sql",
   "default_parameters": [
     {
-      "name": "repo",
-      "type": "string",
-      "value": "pytorch/pytorch"
-    },
-    {
       "name": "shas",
       "type": "string",
       "value": "90c8623c2ec874b5a1d7092a56a9a83abad78f78,b33831dcd89b99318b703b90c0fffee7bd710b2f"

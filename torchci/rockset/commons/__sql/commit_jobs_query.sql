@@ -32,7 +32,6 @@ WITH job as (
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
         AND workflow.head_commit.id = :sha
-        AND workflow.repository.full_name = :repo
     UNION
         -- Handle CircleCI
         -- IMPORTANT: this needs to have the same order as the query above
@@ -75,7 +74,6 @@ WITH job as (
         circleci.job job
     WHERE
         job.pipeline.vcs.revision = :sha
-        AND CONCAT(job.organization.name, "/", job.project.name) = :repo
 )
 SELECT
     sha,

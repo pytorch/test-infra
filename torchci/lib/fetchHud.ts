@@ -33,11 +33,6 @@ export default async function fetchHud(params: HudParams): Promise<{
           type: "string",
           value: shas.join(","),
         },
-        {
-          name: "repo",
-          type: "string",
-          value: `${params.repoOwner}/${params.repoName}`,
-        },
       ],
     }
   );

@@ -2,11 +2,6 @@
   "sql_path": "__sql/commit_jobs_query.sql",
   "default_parameters": [
     {
-      "name": "repo",
-      "type": "string",
-      "value": "pytorch/pytorch"
-    },
-    {
       "name": "sha",
       "type": "string",
       "value": "0a94f108eb7cc39fc625e96081dde54b37b42fde"
