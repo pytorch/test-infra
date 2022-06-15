@@ -65,7 +65,7 @@ Example:
 });
 revert.add_argument("-m", "--message", {
   required: true,
-  help: "The reason you are reverting, will be put in the commit message.",
+  help: "The reason you are reverting, will be put in the commit message. Must be longer than 3 words.",
 });
 revert.add_argument("-c", "--classification", {
   required: true,
