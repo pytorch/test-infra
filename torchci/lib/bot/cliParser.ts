@@ -49,7 +49,7 @@ mergeOption.add_argument("-f", "--force", {
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
-  help: "Merge with land time checks..",
+  help: "Merge with land time checks. (EXPERIMENTAL! DO NOT USE)",
 });
 
 // Revert
