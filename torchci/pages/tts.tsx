@@ -3,7 +3,18 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import { Grid, Paper, Skeleton } from "@mui/material";
+import {
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  SelectChangeEvent,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
@@ -13,6 +24,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
+import { TimeRangePicker } from "./metrics";
 
 function Panel({
   series,
@@ -61,34 +73,37 @@ function Panel({
   );
 }
 
-export default function Page() {
+function Graphs({
+  queryParams,
+  granularity,
+}: {
+  queryParams: RocksetParam[];
+  granularity: string;
+}) {
+  const [filter, setFilter] = useState(new Set());
   const ROW_HEIGHT = 800;
-  const granularity = "day";
 
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
-  const [filter, setFilter] = useState(new Set());
-  const [startTime, setStartTime] = useState(dayjs().subtract(6, "month"));
-  const [stopTime, setStopTime] = useState(dayjs());
-
-  const queryParams: RocksetParam[] = [
-    {
-      name: "timezone",
-      type: "string",
-      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    { name: "startTime", type: "string", value: startTime },
-    { name: "stopTime", type: "string", value: stopTime },
-    { name: "granularity", type: "string", value: granularity },
-  ];
-
   const url = `/api/query/metrics/tts_duration_historical?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
-  const { data } = useSWR(url, fetcher, {
+  const { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+
+  if (error !== undefined) {
+    //   TODO: figure out how to deterine what error it actually is
+    console.log(data);
+    console.log(error);
+    return (
+      <div>
+        error occured while fetching data, perhaps there are too many results
+        with your choice of time range and granularity?
+      </div>
+    );
+  }
 
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -126,33 +141,97 @@ export default function Page() {
     filter.has(item["name"])
   );
   return (
-    <div>
-      <Grid container spacing={2}>
-        <Grid item xs={9} height={ROW_HEIGHT}>
-          <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-            <Panel title={"tts"} series={tts_series} />
-          </Paper>
-          <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-            <Panel title={"duration"} series={duration_series} />
-          </Paper>
-        </Grid>
-        <Grid item xs={3} height={ROW_HEIGHT}>
-          <div
-            style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
-          >
-            {tts_true_series.map((job) => (
-              <div key={job["name"]}>
-                <input
-                  type="checkbox"
-                  id={job["name"]}
-                  onChange={toggleFilter}
-                />
-                <label htmlFor={job["name"]}> {job["name"]}</label>
-              </div>
-            ))}
-          </div>
-        </Grid>
+    <Grid container spacing={2}>
+      <Grid item xs={9} height={ROW_HEIGHT}>
+        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
+          <Panel title={"tts"} series={tts_series} />
+        </Paper>
+        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
+          <Panel title={"duration"} series={duration_series} />
+        </Paper>
       </Grid>
+      <Grid item xs={3} height={ROW_HEIGHT}>
+        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}>
+          {tts_true_series.map((job) => (
+            <div key={job["name"]}>
+              <input
+                type="checkbox"
+                id={job["name"]}
+                onChange={toggleFilter}
+                checked={filter.has(job["name"])}
+              />
+              <label htmlFor={job["name"]}> {job["name"]}</label>
+            </div>
+          ))}
+        </div>
+      </Grid>
+    </Grid>
+  );
+}
+
+function GranularityPicker({
+  granularity,
+  setGranularity,
+}: {
+  granularity: string;
+  setGranularity: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setGranularity(e.target.value);
+  }
+  return (
+    <FormControl>
+      <InputLabel id="granularity-select-label">Granularity</InputLabel>
+      <Select
+        value={granularity}
+        label="Granularity"
+        labelId="granularity-select-label"
+        onChange={handleChange}
+      >
+        <MenuItem value={"month"}>month</MenuItem>
+        <MenuItem value={"week"}>week</MenuItem>
+        <MenuItem value={"day"}>day</MenuItem>
+        <MenuItem value={"hour"}>hour</MenuItem>
+        <MenuItem value={"minute"}>minute</MenuItem>
+      </Select>
+    </FormControl>
+  );
+}
+
+export default function Page() {
+  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
+  const [stopTime, setStopTime] = useState(dayjs());
+  const [granularity, setGranularity] = useState("day");
+
+  const queryParams: RocksetParam[] = [
+    {
+      name: "timezone",
+      type: "string",
+      value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    { name: "startTime", type: "string", value: startTime },
+    { name: "stopTime", type: "string", value: stopTime },
+    { name: "granularity", type: "string", value: granularity },
+  ];
+
+  return (
+    <div>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Typography fontSize={"2rem"} fontWeight={"bold"}>
+          Job TTS and Duration
+        </Typography>
+        <TimeRangePicker
+          startTime={startTime}
+          stopTime={stopTime}
+          setStartTime={setStartTime}
+          setStopTime={setStopTime}
+        />
+        <GranularityPicker
+          granularity={granularity}
+          setGranularity={setGranularity}
+        />
+      </Stack>
+      <Graphs queryParams={queryParams} granularity={granularity} />
     </div>
   );
 }
