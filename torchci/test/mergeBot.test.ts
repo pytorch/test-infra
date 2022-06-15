@@ -490,6 +490,67 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
+  test("merge with land checks using CLI", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchmergebot merge -l";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"land_checks":true}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("merge with land checks using CLI", async () => {
+    const event = JSON.parse(
+      JSON.stringify(require("./fixtures/pull_request_comment.json"))
+    );
+    event.payload.comment.body = "@pytorchmergebot merge";
+    event.payload.comment.user.login = "zengk95";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"land_checks":true}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("merge on green using CLI", async () => {
     const event = require("./fixtures/pull_request_comment.json");
 

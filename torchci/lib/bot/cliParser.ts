@@ -47,6 +47,10 @@ mergeOption.add_argument("-f", "--force", {
   action: "store_true",
   help: "Merge without checking anything. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
+mergeOption.add_argument("-l", "--land-checks", {
+  action: "store_true",
+  help: "Merge with land time checks..",
+});
 
 // Revert
 const revert = commands.add_parser("revert", {
