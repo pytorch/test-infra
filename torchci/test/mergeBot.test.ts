@@ -215,7 +215,8 @@ describe("merge-bot", () => {
     const reason =
       "--breaks master: " +
       "https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
-    event.payload.comment.body = `@pytorchbot revert -m='${reason}'`;
+
+    event.payload.comment.body = `@pytorchbot revert -m='${reason}' -c landrace`;
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

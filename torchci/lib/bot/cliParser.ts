@@ -68,6 +68,7 @@ revert.add_argument("-m", "--message", {
   help: "The reason you are reverting, will be put in the commit message.",
 });
 revert.add_argument("-c", "--classification", {
+  required: true,
   choices: ["nosignal", "ignoredsignal", "landrace", "weird", "ghfirst"],
   help: "A machine-friendly classification of the revert reason.",
 });
