@@ -218,7 +218,7 @@ function TimePicker({ label, value, setValue }: any) {
 /**
  * Allows the user to pick from common time ranges, or manually set their own.
  */
-function TimeRangePicker({
+export function TimeRangePicker({
   startTime,
   stopTime,
   setStartTime,
