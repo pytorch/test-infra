@@ -38,7 +38,7 @@ export function seriesWithInterpolatedTimes(
   data.forEach((d: any) => allTimes.add(d[timeFieldName]));
   const times: Array<string> = Array.from(allTimes).sort();
   const startTime = dayjs(times[0]);
-  const endTime = dayjs(times[-1]);
+  const endTime = dayjs(times.at(-1));
   const interpolatedTimes: Array<string> = [];
   for (let t = startTime; t.isBefore(endTime); t = t.add(1, granularity)) {
     interpolatedTimes.push(t.toISOString());

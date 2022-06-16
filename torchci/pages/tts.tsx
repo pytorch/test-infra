@@ -73,6 +73,44 @@ function Panel({
   );
 }
 
+function getSeries(
+  data: any,
+  granularity: any,
+  groupByFieldName: string,
+  timeFieldName: string,
+  yAxisFieldName: string
+) {
+  if (granularity == "minute") {
+    // dont interpolate, this is kinda like equivalent of granularity commit
+    let byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
+    return _.map(byGroup, (value, key) => {
+      const data = value
+        .map((t: any) => {
+          return [t[timeFieldName], t[yAxisFieldName]];
+        })
+        .sort();
+      return {
+        name: key,
+        type: "line",
+        symbol: "circle",
+        symbolSize: 4,
+        data,
+        emphasis: {
+          focus: "series",
+        },
+      };
+    });
+  } else {
+    return seriesWithInterpolatedTimes(
+      data,
+      granularity,
+      groupByFieldName,
+      timeFieldName,
+      yAxisFieldName
+    );
+  }
+}
+
 function Graphs({
   queryParams,
   granularity,
@@ -94,9 +132,8 @@ function Graphs({
   });
 
   if (error !== undefined) {
-    //   TODO: figure out how to deterine what error it actually is
-    console.log(data);
-    console.log(error);
+    // TODO: figure out how to deterine what error it actually is, can't just log the error
+    // because its in html format instead of json?
     return (
       <div>
         error occured while fetching data, perhaps there are too many results
@@ -120,14 +157,14 @@ function Graphs({
     setFilter(next);
   }
 
-  const tts_true_series = seriesWithInterpolatedTimes(
+  const tts_true_series = getSeries(
     data,
     granularity,
     groupByFieldName,
     timeFieldName,
     "tts_avg_sec"
   );
-  const duration_true_series = seriesWithInterpolatedTimes(
+  const duration_true_series = getSeries(
     data,
     granularity,
     groupByFieldName,
