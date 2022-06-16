@@ -16,7 +16,20 @@ function mergeBot(app: Probot): void {
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
     const prNum = ctx.payload.issue.number;
-
+    async function comment_author_in_pytorch_org() {
+      try {
+        return (
+          (
+            await ctx.octokit.rest.orgs.getMembershipForUser({
+              org: "pytorch",
+              username: ctx.payload.comment.user.login,
+            })
+          )?.data?.state == "active"
+        );
+      } catch (error) {
+        return false;
+      }
+    }
     async function dispatchEvent(
       event_type: string,
       force: boolean = false,
@@ -65,30 +78,30 @@ function mergeBot(app: Probot): void {
       mergeOnGreen: boolean,
       landChecks: boolean
     ) {
-      await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
-      await reactOnComment(ctx, "+1");
+      if (await comment_author_in_pytorch_org()) {
+        await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
+        await reactOnComment(ctx, "+1");
+      } else {
+        await addComment(
+          ctx,
+          "You don't have permissions to merge this PR, only the PR author and pytorch organization members may merge this PR."
+        );
+      }
     }
 
     async function handleRevert(reason: string) {
-      await dispatchEvent("try-revert", false, false, false, reason);
-      await reactOnComment(ctx, "+1");
+      if (await comment_author_in_pytorch_org()) {
+        await dispatchEvent("try-revert", false, false, false, reason);
+        await reactOnComment(ctx, "+1");
+      } else {
+        await addComment(
+          ctx,
+          "You don't have permissions to revert this PR, only the PR author and pytorch organization members may revert this PR."
+        );
+      }
     }
 
     async function handleRebase(branch: string) {
-      async function comment_author_in_pytorch_org() {
-        try {
-          return (
-            (
-              await ctx.octokit.rest.orgs.getMembershipForUser({
-                org: "pytorch",
-                username: ctx.payload.comment.user.login,
-              })
-            )?.data?.state == "active"
-          );
-        } catch (error) {
-          return false;
-        }
-      }
       if (
         ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
         (await comment_author_in_pytorch_org())
