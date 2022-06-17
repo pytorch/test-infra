@@ -1,8 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import fetchFlakyTests from "lib/fetchFlakyTests";
-import { FlakyTestData } from "lib/types";
+import { FlakyTestData, JobData } from "lib/types";
+import fetchFailureSamples from "lib/fetchFailureSamples";
 
 interface Data {}
+
+export function getFlakyTestCapture(flakyTest: FlakyTestData): string {
+  return `${flakyTest.name}, ${flakyTest.suite}`;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,5 +26,23 @@ export default async function handler(
     file as string
   );
 
-  res.status(200).json({ flakyTests });
+  // capture looks like: testName, testSuite
+  const flakySamples: {
+    [capture: string]: JobData[];
+  } = {};
+
+  // only get log view for at most 5 flaky tests (to not spam query calls)
+  console.debug(`Retrieved ${flakyTests.length} flaky tests`);
+  if (flakyTests.length <= 5) {
+    const unfulfilledPromises = flakyTests.map(function(flakyTest) {
+      return fetchFailureSamples(getFlakyTestCapture(flakyTest));
+    });
+
+    const results = await Promise.all(unfulfilledPromises);
+    results.forEach((samples, index) => {
+      flakySamples[getFlakyTestCapture(flakyTests[index])] = samples;
+    })
+  }
+
+  res.status(200).json({flakyTests, flakySamples});
 }
