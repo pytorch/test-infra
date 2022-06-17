@@ -18216,7 +18216,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_inherit_tensor&suite=TestMultiprocessing&file=test_multiprocessing.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6928965625).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_inherit_tensor&suite=TestMultiprocessing&file=test_multiprocessing.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6928965625).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @VitalyFedyunin",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79776/comments",
@@ -18225,6 +18225,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/79776",
       "id": 1274639040,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.multiprocessing",
+          "id": 1040695894,
+          "name": "module: multiprocessing",
+          "node_id": "MDU6TGFiZWwxMDQwNjk1ODk0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20multiprocessing"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -18242,15 +18251,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79776/labels{/name}",
@@ -18277,7 +18277,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79776/timeline",
       "title": "DISABLED test_inherit_tensor (__main__.TestMultiprocessing)",
-      "updated_at": "2022-06-17T06:46:32Z",
+      "updated_at": "2022-06-17T15:50:57Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79776",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
