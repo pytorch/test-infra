@@ -13,14 +13,14 @@ export default async function handler(
     [jobName: string]: number;
   } = {};
 
-  for (const result of samples!) {
+  for (const result of samples) {
     if (result.name !== undefined) {
       jobCount[result.name] = (jobCount[result.name] || 0) + 1;
     }
   }
   res.status(200).json({
     jobCount,
-    totalCount: samples!.length,
-    samples: samples!,
+    totalCount: samples.length,
+    samples: samples,
   });
 }
