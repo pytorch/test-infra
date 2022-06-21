@@ -190,6 +190,11 @@ export default async function handler(
         priority: 100,
       },
       {
+        name: "Python flaky unittest",
+        pattern: r`^\s*(test.*) (fail|error|succeed)?ed - num_retries_left:`,
+        priority: 100,
+      },
+      {
         name: "Python RuntimeError",
         pattern: r`^RuntimeError: .*`,
         priority: 99,
@@ -218,11 +223,6 @@ export default async function handler(
         name: "GHA error",
         pattern: r`^##\[error\](.*)`,
         priority: 94,
-      },
-      {
-        name: "Python flaky unittest",
-        pattern: r`^\s*(test.*) (fail|error|succeed)?ed - num_retries_left:`,
-        priority: 93,
       },
     ]);
 }
