@@ -18403,7 +18403,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6968080598).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6968080598).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79885/comments",
@@ -18431,13 +18431,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "d4c5f9",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79885/labels{/name}",
@@ -18464,7 +18464,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79885/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-06-20T18:43:49Z",
+      "updated_at": "2022-06-21T14:50:20Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79885",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18492,7 +18492,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6968080598).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6968080598).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79886/comments",
@@ -18520,13 +18520,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "d4c5f9",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79886/labels{/name}",
@@ -18553,7 +18553,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79886/timeline",
       "title": "DISABLED test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-06-20T18:43:49Z",
+      "updated_at": "2022-06-21T14:50:02Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79886",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
