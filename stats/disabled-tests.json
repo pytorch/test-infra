@@ -17613,7 +17613,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_launch_user_script&suite=TestDistributedLaunch&file=distributed/test_launcher.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6868032424).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 red and 2 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/comments",
       "created_at": "2022-06-14T00:58:21Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/events",
@@ -17646,6 +17646,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "5319E7",
+          "default": false,
+          "description": "Add this issue/PR to R2P (elastic) oncall triage queue",
+          "id": 3486427601,
+          "name": "oncall: r2p",
+          "node_id": "LA_kwDOA-j9z87PzqnR",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20r2p"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/labels{/name}",
@@ -17672,7 +17681,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/timeline",
       "title": "DISABLED test_launch_user_script (__main__.TestDistributedLaunch)",
-      "updated_at": "2022-06-14T17:11:07Z",
+      "updated_at": "2022-06-21T14:44:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79488",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18118,7 +18127,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_custom_stream&suite=TensorPipeTensorPipeAgentCudaRpcTest&file=distributed/rpc/cuda/test_tensorpipe_agent.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6922724494).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_custom_stream&suite=TensorPipeTensorPipeAgentCudaRpcTest&file=distributed/rpc/cuda/test_tensorpipe_agent.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6922724494).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501 @jjlilley @mrzzd",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79750/comments",
@@ -18146,6 +18155,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to RPC, distributed autograd, RRef, and distributed optimizer",
+          "id": 1536612774,
+          "name": "module: rpc",
+          "node_id": "MDU6TGFiZWwxNTM2NjEyNzc0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rpc"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -18153,15 +18171,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79750/labels{/name}",
@@ -18188,7 +18197,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79750/timeline",
       "title": "DISABLED test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)",
-      "updated_at": "2022-06-16T21:41:40Z",
+      "updated_at": "2022-06-21T14:44:46Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79750",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
