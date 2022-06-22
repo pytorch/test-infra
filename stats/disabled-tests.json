@@ -154,15 +154,6 @@
       "id": 555422490,
       "labels": [
         {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Quantization support in PyTorch",
@@ -223,7 +214,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/32644/timeline",
       "title": "DISABLED test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)",
-      "updated_at": "2021-12-21T21:29:56Z",
+      "updated_at": "2022-06-22T14:13:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/32644",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/8039770?v=4",
@@ -350,15 +341,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         },
         {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "006b75",
           "default": false,
           "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
@@ -419,7 +401,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/38317/timeline",
       "title": "DISABLED test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)",
-      "updated_at": "2021-12-21T21:29:56Z",
+      "updated_at": "2022-06-22T14:13:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/38317",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/16999635?v=4",
@@ -6755,7 +6737,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_timeout_group%2C%20TestDistBackendWithSpawn)).",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_barrier_timeout_group%2C%20TestDistBackendWithSpawn)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70755/comments",
@@ -6764,6 +6746,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/70755",
       "id": 1094599701,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -6798,7 +6789,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70755/timeline",
       "title": "DISABLED test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-01-05T17:47:16Z",
+      "updated_at": "2022-06-22T14:13:33Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70755",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -7293,7 +7284,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_send_recv_all_to_all%2C%20ProcessGroupGlooTest)).",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_send_recv_all_to_all%2C%20ProcessGroupGlooTest)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71195/comments",
@@ -7302,6 +7293,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/71195",
       "id": 1099799120,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -7336,7 +7336,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71195/timeline",
       "title": "DISABLED test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)",
-      "updated_at": "2022-01-12T02:13:17Z",
+      "updated_at": "2022-06-22T14:13:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71195",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -7600,7 +7600,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_True%2C%20TestFSDPCheckpoint)).",
+      "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params%3DTrue)_offload_activations_True%2C%20TestFSDPCheckpoint)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/71349/comments",
@@ -7610,6 +7610,15 @@
       "id": 1104515200,
       "labels": [
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -7617,6 +7626,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "d4c5f9",
+          "default": false,
+          "description": "",
+          "id": 3315252117,
+          "name": "module: fsdp",
+          "node_id": "MDU6TGFiZWwzMzE1MjUyMTE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fsdp"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/71349/labels{/name}",
@@ -7643,7 +7661,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71349/timeline",
       "title": "DISABLED test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)",
-      "updated_at": "2022-01-15T06:19:12Z",
+      "updated_at": "2022-06-22T14:21:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71349",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -11510,7 +11528,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd%2C%20TestDistBackendWithSpawn)).",
+      "body": "Platforms: rocm\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd%2C%20TestDistBackendWithSpawn)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501 @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/comments",
@@ -11519,6 +11537,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/75052",
       "id": 1189063950,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -11553,7 +11589,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75052/timeline",
       "title": "DISABLED test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-04-27T00:08:49Z",
+      "updated_at": "2022-06-22T14:14:00Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75052",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -11581,7 +11617,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view%2C%20TestDistBackendWithSpawn)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view%2C%20TestDistBackendWithSpawn)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501 @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75139/comments",
@@ -11590,6 +11626,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/75139",
       "id": 1190441981,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -11624,7 +11678,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75139/timeline",
       "title": "DISABLED test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-04-26T22:42:33Z",
+      "updated_at": "2022-06-22T14:14:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75139",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -11772,15 +11826,33 @@
         }
       ],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_readall%2C%20test_zipfile.ZipfileTest)).",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_readall%2C%20test_zipfile.ZipfileTest)).\n\ncc @malfet @albanD",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/comments",
       "created_at": "2022-04-07T05:41:36Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/75406",
       "id": 1195546133,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Mac OS related issues",
+          "id": 1301432832,
+          "name": "module: macos",
+          "node_id": "MDU6TGFiZWwxMzAxNDMyODMy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20macos"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -11815,7 +11887,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/timeline",
       "title": "DISABLED test_readall (test_zipfile.ZipfileTest)",
-      "updated_at": "2022-04-07T05:41:55Z",
+      "updated_at": "2022-06-22T14:21:05Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75406",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -13001,7 +13073,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_multiple_joinables%2C%20TestJoin)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_multiple_joinables%2C%20TestJoin)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76162/comments",
@@ -13010,6 +13082,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/76162",
       "id": 1210483754,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13044,7 +13134,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76162/timeline",
       "title": "DISABLED test_multiple_joinables (__main__.TestJoin)",
-      "updated_at": "2022-04-21T04:35:12Z",
+      "updated_at": "2022-06-22T14:20:59Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76162",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -13935,15 +14025,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77020/comments",
       "created_at": "2022-05-07T12:14:57Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77020/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77020",
       "id": 1228613776,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -13978,7 +14086,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77020/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_cuda (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:34Z",
+      "updated_at": "2022-06-22T14:20:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77020",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14006,15 +14114,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77021/comments",
       "created_at": "2022-05-07T12:17:15Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77021/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77021",
       "id": 1228614265,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14049,7 +14175,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77021/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_ex_cuda (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:38Z",
+      "updated_at": "2022-06-22T14:20:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77021",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14077,15 +14203,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77023/comments",
       "created_at": "2022-05-07T16:49:44Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77023/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77023",
       "id": 1228671661,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14120,7 +14264,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77023/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:41Z",
+      "updated_at": "2022-06-22T14:20:48Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77023",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14148,15 +14292,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77024/comments",
       "created_at": "2022-05-07T16:50:37Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77024/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77024",
       "id": 1228671886,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14191,7 +14353,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77024/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_cuda_complex64 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:15Z",
+      "updated_at": "2022-06-22T14:20:35Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77024",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14219,15 +14381,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77025/comments",
       "created_at": "2022-05-07T16:51:03Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77025/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77025",
       "id": 1228671969,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14262,7 +14433,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77025/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_ex_cuda_complex128 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:23Z",
+      "updated_at": "2022-06-22T14:15:56Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77025",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14290,15 +14461,33 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": null,
+      "body": "cc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
-      "comments": 0,
+      "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77026/comments",
       "created_at": "2022-05-07T16:51:19Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/77026/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/77026",
       "id": 1228672015,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14333,7 +14522,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77026/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-03T16:37:19Z",
+      "updated_at": "2022-06-22T14:20:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77026",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14361,7 +14550,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ldl_factor_cuda_complex128%2C%20TestLinalgCUDA)).",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ldl_factor_cuda_complex128%2C%20TestLinalgCUDA)).\n\ncc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77038/comments",
@@ -14370,6 +14559,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77038",
       "id": 1228778007,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14404,7 +14611,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77038/timeline",
       "title": "DISABLED test_ldl_factor_cuda_complex128 (__main__.TestLinalgCUDA)",
-      "updated_at": "2022-05-08T02:59:45Z",
+      "updated_at": "2022-06-22T14:21:51Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77038",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14432,7 +14639,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "platforms: rocm\r\n\r\nThis test is *unexpectedly succeeding* intermittently on ROCm.\r\n\r\nExamples:\r\nhttps://hud.pytorch.org/failure/RuntimeError%3A%20test_ops_gradients%20failed!",
+      "body": "platforms: rocm\r\n\r\nThis test is *unexpectedly succeeding* intermittently on ROCm.\r\n\r\nExamples:\r\nhttps://hud.pytorch.org/failure/RuntimeError%3A%20test_ops_gradients%20failed!\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77039/comments",
@@ -14441,6 +14648,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77039",
       "id": 1228791729,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14475,7 +14700,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77039/timeline",
       "title": "DISABLED test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA)",
-      "updated_at": "2022-05-08T04:44:34Z",
+      "updated_at": "2022-06-22T14:21:46Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77039",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -14503,7 +14728,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ldl_factor_cuda_complex64%2C%20TestLinalgCUDA)).",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ldl_factor_cuda_complex64%2C%20TestLinalgCUDA)).\n\ncc @jianyuh @nikitaved @pearu @mruberry @walterddr @IvanYashchuk @xwang233 @Lezcano",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77040/comments",
@@ -14512,6 +14737,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77040",
       "id": 1228791859,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
+          "id": 1504141947,
+          "name": "module: linear algebra",
+          "node_id": "MDU6TGFiZWwxNTA0MTQxOTQ3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20linear%20algebra"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -14546,7 +14789,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77040/timeline",
       "title": "DISABLED test_ldl_factor_cuda_complex64 (__main__.TestLinalgCUDA)",
-      "updated_at": "2022-05-08T04:45:49Z",
+      "updated_at": "2022-06-22T14:21:58Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77040",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15753,6 +15996,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20ci"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -15795,7 +16047,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77345/timeline",
       "title": "DISABLED test_smoke (__main__.TestCollectEnv)",
-      "updated_at": "2022-06-22T13:54:46Z",
+      "updated_at": "2022-06-22T14:22:05Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77345",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -16594,6 +16846,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -16636,7 +16897,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77769/timeline",
       "title": "DISABLED test_bulk_loading_nobatch (__main__.TestDataLoaderPersistentWorkers)",
-      "updated_at": "2022-06-22T13:53:03Z",
+      "updated_at": "2022-06-22T14:22:10Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77769",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17091,7 +17352,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms:  macos\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_learnable_forward_per_channel_cpu%2C%20quantization.core.test_workflow_ops.TestFakeQuantizeOps)).",
+      "body": "Platforms:  macos\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_learnable_forward_per_channel_cpu%2C%20quantization.core.test_workflow_ops.TestFakeQuantizeOps)).\n\ncc @jerryzh168 @jianyuh @raghuramank100 @jamesr66a @vkuzo",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78377/comments",
@@ -17100,6 +17361,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/78377",
       "id": 1249924574,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Quantization support in PyTorch",
+          "id": 1031340614,
+          "name": "oncall: quantization",
+          "node_id": "MDU6TGFiZWwxMDMxMzQwNjE0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20quantization"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -17134,7 +17404,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78377/timeline",
       "title": "DISABLED test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
-      "updated_at": "2022-05-26T18:49:49Z",
+      "updated_at": "2022-06-22T14:10:39Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78377",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -17162,7 +17432,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_delayed_reduce_scatter_offload_true_prefetch_pre_none%2C%20TestParityWithDDP)).",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_delayed_reduce_scatter_offload_true_prefetch_pre_none%2C%20TestParityWithDDP)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78447/comments",
@@ -17171,6 +17441,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/78447",
       "id": 1251446562,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -17205,7 +17484,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78447/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_true_prefetch_pre_none (__main__.TestParityWithDDP)",
-      "updated_at": "2022-05-28T03:32:57Z",
+      "updated_at": "2022-06-22T14:10:46Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78447",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -18324,6 +18603,15 @@
       "id": 1274814282,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18375,7 +18663,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79780/timeline",
       "title": "DISABLED test_binary_op_tensorlists_fastpath__foreach_add_cuda_bool (__main__.TestForeachCUDA)",
-      "updated_at": "2022-06-22T13:51:30Z",
+      "updated_at": "2022-06-22T14:22:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79780",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
