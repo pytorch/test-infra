@@ -7383,6 +7383,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -7416,7 +7425,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/71229/timeline",
       "title": "DISABLED test_multiprocessing_contexts (__main__.TestDataLoader)",
-      "updated_at": "2022-06-17T06:46:31Z",
+      "updated_at": "2022-06-22T14:25:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/71229",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -11828,7 +11837,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_readall%2C%20test_zipfile.ZipfileTest)).\n\ncc @malfet @albanD",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/comments",
       "created_at": "2022-04-07T05:41:36Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/events",
@@ -11887,7 +11896,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75406/timeline",
       "title": "DISABLED test_readall (test_zipfile.ZipfileTest)",
-      "updated_at": "2022-06-22T14:21:05Z",
+      "updated_at": "2022-06-22T14:30:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75406",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -14391,6 +14400,15 @@
       "id": 1228671969,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Issues related to specialized linear algebra operations in PyTorch; includes matrix multiply matmul",
@@ -14433,7 +14451,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77025/timeline",
       "title": "DISABLED test_meta_linalg_ldl_factor_ex_cuda_complex128 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-22T14:15:56Z",
+      "updated_at": "2022-06-22T14:25:03Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77025",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/13564?v=4",
@@ -14639,7 +14657,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "platforms: rocm\r\n\r\nThis test is *unexpectedly succeeding* intermittently on ROCm.\r\n\r\nExamples:\r\nhttps://hud.pytorch.org/failure/RuntimeError%3A%20test_ops_gradients%20failed!\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
+      "body": "platforms: rocm\r\n\r\nThis test is *unexpectedly succeeding* intermittently on ROCm.\r\n\r\nExamples:\r\nhttps://hud.pytorch.org/failure/RuntimeError%3A%20test_ops_gradients%20failed!\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7 @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77039/comments",
@@ -14656,6 +14674,15 @@
           "name": "module: autograd",
           "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
         },
         {
           "color": "006b75",
@@ -14700,7 +14727,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77039/timeline",
       "title": "DISABLED test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA)",
-      "updated_at": "2022-06-22T14:21:46Z",
+      "updated_at": "2022-06-22T14:30:35Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77039",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15124,7 +15151,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
+      "body": "Platforms: rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_broadcast_in_dim_cuda_float32%2C%20TestPrimsCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH @mruberry",
       "closed_at": null,
       "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/comments",
@@ -15141,6 +15168,24 @@
           "name": "module: rocm",
           "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "bfdadc",
@@ -15176,7 +15221,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77237/timeline",
       "title": "DISABLED test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)",
-      "updated_at": "2022-05-23T02:49:29Z",
+      "updated_at": "2022-06-22T14:34:59Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77237",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/70175284?v=4",
@@ -15622,7 +15667,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input__masked_prod_cuda_int32%2C%20TestReductionsCUDA)).",
+      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input__masked_prod_cuda_int32%2C%20TestReductionsCUDA)).\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77334/comments",
@@ -15631,6 +15676,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77334",
       "id": 1233510066,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -15665,7 +15737,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77334/timeline",
       "title": "DISABLED test_ref_small_input__masked_prod_cuda_int32 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T13:40:59Z",
+      "updated_at": "2022-06-22T14:33:09Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77334",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15693,7 +15765,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input__masked_prod_cuda_int8%2C%20TestReductionsCUDA)).",
+      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input__masked_prod_cuda_int8%2C%20TestReductionsCUDA)).\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77335/comments",
@@ -15702,6 +15774,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77335",
       "id": 1233510486,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -15736,7 +15835,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77335/timeline",
       "title": "DISABLED test_ref_small_input__masked_prod_cuda_int8 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T04:32:31Z",
+      "updated_at": "2022-06-22T14:33:25Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77335",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15764,7 +15863,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win",
+      "body": "Platforms: win\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/comments",
@@ -15773,6 +15872,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77336",
       "id": 1233512528,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -15807,7 +15933,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77336/timeline",
       "title": "DISABLED test_ref_small_input__masked_prod_cuda_int16 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T03:39:08Z",
+      "updated_at": "2022-06-22T14:33:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77336",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15835,7 +15961,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win",
+      "body": "Platforms: win\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @mruberry",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77337/comments",
@@ -15844,6 +15970,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77337",
       "id": 1233513662,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Windows support for PyTorch",
+          "id": 790080431,
+          "name": "module: windows",
+          "node_id": "MDU6TGFiZWw3OTAwODA0MzE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20windows"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -15878,7 +16031,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77337/timeline",
       "title": "DISABLED test_ref_small_input_prod_cuda_int8 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T13:41:10Z",
+      "updated_at": "2022-06-22T14:32:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77337",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -15906,7 +16059,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win",
+      "body": "Platforms: win\n\ncc @mruberry",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77338/comments",
@@ -15915,6 +16068,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/77338",
       "id": 1233514261,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -15949,7 +16120,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77338/timeline",
       "title": "DISABLED test_ref_small_input_prod_cuda_int16 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T13:41:19Z",
+      "updated_at": "2022-06-22T14:32:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77338",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -16944,6 +17115,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -16986,7 +17166,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78017/timeline",
       "title": "DISABLED test_error_workers (__main__.TestDataLoaderPersistentWorkers)",
-      "updated_at": "2022-05-20T21:41:17Z",
+      "updated_at": "2022-06-22T14:35:06Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78017",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17023,6 +17203,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/78068",
       "id": 1244427848,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -17075,7 +17264,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78068/timeline",
       "title": "DISABLED test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)",
-      "updated_at": "2022-05-23T03:06:18Z",
+      "updated_at": "2022-06-22T14:34:42Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78068",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17281,7 +17470,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms:  rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_complex_half_reference_testing_as_strided_scatter_cuda_complex32%2C%20TestCommonCUDA)).",
+      "body": "Platforms:  rocm\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_complex_half_reference_testing_as_strided_scatter_cuda_complex32%2C%20TestCommonCUDA)).\n\ncc @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/comments",
@@ -17290,6 +17479,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/78205",
       "id": 1247118893,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "AMD GPU support for Pytorch",
+          "id": 1078897659,
+          "name": "module: rocm",
+          "node_id": "MDU6TGFiZWwxMDc4ODk3NjU5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -17324,7 +17522,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/timeline",
       "title": "DISABLED test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-05-24T20:58:17Z",
+      "updated_at": "2022-06-22T14:34:33Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78205",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -17611,6 +17809,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20multiprocessing"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -17653,7 +17860,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78982/timeline",
       "title": "DISABLED test_exception_single (__main__.SpawnTest)",
-      "updated_at": "2022-06-07T00:57:40Z",
+      "updated_at": "2022-06-22T14:30:23Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78982",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17723,13 +17930,22 @@
       "author_association": "CONTRIBUTOR",
       "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_forward_overlap%2C%20TestForwardOverlapWorldSizeOne)).\r\n\r\nPlatforms: rocm\r\n\r\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/comments",
       "created_at": "2022-06-07T15:36:10Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/79017",
       "id": 1263492002,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -17773,7 +17989,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79017/timeline",
       "title": "DISABLED test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)",
-      "updated_at": "2022-06-07T18:21:50Z",
+      "updated_at": "2022-06-22T14:30:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79017",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
@@ -18007,6 +18223,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cuda"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18049,7 +18274,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79508/timeline",
       "title": "DISABLED test_caching_pinned_memory (__main__.TestCuda)",
-      "updated_at": "2022-06-14T17:09:51Z",
+      "updated_at": "2022-06-22T14:29:53Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79508",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18185,6 +18410,15 @@
       "id": 1270330466,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18236,7 +18470,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/timeline",
       "title": "DISABLED test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)",
-      "updated_at": "2022-06-14T17:11:39Z",
+      "updated_at": "2022-06-22T14:29:45Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79510",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18257,148 +18491,6 @@
         "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master and pull ([recent examples](http://torch-ci.com/failure/test_comprehensive__masked_amin_cuda_uint8%2C%20TestDecompCUDA)).",
-      "closed_at": null,
-      "comments": 1,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79712/comments",
-      "created_at": "2022-06-16T15:35:43Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79712/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/79712",
-      "id": 1273731016,
-      "labels": [
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79712/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85L65fI",
-      "number": 79712,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/79712/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "state_reason": null,
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79712/timeline",
-      "title": "DISABLED test_comprehensive__masked_amin_cuda_uint8 (__main__.TestDecompCUDA)",
-      "updated_at": "2022-06-16T15:35:56Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/79712",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/34172846?v=4",
-        "events_url": "https://api.github.com/users/zengk95/events{/privacy}",
-        "followers_url": "https://api.github.com/users/zengk95/followers",
-        "following_url": "https://api.github.com/users/zengk95/following{/other_user}",
-        "gists_url": "https://api.github.com/users/zengk95/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/zengk95",
-        "id": 34172846,
-        "login": "zengk95",
-        "node_id": "MDQ6VXNlcjM0MTcyODQ2",
-        "organizations_url": "https://api.github.com/users/zengk95/orgs",
-        "received_events_url": "https://api.github.com/users/zengk95/received_events",
-        "repos_url": "https://api.github.com/users/zengk95/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/zengk95/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/zengk95/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/zengk95"
-      }
-    },
-    {
-      "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
-      "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_dispatch_meta__masked_amin_cuda_uint8%2C%20TestMetaCUDA)).",
-      "closed_at": null,
-      "comments": 1,
-      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79716/comments",
-      "created_at": "2022-06-16T15:39:07Z",
-      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79716/events",
-      "html_url": "https://github.com/pytorch/pytorch/issues/79716",
-      "id": 1273735743,
-      "labels": [
-        {
-          "color": "bfdadc",
-          "default": false,
-          "description": "Denotes a (flaky) test currently skipped in CI.",
-          "id": 1679533716,
-          "name": "skipped",
-          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        }
-      ],
-      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/79716/labels{/name}",
-      "locked": false,
-      "milestone": null,
-      "node_id": "I_kwDOA-j9z85L66o_",
-      "number": 79716,
-      "performed_via_github_app": null,
-      "reactions": {
-        "+1": 0,
-        "-1": 0,
-        "confused": 0,
-        "eyes": 0,
-        "heart": 0,
-        "hooray": 0,
-        "laugh": 0,
-        "rocket": 0,
-        "total_count": 0,
-        "url": "https://api.github.com/repos/pytorch/pytorch/issues/79716/reactions"
-      },
-      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
-      "score": 0.0,
-      "state": "open",
-      "state_reason": null,
-      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79716/timeline",
-      "title": "DISABLED test_dispatch_meta__masked_amin_cuda_uint8 (__main__.TestMetaCUDA)",
-      "updated_at": "2022-06-16T15:39:10Z",
-      "url": "https://api.github.com/repos/pytorch/pytorch/issues/79716",
-      "user": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/34172846?v=4",
-        "events_url": "https://api.github.com/users/zengk95/events{/privacy}",
-        "followers_url": "https://api.github.com/users/zengk95/followers",
-        "following_url": "https://api.github.com/users/zengk95/following{/other_user}",
-        "gists_url": "https://api.github.com/users/zengk95/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/zengk95",
-        "id": 34172846,
-        "login": "zengk95",
-        "node_id": "MDQ6VXNlcjM0MTcyODQ2",
-        "organizations_url": "https://api.github.com/users/zengk95/orgs",
-        "received_events_url": "https://api.github.com/users/zengk95/received_events",
-        "repos_url": "https://api.github.com/users/zengk95/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/zengk95/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/zengk95/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/zengk95"
       }
     },
     {
@@ -18523,6 +18615,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20multiprocessing"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18565,7 +18666,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79776/timeline",
       "title": "DISABLED test_inherit_tensor (__main__.TestMultiprocessing)",
-      "updated_at": "2022-06-17T15:50:57Z",
+      "updated_at": "2022-06-22T14:25:29Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79776",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18701,6 +18802,15 @@
       "id": 1277276600,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18752,7 +18862,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79885/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-06-21T14:50:20Z",
+      "updated_at": "2022-06-22T14:25:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79885",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18789,6 +18899,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/79886",
       "id": 1277276601,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -18841,7 +18960,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79886/timeline",
       "title": "DISABLED test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-06-21T14:50:02Z",
+      "updated_at": "2022-06-22T14:25:24Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79886",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18963,5 +19082,5 @@
       }
     }
   ],
-  "total_count": 186
+  "total_count": 184
 }
