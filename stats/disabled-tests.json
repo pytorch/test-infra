@@ -9258,7 +9258,7 @@
         }
       ],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_sparse_addmm_cpu_bfloat16%2C%20TestSparseCPU)).\r\n\r\ncc @ezyang @gchanan @zou3519 @nikitaved @pearu @cpuhrsch",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_sparse_addmm_cpu_bfloat16%2C%20TestSparseCPU)).\r\n\r\ncc @nikitaved @pearu @cpuhrsch @amjames @ezyang @gchanan @zou3519",
       "closed_at": null,
       "comments": 22,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/73145/comments",
@@ -9268,24 +9268,6 @@
       "id": 1144845524,
       "labels": [
         {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Related to torch.sparse",
@@ -9293,6 +9275,15 @@
           "name": "module: sparse",
           "node_id": "MDU6TGFiZWw2Nzk5NTQxNTQ=",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20sparse"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "bfdadc",
@@ -9328,7 +9319,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/73145/timeline",
       "title": "DISABLED test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)",
-      "updated_at": "2022-03-23T15:21:43Z",
+      "updated_at": "2022-06-22T15:06:22Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/73145",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -12684,24 +12675,6 @@
       "id": 1203326258,
       "labels": [
         {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Windows support for PyTorch",
@@ -12718,6 +12691,15 @@
           "name": "module: tests",
           "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "bfdadc",
@@ -12753,7 +12735,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/75731/timeline",
       "title": "DISABLED test_large_cumprod_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)",
-      "updated_at": "2022-04-13T13:46:29Z",
+      "updated_at": "2022-06-22T15:06:01Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/75731",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
