@@ -6151,7 +6151,7 @@
       "author_association": "MEMBER",
       "body": "This job was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_random_seed%2C%20TestDataLoaderUtils)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/comments",
       "created_at": "2021-12-30T05:51:10Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/events",
@@ -6201,7 +6201,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/timeline",
       "title": "DISABLED test_random_seed (__main__.TestDataLoaderUtils)",
-      "updated_at": "2022-06-22T15:05:17Z",
+      "updated_at": "2022-06-22T15:26:01Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70516",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
