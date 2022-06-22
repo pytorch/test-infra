@@ -83,6 +83,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
+          "triaged"
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
         return true;
@@ -111,6 +112,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
+          "triaged"
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
         return true;
@@ -267,7 +269,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     );
   });
 
-  test("getTestOwnerLabels: owned test file should return proper module", async () => {
+  test("getTestOwnerLabels: owned test file should return proper module and be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
       .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
       .reply(
@@ -278,7 +280,26 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const labels = await disableFlakyTestBot.getTestOwnerLabels(
       flakyTestA.file
     );
-    expect(labels).toEqual(["module: fft"]);
+    expect(labels).toEqual(["module: fft", "triaged"]);
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
+    const scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .reply(
+        200,
+        Buffer.from(`# Owner(s): ["oncall: distributed"]\nimport blah;\nrest of file`)
+      );
+
+    const labels = await disableFlakyTestBot.getTestOwnerLabels(
+      flakyTestA.file
+    );
+    expect(labels).toEqual(["oncall: distributed"]);
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
