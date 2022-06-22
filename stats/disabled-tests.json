@@ -6151,31 +6151,13 @@
       "author_association": "MEMBER",
       "body": "This job was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_random_seed%2C%20TestDataLoaderUtils)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/comments",
       "created_at": "2021-12-30T05:51:10Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/70516",
       "id": 1090892065,
       "labels": [
-        {
-          "color": "F22613",
-          "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
-        },
-        {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
         {
           "color": "f7e101",
           "default": false,
@@ -6193,15 +6175,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "ededed",
-          "default": false,
-          "description": null,
-          "id": 2695910552,
-          "name": "Stale",
-          "node_id": "MDU6TGFiZWwyNjk1OTEwNTUy",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/Stale"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/labels{/name}",
@@ -6228,7 +6201,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/timeline",
       "title": "DISABLED test_random_seed (__main__.TestDataLoaderUtils)",
-      "updated_at": "2022-06-08T12:07:32Z",
+      "updated_at": "2022-06-22T15:05:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70516",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -13923,7 +13896,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](http://torch-ci.com/failure/test_collect_callgrind%2C%20TestBenchmarkUtils) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6315373615).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 3 green.",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76932/comments",
       "created_at": "2022-05-06T00:58:17Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/76932/events",
@@ -13991,7 +13964,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76932/timeline",
       "title": "DISABLED test_collect_callgrind (__main__.TestBenchmarkUtils)",
-      "updated_at": "2022-06-22T14:37:02Z",
+      "updated_at": "2022-06-22T15:01:58Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76932",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -15813,7 +15786,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input_prod_cuda_int32%2C%20TestReductionsCUDA)).\n\ncc @ezyang @gchanan @zou3519",
+      "body": "Platforms: win\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_ref_small_input_prod_cuda_int32%2C%20TestReductionsCUDA)).\n\ncc @mruberry @ezyang @gchanan @zou3519",
       "closed_at": null,
       "comments": 8,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/77333/comments",
@@ -15823,22 +15796,22 @@
       "id": 1233509579,
       "labels": [
         {
-          "color": "F22613",
+          "color": "f7e101",
           "default": false,
-          "description": null,
-          "id": 443484135,
-          "name": "high priority",
-          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
         },
         {
-          "color": "cc317c",
+          "color": "006b75",
           "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
         },
         {
           "color": "bfdadc",
@@ -15874,7 +15847,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77333/timeline",
       "title": "DISABLED test_ref_small_input_prod_cuda_int32 (__main__.TestReductionsCUDA)",
-      "updated_at": "2022-06-03T19:16:45Z",
+      "updated_at": "2022-06-22T15:05:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77333",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
