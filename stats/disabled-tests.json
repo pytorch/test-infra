@@ -18575,7 +18575,105 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "NONE",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_device_map_gpu_default_to_non_default&suite=TensorPipeTensorPipeAgentCudaRpcTest&file=distributed/rpc/cuda/test_tensorpipe_agent.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6993225618).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/comments",
+      "created_at": "2022-06-22T03:55:39Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/80008",
+      "id": 1279468238,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "1d76db",
+          "default": false,
+          "description": "We do not know who is responsible for this feature, bug, or test case.",
+          "id": 3500281775,
+          "name": "module: unknown",
+          "node_id": "LA_kwDOA-j9z87Qog-v",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85MQyLO",
+      "number": 80008,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": null,
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/timeline",
+      "title": "DISABLED test_device_map_gpu_default_to_non_default (__main__.TensorPipeTensorPipeAgentCudaRpcTest)",
+      "updated_at": "2022-06-22T03:55:45Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/80008",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
+        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/apps/pytorch-bot",
+        "id": 54816060,
+        "login": "pytorch-bot[bot]",
+        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
+        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
+        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
+        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
+        "type": "Bot",
+        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
+      }
     }
   ],
-  "total_count": 185
+  "total_count": 186
 }
