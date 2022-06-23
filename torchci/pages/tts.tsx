@@ -127,9 +127,7 @@ function Graphs({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
+  const { data, error } = useSWR(url, fetcher);
 
   if (error !== undefined) {
     // TODO: figure out how to deterine what error it actually is, can't just log the error
@@ -178,7 +176,7 @@ function Graphs({
     filter.has(item["name"])
   );
   return (
-    <Grid container spacing={2}>
+    <>
       <Grid item xs={9} height={ROW_HEIGHT}>
         <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
           <Panel title={"tts"} series={tts_series} />
@@ -202,7 +200,98 @@ function Graphs({
           ))}
         </div>
       </Grid>
-    </Grid>
+    </>
+  );
+}
+
+function TotalTestTime({ queryParams }: { queryParams: RocksetParam[] }) {
+  const [filter, setFilter] = useState(new Set());
+  const ROW_HEIGHT = 800;
+
+  const timeFieldName = "created_at_time";
+  const groupByFieldName = "full_name";
+  const url = `/api/query/testing/test?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  function toggleFilter(e: any) {
+    var jobName = e.target.id;
+    const next = new Set(filter);
+    if (filter.has(jobName)) {
+      next.delete(jobName);
+    } else {
+      next.add(jobName);
+    }
+    setFilter(next);
+  }
+  function toggleAll(e: any) {
+    var on = e.target.id;
+    const next = new Set(filter);
+    if (on == "on") {
+      test_time_true_series.forEach((job: any) => next.add(job["name"]));
+    } else {
+      test_time_true_series.forEach((job: any) => next.delete(job["name"]));
+    }
+    setFilter(next);
+  }
+
+  const { data, error } = useSWR(url, fetcher);
+
+  if (error !== undefined) {
+    // TODO: figure out how to deterine what error it actually is, can't just log the error
+    // because its in html format instead of json?
+    console.log(error);
+    return (
+      <div>
+        error occured while fetching data, perhaps there are too many results
+        with your choice of time range?
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  const test_time_true_series = getSeries(
+    data,
+    "minute",
+    groupByFieldName,
+    timeFieldName,
+    "duration_sum_sec"
+  );
+  var test_time_series = test_time_true_series.filter((item: any) =>
+    filter.has(item["name"])
+  );
+  return (
+    <>
+      <Grid item xs={9} height={ROW_HEIGHT}>
+        <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+          <Panel title={"total test time"} series={test_time_series} />
+        </Paper>
+      </Grid>
+      <Grid item xs={3} height={ROW_HEIGHT}>
+        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}>
+          {test_time_true_series.map((job) => (
+            <div key={job["name"]}>
+              <input
+                type="checkbox"
+                id={job["name"]}
+                onChange={toggleFilter}
+                checked={filter.has(job["name"])}
+              />
+              <label htmlFor={job["name"]}> {job["name"]}</label>
+            </div>
+          ))}
+          <button onClick={toggleAll} id="on">
+            Check ALl
+          </button>
+          <button onClick={toggleAll} id="off">
+            unCheck ALl
+          </button>
+        </div>
+      </Grid>
+    </>
   );
 }
 
@@ -268,7 +357,10 @@ export default function Page() {
           setGranularity={setGranularity}
         />
       </Stack>
-      <Graphs queryParams={queryParams} granularity={granularity} />
+      <Grid container spacing={2}>
+        <Graphs queryParams={queryParams} granularity={granularity} />
+        <TotalTestTime queryParams={queryParams} />
+      </Grid>
     </div>
   );
 }

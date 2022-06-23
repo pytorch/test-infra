@@ -7,10 +7,11 @@
     "failure_samples_query": "2961636418a148c2"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "57e5562a57427ae3",
+    "num_reverts": "e95160bbbb5ccea0",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
-    "time_to_signal": "670e34fc86adb3ad"
+    "time_to_signal": "670e34fc86adb3ad",
+    "percent_ignored_signal": "d75f269017f4f51b"
   },
   "metrics": {
     "correlation_matrix": "4960260cbb0c5b48",
@@ -19,9 +20,9 @@
     "last_successful_jobs": "fd8bc3a2afc989a2",
     "last_successful_workflow": "5d22927dd0b0956b",
     "master_commit_red_avg": "70391ac17f1c45bd",
-    "master_commit_red": "e4e5cb062864bf1f",
+    "master_commit_red": "f5bd7d531d5c8dad",
     "master_jobs_red_avg": "e5cc28eb51fc9fe9",
-    "master_jobs_red": "aa08fa7af455e1b9",
+    "master_jobs_red": "84a279df9656d7f3",
     "queued_jobs_by_label": "52ab0f4570516f6b",
     "queued_jobs": "7b5ef18c1273bab2",
     "reverts": "f5bc84a10c4065a3",
@@ -31,5 +32,9 @@
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "34e698a78cb36669",
     "workflow_load": "eff394d8e0b76436"
+  },
+  "testing": {
+    "test": "f76bc2b9a2e4b7e9",
+    "test1": "31874e239201beb6"
   }
 }

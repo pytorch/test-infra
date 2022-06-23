@@ -6,11 +6,13 @@ import JobLinks from "components/JobLinks";
 import LogViewer from "components/LogViewer";
 import styles from "components/minihud.module.css";
 import PageSelector from "components/PageSelector";
-import { LocalTimeHuman } from "components/TimeUtils";
+import { durationHuman, LocalTimeHuman } from "components/TimeUtils";
+import TooltipTarget from "components/TooltipTarget";
 import { isFailedJob } from "lib/jobUtils";
 import { HudParams, JobData, packHudParams, RowData } from "lib/types";
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
+import _, { sum } from "lodash";
 import { useRouter } from "next/router";
 import {
   createContext,
@@ -194,6 +196,29 @@ function CommitSummaryLine({
 }) {
   const router = useRouter();
   useScrollTo();
+  function totalDuration(workflow: string) {
+    return durationHuman(
+      _.sum(
+        row.jobs
+          .filter((job) => job.name?.startsWith(`${workflow} /`))
+          .map((job) => job.durationS)
+      )
+    );
+  }
+  function durationTooltip(workflow: string) {
+    return (
+      <div>
+        {row.jobs
+          .filter((job) => job.name?.startsWith(`${workflow} /`))
+          .map((job) => (
+            <tr>
+              <td>{job.name}</td>
+              <td>{durationHuman(job.durationS ?? 0)}</td>
+            </tr>
+          ))}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -214,7 +239,6 @@ function CommitSummaryLine({
           textToCopy={`${location.href.replace(location.hash, "")}#${row.sha}`}
         />
       </span>
-
       {numPending > 0 && (
         <span className={styles.shaTitleElement}>
           <em>{numPending} pending</em>
@@ -231,6 +255,16 @@ function CommitSummaryLine({
           </a>
         </span>
       )}
+      <span style={{ float: "right" }}>
+        <details>
+          <summary>Pull duration: {totalDuration("pull")}</summary>
+          {durationTooltip("pull")}
+        </details>
+        <details style={{ float: "right" }}>
+          <summary>Trunk duration: {totalDuration("trunk")}</summary>
+          {durationTooltip("trunk")}
+        </details>
+      </span>
       <CommitLinks row={row} />
     </div>
   );

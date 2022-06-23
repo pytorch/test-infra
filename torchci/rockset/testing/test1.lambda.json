@@ -1,20 +1,20 @@
 {
-  "sql_path": "__sql/master_jobs_red.sql",
+  "sql_path": "__sql/test1.sql",
   "default_parameters": [
     {
       "name": "granularity",
       "type": "string",
-      "value": "hour"
+      "value": "week"
     },
     {
       "name": "startTime",
       "type": "string",
-      "value": "2022-02-09T00:06:32.839Z"
+      "value": "2022-05-13T00:06:32.839Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2022-02-16T00:06:32.839Z"
+      "value": "2022-05-21T00:06:32.839Z"
     },
     {
       "name": "timezone",
@@ -22,5 +22,5 @@
       "value": "America/Los_Angeles"
     }
   ],
-  "description": "timezone"
+  "description": ""
 }
