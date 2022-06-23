@@ -9,7 +9,7 @@ async function getDrciComment(
   prNum: number,
   owner: string,
   repo: string
-): Promise<[number, string]> {
+): Promise<{id: number, body: string}> {
   const commentsRes = await context.octokit.issues.listComments({
     owner,
     repo,
@@ -17,10 +17,10 @@ async function getDrciComment(
   });
   for (const comment of commentsRes.data) {
     if (comment.body!.includes(drciCommentStart)) {
-      return [comment.id, comment.body!];
+      return {id: comment.id, body: comment.body!};
     }
   }
-  return [0, ""];
+  return {id: 0, body: ""};
 }
 
 export function formDrciComment(): string {
@@ -48,8 +48,8 @@ export default function drciBot(app: Probot): void {
       owner,
       repo
     );
-    const existingDrCIID = existingDrCIData[0];
-    const existingDrCIComment = existingDrCIData[1];
+    const existingDrCIID = existingDrCIData.id
+    const existingDrCIComment = existingDrCIData.body
 
     const drciComment = formDrciComment();
 
