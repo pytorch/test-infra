@@ -42,22 +42,22 @@ export default function drciBot(app: Probot): void {
       return;
     }
 
-    const existingDrCIData = await getDrciComment(
+    const existingDrciData = await getDrciComment(
       context,
       prNum,
       owner,
       repo
     );
-    const existingDrCIID = existingDrCIData.id
-    const existingDrCIComment = existingDrCIData.body
+    const existingDrciID = existingDrciData.id
+    const existingDrciComment = existingDrciData.body
 
     const drciComment = formDrciComment();
 
-    if (existingDrCIComment === drciComment) {
+    if (existingDrciComment === drciComment) {
       return;
     }
 
-    if (existingDrCIID === 0) {
+    if (existingDrciID === 0) {
       await context.octokit.issues.createComment({
         body: drciComment,
         owner,
@@ -72,7 +72,7 @@ export default function drciBot(app: Probot): void {
         body: drciComment,
         owner,
         repo,
-        comment_id: existingDrCIID,
+        comment_id: existingDrciID,
       });
     }
   });
