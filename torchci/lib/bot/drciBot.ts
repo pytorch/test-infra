@@ -35,41 +35,45 @@ export default function drciBot(app: Probot): void {
     const repo = context.payload.repository.name;
     const owner = context.payload.repository.owner.login;
     
-    console.log(pr_owner);
-    if (pr_owner in possibleUsers) {
-      const existingValidationCommentData = await getDrciComment(
-        context,
-        prNum,
-        owner,
-        repo
-      );
-      const existingValidationCommentID = existingValidationCommentData[0];
-      const existingValidationComment = existingValidationCommentData[1];
-  
-      const drciComment = formDrciComment();
-  
-      if (existingValidationComment === drciComment) {
-        return;
-      }
-  
-      if (existingValidationCommentID === 0) {
-        await context.octokit.issues.createComment({
-          body: drciComment,
-          owner,
-          repo,
-          issue_number: prNum,
-        });
-      } else {
-        await context.octokit.issues.updateComment({
-          body: drciComment,
-          owner,
-          repo,
-          comment_id: existingValidationCommentID,
-        });
-      }
+    context.log(pr_owner);
+
+    if (possibleUsers.indexOf(pr_owner) == -1) {
+      context.log("did not make a comment")
+      return;
     }
-    else {
-      console.log("did not make a comment")
+
+    const existingValidationCommentData = await getDrciComment(
+      context,
+      prNum,
+      owner,
+      repo
+    );
+    const existingValidationCommentID = existingValidationCommentData[0];
+    const existingValidationComment = existingValidationCommentData[1];
+
+    const drciComment = formDrciComment();
+
+    if (existingValidationComment === drciComment) {
+      return;
+    }
+
+    if (existingValidationCommentID === 0) {
+      await context.octokit.issues.createComment({
+        body: drciComment,
+        owner,
+        repo,
+        issue_number: prNum,
+      });
+      context.log(
+        `Commenting with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
+      );
+    } else {
+      await context.octokit.issues.updateComment({
+        body: drciComment,
+        owner,
+        repo,
+        comment_id: existingValidationCommentID,
+      });
     }
   });
 }

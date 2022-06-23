@@ -7,6 +7,7 @@ import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import mergeBot from "./mergeBot";
 import labelBot from "./labelBot";
+import drciBot from "./drciBot";
 
 export default function bot(app: Probot) {
   autoCcBot(app);
@@ -17,4 +18,5 @@ export default function bot(app: Probot) {
   triggerCircleCIWorkflows(app);
   mergeBot(app);
   labelBot(app);
+  drciBot(app);
 }
