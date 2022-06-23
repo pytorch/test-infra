@@ -2,6 +2,7 @@ import { Context, Probot } from "probot";
 
 const drciCommentStart = "<!-- drci-comment-start -->";
 const drciCommentEnd = "<!-- drci-comment-end -->";
+const possibleUsers = ["swang392"]
 
 async function getDrciComment(
   context: Context,
@@ -35,7 +36,7 @@ export default function drciBot(app: Probot): void {
     const owner = context.payload.repository.owner.login;
     
     console.log(pr_owner);
-    if (pr_owner == "swang392") {
+    if (pr_owner in possibleUsers) {
       const existingValidationCommentData = await getDrciComment(
         context,
         prNum,
