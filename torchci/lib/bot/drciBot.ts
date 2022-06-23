@@ -37,27 +37,27 @@ export default function drciBot(app: Probot): void {
     
     context.log(pr_owner);
 
-    if (possibleUsers.indexOf(pr_owner) == -1) {
+    if (!possibleUsers.includes(pr_owner)) {
       context.log("did not make a comment")
       return;
     }
 
-    const existingValidationCommentData = await getDrciComment(
+    const existingDrCIData = await getDrciComment(
       context,
       prNum,
       owner,
       repo
     );
-    const existingValidationCommentID = existingValidationCommentData[0];
-    const existingValidationComment = existingValidationCommentData[1];
+    const existingDrCIID = existingDrCIData[0];
+    const existingDrCIComment = existingDrCIData[1];
 
     const drciComment = formDrciComment();
 
-    if (existingValidationComment === drciComment) {
+    if (existingDrCIComment === drciComment) {
       return;
     }
 
-    if (existingValidationCommentID === 0) {
+    if (existingDrCIID === 0) {
       await context.octokit.issues.createComment({
         body: drciComment,
         owner,
@@ -72,7 +72,7 @@ export default function drciBot(app: Probot): void {
         body: drciComment,
         owner,
         repo,
-        comment_id: existingValidationCommentID,
+        comment_id: existingDrCIID,
       });
     }
   });
