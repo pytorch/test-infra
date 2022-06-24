@@ -530,7 +530,7 @@ describe("merge-bot", () => {
       JSON.stringify(requireDeepCopy("./fixtures/pull_request_comment.json"))
     );
     event.payload.comment.body = "@pytorchmergebot merge";
-    event.payload.comment.user.login = "zengk95";
+    event.payload.comment.user.login = "landchecktestuser";
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;

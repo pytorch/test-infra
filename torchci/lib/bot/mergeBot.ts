@@ -10,7 +10,7 @@ function mergeBot(app: Probot): void {
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
 
-  const landtimeChecksAllowlist = new Set(["zengk95"]);
+  const landtimeChecksAllowlist = new Set(['landchecktestuser']);
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
