@@ -19,6 +19,7 @@ import { useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
+  Granularity,
   getTooltipMarker,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
@@ -75,6 +76,8 @@ function Panel({
 
 function getSeries(
   data: any,
+  startTime: dayjs.Dayjs,
+  stopTime: dayjs.Dayjs,
   granularity: any,
   groupByFieldName: string,
   timeFieldName: string,
@@ -103,6 +106,8 @@ function getSeries(
   } else {
     return seriesWithInterpolatedTimes(
       data,
+      startTime,
+      stopTime,
       granularity,
       groupByFieldName,
       timeFieldName,
@@ -116,7 +121,7 @@ function Graphs({
   granularity,
 }: {
   queryParams: RocksetParam[];
-  granularity: string;
+  granularity: "hour" | "day" | "week" | "month" | "year";
 }) {
   const [filter, setFilter] = useState(new Set());
   const ROW_HEIGHT = 800;
@@ -156,9 +161,18 @@ function Graphs({
     }
     setFilter(next);
   }
+  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
+  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
+
+  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
+  // align with the data we get from Rockset
+  startTime = dayjs(startTime).startOf(granularity);
+  stopTime = dayjs(stopTime).endOf(granularity);
 
   const tts_true_series = getSeries(
     data,
+    startTime,
+    stopTime,
     granularity,
     groupByFieldName,
     timeFieldName,
@@ -166,6 +180,8 @@ function Graphs({
   );
   const duration_true_series = getSeries(
     data,
+    startTime,
+    stopTime,
     granularity,
     groupByFieldName,
     timeFieldName,
@@ -238,7 +254,7 @@ function GranularityPicker({
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
-  const [granularity, setGranularity] = useState("day");
+  const [granularity, setGranularity] = useState<Granularity>("day");
 
   const queryParams: RocksetParam[] = [
     {

@@ -247,7 +247,7 @@ export function TimeRangePicker({
   useEffect(() => {
     const id = setInterval(updateTimeRange, 1000 * 60 * 5 /*5 minutes*/);
     return () => clearInterval(id);
-  }, [timeRange]);
+  }, [timeRange, updateTimeRange]);
 
   function handleChange(e: SelectChangeEvent<number>) {
     setTimeRange(e.target.value as number);
