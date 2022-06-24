@@ -25,6 +25,30 @@ export function getTooltipMarker(color: string) {
   );
 }
 
+export function normalSeries(
+  data: any,
+  timeFieldName: string,
+  yAxisFieldName: string,
+  name: string
+) {
+  const allTimes: Set<string> = new Set();
+  const times: Array<string> = Array.from(allTimes).sort();
+  console.log(data);
+  const normalizedData = data.map((point: any) => {
+    return [point[timeFieldName], point[yAxisFieldName]];
+  });
+  return {
+    name: name,
+    type: "line",
+    symbol: "circle",
+    symbolSize: 4,
+    data: normalizedData,
+    emphasis: {
+      focus: "series",
+    },
+  };
+}
+
 export function seriesWithInterpolatedTimes(
   data: any,
   granularity: any,
@@ -34,8 +58,9 @@ export function seriesWithInterpolatedTimes(
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
   // with 0.
+  console.log(data);
   const allTimes: Set<string> = new Set();
-  data.forEach((d: any) => allTimes.add(d[timeFieldName]));
+  data.forEach((d: any) => allTimes.add(dayjs(d[timeFieldName]).toISOString()));
   const times: Array<string> = Array.from(allTimes).sort();
   const startTime = dayjs(times[0]);
   const endTime = dayjs(times.at(-1));
@@ -51,7 +76,7 @@ export function seriesWithInterpolatedTimes(
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  return _.map(byGroup, (value, key) => {
+  const temp = _.map(byGroup, (value, key) => {
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
@@ -59,7 +84,7 @@ export function seriesWithInterpolatedTimes(
     );
 
     // Fill with 0, see the above comment on interpolation.
-    const data = interpolatedTimes.map((t) => {
+    const data = times.map((t) => {
       const item = byTimeNormalized[t];
       if (item === undefined) {
         return [t, 0];
@@ -78,6 +103,8 @@ export function seriesWithInterpolatedTimes(
       },
     };
   });
+  console.log("TEMP iS", temp);
+  return temp;
 }
 
 export default function TimeSeriesPanel({
@@ -100,6 +127,8 @@ export default function TimeSeriesPanel({
   yAxisFieldName,
   // Callback to render the y axis value in some nice way.
   yAxisRenderer,
+  // Interpolate Data or Render as is
+  interpolateData = true,
 }: {
   title: string;
   queryCollection?: string;
@@ -110,6 +139,7 @@ export default function TimeSeriesPanel({
   timeFieldName: string;
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
+  interpolateData?: boolean;
 }) {
   // - Granularity
   // - Group by
@@ -129,14 +159,18 @@ export default function TimeSeriesPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const series = seriesWithInterpolatedTimes(
-    data,
-    granularity,
-    groupByFieldName,
-    timeFieldName,
-    yAxisFieldName
-  );
-
+  let series: any;
+  if (interpolateData) {
+    series = seriesWithInterpolatedTimes(
+      data,
+      granularity,
+      groupByFieldName,
+      timeFieldName,
+      yAxisFieldName
+    );
+  } else {
+    series = normalSeries(data, timeFieldName, yAxisFieldName, title);
+  }
   const options: EChartsOption = {
     title: { text: title },
     grid: { top: 48, right: 200, bottom: 24, left: 48 },

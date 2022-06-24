@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/master_commit_red_percent.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-03-13T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-03-21T00:06:32.839Z"
+    }
+  ],
+  "description": ""
+}
