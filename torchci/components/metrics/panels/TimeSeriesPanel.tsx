@@ -13,6 +13,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
 
+export type Granularity = "hour" | "day" | "week" | "month" | "year";
+
 // Adapted from echarts
 // see: https://github.com/apache/echarts/blob/master/src/util/format.ts
 export function getTooltipMarker(color: string) {
@@ -27,7 +29,9 @@ export function getTooltipMarker(color: string) {
 
 export function seriesWithInterpolatedTimes(
   data: any,
-  granularity: any,
+  startTime: dayjs.Dayjs,
+  stopTime: dayjs.Dayjs,
+  granularity: Granularity,
   groupByFieldName: string,
   timeFieldName: string,
   yAxisFieldName: string
@@ -37,10 +41,8 @@ export function seriesWithInterpolatedTimes(
   const allTimes: Set<string> = new Set();
   data.forEach((d: any) => allTimes.add(d[timeFieldName]));
   const times: Array<string> = Array.from(allTimes).sort();
-  const startTime = dayjs(times[0]);
-  const endTime = dayjs(times.at(-1));
   const interpolatedTimes: Array<string> = [];
-  for (let t = startTime; t.isBefore(endTime); t = t.add(1, granularity)) {
+  for (let t = startTime; t.isBefore(stopTime); t = t.add(1, granularity)) {
     interpolatedTimes.push(t.toISOString());
   }
 
@@ -105,7 +107,7 @@ export default function TimeSeriesPanel({
   queryCollection?: string;
   queryName: string;
   queryParams: RocksetParam[];
-  granularity: "hour" | "day" | "week" | "month" | "year";
+  granularity: Granularity;
   groupByFieldName: string;
   timeFieldName: string;
   yAxisFieldName: string;
@@ -128,9 +130,18 @@ export default function TimeSeriesPanel({
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+  let startTime = queryParams.find((p) => p.name === "startTime")?.value;
+  let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
+
+  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
+  // align with the data we get from Rockset
+  startTime = dayjs(startTime).startOf(granularity);
+  stopTime = dayjs(stopTime).endOf(granularity);
 
   const series = seriesWithInterpolatedTimes(
     data,
+    startTime,
+    stopTime,
     granularity,
     groupByFieldName,
     timeFieldName,
