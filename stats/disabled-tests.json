@@ -3342,7 +3342,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "MEMBER",
-      "body": "Flaky failures in the last week: https://fburl.com/scuba/opensource_ci_jobs/inmj698k. They only appear to be on windows\r\n\r\nPlatforms: windows\n\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @VitalyFedyunin",
+      "body": "Flaky failures in the last week: https://fburl.com/scuba/opensource_ci_jobs/inmj698k. They only appear to be on windows\r\n\r\nPlatforms: windows, mac, linux\r\n\r\ncc @peterjc123 @mszhanyi @skyline75489 @nbcsm @VitalyFedyunin",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/67002/comments",
@@ -3412,7 +3412,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/67002/timeline",
       "title": "DISABLED test_fs_sharing (__main__.TestMultiprocessing)",
-      "updated_at": "2022-06-23T06:45:05Z",
+      "updated_at": "2022-06-27T16:19:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/67002",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
