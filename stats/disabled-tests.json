@@ -19500,13 +19500,13 @@
       "reactions": {
         "+1": 0,
         "-1": 0,
-        "confused": 0,
+        "confused": 1,
         "eyes": 0,
         "heart": 0,
         "hooray": 0,
         "laugh": 0,
         "rocket": 0,
-        "total_count": 0,
+        "total_count": 1,
         "url": "https://api.github.com/repos/pytorch/pytorch/issues/80317/reactions"
       },
       "repository_url": "https://api.github.com/repos/pytorch/pytorch",
