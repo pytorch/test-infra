@@ -1,10 +1,10 @@
 import { Context, Probot } from "probot";
 
-export const drciCommentStart = "<!-- drci-comment-start -->";
+export const drciCommentStart = "<!-- drci-comment-start -->\n";
 export const officeHoursUrl = "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
-const drciCommentEnd = "<!-- drci-comment-end -->";
+const drciCommentEnd = "\n<!-- drci-comment-end -->";
 const possibleUsers = ["swang392"]
-const hudUrl = "hud.pytorch.org/pr/";
+const hudUrl = "https://hud.pytorch.org/pr/";
 
 async function getDrciComment(
   context: Context,
@@ -27,8 +27,8 @@ async function getDrciComment(
 
 export function formDrciComment(prNum: number): string {
   let body = "# Helpful Links\n";
-  body += `See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
-  body += `Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})`;
+  body += `* See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
+  body += `* Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})`;
   return drciCommentStart + body + drciCommentEnd;
 }
 
