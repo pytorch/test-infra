@@ -19703,15 +19703,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_lobpcg%2C%20TestAutograd)).",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_lobpcg%2C%20TestAutograd)).\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80338/comments",
       "created_at": "2022-06-27T12:38:31Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/80338/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/80338",
       "id": 1285745825,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -19746,7 +19755,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80338/timeline",
       "title": "DISABLED test_lobpcg (__main__.TestAutograd)",
-      "updated_at": "2022-06-27T12:38:34Z",
+      "updated_at": "2022-06-27T15:40:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80338",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
