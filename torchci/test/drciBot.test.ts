@@ -30,7 +30,11 @@ describe("verify-drci-functionality", () => {
       })
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments", (body) => {
-        expect(body).toMatchObject({ body: "<!-- drci-comment-start -->hello there!<!-- drci-comment-end -->" });
+        const comment = body.body;
+        expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
+        expect(comment.includes("See artifacts and rendered test results")).toBeTruthy();
+        expect(comment.includes("Need help or want to give feedback on the CI?")).toBeTruthy();
+        expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
         return true;
       })
       .reply(200);

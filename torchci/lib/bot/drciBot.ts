@@ -1,8 +1,10 @@
 import { Context, Probot } from "probot";
 
-const drciCommentStart = "<!-- drci-comment-start -->";
+export const drciCommentStart = "<!-- drci-comment-start -->";
+export const officeHoursUrl = "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
 const drciCommentEnd = "<!-- drci-comment-end -->";
 const possibleUsers = ["swang392"]
+const hudUrl = "hud.pytorch.org/pr/";
 
 async function getDrciComment(
   context: Context,
@@ -23,8 +25,10 @@ async function getDrciComment(
   return {id: 0, body: ""};
 }
 
-export function formDrciComment(): string {
-  let body = "hello there!"
+export function formDrciComment(prNum: number): string {
+  let body = "# Helpful Links\n";
+  body += `See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
+  body += `Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})`;
   return drciCommentStart + body + drciCommentEnd;
 }
 
@@ -51,7 +55,7 @@ export default function drciBot(app: Probot): void {
     const existingDrciID = existingDrciData.id
     const existingDrciComment = existingDrciData.body
 
-    const drciComment = formDrciComment();
+    const drciComment = formDrciComment(prNum);
 
     if (existingDrciComment === drciComment) {
       return;
