@@ -18307,22 +18307,13 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_launch_user_script&suite=TestDistributedLaunch&file=distributed/test_launcher.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6868032424).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 red and 2 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/comments",
       "created_at": "2022-06-14T00:58:21Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/79488",
       "id": 1270122229,
       "labels": [
-        {
-          "color": "f7e101",
-          "default": false,
-          "description": "Add this issue/PR to distributed oncall triage queue",
-          "id": 679953883,
-          "name": "oncall: distributed",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
-        },
         {
           "color": "f7e101",
           "default": false,
@@ -18375,7 +18366,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/timeline",
       "title": "DISABLED test_launch_user_script (__main__.TestDistributedLaunch)",
-      "updated_at": "2022-06-21T14:44:11Z",
+      "updated_at": "2022-06-28T01:37:50Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79488",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18716,6 +18707,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18767,7 +18767,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79750/timeline",
       "title": "DISABLED test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)",
-      "updated_at": "2022-06-21T14:44:46Z",
+      "updated_at": "2022-06-28T01:36:08Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79750",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
