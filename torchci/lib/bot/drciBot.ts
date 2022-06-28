@@ -34,7 +34,7 @@ export function formDrciComment(prNum: number): string {
   body += `* Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})\n`;
   body += `* Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})\n`;
   body += `* Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})\n`;
-  body += `Note: Links to docs will display an error until the docs builds have been completed.`;
+  body += `\nNote: Links to docs will display an error until the docs builds have been completed.`;
   return drciCommentStart + body + drciCommentEnd;
 }
 
