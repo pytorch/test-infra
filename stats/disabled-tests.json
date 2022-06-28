@@ -19474,7 +19474,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms:  linux\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_gradcheck_forward_ad_respects_requires_grad%2C%20TestAutograd)).\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80317/comments",
       "created_at": "2022-06-27T05:01:12Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/80317/events",
@@ -19524,7 +19524,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80317/timeline",
       "title": "DISABLED test_gradcheck_forward_ad_respects_requires_grad (__main__.TestAutograd)",
-      "updated_at": "2022-06-28T08:43:08Z",
+      "updated_at": "2022-06-28T13:39:09Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80317",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
