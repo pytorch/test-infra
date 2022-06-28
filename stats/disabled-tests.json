@@ -19206,6 +19206,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -19257,7 +19266,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80008/timeline",
       "title": "DISABLED test_device_map_gpu_default_to_non_default (__main__.TensorPipeTensorPipeAgentCudaRpcTest)",
-      "updated_at": "2022-06-22T13:51:55Z",
+      "updated_at": "2022-06-28T01:35:22Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80008",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19785,7 +19794,7 @@
       "author_association": "MEMBER",
       "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fq_module_per_tensor%2C%20quantization.core.test_workflow_ops.TestFakeQuantizeOps)).",
       "closed_at": null,
-      "comments": 1,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80409/comments",
       "created_at": "2022-06-28T00:27:22Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/80409/events",
@@ -19826,7 +19835,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80409/timeline",
       "title": "DISABLED test_fq_module_per_tensor (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
-      "updated_at": "2022-06-28T00:27:25Z",
+      "updated_at": "2022-06-28T01:21:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80409",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -19848,7 +19857,96 @@
         "type": "User",
         "url": "https://api.github.com/users/suo"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "NONE",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_backward_T_cuda_float32&suite=TestCompositeComplianceCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7082013410).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/comments",
+      "created_at": "2022-06-28T00:57:59Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/80413",
+      "id": 1286622206,
+      "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Problem is a flaky test in CI",
+          "id": 1301397902,
+          "name": "module: flaky-tests",
+          "node_id": "MDU6TGFiZWwxMzAxMzk3OTAy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "1d76db",
+          "default": false,
+          "description": "We do not know who is responsible for this feature, bug, or test case.",
+          "id": 3500281775,
+          "name": "module: unknown",
+          "node_id": "LA_kwDOA-j9z87Qog-v",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85MsEv-",
+      "number": 80413,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": null,
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/timeline",
+      "title": "DISABLED test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
+      "updated_at": "2022-06-28T00:58:00Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
+        "events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/events{/privacy}",
+        "followers_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/followers",
+        "following_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/following{/other_user}",
+        "gists_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/apps/pytorch-bot",
+        "id": 54816060,
+        "login": "pytorch-bot[bot]",
+        "node_id": "MDM6Qm90NTQ4MTYwNjA=",
+        "organizations_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/orgs",
+        "received_events_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/received_events",
+        "repos_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/pytorch-bot%5Bbot%5D/subscriptions",
+        "type": "Bot",
+        "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
+      }
     }
   ],
-  "total_count": 190
+  "total_count": 191
 }
