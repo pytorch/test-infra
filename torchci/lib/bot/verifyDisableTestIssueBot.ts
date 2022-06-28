@@ -60,13 +60,14 @@ export function parseTitle(title: string): string {
 }
 
 function testNameIsExpected(testName: string): boolean {
-  const split = testName.split(" ");
+  const split = testName.split(/\s+/);
+  console.log(split);
   if (split.length !== 2) {
     return false;
   }
 
   const testSuite = split[1].split(".");
-  if (testSuite.length !== 2) {
+  if (testSuite.length < 2) {
     return false;
   }
   return true;
