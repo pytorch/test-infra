@@ -2,6 +2,9 @@ import { Context, Probot } from "probot";
 
 export const drciCommentStart = "<!-- drci-comment-start -->\n";
 export const officeHoursUrl = "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
+export const docsBuildsUrl = "https://docs-preview.pytorch.org/"
+export const pythonDocsUrl = "/index.html"
+export const cppDocsUrl = "/cppdocs/index.html"
 const drciCommentEnd = "\n<!-- drci-comment-end -->";
 const possibleUsers = ["swang392"]
 const hudUrl = "https://hud.pytorch.org/pr/";
@@ -28,7 +31,10 @@ async function getDrciComment(
 export function formDrciComment(prNum: number): string {
   let body = "# Helpful Links\n";
   body += `* See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
-  body += `* Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})`;
+  body += `* Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})\n`;
+  body += `* Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})\n`;
+  body += `* Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})\n`;
+  body += `\nNote: Links to docs will display an error until the docs builds have been completed.`;
   return drciCommentStart + body + drciCommentEnd;
 }
 
@@ -78,6 +84,9 @@ export default function drciBot(app: Probot): void {
         repo,
         comment_id: existingDrciID,
       });
+      context.log(
+        `Updated comment with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
+      );
     }
   });
 }

@@ -35,6 +35,7 @@ describe("verify-drci-functionality", () => {
         expect(comment.includes("See artifacts and rendered test results")).toBeTruthy();
         expect(comment.includes("Need help or want to give feedback on the CI?")).toBeTruthy();
         expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
+        expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
         return true;
       })
       .reply(200);
