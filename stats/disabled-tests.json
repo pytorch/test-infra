@@ -19505,6 +19505,15 @@
       "id": 1284214907,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -19556,7 +19565,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80248/timeline",
       "title": "DISABLED test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)",
-      "updated_at": "2022-06-24T21:40:20Z",
+      "updated_at": "2022-06-29T14:10:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80248",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
