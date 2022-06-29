@@ -6168,6 +6168,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -6201,7 +6210,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70516/timeline",
       "title": "DISABLED test_random_seed (__main__.TestDataLoaderUtils)",
-      "updated_at": "2022-06-22T15:26:01Z",
+      "updated_at": "2022-06-29T13:58:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70516",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -14100,6 +14109,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -14142,7 +14160,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76941/timeline",
       "title": "DISABLED test_backward_index_put_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-06-22T14:03:01Z",
+      "updated_at": "2022-06-29T13:58:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76941",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -16869,6 +16887,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -16911,7 +16938,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/77598/timeline",
       "title": "DISABLED test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-06-22T14:03:06Z",
+      "updated_at": "2022-06-29T13:58:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/77598",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17795,6 +17822,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20rocm"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -17828,7 +17864,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/78205/timeline",
       "title": "DISABLED test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-06-22T14:34:33Z",
+      "updated_at": "2022-06-29T13:58:46Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/78205",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -18422,6 +18458,15 @@
       "id": 1270122229,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18473,7 +18518,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79488/timeline",
       "title": "DISABLED test_launch_user_script (__main__.TestDistributedLaunch)",
-      "updated_at": "2022-06-28T01:37:50Z",
+      "updated_at": "2022-06-29T14:03:23Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79488",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18667,6 +18712,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18709,7 +18763,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79509/timeline",
       "title": "DISABLED test_noncontiguous_samples_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCommonCUDA)",
-      "updated_at": "2022-06-28T15:20:44Z",
+      "updated_at": "2022-06-29T14:05:04Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79509",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19540,6 +19594,15 @@
       "id": 1284214906,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -19591,7 +19654,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80249/timeline",
       "title": "DISABLED test_worker_seed_reproducibility (__main__.TestDataLoader)",
-      "updated_at": "2022-06-24T21:40:20Z",
+      "updated_at": "2022-06-29T14:04:06Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80249",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19619,7 +19682,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Platforms: linux\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_conv_backend_cudnn3d_transposed_has_bias_False_strided_False_contiguous_False_cuda%2C%20TestNNDeviceTypeCUDA)).",
+      "body": "Platforms: linux\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_conv_backend_cudnn3d_transposed_has_bias_False_strided_False_contiguous_False_cuda%2C%20TestNNDeviceTypeCUDA)).\n\ncc @csarofeen @ptrblck @xwang233",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80318/comments",
@@ -19628,6 +19691,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80318",
       "id": 1285241076,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.backends.cudnn, and CuDNN support",
+          "id": 806617721,
+          "name": "module: cudnn",
+          "node_id": "MDU6TGFiZWw4MDY2MTc3MjE=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cudnn"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -19662,7 +19743,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80318/timeline",
       "title": "DISABLED test_conv_backend_cudnn3d_transposed_has_bias_False_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)",
-      "updated_at": "2022-06-27T05:03:06Z",
+      "updated_at": "2022-06-29T14:04:06Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80318",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -19699,6 +19780,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80325",
       "id": 1285530600,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -19751,7 +19841,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80325/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-06-27T09:41:02Z",
+      "updated_at": "2022-06-29T14:03:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80325",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19838,6 +19928,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -19871,7 +19970,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80338/timeline",
       "title": "DISABLED test_lobpcg (__main__.TestAutograd)",
-      "updated_at": "2022-06-28T08:40:00Z",
+      "updated_at": "2022-06-29T14:03:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80338",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
@@ -19896,50 +19995,10 @@
     },
     {
       "active_lock_reason": null,
-      "assignee": {
-        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
-        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
-        "followers_url": "https://api.github.com/users/janeyx99/followers",
-        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
-        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
-        "gravatar_id": "",
-        "html_url": "https://github.com/janeyx99",
-        "id": 31798555,
-        "login": "janeyx99",
-        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
-        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
-        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
-        "repos_url": "https://api.github.com/users/janeyx99/repos",
-        "site_admin": false,
-        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
-        "type": "User",
-        "url": "https://api.github.com/users/janeyx99"
-      },
-      "assignees": [
-        {
-          "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
-          "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
-          "followers_url": "https://api.github.com/users/janeyx99/followers",
-          "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
-          "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
-          "gravatar_id": "",
-          "html_url": "https://github.com/janeyx99",
-          "id": 31798555,
-          "login": "janeyx99",
-          "node_id": "MDQ6VXNlcjMxNzk4NTU1",
-          "organizations_url": "https://api.github.com/users/janeyx99/orgs",
-          "received_events_url": "https://api.github.com/users/janeyx99/received_events",
-          "repos_url": "https://api.github.com/users/janeyx99/repos",
-          "site_admin": false,
-          "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
-          "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
-          "type": "User",
-          "url": "https://api.github.com/users/janeyx99"
-        }
-      ],
+      "assignee": null,
+      "assignees": [],
       "author_association": "MEMBER",
-      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fq_module_per_tensor%2C%20quantization.core.test_workflow_ops.TestFakeQuantizeOps)).\r\n\r\nNote: this test is NOT flaky.",
+      "body": "Platforms: mac\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_fq_module_per_tensor%2C%20quantization.core.test_workflow_ops.TestFakeQuantizeOps)).\r\n\r\nNote: this test is NOT flaky.\n\ncc @jerryzh168 @jianyuh @raghuramank100 @jamesr66a @vkuzo",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80409/comments",
@@ -19948,6 +20007,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80409",
       "id": 1286601463,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Quantization support in PyTorch",
+          "id": 1031340614,
+          "name": "oncall: quantization",
+          "node_id": "MDU6TGFiZWwxMDMxMzQwNjE0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20quantization"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -19982,7 +20059,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80409/timeline",
       "title": "DISABLED test_fq_module_per_tensor (quantization.core.test_workflow_ops.TestFakeQuantizeOps)",
-      "updated_at": "2022-06-28T15:06:10Z",
+      "updated_at": "2022-06-29T14:04:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80409",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -20019,6 +20096,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80413",
       "id": 1286622206,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -20071,7 +20157,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/timeline",
       "title": "DISABLED test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-06-28T00:58:00Z",
+      "updated_at": "2022-06-29T14:03:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
