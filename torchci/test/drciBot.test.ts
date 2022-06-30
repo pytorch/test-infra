@@ -99,5 +99,4 @@ describe("verify-drci-functionality", () => {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
   });
-
 });
