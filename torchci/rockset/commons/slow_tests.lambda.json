@@ -1,0 +1,5 @@
+{
+  "sql_path": "__sql/slow_tests.sql",
+  "default_parameters": [],
+  "description": ""
+}
