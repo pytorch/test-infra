@@ -3,6 +3,9 @@ import * as utils from "./utils";
 import nock from "nock";
 import myProbotApp, * as botUtils from "../lib/bot/drciBot";
 
+const comment_id = 10;
+const comment_node_id = "abcd";
+
 describe("verify-drci-functionality", () => {
   let probot: Probot;
 
@@ -16,7 +19,7 @@ describe("verify-drci-functionality", () => {
     jest.restoreAllMocks();
   });
   
-  test("Dr. CI comment if user of PR is swang392", async () => {
+  test("Dr. CI comments if user of PR is swang392", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -58,4 +61,42 @@ describe("verify-drci-functionality", () => {
     expect(mock).not.toHaveBeenCalled();
   });
 
+  test("Dr. CI edits existing comment if a comment is already present", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = require("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["user"]["login"] = "swang392"
+    
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments", (body) => {
+        return true;
+      })
+      .reply(200, [
+        {
+          id: comment_id,
+          node_id: comment_node_id,
+          body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
+        },
+      ])
+      .patch(
+        `/repos/zhouzhuojie/gha-ci-playground/issues/comments/${comment_id}`,
+        (body) => {
+          const comment = body.body;
+          expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
+          expect(comment.includes("See artifacts and rendered test results")).toBeTruthy();
+          expect(comment.includes("Need help or want to give feedback on the CI?")).toBeTruthy();
+          expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
+          expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
+          return true;
+        }
+      )
+      .reply(200)
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    if (!nock.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+  });
 });
