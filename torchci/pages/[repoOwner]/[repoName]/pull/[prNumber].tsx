@@ -2,7 +2,7 @@ import CommitStatus from "components/CommitStatus";
 import ErrorBoundary from "components/ErrorBoundary";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -16,7 +16,7 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data, error } = useSWR(
+  const all = useSWR(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
@@ -26,6 +26,7 @@ function CommitInfo({
       refreshWhenHidden: true,
     }
   );
+  const { data, error } = all;
   if (error != null) {
     return <div>Error occured</div>;
   }
@@ -35,6 +36,7 @@ function CommitInfo({
   }
   const { commit, jobs } = data;
 
+  console.log("ALL IS", all);
   return <CommitStatus commit={commit} jobs={jobs} />;
 }
 
@@ -51,12 +53,11 @@ function CommitHeader({
 }) {
   const router = useRouter();
   const pr = router.query.prNumber as string;
-
   return (
     <div>
       Commit:{" "}
       <select
-        defaultValue={selectedSha}
+        value={selectedSha}
         onChange={(e) => {
           router.push(
             `/${repoName}/${repoOwner}/pull/${pr}?sha=${e.target.value}`
@@ -85,21 +86,26 @@ function Page() {
   if (sha !== undefined) {
     swrKey += `?sha=${router.query.sha}`;
   }
-
   const { data } = useSWR(swrKey, fetcher, {
-    refreshInterval: 60 * 1000, // refresh every minute
+    refreshInterval: 200, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab
     // will always have fresh info.
     refreshWhenHidden: true,
   });
+  const [selectedSha, setSelectedSha] = useState("");
+
   const prData = data as PRData | undefined;
+
+  useEffect(() => {
+    const selected = (sha ??
+      prData?.shas[prData.shas.length - 1].sha ??
+      "") as string;
+    setSelectedSha(selected);
+  }, [prData?.shas, sha]);
 
   if (prData === undefined) {
     return <div>Loading...</div>;
   }
-
-  const selectedSha = (sha ??
-    prData.shas[prData.shas.length - 1].sha) as string;
   return (
     <div>
       <h1>
