@@ -85,7 +85,7 @@ function Page() {
     swrKey += `?sha=${router.query.sha}`;
   }
   const { data } = useSWR(swrKey, fetcher, {
-    refreshInterval: 200, // refresh every minute
+    refreshInterval: 60 * 1000, // refresh every minute
     // Refresh even when the user isn't looking, so that switching to the tab
     // will always have fresh info.
     refreshWhenHidden: true,
