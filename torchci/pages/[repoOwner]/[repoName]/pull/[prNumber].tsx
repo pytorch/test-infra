@@ -16,7 +16,7 @@ function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const all = useSWR(
+  const { data, error } = useSWR(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
@@ -26,7 +26,6 @@ function CommitInfo({
       refreshWhenHidden: true,
     }
   );
-  const { data, error } = all;
   if (error != null) {
     return <div>Error occured</div>;
   }
@@ -36,7 +35,6 @@ function CommitInfo({
   }
   const { commit, jobs } = data;
 
-  console.log("ALL IS", all);
   return <CommitStatus commit={commit} jobs={jobs} />;
 }
 
