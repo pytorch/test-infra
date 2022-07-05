@@ -19655,7 +19655,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_chain_iterable_style_dataset&suite=TestDataLoaderPersistentWorkers&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7141678531).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_chain_iterable_style_dataset&suite=TestDataLoaderPersistentWorkers&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7141678531).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80757/comments",
@@ -19664,6 +19664,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80757",
       "id": 1290878430,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.utils.data.DataLoader and Sampler",
+          "id": 1076923878,
+          "name": "module: dataloader",
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -19681,15 +19699,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80757/labels{/name}",
@@ -19716,7 +19725,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80757/timeline",
       "title": "DISABLED test_chain_iterable_style_dataset (__main__.TestDataLoaderPersistentWorkers)",
-      "updated_at": "2022-07-01T04:04:18Z",
+      "updated_at": "2022-07-05T19:02:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80757",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19744,7 +19753,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_worker_seed&suite=TestDataLoader&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7145252122).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_worker_seed&suite=TestDataLoader&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7145252122).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80769/comments",
@@ -19753,6 +19762,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80769",
       "id": 1291371607,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.utils.data.DataLoader and Sampler",
+          "id": 1076923878,
+          "name": "module: dataloader",
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -19770,15 +19797,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80769/labels{/name}",
@@ -19805,7 +19823,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80769/timeline",
       "title": "DISABLED test_worker_seed (__main__.TestDataLoader)",
-      "updated_at": "2022-07-01T12:53:23Z",
+      "updated_at": "2022-07-05T19:02:51Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80769",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
