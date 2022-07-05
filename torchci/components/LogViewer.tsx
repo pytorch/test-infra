@@ -15,7 +15,7 @@ import { JobData } from "lib/types";
 import { useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
 import { oneDark } from "@codemirror/theme-one-dark";
-import _ from "lodash";
+import _, { unset } from "lodash";
 import { isFailure } from "lib/JobClassifierUtil";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
@@ -211,10 +211,13 @@ export default function LogViewer({ job }: { job: JobData }) {
 
   return (
     <div>
-      <div style={{ cursor: "pointer" }} onClick={handleClick}>
+      <button
+        style={{ background: "none", cursor: "pointer" }}
+        onClick={handleClick}
+      >
         {showLogViewer ? "▼ " : "▶ "}
         <code>{job.failureLine ?? "Show log"}</code>
-      </div>
+      </button>
       {showLogViewer && <Log url={job.logUrl!} line={job.failureLineNumber!} />}
     </div>
   );
