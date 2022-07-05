@@ -54,7 +54,11 @@ export default function Page() {
                   })}
                 </ul>
               </div>
-              {samples?.length > 0 && <div><p>Example logs: </p> <LogViewer job={samples[0]} /></div>}
+              {samples?.length > 0 && (
+                <div>
+                  <p>Example logs: </p> <LogViewer job={samples[0]} />
+                </div>
+              )}
               <h4>Debugging instructions:</h4>
               <p>
                 As flaky tests will soon show as green, it will be harder to

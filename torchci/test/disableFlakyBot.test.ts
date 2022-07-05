@@ -83,7 +83,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
-          "triaged"
+          "triaged",
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
         return true;
@@ -112,7 +112,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
-          "triaged"
+          "triaged",
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
         return true;
@@ -293,7 +293,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
       .reply(
         200,
-        Buffer.from(`# Owner(s): ["oncall: distributed"]\nimport blah;\nrest of file`)
+        Buffer.from(
+          `# Owner(s): ["oncall: distributed"]\nimport blah;\nrest of file`
+        )
       );
 
     const labels = await disableFlakyTestBot.getTestOwnerLabels(

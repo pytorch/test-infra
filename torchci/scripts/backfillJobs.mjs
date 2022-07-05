@@ -81,8 +81,7 @@ async function backfillWorkflowJob(id, skipBackfill) {
   await dClient.put(thing);
 }
 
-
-console.log("::group::Backfilling jobs without a conclusion...")
+console.log("::group::Backfilling jobs without a conclusion...");
 const jobsWithNoConclusion = await client.queries.query({
   sql: {
     query: `
@@ -115,9 +114,9 @@ for (const id of ids) {
   // Just skip them.
   await backfillWorkflowJob(id, (job) => job.conclusion === null);
 }
-console.log("::endgroup::")
+console.log("::endgroup::");
 
-console.log("::group::Backfilling queued jobs...")
+console.log("::group::Backfilling queued jobs...");
 // Also try to backfill queued jobs specifically, with a tighter time bound.
 // This is so our queue time stats are as accurate as possible.
 const queuedJobs = await client.queries.query({
@@ -146,4 +145,4 @@ ids = queuedJobs.results.map((r) => r.id);
 for (const id of ids) {
   await backfillWorkflowJob(id, (job) => job.status === "queued");
 }
-console.log("::endgroup::")
+console.log("::endgroup::");

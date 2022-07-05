@@ -34,15 +34,15 @@ export default async function handler(
   // only get log view for at most 5 flaky tests (to not spam query calls)
   console.debug(`Retrieved ${flakyTests.length} flaky tests`);
   if (flakyTests.length <= 5) {
-    const unfulfilledPromises = flakyTests.map(function(flakyTest) {
+    const unfulfilledPromises = flakyTests.map(function (flakyTest) {
       return fetchFailureSamples(getFlakyTestCapture(flakyTest));
     });
 
     const results = await Promise.all(unfulfilledPromises);
     results.forEach((samples, index) => {
       flakySamples[getFlakyTestCapture(flakyTests[index])] = samples;
-    })
+    });
   }
 
-  res.status(200).json({flakyTests, flakySamples});
+  res.status(200).json({ flakyTests, flakySamples });
 }

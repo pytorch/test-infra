@@ -105,13 +105,16 @@ describe("verify-disable-test-issue", () => {
   });
 
   test("issue opened with title starts w/ DISABLED: can parse nested test suites", async () => {
-    const title = "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)";
+    const title =
+      "DISABLED testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)";
     const body = "whatever\nPlatforms:\nyay";
 
     const platforms = botUtils.parseBody(body);
     const testName = botUtils.parseTitle(title);
     expect(platforms).toMatchObject([new Set(), new Set()]);
-    expect(testName).toEqual("testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)");
+    expect(testName).toEqual(
+      "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)"
+    );
 
     const comment = botUtils.formValidationComment(testName, platforms);
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();

@@ -1,12 +1,13 @@
 import { Context, Probot } from "probot";
 
 export const drciCommentStart = "<!-- drci-comment-start -->\n";
-export const officeHoursUrl = "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
-export const docsBuildsUrl = "https://docs-preview.pytorch.org/"
-export const pythonDocsUrl = "/index.html"
-export const cppDocsUrl = "/cppdocs/index.html"
+export const officeHoursUrl =
+  "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
+export const docsBuildsUrl = "https://docs-preview.pytorch.org/";
+export const pythonDocsUrl = "/index.html";
+export const cppDocsUrl = "/cppdocs/index.html";
 const drciCommentEnd = "\n<!-- drci-comment-end -->";
-const possibleUsers = ["swang392"]
+const possibleUsers = ["swang392"];
 const hudUrl = "https://hud.pytorch.org/pr/";
 
 async function getDrciComment(
@@ -14,7 +15,7 @@ async function getDrciComment(
   prNum: number,
   owner: string,
   repo: string
-): Promise<{id: number, body: string}> {
+): Promise<{ id: number; body: string }> {
   const commentsRes = await context.octokit.issues.listComments({
     owner,
     repo,
@@ -22,10 +23,10 @@ async function getDrciComment(
   });
   for (const comment of commentsRes.data) {
     if (comment.body!.includes(drciCommentStart)) {
-      return {id: comment.id, body: comment.body!};
+      return { id: comment.id, body: comment.body! };
     }
   }
-  return {id: 0, body: ""};
+  return { id: 0, body: "" };
 }
 
 export function formDrciComment(prNum: number): string {
@@ -39,54 +40,57 @@ export function formDrciComment(prNum: number): string {
 }
 
 export default function drciBot(app: Probot): void {
-  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
-    const prNum = context.payload.pull_request.number;
-    const pr_owner = context.payload.pull_request.user.login;
-    const repo = context.payload.repository.name;
-    const owner = context.payload.repository.owner.login;
-    
-    context.log(pr_owner);
+  app.on(
+    ["pull_request.opened", "pull_request.synchronize"],
+    async (context) => {
+      const prNum = context.payload.pull_request.number;
+      const pr_owner = context.payload.pull_request.user.login;
+      const repo = context.payload.repository.name;
+      const owner = context.payload.repository.owner.login;
 
-    if (!possibleUsers.includes(pr_owner)) {
-      context.log("did not make a comment")
-      return;
-    }
+      context.log(pr_owner);
 
-    const existingDrciData = await getDrciComment(
-      context,
-      prNum,
-      owner,
-      repo
-    );
-    const existingDrciID = existingDrciData.id
-    const existingDrciComment = existingDrciData.body
+      if (!possibleUsers.includes(pr_owner)) {
+        context.log("did not make a comment");
+        return;
+      }
 
-    const drciComment = formDrciComment(prNum);
-
-    if (existingDrciComment === drciComment) {
-      return;
-    }
-
-    if (existingDrciID === 0) {
-      await context.octokit.issues.createComment({
-        body: drciComment,
+      const existingDrciData = await getDrciComment(
+        context,
+        prNum,
         owner,
-        repo,
-        issue_number: prNum,
-      });
-      context.log(
-        `Commenting with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
+        repo
       );
-    } else {
-      await context.octokit.issues.updateComment({
-        body: drciComment,
-        owner,
-        repo,
-        comment_id: existingDrciID,
-      });
-      context.log(
-        `Updated comment with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
-      );
+      const existingDrciID = existingDrciData.id;
+      const existingDrciComment = existingDrciData.body;
+
+      const drciComment = formDrciComment(prNum);
+
+      if (existingDrciComment === drciComment) {
+        return;
+      }
+
+      if (existingDrciID === 0) {
+        await context.octokit.issues.createComment({
+          body: drciComment,
+          owner,
+          repo,
+          issue_number: prNum,
+        });
+        context.log(
+          `Commenting with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
+        );
+      } else {
+        await context.octokit.issues.updateComment({
+          body: drciComment,
+          owner,
+          repo,
+          comment_id: existingDrciID,
+        });
+        context.log(
+          `Updated comment with "${drciComment}" for pull request ${context.payload.pull_request.html_url}`
+        );
+      }
     }
-  });
+  );
 }

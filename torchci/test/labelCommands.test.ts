@@ -1,7 +1,7 @@
 import nock from "nock";
 import * as probot from "probot";
 import * as utils from "./utils";
-import labelBot from "lib/bot/labelBot";
+import pytorchBot from "lib/bot/pytorchBot";
 
 nock.disableNetConnect();
 
@@ -12,7 +12,7 @@ describe("label-bot", () => {
 
   beforeEach(() => {
     probot = utils.testProbot();
-    probot.load(labelBot);
+    probot.load(pytorchBot);
   });
 
   afterEach(() => {
@@ -33,28 +33,6 @@ describe("label-bot", () => {
   test("random issue comment no event", async () => {
     const event = require("./fixtures/issue_comment.json");
     const scope = nock("https://api.github.com");
-    await probot.receive(event);
-    if (!scope.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
-    scope.done();
-  });
-
-  test("label comment on issue triggers comment with error", async () => {
-    const event = require("./fixtures/issue_comment.json");
-    event.payload.comment.body = "@pytorchbot label enhancement";
-
-    const owner = event.payload.repository.owner.login;
-    const repo = event.payload.repository.name;
-    const pr_number = event.payload.issue.number;
-    const scope = nock("https://api.github.com")
-      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
-        expect(JSON.stringify(body)).toContain(
-          '{"body":"Can add labels only to PRs, not issues"}'
-        );
-        return true;
-      })
-      .reply(200, {});
     await probot.receive(event);
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -98,7 +76,7 @@ describe("label-bot", () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body =
-      "@pytorchbot label enhancement,  good first issue   , test:111";
+      "@pytorchbot label enhancement  'good first issue'   test:111";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

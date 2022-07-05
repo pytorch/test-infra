@@ -5,8 +5,7 @@ import ciflowPushTrigger from "./ciflowPushTrigger";
 import webhookToDynamo from "./webhookToDynamo";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
-import mergeBot from "./mergeBot";
-import labelBot from "./labelBot";
+import pytorchBot from "./pytorchBot";
 import drciBot from "./drciBot";
 
 export default function bot(app: Probot) {
@@ -16,7 +15,6 @@ export default function bot(app: Probot) {
   ciflowPushTrigger(app);
   webhookToDynamo(app);
   triggerCircleCIWorkflows(app);
-  mergeBot(app);
-  labelBot(app);
+  pytorchBot(app);
   drciBot(app);
 }

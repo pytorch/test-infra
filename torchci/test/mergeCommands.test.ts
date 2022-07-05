@@ -1,7 +1,7 @@
 import nock from "nock";
 import * as probot from "probot";
 import * as utils from "./utils";
-import mergeBot from "../lib/bot/mergeBot";
+import pytorchBot from "../lib/bot/pytorchBot";
 
 function requireDeepCopy(fileName: string) {
   return JSON.parse(JSON.stringify(require(fileName)));
@@ -20,7 +20,7 @@ describe("merge-bot", () => {
 
   beforeEach(() => {
     probot = utils.testProbot();
-    probot.load(mergeBot);
+    probot.load(pytorchBot);
   });
 
   afterEach(() => {

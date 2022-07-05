@@ -1,16 +1,14 @@
 import { Probot } from "probot";
-import { addComment, reactOnComment } from "./botUtils";
-import { getHelp, getParser } from "./cliParser";
+import { addComment, addLabels, reactOnComment } from "./botUtils";
+import { getHelp, getParser, getInputArgs } from "./cliParser";
 import shlex from "shlex";
 
-function mergeBot(app: Probot): void {
-  const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
-
+function pytorchBot(app: Probot): void {
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
 
-  const landtimeChecksAllowlist = new Set(['landchecktestuser']);
+  const landtimeChecksAllowlist = new Set(["landchecktestuser"]);
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -102,6 +100,47 @@ function mergeBot(app: Probot): void {
         );
       }
     }
+
+    async function existingRepoLabels(): Promise<string[]> {
+      const labels = await ctx.octokit.paginate(
+        "GET /repos/{owner}/{repo}/labels",
+        {
+          owner: owner,
+          repo: repo,
+        }
+      );
+      return labels.map((d: any) => d.name);
+    }
+
+    async function handleLabel(labels: string[]) {
+      /**
+       * 1. Get all existing repo labels
+       * 2. Parse labels from command
+       * 3. Find valid and invalid labels
+       * 4. Add valid labels to pr, report invalid labels
+       */
+      const repoLabels = new Set(await existingRepoLabels());
+      // remove unnecessary spaces from labels
+      const labelsToAdd = labels.map((s: string) => s.trim());
+
+      const filteredLabels = labelsToAdd.filter((l: string) =>
+        repoLabels.has(l)
+      );
+      const invalidLabels = labelsToAdd.filter(
+        (l: string) => !repoLabels.has(l)
+      );
+      if (invalidLabels.length > 0) {
+        await addComment(
+          ctx,
+          "Didn't find following labels among repository labels: " +
+            invalidLabels.join(",")
+        );
+      }
+      if (filteredLabels.length > 0) {
+        await addLabels(ctx, filteredLabels);
+        await reactOnComment(ctx, "+1");
+      }
+    }
     const skipUsers = [
       54816060, // pytorch-bot
       97764156, // pytorchmergebot
@@ -111,21 +150,19 @@ function mergeBot(app: Probot): void {
       return;
     }
 
-    const match = commentBody.match(botCommandPattern);
-    if (!match) {
+    const inputArgs = getInputArgs(commentBody);
+    if (inputArgs.length == 0) {
       return;
     }
-
-    const command = match[0];
 
     if (!ctx.payload.issue.pull_request) {
       // Issue, not pull request.
       return await handleConfused();
     }
-    const inputArgs = command.replace(/@pytorch(merge|)bot/, "");
+
     let args;
-    const parser = getParser();
     try {
+      const parser = getParser();
       args = parser.parse_args(shlex.split(inputArgs));
     } catch (err: any) {
       // If the args are invalid, comment with the error + some help.
@@ -158,6 +195,9 @@ function mergeBot(app: Probot): void {
           args.branch = "viable/strict";
         }
         return await handleRebase(args.branch);
+      }
+      case "label": {
+        return await handleLabel(args.labels);
       }
       default:
         return await handleConfused();
@@ -203,4 +243,4 @@ function mergeBot(app: Probot): void {
   );
 }
 
-export default mergeBot;
+export default pytorchBot;
