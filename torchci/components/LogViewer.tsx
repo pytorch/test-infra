@@ -1,22 +1,25 @@
 import { basicSetup } from "@codemirror/basic-setup";
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { codeFolding, foldAll, foldService } from "@codemirror/language";
 import {
-  EditorView,
-  ViewUpdate,
-  ViewPlugin,
-  DecorationSet,
+  EditorSelection,
+  EditorState,
+  Range,
+  RangeSet,
+} from "@codemirror/state";
+import {
   Decoration,
+  DecorationSet,
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
 } from "@codemirror/view";
-import { RangeSet, Range } from "@codemirror/state";
-import { foldService, codeFolding, foldAll } from "@codemirror/language";
 import { parse } from "ansicolor";
 
+import { oneDark } from "@codemirror/theme-one-dark";
+import { isFailure } from "lib/JobClassifierUtil";
 import { JobData } from "lib/types";
 import { useEffect, useRef, useState } from "react";
 import useSWRImmutable from "swr";
-import { oneDark } from "@codemirror/theme-one-dark";
-import _, { unset } from "lodash";
-import { isFailure } from "lib/JobClassifierUtil";
 
 const ESC_CHAR_REGEX = /\x1b\[[0-9;]*m/g;
 // Based on the current editor view, produce a series of decorations that
