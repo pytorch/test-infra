@@ -176,8 +176,12 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
         if (labels.length === 0) {
           return ["module: unknown"];
         }
-        if (labels.some(x => x.startsWith("module: ") && x !== "module: unknown")) {
-          labels.push("triaged")
+        if (
+          labels.some(
+            (x) => x.startsWith("module: ") && x !== "module: unknown"
+          )
+        ) {
+          labels.push("triaged");
         }
         return labels;
       }

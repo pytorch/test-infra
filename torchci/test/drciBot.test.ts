@@ -18,29 +18,39 @@ describe("verify-drci-functionality", () => {
     nock.cleanAll();
     jest.restoreAllMocks();
   });
-  
+
   test("Dr. CI comments if user of PR is swang392", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "swang392"
+    payload["pull_request"]["user"]["login"] = "swang392";
 
     const scope = nock("https://api.github.com")
-      .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments", (body) => {
-        return true;
-      })
+      .get(
+        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        (body) => {
+          return true;
+        }
+      )
       .reply(200)
-      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments", (body) => {
-        const comment = body.body;
-        expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
-        expect(comment.includes("See artifacts and rendered test results")).toBeTruthy();
-        expect(comment.includes("Need help or want to give feedback on the CI?")).toBeTruthy();
-        expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
-        expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
-        return true;
-      })
+      .post(
+        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        (body) => {
+          const comment = body.body;
+          expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
+          expect(
+            comment.includes("See artifacts and rendered test results")
+          ).toBeTruthy();
+          expect(
+            comment.includes("Need help or want to give feedback on the CI?")
+          ).toBeTruthy();
+          expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
+          expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
+          return true;
+        }
+      )
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
@@ -52,9 +62,9 @@ describe("verify-drci-functionality", () => {
 
   test("Dr. CI does not comment when user of PR is swang392", async () => {
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "not_swang392"
+    payload["pull_request"]["user"]["login"] = "not_swang392";
 
-    const mock = jest.spyOn(botUtils, 'formDrciComment')
+    const mock = jest.spyOn(botUtils, "formDrciComment");
     mock.mockImplementation();
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
@@ -67,12 +77,15 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "swang392"
-    
+    payload["pull_request"]["user"]["login"] = "swang392";
+
     const scope = nock("https://api.github.com")
-      .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments", (body) => {
-        return true;
-      })
+      .get(
+        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        (body) => {
+          return true;
+        }
+      )
       .reply(200, [
         {
           id: comment_id,
@@ -85,14 +98,18 @@ describe("verify-drci-functionality", () => {
         (body) => {
           const comment = body.body;
           expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
-          expect(comment.includes("See artifacts and rendered test results")).toBeTruthy();
-          expect(comment.includes("Need help or want to give feedback on the CI?")).toBeTruthy();
+          expect(
+            comment.includes("See artifacts and rendered test results")
+          ).toBeTruthy();
+          expect(
+            comment.includes("Need help or want to give feedback on the CI?")
+          ).toBeTruthy();
           expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
           expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
           return true;
         }
       )
-      .reply(200)
+      .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     if (!nock.isDone()) {

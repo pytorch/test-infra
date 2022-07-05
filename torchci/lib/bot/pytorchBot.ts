@@ -8,7 +8,7 @@ function pytorchBot(app: Probot): void {
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
 
-  const landtimeChecksAllowlist = new Set(['landchecktestuser']);
+  const landtimeChecksAllowlist = new Set(["landchecktestuser"]);
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -123,8 +123,12 @@ function pytorchBot(app: Probot): void {
       // remove unnecessary spaces from labels
       const labelsToAdd = labels.map((s: string) => s.trim());
 
-      const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
-      const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
+      const filteredLabels = labelsToAdd.filter((l: string) =>
+        repoLabels.has(l)
+      );
+      const invalidLabels = labelsToAdd.filter(
+        (l: string) => !repoLabels.has(l)
+      );
       if (invalidLabels.length > 0) {
         await addComment(
           ctx,
@@ -135,7 +139,7 @@ function pytorchBot(app: Probot): void {
       if (filteredLabels.length > 0) {
         await addLabels(ctx, filteredLabels);
         await reactOnComment(ctx, "+1");
-    }
+      }
     }
     const skipUsers = [
       54816060, // pytorch-bot

@@ -113,12 +113,12 @@ parser.add_argument("-h", "--help", {
 const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
 
 export function getInputArgs(commentBody: string): string {
-    const match = commentBody.match(botCommandPattern);
-    if (!match) {
-      return "";
-    }
+  const match = commentBody.match(botCommandPattern);
+  if (!match) {
+    return "";
+  }
 
-    return match[0].replace(/@pytorch(merge|)bot/, "");
+  return match[0].replace(/@pytorch(merge|)bot/, "");
 }
 
 export function getParser() {
