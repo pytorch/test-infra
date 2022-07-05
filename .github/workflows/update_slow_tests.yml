@@ -7,30 +7,18 @@ on:
   # Have the ability to trigger this job manually
   workflow_dispatch:
 
+defaults:
+  run:
+    working-directory: torchci
 jobs:
   update-slow-stats:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.x
-          architecture: x64
-      - name: Checkout PyTorch
-        uses: actions/checkout@v2
-        with:
-          repository: pytorch/pytorch
-          fetch-depth: 0 # deep clone, to allow us to use git log
-      - name: Install dependencies
-        # mypy and boto3 versions copied from
-        # .circleci/docker/common/install_conda.sh
-        run: |
-          set -eux
-          pip install -r requirements.txt
-          pip install boto3==1.16.34
-      - name: Generate new slow test stats
-        run: |
-          python -m tools.stats.export_slow_tests -f slow-tests.json --ignore-small-diffs 0.1
+      - uses: actions/checkout@v3
+      - run: yarn install --frozen-lockfile
+      - run: yarn --silent node scripts/updateSlowTests.mjs > slow-tests.json
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
       - name: Push file to this repository
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
