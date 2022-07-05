@@ -91,12 +91,35 @@ branch_selection.add_argument("-b", "--branch", {
   help: "Branch you would like to rebase to",
 });
 
+const label = commands.add_parser("label", {
+  help: "Add label to a PR",
+  description: "Adds label to a PR",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+label.add_argument("labels", {
+  type: "string",
+  nargs: "+",
+  help: "Labels to add to given Pull Request",
+});
+
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
   help: "Show this help message and exit.",
   action: "store_true",
 });
+
+const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
+
+export function getInputArgs(commentBody: string): string {
+    const match = commentBody.match(botCommandPattern);
+    if (!match) {
+      return "";
+    }
+
+    return match[0].replace(/@pytorch(merge|)bot/, "");
+}
 
 export function getParser() {
   return parser;
@@ -116,5 +139,8 @@ ${revert.format_help()}\`\`\`
 ## Rebase
 \`\`\`
 ${rebase.format_help()}\`\`\`
+## Label
+\`\`\`
+${label.format_help()}\`\`\`
 `;
 }

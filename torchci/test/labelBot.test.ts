@@ -98,7 +98,7 @@ describe("label-bot", () => {
     const event = require("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body =
-      "@pytorchbot label enhancement,  good first issue   , test:111";
+      "@pytorchbot label enhancement  'good first issue'   test:111";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

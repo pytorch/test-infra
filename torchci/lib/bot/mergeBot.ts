@@ -1,11 +1,9 @@
 import { Probot } from "probot";
 import { addComment, reactOnComment } from "./botUtils";
-import { getHelp, getParser } from "./cliParser";
+import { getHelp, getParser, getInputArgs } from "./cliParser";
 import shlex from "shlex";
 
 function mergeBot(app: Probot): void {
-  const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
-
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
@@ -111,21 +109,19 @@ function mergeBot(app: Probot): void {
       return;
     }
 
-    const match = commentBody.match(botCommandPattern);
-    if (!match) {
+    const inputArgs = getInputArgs(commentBody);
+    if (inputArgs.length == 0) {
       return;
     }
-
-    const command = match[0];
 
     if (!ctx.payload.issue.pull_request) {
       // Issue, not pull request.
       return await handleConfused();
     }
-    const inputArgs = command.replace(/@pytorch(merge|)bot/, "");
+
     let args;
-    const parser = getParser();
     try {
+      const parser = getParser();
       args = parser.parse_args(shlex.split(inputArgs));
     } catch (err: any) {
       // If the args are invalid, comment with the error + some help.

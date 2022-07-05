@@ -1,12 +1,9 @@
 import { Probot } from "probot";
 import { reactOnComment, addComment, addLabels } from "./botUtils";
+import { getParser, getInputArgs } from "./cliParser";
+import shlex from "shlex";
 
 function labelBot(app: Probot): void {
-  // labels start with non space char \\w and follow by list of labels separated by comma
-  const labelCommand = new RegExp(
-    "@pytorchbot\\s+label\\s+(\\w[\\w\\s.:,&-/]+)"
-  );
-
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -23,6 +20,35 @@ function labelBot(app: Probot): void {
       return labels.map((d) => d.name);
     }
 
+    const inputArgs = getInputArgs(commentBody);
+    if (inputArgs.length == 0) {
+      return;
+    }
+
+    let args;
+    try {
+      const parser = getParser();
+      args = parser.parse_args(shlex.split(inputArgs));
+    } catch (err: any) {
+      // If the args are invalid, comment with the error + some help.
+      await addComment(
+        ctx,
+        "❌ 🤖 pytorchbot command failed: \n```\n" +
+          err.message +
+          "```\n" +
+          "Try `@pytorchbot --help` for more info."
+      );
+      return;
+    }
+
+    if (args.help) {
+      // Help will be printed by mergeBot
+      return;
+    }
+    if (args.command != "label") {
+      return;
+    }
+
     /**
      * 1. Check if it is a pull request
      * 2. Get all existing repo labels
@@ -30,10 +56,6 @@ function labelBot(app: Probot): void {
      * 4. Find valid and invalid labels
      * 5. Add valid labels to pr, report invalid labels
      */
-    const match = commentBody.match(labelCommand);
-    if (match == null) {
-      return;
-    }
     if (!ctx.payload.issue.pull_request) {
       // Issue, not pull request.
       await addComment(ctx, "Can add labels only to PRs, not issues");
@@ -41,10 +63,10 @@ function labelBot(app: Probot): void {
     }
     const repoLabels = new Set(await existingRepoLabels());
     // remove unnecessary spaces from labels
-    const labelsToAdd = match[1].split(",").map((s) => s.trim());
+    const labelsToAdd = args.labels.map((s: string) => s.trim());
 
-    const filteredLabels = labelsToAdd.filter((l) => repoLabels.has(l));
-    const invalidLabels = labelsToAdd.filter((l) => !repoLabels.has(l));
+    const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
+    const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
     if (invalidLabels.length > 0) {
       await addComment(
         ctx,
