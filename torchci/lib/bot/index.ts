@@ -6,7 +6,6 @@ import webhookToDynamo from "./webhookToDynamo";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import pytorchBot from "./pytorchBot";
-import labelBot from "./labelBot";
 import drciBot from "./drciBot";
 
 export default function bot(app: Probot) {
@@ -17,6 +16,5 @@ export default function bot(app: Probot) {
   webhookToDynamo(app);
   triggerCircleCIWorkflows(app);
   pytorchBot(app);
-  labelBot(app);
   drciBot(app);
 }
