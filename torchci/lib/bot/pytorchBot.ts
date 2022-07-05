@@ -3,7 +3,7 @@ import { addComment, reactOnComment } from "./botUtils";
 import { getHelp, getParser, getInputArgs } from "./cliParser";
 import shlex from "shlex";
 
-function mergeBot(app: Probot): void {
+function pytorchBot(app: Probot): void {
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
@@ -199,4 +199,4 @@ function mergeBot(app: Probot): void {
   );
 }
 
-export default mergeBot;
+export default pytorchBot;
