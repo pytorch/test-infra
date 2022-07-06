@@ -56,6 +56,7 @@ export async function scaleDown(): Promise<void> {
       environment: environment,
     })
   ).sort((a, b): number => {
+    if (a.launchTime === undefined && b.launchTime === undefined) return 0;
     if (a.launchTime === undefined) return 1;
     if (b.launchTime === undefined) return 1;
     if (a.launchTime < b.launchTime) return 1;

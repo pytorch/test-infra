@@ -1,11 +1,12 @@
 import moment from 'moment';
 import { mocked } from 'ts-jest/utils';
-import { listRunners, terminateRunner } from './runners';
+import { listRunners, terminateRunner, listGithubRunners } from './runners';
 import { scaleDown } from './scale-down';
 
 jest.mock('@octokit/auth-app', () => ({
   createAppAuth: jest.fn().mockImplementation(() => jest.fn().mockImplementation(() => ({ token: 'Blaat' }))),
 }));
+
 const mockOctokit = {
   apps: {
     getOrgInstallation: jest.fn(),
@@ -23,7 +24,14 @@ jest.mock('@octokit/rest', () => ({
   Octokit: jest.fn().mockImplementation(() => mockOctokit),
 }));
 
-jest.mock('./runners');
+jest.mock('./runners', () => ({
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  ...jest.requireActual('./runners') as any,
+  createRunner: jest.fn(),
+  listRunners: jest.fn(),
+  terminateRunner: jest.fn(),
+  listGithubRunners: jest.fn(),
+}));
 
 export interface TestData {
   repositoryName: string;
@@ -88,15 +96,44 @@ const DEFAULT_RUNNERS = [
   },
 ];
 
+const DEFAULT_GH_RUNNERS = [
+  {
+    id: 123,
+    name: 'i-idle-101',
+    busy: false,
+    os: 'os',
+    status: 'status',
+    labels: [],
+  },
+  {
+    id: 123,
+    name: 'i-oldest-idle-102',
+    busy: false,
+    os: 'os',
+    status: 'status',
+    labels: [],
+  },
+  {
+    id: 123,
+    name: 'i-running-103',
+    busy: true,
+    os: 'os',
+    status: 'status',
+    labels: [],
+  },
+  {
+    id: 123,
+    name: 'i-not-registered-105',
+    busy: false,
+    os: 'os',
+    status: 'status',
+    labels: [],
+  },
+];
+
 const DEFAULT_RUNNERS_TO_BE_REMOVED = DEFAULT_RUNNERS.filter(
   (r) => r.instanceId.includes('idle') || r.instanceId.includes('orphan'),
 );
-
-const RUNNERS_WITH_AUTO_SCALING_CONFIG = DEFAULT_RUNNERS.filter(
-  (r) => r.instanceId.includes('idle') || r.instanceId.includes('running'),
-);
-
-const RUNNERS_TO_BE_REMOVED_WITH_AUTO_SCALING_CONFIG = DEFAULT_RUNNERS.filter((r) => r.instanceId.includes('oldest'));
 
 const DEFAULT_REGISTERED_RUNNERS = [
   {
@@ -122,7 +159,9 @@ describe('scaleDown', () => {
     process.env.RUNNERS_MAXIMUM_COUNT = '3';
     process.env.ENVIRONMENT = environment;
     process.env.MINIMUM_RUNNING_TIME_IN_MINUTES = minimumRunningTimeInMinutes.toString();
+
     jest.clearAllMocks();
+
     mockOctokit.apps.getOrgInstallation.mockImplementation(() => ({
       data: {
         id: 'ORG',
@@ -133,11 +172,9 @@ describe('scaleDown', () => {
         id: 'REPO',
       },
     }));
-
     mockOctokit.paginate.mockImplementationOnce(() => {
       return DEFAULT_REGISTERED_RUNNERS;
     });
-
     mockOctokit.actions.deleteSelfHostedRunnerFromRepo.mockImplementation((repo) => {
       if (repo.runner_id === 103) {
         throw Error();
@@ -187,9 +224,15 @@ describe('scaleDown', () => {
     beforeAll(() => {
       process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
       process.env.SCALE_DOWN_CONFIG = '[]';
+
       const mockListRunners = mocked(listRunners);
       mockListRunners.mockImplementation(async () => {
         return DEFAULT_RUNNERS;
+      });
+
+      const mockListGithubRunners = mocked(listGithubRunners);
+      mockListGithubRunners.mockImplementation(async () => {
+        return DEFAULT_GH_RUNNERS;
       });
     });
 
@@ -200,30 +243,6 @@ describe('scaleDown', () => {
       });
 
       expect(mockOctokit.apps.getRepoInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(3);
-      for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
-  describe('on org level', () => {
-    beforeAll(() => {
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-      process.env.SCALE_DOWN_CONFIG = '[]';
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return DEFAULT_RUNNERS;
-      });
-    });
-
-    it('Terminate 3 of 5 runners for org.', async () => {
-      await scaleDown();
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
       expect(terminateRunner).toBeCalledTimes(3);
       for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
         expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
@@ -250,77 +269,6 @@ describe('scaleDown', () => {
       expect(mockOctokit.apps.getRepoInstallation).toBeCalled();
       expect(terminateRunner).toBeCalledTimes(3);
       for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
-  describe('on org level', () => {
-    beforeAll(() => {
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-      process.env.SCALE_DOWN_CONFIG = '[]';
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return DEFAULT_RUNNERS;
-      });
-    });
-
-    it('Terminate 3 of 5 runners for org.', async () => {
-      await scaleDown();
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(3);
-      for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
-  describe('Have runners idle.', () => {
-    beforeAll(() => {
-      process.env.SCALE_DOWN_CONFIG = JSON.stringify([
-        {
-          idleCount: 2,
-          cron: '* * * * * *',
-          timeZone: 'Europe/Amsterdam',
-        },
-      ]);
-
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return RUNNERS_WITH_AUTO_SCALING_CONFIG;
-      });
-    });
-
-    it('Terminate 1 of runners for org.', async () => {
-      await scaleDown();
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(1);
-      for (const toTerminate of RUNNERS_TO_BE_REMOVED_WITH_AUTO_SCALING_CONFIG) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-
-    it('Terminate 1 of runners for repo.', async () => {
-      await scaleDown();
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
-
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(1);
-      for (const toTerminate of RUNNERS_TO_BE_REMOVED_WITH_AUTO_SCALING_CONFIG) {
         expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
       }
     });
@@ -422,30 +370,6 @@ describe('scaleDown ghes', () => {
     });
   });
 
-  describe('on org level', () => {
-    beforeAll(() => {
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-      process.env.SCALE_DOWN_CONFIG = '[]';
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return DEFAULT_RUNNERS;
-      });
-    });
-
-    it('Terminate 3 of 5 runners for org.', async () => {
-      await scaleDown();
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(3);
-      for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
   describe('on repo level', () => {
     beforeAll(() => {
       process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
@@ -465,77 +389,6 @@ describe('scaleDown ghes', () => {
       expect(mockOctokit.apps.getRepoInstallation).toBeCalled();
       expect(terminateRunner).toBeCalledTimes(3);
       for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
-  describe('on org level', () => {
-    beforeAll(() => {
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-      process.env.SCALE_DOWN_CONFIG = '[]';
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return DEFAULT_RUNNERS;
-      });
-    });
-
-    it('Terminate 3 of 5 runners for org.', async () => {
-      await scaleDown();
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(3);
-      for (const toTerminate of DEFAULT_RUNNERS_TO_BE_REMOVED) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-  });
-
-  describe('Have runners idle.', () => {
-    beforeAll(() => {
-      process.env.SCALE_DOWN_CONFIG = JSON.stringify([
-        {
-          idleCount: 2,
-          cron: '* * * * * *',
-          timeZone: 'Europe/Amsterdam',
-        },
-      ]);
-
-      const mockListRunners = mocked(listRunners);
-      mockListRunners.mockImplementation(async () => {
-        return RUNNERS_WITH_AUTO_SCALING_CONFIG;
-      });
-    });
-
-    it('Terminate 1 of runners for org.', async () => {
-      await scaleDown();
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
-
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(1);
-      for (const toTerminate of RUNNERS_TO_BE_REMOVED_WITH_AUTO_SCALING_CONFIG) {
-        expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
-      }
-    });
-
-    it('Terminate 1 of runners for repo.', async () => {
-      await scaleDown();
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
-
-      expect(listRunners).toBeCalledWith({
-        environment: environment,
-      });
-
-      expect(mockOctokit.apps.getOrgInstallation).toBeCalled();
-      expect(terminateRunner).toBeCalledTimes(1);
-      for (const toTerminate of RUNNERS_TO_BE_REMOVED_WITH_AUTO_SCALING_CONFIG) {
         expect(terminateRunner).toHaveBeenCalledWith(toTerminate);
       }
     });

@@ -1,5 +1,4 @@
-import { listRunners, RunnerInfo, createRunner } from './runners';
-import { EC2, SSM } from 'aws-sdk';
+import { listRunners, createRunner } from './runners';
 
 const mockEC2 = { describeInstances: jest.fn(), runInstances: jest.fn() };
 const mockSSM = { putParameter: jest.fn() };
@@ -113,7 +112,11 @@ describe('list instances', () => {
 describe('create runner', () => {
   const mockRunInstances = { promise: jest.fn() };
   const mockPutParameter = { promise: jest.fn() };
+
+  const oldEnv = process.env;
+
   beforeEach(() => {
+    jest.resetModules();
     jest.clearAllMocks();
     mockEC2.runInstances.mockImplementation(() => mockRunInstances);
     mockRunInstances.promise.mockReturnValue({
@@ -124,13 +127,22 @@ describe('create runner', () => {
       ],
     });
     mockSSM.putParameter.mockImplementation(() => mockPutParameter);
-    process.env.LAUNCH_TEMPLATE_NAME = 'launch-template-name';
-    process.env.LAUNCH_TEMPLATE_VERSION = '1';
-    process.env.SUBNET_IDS = 'sub-1234';
+    process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'launch-template-name-linux';
+    process.env.LAUNCH_TEMPLATE_VERSION_LINUX = '1-linux';
+
+    process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'launch-template-name-windows';
+    process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = '1-windows';
+
+    process.env.SUBNET_IDS = 'sub-1234,sub-4321';
+    process.env.SECURITY_GROUP_IDS = '123,321,456,654';
   });
 
-  it('calls run instances with the correct config for repo', async () => {
-    await createRunner({
+  afterEach(() => {
+    process.env = oldEnv;
+  });
+
+  it('calls run instances with the correct config for repo && linux', async () => {
+    const runnerParameters = {
       runnerConfig: 'bla',
       environment: 'unit-test-env',
       repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -143,50 +155,108 @@ describe('create runner', () => {
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
-    });
+    };
+
+    await createRunner(runnerParameters);
+
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
       MinCount: 1,
-      LaunchTemplate: { LaunchTemplateName: 'launch-template-name', Version: '1' },
-      SubnetId: 'sub-1234',
+      LaunchTemplate: {
+        LaunchTemplateName: process.env.LAUNCH_TEMPLATE_NAME_LINUX,
+        Version: process.env.LAUNCH_TEMPLATE_VERSION_LINUX,
+      },
+      InstanceType: runnerParameters.runnerType.instance_type,
+      BlockDeviceMappings: [
+        {
+          DeviceName: '/dev/xvda',
+          Ebs: {
+            VolumeSize: runnerParameters.runnerType.disk_size,
+            VolumeType: 'gp3',
+            Encrypted: true,
+            DeleteOnTermination: true,
+          },
+        },
+      ],
+      NetworkInterfaces: [
+        {
+          AssociatePublicIpAddress: true,
+          SubnetId: (process.env.SUBNET_IDS as string).split(',').pop(),
+          Groups: (process.env.SECURITY_GROUP_IDS as string).split(','),
+          DeviceIndex: 0,
+        },
+      ],
       TagSpecifications: [
         {
           ResourceType: 'instance',
           Tags: [
             { Key: 'Application', Value: 'github-action-runner' },
-            { Key: 'Repo', Value: 'SomeAwesomeCoder/some-amazing-library' },
+            {
+              Key: 'Repo',
+              Value: runnerParameters.repoName,
+            },
+            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
           ],
         },
       ],
     });
   });
 
-  it('calls run instances with the correct config for org', async () => {
-    await createRunner({
+  it('calls run instances with the correct config for org && windows', async () => {
+    const runnerParameters = {
       runnerConfig: 'bla',
       environment: 'unit-test-env',
       repoName: undefined,
       orgName: 'SomeAwesomeCoder',
       runnerType: {
         instance_type: 'c5.2xlarge',
-        os: 'linux',
+        os: 'windows',
         max_available: 200,
         disk_size: 100,
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
-    });
+    };
+
+    await createRunner(runnerParameters);
+
     expect(mockEC2.runInstances).toBeCalledWith({
       MaxCount: 1,
       MinCount: 1,
-      LaunchTemplate: { LaunchTemplateName: 'launch-template-name', Version: '1' },
-      SubnetId: 'sub-1234',
+      LaunchTemplate: {
+        LaunchTemplateName: process.env.LAUNCH_TEMPLATE_NAME_WINDOWS,
+        Version: process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS,
+      },
+      InstanceType: runnerParameters.runnerType.instance_type,
+      BlockDeviceMappings: [
+        {
+          DeviceName: '/dev/sda1',
+          Ebs: {
+            VolumeSize: runnerParameters.runnerType.disk_size,
+            VolumeType: 'gp3',
+            Encrypted: true,
+            DeleteOnTermination: true,
+          },
+        },
+      ],
+      NetworkInterfaces: [
+        {
+          AssociatePublicIpAddress: true,
+          SubnetId: (process.env.SUBNET_IDS as string).split(',').pop(),
+          Groups: (process.env.SECURITY_GROUP_IDS as string).split(','),
+          DeviceIndex: 0,
+        },
+      ],
       TagSpecifications: [
         {
           ResourceType: 'instance',
           Tags: [
             { Key: 'Application', Value: 'github-action-runner' },
-            { Key: 'Org', Value: 'SomeAwesomeCoder' },
+            {
+              Key: 'Org',
+              Value: runnerParameters.orgName,
+            },
+            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
           ],
         },
       ],

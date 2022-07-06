@@ -150,6 +150,7 @@ async function allRunnersBusy(
   }
   // Have a fail safe just in case we're likely to need more runners
   if (availableCount < NUM_ALLOWED_TO_BE_AVAILABLE) {
+    console.info(`Available (${availableCount}) runners is bellow minimum hardcoded ${NUM_ALLOWED_TO_BE_AVAILABLE}`)
     return true;
   }
 
@@ -168,7 +169,6 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
   console.debug(`[GetRunnerTypes] Grabbing runnerTypes`);
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
-
   const response = await githubAppClient.repos.getContent({
     owner: org,
     repo: repo.split('/')[1],
