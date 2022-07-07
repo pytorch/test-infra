@@ -45,7 +45,7 @@ file_duration_per_job AS (
         job.id
 )
 SELECT
-    file,
+    REPLACE(file, '.', '/') AS file,
     REGEXP_EXTRACT(name, '^(.*) /', 1) as base_name,
     REGEXP_EXTRACT(name, '/ test \((\w*),', 1) as test_config,
     AVG(time) as time
