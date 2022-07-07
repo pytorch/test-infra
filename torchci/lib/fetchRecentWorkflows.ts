@@ -3,7 +3,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 
 import { RecentWorkflowsData } from "./types";
 
-export default async function fetchFlakyTests(
+export default async function fetchRecentWorkflows(
   numMinutes: string = "60"
 ): Promise<RecentWorkflowsData[]> {
   const rocksetClient = getRocksetClient();
