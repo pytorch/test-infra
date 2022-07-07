@@ -169,16 +169,17 @@ async function GetRunnerTypes(org: string, repo: string, enableOrgLevel: boolean
   console.debug(`[GetRunnerTypes] Grabbing runnerTypes`);
 
   const githubAppClient = await createGitHubClientForRunner(org, repo, enableOrgLevel);
+  // For org enabled runners we use ${org}/.github as the repository to hold the singular configuration
+  const configRepository = enableOrgLevel ? '.github' : repo.split('/')[1];
   const response = await githubAppClient.repos.getContent({
     owner: org,
-    repo: repo.split('/')[1],
+    repo: configRepository,
     path: '.github/scale-config.yml',
   });
-
   const { content } = { ...response.data };
 
-  if (!content) {
-    throw Error('Could not retrieve .github/scale-config.yml');
+  if (response.status != 200 || !content) {
+    throw Error(`Issue (${response.status}) retrieving '.github/scale-config.yml' for https://github.com/${org}/${configRepository}/`);
   }
 
   const buff = Buffer.from(content, 'base64');
