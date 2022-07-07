@@ -89,6 +89,15 @@ export interface FlakyTestData {
   branches: string[];
 }
 
+export interface RecentWorkflowsData {
+  name: string;
+  conclusion: string;
+  completed_at: string;
+  html_url: string;
+  head_sha: string;
+  number: number;
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
