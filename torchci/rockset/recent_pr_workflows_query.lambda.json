@@ -1,0 +1,11 @@
+{
+    "sql_path": "__sql/recent_pr_workflows_query.sql",
+    "default_parameters": [
+      {
+        "name": "numMinutes",
+        "type": "int",
+        "value": "60"
+      }
+    ],
+    "description": "retrieve the CI check results in the past N minutes"
+  }
