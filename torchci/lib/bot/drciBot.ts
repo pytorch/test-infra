@@ -30,8 +30,8 @@ async function getDrciComment(
 }
 
 export function formDrciComment(prNum: number): string {
-  let body = "# :link: Helpful Links\n";
-  body += `* :test_tube: See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
+  let body = "## :link: Helpful Links\n";
+  body += `### :test_tube: See artifacts and rendered test results [here](${hudUrl}${prNum})\n`;
   body += `* :page_facing_up: Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})\n`;
   body += `* :page_facing_up: Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})\n`;
   body += `* :question: Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})\n`;
