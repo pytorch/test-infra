@@ -38,11 +38,11 @@ Switch ($cudaVersion) {
       "11.3" {
         $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
       }
-      "11.5" {
-        $toolkitInstaller = "cuda_11.5.0_496.13_win10.exe"
-      }
       "11.6" {
         $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
+      }
+      "11.7" {
+        $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
       }
     }
 
