@@ -96,6 +96,8 @@ export interface RecentWorkflowsData {
   html_url: string;
   head_sha: string;
   number: number;
+  ref: string;
+  login: string;
 }
 
 export function packHudParams(input: any) {

@@ -5,6 +5,8 @@ select
     w.html_url,
     w.head_sha,
     p.number,
+    p.head.ref,
+    p.user.login
 from
     commons.workflow_job w inner join commons.pull_request p on w.head_sha = p.head.sha   
 where
@@ -15,4 +17,6 @@ group by
     completed_at,
     html_url,
     head_sha,
-    number
+    number,
+    ref,
+    login
