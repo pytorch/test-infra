@@ -6084,7 +6084,7 @@
       "author_association": "MEMBER",
       "body": "This test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_proper_exit%2C%20TestDataLoader)).\n\ncc @ezyang @gchanan @zou3519 @bdhirsh @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/comments",
       "created_at": "2021-12-30T05:51:42Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/events",
@@ -6143,7 +6143,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/timeline",
       "title": "DISABLED test_proper_exit (__main__.TestDataLoader)",
-      "updated_at": "2022-07-11T10:15:31Z",
+      "updated_at": "2022-07-11T14:14:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70517",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
