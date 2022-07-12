@@ -191,7 +191,6 @@ function pytorchBot(app: Probot): void {
       return await addComment(ctx, getHelp());
     }
     if (args.approve) {
-      console.log("HANDLING APPROVAL");
       return await handleApprove();
     }
     switch (args.command) {
