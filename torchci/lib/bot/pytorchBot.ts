@@ -101,6 +101,17 @@ function pytorchBot(app: Probot): void {
       }
     }
 
+    async function handleApprove() {
+      if (repo === "pytorch-canary") {
+        ctx.octokit.pulls.createReview({
+          owner,
+          repo,
+          pull_number: prNum,
+          event: "APPROVE",
+        });
+      }
+    }
+
     async function existingRepoLabels(): Promise<string[]> {
       const labels = await ctx.octokit.paginate(
         "GET /repos/{owner}/{repo}/labels",
@@ -198,6 +209,9 @@ function pytorchBot(app: Probot): void {
       }
       case "label": {
         return await handleLabel(args.labels);
+      }
+      case "approve": {
+        return await handleApprove();
       }
       default:
         return await handleConfused();
