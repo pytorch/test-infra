@@ -6110,6 +6110,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -6143,7 +6152,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/70517/timeline",
       "title": "DISABLED test_proper_exit (__main__.TestDataLoader)",
-      "updated_at": "2022-07-12T13:37:55Z",
+      "updated_at": "2022-07-12T16:34:59Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/70517",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1617424?v=4",
@@ -22882,7 +22891,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_success_non_blocking&suite=ForkTest&file=test_multiprocessing_spawn.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7286770748).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81280/comments",
       "created_at": "2022-07-11T21:40:52Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81280/events",
@@ -22941,7 +22950,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81280/timeline",
       "title": "DISABLED test_success_non_blocking (__main__.ForkTest)",
-      "updated_at": "2022-07-11T21:40:53Z",
+      "updated_at": "2022-07-12T16:44:14Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81280",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
