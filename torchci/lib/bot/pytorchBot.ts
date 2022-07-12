@@ -103,7 +103,7 @@ function pytorchBot(app: Probot): void {
 
     async function handleApprove() {
       if (repo === "pytorch-canary") {
-        ctx.octokit.pulls.createReview({
+        return await ctx.octokit.pulls.createReview({
           owner,
           repo,
           pull_number: prNum,
@@ -190,6 +190,10 @@ function pytorchBot(app: Probot): void {
     if (args.help) {
       return await addComment(ctx, getHelp());
     }
+    if (args.approve) {
+      console.log("HANDLING APPROVAL");
+      return await handleApprove();
+    }
     switch (args.command) {
       case "revert":
         return await handleRevert(args.message);
@@ -209,9 +213,6 @@ function pytorchBot(app: Probot): void {
       }
       case "label": {
         return await handleLabel(args.labels);
-      }
-      case "approve": {
-        return await handleApprove();
       }
       default:
         return await handleConfused();

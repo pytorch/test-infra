@@ -107,7 +107,7 @@ label.add_argument("labels", {
 parser.add_argument("-approve", "--approve", {
   help: SUPPRESS,
   required: false,
-  default: SUPPRESS,
+  action: "store_true",
 });
 
 // Help

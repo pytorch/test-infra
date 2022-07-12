@@ -733,4 +733,25 @@ some other text lol
 
     handleScope(scope);
   });
+
+  test("Approve using CLI", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.repository.name = "pytorch-canary";
+    event.payload.comment.body = "@pytorchbot --approve";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event":"APPROVE"}`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
 });
