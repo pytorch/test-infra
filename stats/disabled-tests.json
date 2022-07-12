@@ -20842,7 +20842,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_scalars&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_scalars&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81200/comments",
@@ -20851,6 +20851,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81200",
       "id": 1300461090,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -20877,6 +20886,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81200/labels{/name}",
@@ -20903,7 +20921,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81200/timeline",
       "title": "DISABLED test_scalars (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:22Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81200",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -20931,7 +20949,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_resize_larger_valid&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_resize_larger_valid&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81201/comments",
@@ -20940,6 +20958,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81201",
       "id": 1300461093,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -20966,6 +20993,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81201/labels{/name}",
@@ -20992,7 +21028,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81201/timeline",
       "title": "DISABLED test_resize_larger_valid (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:53:14Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81201",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21020,7 +21056,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_only_one_view&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_only_one_view&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81202/comments",
@@ -21029,6 +21065,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81202",
       "id": 1300461092,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21055,6 +21100,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81202/labels{/name}",
@@ -21081,7 +21135,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81202/timeline",
       "title": "DISABLED test_only_one_view (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:56Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81202",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21109,7 +21163,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_view_inplace&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_view_inplace&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81203/comments",
@@ -21118,6 +21172,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81203",
       "id": 1300461094,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21144,6 +21207,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81203/labels{/name}",
@@ -21170,7 +21242,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81203/timeline",
       "title": "DISABLED test_view_inplace (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:58:02Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81203",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21198,7 +21270,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_inplace_on_non_view&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_inplace_on_non_view&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81204/comments",
@@ -21207,6 +21279,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81204",
       "id": 1300461095,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21233,6 +21314,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81204/labels{/name}",
@@ -21259,7 +21349,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81204/timeline",
       "title": "DISABLED test_inplace_on_non_view (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:55:04Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81204",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21287,7 +21377,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_fill_&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_fill_&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81205/comments",
@@ -21296,6 +21386,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81205",
       "id": 1300461096,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21322,6 +21421,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81205/labels{/name}",
@@ -21348,7 +21456,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81205/timeline",
       "title": "DISABLED test_fill_ (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81205",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21376,7 +21484,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_copy_&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_copy_&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81206/comments",
@@ -21385,6 +21493,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81206",
       "id": 1300461097,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21411,6 +21528,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81206/labels{/name}",
@@ -21437,7 +21563,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81206/timeline",
       "title": "DISABLED test_copy_ (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:58:14Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81206",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21465,7 +21591,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_optional_tensor_list&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_optional_tensor_list&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81207/comments",
@@ -21474,6 +21600,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81207",
       "id": 1300461098,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21500,6 +21635,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81207/labels{/name}",
@@ -21526,7 +21670,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81207/timeline",
       "title": "DISABLED test_optional_tensor_list (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:58:20Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81207",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21554,7 +21698,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_mutable_op_not_inplace_or_other&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_mutable_op_not_inplace_or_other&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81208/comments",
@@ -21563,6 +21707,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81208",
       "id": 1300461099,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21589,6 +21742,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81208/labels{/name}",
@@ -21615,7 +21777,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81208/timeline",
       "title": "DISABLED test_mutable_op_not_inplace_or_other (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:52:24Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81208",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21643,7 +21805,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_resize_smaller&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_resize_smaller&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81209/comments",
@@ -21652,6 +21814,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81209",
       "id": 1300461100,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21678,6 +21849,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81209/labels{/name}",
@@ -21704,7 +21884,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81209/timeline",
       "title": "DISABLED test_resize_smaller (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:54:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81209",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21732,7 +21912,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_as_strided&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_as_strided&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81210/comments",
@@ -21741,6 +21921,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81210",
       "id": 1300461101,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21767,6 +21956,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81210/labels{/name}",
@@ -21793,7 +21991,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81210/timeline",
       "title": "DISABLED test_as_strided (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:54:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81210",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21821,7 +22019,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_diagonal&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_diagonal&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81211/comments",
@@ -21830,6 +22028,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81211",
       "id": 1300461102,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21856,6 +22063,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81211/labels{/name}",
@@ -21882,7 +22098,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81211/timeline",
       "title": "DISABLED test_diagonal (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:53:22Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81211",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21910,15 +22126,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple_out&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple_out&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
-      "comments": 3,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81212/comments",
       "created_at": "2022-07-11T09:42:39Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81212/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/81212",
       "id": 1300461103,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -21945,6 +22170,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81212/labels{/name}",
@@ -21971,7 +22205,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81212/timeline",
       "title": "DISABLED test_simple_out (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:53:47Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81212",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21999,7 +22233,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_trace_dependencies&suite=test_analyze.TestAnalyze&file=package/test_analyze.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940320).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_trace_dependencies&suite=test_analyze.TestAnalyze&file=package/test_analyze.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940320).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/comments",
@@ -22008,6 +22242,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81213",
       "id": 1300461105,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22034,6 +22277,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/labels{/name}",
@@ -22060,7 +22312,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/timeline",
       "title": "DISABLED test_trace_dependencies (test_analyze.TestAnalyze)",
-      "updated_at": "2022-07-11T15:42:07Z",
+      "updated_at": "2022-07-12T16:54:48Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81213",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22088,7 +22340,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_split&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_split&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81214/comments",
@@ -22097,6 +22349,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81214",
       "id": 1300461106,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22123,6 +22384,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81214/labels{/name}",
@@ -22149,7 +22419,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81214/timeline",
       "title": "DISABLED test_split (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:50Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81214",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22177,7 +22447,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_tensor_list_composite&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_tensor_list_composite&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81215/comments",
@@ -22186,6 +22456,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81215",
       "id": 1300461107,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22212,6 +22491,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81215/labels{/name}",
@@ -22238,7 +22526,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81215/timeline",
       "title": "DISABLED test_tensor_list_composite (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:54:16Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81215",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22266,7 +22554,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_cat&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_cat&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81216/comments",
@@ -22275,6 +22563,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81216",
       "id": 1300461108,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22301,6 +22598,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81216/labels{/name}",
@@ -22327,7 +22633,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81216/timeline",
       "title": "DISABLED test_cat (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:42Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81216",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22355,7 +22661,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multi_out&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multi_out&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81217/comments",
@@ -22364,6 +22670,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81217",
       "id": 1300461110,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22390,6 +22705,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81217/labels{/name}",
@@ -22416,7 +22740,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81217/timeline",
       "title": "DISABLED test_multi_out (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:53:57Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81217",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22444,7 +22768,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_reapply_views_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_reapply_views_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81218/comments",
@@ -22453,6 +22777,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81218",
       "id": 1300461112,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22479,6 +22812,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81218/labels{/name}",
@@ -22505,7 +22847,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81218/timeline",
       "title": "DISABLED test_reapply_views_simple (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:58:08Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81218",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22533,7 +22875,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multiple_levels_of_wrapping&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multiple_levels_of_wrapping&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81219/comments",
@@ -22542,6 +22884,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81219",
       "id": 1300461111,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22568,6 +22919,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81219/labels{/name}",
@@ -22594,7 +22954,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81219/timeline",
       "title": "DISABLED test_multiple_levels_of_wrapping (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:54:06Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81219",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22622,7 +22982,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_everything&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_everything&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81220/comments",
@@ -22631,6 +22991,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81220",
       "id": 1300461113,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22657,6 +23026,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81220/labels{/name}",
@@ -22683,7 +23061,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81220/timeline",
       "title": "DISABLED test_everything (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:57:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81220",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22711,7 +23089,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/comments",
@@ -22720,6 +23098,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81221",
       "id": 1300461114,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22746,6 +23133,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/labels{/name}",
@@ -22772,7 +23168,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/timeline",
       "title": "DISABLED test_simple (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:06Z",
+      "updated_at": "2022-07-12T16:54:55Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81221",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22800,7 +23196,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_mixed_wrappers_valid&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_mixed_wrappers_valid&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81222/comments",
@@ -22809,6 +23205,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81222",
       "id": 1300461115,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22835,6 +23240,15 @@
           "name": "module: unknown",
           "node_id": "LA_kwDOA-j9z87Qog-v",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81222/labels{/name}",
@@ -22861,7 +23275,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81222/timeline",
       "title": "DISABLED test_mixed_wrappers_valid (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-11T15:42:08Z",
+      "updated_at": "2022-07-12T16:53:30Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81222",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22898,6 +23312,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/81280",
       "id": 1301256652,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -22950,7 +23373,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81280/timeline",
       "title": "DISABLED test_success_non_blocking (__main__.ForkTest)",
-      "updated_at": "2022-07-12T16:44:14Z",
+      "updated_at": "2022-07-12T16:45:35Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81280",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
