@@ -28,11 +28,7 @@ Switch ($cudaVersion) {
     $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
     $cudnnZip = "cudnn-10.2-windows10-x64-v7.6.5.32.zip"
   }
-  "11.1" {
-    $toolkitInstaller = "cuda_11.1.0_456.43_win10.exe"
-    $cudnnZip = "cudnn-11.1-windows-x64-v8.0.5.39.zip"
-  }
-  {($_ -eq "11.3") -or ($_ -eq "11.5") -or ($_ -eq "11.6")} {
+  {($_ -eq "11.3") -or ($_ -eq "11.6") -or ($_ -eq "11.7")} {
 
     Switch ($cudaVersion) {
       "11.3" {
