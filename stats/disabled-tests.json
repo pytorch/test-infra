@@ -1456,7 +1456,7 @@
           "url": "https://api.github.com/users/H-Huang"
         }
       ],
-      "author_association": "COLLABORATOR",
+      "author_association": "CONTRIBUTOR",
       "body": "https://app.circleci.com/jobs/github/pytorch/pytorch/14298550?utm_campaign=vcs-integration-link&utm_medium=referral&utm_source=github-build-link\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @jjlilley @mrzzd @agolynski @cbalioglu @gcramer23",
       "closed_at": null,
       "comments": 1,
