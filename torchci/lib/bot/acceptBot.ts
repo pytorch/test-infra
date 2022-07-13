@@ -26,14 +26,8 @@ function acceptBot(app: Probot): void {
       const repo = ctx.payload.repository.name;
       const issue_number = ctx.payload.pull_request.number;
 
-      const hasAcceptToRun = containsLabel(
-        ctx.payload.pull_request.labels,
-        ACCEPT_2_RUN
-      );
-      const hasAcceptToShip = containsLabel(
-        ctx.payload.pull_request.labels,
-        ACCEPT_2_RUN
-      );
+      const hasAcceptToRun = containsLabel(labels, ACCEPT_2_RUN);
+      const hasAcceptToShip = containsLabel(labels, ACCEPT_2_SHIP);
 
       if (hasAcceptToRun) {
         ctx.octokit.issues.addLabels({
