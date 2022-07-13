@@ -47,6 +47,13 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
       installationId = 0;
     }
     if (body.action === 'queued') {
+      // If repository ends with -canary and environment is not canary environment then ignore
+      if (body.repository.name.endsWith('-canary') && !(process.env.ENVIRONMENT as string).endsWith('-canary')) {
+        console.debug(
+          `Ignore canary event on non-canary environment (${process.env.ENVIRONMENT as string})` + githubEvent,
+        );
+        return 200;
+      }
       if (isDefault(body.workflow_job.labels)) {
         console.debug('Ignoring default label')
         return 200
