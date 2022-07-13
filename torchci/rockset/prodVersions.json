@@ -7,7 +7,7 @@
     "test_time_per_file": "50cb3694334ed63a",
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2",
-    "recent_pr_workflows_query": "21ef45465dfd2bb0"
+    "recent_pr_workflows_query": "4e03cb13e8372050"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "57e5562a57427ae3",
