@@ -260,7 +260,7 @@ function DurationInfo({
         prev: {
           [key: string]: {
             duration: number;
-            validData: boolean;
+            availableData: boolean;
           };
         },
         cur
@@ -274,10 +274,10 @@ function DurationInfo({
         ) {
           let name = cur.name.substring(0, cur.name.indexOf(","));
           if (!(name in prev)) {
-            prev[name] = { duration: 0, validData: true };
+            prev[name] = { duration: 0, availableData: true };
           }
           if (cur.conclusion != "success" || cur.durationS === undefined) {
-            prev[name].validData = false;
+            prev[name].availableData = false;
           } else {
             prev[name].duration += cur.durationS;
           }
@@ -290,14 +290,18 @@ function DurationInfo({
 
   const prevRowJobsAggregate = _.pickBy(
     getAggregateTestTimes(prevRow?.jobs),
-    (value) => value.validData
+    (value) => value.availableData
   );
 
-  function getDurationInfo(name: string, duration: number, validData: boolean) {
-    const durationString = validData ? durationHuman(duration) : "N/A";
-    var color = "black";
+  function getDurationInfo(
+    name: string,
+    duration: number,
+    availableData: boolean
+  ) {
+    const durationString = availableData ? durationHuman(duration) : "N/A";
+    let color = "black";
     if (
-      !validData ||
+      !availableData ||
       prevRow === undefined ||
       prevRowJobsAggregate[name] === undefined
     ) {
@@ -324,7 +328,7 @@ function DurationInfo({
         : `- ${durationHuman(Math.abs(absoluteChange))}`;
     const concerningChange = Math.abs(absoluteChange) > 60 * 30;
     if (concerningChange) {
-      color = absoluteChange > 0 ? "red" : "purple";
+      color = absoluteChange > 0 ? "red" : "green";
     }
     return {
       concerningChange,
@@ -338,13 +342,18 @@ function DurationInfo({
 
   const [concerning, notConcerning] = _.partition(
     _.map(getAggregateTestTimes(jobs), (value, key) => {
-      return getDurationInfo(key, value.duration, value.validData);
+      return getDurationInfo(key, value.duration, value.availableData);
     }),
     (e) => e.concerningChange
   );
 
-  function getRow(val: {
-    concerningChange: boolean;
+  function Row({
+    name,
+    duration,
+    color,
+    percentChangeString,
+    absoluteChangeString,
+  }: {
     name: string | undefined;
     duration: string;
     color: string;
@@ -352,11 +361,11 @@ function DurationInfo({
     absoluteChangeString: string;
   }) {
     return (
-      <tr key={`duration-row-${val.name}`} style={{ color: val.color }}>
-        <td style={{ width: "750px" }}>{val.name}</td>
-        <td style={{ width: "100px" }}>{val.duration}</td>
-        <td style={{ width: "100px" }}>{val.percentChangeString}</td>
-        <td style={{ width: "100px" }}>{val.absoluteChangeString}</td>
+      <tr key={`duration-row-${name}`} style={{ color }}>
+        <td style={{ width: "750px" }}>{name}</td>
+        <td style={{ width: "100px" }}>{duration}</td>
+        <td style={{ width: "100px" }}>{percentChangeString}</td>
+        <td style={{ width: "100px" }}>{absoluteChangeString}</td>
       </tr>
     );
   }
@@ -365,12 +374,20 @@ function DurationInfo({
     durationJsxElement: (
       <div style={{ padding: "10px" }}>
         <table>
-          <tbody>{concerning.map((val) => getRow(val))}</tbody>
+          <tbody>
+            {concerning.map((val) => (
+              <Row {...val} />
+            ))}
+          </tbody>
         </table>
         <details open={expandAllDurationInfo}>
           <summary>See all jobs</summary>
           <table>
-            <tbody>{notConcerning.map((val) => getRow(val))}</tbody>
+            <tbody>
+              {notConcerning.map((val) => (
+                <Row {...val} />
+              ))}
+            </tbody>
           </table>
         </details>
       </div>
@@ -458,7 +475,7 @@ function CommitSummary({
 function MiniHud({ params }: { params: HudParams }) {
   const data = useHudData(params);
 
-  var paramsNextPage = { ...params };
+  let paramsNextPage = { ...params };
   paramsNextPage.page = params.page + 1;
   const extraRow = useHudData(paramsNextPage);
 
@@ -476,10 +493,10 @@ function MiniHud({ params }: { params: HudParams }) {
       <div>
         <input
           type="checkbox"
-          id={"showDurationInfo"}
+          id={"durationInfoCheckbox"}
           onChange={() => setShowDurationInfo(!showDurationInfo)}
         />
-        <label htmlFor={"showDurationInfo"}>show duration info</label>
+        <label htmlFor={"durationInfoCheckbox"}>Show duration info</label>
         {showDurationInfo && (
           <>
             <input
@@ -489,7 +506,7 @@ function MiniHud({ params }: { params: HudParams }) {
               onChange={() => setExpandAllDurationInfo(!expandAllDurationInfo)}
             />
             <label htmlFor={"expandAllDurationInfo"}>
-              expand all duration info
+              Expand all duration info
             </label>
           </>
         )}
