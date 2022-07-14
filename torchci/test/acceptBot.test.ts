@@ -31,6 +31,7 @@ describe("accept bot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.review.state = "APPROVED";
     event.payload.pull_request.labels = [{ name: ACCEPT_2_RUN }];
+    event.payload.repository.name = "pytorch-canary";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -52,6 +53,7 @@ describe("accept bot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.review.state = "APPROVED";
     event.payload.pull_request.labels = [{ name: ACCEPT_2_SHIP }];
+    event.payload.repository.name = "pytorch-canary";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
