@@ -294,7 +294,7 @@ function DurationInfo({
   );
 
   function getDurationInfo(name: string, duration: number, validData: boolean) {
-    const durationString = validData ? durationHuman(duration) : "invalid data";
+    const durationString = validData ? durationHuman(duration) : "N/A";
     var color = "black";
     if (
       !validData ||
