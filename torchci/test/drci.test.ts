@@ -28,11 +28,11 @@ const recentWorkflowB = {
 describe("Update Dr. CI Bot Integration Tests", () => {
     const octokit = utils.testOctokit();
 
-    beforeEach(() => {});
-  
+    beforeEach(() => { });
+
     afterEach(() => {
-      nock.cleanAll();
-      jest.restoreAllMocks();
+        nock.cleanAll();
+        jest.restoreAllMocks();
     });
 
     test("comment updated when user is swang392", async () => {
@@ -47,23 +47,23 @@ describe("Update Dr. CI Bot Integration Tests", () => {
 describe("Update Dr. CI Bot Unit Tests", () => {
     const octokit = utils.testOctokit();
 
-    beforeEach(() => {});
-  
+    beforeEach(() => { });
+
     afterEach(() => {
-      nock.cleanAll();
-      jest.restoreAllMocks();
+        nock.cleanAll();
+        jest.restoreAllMocks();
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
         const comment = updateDrciBot.formDrciComment(recentWorkflowA.pr_number);
         expect(comment.includes(updateDrciBot.drciCommentStart)).toBeTruthy();
-          expect(
+        expect(
             comment.includes("See artifacts and rendered test results")
-          ).toBeTruthy();
-          expect(
+        ).toBeTruthy();
+        expect(
             comment.includes("Need help or want to give feedback on the CI?")
-          ).toBeTruthy();
-          expect(comment.includes(updateDrciBot.officeHoursUrl)).toBeTruthy();
-          expect(comment.includes(updateDrciBot.docsBuildsUrl)).toBeTruthy();
+        ).toBeTruthy();
+        expect(comment.includes(updateDrciBot.officeHoursUrl)).toBeTruthy();
+        expect(comment.includes(updateDrciBot.docsBuildsUrl)).toBeTruthy();
     });
 });
