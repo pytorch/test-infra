@@ -487,7 +487,8 @@ function MiniHud({ params }: { params: HudParams }) {
   const data = useHudData(params);
 
   let paramsNextPage = { ...params };
-  paramsNextPage.page = params.page + 1;
+  paramsNextPage.page = params.per_page * params.page + 1;
+  paramsNextPage.per_page = 1;
   const extraRow = useHudData(paramsNextPage);
 
   const [showDurationInfo, setShowDurationInfo] = useState(false);

@@ -14,7 +14,7 @@ export default async function fetchHud(params: HudParams): Promise<{
     owner: params.repoOwner,
     repo: params.repoName,
     sha: params.branch,
-    per_page: 50,
+    per_page: params.per_page,
     page: params.page,
   });
   const commits = branch.data.map(commitDataFromResponse);
