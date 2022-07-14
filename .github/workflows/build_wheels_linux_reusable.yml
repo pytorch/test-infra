@@ -1,0 +1,20 @@
+name: Build Linux Wheels
+
+on:
+  workflow_call
+
+jobs:
+  wheels:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: python -m pip install --upgrade setuptools wheel
+      # Optionally include some setup step here (where each domain lib brings
+      # its own setup script)
+    - name: Build wheels
+      run: python setup.py bdist_wheel
