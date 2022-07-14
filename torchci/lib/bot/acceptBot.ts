@@ -19,7 +19,7 @@ export const ACCEPT_MESSAGE = `${ACCEPT_MESSAGE_PREFIX}
 
 function acceptBot(app: Probot): void {
   app.on(["pull_request_review.submitted"], async (ctx) => {
-    if(ctx.payload.repository.name != 'pytorch-canary'){
+    if (ctx.payload.repository.name != "pytorch-canary") {
       return;
     }
     if (ctx.payload.review.state === "APPROVED") {
