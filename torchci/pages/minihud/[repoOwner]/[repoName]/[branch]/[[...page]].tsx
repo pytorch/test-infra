@@ -244,15 +244,15 @@ function CommitSummaryLine({
   );
 }
 
-function DurationInfo({
-  jobs,
-  prevRow,
-  expandAllDurationInfo,
-}: {
-  jobs: JobData[];
-  prevRow: RowData | undefined;
-  expandAllDurationInfo: boolean;
-}) {
+interface TTSChange {
+  name: string | undefined;
+  duration: string;
+  color: string;
+  percentChangeString: string;
+  absoluteChangeString: string;
+}
+
+function getTTSChanges(jobs: JobData[], prevRow: RowData | undefined) {
   function getAggregateTestTimes(jobs: JobData[] | undefined) {
     return _.reduce(
       jobs,
@@ -340,13 +340,25 @@ function DurationInfo({
     };
   }
 
-  const [concerning, notConcerning] = _.partition(
+  const [ttsConcerning, ttsNotConcerning] = _.partition(
     _.map(getAggregateTestTimes(jobs), (value, key) => {
       return getDurationInfo(key, value.duration, value.availableData);
     }),
     (e) => e.concerningChange
   );
 
+  return { ttsConcerning, ttsNotConcerning };
+}
+
+function DurationInfoElement({
+  concerning,
+  notConcerning,
+  expandAllDurationInfo,
+}: {
+  concerning: TTSChange[];
+  notConcerning: TTSChange[];
+  expandAllDurationInfo: boolean;
+}) {
   function Row({
     name,
     duration,
@@ -361,7 +373,7 @@ function DurationInfo({
     absoluteChangeString: string;
   }) {
     return (
-      <tr key={`duration-row-${name}`} style={{ color }}>
+      <tr style={{ color }}>
         <td style={{ width: "750px" }}>{name}</td>
         <td style={{ width: "100px" }}>{duration}</td>
         <td style={{ width: "100px" }}>{percentChangeString}</td>
@@ -369,30 +381,27 @@ function DurationInfo({
       </tr>
     );
   }
-  return {
-    ttsAlert: concerning.length > 0,
-    durationJsxElement: (
-      <div style={{ padding: "10px" }}>
+  return (
+    <div style={{ padding: "10px" }}>
+      <table>
+        <tbody>
+          {concerning.map((val) => (
+            <Row {...val} key={`duration-row-${val.name}`} />
+          ))}
+        </tbody>
+      </table>
+      <details open={expandAllDurationInfo}>
+        <summary>See all jobs</summary>
         <table>
           <tbody>
-            {concerning.map((val) => (
-              <Row {...val} />
+            {notConcerning.map((val) => (
+              <Row {...val} key={`duration-row-${val.name}`} />
             ))}
           </tbody>
         </table>
-        <details open={expandAllDurationInfo}>
-          <summary>See all jobs</summary>
-          <table>
-            <tbody>
-              {notConcerning.map((val) => (
-                <Row {...val} />
-              ))}
-            </tbody>
-          </table>
-        </details>
-      </div>
-    ),
-  };
+      </details>
+    </div>
+  );
 }
 
 function CommitSummary({
@@ -435,11 +444,7 @@ function CommitSummary({
     className += " " + styles.workflowBoxHighlight;
   }
 
-  const { ttsAlert, durationJsxElement } = DurationInfo({
-    jobs,
-    prevRow,
-    expandAllDurationInfo,
-  });
+  const { ttsConcerning, ttsNotConcerning } = getTTSChanges(jobs, prevRow);
 
   useEffect(() => {
     const onHashChanged = () => {
@@ -464,10 +469,16 @@ function CommitSummary({
         row={row}
         numPending={pendingJobs.length}
         showRevert={failedJobs.length !== 0}
-        ttsAlert={ttsAlert}
+        ttsAlert={ttsConcerning.length > 0}
       />
       {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
-      {showDurationInfo && durationJsxElement}
+      {showDurationInfo && (
+        <DurationInfoElement
+          concerning={ttsConcerning}
+          notConcerning={ttsNotConcerning}
+          expandAllDurationInfo={expandAllDurationInfo}
+        />
+      )}
     </div>
   );
 }
