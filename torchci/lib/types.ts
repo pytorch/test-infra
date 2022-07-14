@@ -90,14 +90,13 @@ export interface FlakyTestData {
 }
 
 export interface RecentWorkflowsData {
-  name: string;
+  job_name: string;
   conclusion: string;
   completed_at: string;
   html_url: string;
   head_sha: string;
-  number: number;
-  ref: string;
-  login: string;
+  pr_number: number;
+  owner_login: string;
 }
 
 export function packHudParams(input: any) {
