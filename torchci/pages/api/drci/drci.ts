@@ -4,7 +4,7 @@ import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 
 const NUM_MINUTES = 15;
-const repo: string = "pytorch";
+const REPO: string = "pytorch/pytorch";
 export const drciCommentStart = "<!-- drci-comment-start -->\n";
 export const officeHoursUrl =
     "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
@@ -17,9 +17,8 @@ const hudUrl = "https://hud.pytorch.org/pr/";
 
 
 export async function fetchWorkflows() {
-    const numMinutes = NUM_MINUTES + "";
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
-        numMinutes
+        NUM_MINUTES + ""
     );
 }
 
@@ -36,7 +35,7 @@ export async function updateCommentWithWorkflow(
     const { id, body } = await getDrciComment(
         pr_number,
         owner_login,
-        repo
+        REPO
     );
 
     const drciComment = formDrciComment(pr_number);
@@ -50,7 +49,7 @@ export async function updateCommentWithWorkflow(
     await octokit.rest.issues.updateComment({
         body: body,
         owner: owner_login,
-        repo: repo,
+        repo: REPO,
         comment_id: id,
     });
 }
