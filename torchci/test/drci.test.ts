@@ -27,8 +27,6 @@ const recentWorkflowB = {
 
 
 describe("Update Dr. CI Bot Integration Tests", () => {
-    const octokit = utils.testOctokit();
-
     beforeEach(() => { });
 
     afterEach(() => {
@@ -46,8 +44,6 @@ describe("Update Dr. CI Bot Integration Tests", () => {
 });
 
 describe("Update Dr. CI Bot Unit Tests", () => {
-    const octokit = utils.testOctokit();
-
     beforeEach(() => { });
 
     afterEach(() => {
