@@ -58,13 +58,24 @@ function pytorchBot(app: Probot): void {
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
     }
+
     async function handleMerge(
       force: boolean,
       mergeOnGreen: boolean,
-      landChecks: boolean
+      landChecks: boolean,
+      reason: string,
     ) {
-      await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
-      await reactOnComment(ctx, "+1");
+      if ((!force) || (reason !== undefined && reason)) {
+        await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
+        await reactOnComment(ctx, "+1");
+      }
+      else {
+        await reactOnComment(ctx, "eyes");
+        await addComment(
+          ctx,
+          "You need to provide a clear reason for using force merge, i.e. @pytorchbot merge -f -m 'Minor fixes. Expecting all PR tests to pass'."
+        );
+      }
     }
 
     async function handleRevert(reason: string) {
@@ -188,7 +199,8 @@ function pytorchBot(app: Probot): void {
           args.green,
           args.land_checks ||
             (ctx.payload.comment.user.login != null &&
-              landtimeChecksAllowlist.has(ctx.payload.comment.user.login))
+              landtimeChecksAllowlist.has(ctx.payload.comment.user.login)),
+          args.message,
         );
       case "rebase": {
         if (args.stable) {

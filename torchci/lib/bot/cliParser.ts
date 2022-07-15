@@ -38,6 +38,11 @@ const merge = commands.add_parser("merge", {
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
+// It would be nicer if argparse supports necessarily inclusive group, so -m and -f
+// always go together. However, that feature is not supported at the moment AFAIK
+merge.add_argument("-m", "--message", {
+  help: "If you are using force merge, you must provide a clear reason for auditting purpose.",
+});
 const mergeOption = merge.add_mutually_exclusive_group();
 mergeOption.add_argument("-g", "--green", {
   action: "store_true",
