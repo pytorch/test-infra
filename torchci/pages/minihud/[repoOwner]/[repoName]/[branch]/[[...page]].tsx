@@ -506,6 +506,7 @@ function MiniHud({ params }: { params: HudParams }) {
         <input
           type="checkbox"
           id={"durationInfoCheckbox"}
+          checked={showDurationInfo}
           onChange={() => setShowDurationInfo(!showDurationInfo)}
         />
         <label htmlFor={"durationInfoCheckbox"}>Show duration info</label>
