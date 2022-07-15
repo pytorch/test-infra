@@ -155,7 +155,7 @@ describe("merge-bot", () => {
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
-          expect(JSON.stringify(body)).toContain('{"content":"eyes"}');
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
           return true;
         }
       )
@@ -185,7 +185,7 @@ describe("merge-bot", () => {
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
-          expect(JSON.stringify(body)).toContain('{"content":"eyes"}');
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
           return true;
         }
       )
