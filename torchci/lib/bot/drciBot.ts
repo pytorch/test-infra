@@ -1,16 +1,6 @@
 import { Context, Probot } from "probot";
 import * as drciUtils from "lib/drciUtils";
 
-// export const drciCommentStart = "<!-- drci-comment-start -->\n";
-// export const officeHoursUrl =
-//   "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
-// export const docsBuildsUrl = "https://docs-preview.pytorch.org/";
-// export const pythonDocsUrl = "/index.html";
-// export const cppDocsUrl = "/cppdocs/index.html";
-// const drciCommentEnd = "\n<!-- drci-comment-end -->";
-// const possibleUsers = ["swang392"];
-// const hudUrl = "https://hud.pytorch.org/pr/";
-
 async function getDrciComment(
   context: Context,
   prNum: number,
@@ -29,16 +19,6 @@ async function getDrciComment(
   }
   return { id: 0, body: "" };
 }
-
-// export function formDrciComment(prNum: number): string {
-//   let body = `## :link: Helpful Links
-// ### :test_tube: See artifacts and rendered test results [here](${hudUrl}${prNum})
-// * :page_facing_up: Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})
-// * :page_facing_up: Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})
-// * :question: Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})
-// Note: Links to docs will display an error until the docs builds have been completed.`;
-//   return drciCommentStart + body + drciCommentEnd;
-// }
 
 export default function drciBot(app: Probot): void {
   app.on(
