@@ -64,6 +64,21 @@ async function handleIssues(event: WebhookEvent<"issues">) {
   });
 }
 
+async function handleIssueComment(
+  event: WebhookEvent<"issue_comment">
+) {
+  const key_prefix = event.payload.repository.full_name;
+  const client = getDynamoClient();
+
+  await client.put({
+    TableName: "torchci-issue-comment",
+    Item: {
+      dynamoKey: `${key_prefix}/${event.payload.issue.number}/${event.payload.comment.id}`,
+      ...event.payload.comment,
+    },
+  });
+}
+
 async function handlePullRequest(event: WebhookEvent<"pull_request">) {
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
@@ -123,6 +138,7 @@ async function handlePullRequestReviewComment(
 export default function webhookToDynamo(app: Probot) {
   app.on(["workflow_job", "workflow_run"], handleWorkflowJob);
   app.on("issues", handleIssues);
+  app.on("issue_comment", handleIssueComment);
   app.on("pull_request", handlePullRequest);
   app.on("pull_request_review", handlePullRequestReview);
   app.on("pull_request_review_comment", handlePullRequestReviewComment);
