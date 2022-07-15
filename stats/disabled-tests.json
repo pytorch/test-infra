@@ -18245,7 +18245,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_checkpoint_wrapper_parity&suite=CheckpointWrapperTest&file=distributed/fsdp/test_checkpoint_wrapper.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/6872974643).\n\nOver the past 3 hours, it has been determined flaky in 13 workflow(s) with 13 red and 13 green.\n\ncc @zhaojuanmao @mrshenli @rohan-varma",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/comments",
       "created_at": "2022-06-14T06:43:37Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/events",
@@ -18313,7 +18313,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/79510/timeline",
       "title": "DISABLED test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)",
-      "updated_at": "2022-06-30T18:47:07Z",
+      "updated_at": "2022-07-15T15:15:08Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/79510",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
