@@ -101,6 +101,14 @@ export interface RecentWorkflowsData {
   login: string;
 }
 
+export interface TTSChange {
+  name: string | undefined;
+  duration: string;
+  color: string;
+  percentChangeString: string;
+  absoluteChangeString: string;
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,

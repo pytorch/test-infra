@@ -8,7 +8,13 @@ import styles from "components/minihud.module.css";
 import PageSelector from "components/PageSelector";
 import { durationHuman, LocalTimeHuman } from "components/TimeUtils";
 import { isFailedJob } from "lib/jobUtils";
-import { HudParams, JobData, packHudParams, RowData } from "lib/types";
+import {
+  HudParams,
+  JobData,
+  packHudParams,
+  RowData,
+  TTSChange,
+} from "lib/types";
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
@@ -244,14 +250,6 @@ function CommitSummaryLine({
   );
 }
 
-interface TTSChange {
-  name: string | undefined;
-  duration: string;
-  color: string;
-  percentChangeString: string;
-  absoluteChangeString: string;
-}
-
 function getTTSChanges(jobs: JobData[], prevRow: RowData | undefined) {
   function getAggregateTestTimes(jobs: JobData[] | undefined) {
     return _.reduce(
@@ -340,17 +338,17 @@ function getTTSChanges(jobs: JobData[], prevRow: RowData | undefined) {
     };
   }
 
-  const [ttsConcerning, ttsNotConcerning] = _.partition(
+  const [concerningTTS, notConcerningTTS] = _.partition(
     _.map(getAggregateTestTimes(jobs), (value, key) => {
       return getDurationInfo(key, value.duration, value.availableData);
     }),
     (e) => e.concerningChange
   );
 
-  return { ttsConcerning, ttsNotConcerning };
+  return { concerningTTS, notConcerningTTS };
 }
 
-function DurationInfoElement({
+function DurationInfo({
   concerning,
   notConcerning,
   expandAllDurationInfo,
@@ -444,7 +442,7 @@ function CommitSummary({
     className += " " + styles.workflowBoxHighlight;
   }
 
-  const { ttsConcerning, ttsNotConcerning } = getTTSChanges(jobs, prevRow);
+  const { concerningTTS, notConcerningTTS } = getTTSChanges(jobs, prevRow);
 
   useEffect(() => {
     const onHashChanged = () => {
@@ -469,13 +467,13 @@ function CommitSummary({
         row={row}
         numPending={pendingJobs.length}
         showRevert={failedJobs.length !== 0}
-        ttsAlert={ttsConcerning.length > 0}
+        ttsAlert={concerningTTS.length > 0}
       />
       {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
       {showDurationInfo && (
-        <DurationInfoElement
-          concerning={ttsConcerning}
-          notConcerning={ttsNotConcerning}
+        <DurationInfo
+          concerning={concerningTTS}
+          notConcerning={notConcerningTTS}
           expandAllDurationInfo={expandAllDurationInfo}
         />
       )}
