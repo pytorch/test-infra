@@ -73,8 +73,7 @@ async function handleIssueComment(
   await client.put({
     TableName: "torchci-issue-comment",
     Item: {
-      // Still need uuidv4() at the end to keep the key unique when a comment is edited, since the comment.id doesn't change
-      dynamoKey: `${key_prefix}/${event.payload.issue.number}/${event.payload.comment.id}/${uuidv4()}`,
+      dynamoKey: `${key_prefix}/${event.payload.issue.number}/${event.payload.comment.id}`,
       ...event.payload.comment,
     },
   });
