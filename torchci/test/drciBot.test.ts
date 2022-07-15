@@ -2,6 +2,7 @@ import { Probot } from "probot";
 import * as utils from "./utils";
 import nock from "nock";
 import myProbotApp, * as botUtils from "../lib/bot/drciBot";
+import * as drciUtils from "lib/drciUtils";
 
 const comment_id = 10;
 const comment_node_id = "abcd";
@@ -39,15 +40,15 @@ describe("verify-drci-functionality", () => {
         "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
         (body) => {
           const comment = body.body;
-          expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
+          expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
           expect(
             comment.includes("See artifacts and rendered test results")
           ).toBeTruthy();
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
-          expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
+          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
+          expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
       )
@@ -64,7 +65,7 @@ describe("verify-drci-functionality", () => {
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = "not_swang392";
 
-    const mock = jest.spyOn(botUtils, "formDrciComment");
+    const mock = jest.spyOn(drciUtils, "formDrciComment");
     mock.mockImplementation();
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
@@ -97,15 +98,15 @@ describe("verify-drci-functionality", () => {
         `/repos/zhouzhuojie/gha-ci-playground/issues/comments/${comment_id}`,
         (body) => {
           const comment = body.body;
-          expect(comment.includes(botUtils.drciCommentStart)).toBeTruthy();
+          expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
           expect(
             comment.includes("See artifacts and rendered test results")
           ).toBeTruthy();
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(botUtils.officeHoursUrl)).toBeTruthy();
-          expect(comment.includes(botUtils.docsBuildsUrl)).toBeTruthy();
+          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
+          expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
       )

@@ -1,6 +1,7 @@
 import nock from "nock";
 import * as utils from "./utils";
 import * as updateDrciBot from "../pages/api/drci/drci";
+import * as drciUtils from "lib/drciUtils";
 
 nock.disableNetConnect();
 
@@ -55,15 +56,15 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
-        const comment = updateDrciBot.formDrciComment(recentWorkflowA.pr_number);
-        expect(comment.includes(updateDrciBot.drciCommentStart)).toBeTruthy();
+        const comment = drciUtils.formDrciComment(recentWorkflowA.pr_number);
+        expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
         expect(
             comment.includes("See artifacts and rendered test results")
         ).toBeTruthy();
         expect(
             comment.includes("Need help or want to give feedback on the CI?")
         ).toBeTruthy();
-        expect(comment.includes(updateDrciBot.officeHoursUrl)).toBeTruthy();
-        expect(comment.includes(updateDrciBot.docsBuildsUrl)).toBeTruthy();
+        expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
+        expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
     });
 });
