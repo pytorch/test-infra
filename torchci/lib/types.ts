@@ -69,6 +69,7 @@ export interface HudParams {
   repoName: string;
   branch: string;
   page: number;
+  per_page: number;
   nameFilter?: string;
 }
 
@@ -99,12 +100,21 @@ export interface RecentWorkflowsData {
   owner_login: string;
 }
 
+export interface TTSChange {
+  name: string | undefined;
+  duration: string;
+  color: string;
+  percentChangeString: string;
+  absoluteChangeString: string;
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
     repoName: input.repoName as string,
     branch: input.branch as string,
     page: parseInt((input.page as string) ?? 1),
+    per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
   };
 }
@@ -132,8 +142,10 @@ function formatHudURL(
     params.repoName
   }/${encodeURIComponent(params.branch)}/${params.page}`;
 
+  base += `?per_page=${params.per_page}`;
+
   if (params.nameFilter != null && keepFilter) {
-    base += `?name_filter=${encodeURIComponent(params.nameFilter)}`;
+    base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
   return base;
 }
