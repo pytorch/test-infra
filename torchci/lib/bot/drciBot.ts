@@ -1,14 +1,5 @@
 import { Context, Probot } from "probot";
-
-export const drciCommentStart = "<!-- drci-comment-start -->\n";
-export const officeHoursUrl =
-  "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
-export const docsBuildsUrl = "https://docs-preview.pytorch.org/";
-export const pythonDocsUrl = "/index.html";
-export const cppDocsUrl = "/cppdocs/index.html";
-const drciCommentEnd = "\n<!-- drci-comment-end -->";
-const possibleUsers = ["swang392"];
-const hudUrl = "https://hud.pytorch.org/pr/";
+import * as drciUtils from "lib/drciUtils";
 
 async function getDrciComment(
   context: Context,
@@ -22,21 +13,11 @@ async function getDrciComment(
     issue_number: prNum,
   });
   for (const comment of commentsRes.data) {
-    if (comment.body!.includes(drciCommentStart)) {
+    if (comment.body!.includes(drciUtils.DRCI_COMMENT_START)) {
       return { id: comment.id, body: comment.body! };
     }
   }
   return { id: 0, body: "" };
-}
-
-export function formDrciComment(prNum: number): string {
-  let body = `## :link: Helpful Links
-### :test_tube: See artifacts and rendered test results [here](${hudUrl}${prNum})
-* :page_facing_up: Preview [Python docs built from this PR](${docsBuildsUrl}${prNum}${pythonDocsUrl})
-* :page_facing_up: Preview [C++ docs built from this PR](${docsBuildsUrl}${prNum}${cppDocsUrl})
-* :question: Need help or want to give feedback on the CI? Visit our [office hours](${officeHoursUrl})
-Note: Links to docs will display an error until the docs builds have been completed.`;
-  return drciCommentStart + body + drciCommentEnd;
 }
 
 export default function drciBot(app: Probot): void {
@@ -50,7 +31,7 @@ export default function drciBot(app: Probot): void {
 
       context.log(pr_owner);
 
-      if (!possibleUsers.includes(pr_owner)) {
+      if (!drciUtils.POSSIBLE_USERS.includes(pr_owner)) {
         context.log("did not make a comment");
         return;
       }
@@ -64,7 +45,7 @@ export default function drciBot(app: Probot): void {
       const existingDrciID = existingDrciData.id;
       const existingDrciComment = existingDrciData.body;
 
-      const drciComment = formDrciComment(prNum);
+      const drciComment = drciUtils.formDrciComment(prNum);
 
       if (existingDrciComment === drciComment) {
         return;
