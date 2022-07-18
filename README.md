@@ -17,7 +17,7 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 ├── aws                                  # Infra running in AWS
 │   ├── lambda
 │   └── websites                         # Several websites supported by TestInfra
-│       ├── auth.pytorch.org
+│       ├── download.pytorch.org
 │       └── metrics.pytorch.org
 ├── stats                                # CI related stats commited automatically by a bot
 └── tools                                # Tools and scripts
