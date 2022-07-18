@@ -7,6 +7,9 @@ function pytorchBot(app: Probot): void {
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
+  const forceMergeMessagePat = new RegExp(
+    "^\\s*\\S+\\s+\\S+.*"
+  );
 
   const landtimeChecksAllowlist = new Set(["landchecktestuser"]);
   app.on("issue_comment.created", async (ctx) => {
@@ -59,21 +62,33 @@ function pytorchBot(app: Probot): void {
       await reactOnComment(ctx, "confused");
     }
 
+    function isValidForceMergeMessage(message: string): boolean {
+      // We can enforce  the merge message format here, for example, rejecting
+      // all messages not in the following format `[CATEGORY] description`.
+      //
+      // However, it seems too strict to enforce a fixed set of categories right
+      // away without conducting a user study for all common use cases of force
+      // merge first. So the message is just a free form text for now
+      return message !== undefined && message && message?.match(forceMergeMessagePat);
+    }
+
     async function handleMerge(
-      force: boolean,
+      forceMessage: string,
       mergeOnGreen: boolean,
       landChecks: boolean,
-      reason: string,
     ) {
-      if ((!force) || (reason !== undefined && reason)) {
-        await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
+      const isForced = forceMessage !== undefined;
+      const isValidMessage = isValidForceMergeMessage(forceMessage);
+
+      if (!isForced || isValidMessage) {
+        await dispatchEvent("try-merge", isForced, mergeOnGreen, landChecks);
         await reactOnComment(ctx, "+1");
       }
       else {
         await reactOnComment(ctx, "confused");
         await addComment(
           ctx,
-          "You need to provide a reason for using force merge, i.e. `@pytorchbot merge -f -m 'Minor fixes. Expecting all PR tests to pass'.`"
+          "You need to provide a reason (>= 2 words) for using force merge, i.e. `@pytorchbot merge -f '[MINOR] Fix lint. Expecting all PR tests to pass'.`"
         );
       }
     }
@@ -200,7 +215,6 @@ function pytorchBot(app: Probot): void {
           args.land_checks ||
             (ctx.payload.comment.user.login != null &&
               landtimeChecksAllowlist.has(ctx.payload.comment.user.login)),
-          args.message,
         );
       case "rebase": {
         if (args.stable) {

@@ -38,19 +38,16 @@ const merge = commands.add_parser("merge", {
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
-// It would be nicer if argparse supports necessarily inclusive group, so -m and -f
-// always go together. However, that feature is not supported at the moment AFAIK
-merge.add_argument("-m", "--message", {
-  help: "If you are using force merge, you must provide a clear reason for auditting purpose.",
-});
 const mergeOption = merge.add_mutually_exclusive_group();
 mergeOption.add_argument("-g", "--green", {
   action: "store_true",
   help: "Merge when *all* status checks pass.",
 });
 mergeOption.add_argument("-f", "--force", {
-  action: "store_true",
-  help: "Merge without checking anything. ONLY USE THIS FOR CRITICAL FAILURES.",
+  help:
+    "Merge without checking anything. This requires a reason for auditting purpose, for example:\n" +
+    "`@pytorchbot merge -f '[MINOR] Fix lint. Expecting all PR tests to pass'`\n" +
+    "The reason must be longer than 2 words. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
