@@ -69,7 +69,7 @@ function pytorchBot(app: Probot): void {
       // However, it seems too strict to enforce a fixed set of categories right
       // away without conducting a user study for all common use cases of force
       // merge first. So the message is just a free form text for now
-      if (message !== undefined && message && message.match(forceMergeMessagePat)) {
+      if (message?.match(forceMergeMessagePat)) {
         return true;
       }
 
