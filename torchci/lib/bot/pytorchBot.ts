@@ -73,7 +73,7 @@ function pytorchBot(app: Probot): void {
         await reactOnComment(ctx, "confused");
         await addComment(
           ctx,
-          "You need to provide a clear reason for using force merge, i.e. @pytorchbot merge -f -m 'Minor fixes. Expecting all PR tests to pass'."
+          "You need to provide a reason for using force merge, i.e. `@pytorchbot merge -f -m 'Minor fixes. Expecting all PR tests to pass'.`"
         );
       }
     }
