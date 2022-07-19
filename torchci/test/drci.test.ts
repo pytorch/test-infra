@@ -60,9 +60,21 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         jest.restoreAllMocks();
     });
 
+    test("Check that constructFailureAnalysis works correctly", async () => {
+        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
+        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
+        const { failing, pending, failedJobs } = await updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
+        const failureInfo = updateDrciBot.constructFailureAnalysis(failing, pending, failedJobs, workflowsByPR[1].head_sha);
+        const failedJobName = workflowsByPR[1].jobs[0].job_name;
+
+        expect(failureInfo.includes("1 New Failures, 1 Pending"));
+        expect(failureInfo.includes(failedJobName));
+    });
+
     test("Check that reorganizeWorkflows works correctly", async () => {
         const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
+
         expect(workflowsByPR.length).toBe(2);
         expect(workflowsByPR[0].jobs.length).toBe(1);
         expect(workflowsByPR[1].jobs.length).toBe(2);
@@ -72,6 +84,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const { failing, pending, failedJobs } = await updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
+
         expect(failing).toBe(1);
         expect(pending).toBe(1);
         expect(failedJobs.length).toBe(1);
