@@ -69,11 +69,8 @@ function pytorchBot(app: Probot): void {
       // However, it seems too strict to enforce a fixed set of categories right
       // away without conducting a user study for all common use cases of force
       // merge first. So the message is just a free form text for now
-      if (message?.match(forceMergeMessagePat)) {
-        return true;
-      }
-
-      return false;
+      const matches = message?.match(forceMergeMessagePat);
+      return matches != undefined && matches.length != 0;
     }
 
     async function handleMerge(
@@ -81,7 +78,7 @@ function pytorchBot(app: Probot): void {
       mergeOnGreen: boolean,
       landChecks: boolean,
     ) {
-      const isForced = forceMessage !== undefined;
+      const isForced = forceMessage != undefined;
       const isValidMessage = isValidForceMergeMessage(forceMessage);
 
       if (!isForced || isValidMessage) {
@@ -92,7 +89,12 @@ function pytorchBot(app: Probot): void {
         await reactOnComment(ctx, "confused");
         await addComment(
           ctx,
-          "You need to provide a reason (>= 2 words) for using force merge, i.e. `@pytorchbot merge -f '[MINOR] Fix lint. Expecting all PR tests to pass'.`"
+          "You need to provide a reason for using force merge, in the format `@pytorchbot merge -f '[CATEGORY] Explanation'`. " +
+          "With [CATEGORY] being one the following:\n" +
+          " EMERGENCY - an emergency fix to quickly address an issue\n" +
+          " MINOR - a minor fix such as cleaning locally unused variables, which shouldn't break anything\n" +
+          " PRE_TESTED - a previous CI run tested everything and you've only added minor changes like fixing lint\n" +
+          " OTHER - something not covered above"
         );
       }
     }

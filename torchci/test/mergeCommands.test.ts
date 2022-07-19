@@ -214,7 +214,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "You need to provide a reason (>= 2 words) for using force merge"
+          "You need to provide a reason for using force merge"
         );
         return true;
       })
@@ -244,7 +244,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "You need to provide a reason (>= 2 words) for using force merge"
+          "You need to provide a reason for using force merge"
         );
         return true;
       })
