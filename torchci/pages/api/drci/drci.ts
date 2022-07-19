@@ -6,8 +6,8 @@ import * as drciUtils from "lib/drciUtils";
 
 export interface Workflow {
     job_name: string;
-    conclusion: string;
-    completed_at: string;
+    conclusion: string | null;
+    completed_at: string | null;
     html_url: string;
 }
 
@@ -26,15 +26,27 @@ export async function fetchWorkflows() {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
     for (var pr of workflowsByPR) {
-        const workflowAnalysis = getWorkflowAnalysis(pr);
+        const { failing, pending, failedJobs } = await getWorkflowAnalysis(pr);
     }
 }
 
-export function getWorkflowAnalysis(
+export async function getWorkflowAnalysis(
     prInfo: PRandJobs
-): string {
-
-    return "hello";
+): Promise<{failing: number; pending: number; failedJobs: Workflow[]}> {
+    const jobs = prInfo.jobs;
+    let numFailing = 0;
+    let numPending = 0;
+    const failedJobsInfo: Workflow[] = [];
+    for (var workflow of jobs) {
+        if (workflow.conclusion === null && workflow.completed_at === null) {
+            numPending++;
+        }
+        else if (workflow.conclusion === "failure") {
+            numFailing++;
+            failedJobsInfo.push(workflow);
+        }
+    }
+    return {failing: numFailing, pending: numPending, failedJobs: failedJobsInfo};
 }
 
 export function reorganizeWorkflows(

@@ -17,8 +17,8 @@ const recentWorkflowA = {
 
 const recentWorkflowB = {
     job_name: 'linux-docs / build-docs (cpp)',
-    conclusion: "success",
-    completed_at: '2022-07-13T19:34:03Z',
+    conclusion: null,
+    completed_at: null,
     html_url: "abcdefg",
     head_sha: "abcdefg",
     pr_number: 1001,
@@ -27,7 +27,7 @@ const recentWorkflowB = {
 
 const recentWorkflowC = {
     job_name: 'Lint / lintrunner (pull_request)',
-    conclusion: "success",
+    conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "abcdefg",
     head_sha: "abcdefg",
@@ -66,6 +66,15 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         expect(workflowsByPR.length).toBe(2);
         expect(workflowsByPR[0].jobs.length).toBe(1);
         expect(workflowsByPR[1].jobs.length).toBe(2);
+    });
+
+    test("Check that getWorkflowAnalysis works correctly", async () => {
+        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
+        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
+        const { failing, pending, failedJobs } = await updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
+        expect(failing).toBe(1);
+        expect(pending).toBe(1);
+        expect(failedJobs.length).toBe(1);
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
