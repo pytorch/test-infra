@@ -21,10 +21,19 @@ const recentWorkflowB = {
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "abcdefg",
     head_sha: "abcdefg",
-    pr_number: 1000,
+    pr_number: 1001,
     owner_login: "notswang392",
 }
 
+const recentWorkflowC = {
+    job_name: 'Lint / lintrunner (pull_request)',
+    conclusion: "success",
+    completed_at: '2022-07-13T19:34:03Z',
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    owner_login: "notswang392",
+}
 
 describe("Update Dr. CI Bot Integration Tests", () => {
     beforeEach(() => { });
@@ -49,6 +58,14 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     afterEach(() => {
         nock.cleanAll();
         jest.restoreAllMocks();
+    });
+
+    test("Check that reorganizeWorkflows works correctly", async () => {
+        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
+        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
+        expect(workflowsByPR.length).toBe(2);
+        expect(workflowsByPR[0].jobs.length).toBe(1);
+        expect(workflowsByPR[1].jobs.length).toBe(2);
     });
 
     test("Check that dr ci comment is correctly formed", async () => {

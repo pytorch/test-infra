@@ -4,11 +4,71 @@ import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import * as drciUtils from "lib/drciUtils";
 
+export interface Workflow {
+    job_name: string;
+    conclusion: string;
+    completed_at: string;
+    html_url: string;
+}
+
+interface PRandJobs {
+    head_sha: string;
+    pr_number: number;
+    owner_login: string;
+    jobs: Workflow[];
+}
 
 export async function fetchWorkflows() {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
         drciUtils.NUM_MINUTES + ""
     );
+
+    const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+
+    for (var pr of workflowsByPR) {
+        const workflowAnalysis = getWorkflowAnalysis(pr);
+    }
+}
+
+export function getWorkflowAnalysis(
+    prInfo: PRandJobs
+): string {
+
+    return "hello";
+}
+
+export function reorganizeWorkflows(
+    recentWorkflows: RecentWorkflowsData[]
+): PRandJobs[] {
+    const pr_list: number[] = [];
+    const workflowsByPR: PRandJobs[] = [];
+
+    for (var workflow of recentWorkflows) {
+        const pr_number = workflow.pr_number;
+        const new_workflow: Workflow = {
+            job_name: workflow.job_name,
+            conclusion: workflow.conclusion,
+            completed_at: workflow.completed_at,
+            html_url: workflow.html_url
+        };
+
+        if (!pr_list.includes(pr_number)) {
+            pr_list.push(pr_number);
+
+            const new_pr: PRandJobs = {
+                head_sha: workflow.head_sha,
+                pr_number: workflow.pr_number,
+                owner_login: workflow.owner_login,
+                jobs: [new_workflow]
+            };
+            workflowsByPR.push(new_pr);
+        }
+        else {
+            const objIndex = workflowsByPR.findIndex((obj => obj.pr_number == pr_number));
+            workflowsByPR[objIndex].jobs.push(new_workflow);
+        }
+    }
+    return workflowsByPR;
 }
 
 export async function updateCommentWithWorkflow(
