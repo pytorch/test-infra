@@ -44,8 +44,10 @@ mergeOption.add_argument("-g", "--green", {
   help: "Merge when *all* status checks pass.",
 });
 mergeOption.add_argument("-f", "--force", {
-  action: "store_true",
-  help: "Merge without checking anything. ONLY USE THIS FOR CRITICAL FAILURES.",
+  help:
+    "Merge without checking anything. This requires a reason for auditting purpose, for example:\n" +
+    "`@pytorchbot merge -f '[MINOR] Fix lint. Expecting all PR tests to pass'`\n" +
+    "The reason must be longer than 2 words. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",

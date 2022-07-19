@@ -115,7 +115,7 @@ describe("merge-bot", () => {
   test("merge -f on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -f";
+    event.payload.comment.body = "@pytorchbot merge -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -133,6 +133,118 @@ describe("merge-bot", () => {
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
           `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"force":true}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("merge -f with a minimal acceptable message (2 words)", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -f 'Fix lint'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"force":true}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("reject merge -f without a reason", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -f";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "@pytorchbot merge: error: argument -f/--force: expected one argument"
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("reject merge -f with an empty reason", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -f ''";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "You need to provide a reason for using force merge"
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("reject merge -f with a too short reason (< 2 words)", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -f 'YOLO'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "You need to provide a reason for using force merge"
         );
         return true;
       })
@@ -367,7 +479,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -g -f";
+    event.payload.comment.body = "@pytorchbot merge -g -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -377,6 +489,29 @@ describe("merge-bot", () => {
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "@pytorchbot merge: error: argument -f/--force: not allowed with argument -g/--green"
+        );
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("merge fail because mutually exclusive options without force merge reason", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -g -f";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "@pytorchbot merge: error: argument -f/--force: expected one argument"
         );
         return true;
       })
@@ -622,7 +757,7 @@ some other text lol
   test("force merge using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -f";
+    event.payload.comment.body = "@pytorchbot merge -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

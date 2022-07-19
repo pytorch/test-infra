@@ -7,6 +7,9 @@ function pytorchBot(app: Probot): void {
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
+  const forceMergeMessagePat = new RegExp(
+    "^\\s*\\S+\\s+\\S+.*"
+  );
 
   const landtimeChecksAllowlist = new Set(["landchecktestuser"]);
   app.on("issue_comment.created", async (ctx) => {
@@ -58,13 +61,42 @@ function pytorchBot(app: Probot): void {
     async function handleConfused() {
       await reactOnComment(ctx, "confused");
     }
+
+    function isValidForceMergeMessage(message: string): boolean {
+      // We can enforce  the merge message format here, for example, rejecting
+      // all messages not in the following format `[CATEGORY] description`.
+      //
+      // However, it seems too strict to enforce a fixed set of categories right
+      // away without conducting a user study for all common use cases of force
+      // merge first. So the message is just a free form text for now
+      const matches = message?.match(forceMergeMessagePat);
+      return matches != undefined && matches.length != 0;
+    }
+
     async function handleMerge(
-      force: boolean,
+      forceMessage: string,
       mergeOnGreen: boolean,
-      landChecks: boolean
+      landChecks: boolean,
     ) {
-      await dispatchEvent("try-merge", force, mergeOnGreen, landChecks);
-      await reactOnComment(ctx, "+1");
+      const isForced = forceMessage != undefined;
+      const isValidMessage = isValidForceMergeMessage(forceMessage);
+
+      if (!isForced || isValidMessage) {
+        await dispatchEvent("try-merge", isForced, mergeOnGreen, landChecks);
+        await reactOnComment(ctx, "+1");
+      }
+      else {
+        await reactOnComment(ctx, "confused");
+        await addComment(
+          ctx,
+          "You need to provide a reason for using force merge, in the format `@pytorchbot merge -f '[CATEGORY] Explanation'`. " +
+          "With [CATEGORY] being one the following:\n" +
+          " EMERGENCY - an emergency fix to quickly address an issue\n" +
+          " MINOR - a minor fix such as cleaning locally unused variables, which shouldn't break anything\n" +
+          " PRE_TESTED - a previous CI run tested everything and you've only added minor changes like fixing lint\n" +
+          " OTHER - something not covered above"
+        );
+      }
     }
 
     async function handleRevert(reason: string) {
@@ -188,7 +220,7 @@ function pytorchBot(app: Probot): void {
           args.green,
           args.land_checks ||
             (ctx.payload.comment.user.login != null &&
-              landtimeChecksAllowlist.has(ctx.payload.comment.user.login))
+              landtimeChecksAllowlist.has(ctx.payload.comment.user.login)),
         );
       case "rebase": {
         if (args.stable) {
