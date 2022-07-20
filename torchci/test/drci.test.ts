@@ -63,8 +63,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     test("Check that constructFailureAnalysis works correctly", async () => {
         const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
-        const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
-        const failureInfo = updateDrciBot.constructFailureAnalysis(pending, failedJobs, workflowsByPR[1].head_sha);
+        const pr_1001 = workflowsByPR.get(1001)!;
+        const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(pr_1001);
+        const failureInfo = updateDrciBot.constructFailureAnalysis(pending, failedJobs, pr_1001.head_sha);
         const failedJobName = recentWorkflowC.job_name;
 
         expect(failureInfo.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -74,16 +75,19 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     test("Check that reorganizeWorkflows works correctly", async () => {
         const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
+        const pr_1001 = workflowsByPR.get(1001)!;
+        const pr_1000 = workflowsByPR.get(1000)!;
 
-        expect(workflowsByPR.length).toBe(2);
-        expect(workflowsByPR[0].jobs.length).toBe(1);
-        expect(workflowsByPR[1].jobs.length).toBe(2);
+        expect(workflowsByPR.size).toBe(2);
+        expect(pr_1000.jobs.length).toBe(1);
+        expect(pr_1001.jobs.length).toBe(2);
     });
 
     test("Check that getWorkflowAnalysis works correctly", async () => {
         const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
-        const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
+        const pr_1001 = workflowsByPR.get(1001)!;
+        const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(pr_1001);
 
         expect(pending).toBe(1);
         expect(failedJobs.length).toBe(1);

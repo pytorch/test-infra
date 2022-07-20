@@ -18,7 +18,7 @@ export async function fetchWorkflows() {
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
-    for (const pr of workflowsByPR) {
+    for (const [pr_number, pr] of workflowsByPR) {
         const { pending, failedJobs } = getWorkflowAnalysis(pr);
         const failureInfo = constructFailureAnalysis(pending, failedJobs, pr.head_sha);
         //add failureInfo to Dr. CI comment on each PR
@@ -76,27 +76,22 @@ export function getWorkflowAnalysis(
 
 export function reorganizeWorkflows(
     recentWorkflows: RecentWorkflowsData[]
-): PRandJobs[] {
-    const pr_list: number[] = [];
-    const workflowsByPR: PRandJobs[] = [];
+): Map<number, PRandJobs> {
+    const workflowsByPR = new Map();
 
     for (const workflow of recentWorkflows) {
         const pr_number = workflow.pr_number!;
-
-        if (!pr_list.includes(pr_number)) {
-            pr_list.push(pr_number);
-
+        if (workflowsByPR.has(pr_number)) {
+            workflowsByPR.get(pr_number).jobs.push(workflow);
+        }
+        else {
             const new_pr: PRandJobs = {
                 head_sha: workflow.head_sha!,
                 pr_number: pr_number,
                 owner_login: workflow.owner_login!,
                 jobs: [workflow]
             };
-            workflowsByPR.push(new_pr);
-        }
-        else {
-            const objIndex = workflowsByPR.findIndex((obj => obj.pr_number == pr_number));
-            workflowsByPR[objIndex].jobs.push(workflow);
+            workflowsByPR.set(pr_number, new_pr);
         }
     }
     return workflowsByPR;
