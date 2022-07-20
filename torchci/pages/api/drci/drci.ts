@@ -2,13 +2,102 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import * as drciUtils from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_START, formDrciComment } from "lib/drciUtils";
 
+interface PRandJobs {
+    head_sha: string;
+    pr_number: number;
+    owner_login: string;
+    jobs: RecentWorkflowsData[];
+}
 
 export async function fetchWorkflows() {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
-        drciUtils.NUM_MINUTES + ""
+        NUM_MINUTES + ""
     );
+
+    const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+
+    for (const [pr_number, pr] of workflowsByPR) {
+        const { pending, failedJobs } = getWorkflowAnalysis(pr);
+        const failureInfo = constructFailureAnalysis(pending, failedJobs, pr.head_sha);
+        //add failureInfo to Dr. CI comment on each PR
+    }
+}
+
+export function constructFailureAnalysis(
+    pending: number,
+    failedJobs: RecentWorkflowsData[],
+    sha: string
+): string {
+    let output = ``;
+    const failing = failedJobs.length;
+    const noneFailing = `## :white_check_mark: No Failures`;
+    const someFailing = `## :x: ${failing} Failures`;
+    const somePending = `, ${pending} Pending`;
+
+    const hasFailing = failing > 0;
+    const hasPending = pending > 0;
+    if (!hasFailing) {
+        output += noneFailing;
+        if (hasPending) {
+            output += somePending;
+        }
+        output += `\nAs of commit ${sha}:`;
+        output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
+    }
+    else {
+        output += someFailing;
+        if (hasPending) {
+            output += somePending;
+        }
+        output += `\nAs of commit ${sha}:`;
+        output += '\nThe following jobs have failed:\n';
+        for (const job of failedJobs) {
+            output += `* [${job.job_name}](${job.html_url})\n`;
+        }
+    }
+    return output;
+}
+
+export function getWorkflowAnalysis(
+    prInfo: PRandJobs
+): { pending: number; failedJobs: RecentWorkflowsData[] } {
+    const jobs = prInfo.jobs;
+    let numPending = 0;
+    const failedJobsInfo: RecentWorkflowsData[] = [];
+    for (const workflow of jobs) {
+        if (workflow.conclusion === null && workflow.completed_at === null) {
+            numPending++;
+        }
+        else if (workflow.conclusion === "failure") {
+            failedJobsInfo.push(workflow);
+        }
+    }
+    return { pending: numPending, failedJobs: failedJobsInfo };
+}
+
+export function reorganizeWorkflows(
+    recentWorkflows: RecentWorkflowsData[]
+): Map<number, PRandJobs> {
+    const workflowsByPR = new Map();
+
+    for (const workflow of recentWorkflows) {
+        const pr_number = workflow.pr_number!;
+        if (workflowsByPR.has(pr_number)) {
+            workflowsByPR.get(pr_number).jobs.push(workflow);
+        }
+        else {
+            const new_pr: PRandJobs = {
+                head_sha: workflow.head_sha!,
+                pr_number: pr_number,
+                owner_login: workflow.owner_login!,
+                jobs: [workflow]
+            };
+            workflowsByPR.set(pr_number, new_pr);
+        }
+    }
+    return workflowsByPR;
 }
 
 export async function updateCommentWithWorkflow(
@@ -17,17 +106,17 @@ export async function updateCommentWithWorkflow(
 ): Promise<void> {
 
     const { pr_number, owner_login } = workflow;
-    if (!drciUtils.POSSIBLE_USERS.includes(owner_login)) {
+    if (!POSSIBLE_USERS.includes(owner_login!)) {
         console.log("did not make a comment");
         return;
     }
     const { id, body } = await getDrciComment(
-        pr_number,
-        owner_login,
-        drciUtils.REPO
+        pr_number!,
+        owner_login!,
+        REPO
     );
 
-    const drciComment = drciUtils.formDrciComment(pr_number);
+    const drciComment = formDrciComment(pr_number!);
 
     if (id === 0) {
         return;
@@ -37,8 +126,8 @@ export async function updateCommentWithWorkflow(
     }
     await octokit.rest.issues.updateComment({
         body: body,
-        owner: owner_login,
-        repo: drciUtils.REPO,
+        owner: owner_login!,
+        repo: REPO,
         comment_id: id,
     });
 }
@@ -56,7 +145,7 @@ async function getDrciComment(
         issue_number: prNum,
     });
     for (const comment of commentsRes.data) {
-        if (comment.body!.includes(drciUtils.DRCI_COMMENT_START)) {
+        if (comment.body!.includes(DRCI_COMMENT_START)) {
             return { id: comment.id, body: comment.body! };
         }
     }

@@ -92,12 +92,12 @@ export interface FlakyTestData {
 
 export interface RecentWorkflowsData {
   job_name: string;
-  conclusion: string;
-  completed_at: string;
+  conclusion: string | null;
+  completed_at: string | null;
   html_url: string;
-  head_sha: string;
-  pr_number: number;
-  owner_login: string;
+  head_sha?: string;
+  pr_number?: number;
+  owner_login?: string;
 }
 
 export interface TTSChange {
