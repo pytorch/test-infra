@@ -19,7 +19,7 @@ export async function fetchWorkflows() {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
     for (const pr of workflowsByPR) {
-        const { pending, failedJobs } = await getWorkflowAnalysis(pr);
+        const { pending, failedJobs } = getWorkflowAnalysis(pr);
         const failureInfo = constructFailureAnalysis(pending, failedJobs, pr.head_sha);
         //add failureInfo to Dr. CI comment on each PR
     }
@@ -51,9 +51,9 @@ export function constructFailureAnalysis(
     return output;
 }
 
-export async function getWorkflowAnalysis(
+export function getWorkflowAnalysis(
     prInfo: PRandJobs
-): Promise<{ pending: number; failedJobs: RecentWorkflowsData[] }> {
+): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;
     let numFailing = 0;
     let numPending = 0;
@@ -78,27 +78,21 @@ export function reorganizeWorkflows(
 
     for (const workflow of recentWorkflows) {
         const pr_number = workflow.pr_number!;
-        const new_workflow: RecentWorkflowsData = {
-            job_name: workflow.job_name,
-            conclusion: workflow.conclusion,
-            completed_at: workflow.completed_at,
-            html_url: workflow.html_url
-        };
 
         if (!pr_list.includes(pr_number)) {
             pr_list.push(pr_number);
 
             const new_pr: PRandJobs = {
                 head_sha: workflow.head_sha!,
-                pr_number: workflow.pr_number!,
+                pr_number: pr_number,
                 owner_login: workflow.owner_login!,
-                jobs: [new_workflow]
+                jobs: [workflow]
             };
             workflowsByPR.push(new_pr);
         }
         else {
             const objIndex = workflowsByPR.findIndex((obj => obj.pr_number == pr_number));
-            workflowsByPR[objIndex].jobs.push(new_workflow);
+            workflowsByPR[objIndex].jobs.push(workflow);
         }
     }
     return workflowsByPR;
