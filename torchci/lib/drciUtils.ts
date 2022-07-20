@@ -13,11 +13,11 @@ export const POSSIBLE_USERS = ["swang392"];
 export const HUD_URL = "https://hud.pytorch.org/pr/";
 
 export function formDrciComment(prNum: number): string {
-    let body = `## :link: Helpful Links
+    var body = `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results [here](${HUD_URL}${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${prNum}${PYTHON_DOCS_URL})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}${prNum}${CPP_DOCS_URL})
 * :question: Need help or want to give feedback on the CI? Visit our [office hours](${OH_URL})
 Note: Links to docs will display an error until the docs builds have been completed.`;
-    return DRCI_COMMENT_START + body + DRCI_COMMENT_END;
+    return DRCI_COMMENT_START + body;
 }
