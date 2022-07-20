@@ -10192,11 +10192,11 @@
         {
           "color": "ededed",
           "default": false,
-          "description": null,
+          "description": "",
           "id": 3267386230,
-          "name": "fx",
+          "name": "module: fx",
           "node_id": "MDU6TGFiZWwzMjY3Mzg2MjMw",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/fx"
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20fx"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/labels{/name}",
