@@ -18,7 +18,7 @@ export async function fetchWorkflows() {
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
-    for (var pr of workflowsByPR) {
+    for (const pr of workflowsByPR) {
         const { pending, failedJobs } = await getWorkflowAnalysis(pr);
         const failureInfo = constructFailureAnalysis(pending, failedJobs, pr.head_sha);
         //add failureInfo to Dr. CI comment on each PR
@@ -44,7 +44,7 @@ export function constructFailureAnalysis(
     output += `\nAs of commit ${sha}:`;
     if (failing != 0) {
         output += '\nThe following jobs have failed:\n';
-        for (var job of failedJobs) {
+        for (const job of failedJobs) {
             output += `* [${job.job_name}](${job.html_url})\n`;
         }
     }
@@ -58,7 +58,7 @@ export async function getWorkflowAnalysis(
     let numFailing = 0;
     let numPending = 0;
     const failedJobsInfo: RecentWorkflowsData[] = [];
-    for (var workflow of jobs) {
+    for (const workflow of jobs) {
         if (workflow.conclusion === null && workflow.completed_at === null) {
             numPending++;
         }
@@ -76,7 +76,7 @@ export function reorganizeWorkflows(
     const pr_list: number[] = [];
     const workflowsByPR: PRandJobs[] = [];
 
-    for (var workflow of recentWorkflows) {
+    for (const workflow of recentWorkflows) {
         const pr_number = workflow.pr_number!;
         const new_workflow: RecentWorkflowsData = {
             job_name: workflow.job_name,
