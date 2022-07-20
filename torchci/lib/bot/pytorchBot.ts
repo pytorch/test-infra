@@ -133,6 +133,17 @@ function pytorchBot(app: Probot): void {
       }
     }
 
+    async function handleApprove() {
+      if (repo === "pytorch-canary") {
+        return await ctx.octokit.pulls.createReview({
+          owner,
+          repo,
+          pull_number: prNum,
+          event: "APPROVE",
+        });
+      }
+    }
+
     async function existingRepoLabels(): Promise<string[]> {
       const labels = await ctx.octokit.paginate(
         "GET /repos/{owner}/{repo}/labels",
@@ -210,6 +221,9 @@ function pytorchBot(app: Probot): void {
 
     if (args.help) {
       return await addComment(ctx, getHelp());
+    }
+    if (args.approve) {
+      return await handleApprove();
     }
     switch (args.command) {
       case "revert":

@@ -105,6 +105,13 @@ label.add_argument("labels", {
   help: "Labels to add to given Pull Request",
 });
 
+// Approve for testing purposes so we don't want to show this in the CLI
+parser.add_argument("-approve", "--approve", {
+  help: SUPPRESS,
+  required: false,
+  action: "store_true",
+});
+
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
