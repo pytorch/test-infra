@@ -2,7 +2,7 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import * as drciUtils from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_START, formDrciComment } from "lib/drciUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -13,7 +13,7 @@ interface PRandJobs {
 
 export async function fetchWorkflows() {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
-        drciUtils.NUM_MINUTES + ""
+        NUM_MINUTES + ""
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
@@ -35,9 +35,12 @@ export function constructFailureAnalysis(
     const noneFailing = `## :white_check_mark: No Failures`;
     const someFailing = `## :x: ${failing} Failures`;
     const somePending = `, ${pending} Pending`;
-    if (failing === 0) {
+
+    const hasFailing = failing > 0;
+    const hasPending = pending > 0;
+    if (!hasFailing) {
         output += noneFailing;
-        if (pending != 0) {
+        if (hasPending) {
             output += somePending;
         }
         output += `\nAs of commit ${sha}:`;
@@ -45,7 +48,7 @@ export function constructFailureAnalysis(
     }
     else {
         output += someFailing;
-        if (pending != 0) {
+        if (hasPending) {
             output += somePending;
         }
         output += `\nAs of commit ${sha}:`;
@@ -103,17 +106,17 @@ export async function updateCommentWithWorkflow(
 ): Promise<void> {
 
     const { pr_number, owner_login } = workflow;
-    if (!drciUtils.POSSIBLE_USERS.includes(owner_login!)) {
+    if (!POSSIBLE_USERS.includes(owner_login!)) {
         console.log("did not make a comment");
         return;
     }
     const { id, body } = await getDrciComment(
         pr_number!,
         owner_login!,
-        drciUtils.REPO
+        REPO
     );
 
-    const drciComment = drciUtils.formDrciComment(pr_number!);
+    const drciComment = formDrciComment(pr_number!);
 
     if (id === 0) {
         return;
@@ -124,7 +127,7 @@ export async function updateCommentWithWorkflow(
     await octokit.rest.issues.updateComment({
         body: body,
         owner: owner_login!,
-        repo: drciUtils.REPO,
+        repo: REPO,
         comment_id: id,
     });
 }
@@ -142,7 +145,7 @@ async function getDrciComment(
         issue_number: prNum,
     });
     for (const comment of commentsRes.data) {
-        if (comment.body!.includes(drciUtils.DRCI_COMMENT_START)) {
+        if (comment.body!.includes(DRCI_COMMENT_START)) {
             return { id: comment.id, body: comment.body! };
         }
     }
