@@ -4,18 +4,18 @@ import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import * as drciUtils from "lib/drciUtils";
 
-export interface Workflow {
-    job_name: string;
-    conclusion: string | null;
-    completed_at: string | null;
-    html_url: string;
-}
+// export interface Workflow {
+//     job_name: string;
+//     conclusion: string | null;
+//     completed_at: string | null;
+//     html_url: string;
+// }
 
 interface PRandJobs {
     head_sha: string;
     pr_number: number;
     owner_login: string;
-    jobs: Workflow[];
+    jobs: RecentWorkflowsData[];
 }
 
 export async function fetchWorkflows() {
@@ -35,7 +35,7 @@ export async function fetchWorkflows() {
 export function constructFailureAnalysis(
     failing: number,
     pending: number,
-    failedJobs: Workflow[],
+    failedJobs: RecentWorkflowsData[],
     sha: string
 ): string {
     let output = ``;
@@ -61,11 +61,11 @@ export function constructFailureAnalysis(
 
 export async function getWorkflowAnalysis(
     prInfo: PRandJobs
-): Promise<{ failing: number; pending: number; failedJobs: Workflow[] }> {
+): Promise<{ failing: number; pending: number; failedJobs: RecentWorkflowsData[] }> {
     const jobs = prInfo.jobs;
     let numFailing = 0;
     let numPending = 0;
-    const failedJobsInfo: Workflow[] = [];
+    const failedJobsInfo: RecentWorkflowsData[] = [];
     for (var workflow of jobs) {
         if (workflow.conclusion === null && workflow.completed_at === null) {
             numPending++;
@@ -85,8 +85,8 @@ export function reorganizeWorkflows(
     const workflowsByPR: PRandJobs[] = [];
 
     for (var workflow of recentWorkflows) {
-        const pr_number = workflow.pr_number;
-        const new_workflow: Workflow = {
+        const pr_number = workflow.pr_number!;
+        const new_workflow: RecentWorkflowsData = {
             job_name: workflow.job_name,
             conclusion: workflow.conclusion,
             completed_at: workflow.completed_at,
@@ -97,9 +97,9 @@ export function reorganizeWorkflows(
             pr_list.push(pr_number);
 
             const new_pr: PRandJobs = {
-                head_sha: workflow.head_sha,
-                pr_number: workflow.pr_number,
-                owner_login: workflow.owner_login,
+                head_sha: workflow.head_sha!,
+                pr_number: workflow.pr_number!,
+                owner_login: workflow.owner_login!,
                 jobs: [new_workflow]
             };
             workflowsByPR.push(new_pr);
@@ -118,17 +118,17 @@ export async function updateCommentWithWorkflow(
 ): Promise<void> {
 
     const { pr_number, owner_login } = workflow;
-    if (!drciUtils.POSSIBLE_USERS.includes(owner_login)) {
+    if (!drciUtils.POSSIBLE_USERS.includes(owner_login!)) {
         console.log("did not make a comment");
         return;
     }
     const { id, body } = await getDrciComment(
-        pr_number,
-        owner_login,
+        pr_number!,
+        owner_login!,
         drciUtils.REPO
     );
 
-    const drciComment = drciUtils.formDrciComment(pr_number);
+    const drciComment = drciUtils.formDrciComment(pr_number!);
 
     if (id === 0) {
         return;
@@ -138,7 +138,7 @@ export async function updateCommentWithWorkflow(
     }
     await octokit.rest.issues.updateComment({
         body: body,
-        owner: owner_login,
+        owner: owner_login!,
         repo: drciUtils.REPO,
         comment_id: id,
     });
