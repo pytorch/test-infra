@@ -32,17 +32,23 @@ export function constructFailureAnalysis(
 ): string {
     let output = ``;
     const failing = failedJobs.length;
+    const noneFailing = `## :white_check_mark: No Failures`;
+    const someFailing = `## :x: ${failing} Failures`;
+    const somePending = `, ${pending} Pending`;
     if (failing === 0) {
-        output += `## :white_check_mark: No Failures (${pending} Pending})`;
-    }
-    else if (pending === 0) {
-        output += `## :x: ${failing} New Failures`;
+        output += noneFailing;
+        if (pending != 0) {
+            output += somePending;
+        }
+        output += `\nAs of commit ${sha}:`;
+        output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
     }
     else {
-        output += `## :x: ${failing} New Failures, ${pending} Pending`;
-    }
-    output += `\nAs of commit ${sha}:`;
-    if (failing != 0) {
+        output += someFailing;
+        if (pending != 0) {
+            output += somePending;
+        }
+        output += `\nAs of commit ${sha}:`;
         output += '\nThe following jobs have failed:\n';
         for (const job of failedJobs) {
             output += `* [${job.job_name}](${job.html_url})\n`;
@@ -55,7 +61,6 @@ export function getWorkflowAnalysis(
     prInfo: PRandJobs
 ): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;
-    let numFailing = 0;
     let numPending = 0;
     const failedJobsInfo: RecentWorkflowsData[] = [];
     for (const workflow of jobs) {
@@ -63,7 +68,6 @@ export function getWorkflowAnalysis(
             numPending++;
         }
         else if (workflow.conclusion === "failure") {
-            numFailing++;
             failedJobsInfo.push(workflow);
         }
     }

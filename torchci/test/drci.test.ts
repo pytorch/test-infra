@@ -65,11 +65,10 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(workflowsByPR[1]);
         const failureInfo = updateDrciBot.constructFailureAnalysis(pending, failedJobs, workflowsByPR[1].head_sha);
-        const failedJobName = workflowsByPR[1].jobs[0].job_name;
-        console.log(failureInfo);
+        const failedJobName = recentWorkflowC.job_name;
 
-        expect(failureInfo.includes("1 New Failures, 1 Pending"));
-        expect(failureInfo.includes(failedJobName));
+        expect(failureInfo.includes("1 Failures, 1 Pending")).toBeTruthy();
+        expect(failureInfo.includes(failedJobName)).toBeTruthy();
     });
 
     test("Check that reorganizeWorkflows works correctly", async () => {
