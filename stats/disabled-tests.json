@@ -23565,8 +23565,48 @@
     },
     {
       "active_lock_reason": null,
-      "assignee": null,
-      "assignees": [],
+      "assignee": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/3241341?v=4",
+        "events_url": "https://api.github.com/users/saketh-are/events{/privacy}",
+        "followers_url": "https://api.github.com/users/saketh-are/followers",
+        "following_url": "https://api.github.com/users/saketh-are/following{/other_user}",
+        "gists_url": "https://api.github.com/users/saketh-are/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/saketh-are",
+        "id": 3241341,
+        "login": "saketh-are",
+        "node_id": "MDQ6VXNlcjMyNDEzNDE=",
+        "organizations_url": "https://api.github.com/users/saketh-are/orgs",
+        "received_events_url": "https://api.github.com/users/saketh-are/received_events",
+        "repos_url": "https://api.github.com/users/saketh-are/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/saketh-are/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/saketh-are/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/saketh-are"
+      },
+      "assignees": [
+        {
+          "avatar_url": "https://avatars.githubusercontent.com/u/3241341?v=4",
+          "events_url": "https://api.github.com/users/saketh-are/events{/privacy}",
+          "followers_url": "https://api.github.com/users/saketh-are/followers",
+          "following_url": "https://api.github.com/users/saketh-are/following{/other_user}",
+          "gists_url": "https://api.github.com/users/saketh-are/gists{/gist_id}",
+          "gravatar_id": "",
+          "html_url": "https://github.com/saketh-are",
+          "id": 3241341,
+          "login": "saketh-are",
+          "node_id": "MDQ6VXNlcjMyNDEzNDE=",
+          "organizations_url": "https://api.github.com/users/saketh-are/orgs",
+          "received_events_url": "https://api.github.com/users/saketh-are/received_events",
+          "repos_url": "https://api.github.com/users/saketh-are/repos",
+          "site_admin": false,
+          "starred_url": "https://api.github.com/users/saketh-are/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/saketh-are/subscriptions",
+          "type": "User",
+          "url": "https://api.github.com/users/saketh-are"
+        }
+      ],
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32&suite=TestModuleCUDA&file=test_modules.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7415127953).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 3 red and 2 green.\n\ncc @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @saketh-are @ezyang @anjali411 @dylanbespalko @Lezcano @nikitaved",
       "closed_at": null,
@@ -23647,7 +23687,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81732/timeline",
       "title": "DISABLED test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)",
-      "updated_at": "2022-07-20T20:57:58Z",
+      "updated_at": "2022-07-20T22:17:19Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81732",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -23669,7 +23709,114 @@
         "type": "Bot",
         "url": "https://api.github.com/users/pytorch-bot%5Bbot%5D"
       }
+    },
+    {
+      "active_lock_reason": null,
+      "assignee": null,
+      "assignees": [],
+      "author_association": "CONTRIBUTOR",
+      "body": "Platforms: linux\r\n\r\nThis test was disabled because it is failing on master. Recent examples:\r\nhttps://github.com/pytorch/pytorch/runs/7436485022?check_suite_focus=true\r\nhttps://github.com/pytorch/pytorch/runs/7436588376?check_suite_focus=true\r\nhttps://github.com/pytorch/pytorch/runs/7437747197?check_suite_focus=true\r\n\r\nIt looked like it started with https://github.com/pytorch/pytorch/pull/81056, but that may be a coincidence only.\r\n\r\ncc @ezyang @gchanan @zou3519 @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @saketh-are would you be the right owner? is this nn related?",
+      "closed_at": null,
+      "comments": 1,
+      "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/comments",
+      "created_at": "2022-07-20T22:23:16Z",
+      "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/events",
+      "html_url": "https://github.com/pytorch/pytorch/issues/81822",
+      "id": 1312030866,
+      "labels": [
+        {
+          "color": "F22613",
+          "default": false,
+          "description": null,
+          "id": 443484135,
+          "name": "high priority",
+          "node_id": "MDU6TGFiZWw0NDM0ODQxMzU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
+        },
+        {
+          "color": "cc317c",
+          "default": false,
+          "description": "",
+          "id": 466131885,
+          "name": "triage review",
+          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "Denotes a (flaky) test currently skipped in CI.",
+          "id": 1679533716,
+          "name": "skipped",
+          "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        }
+      ],
+      "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/labels{/name}",
+      "locked": false,
+      "milestone": null,
+      "node_id": "I_kwDOA-j9z85ONACS",
+      "number": 81822,
+      "performed_via_github_app": null,
+      "reactions": {
+        "+1": 0,
+        "-1": 0,
+        "confused": 0,
+        "eyes": 0,
+        "heart": 0,
+        "hooray": 0,
+        "laugh": 0,
+        "rocket": 0,
+        "total_count": 0,
+        "url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/reactions"
+      },
+      "repository_url": "https://api.github.com/repos/pytorch/pytorch",
+      "score": 0.0,
+      "state": "open",
+      "state_reason": null,
+      "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/timeline",
+      "title": "DISABLED test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
+      "updated_at": "2022-07-20T22:23:44Z",
+      "url": "https://api.github.com/repos/pytorch/pytorch/issues/81822",
+      "user": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
+        "events_url": "https://api.github.com/users/janeyx99/events{/privacy}",
+        "followers_url": "https://api.github.com/users/janeyx99/followers",
+        "following_url": "https://api.github.com/users/janeyx99/following{/other_user}",
+        "gists_url": "https://api.github.com/users/janeyx99/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/janeyx99",
+        "id": 31798555,
+        "login": "janeyx99",
+        "node_id": "MDQ6VXNlcjMxNzk4NTU1",
+        "organizations_url": "https://api.github.com/users/janeyx99/orgs",
+        "received_events_url": "https://api.github.com/users/janeyx99/received_events",
+        "repos_url": "https://api.github.com/users/janeyx99/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/janeyx99/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/janeyx99/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/janeyx99"
+      }
     }
   ],
-  "total_count": 225
+  "total_count": 226
 }
