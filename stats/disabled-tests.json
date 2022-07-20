@@ -10171,7 +10171,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_trace_buffer_slice%2C%20TestFX)).",
+      "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_trace_buffer_slice%2C%20TestFX)).\n\ncc @ezyang @SherlockNoMad",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/comments",
@@ -10180,6 +10180,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/74208",
       "id": 1169006206,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -10223,7 +10232,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/74208/timeline",
       "title": "DISABLED test_trace_buffer_slice (__main__.TestFX)",
-      "updated_at": "2022-03-15T22:30:47Z",
+      "updated_at": "2022-07-20T21:25:18Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/74208",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/2453524?v=4",
