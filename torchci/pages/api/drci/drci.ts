@@ -131,10 +131,7 @@ export async function updateCommentWithWorkflow(
         REPO
     );
 
-    if (id === 0) {
-        return;
-    }
-    if (body === comment) {
+    if (id === 0 || body === comment) {
         return;
     }
 
