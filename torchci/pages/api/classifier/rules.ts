@@ -105,6 +105,11 @@ export default async function handler(
         priority: 997,
       },
       {
+        name: "Python pytest failure",
+        pattern: r`^FAILED test_\[:\w\.\]*`,
+        priority: 997,
+      },
+      {
         name: "failed to download github artifacts",
         pattern: r`List Artifacts failed:.*`,
         priority: 997,
