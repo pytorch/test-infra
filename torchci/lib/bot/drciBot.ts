@@ -44,8 +44,8 @@ export default function drciBot(app: Probot): void {
       );
       const existingDrciID = existingDrciData.id;
       const existingDrciComment = existingDrciData.body;
-
-      const drciComment = drciUtils.formDrciHeader(prNum) + drciUtils.DRCI_COMMENT_END;
+      
+      const drciComment = drciUtils.formDrciComment(prNum);
 
       if (existingDrciComment === drciComment) {
         return;

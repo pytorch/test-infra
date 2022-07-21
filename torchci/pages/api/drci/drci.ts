@@ -3,7 +3,7 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciHeader } from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment } from "lib/drciUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -35,9 +35,9 @@ export async function fetchWorkflows() {
         const { pending, failedJobs } = getWorkflowAnalysis(pr_info);
 
         const failureInfo = constructFailureAnalysis(pending, failedJobs, pr_info.head_sha);
-        const comment = formDrciHeader(pr_number) + failureInfo + DRCI_COMMENT_END;
+        const comment = formDrciComment(pr_number, failureInfo);
 
-        updateCommentWithWorkflow(pr_info, comment);
+        await updateCommentWithWorkflow(pr_info, comment);
     }
 }
 
@@ -121,7 +121,7 @@ export async function updateCommentWithWorkflow(
     comment: string,
 ): Promise<void> {
     const { pr_number, owner_login } = pr_info;
-    if (!POSSIBLE_USERS.includes(owner_login!) || pr_number != 80896) {
+    if (!POSSIBLE_USERS.includes(owner_login!) && pr_number != 80896) {
         console.log("did not make a comment");
         return;
     }
@@ -131,16 +131,13 @@ export async function updateCommentWithWorkflow(
         REPO
     );
 
-    if (id === 0) {
-        return;
-    }
-    if (body === comment) {
+    if (id === 0 || body === comment) {
         return;
     }
 
     const octokit = await getOctokit(owner_login, REPO);
     await octokit.rest.issues.updateComment({
-        body: body,
+        body: comment,
         owner: owner_login!,
         repo: REPO,
         comment_id: id,
