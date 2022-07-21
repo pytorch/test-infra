@@ -1,7 +1,7 @@
 import nock from "nock";
 import * as utils from "./utils";
 import * as updateDrciBot from "../pages/api/drci/drci";
-import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciHeader } from "lib/drciUtils";
+import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment } from "lib/drciUtils";
 
 nock.disableNetConnect();
 
@@ -94,7 +94,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
-        const comment = formDrciHeader(recentWorkflowA.pr_number);
+        const comment = formDrciComment(recentWorkflowA.pr_number, "");
         expect(comment.includes(DRCI_COMMENT_START)).toBeTruthy();
         expect(
             comment.includes("See artifacts and rendered test results")
