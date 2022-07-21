@@ -18,13 +18,13 @@ export default async function handler(
 ) {
     const authorization = req.headers.authorization;
     if (authorization === process.env.DRCI_BOT_KEY) {
-        fetchWorkflows();
+        updateDrciComments();
         res.status(200).end();
     }
     res.status(403).end();
 }
 
-export async function fetchWorkflows() {
+export async function updateDrciComments() {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
         NUM_MINUTES + ""
     );
@@ -32,16 +32,16 @@ export async function fetchWorkflows() {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
     for (const [pr_number, pr_info] of workflowsByPR) {
-        const { pending, failedJobs } = getWorkflowAnalysis(pr_info);
+        const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
 
-        const failureInfo = constructFailureAnalysis(pending, failedJobs, pr_info.head_sha);
+        const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
         const comment = formDrciComment(pr_number, failureInfo);
 
         await updateCommentWithWorkflow(pr_info, comment);
     }
 }
 
-export function constructFailureAnalysis(
+export function constructResultsComment(
     pending: number,
     failedJobs: RecentWorkflowsData[],
     sha: string
@@ -76,7 +76,7 @@ export function constructFailureAnalysis(
     return output;
 }
 
-export function getWorkflowAnalysis(
+export function getWorkflowJobsStatuses(
     prInfo: PRandJobs
 ): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;

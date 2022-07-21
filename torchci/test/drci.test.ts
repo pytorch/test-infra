@@ -65,7 +65,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const pr_1001 = workflowsByPR.get(1001)!;
         const { pending, failedJobs } = updateDrciBot.getWorkflowAnalysis(pr_1001);
-        const failureInfo = updateDrciBot.constructFailureAnalysis(pending, failedJobs, pr_1001.head_sha);
+        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.head_sha);
         const failedJobName = recentWorkflowC.job_name;
 
         expect(failureInfo.includes("1 Failures, 1 Pending")).toBeTruthy();
