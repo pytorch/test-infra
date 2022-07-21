@@ -94,7 +94,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
-        const comment = formDrciComment(recentWorkflowA.pr_number, "");
+        const comment = formDrciComment(recentWorkflowA.pr_number);
         expect(comment.includes(DRCI_COMMENT_START)).toBeTruthy();
         expect(
             comment.includes("See artifacts and rendered test results")
