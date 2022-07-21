@@ -18,12 +18,14 @@ export function formDrciHeader(prNum: number): string {
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${prNum}${PYTHON_DOCS_URL})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}${prNum}${CPP_DOCS_URL})
 * :question: Need help or want to give feedback on the CI? Visit our [office hours](${OH_URL})
-Note: Links to docs will display an error until the docs builds have been completed.`;
+
+Note: Links to docs will display an error until the docs builds have been completed.
+`;
 }
 
 export function formDrciComment(
     pr_num: number, 
-    pr_results?: string,
+    pr_results: string,
 ): string {
     const header = formDrciHeader(pr_num);
     return DRCI_COMMENT_START + header + pr_results + DRCI_COMMENT_END;
