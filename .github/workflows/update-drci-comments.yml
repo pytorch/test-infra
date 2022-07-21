@@ -18,5 +18,4 @@ jobs:
         run: |
           curl --request POST \
           --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.GITHUB_TOKEN }}'
-        # not sure what authorization tokens i need
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}'
