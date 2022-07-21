@@ -39,13 +39,6 @@ def do_backfill(n):
 
     params = ParamDict()
     results = qlambda.execute(parameters=params).results
-    # q = (
-    #     Q("GitHub-Actions.workflow_job")
-    #     .where(F["conclusion"] == "failure")
-    #     .highest(n, F["_event_time"])
-    #     .select(F["id"])
-    # )
-    # results = client.sql(q)
     ids = [result["id"] for result in results]
     with ThreadPoolExecutor() as executor:
         futures = []

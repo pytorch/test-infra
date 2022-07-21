@@ -27,12 +27,6 @@ def download_log(conclusion, id):
     headers["Authorization"] = f"token {GITHUB_TOKEN}"
     with urlopen(Request(url, headers=headers)) as data:
         log_data = data.read()
-    # with open("uncompressed", 'wb') as f:
-    #     f.write(log_data)
-    # with open("gzip", 'wb') as f:
-    #     f.write(gzip.compress(log_data))
-    # with open("br", 'wb') as f:
-    #     f.write(brotli.compress(log_data, mode=brotli.MODE_TEXT))
     s3.Object(BUCKET_NAME, f"log/{id}").put(
         Body=gzip.compress(log_data),
         ContentType="text/plain",
