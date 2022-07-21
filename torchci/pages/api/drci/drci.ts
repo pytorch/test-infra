@@ -2,7 +2,7 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment } from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciHeader } from "lib/drciUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -26,7 +26,7 @@ export async function fetchWorkflows() {
         const { pending, failedJobs } = getWorkflowAnalysis(pr_info);
 
         const failureInfo = constructFailureAnalysis(pending, failedJobs, pr_info.head_sha);
-        const comment = formDrciComment(pr_number) + failureInfo + DRCI_COMMENT_END;
+        const comment = formDrciHeader(pr_number) + failureInfo + DRCI_COMMENT_END;
 
         updateCommentWithWorkflow(pr_info, comment);
     }
