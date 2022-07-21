@@ -65,7 +65,7 @@ describe("verify-drci-functionality", () => {
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = "not_swang392";
 
-    const mock = jest.spyOn(drciUtils, "formDrciComment");
+    const mock = jest.spyOn(drciUtils, "formDrciHeader");
     mock.mockImplementation();
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
