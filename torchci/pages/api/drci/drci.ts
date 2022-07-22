@@ -3,7 +3,7 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment } from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -125,20 +125,21 @@ export async function updateCommentWithWorkflow(
         console.log("did not make a comment");
         return;
     }
+    const octokit = await getOctokit(OWNER, REPO);
     const { id, body } = await getDrciComment(
         pr_number!,
-        owner_login!,
-        REPO
+        OWNER,
+        REPO,
+        octokit
     );
 
     if (id === 0 || body === comment) {
         return;
     }
 
-    const octokit = await getOctokit(owner_login, REPO);
     await octokit.rest.issues.updateComment({
         body: comment,
-        owner: owner_login!,
+        owner: OWNER,
         repo: REPO,
         comment_id: id,
     });
@@ -147,10 +148,9 @@ export async function updateCommentWithWorkflow(
 async function getDrciComment(
     prNum: number,
     owner: string,
-    repo: string
+    repo: string,
+    octokit: Octokit
 ): Promise<{ id: number; body: string }> {
-
-    const octokit = await getOctokit(owner, repo);
     const commentsRes = await octokit.rest.issues.listComments({
         owner,
         repo,
