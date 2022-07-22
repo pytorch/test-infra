@@ -3,7 +3,7 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment } from "lib/drciUtils";
+import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -18,13 +18,13 @@ export default async function handler(
 ) {
     const authorization = req.headers.authorization;
     if (authorization === process.env.DRCI_BOT_KEY) {
-        fetchWorkflows();
+        updateDrciComments();
         res.status(200).end();
     }
     res.status(403).end();
 }
 
-export async function fetchWorkflows() {
+export async function updateDrciComments() {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
         NUM_MINUTES + ""
     );
@@ -32,16 +32,16 @@ export async function fetchWorkflows() {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
 
     for (const [pr_number, pr_info] of workflowsByPR) {
-        const { pending, failedJobs } = getWorkflowAnalysis(pr_info);
+        const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
 
-        const failureInfo = constructFailureAnalysis(pending, failedJobs, pr_info.head_sha);
+        const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
         const comment = formDrciComment(pr_number, failureInfo);
 
         await updateCommentWithWorkflow(pr_info, comment);
     }
 }
 
-export function constructFailureAnalysis(
+export function constructResultsComment(
     pending: number,
     failedJobs: RecentWorkflowsData[],
     sha: string
@@ -76,7 +76,7 @@ export function constructFailureAnalysis(
     return output;
 }
 
-export function getWorkflowAnalysis(
+export function getWorkflowJobsStatuses(
     prInfo: PRandJobs
 ): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;
@@ -125,20 +125,21 @@ export async function updateCommentWithWorkflow(
         console.log("did not make a comment");
         return;
     }
+    const octokit = await getOctokit(OWNER, REPO);
     const { id, body } = await getDrciComment(
         pr_number!,
-        owner_login!,
-        REPO
+        OWNER,
+        REPO,
+        octokit
     );
 
     if (id === 0 || body === comment) {
         return;
     }
 
-    const octokit = await getOctokit(owner_login, REPO);
     await octokit.rest.issues.updateComment({
         body: comment,
-        owner: owner_login!,
+        owner: OWNER,
         repo: REPO,
         comment_id: id,
     });
@@ -147,10 +148,9 @@ export async function updateCommentWithWorkflow(
 async function getDrciComment(
     prNum: number,
     owner: string,
-    repo: string
+    repo: string,
+    octokit: Octokit
 ): Promise<{ id: number; body: string }> {
-
-    const octokit = await getOctokit(owner, repo);
     const commentsRes = await octokit.rest.issues.listComments({
         owner,
         repo,
