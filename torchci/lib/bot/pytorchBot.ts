@@ -2,16 +2,14 @@ import { Probot } from "probot";
 import { addComment, addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser, getInputArgs } from "./cliParser";
 import shlex from "shlex";
+import { isInLandCheckAllowlist } from "./rolloutUtils";
 
 function pytorchBot(app: Probot): void {
   const mergeCmdPat = new RegExp(
     "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
   );
-  const forceMergeMessagePat = new RegExp(
-    "^\\s*\\S+\\s+\\S+.*"
-  );
+  const forceMergeMessagePat = new RegExp("^\\s*\\S+\\s+\\S+.*");
 
-  const landtimeChecksAllowlist = new Set(["landchecktestuser"]);
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
@@ -76,7 +74,7 @@ function pytorchBot(app: Probot): void {
     async function handleMerge(
       forceMessage: string,
       mergeOnGreen: boolean,
-      landChecks: boolean,
+      landChecks: boolean
     ) {
       const isForced = forceMessage != undefined;
       const isValidMessage = isValidForceMergeMessage(forceMessage);
@@ -84,17 +82,16 @@ function pytorchBot(app: Probot): void {
       if (!isForced || isValidMessage) {
         await dispatchEvent("try-merge", isForced, mergeOnGreen, landChecks);
         await reactOnComment(ctx, "+1");
-      }
-      else {
+      } else {
         await reactOnComment(ctx, "confused");
         await addComment(
           ctx,
           "You need to provide a reason for using force merge, in the format `@pytorchbot merge -f '[CATEGORY] Explanation'`. " +
-          "With [CATEGORY] being one the following:\n" +
-          " EMERGENCY - an emergency fix to quickly address an issue\n" +
-          " MINOR - a minor fix such as cleaning locally unused variables, which shouldn't break anything\n" +
-          " PRE_TESTED - a previous CI run tested everything and you've only added minor changes like fixing lint\n" +
-          " OTHER - something not covered above"
+            "With [CATEGORY] being one the following:\n" +
+            " EMERGENCY - an emergency fix to quickly address an issue\n" +
+            " MINOR - a minor fix such as cleaning locally unused variables, which shouldn't break anything\n" +
+            " PRE_TESTED - a previous CI run tested everything and you've only added minor changes like fixing lint\n" +
+            " OTHER - something not covered above"
         );
       }
     }
@@ -220,7 +217,7 @@ function pytorchBot(app: Probot): void {
           args.green,
           args.land_checks ||
             (ctx.payload.comment.user.login != null &&
-              landtimeChecksAllowlist.has(ctx.payload.comment.user.login)),
+              isInLandCheckAllowlist(ctx.payload.comment.user.login))
         );
       case "rebase": {
         if (args.stable) {
