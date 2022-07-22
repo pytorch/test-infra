@@ -34,7 +34,7 @@ def do_backfill(n):
         api_server="https://api.rs2.usw2.rockset.com",
     )
     qlambda = client.QueryLambda.retrieve(
-        "unclassified", version="d39e66c0ed0aa238", workspace="commons"
+        "unclassified", version="672227495ac70f7d", workspace="commons"
     )
 
     params = ParamDict()
