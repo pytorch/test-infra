@@ -24327,7 +24327,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_MaxUnpool_index_errors_case4_cuda&suite=TestNNDeviceTypeCUDA&file=test_nn.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7461843542).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 3 red and 2 green.",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81966/comments",
       "created_at": "2022-07-22T06:46:07Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81966/events",
@@ -24386,7 +24386,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81966/timeline",
       "title": "DISABLED test_MaxUnpool_index_errors_case4_cuda (__main__.TestNNDeviceTypeCUDA)",
-      "updated_at": "2022-07-22T06:46:09Z",
+      "updated_at": "2022-07-22T09:41:24Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81966",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
