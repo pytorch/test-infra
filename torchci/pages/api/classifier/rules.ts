@@ -106,7 +106,7 @@ export default async function handler(
       },
       {
         name: "Python pytest failure",
-        pattern: r`^FAILED test_\[:\w\.\]*`,
+        pattern: r`^FAILED test.*`,
         priority: 997,
       },
       {
