@@ -2,17 +2,8 @@ import nock from "nock";
 import * as probot from "probot";
 import * as utils from "./utils";
 import pytorchBot from "../lib/bot/pytorchBot";
+import { handleScope, requireDeepCopy } from "./common";
 
-function requireDeepCopy(fileName: string) {
-  return JSON.parse(JSON.stringify(require(fileName)));
-}
-
-function handleScope(scope: nock.Scope) {
-  if (!scope.isDone()) {
-    console.error("pending mocks: %j", scope.pendingMocks());
-  }
-  scope.done();
-}
 nock.disableNetConnect();
 
 describe("merge-bot", () => {
