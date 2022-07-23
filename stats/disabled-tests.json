@@ -24512,7 +24512,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_named_params_with_sharded_tensor%2C%20TestShardedOptimizer)).",
+      "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_named_params_with_sharded_tensor%2C%20TestShardedOptimizer)).",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82023/comments",
@@ -24555,7 +24555,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82023/timeline",
       "title": "DISABLED test_named_params_with_sharded_tensor (__main__.TestShardedOptimizer)",
-      "updated_at": "2022-07-22T21:11:12Z",
+      "updated_at": "2022-07-23T00:16:18Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82023",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/85618232?v=4",
