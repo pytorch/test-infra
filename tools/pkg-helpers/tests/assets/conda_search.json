@@ -1,0 +1,76 @@
+{
+  "pytorch": [
+    {
+      "arch": "arm64",
+      "build": "py3.10_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "python >=3.10,<3.11.0a0",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "1b407761125692652a6720073b8c3bff",
+      "name": "pytorch",
+      "platform": "darwin",
+      "size": 43620699,
+      "subdir": "osx-arm64",
+      "timestamp": 1658736083517,
+      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.10_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "arm64",
+      "build": "py3.8_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "python >=3.8,<3.9.0a0",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "b84d4264186990f31bc1d0c7a8d628de",
+      "name": "pytorch",
+      "platform": "darwin",
+      "size": 43466263,
+      "subdir": "osx-arm64",
+      "timestamp": 1658735665925,
+      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.8_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "arm64",
+      "build": "py3.9_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "python >=3.9,<3.10.0a0",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "f1ae8bba21b25d959aa1829808d49318",
+      "name": "pytorch",
+      "platform": "darwin",
+      "size": 43473381,
+      "subdir": "osx-arm64",
+      "timestamp": 1658736156409,
+      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.9_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    }
+  ]
+}

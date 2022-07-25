@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "pkg-helpers"
+version = "0.1.0"
+description = "Tool to determine pytorch dependencies for common domain library use cases"
+authors = ["Eli Uriegas <eliuriegas@fb.com>"]
+
+[tool.poetry.scripts]
+pkg_helper = "pkg_helpers.__main__:main"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.1.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
