@@ -1,8 +1,9 @@
 import { Probot } from "probot";
 import * as utils from "./utils";
 import nock from "nock";
-import myProbotApp, * as botUtils from "../lib/bot/drciBot";
+import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
+import { OWNER, REPO } from "lib/drciUtils";
 
 const comment_id = 10;
 const comment_node_id = "abcd";
@@ -27,17 +28,19 @@ describe("verify-drci-functionality", () => {
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = "swang392";
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = REPO;
 
     const scope = nock("https://api.github.com")
       .get(
-        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        `/repos/${OWNER}/${REPO}/issues/31/comments`,
         (body) => {
           return true;
         }
       )
       .reply(200)
       .post(
-        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        `/repos/${OWNER}/${REPO}/issues/31/comments`,
         (body) => {
           const comment = body.body;
           expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
@@ -79,10 +82,12 @@ describe("verify-drci-functionality", () => {
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = "swang392";
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = REPO;
 
     const scope = nock("https://api.github.com")
       .get(
-        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        `/repos/${OWNER}/${REPO}/issues/31/comments`,
         (body) => {
           return true;
         }
@@ -95,7 +100,7 @@ describe("verify-drci-functionality", () => {
         },
       ])
       .patch(
-        `/repos/zhouzhuojie/gha-ci-playground/issues/comments/${comment_id}`,
+        `/repos/${OWNER}/${REPO}/issues/comments/${comment_id}`,
         (body) => {
           const comment = body.body;
           expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
