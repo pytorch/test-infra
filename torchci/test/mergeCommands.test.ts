@@ -600,6 +600,33 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
+  test("Revert pull request review triggers dispatch and +1 comment", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.pull_request.user.login = "randomuser";
+    event.payload.review.body = "@pytorchbot revert -m 'this is a bad pr' -c 'nosignal'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.pull_request.number;
+    const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain('{"body":"+1"}');
+        return true;
+      })
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
   test("merge on green using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 

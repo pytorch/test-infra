@@ -1,5 +1,5 @@
 import shlex from "shlex";
-import { addComment, addLabels, reactOnComment } from "./botUtils";
+import { addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import { isInLandCheckAllowlist } from "./rolloutUtils";
 
@@ -173,8 +173,7 @@ class PytorchBotHandler {
       await this.dispatchEvent("try-rebase", false, false, false, "", branch);
       await this.ackComment();
     } else {
-      await addComment(
-        ctx,
+      await this.addComment(
         "You don't have permissions to rebase this PR, only the PR author and pytorch organization members may rebase this PR."
       );
     }
@@ -207,8 +206,7 @@ class PytorchBotHandler {
     const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
     const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
     if (invalidLabels.length > 0) {
-      await addComment(
-        ctx,
+      await this.addComment(
         "Didn't find following labels among repository labels: " +
           invalidLabels.join(",")
       );
@@ -226,8 +224,7 @@ class PytorchBotHandler {
       args = parser.parse_args(shlex.split(inputArgs));
     } catch (err: any) {
       // If the args are invalid, comment with the error + some help.
-      await addComment(
-        this.ctx,
+      await this.addComment(
         "❌ 🤖 pytorchbot command failed: \n```\n" +
           err.message +
           "```\n" +
@@ -237,7 +234,7 @@ class PytorchBotHandler {
     }
 
     if (args.help) {
-      return await addComment(this.ctx, getHelp());
+      return await this.addComment(getHelp());
     }
     switch (args.command) {
       case "revert":
