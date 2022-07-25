@@ -575,8 +575,8 @@ describe("merge-bot", () => {
 
   test("merge this pull request review triggers dispatch and +1 comment", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
-
-    event.payload.review.body = "@pytorchbot merge this";
+    event.payload.pull_request.user.login = "randomuser";
+    event.payload.review.body = "@pytorchbot merge";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -589,7 +589,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number}}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":`
         );
         return true;
       })
