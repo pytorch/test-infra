@@ -23743,15 +23743,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/high%20priority"
         },
         {
-          "color": "cc317c",
-          "default": false,
-          "description": "",
-          "id": 466131885,
-          "name": "triage review",
-          "node_id": "MDU6TGFiZWw0NjYxMzE4ODU=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triage%20review"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Related to torch.nn",
@@ -23803,7 +23794,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81822/timeline",
       "title": "DISABLED test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-07-21T04:20:06Z",
+      "updated_at": "2022-07-25T17:08:47Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81822",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
