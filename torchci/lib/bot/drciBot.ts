@@ -1,7 +1,7 @@
 import { Context, Probot } from "probot";
 import { DRCI_COMMENT_START, POSSIBLE_USERS, OWNER, REPO, formDrciComment } from "lib/drciUtils";
 
-export async function getDrciComment(
+async function getDrciComment(
   context: Context,
   prNum: number,
 ): Promise<{ id: number; body: string }> {
