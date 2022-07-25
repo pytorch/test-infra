@@ -17,7 +17,8 @@ def parse_args() -> argparse.Namespace:
         help="Package type to lookup for",
         type=str,
         choices=["wheel", "conda"],
-        default=os.getenv("PACKAGE_TYPE", "wheel"),
+        # BUILD_TYPE for legacy scripts
+        default=os.getenv("PACKAGE_TYPE", os.getenv("BUILD_TYPE", "wheel")),
     )
     parser.add_argument(
         "--channel",
