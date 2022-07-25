@@ -13,7 +13,7 @@ from pytorch_pkg_helpers.conda import (
     [
         "cpu",
         "cu116",
-    ]
+    ],
 )
 def test_get_conda_version_variables(args):
     with open("tests/assets/conda_search.json", "r") as fp:

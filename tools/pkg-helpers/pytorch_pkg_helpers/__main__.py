@@ -8,6 +8,7 @@ import subprocess
 import shlex
 
 from .conda import get_conda_variables
+from .cuda import get_cuda_variables
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,6 +48,7 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     options = parse_args()
+    variables = []
     if options.package_type == "conda":
         # TODO: Eventually it'd be nice to not have to rely on conda being installed for this to work
         output = subprocess.check_output(
@@ -56,12 +58,21 @@ def main():
             stderr=subprocess.STDOUT,
         )
         conda_search = json.loads(output)
-        for variable in get_conda_variables(
-            conda_search, sys.platform, options.gpu_arch_version, options.python_version
-        ):
-            print(variable)
+        variables.extend(
+            get_conda_variables(
+                conda_search,
+                sys.platform,
+                options.gpu_arch_version,
+                options.python_version,
+            )
+        )
     if options.package_type == "wheel":
         raise NotImplementedError()
+    variables.extend(
+        get_cuda_variables(options.package_type, sys.platform, options.gpu_arch_version)
+    )
+    for variable in variables:
+        print(variable)
     pass
 
 

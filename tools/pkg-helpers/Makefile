@@ -1,5 +1,5 @@
 ifdef VERBOSE
-	PYTEST_VERBOSE_FLAG := -v
+	PYTEST_VERBOSE_FLAG := -vv
 endif
 
 .PHONY: lint
