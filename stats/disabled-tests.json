@@ -24499,7 +24499,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_named_params_with_sharded_tensor%2C%20TestShardedOptimizer)).",
+      "body": "\r\n\r\nThis test was disabled because it is failing on master ([recent examples](http://torch-ci.com/failure/test_named_params_with_sharded_tensor%2C%20TestShardedOptimizer)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82023/comments",
@@ -24508,6 +24508,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82023",
       "id": 1315420361,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "bfdadc",
           "default": false,
@@ -24542,7 +24551,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82023/timeline",
       "title": "DISABLED test_named_params_with_sharded_tensor (__main__.TestShardedOptimizer)",
-      "updated_at": "2022-07-23T00:16:18Z",
+      "updated_at": "2022-07-25T14:15:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82023",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/85618232?v=4",
