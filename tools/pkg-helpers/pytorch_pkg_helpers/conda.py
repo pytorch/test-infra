@@ -25,7 +25,7 @@ def get_conda_version_variables(
     conda_search: str, gpu_arch_version: str, python_version: str
 ) -> List[str]:
     ver_one, ver_two = normalize_gpu_arch_version(gpu_arch_version)
-    for pkg in conda_search["pytorch"]:
+    for pkg in reversed(conda_search["pytorch"]):
         if (
             any(
                 [

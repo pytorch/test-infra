@@ -5,7 +5,7 @@ description = "Tool to determine pytorch dependencies for common domain library 
 authors = ["Eli Uriegas <eliuriegas@fb.com>"]
 
 [tool.poetry.scripts]
-pytorch_pkg_helper = "pkg_helpers.__main__:main"
+pytorch_pkg_helper = "pytorch_pkg_helpers.__main__:main"
 
 [tool.poetry.dependencies]
 python = "^3.8"

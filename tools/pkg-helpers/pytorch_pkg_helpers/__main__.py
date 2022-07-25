@@ -48,6 +48,7 @@ def parse_args() -> argparse.Namespace:
 def main():
     options = parse_args()
     if options.package_type == "conda":
+        # TODO: Eventually it'd be nice to not have to rely on conda being installed for this to work
         output = subprocess.check_output(
             shlex.split(
                 f"conda search --json 'pytorch[channel=pytorch-{options.channel}]'"

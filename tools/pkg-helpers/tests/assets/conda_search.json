@@ -1,75 +1,1172 @@
 {
   "pytorch": [
     {
-      "arch": "arm64",
-      "build": "py3.10_0",
+      "arch": "x86_64",
+      "build": "py3.6_cpu_0",
       "build_number": 0,
-      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
       "constrains": [
         "cpuonly"
       ],
       "depends": [
+        "blas * mkl",
+        "dataclasses",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.6,<3.7.0a0",
+        "pytorch-mutex 1.0 cpu",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20211229-py3.6_cpu_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "a9dd94337163b16c9ada90bed6c71e34",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 70336662,
+      "subdir": "linux-64",
+      "timestamp": 1640766483709,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20211229-py3.6_cpu_0.tar.bz2",
+      "version": "1.11.0.dev20211229"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.6_cuda10.2_cudnn7.6.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=10.2,<10.3",
+        "dataclasses",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.6,<3.7.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20211229-py3.6_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "405fac449baea44c7c546d31646cbb46",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 722897628,
+      "subdir": "linux-64",
+      "timestamp": 1640772092972,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20211229-py3.6_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "version": "1.11.0.dev20211229"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.6_cuda11.1_cudnn8.0.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.1,<11.2",
+        "dataclasses",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.6,<3.7.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20211229-py3.6_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "3b86fb16aac9b38cdd88c3f66570a430",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1541710183,
+      "subdir": "linux-64",
+      "timestamp": 1640775450176,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20211229-py3.6_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "version": "1.11.0.dev20211229"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.6_cuda11.3_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "dataclasses",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.6,<3.7.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20211229-py3.6_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "d91cd34b37d4a84f633a35527860b311",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1197420534,
+      "subdir": "linux-64",
+      "timestamp": 1640775427737,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20211229-py3.6_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20211229"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.6_cuda11.5_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "dataclasses",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.6,<3.7.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20211229-py3.6_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "64a391cf41096b62e1f046512f8b4deb",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 930433822,
+      "subdir": "linux-64",
+      "timestamp": 1640769032228,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20211229-py3.6_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20211229"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.5_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "mkl >=2018",
         "python >=3.10,<3.11.0a0",
+        "python_abi 3.10.* *_cp310",
+        "pytorch-mutex 1.0 cuda",
         "typing_extensions"
       ],
-      "fn": "pytorch-1.13.0.dev20220725-py3.10_0.tar.bz2",
+      "fn": "pytorch-1.11.0.dev20220125-py3.10_cuda11.5_cudnn8.2.0_0.tar.bz2",
       "license": "BSD 3-Clause",
       "license_family": "BSD",
-      "md5": "1b407761125692652a6720073b8c3bff",
+      "md5": "ed0c5a5d859b6487ace8885ce74bd075",
       "name": "pytorch",
-      "platform": "darwin",
-      "size": 43620699,
-      "subdir": "osx-arm64",
-      "timestamp": 1658736083517,
-      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.10_0.tar.bz2",
-      "version": "1.13.0.dev20220725"
+      "platform": "linux",
+      "size": 923784175,
+      "subdir": "linux-64",
+      "timestamp": 1643102211894,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20220125-py3.10_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20220125"
     },
     {
-      "arch": "arm64",
-      "build": "py3.8_0",
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.5_cudnn8.2.0_0",
       "build_number": 0,
-      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
       "constrains": [
-        "cpuonly"
+        "cpuonly <0"
       ],
       "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20220125-py3.7_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "67cd23d5170aa51e56da0048ee32ed6e",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 923494562,
+      "subdir": "linux-64",
+      "timestamp": 1643102015216,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20220125-py3.7_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20220125"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.5_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
         "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
         "typing_extensions"
       ],
-      "fn": "pytorch-1.13.0.dev20220725-py3.8_0.tar.bz2",
+      "fn": "pytorch-1.11.0.dev20220125-py3.8_cuda11.5_cudnn8.2.0_0.tar.bz2",
       "license": "BSD 3-Clause",
       "license_family": "BSD",
-      "md5": "b84d4264186990f31bc1d0c7a8d628de",
+      "md5": "90c7d1c8332b9f9e5685b3b57528e506",
       "name": "pytorch",
-      "platform": "darwin",
-      "size": 43466263,
-      "subdir": "osx-arm64",
-      "timestamp": 1658735665925,
-      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.8_0.tar.bz2",
-      "version": "1.13.0.dev20220725"
+      "platform": "linux",
+      "size": 922348097,
+      "subdir": "linux-64",
+      "timestamp": 1643102273181,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20220125-py3.8_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20220125"
     },
     {
-      "arch": "arm64",
-      "build": "py3.9_0",
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.5_cudnn8.2.0_0",
       "build_number": 0,
-      "channel": "https://conda.anaconda.org/pytorch-nightly/osx-arm64",
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.11.0.dev20220125-py3.9_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "4605833f12ef0f0a887906938b2626ab",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 921833414,
+      "subdir": "linux-64",
+      "timestamp": 1643102047589,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.11.0.dev20220125-py3.9_cuda11.5_cudnn8.2.0_0.tar.bz2",
+      "version": "1.11.0.dev20220125"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.1_cudnn8.0.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.1,<11.2",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220228-py3.10_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "b1213846e18aa427ae072c7c0b659b9a",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1402996860,
+      "subdir": "linux-64",
+      "timestamp": 1646045457315,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220228-py3.10_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "version": "1.12.0.dev20220228"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.1_cudnn8.0.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.1,<11.2",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220228-py3.7_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "a1591f91c47143afd2d672e5a0b2eefd",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1402982339,
+      "subdir": "linux-64",
+      "timestamp": 1646046402256,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220228-py3.7_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "version": "1.12.0.dev20220228"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.1_cudnn8.0.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.1,<11.2",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220228-py3.8_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "f3bea30c839479c073570e8daca2436a",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1401946893,
+      "subdir": "linux-64",
+      "timestamp": 1646046176164,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220228-py3.8_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "version": "1.12.0.dev20220228"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.1_cudnn8.0.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.1,<11.2",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220228-py3.9_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "c383d2852ba6455d496f58d13ccdc2a8",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1402580223,
+      "subdir": "linux-64",
+      "timestamp": 1646045447567,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220228-py3.9_cuda11.1_cudnn8.0.5_0.tar.bz2",
+      "version": "1.12.0.dev20220228"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.3_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220323-py3.10_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "25d824580f4161ab099163114e281328",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1088110440,
+      "subdir": "linux-64",
+      "timestamp": 1648029619139,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220323-py3.10_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "version": "1.12.0.dev20220323"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.3_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220323-py3.7_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "a015115557cf25f3a3ba80e63de9e218",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1088664889,
+      "subdir": "linux-64",
+      "timestamp": 1648029740526,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220323-py3.7_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "version": "1.12.0.dev20220323"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.3_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220323-py3.8_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "4bd7a08d3bbf69c7be55b9cda0a18d7e",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1089383140,
+      "subdir": "linux-64",
+      "timestamp": 1648029615558,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220323-py3.8_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "version": "1.12.0.dev20220323"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.3_cudnn8.2.0_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220323-py3.9_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "270210e7038449e6ee3d88710b56b312",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1088764453,
+      "subdir": "linux-64",
+      "timestamp": 1648029607060,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220323-py3.9_cuda11.3_cudnn8.2.0_0.tar.bz2",
+      "version": "1.12.0.dev20220323"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.5_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220423-py3.10_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "d192c607a1ce70e48c081106273fc323",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1285761715,
+      "subdir": "linux-64",
+      "timestamp": 1650708360101,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220423-py3.10_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "version": "1.12.0.dev20220423"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.5_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220423-py3.7_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "6b7ee9500e66526e9b70ab9ca8e9d288",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1284911992,
+      "subdir": "linux-64",
+      "timestamp": 1650708404014,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220423-py3.7_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "version": "1.12.0.dev20220423"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.5_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220423-py3.8_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "1867adde7514d87e3fb4fabc93976403",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1287212177,
+      "subdir": "linux-64",
+      "timestamp": 1650708296603,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220423-py3.8_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "version": "1.12.0.dev20220423"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.5_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.5,<11.6",
+        "libuv >=1.40.0,<2.0a0",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.12.0.dev20220423-py3.9_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "ae2248914447acba3c2736faa94ad8a2",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1286340826,
+      "subdir": "linux-64",
+      "timestamp": 1650708270479,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.12.0.dev20220423-py3.9_cuda11.5_cudnn8.3.2_0.tar.bz2",
+      "version": "1.12.0.dev20220423"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cpu_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
       "constrains": [
         "cpuonly"
       ],
       "depends": [
-        "python >=3.9,<3.10.0a0",
+        "blas * mkl",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cpu",
         "typing_extensions"
       ],
-      "fn": "pytorch-1.13.0.dev20220725-py3.9_0.tar.bz2",
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_cpu_0.tar.bz2",
       "license": "BSD 3-Clause",
       "license_family": "BSD",
-      "md5": "f1ae8bba21b25d959aa1829808d49318",
+      "md5": "721ce22c327f351969e93382f865e847",
       "name": "pytorch",
-      "platform": "darwin",
-      "size": 43473381,
-      "subdir": "osx-arm64",
-      "timestamp": 1658736156409,
-      "url": "https://conda.anaconda.org/pytorch-nightly/osx-arm64/pytorch-1.13.0.dev20220725-py3.9_0.tar.bz2",
+      "platform": "linux",
+      "size": 83040604,
+      "subdir": "linux-64",
+      "timestamp": 1658734896879,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.10_cpu_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda10.2_cudnn7.6.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=10.2,<10.3",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "603f9b93719c4c58f44c9f4db7cc3e5a",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 681291088,
+      "subdir": "linux-64",
+      "timestamp": 1658740035368,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.10_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.3_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "0568e2a231c006827d431724785e0df5",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1311965340,
+      "subdir": "linux-64",
+      "timestamp": 1658743638238,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.10_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.6_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cuda >=11.6,<11.7",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "b72f0290f334e9c6007d7571a2d9ef58",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1316298112,
+      "subdir": "linux-64",
+      "timestamp": 1658743955375,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.10_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.10_cuda11.7_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.7,<11.8",
+        "mkl >=2018",
+        "python >=3.10,<3.11.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.10_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "d20e6cd378bd693759306ec8dd66ad73",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1314429415,
+      "subdir": "linux-64",
+      "timestamp": 1658742571155,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.10_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cpu_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "blas * mkl",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cpu",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.7_cpu_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "5b907167139f30c540a570ef20179611",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 82755641,
+      "subdir": "linux-64",
+      "timestamp": 1658734759552,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.7_cpu_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda10.2_cudnn7.6.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=10.2,<10.3",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.7_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "eea2c46f5356508b2d805554a8fa400e",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 681019820,
+      "subdir": "linux-64",
+      "timestamp": 1658740169055,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.7_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.3_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.7_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "da44bbda96e4e42faa29872ac5b722a0",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1311367907,
+      "subdir": "linux-64",
+      "timestamp": 1658743509675,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.7_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.6_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cuda >=11.6,<11.7",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.7_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "6fcab48cbf5ba28eaa5ba1719c8c8070",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1316186945,
+      "subdir": "linux-64",
+      "timestamp": 1658743667078,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.7_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.7_cuda11.7_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.7,<11.8",
+        "mkl >=2018",
+        "python >=3.7,<3.8.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.7_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "5c7b257aa4f03fc85990b2e05171e7a3",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1314068202,
+      "subdir": "linux-64",
+      "timestamp": 1658742827359,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.7_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cpu_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "blas * mkl",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cpu",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_cpu_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "7b2820f25a0e6263933a69fd5433a7f9",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 82989867,
+      "subdir": "linux-64",
+      "timestamp": 1658734764268,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.8_cpu_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda10.2_cudnn7.6.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=10.2,<10.3",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "2af56295827c13fdbb1541017dd33315",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 681206154,
+      "subdir": "linux-64",
+      "timestamp": 1658740048115,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.8_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.3_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "360e3e16cb9d05f484af67c82cd866f7",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1310902972,
+      "subdir": "linux-64",
+      "timestamp": 1658743480749,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.8_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.6_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cuda >=11.6,<11.7",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "f4ade1be4a8fbd789cc5fde2bb68aaaa",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1314889757,
+      "subdir": "linux-64",
+      "timestamp": 1658743572733,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.8_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.8_cuda11.7_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.7,<11.8",
+        "mkl >=2018",
+        "python >=3.8,<3.9.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.8_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "09b6cbd87e708b9d5fefb02e85774ee1",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1315071554,
+      "subdir": "linux-64",
+      "timestamp": 1658742619551,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.8_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cpu_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly"
+      ],
+      "depends": [
+        "blas * mkl",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cpu",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_cpu_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "6147c330010592ba3d07a427bb8cd85c",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 82866844,
+      "subdir": "linux-64",
+      "timestamp": 1658734800664,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.9_cpu_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda10.2_cudnn7.6.5_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=10.2,<10.3",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "90d214d215880bfd01206bb10c731672",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 680344296,
+      "subdir": "linux-64",
+      "timestamp": 1658740125089,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.9_cuda10.2_cudnn7.6.5_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.3_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.3,<11.4",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "b6bf782b6da22ce4e9ab7a275caee59b",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1311934120,
+      "subdir": "linux-64",
+      "timestamp": 1658743781462,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.9_cuda11.3_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.6_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cuda >=11.6,<11.7",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "6a69e4d0dbac200a1be70fc157c5f87c",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1316958689,
+      "subdir": "linux-64",
+      "timestamp": 1658743277031,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.9_cuda11.6_cudnn8.3.2_0.tar.bz2",
+      "version": "1.13.0.dev20220725"
+    },
+    {
+      "arch": "x86_64",
+      "build": "py3.9_cuda11.7_cudnn8.3.2_0",
+      "build_number": 0,
+      "channel": "https://conda.anaconda.org/pytorch-nightly/linux-64",
+      "constrains": [
+        "cpuonly <0"
+      ],
+      "depends": [
+        "blas * mkl",
+        "cudatoolkit >=11.7,<11.8",
+        "mkl >=2018",
+        "python >=3.9,<3.10.0a0",
+        "pytorch-mutex 1.0 cuda",
+        "typing_extensions"
+      ],
+      "fn": "pytorch-1.13.0.dev20220725-py3.9_cuda11.7_cudnn8.3.2_0.tar.bz2",
+      "license": "BSD 3-Clause",
+      "license_family": "BSD",
+      "md5": "63c35d1eefc51bf849029aebcf05306c",
+      "name": "pytorch",
+      "platform": "linux",
+      "size": 1315038564,
+      "subdir": "linux-64",
+      "timestamp": 1658743270331,
+      "url": "https://conda.anaconda.org/pytorch-nightly/linux-64/pytorch-1.13.0.dev20220725-py3.9_cuda11.7_cudnn8.3.2_0.tar.bz2",
       "version": "1.13.0.dev20220725"
     }
   ]

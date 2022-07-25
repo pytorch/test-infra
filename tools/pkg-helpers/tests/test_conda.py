@@ -8,11 +8,18 @@ from pytorch_pkg_helpers.conda import (
 )
 
 
-def test_get_conda_version_variables():
+@pytest.mark.parametrize(
+    "args",
+    [
+        "cpu",
+        "cu116",
+    ]
+)
+def test_get_conda_version_variables(args):
     with open("tests/assets/conda_search.json", "r") as fp:
         pytorch_version = "1.13.0.dev20220725"
         assert get_conda_version_variables(
-            json.loads(fp.read()), gpu_arch_version="cpu", python_version="3.8"
+            json.loads(fp.read()), gpu_arch_version=args, python_version="3.8"
         ) == [
             f"export PYTORCH_VERSION='{pytorch_version}'",
             f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={pytorch_version}'",
