@@ -7,7 +7,7 @@ import json
 import subprocess
 import shlex
 
-from .determine_conda import get_conda_version
+from .conda import get_conda_variables
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,11 +54,12 @@ def main():
             stderr=subprocess.STDOUT,
         )
         conda_search = json.loads(output)
-        pytorch_version = get_conda_version(
-            conda_search, options.gpu_arch_version, options.python_version
-        )
-        print(f"export PYTORCH_VERSION={pytorch_version}")
-        print(f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={pytorch_version}'")
+        for variable in get_conda_variables(
+            conda_search, sys.platform, options.gpu_arch_version, options.python_version
+        ):
+            print(variable)
+    if options.package_type == "wheel":
+        raise NotImplementedError()
     pass
 
 
