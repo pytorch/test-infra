@@ -25,7 +25,7 @@ Note: Links to docs will display an error until the docs builds have been comple
 
 export function formDrciComment(
     pr_num: number, 
-    pr_results: string,
+    pr_results: string = "",
 ): string {
     const header = formDrciHeader(pr_num);
     const comment = 
