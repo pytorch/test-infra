@@ -4,6 +4,8 @@ from typing import List
 
 from .utils import transform_cuversion
 
+WINDOWS_PATH_PREFIX = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v"
+
 
 def get_cuda_arch_list(sanitized_version: str) -> str:
     if float(sanitized_version) > 11.3:
@@ -36,15 +38,17 @@ def get_cuda_variables(
         if platform.startswith("linux"):
             cuda_home = f"/usr/local/cuda-{sanitized_version}"
         elif platform in ("win32", "cygwin"):
-            cuda_home = f"C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v{sanitized_version}"
+            cuda_home = f"{WINDOWS_PATH_PREFIX}{sanitized_version}"
         else:
             raise NotImplementedError(
-                f"Unrecognized platform ({sys.platform}) for gpu_arch_version ({gpu_arch_version})"
+                f"Unrecognized platform ({sys.platform}) "
+                f"for gpu_arch_version ({gpu_arch_version})"
             )
+        cuda_arch_list = get_cuda_arch_list(sanitized_version)
         ret.extend(
             [
                 f"export CUDA_HOME='{cuda_home}'",
-                f"export TORCH_CUDA_ARCH_LIST='{get_cuda_arch_list(sanitized_version)}'",
+                f"export TORCH_CUDA_ARCH_LIST='{cuda_arch_list}'",
                 # Double quotes needed here to expand PATH var
                 f'export PATH="{cuda_home}/bin;${{PATH}}"',
                 "export FORCE_CUDA=1",

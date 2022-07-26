@@ -33,33 +33,33 @@ def test_get_conda_version_variables(args):
         (
             ("darwin", "cpu"),
             [
-                f"export CONDA_BUILD_VARIANT='cpu'",
-                f"export CMAKE_USE_CUDA='0'",
-                f"export CONDA_CUDATOOLKIT_CONSTRAINT=''",
+                "export CONDA_BUILD_VARIANT='cpu'",
+                "export CMAKE_USE_CUDA='0'",
+                "export CONDA_CUDATOOLKIT_CONSTRAINT=''",
             ],
         ),
         (
             ("linux", "cpu"),
             [
-                f"export CONDA_BUILD_VARIANT='cpu'",
-                f"export CMAKE_USE_CUDA='0'",
-                f"export CONDA_CUDATOOLKIT_CONSTRAINT=''",
+                "export CONDA_BUILD_VARIANT='cpu'",
+                "export CMAKE_USE_CUDA='0'",
+                "export CONDA_CUDATOOLKIT_CONSTRAINT=''",
             ],
         ),
         (
             ("linux", "cu116"),
             [
-                f"export CONDA_BUILD_VARIANT='cuda'",
-                f"export CMAKE_USE_CUDA='1'",
-                f"export CONDA_CUDATOOLKIT_CONSTRAINT='cuda=11.6'",
+                "export CONDA_BUILD_VARIANT='cuda'",
+                "export CMAKE_USE_CUDA='1'",
+                "export CONDA_CUDATOOLKIT_CONSTRAINT='cuda=11.6'",
             ],
         ),
         (
             ("linux", "cu113"),
             [
-                f"export CONDA_BUILD_VARIANT='cuda'",
-                f"export CMAKE_USE_CUDA='1'",
-                f"export CONDA_CUDATOOLKIT_CONSTRAINT='cudatoolkit=11.3'",
+                "export CONDA_BUILD_VARIANT='cuda'",
+                "export CMAKE_USE_CUDA='1'",
+                "export CONDA_CUDATOOLKIT_CONSTRAINT='cudatoolkit=11.3'",
             ],
         ),
     ],
