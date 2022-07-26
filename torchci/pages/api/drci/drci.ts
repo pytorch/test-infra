@@ -121,7 +121,7 @@ export async function updateCommentWithWorkflow(
     comment: string,
 ): Promise<void> {
     const { pr_number, owner_login } = pr_info;
-    if (!POSSIBLE_USERS.includes(owner_login!) && pr_number != 80896) {
+    if (!POSSIBLE_USERS.includes(owner_login!)) {
         console.log("did not make a comment");
         return;
     }
