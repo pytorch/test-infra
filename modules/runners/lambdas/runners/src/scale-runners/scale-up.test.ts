@@ -1,529 +1,547 @@
+import { scaleUp } from './scale-up';
+import { getRunnerTypes, listGithubRunners, createRegistrationTokenForRepo, createRunner, getRepoKey } from './runners';
+
+import { Config } from './config';
 import { mocked } from 'ts-jest/utils';
-import { Octokit } from '@octokit/rest';
-import { ActionRequestMessage, scaleUp } from './scale-up';
-import { listRunners, createRunner, listGithubRunners, createGitHubClientForRunner } from './runners';
-import * as ghAuth from './gh-auth';
 import nock from 'nock';
 
-jest.mock('@octokit/auth-app', () => ({
-  createAppAuth: jest.fn().mockImplementation(() => jest.fn().mockImplementation(() => ({ token: 'Blaat' }))),
-}));
-const mockOctokit = {
-  checks: { get: jest.fn() },
-  actions: {
-    createRegistrationTokenForOrg: jest.fn(),
-    createRegistrationTokenForRepo: jest.fn(),
-  },
-  apps: {
-    getOrgInstallation: jest.fn(),
-    getRepoInstallation: jest.fn(),
-  },
-};
-jest.mock('@octokit/rest', () => ({
-  Octokit: jest.fn().mockImplementation(() => mockOctokit),
-}));
-
-const LINUX_2XLARGE_LABEL = {
-  id: 321,
-  name: 'linux.2xlarge',
-  type: 'read-only' as const,
-};
-
-function buildRunnerData(name: string, busy: boolean) {
-  return {
-    id: 123,
-    name: name,
-    busy: busy,
-    os: 'os',
-    status: 'status',
-    labels: [LINUX_2XLARGE_LABEL],
-  };
-}
-
-const DEFAULT_GH_RUNNERS = [
-  buildRunnerData('i-idle-101', false),
-  buildRunnerData('i-idle-102', false),
-  buildRunnerData('i-running-103', true),
-  buildRunnerData('i-idle-104', false),
-  buildRunnerData('i-idle-105', false),
-  buildRunnerData('i-idle-105', false),
-  buildRunnerData('i-idle-106', false),
-  buildRunnerData('i-idle-107', false),
-  buildRunnerData('i-idle-108', false),
-  buildRunnerData('i-idle-109', false),
-  buildRunnerData('i-idle-110', false),
-  buildRunnerData('i-idle-111', false),
-];
-
-const GITHUB_SCALE_CONFIG_BASE64 = Buffer.from(`
-runner_types:
-  linux.2xlarge:
-    instance_type: c5.2xlarge
-    os: linux
-    max_available: 1000
-    disk_size: 150
-    is_ephemeral: false
-`).toString('base64');
-
-jest.mock('./runners', () => ({
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  ...jest.requireActual('./runners') as any,
-  createRunner: jest.fn(),
-  listRunners: jest.fn(),
-  terminateRunner: jest.fn(),
-  listGithubRunners: jest.fn(),
-  createGitHubClientForRunner: jest.fn(async () => ({
-    repos: {
-      getContent: jest.fn(async () => ({
-        data: {
-          content: GITHUB_SCALE_CONFIG_BASE64,
-        },
-      })),
-    },
-  })),
-}));
-
-const TEST_DATA: ActionRequestMessage = {
-  id: 1,
-  eventType: 'check_run',
-  repositoryName: 'hello-world',
-  repositoryOwner: 'Codertocat',
-  installationId: 2,
-  runnerLabels: ["linux.2xlarge"]
-};
-
-const TEST_DATA_WITHOUT_INSTALL_ID: ActionRequestMessage = {
-  id: 3,
-  eventType: 'check_run',
-  repositoryName: 'hello-world',
-  repositoryOwner: 'Codertocat',
-  installationId: 0,
-  runnerLabels: ["linux.2xlarge"]
-};
-
-const cleanEnv = process.env;
+jest.mock('./runners');
 
 beforeEach(() => {
-  nock.disableNetConnect();
   jest.resetModules();
   jest.clearAllMocks();
-  process.env = { ...cleanEnv };
-  process.env.GITHUB_APP_KEY_BASE64 = 'TEST_CERTIFICATE_DATA';
-  process.env.GITHUB_APP_ID = '1337';
-  process.env.GITHUB_APP_CLIENT_ID = 'TEST_CLIENT_ID';
-  process.env.GITHUB_APP_CLIENT_SECRET = 'TEST_CLIENT_SECRET';
-  process.env.RUNNERS_MAXIMUM_COUNT = '3';
-  process.env.ENVIRONMENT = 'unit-test-environment';
-
-  mockOctokit.checks.get.mockImplementation(() => ({
-    data: {
-      status: 'queued',
-    },
-  }));
-  const mockTokenReturnValue = {
-    data: {
-      token: '1234abcd',
-    },
-  };
-  const mockInstallationIdReturnValueOrgs = {
-    data: {
-      id: TEST_DATA.installationId,
-    },
-  };
-  const mockInstallationIdReturnValueRepos = {
-    data: {
-      id: TEST_DATA.installationId,
-    },
-  };
-
-  mockOctokit.actions.createRegistrationTokenForOrg.mockImplementation(() => mockTokenReturnValue);
-  mockOctokit.actions.createRegistrationTokenForRepo.mockImplementation(() => mockTokenReturnValue);
-  mockOctokit.apps.getOrgInstallation.mockImplementation(() => mockInstallationIdReturnValueOrgs);
-  mockOctokit.apps.getRepoInstallation.mockImplementation(() => mockInstallationIdReturnValueRepos);
-  const mockListRunners = mocked(listRunners);
-  mockListRunners.mockImplementation(async () => [
-    {
-      instanceId: 'i-1234',
-      launchTime: new Date(),
-      repo: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      org: TEST_DATA.repositoryOwner,
-      runnerType: 'linuxCpu',
-      ghRunnerId: '123',
-    },
-  ]);
+  nock.disableNetConnect();
 });
 
-describe('scaleUp with GHES', () => {
-  beforeEach(() => {
-    process.env.GHES_URL = 'https://github.enterprise.something';
+describe('scaleUp', () => {
+  it('does not accept sources that are not aws:sqs', async () => {
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+      runnerLabels: [],
+    };
+    await expect(scaleUp('other', payload)).rejects.toThrow('Cannot handle non-SQS events!');
   });
 
-  it('ignores non-sqs events', async () => {
-    expect.assertions(1);
-    expect(scaleUp('aws:s3', TEST_DATA)).rejects.toEqual(Error('Cannot handle non-SQS events!'));
+  it('provides runnerLabels that aren`t present on runnerTypes', async () => {
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+      runnerLabels: ['label1', 'label2'],
+    };
+    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+      new Map([
+        [
+          'label1-nomatch',
+          {
+            instance_type: 'instance_type',
+            os: 'os',
+            max_available: 33,
+            disk_size: 113,
+            runnerTypeName: 'runnerTypeName',
+            is_ephemeral: false,
+          },
+        ],
+      ]),
+    );
+    const mockedListGithubRunners = mocked(listGithubRunners);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' });
+    expect(mockedListGithubRunners).not.toBeCalled();
   });
 
-  describe('on repo level', () => {
-    beforeEach(() => {
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return DEFAULT_GH_RUNNERS;
-      });
-    });
+  it('have available runners', async () => {
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+      () =>
+        ({
+          minAvailableRunners: 1,
+        } as Config),
+    );
+    const repo = { repo: 'repo', owner: 'owner' };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+      new Map([
+        [
+          'linux.2xlarge',
+          {
+            instance_type: 'instance_type',
+            os: 'os',
+            max_available: 33,
+            disk_size: 113,
+            runnerTypeName: 'linux.2xlarge',
+            is_ephemeral: false,
+          },
+        ],
+        [
+          'linux.large',
+          {
+            instance_type: 'instance_type',
+            os: 'os',
+            max_available: 33,
+            disk_size: 113,
+            runnerTypeName: 'linux.large',
+            is_ephemeral: false,
+          },
+        ],
+      ]),
+    );
+    const mockedListGithubRunners = mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 33,
+        name: 'name-02',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 333,
+        name: 'name-01',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.large',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 3333,
+        name: 'name-02',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.large',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenForRepo);
 
-    it('gets the current repo level runners', async () => {
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(listRunners).toBeCalledWith({
-        environment: 'unit-test-environment',
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
-    });
+    await scaleUp('aws:sqs', payload);
 
-    it('does not create a token when maximum runners has been reached', async () => {
-      const mockCreateGitHubClientForRunner = mocked(createGitHubClientForRunner);
-      mockCreateGitHubClientForRunner.mockReturnValue(Promise.resolve({
-        repos: {
-          getContent: jest.fn(async () => ({
-            data: {
-              content: Buffer.from(`
-runner_types:
-  linux.2xlarge:
-    instance_type: c5.2xlarge
-    os: linux
-    max_available: 1
-    disk_size: 150
-    is_ephemeral: false
-              `).toString('base64'),
-            },
-          })),
-        },
-      } as unknown as Octokit));
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(mockOctokit.actions.createRegistrationTokenForRepo).not.toBeCalled();
-    });
-
-    it('creates a token when maximum runners has not been reached', async () => {
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(mockOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith({
-        owner: TEST_DATA.repositoryOwner,
-        repo: TEST_DATA.repositoryName,
-      });
-    });
-
-    it('does not retrieve installation id if already set', async () => {
-      const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-      expect(spy).toBeCalledWith(
-        TEST_DATA.installationId,
-        'installation',
-        '',
-      );
-    });
-
-    it('retrieves installation id if not set', async () => {
-      const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-      await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
-      expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', '');
-      expect(spy).toHaveBeenNthCalledWith(
-        2,
-        TEST_DATA.installationId,
-        'installation',
-        '',
-      );
-    });
-
-    it('creates a runner with correct config and labels', async () => {
-      process.env.RUNNER_EXTRA_LABELS = 'label1,label2';
-
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-
-      await scaleUp('aws:sqs', TEST_DATA);
-
-      expect(createRunner).toBeCalledWith({
-        environment: 'unit-test-environment',
-        runnerConfig:
-          "--url https://github.com/Codertocat/hello-world " +
-          "--token 1234abcd --labels linux.2xlarge,label1,label2 ",
-        runnerType: {
-          disk_size: 150,
-          instance_type: "c5.2xlarge",
-          is_ephemeral: false,
-          max_available: 1000,
-          os: "linux",
-          runnerTypeName: "linux.2xlarge",
-        },
-        orgName: undefined,
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
-    });
-
-    it('creates a runner and ensure the group argument is ignored', async () => {
-      process.env.RUNNER_EXTRA_LABELS = 'label1,label2';
-      process.env.RUNNER_GROUP_NAME = 'TEST_GROUP_IGNORED';
-
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(createRunner).toBeCalledWith({
-        environment: 'unit-test-environment',
-        runnerConfig:
-          "--url https://github.com/Codertocat/hello-world " +
-          "--token 1234abcd --labels linux.2xlarge,label1,label2 ",
-        runnerType: {
-          disk_size: 150,
-          instance_type: "c5.2xlarge",
-          is_ephemeral: false,
-          max_available: 1000,
-          os: "linux",
-          runnerTypeName: "linux.2xlarge",
-        },
-        orgName: undefined,
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
-    });
-  });
-});
-
-describe('scaleUp with public GH', () => {
-  it('ignores non-sqs events', async () => {
-    expect.assertions(1);
-    expect(scaleUp('aws:s3', TEST_DATA)).rejects.toEqual(Error('Cannot handle non-SQS events!'));
+    expect(mockedGetRunnerTypes).toBeCalledTimes(1);
+    expect(mockedGetRunnerTypes).toBeCalledWith(repo);
+    expect(mockedListGithubRunners).toBeCalledTimes(2);
+    expect(mockedListGithubRunners).toBeCalledWith(repo);
+    expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
 
-  it('does not retrieve installation id if already set', async () => {
-    const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-    await scaleUp('aws:sqs', TEST_DATA);
-    expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-    expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-    expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', '');
+  it('don`t have sufficient runners', async () => {
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 10,
+      runnersExtraLabels: 'extra-label',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const repo = { repo: 'repo', owner: 'owner' };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const token = 'AGDGADUWG113';
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 33,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
+
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 33,
+        name: 'name-02',
+        os: 'linux',
+        status: 'live',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenForRepo).mockResolvedValue(token);
+    const mockedCreateRunner = mocked(createRunner);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, 2);
+    expect(mockedCreateRunner).toBeCalledTimes(1);
+    expect(mockedCreateRunner).toBeCalledWith({
+      environment: config.environment,
+      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+      repoName: 'owner/repo',
+      runnerType: runnerType1,
+    });
   });
 
-  it('retrieves installation id if not set', async () => {
-    const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-    await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
-    expect(mockOctokit.apps.getRepoInstallation).toBeCalled();
-    expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', '');
-    expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', '');
+  it('runners are offline', async () => {
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+      runnersExtraLabels: 'extra-label',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const repo = { repo: 'repo', owner: 'owner' };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 0,
+    };
+    const token = 'AGDGADUWG113';
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 33,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
+
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'offline',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 33,
+        name: 'name-02',
+        os: 'linux',
+        status: 'offline',
+        busy: false,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenForRepo).mockResolvedValue(token);
+    const mockedCreateRunner = mocked(createRunner);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, 0);
+    expect(mockedCreateRunner).toBeCalledTimes(1);
+    expect(mockedCreateRunner).toBeCalledWith({
+      environment: config.environment,
+      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+      repoName: 'owner/repo',
+      runnerType: runnerType1,
+    });
   });
 
-  describe('on repo level', () => {
-    beforeEach(() => {
-      process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
+  it('runners are busy', async () => {
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+      runnersExtraLabels: 'extra-label',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const repo = { repo: 'repo', owner: 'owner' };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: undefined,
+    };
+    const token = 'AGDGADUWG113';
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 33,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
 
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return DEFAULT_GH_RUNNERS;
-      });
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+      {
+        id: 33,
+        name: 'name-02',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenForRepo).mockResolvedValue(token);
+    const mockedCreateRunner = mocked(createRunner);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, undefined);
+    expect(mockedCreateRunner).toBeCalledTimes(1);
+    expect(mockedCreateRunner).toBeCalledWith({
+      environment: config.environment,
+      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+      repoName: 'owner/repo',
+      runnerType: runnerType1,
     });
+  });
 
-    it('gets the current repo level runners', async () => {
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(listRunners).toBeCalledWith({
-        environment: 'unit-test-environment',
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
+  it('max runners reached', async () => {
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+      runnersExtraLabels: 'extra-label',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 1,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
+
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenForRepo);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
+  });
+
+  it('max runners reached, but new is ephemeral', async () => {
+    const token = 'AGDGADUWG113';
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 1,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 0,
+    };
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 1,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: true,
+    };
+
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    mocked(createRegistrationTokenForRepo).mockResolvedValue(token);
+    const mockedCreateRunner = mocked(createRunner);
+
+    await scaleUp('aws:sqs', payload);
+
+    expect(mockedCreateRunner).toBeCalledWith({
+      environment: config.environment,
+      // eslint-disable-next-line max-len
+      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge --ephemeral`,
+      repoName: 'owner/repo',
+      runnerType: runnerType1,
     });
+  });
 
-    it('does not create a token when maximum runners has been reached', async () => {
-      const mockCreateGitHubClientForRunner = mocked(createGitHubClientForRunner);
-      mockCreateGitHubClientForRunner.mockReturnValue(Promise.resolve({
-        repos: {
-          getContent: jest.fn(async () => ({
-            data: {
-              content: Buffer.from(`
-runner_types:
-  linux.2xlarge:
-    instance_type: c5.2xlarge
-    os: linux
-    max_available: 1
-    disk_size: 150
-    is_ephemeral: false
-              `).toString('base64'),
-            },
-          })),
-        },
-      } as unknown as Octokit));
+  it('fails to createRegistrationTokenForRepo', async () => {
+    const config = {
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 10,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as Config);
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const runnerType1 = {
+      instance_type: 'instance_type',
+      os: 'os',
+      max_available: 10,
+      disk_size: 113,
+      runnerTypeName: 'linux.2xlarge',
+      is_ephemeral: false,
+    };
 
-      await scaleUp('aws:sqs', TEST_DATA);
+    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    mocked(listGithubRunners).mockResolvedValue([
+      {
+        id: 3,
+        name: 'name-01',
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [
+          {
+            id: 113,
+            name: 'linux.2xlarge',
+            type: 'read-only',
+          },
+        ],
+      },
+    ]);
+    mocked(createRegistrationTokenForRepo).mockRejectedValue(Error('Does not work'));
+    const mockedCreateRunner = mocked(createRunner);
 
-      expect(mockOctokit.actions.createRegistrationTokenForRepo).not.toBeCalled();
-    });
+    await scaleUp('aws:sqs', payload);
 
-    it('creates a token when maximum runners has not been reached', async () => {
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-
-      await scaleUp('aws:sqs', TEST_DATA);
-
-      expect(mockOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith({
-        owner: TEST_DATA.repositoryOwner,
-        repo: TEST_DATA.repositoryName,
-      });
-    });
-
-    it('does not retrieve installation id if already set', async () => {
-      const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-      await scaleUp('aws:sqs', TEST_DATA);
-      expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-      expect(mockOctokit.apps.getRepoInstallation).not.toBeCalled();
-      expect(spy).toBeCalledWith(TEST_DATA.installationId, 'installation', '');
-    });
-
-    it('retrieves installation id if not set', async () => {
-      const spy = jest.spyOn(ghAuth, 'createGithubAuth');
-      await scaleUp('aws:sqs', TEST_DATA_WITHOUT_INSTALL_ID);
-      expect(mockOctokit.apps.getOrgInstallation).not.toBeCalled();
-      expect(spy).toHaveBeenNthCalledWith(1, undefined, 'app', '');
-      expect(spy).toHaveBeenNthCalledWith(2, TEST_DATA.installationId, 'installation', '');
-    });
-
-    it('creates a runner with correct config and labels', async () => {
-      process.env.RUNNER_EXTRA_LABELS = 'label1,label2';
-
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-
-      await scaleUp('aws:sqs', TEST_DATA);
-
-      expect(createRunner).toBeCalledWith({
-        environment: 'unit-test-environment',
-        runnerConfig:
-          "--url https://github.com/Codertocat/hello-world " +
-          "--token 1234abcd --labels linux.2xlarge,label1,label2 ",
-        runnerType: {
-          disk_size: 150,
-          instance_type: "c5.2xlarge",
-          is_ephemeral: false,
-          max_available: 1000,
-          os: "linux",
-          runnerTypeName: "linux.2xlarge",
-        },
-        orgName: undefined,
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
-    });
-
-    it('creates a runner and ensure the group argument is ignored', async () => {
-      process.env.RUNNER_EXTRA_LABELS = 'label1,label2';
-      process.env.RUNNER_GROUP_NAME = 'TEST_GROUP_IGNORED';
-
-      const mockListGithubRunners = mocked(listGithubRunners);
-      mockListGithubRunners.mockImplementation(async () => {
-        return [
-          buildRunnerData('i-running-101', true),
-          buildRunnerData('i-running-102', true),
-          buildRunnerData('i-running-103', true),
-          buildRunnerData('i-running-104', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-105', true),
-          buildRunnerData('i-running-106', true),
-          buildRunnerData('i-running-107', true),
-          buildRunnerData('i-running-108', true),
-          buildRunnerData('i-running-109', true),
-          buildRunnerData('i-running-110', true),
-          buildRunnerData('i-running-111', true),
-        ];
-      });
-
-      await scaleUp('aws:sqs', TEST_DATA);
-
-      expect(createRunner).toBeCalledWith({
-        environment: 'unit-test-environment',
-        runnerConfig:
-          "--url https://github.com/Codertocat/hello-world " +
-          "--token 1234abcd --labels linux.2xlarge,label1,label2 ",
-        runnerType: {
-          disk_size: 150,
-          instance_type: "c5.2xlarge",
-          is_ephemeral: false,
-          max_available: 1000,
-          os: "linux",
-          runnerTypeName: "linux.2xlarge",
-        },
-        orgName: undefined,
-        repoName: `${TEST_DATA.repositoryOwner}/${TEST_DATA.repositoryName}`,
-      });
-    });
+    expect(mockedCreateRunner).not.toBeCalled();
   });
 });

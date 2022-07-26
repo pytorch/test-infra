@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,js,jsx}'],
+  reporters: ['<rootDir>/test/reporter.js'],
   coverageThreshold: {
     global: {
       branches: 80,

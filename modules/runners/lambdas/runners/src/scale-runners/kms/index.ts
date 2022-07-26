@@ -1,29 +1,29 @@
-import { KMS } from 'aws-sdk';
 import AWS from 'aws-sdk';
+import { Config } from '../config';
+import { KMS } from 'aws-sdk';
 
 let kms: KMS | undefined = undefined;
 
 export async function decrypt(encrypted: string, key: string, environmentName: string): Promise<string | undefined> {
-  let result: string | undefined = encrypted;
-  if (key != undefined) {
-    if (kms == undefined) {
-      AWS.config.update({
-        region: process.env.AWS_REGION,
-      });
+  /* istanbul ignore next */
+  if (!kms) {
+    AWS.config.update({
+      region: Config.Instance.awsRegion,
+    });
 
-      kms = new KMS();
-    }
-
-    const decrypted = await kms
-      .decrypt({
-        CiphertextBlob: Buffer.from(encrypted, 'base64'),
-        KeyId: key,
-        EncryptionContext: {
-          ['Environment']: environmentName,
-        },
-      })
-      .promise();
-    result = decrypted.Plaintext?.toString();
+    kms = new KMS();
   }
-  return result;
+
+  const decripted = await kms
+    .decrypt({
+      CiphertextBlob: Buffer.from(encrypted, 'base64'),
+      KeyId: key,
+      EncryptionContext: {
+        ['Environment']: environmentName,
+      },
+    })
+    .promise();
+
+  /* istanbul ignore next */
+  return decripted.Plaintext?.toString() ?? undefined;
 }
