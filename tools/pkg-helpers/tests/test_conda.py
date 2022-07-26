@@ -9,21 +9,25 @@ from pytorch_pkg_helpers.conda import (
 
 
 @pytest.mark.parametrize(
-    "args",
+    "gpu_arch_version,pytorch_version,expected",
     [
-        "cpu",
-        "cu116",
+        ("cpu", "", "1.13.0.dev20220725"),
+        ("cu116", "", "1.13.0.dev20220725"),
+        ("cpu", "1.12.0", "1.12.0"),
+        ("cu116", "1.12.0", "1.12.0"),
     ],
 )
-def test_get_conda_version_variables(args):
+def test_get_conda_version_variables(gpu_arch_version, pytorch_version, expected):
     with open("tests/assets/conda_search.json", "r") as fp:
-        pytorch_version = "1.13.0.dev20220725"
         assert get_conda_version_variables(
-            json.loads(fp.read()), gpu_arch_version=args, python_version="3.8"
+            json.loads(fp.read()),
+            gpu_arch_version=gpu_arch_version,
+            python_version="3.8",
+            pytorch_version=pytorch_version,
         ) == [
-            f"export PYTORCH_VERSION='{pytorch_version}'",
-            f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={pytorch_version}'",
-            f"export CONDA_PYTORCH_CONSTRAINT='- pytorch=={pytorch_version}'",
+            f"export PYTORCH_VERSION='{expected}'",
+            f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={expected}'",
+            f"export CONDA_PYTORCH_CONSTRAINT='- pytorch=={expected}'",
         ]
 
 

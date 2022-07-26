@@ -45,9 +45,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--pytorch-version",
+        type=str,
+        help="PyTorch version to use",
+        default=os.getenv("PYTORCH_VERSION", ""),
+    )
+    parser.add_argument(
         "--build-version",
         type=str,
-        help="Python version to look for",
+        help="Base build version to use",
         default=os.getenv("BUILD_VERSION", ""),
     )
     options = parser.parse_args()

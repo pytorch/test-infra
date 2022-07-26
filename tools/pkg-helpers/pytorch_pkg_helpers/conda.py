@@ -17,27 +17,29 @@ def normalize_gpu_arch_version(gpu_arch_version: str):
 
 
 def get_conda_version_variables(
-    conda_search: str, gpu_arch_version: str, python_version: str
+    conda_search: str, gpu_arch_version: str, python_version: str, pytorch_version: str
 ) -> List[str]:
     ver_one, ver_two = normalize_gpu_arch_version(gpu_arch_version)
-    for pkg in reversed(conda_search["pytorch"]):
-        if (
-            any(
-                [
-                    pkg["platform"] == "darwin",
-                    ver_one in pkg["fn"],
-                    ver_two in pkg["fn"],
-                ]
-            )
-            # matches the python version we're looking for
-            and "py" + python_version in pkg["fn"]
-        ):
-            pytorch_version = re.sub(r"\\+.*$", "", pkg["version"])
-            return [
-                f"export PYTORCH_VERSION='{pytorch_version}'",
-                f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={pytorch_version}'",
-                f"export CONDA_PYTORCH_CONSTRAINT='- pytorch=={pytorch_version}'",
-            ]
+    if pytorch_version == "":
+        for pkg in reversed(conda_search["pytorch"]):
+            if (
+                any(
+                    [
+                        pkg["platform"] == "darwin",
+                        ver_one in pkg["fn"],
+                        ver_two in pkg["fn"],
+                    ]
+                )
+                # matches the python version we're looking for
+                and "py" + python_version in pkg["fn"]
+            ):
+                pytorch_version = re.sub(r"\\+.*$", "", pkg["version"])
+                break
+    return [
+        f"export PYTORCH_VERSION='{pytorch_version}'",
+        f"export CONDA_PYTORCH_BUILD_CONSTRAINT='- pytorch=={pytorch_version}'",
+        f"export CONDA_PYTORCH_CONSTRAINT='- pytorch=={pytorch_version}'",
+    ]
 
 
 def get_conda_cuda_variables(platform: str, gpu_arch_version: str) -> List[str]:
@@ -60,8 +62,12 @@ def get_conda_cuda_variables(platform: str, gpu_arch_version: str) -> List[str]:
 
 
 def get_conda_variables(
-    conda_search: str, platform: str, gpu_arch_version: str, python_version: str
+    conda_search: str,
+    platform: str,
+    gpu_arch_version: str,
+    python_version: str,
+    pytorch_version: str,
 ) -> List[str]:
     return get_conda_version_variables(
-        conda_search, gpu_arch_version, python_version
+        conda_search, gpu_arch_version, python_version, pytorch_version
     ) + get_conda_cuda_variables(platform, gpu_arch_version)
