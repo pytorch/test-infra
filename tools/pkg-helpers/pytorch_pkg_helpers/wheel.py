@@ -13,7 +13,6 @@ def get_python_path_variables(python_version: str) -> List[str]:
 
 
 def get_pytorch_pip_install_command(
-    platform: str,
     gpu_arch_version: str,
     pytorch_version: str,
     channel: str,
@@ -40,7 +39,6 @@ def get_wheel_variables(
         ret.extend(get_python_path_variables(python_version=python_version))
     ret.extend(
         get_pytorch_pip_install_command(
-            platform=platform,
             gpu_arch_version=gpu_arch_version,
             pytorch_version=pytorch_version,
             channel=channel,

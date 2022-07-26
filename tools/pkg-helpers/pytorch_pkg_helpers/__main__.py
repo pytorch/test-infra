@@ -58,10 +58,11 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("PYTORCH_VERSION", ""),
     )
     parser.add_argument(
-        "--build-version",
+        "--base-build-version",
         type=str,
         help="Base build version to use",
-        default=os.getenv("BUILD_VERSION", ""),
+        # BUILD_VERSION for legacy scripts
+        default=os.getenv("BUILD_VERSION", os.getenv("BASE_BUILD_VERSION", "")),
     )
     options = parser.parse_args()
     return options
@@ -81,10 +82,11 @@ def main():
         conda_search = json.loads(output)
         variables.extend(
             get_conda_variables(
-                conda_search,
-                options.platform,
-                options.gpu_arch_version,
-                options.python_version,
+                conda_search=conda_search,
+                platform=options.platform,
+                gpu_arch_version=options.gpu_arch_version,
+                python_version=options.python_version,
+                pytorch_version=options.pytorch_version,
             )
         )
     elif options.package_type == "wheel":
@@ -98,20 +100,21 @@ def main():
             )
         )
     variables.extend(
-        get_cuda_variables(options.package_type, options.platform, options.gpu_arch_version)
+        get_cuda_variables(
+            options.package_type, options.platform, options.gpu_arch_version
+        )
     )
     variables.extend(
         get_version_variables(
             package_type=options.package_type,
             channel=options.channel,
             gpu_arch_version=options.gpu_arch_version,
-            build_version=options.build_version,
+            base_build_version=options.base_build_version,
             platform=options.platform,
         )
     )
     for variable in sorted(variables):
         print(variable)
-    pass
 
 
 if __name__ == "__main__":

@@ -99,13 +99,13 @@ def get_version_variables(
     package_type: str,
     channel: str,
     gpu_arch_version: str,
-    build_version: str,
+    base_build_version: str,
     platform: str,
 ) -> List[str]:
     version = PytorchVersion(
         gpu_arch_version=gpu_arch_version,
         no_build_suffix=(platform == "darwin" or package_type == "conda"),
-        base_build_version=build_version,
+        base_build_version=base_build_version,
     )
     output_version = version.get_nightly_version()
     if channel == "test":
