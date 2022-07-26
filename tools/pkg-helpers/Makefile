@@ -2,6 +2,9 @@ ifdef VERBOSE
 	PYTEST_VERBOSE_FLAG := -vv
 endif
 
+.PHONY: all
+all: install lint test
+
 .PHONY: lint
 lint:
 	poetry run black .

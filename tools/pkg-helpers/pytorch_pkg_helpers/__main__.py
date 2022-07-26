@@ -10,6 +10,7 @@ import shlex
 from .conda import get_conda_variables
 from .cuda import get_cuda_variables
 from .version import get_version_variables
+from .wheel import get_wheel_variables
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,6 +29,12 @@ def parse_args() -> argparse.Namespace:
         choices=["nightly", "test"],
         type=str,
         default=os.getenv("CHANNEL", "nightly"),
+    )
+    parser.add_argument(
+        "--platform",
+        help="Platform to generate for",
+        type=str,
+        default=sys.platform,
     )
     parser.add_argument(
         "--gpu-arch-version",
@@ -75,13 +82,23 @@ def main():
         variables.extend(
             get_conda_variables(
                 conda_search,
-                sys.platform,
+                options.platform,
                 options.gpu_arch_version,
                 options.python_version,
             )
         )
+    elif options.package_type == "wheel":
+        variables.extend(
+            get_wheel_variables(
+                platform=options.platform,
+                gpu_arch_version=options.gpu_arch_version,
+                python_version=options.python_version,
+                pytorch_version=options.pytorch_version,
+                channel=options.channel,
+            )
+        )
     variables.extend(
-        get_cuda_variables(options.package_type, sys.platform, options.gpu_arch_version)
+        get_cuda_variables(options.package_type, options.platform, options.gpu_arch_version)
     )
     variables.extend(
         get_version_variables(
@@ -89,10 +106,10 @@ def main():
             channel=options.channel,
             gpu_arch_version=options.gpu_arch_version,
             build_version=options.build_version,
-            platform=sys.platform,
+            platform=options.platform,
         )
     )
-    for variable in variables:
+    for variable in sorted(variables):
         print(variable)
     pass
 

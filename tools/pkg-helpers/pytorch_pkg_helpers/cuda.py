@@ -50,7 +50,7 @@ def get_cuda_variables(
                 f"export CUDA_HOME='{cuda_home}'",
                 f"export TORCH_CUDA_ARCH_LIST='{cuda_arch_list}'",
                 # Double quotes needed here to expand PATH var
-                f'export PATH="{cuda_home}/bin;${{PATH}}"',
+                f'export PATH="{cuda_home}/bin:${{PATH}}"',
                 "export FORCE_CUDA=1",
             ]
         )

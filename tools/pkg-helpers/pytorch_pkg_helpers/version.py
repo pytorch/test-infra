@@ -71,6 +71,8 @@ class PytorchVersion:
     ) -> None:
         self.gpu_arch_version = gpu_arch_version
         self.no_build_suffix = no_build_suffix
+        if base_build_version == "":
+            base_build_version = get_base_version()
         self.base_build_version = base_build_version
 
     def get_post_build_suffix(self) -> str:
@@ -88,12 +90,9 @@ class PytorchVersion:
         return f"{get_tag()}{self.get_post_build_suffix()}"
 
     def get_nightly_version(self) -> str:
-        base_version = self.base_build_version
-        if base_version == "":
-            base_version = get_base_version()
         date_str = datetime.today().strftime("%Y%m%d")
         build_suffix = self.get_post_build_suffix()
-        return f"{base_version}.dev{date_str}{build_suffix}"
+        return f"{self.base_build_version}.dev{date_str}{build_suffix}"
 
 
 def get_version_variables(

@@ -52,7 +52,7 @@ def test_cuda_variables_cuda_linux_conda(gpu_arch_version):
         f"export CUDA_HOME='{cuda_home}'",
         f"export TORCH_CUDA_ARCH_LIST='{get_cuda_arch_list(sanitized_version)}'",
         # Double quotes needed here to expand PATH var
-        f'export PATH="{cuda_home}/bin;${{PATH}}"',
+        f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
 
@@ -68,7 +68,7 @@ def test_cuda_variables_cuda_linux_wheels(gpu_arch_version):
         f"export CUDA_HOME='{cuda_home}'",
         f"export TORCH_CUDA_ARCH_LIST='{get_cuda_arch_list(sanitized_version)}'",
         # Double quotes needed here to expand PATH var
-        f'export PATH="{cuda_home}/bin;${{PATH}}"',
+        f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
 
@@ -86,7 +86,7 @@ def test_cuda_variables_cuda_windows_conda(gpu_arch_version):
         f"export CUDA_HOME='{cuda_home}'",
         f"export TORCH_CUDA_ARCH_LIST='{get_cuda_arch_list(sanitized_version)}'",
         # Double quotes needed here to expand PATH var
-        f'export PATH="{cuda_home}/bin;${{PATH}}"',
+        f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
 
@@ -104,6 +104,6 @@ def test_cuda_variables_cuda_windows_wheels(gpu_arch_version):
         f"export CUDA_HOME='{cuda_home}'",
         f"export TORCH_CUDA_ARCH_LIST='{get_cuda_arch_list(sanitized_version)}'",
         # Double quotes needed here to expand PATH var
-        f'export PATH="{cuda_home}/bin;${{PATH}}"',
+        f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
