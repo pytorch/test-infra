@@ -33,6 +33,7 @@
     "strict_lag_sec": "f9523e8c8c3a3311",
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "34e698a78cb36669",
+    "workflow_duration_percentile": "703d4a1a2a719a34",
     "workflow_load": "eff394d8e0b76436"
   }
 }

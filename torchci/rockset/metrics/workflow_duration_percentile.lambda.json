@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/workflow_duration_percentile.sql",
+  "default_parameters": [
+    {
+      "name": "name",
+      "type": "string",
+      "value": "pull"
+    },
+    {
+      "name": "percentile",
+      "type": "float",
+      "value": "0.95"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    }
+  ],
+  "description": "Query workflow duration at different percentiles"
+}
