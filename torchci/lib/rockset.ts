@@ -4,7 +4,7 @@ import rockset, { MainApi } from "@rockset/client";
 export interface RocksetParam {
   name: string;
   // This is not complete, but we only really have string/int params atm.
-  type: "string" | "int";
+  type: "string" | "int" | "float";
   value: any;
 }
 
