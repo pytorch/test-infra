@@ -359,12 +359,25 @@ export default function Page() {
               badThreshold={(value) => value > 10}
             />
             <ScalarPanel
-              title={"Pull workflow duration avg"}
-              queryName={"workflow_duration_avg"}
+              title={"Pull workflow duration p50"}
+              queryName={"workflow_duration_percentile"}
               metricName={"duration_sec"}
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={[
                 { name: "name", type: "string", value: "pull" },
+                { name: "percentile", type: "float", value: 0.50 },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+            />
+            <ScalarPanel
+              title={"Pull workflow duration p90"}
+              queryName={"workflow_duration_percentile"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "pull" },
+                { name: "percentile", type: "float", value: 0.90 },
                 ...timeParams,
               ]}
               badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
@@ -383,12 +396,25 @@ export default function Page() {
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
             />
             <ScalarPanel
-              title={"Trunk workflow duration avg"}
-              queryName={"workflow_duration_avg"}
+              title={"Trunk workflow duration p50"}
+              queryName={"workflow_duration_percentile"}
               metricName={"duration_sec"}
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={[
                 { name: "name", type: "string", value: "trunk" },
+                { name: "percentile", type: "float", value: 0.50 },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+            />
+            <ScalarPanel
+              title={"Trunk workflow duration p90"}
+              queryName={"workflow_duration_percentile"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "trunk" },
+                { name: "percentile", type: "float", value: 0.90 },
                 ...timeParams,
               ]}
               badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
