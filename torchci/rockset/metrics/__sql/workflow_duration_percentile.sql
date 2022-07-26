@@ -1,5 +1,5 @@
 SELECT
-	duration_sec,
+    duration_sec,
     name,
 FROM (
     SELECT
