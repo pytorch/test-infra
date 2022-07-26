@@ -3,7 +3,7 @@ import rockset, { MainApi } from "@rockset/client";
 // Type for Rockset query lambda parameters.
 export interface RocksetParam {
   name: string;
-  // This is not complete, but we only really have string/int params atm.
+  // This is not complete, but we only really have string/int/float params atm.
   type: "string" | "int" | "float";
   value: any;
 }
