@@ -4,7 +4,7 @@ import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import { NUM_MINUTES, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
-import { POSSIBLE_USERS } from "lib/rolloutUtils";
+import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 interface PRandJobs {
     head_sha: string;
