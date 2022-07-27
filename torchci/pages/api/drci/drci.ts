@@ -3,7 +3,8 @@ import { getOctokit } from "lib/github";
 import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, POSSIBLE_USERS, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
+import { NUM_MINUTES, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
+import { POSSIBLE_USERS } from "lib/rolloutUtils";
 
 interface PRandJobs {
     head_sha: string;
