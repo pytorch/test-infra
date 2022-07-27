@@ -143,6 +143,9 @@ ids = queuedJobs.results.map((r) => r.id);
 
 // See above for why we're awaiting in a loop.
 for (const id of ids) {
-  await backfillWorkflowJob(id, (job) => job.status === "queued");
+  await backfillWorkflowJob(
+    id,
+    (job) => job.status === "queued" && job.steps.length === 0
+  );
 }
 console.log("::endgroup::");
