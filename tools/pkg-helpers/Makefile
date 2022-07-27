@@ -17,3 +17,7 @@ test:
 .PHONY: install
 install:
 	poetry install
+
+.PHONY: publish
+publish:
+	poetry publish
