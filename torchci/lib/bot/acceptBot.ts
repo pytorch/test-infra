@@ -7,7 +7,7 @@ function containsLabel(labels: Label[], labelName: string) {
 
 export const ACCEPT_2_RUN = "accept2run";
 export const ACCEPT_2_SHIP = "accept2ship";
-export const CIFLOW_LABEL = "ciflow/trunk";
+export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
 export const ACCEPT_MESSAGE_PREFIX =
   "This PR has been accepted with the accept2ship label. Attempting to merge now.";
@@ -33,7 +33,7 @@ function acceptBot(app: Probot): void {
           owner,
           repo,
           issue_number,
-          labels: [CIFLOW_LABEL],
+          labels: [CIFLOW_TRUNK_LABEL],
         });
       } else if (hasAcceptToShip) {
         await ctx.octokit.issues.createComment({

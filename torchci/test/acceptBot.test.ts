@@ -4,7 +4,7 @@ import myProbotApp, {
   ACCEPT_2_RUN,
   ACCEPT_2_SHIP,
   ACCEPT_MESSAGE_PREFIX,
-  CIFLOW_LABEL,
+  CIFLOW_TRUNK_LABEL,
 } from "../lib/bot/acceptBot";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
@@ -39,7 +39,7 @@ describe("accept bot", () => {
 
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`"labels":["${CIFLOW_LABEL}"]`);
+        expect(JSON.stringify(body)).toContain(`"labels":["${CIFLOW_TRUNK_LABEL}"]`);
         return true;
       })
 
