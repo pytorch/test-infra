@@ -20,7 +20,7 @@ describe("accept bot", () => {
 
   test("Do nothing on approval of a non labeled PR", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
-    event.payload.review.state = "APPROVED";
+    event.payload.review.state = "approved";
     const scope = nock("https://api.github.com");
     await probot.receive(event);
 
@@ -29,7 +29,7 @@ describe("accept bot", () => {
 
   test("Add ciflow tag on approval of a accept2run PR", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
-    event.payload.review.state = "APPROVED";
+    event.payload.review.state = "approved";
     event.payload.pull_request.labels = [{ name: ACCEPT_2_RUN }];
     event.payload.repository.name = "pytorch-canary";
 
@@ -51,7 +51,7 @@ describe("accept bot", () => {
 
   test("Comment on approval of a accept2ship PR", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
-    event.payload.review.state = "APPROVED";
+    event.payload.review.state = "approved";
     event.payload.pull_request.labels = [{ name: ACCEPT_2_SHIP }];
     event.payload.repository.name = "pytorch-canary";
 
