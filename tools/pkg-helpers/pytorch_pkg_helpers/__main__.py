@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
 import json
-import subprocess
+import os
 import shlex
+import subprocess
+import sys
 
 from .conda import get_conda_variables
 from .cuda import get_cuda_variables
@@ -100,7 +100,7 @@ def main():
                 channel=options.channel,
             )
         )
-    if options.platform =="darwin":
+    if options.platform == "darwin":
         variables.extend(get_macos_variables())
     variables.extend(
         get_cuda_variables(

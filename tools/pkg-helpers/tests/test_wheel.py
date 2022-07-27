@@ -1,8 +1,8 @@
 import pytest
 
 from pytorch_pkg_helpers.wheel import (
-    get_wheel_variables,
     get_pytorch_pip_install_command,
+    get_wheel_variables,
 )
 
 

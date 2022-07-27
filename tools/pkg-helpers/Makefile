@@ -7,7 +7,7 @@ all: install lint test
 
 .PHONY: lint
 lint:
-	poetry run black .
+	poetry run ufmt format .
 	poetry run flake8
 
 .PHONY: test
