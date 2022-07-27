@@ -26,20 +26,20 @@ const recentWorkflowB = {
 }
 
 const recentWorkflowC = {
-    job_name: 'Lint / lintrunner (pull_request)',
+    job_name: 'Lint',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
-    html_url: "abcdefg",
+    html_url: "a",
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
 }
 
 const recentWorkflowD = {
-    job_name: 'something-docs / build-docs (cpp)',
+    job_name: 'something',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
-    html_url: "abcdefg",
+    html_url: "a",
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
@@ -49,7 +49,7 @@ const recentWorkflowE = {
     job_name: 'z-docs / build-docs (cpp)',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
-    html_url: "abcdefg",
+    html_url: "a",
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
@@ -90,6 +90,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
         expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
         expect(failureInfo.includes(failedJobName)).toBeTruthy();
+        const expectedFailureOrder = `* [Lint](a)
+* [something](a)
+* [z-docs / build-docs (cpp)](a)`;
+        expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
+        console.log(failureInfo);
     });
 
     test("Check that reorganizeWorkflows works correctly", async () => {
