@@ -22,7 +22,7 @@ function acceptBot(app: Probot): void {
     if (ctx.payload.repository.name != "pytorch-canary") {
       return;
     }
-    if (ctx.payload.review.state === "APPROVED") {
+    if (ctx.payload.review.state === "approved") {
       const labels = ctx.payload.pull_request.labels;
       const owner = ctx.payload.repository.owner.login;
       const repo = ctx.payload.repository.name;
