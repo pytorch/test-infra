@@ -7,7 +7,7 @@ function containsLabel(labels: Label[], labelName: string) {
 
 export const ACCEPT_2_RUN = "accept2run";
 export const ACCEPT_2_SHIP = "accept2ship";
-export const CIFLOW_ALL = "ciflow/all";
+export const CIFLOW_LABEL = "ciflow/trunk";
 
 export const ACCEPT_MESSAGE_PREFIX =
   "This PR has been accepted with the accept2ship label. Attempting to merge now.";
@@ -19,9 +19,6 @@ export const ACCEPT_MESSAGE = `${ACCEPT_MESSAGE_PREFIX}
 
 function acceptBot(app: Probot): void {
   app.on(["pull_request_review.submitted"], async (ctx) => {
-    if (ctx.payload.repository.name != "pytorch-canary") {
-      return;
-    }
     if (ctx.payload.review.state === "approved") {
       const labels = ctx.payload.pull_request.labels;
       const owner = ctx.payload.repository.owner.login;
@@ -36,7 +33,7 @@ function acceptBot(app: Probot): void {
           owner,
           repo,
           issue_number,
-          labels: [CIFLOW_ALL],
+          labels: [CIFLOW_LABEL],
         });
       } else if (hasAcceptToShip) {
         await ctx.octokit.issues.createComment({
