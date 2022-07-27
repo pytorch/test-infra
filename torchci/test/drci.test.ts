@@ -35,6 +35,26 @@ const recentWorkflowC = {
     owner_login: "notswang392",
 }
 
+const recentWorkflowD = {
+    job_name: 'something-docs / build-docs (cpp)',
+    conclusion: "failure",
+    completed_at: '2022-07-13T19:34:03Z',
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    owner_login: "notswang392",
+}
+
+const recentWorkflowE = {
+    job_name: 'z-docs / build-docs (cpp)',
+    conclusion: "failure",
+    completed_at: '2022-07-13T19:34:03Z',
+    html_url: "abcdefg",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    owner_login: "notswang392",
+}
+
 describe("Update Dr. CI Bot Integration Tests", () => {
     beforeEach(() => { });
 
@@ -61,14 +81,14 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     });
 
     test("Check that constructFailureAnalysis works correctly", async () => {
-        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
+        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowD, recentWorkflowC, recentWorkflowE];
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const pr_1001 = workflowsByPR.get(1001)!;
         const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(pr_1001);
         const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.head_sha);
         const failedJobName = recentWorkflowC.job_name;
 
-        expect(failureInfo.includes("1 Failures, 1 Pending")).toBeTruthy();
+        expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
         expect(failureInfo.includes(failedJobName)).toBeTruthy();
     });
 
