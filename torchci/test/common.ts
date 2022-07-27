@@ -24,3 +24,14 @@ export function nockTracker(
     .get("/repos/" + ghaPath + "/issues/6")
     .reply(200, payload);
 }
+
+export function requireDeepCopy(fileName: string) {
+  return JSON.parse(JSON.stringify(require(fileName)));
+}
+
+export function handleScope(scope: nock.Scope) {
+  if (!scope.isDone()) {
+    console.error("pending mocks: %j", scope.pendingMocks());
+  }
+  scope.done();
+}
