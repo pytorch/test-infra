@@ -20,6 +20,7 @@ export const ACCEPT_MESSAGE = `${ACCEPT_MESSAGE_PREFIX}
 function acceptBot(app: Probot): void {
   app.on(["pull_request_review.submitted"], async (ctx) => {
     if (ctx.payload.repository.name != "pytorch-canary") {
+      console.log("RETURNING DUE TO REPO NAME", ctx.payload);
       return;
     }
     if (ctx.payload.review.state === "APPROVED") {
@@ -30,7 +31,6 @@ function acceptBot(app: Probot): void {
 
       const hasAcceptToRun = containsLabel(labels, ACCEPT_2_RUN);
       const hasAcceptToShip = containsLabel(labels, ACCEPT_2_SHIP);
-
       if (hasAcceptToRun) {
         await ctx.octokit.issues.addLabels({
           owner,
@@ -46,7 +46,16 @@ function acceptBot(app: Probot): void {
           body: ACCEPT_MESSAGE,
         });
       }
+      console.log(
+        "RETURNING FROM APPROVAL",
+        ctx.payload,
+        "accept2Run",
+        hasAcceptToRun,
+        "accept2ship",
+        hasAcceptToShip
+      );
     }
+    console.log("RETURNING FROM REVIEW STATE", ctx.payload);
   });
 }
 
