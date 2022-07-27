@@ -9,6 +9,7 @@ import shlex
 
 from .conda import get_conda_variables
 from .cuda import get_cuda_variables
+from .macos import get_macos_variables
 from .version import get_version_variables
 from .wheel import get_wheel_variables
 
@@ -99,6 +100,8 @@ def main():
                 channel=options.channel,
             )
         )
+    if options.platform =="darwin":
+        variables.extend(get_macos_variables())
     variables.extend(
         get_cuda_variables(
             options.package_type, options.platform, options.gpu_arch_version
