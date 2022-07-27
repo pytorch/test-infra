@@ -1,5 +1,6 @@
 import { Context, Probot } from "probot";
-import { DRCI_COMMENT_START, POSSIBLE_USERS, OWNER, REPO, formDrciComment } from "lib/drciUtils";
+import { DRCI_COMMENT_START, OWNER, REPO, formDrciComment } from "lib/drciUtils";
+import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 async function getDrciComment(
   context: Context,
