@@ -69,7 +69,7 @@ export function constructResultsComment(
             output += somePending;
         }
         output += `\nAs of commit ${sha}:`;
-        output += '\n<details><summary>The following jobs have failed:</summary><p>\n';
+        output += '\n<details><summary>The following jobs have failed:</summary><p>\n\n';
         for (const job of failedJobs) {
             output += `* [${job.job_name}](${job.html_url})\n`;
         }
