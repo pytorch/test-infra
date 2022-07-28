@@ -37,7 +37,7 @@ async function checkQuery(client, workspace, queryName, version) {
     `./rockset/${workspace}/__sql/${queryName}.sql`,
     "utf8"
   );
-  if (remoteQuery !== localQuery) {
+  if (remoteQuery.trim() !== localQuery.trim()) {
     console.log(
       `::error::${workspace}.${queryName}:${version} SQL does not match your local checkout.
        Run 'yarn node scripts/downloadQueryLambda.mjs ${workspace} ${queryName} ${version}' to overwrite your local checkout.`

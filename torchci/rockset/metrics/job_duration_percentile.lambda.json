@@ -1,0 +1,27 @@
+{
+  "sql_path": "__sql/job_duration_percentile.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "percentile",
+      "type": "float",
+      "value": "0.9"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    }
+  ],
+  "description": "Query job duration at different percentiles"
+}
+
