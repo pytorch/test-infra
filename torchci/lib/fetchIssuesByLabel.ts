@@ -1,5 +1,5 @@
 import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
+import rocksetVersions from "rockset/prodVersions";
 
 import { IssueData } from "./types";
 
