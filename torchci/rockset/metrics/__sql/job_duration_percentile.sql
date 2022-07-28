@@ -35,4 +35,3 @@ GROUP BY
     name
 ORDER BY
     COUNT(name) * MAX(duration_sec) DESC
-
