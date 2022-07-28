@@ -12538,7 +12538,7 @@
       "author_association": "CONTRIBUTOR",
       "body": "Platforms: rocm \r\n\r\nThis test was disabled because it is flaky on master ([recent examples](http://torch-ci.com/failure/test_multiple_joinable_disable%2C%20TestJoin)).\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501 @jeffdaily @sunway513 @jithunnair-amd @ROCmSupport @KyleCZH",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/comments",
       "created_at": "2022-04-20T14:15:32Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/events",
@@ -12606,7 +12606,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/76109/timeline",
       "title": "DISABLED test_multiple_joinable_disable (__main__.TestJoin)",
-      "updated_at": "2022-06-22T14:41:21Z",
+      "updated_at": "2022-07-28T05:07:56Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/76109",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
