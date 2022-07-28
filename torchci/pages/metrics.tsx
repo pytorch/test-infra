@@ -577,17 +577,17 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
             title={"Job time-to-signal, all branches"}
-            queryName={"tts_avg"}
+            queryName={"tts_percentile"}
             queryParams={timeParams}
             metricName={"tts_sec"}
-            metricHeaderName={"Time-to-signal"}
+            metricHeaderName={"p50"}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
             title={"Job time-to-signal, master-only"}
-            queryName={"tts_avg"}
+            queryName={"tts_percentile"}
             queryParams={[
               ...timeParams,
               {
@@ -595,26 +595,31 @@ export default function Page() {
                 type: "string",
                 value: "master",
               },
+              {
+                name: "percentile",
+                type: "float",
+                value: 0.5,
+              },
             ]}
             metricName={"tts_sec"}
-            metricHeaderName={"Time-to-signal"}
+            metricHeaderName={"p50"}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
             title={"Job duration, all branches"}
-            queryName={"job_duration_avg"}
+            queryName={"job_duration_percentile"}
             queryParams={timeParams}
             metricName={"duration_sec"}
-            metricHeaderName={"Duration"}
+            metricHeaderName={"p50"}
           />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TTSPanel
             title={"Job duration, master-only"}
-            queryName={"job_duration_avg"}
+            queryName={"job_duration_percentile"}
             queryParams={[
               ...timeParams,
               {
@@ -622,9 +627,14 @@ export default function Page() {
                 type: "string",
                 value: "master",
               },
+              {
+                name: "percentile",
+                type: "float",
+                value: 0.5,
+              },
             ]}
             metricName={"duration_sec"}
-            metricHeaderName={"Duration"}
+            metricHeaderName={"p50"}
           />
         </Grid>
       </Grid>
