@@ -25,7 +25,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
-import { TimeRangePicker } from "./metrics";
+import { TimeRangePicker, TtsPercentilePicker } from "./metrics";
 
 function Panel({
   series,
@@ -119,16 +119,30 @@ function getSeries(
 function Graphs({
   queryParams,
   granularity,
+  ttsPercentile,
 }: {
   queryParams: RocksetParam[];
   granularity: "hour" | "day" | "week" | "month" | "year";
+  ttsPercentile: number;
 }) {
   const [filter, setFilter] = useState(new Set());
   const ROW_HEIGHT = 800;
 
+  let queryName = "tts_duration_historical_percentile";
+  let ttsFieldName = "tts_percentile_sec";
+  let durationFieldName = "duration_percentile_sec";
+
+  // -1 is the special case in which we will use avg instead
+  if (ttsPercentile === -1) {
+    queryName = "tts_duration_historical";
+    ttsFieldName = "tts_avg_sec";
+    durationFieldName = "duration_avg_sec";
+  }
+
+
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
-  const url = `/api/query/metrics/tts_duration_historical?parameters=${encodeURIComponent(
+  const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
 
@@ -176,7 +190,7 @@ function Graphs({
     granularity,
     groupByFieldName,
     timeFieldName,
-    "tts_avg_sec"
+    ttsFieldName,
   );
   const duration_true_series = getSeries(
     data,
@@ -185,7 +199,7 @@ function Graphs({
     granularity,
     groupByFieldName,
     timeFieldName,
-    "duration_avg_sec"
+    durationFieldName,
   );
   var tts_series = tts_true_series.filter((item: any) =>
     filter.has(item["name"])
@@ -255,6 +269,7 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [ttsPercentile, setTtsPercentile] = useState<number>(0.50);
 
   const queryParams: RocksetParam[] = [
     {
@@ -265,6 +280,8 @@ export default function Page() {
     { name: "startTime", type: "string", value: startTime },
     { name: "stopTime", type: "string", value: stopTime },
     { name: "granularity", type: "string", value: granularity },
+    { name: "percentile", type: "float", value: ttsPercentile },
+    { name: "branch", type: "string", value: "master" },
   ];
 
   return (
@@ -283,8 +300,16 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <TtsPercentilePicker
+          ttsPercentile={ttsPercentile}
+          setTtsPercentile={setTtsPercentile}
+        />
       </Stack>
-      <Graphs queryParams={queryParams} granularity={granularity} />
+      <Graphs
+        queryParams={queryParams}
+        granularity={granularity}
+        ttsPercentile={ttsPercentile}
+      />
     </div>
   );
 }

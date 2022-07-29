@@ -31,6 +31,7 @@
     "reverts": "f5bc84a10c4065a3",
     "tts_avg": "c0049352a4c38aa5",
     "tts_duration_historical": "593f718235d55e75",
+    "tts_duration_historical_percentile": "433d43743c002994",
     "tts_percentile": "7d7dcb69f3bca3e2",
     "strict_lag_sec": "f9523e8c8c3a3311",
     "queue_times_historical": "7f4d6599362e70ba",
