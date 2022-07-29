@@ -317,10 +317,10 @@ export function TtsPercentilePicker({
   return (
     <>
       <FormControl>
-        <InputLabel id="tts-percentile-picker-select-label">Workflow Duration</InputLabel>
+        <InputLabel id="tts-percentile-picker-select-label">Percentile</InputLabel>
         <Select
           defaultValue={0.50}
-          label="Workflow Duration"
+          label="Percentile"
           labelId="tts-percentile-picker-select-label"
           onChange={handleChange}
         >
