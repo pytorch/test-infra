@@ -12,11 +12,6 @@
       "value": "day"
     },
     {
-      "name": "timezone",
-      "type": "string",
-      "value": "America/Los_Angeles"
-    },
-    {
       "name": "percentile",
       "type": "float",
       "value": "0.9"
@@ -30,6 +25,11 @@
       "name": "stopTime",
       "type": "string",
       "value": "2022-08-01T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
     }
   ],
   "description": "Query both TTS and duration percentiles and group them at different granularity"
