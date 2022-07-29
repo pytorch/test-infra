@@ -347,38 +347,29 @@ function WorkflowDuration({
 }) {
   const ttsPercentile = percentileParam.value;
 
+  let title: string = `p${ttsPercentile * 100} ${workflowName} workflow duration`;
+  let queryName: string = "workflow_duration_percentile";
+
   // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile !== -1) {
-    return (
-      <ScalarPanel
-        title={`p${ttsPercentile * 100} ${workflowName} workflow duration`}
-        queryName={"workflow_duration_percentile"}
-        metricName={"duration_sec"}
-        valueRenderer={(value) => durationDisplay(value)}
-        queryParams={[
-          { name: "name", type: "string", value: workflowName },
-          percentileParam,
-          ...timeParams,
-        ]}
-        badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
-      />
-    );
+  if (ttsPercentile === -1) {
+    title=`avg ${workflowName} workflow duration`;
+    queryName = queryName.replace("percentile", "avg");
   }
-  else {
-    return (
-      <ScalarPanel
-        title={`avg ${workflowName} workflow duration`}
-        queryName={"workflow_duration_avg"}
-        metricName={"duration_sec"}
-        valueRenderer={(value) => durationDisplay(value)}
-        queryParams={[
-          { name: "name", type: "string", value: workflowName },
-          ...timeParams,
-        ]}
-        badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
-      />
-    );
-  }
+
+  return (
+    <ScalarPanel
+      title={title}
+      queryName={queryName}
+      metricName={"duration_sec"}
+      valueRenderer={(value) => durationDisplay(value)}
+      queryParams={[
+        { name: "name", type: "string", value: workflowName },
+        percentileParam,
+        ...timeParams,
+      ]}
+      badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+    />
+  );
 }
 
 function JobsDuration({
