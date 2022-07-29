@@ -1,0 +1,36 @@
+{
+  "sql_path": "__sql/tts_duration_historical_percentile.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "percentile",
+      "type": "float",
+      "value": "0.9"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": "Query both TTS and duration percentiles and group them at different granularity"
+}
