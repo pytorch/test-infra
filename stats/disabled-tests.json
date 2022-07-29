@@ -22419,9 +22419,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
+      "body": "\r\n\r\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_simple&suite=TestFunctionalization&file=test_functionalization.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940362).\r\n\r\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\r\n\r\ncc @bdhirsh @ezyang",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/comments",
       "created_at": "2022-07-11T09:42:39Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/events",
@@ -22454,15 +22454,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         },
         {
           "color": "006b75",
@@ -22498,7 +22489,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81221/timeline",
       "title": "DISABLED test_simple (__main__.TestFunctionalization)",
-      "updated_at": "2022-07-12T16:54:55Z",
+      "updated_at": "2022-07-29T03:19:08Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81221",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
