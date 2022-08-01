@@ -137,10 +137,10 @@ class PytorchBotHandler {
         true,
         "You need to provide a reason for using force merge, in the format `@pytorchbot merge -f 'Explanation'`. " +
           "The explanation needs to be clear on why this is needed. Here are some good examples:\n" +
-          " Bypass checks due to unrelated upstream failures from XLA\n" +
-          " This is a minor fix to clean up unused variables, which shouldn't break anything\n" +
-          " This is pre-tested in a previous CI run\n" +
-          " Bypass flaky cpp doc check"
+          " * Bypass checks due to unrelated upstream failures from XLA\n" +
+          " * This is a minor fix to clean up unused variables, which shouldn't break anything\n" +
+          " * This is pre-tested in a previous CI run\n" +
+          " * Bypass flaky cpp doc check"
       );
     }
   }
