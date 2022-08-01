@@ -15,7 +15,12 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import {
+  useCallback,
+  useRef,
+  useState
+} from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -25,7 +30,7 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
-import { TimeRangePicker, TtsPercentilePicker } from "./metrics";
+import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
 
 function Panel({
   series,
@@ -120,10 +125,14 @@ function Graphs({
   queryParams,
   granularity,
   ttsPercentile,
+  selectedJobName,
+  checkboxRef,
 }: {
   queryParams: RocksetParam[];
   granularity: "hour" | "day" | "week" | "month" | "year";
   ttsPercentile: number;
+  selectedJobName: string;
+  checkboxRef: any;
 }) {
   const [filter, setFilter] = useState(new Set());
   const ROW_HEIGHT = 800;
@@ -138,7 +147,6 @@ function Graphs({
     ttsFieldName = "tts_avg_sec";
     durationFieldName = "duration_avg_sec";
   }
-
 
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
@@ -207,6 +215,7 @@ function Graphs({
   var duration_series = duration_true_series.filter((item: any) =>
     filter.has(item["name"])
   );
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={9} height={ROW_HEIGHT}>
@@ -218,7 +227,7 @@ function Graphs({
         </Paper>
       </Grid>
       <Grid item xs={3} height={ROW_HEIGHT}>
-        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}>
+        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }} ref={checkboxRef}>
           {tts_true_series.map((job) => (
             <div key={job["name"]}>
               <input
@@ -266,10 +275,16 @@ function GranularityPicker({
 }
 
 export default function Page() {
+  const router = useRouter();
+  const branch: string = router.query.branch as string ?? "master";
+  const jobName: string = router.query.jobName as string ?? "none";
+  const percentile: number =
+    router.query.percentile === undefined ? 0.50: parseFloat(router.query.percentile as string);
+
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
-  const [ttsPercentile, setTtsPercentile] = useState<number>(0.50);
+  const [ttsPercentile, setTtsPercentile] = useState<number>(percentile);
 
   const queryParams: RocksetParam[] = [
     {
@@ -281,8 +296,15 @@ export default function Page() {
     { name: "stopTime", type: "string", value: stopTime },
     { name: "granularity", type: "string", value: granularity },
     { name: "percentile", type: "float", value: ttsPercentile },
-    { name: "branch", type: "string", value: "master" },
+    { name: "branch", type: "string", value: branch },
   ];
+
+  const checkboxRef = useCallback(() => {
+    const selectedJob = document.getElementById(jobName);
+    if (selectedJob != undefined) {
+      selectedJob.click();
+    }
+  }, [jobName]);
 
   return (
     <div>
@@ -309,6 +331,8 @@ export default function Page() {
         queryParams={queryParams}
         granularity={granularity}
         ttsPercentile={ttsPercentile}
+        selectedJobName={jobName}
+        checkboxRef={checkboxRef}
       />
     </div>
   );

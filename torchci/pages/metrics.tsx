@@ -172,12 +172,14 @@ function TTSPanel({
   queryParams,
   metricHeaderName,
   metricName,
+  branchName
 }: {
   title: string;
   queryName: string;
   queryParams: RocksetParam[];
   metricHeaderName: string;
   metricName: string;
+  branchName: string;
 }) {
   return (
     <TablePanel
@@ -193,7 +195,27 @@ function TTSPanel({
             durationDisplay(params.value),
         },
         { field: "count", headerName: "Count", flex: 1 },
-        { field: "name", headerName: "Name", flex: 5 },
+        {
+          field: "name",
+          headerName: "Name",
+          flex: 5,
+          // valueFormatter only treat the return value as string, so we need
+          // to use renderCell here to get the JSX
+          renderCell: (params: GridRenderCellParams<string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return `Invalid job name ${jobName}`;
+            }
+
+            const encodedJobName = encodeURIComponent(jobName);
+            const encodedBranchName = encodeURIComponent(branchName);
+            return (
+              <a href={`/tts/pytorch/pytorch/${encodedBranchName}?jobName=${encodedJobName}`}>
+                {jobName}
+              </a>
+            );
+          }
+        },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
     />
@@ -319,7 +341,7 @@ export function TtsPercentilePicker({
       <FormControl>
         <InputLabel id="tts-percentile-picker-select-label">Percentile</InputLabel>
         <Select
-          defaultValue={0.50}
+          defaultValue={ttsPercentile}
           label="Percentile"
           labelId="tts-percentile-picker-select-label"
           onChange={handleChange}
@@ -414,6 +436,7 @@ function JobsDuration({
         queryParams={queryParams}
         metricName={metricName}
         metricHeaderName={metricHeaderName}
+        branchName={branchName}
       />
     </Grid>
   );
