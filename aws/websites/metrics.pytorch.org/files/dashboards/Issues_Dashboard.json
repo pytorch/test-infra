@@ -106,18 +106,20 @@
           },
           "fields": [
             {
-              "jsonPath": "$.results[*].week_bucket"
+              "jsonPath": "$.results[*].week_bucket",
+              "type": "time"
             },
             {
               "jsonPath": "$.results[*].metric",
               "language": "jsonpath",
-              "name": ""
+              "name": "",
+              "type": "number"
             }
           ],
           "method": "POST",
           "queryParams": "",
           "refId": "A",
-          "urlPath": "v1/orgs/self/ws/commons/lambdas/time_to_close_label/tags/latest"
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/time_to_close_label/tags/latest"
         }
       ],
       "title": "% of PRs Closed Under 2 days with Label",
@@ -139,6 +141,6 @@
   "timezone": "",
   "title": "Issues Dashboard",
   "uid": "rrXnUTz4z",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
