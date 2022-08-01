@@ -24130,6 +24130,15 @@
       "id": 1317407810,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -24181,7 +24190,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82168/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-07-25T21:40:52Z",
+      "updated_at": "2022-08-01T04:38:20Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82168",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24218,6 +24227,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82299",
       "id": 1319094222,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -24270,7 +24288,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82299/timeline",
       "title": "DISABLED test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA)",
-      "updated_at": "2022-07-27T06:44:03Z",
+      "updated_at": "2022-08-01T04:38:35Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82299",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24307,6 +24325,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82300",
       "id": 1319094223,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -24359,7 +24386,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82300/timeline",
       "title": "DISABLED test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)",
-      "updated_at": "2022-07-27T06:44:03Z",
+      "updated_at": "2022-08-01T04:38:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82300",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24396,6 +24423,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82340",
       "id": 1319991128,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -24448,7 +24484,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/timeline",
       "title": "DISABLED test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)",
-      "updated_at": "2022-07-27T18:42:54Z",
+      "updated_at": "2022-08-01T04:38:45Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82340",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24584,6 +24620,15 @@
       "id": 1320469204,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -24635,7 +24680,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82398/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-07-28T06:44:03Z",
+      "updated_at": "2022-08-01T04:38:05Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82398",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24672,6 +24717,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82399",
       "id": 1320469207,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -24724,7 +24778,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82399/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_true_none (__main__.TestParityWithDDP)",
-      "updated_at": "2022-07-28T12:56:06Z",
+      "updated_at": "2022-08-01T04:37:51Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82399",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24860,6 +24914,15 @@
       "id": 1320891374,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -24911,7 +24974,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82403/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_true_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-07-28T12:56:08Z",
+      "updated_at": "2022-08-01T04:37:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82403",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
