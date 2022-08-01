@@ -18,6 +18,7 @@ import {
 import { useRouter } from "next/router";
 import {
   useCallback,
+  useRef,
   useState
 } from "react";
 import { RocksetParam } from "lib/rockset";
@@ -275,10 +276,8 @@ function GranularityPicker({
 
 export default function Page() {
   const router = useRouter();
-  const branch =
-    router.query.branch === undefined ? "master": router.query.branch as string;
-  const jobName =
-    router.query.jobName === undefined ? "none": router.query.jobName as string;
+  const branch: string = router.query.branch as string ?? "master";
+  const jobName: string = router.query.jobName as string ?? "none";
   const percentile: number =
     router.query.percentile === undefined ? 0.50: parseFloat(router.query.percentile as string);
 
