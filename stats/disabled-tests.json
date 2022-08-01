@@ -24736,6 +24736,15 @@
       "id": 1322572927,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -24787,7 +24796,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82490/timeline",
       "title": "DISABLED test_delayed_optim_step_offload_true_no_shard (__main__.TestParityWithDDP)",
-      "updated_at": "2022-07-29T18:43:58Z",
+      "updated_at": "2022-08-01T19:52:31Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82490",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24824,6 +24833,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82499",
       "id": 1322697426,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -24876,7 +24894,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82499/timeline",
       "title": "DISABLED test_profiler_experimental_tree (__main__.TestProfilerTree)",
-      "updated_at": "2022-07-29T21:40:31Z",
+      "updated_at": "2022-08-01T19:52:50Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82499",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25012,6 +25030,15 @@
       "id": 1322697427,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -25063,7 +25090,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82501/timeline",
       "title": "DISABLED test_profiler_experimental_tree_with_memory (__main__.TestProfilerTree)",
-      "updated_at": "2022-07-29T21:40:33Z",
+      "updated_at": "2022-08-01T19:52:42Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82501",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
