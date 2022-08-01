@@ -60,7 +60,7 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
+              "mode": "line"
             }
           },
           "mappings": [],
@@ -72,8 +72,108 @@
                 "value": null
               },
               {
-                "color": "red",
-                "value": 80
+                "color": "blue",
+                "value": 50
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "cacheDurationSeconds": 300,
+          "datasource": {
+            "type": "marcusolsson-json-datasource",
+            "uid": "P62E83680D611FAF2"
+          },
+          "fields": [
+            {
+              "jsonPath": "$.results[*].week_bucket",
+              "type": "time"
+            },
+            {
+              "jsonPath": "$.results[*].metric",
+              "language": "jsonpath",
+              "name": "",
+              "type": "number"
+            }
+          ],
+          "method": "POST",
+          "queryParams": "",
+          "refId": "A",
+          "urlPath": "/v1/orgs/self/ws/commons/lambdas/time_to_close_issue_label/tags/latest"
+        }
+      ],
+      "title": "% of Issues Closed Within 2 days",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "marcusolsson-json-datasource",
+        "uid": "P62E83680D611FAF2"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 50
               }
             ]
           }
@@ -82,9 +182,9 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 12,
+        "w": 24,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 2,
       "options": {
@@ -126,7 +226,7 @@
       "type": "timeseries"
     }
   ],
-  "refresh": "",
+  "refresh": false,
   "schemaVersion": 34,
   "style": "dark",
   "tags": [],
@@ -141,6 +241,6 @@
   "timezone": "",
   "title": "Issues Dashboard",
   "uid": "rrXnUTz4z",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
