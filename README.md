@@ -33,7 +33,7 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 2. `cd torchci` and install dependencies with `yarn install`
 2. Setup your environment variables
 
-    a. Copy `torchci/.env.example` to `torchci/.env.local` to create a local copy of your envionrmnet variables. This will NOT be checked into git
+    a. Copy `torchci/.env.example` to `torchci/.env.local` to create a local copy of your environmnet variables. This will NOT be checked into git
 
     b. For every environment setting defined in there, copy over the corresponding value [from Vercel](https://vercel.com/torchci/torchci/settings/environment-variables) (this requires access to our Vercel deployment)
     
