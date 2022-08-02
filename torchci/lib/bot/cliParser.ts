@@ -46,9 +46,8 @@ mergeOption.add_argument("-g", "--green", {
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
   help:
-    "Merge without checking anything. This requires a reason for auditting purpose, for example:\n" +
-    "`@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`\n" +
-    "The reason must be longer than 2 words. ONLY USE THIS FOR CRITICAL FAILURES.",
+`Merge without checking anything. This requires a reason for auditting purpose, for example:
+@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
