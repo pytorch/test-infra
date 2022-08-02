@@ -112,7 +112,7 @@ parser.add_argument("-h", "--help", {
   action: "store_true",
 });
 
-const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
+const botCommandPattern = new RegExp(/^ *@pytorch(merge|)bot.*$/m);
 
 export function getInputArgs(commentBody: string): string {
   const match = commentBody.match(botCommandPattern);
