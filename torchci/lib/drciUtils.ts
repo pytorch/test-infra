@@ -15,7 +15,7 @@ export const HUD_URL = "https://hud.pytorch.org/pr/";
 
 export function formDrciHeader(prNum: number): string {
     return `## :link: Helpful Links
-### :test_tube: See artifacts and rendered test results [here](${HUD_URL}${prNum})
+### :test_tube: See artifacts and rendered test results [at hud.pytorch.org/pr/${prNum}](${HUD_URL}${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${prNum}${PYTHON_DOCS_URL})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}${prNum}${CPP_DOCS_URL})
 * :question: Need help or want to give feedback on the CI? Visit our [office hours](${OH_URL})
