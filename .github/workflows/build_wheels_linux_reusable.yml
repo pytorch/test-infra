@@ -14,7 +14,9 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: python -m pip install --upgrade setuptools wheel
-      # Optionally include some setup step here (where each domain lib brings
-      # its own setup script)
+      # Include domain-specific pre-build step here 
+      # (where each domain lib brings its own setup script)
+    - name: Build clean
+      run: python setup.py clean
     - name: Build wheels
       run: python setup.py bdist_wheel
