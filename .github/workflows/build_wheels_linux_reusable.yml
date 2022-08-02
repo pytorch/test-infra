@@ -1,7 +1,11 @@
 name: Build Linux Wheels
 
 on:
-  workflow_call
+  workflow_call:
+    inputs:
+      domain:
+        required: true
+        type: string
 
 jobs:
   wheels:
@@ -16,6 +20,7 @@ jobs:
       run: python -m pip install --upgrade setuptools wheel
       # Include domain-specific pre-build step here 
       # (where each domain lib brings its own setup script)
+      # Use the domain input to call the right composite action
     - name: Build clean
       run: python setup.py clean
     - name: Build wheels
