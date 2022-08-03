@@ -20092,9 +20092,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_trace_dependencies&suite=test_analyze.TestAnalyze&file=package/test_analyze.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940320).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @bdhirsh @ezyang",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_trace_dependencies&suite=test_analyze.TestAnalyze&file=package/test_analyze.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7275940320).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @wconstab @bdhirsh @ezyang",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/comments",
       "created_at": "2022-07-11T09:42:39Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/events",
@@ -20129,22 +20129,31 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "3050AB",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "related to torch deploy torchdeploy",
+          "id": 2931750617,
+          "name": "module: deploy",
+          "node_id": "MDU6TGFiZWwyOTMxNzUwNjE3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20deploy"
         },
         {
-          "color": "006b75",
+          "color": "DD7DCF",
           "default": false,
-          "description": "",
-          "id": 3883239637,
-          "name": "module: functionalization",
-          "node_id": "LA_kwDOA-j9z87ndYjV",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
+          "description": "Add issue/PR to torch.package TODO board",
+          "id": 3092008831,
+          "name": "oncall: package/deploy",
+          "node_id": "MDU6TGFiZWwzMDkyMDA4ODMx",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20package/deploy"
+        },
+        {
+          "color": "bfdadc",
+          "default": false,
+          "description": "This issue has been imported to the internal tasks tool",
+          "id": 3095481182,
+          "name": "imported",
+          "node_id": "MDU6TGFiZWwzMDk1NDgxMTgy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/imported"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/labels{/name}",
@@ -20171,7 +20180,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81213/timeline",
       "title": "DISABLED test_trace_dependencies (test_analyze.TestAnalyze)",
-      "updated_at": "2022-08-03T00:58:14Z",
+      "updated_at": "2022-08-03T13:58:10Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81213",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -23156,7 +23165,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_gradgrad_nn_LazyConvTranspose3d_cuda_float64&suite=TestModuleCUDA&file=test_modules.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7643099249).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.",
+      "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_gradgrad_nn_LazyConvTranspose3d_cuda_float64&suite=TestModuleCUDA&file=test_modules.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7643099249).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 3 red and 1 green.\n\ncc @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @saketh-are @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82701/comments",
@@ -23165,6 +23174,33 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82701",
       "id": 1326649596,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.cuda, and CUDA support in general",
+          "id": 1076930055,
+          "name": "module: cuda",
+          "node_id": "MDU6TGFiZWwxMDc2OTMwMDU1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20cuda"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -23182,15 +23218,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82701/labels{/name}",
@@ -23217,7 +23244,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82701/timeline",
       "title": "DISABLED test_gradgrad_nn_LazyConvTranspose3d_cuda_float64 (__main__.TestModuleCUDA)",
-      "updated_at": "2022-08-03T04:07:21Z",
+      "updated_at": "2022-08-03T14:04:18Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82701",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
