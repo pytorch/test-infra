@@ -23272,7 +23272,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_none&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7643399056).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_none&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7643399056).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82704/comments",
@@ -23281,6 +23281,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82704",
       "id": 1326754193,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -23333,7 +23342,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82704/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_none (__main__.TestParityWithDDP)",
-      "updated_at": "2022-08-03T06:43:26Z",
+      "updated_at": "2022-08-03T14:06:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82704",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
