@@ -48,7 +48,7 @@ export function seriesWithInterpolatedTimes(
     prevT = t;
     t = dayjs(times[i]);
 
-    // Normally the time difference is expected to be 1 (or less)
+    // Normally the time difference is expected to be 1 (or less) of whatever the granularity is.
     // Things like Daylight Savings Time can cause it to increase or decrease a bit.
     // We don't want to interpolate data just because of DST though!
     // For that, we buffer the accpetable granularity a bit
