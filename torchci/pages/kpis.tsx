@@ -7,7 +7,7 @@ import { useState } from "react";
 const ROW_HEIGHT = 340;
 
 export default function Kpis() {
-    const [startTime, setStartTime] = useState(dayjs().startOf("year").add(1, 'month'));
+    const [startTime, setStartTime] = useState(dayjs().startOf("year"));
     const [stopTime, setStopTime] = useState(dayjs());
         
     const timeParams: RocksetParam[] = [
@@ -27,7 +27,7 @@ export default function Kpis() {
         <Grid container spacing={2}>
             <Grid item xs={true} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"Percent Jobs Red Over Time"}
+                title={"% Jobs Red (Weekly)"}
                 queryName={"master_jobs_red"}
                 queryParams={[
                     ...timeParams,
