@@ -1,7 +1,7 @@
 import shlex from "shlex";
 import { addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
-import { isInLandCheckAllowlist } from "./rolloutUtils";
+import { getLandCheckMessage, isInLandCheckAllowlist } from "./rolloutUtils";
 
 class PytorchBotHandler {
   ctx: any;
@@ -128,9 +128,20 @@ class PytorchBotHandler {
   ) {
     const isForced = forceMessage != undefined;
     const isValidMessage = this.isValidForceMergeMessage(forceMessage);
+    const inLandCheckAllowlist =
+      this.login != null && isInLandCheckAllowlist(this.login);
+    const useLandChecks = inLandCheckAllowlist || landChecks;
+    if ((inLandCheckAllowlist || landChecks) && !isForced && !mergeOnGreen) {
+      this.addComment(getLandCheckMessage(inLandCheckAllowlist));
+    }
 
     if (!isForced || isValidMessage) {
-      await this.dispatchEvent("try-merge", isForced, mergeOnGreen, landChecks);
+      await this.dispatchEvent(
+        "try-merge",
+        isForced,
+        mergeOnGreen,
+        useLandChecks
+      );
       await this.ackComment();
     } else {
       await this.handleConfused(
@@ -240,12 +251,7 @@ class PytorchBotHandler {
       case "revert":
         return await this.handleRevert(args.message);
       case "merge":
-        return await this.handleMerge(
-          args.force,
-          args.green,
-          args.land_checks ||
-            (this.login != null && isInLandCheckAllowlist(this.login))
-        );
+        return await this.handleMerge(args.force, args.green, args.land_checks);
       case "rebase": {
         if (args.stable) {
           args.branch = "viable/strict";

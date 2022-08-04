@@ -55,6 +55,26 @@ export const POSSIBLE_USERS = [
   "osalpekar",
 ];
 
+const ASCII_COW = `
+\|/          (__)    
+\`\------(oo)
+  ||    (__)
+  ||w--||     \|/
+\|/`;
+
+const LAND_CHECK_WIKI =
+  "https://github.com/pytorch/pytorch/wiki/Bot-commands#land-checks";
+
+export function getLandCheckMessage(isEnrolled: boolean) {
+  const messagePrefix = isEnrolled
+    ? `You have been enrolled into [land-checks](${LAND_CHECK_WIKI}). Thank you for being a dogfooder! If you would like to opt out, please reach out to the Pytorch Dev Infra team.`
+    : `Thank you for using [land-checks](${LAND_CHECK_WIKI}).`;
+
+  return `${messagePrefix} Your PR is now landing and it may take a 3-4 more hours to run additional tests. If you want to just check the signals on the PR, use the -g flag or if you need to land immediately, use the -f flag with a message.
+    ${ASCII_COW}
+    `;
+}
+
 export function isInLandCheckAllowlist(username: string) {
   return landCheckPilotGroup.has(username);
 }
