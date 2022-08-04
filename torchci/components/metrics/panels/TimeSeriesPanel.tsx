@@ -48,15 +48,16 @@ export function seriesWithInterpolatedTimes(
     prevT = t;
     t = dayjs(times[i]);
 
-    // If the granularity isn't exactly the same, then do an extra check
+    // Normally the time difference is expected to be 1 (or less)
+    // Things like Daylight Savings Time can cause it to increase or decrease a bit.
+    // We don't want to interpolate data just because of DST though!
+    // For that, we buffer the accpetable granularity a bit
     let timeGap = t.diff(prevT, granularity);
     if (timeGap > 1.15) {
-      // We're missing a large chunk of data, so we'll add an interpolated timestamp
+      // We're missing too large a chunk of data, so we'll add an interpolated timestamp
       // at the next expected granularity point.
-      // We ignore smaller time chunks that may be missing since those can be caused by daylight savings time
-      // and other time related funkiness
       t = prevT.add(1, granularity)
-      i-- // We'll try processing at the old times[i] again next round, in case there are more gaps to interpolate
+      i-- // Try processing at the old times[i] again next round, in case there are more gaps to interpolate
     }
     interpolatedTimes.push(t.toISOString());
   }
