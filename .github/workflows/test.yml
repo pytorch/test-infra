@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+    branches: [ weiwangmeta/run_inside_containers ]
+jobs:
+  build-wheels-in-container-test:
+    runs-on: ubuntu-latest
+    container:
+      image: pytorch/manylinux-builder:cuda11.6-main
+      env:
+        NODE_ENV: development
+      ports:
+        - 80
+    #  volumes:
+    #    - my_docker_volume:/volume_mount
+    #  options: --cpus 1
+    steps:
+    - name: Check for dockerenv file
+      run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
+
+    - name: Set up Python 3.8
+      run: |
+              yum install gcc openssl-devel bzip2-devel libffi-devel zlib-devel -y
+              cd /opt 
+              wget https://www.python.org/ftp/python/3.8.12/Python-3.8.12.tgz
+              tar xzf Python-3.8.12.tgz
+              cd Python-3.8.12
+              ./configure --enable-optimizations
+              make install
+    - name: Checkout PyTorch
+      run: cd ~ && git clone https://github.com/pytorch/pytorch.git && cd pytorch && ls 
+      #- uses: actions/checkout@v2
+      #- name: Set up Python 3.x
+      #uses: actions/setup-python@v2
+      #with:
+      #  python-version: '3.x'
+    - name: Install dependencies
+      run: python3.8 -m pip install --upgrade setuptools wheel
+      # Include domain-specific pre-build step here 
+      # (where each domain lib brings its own setup script)
+      # Use the domain input to call the right composite action
+    - name: Navigate to PyTorch Source Directory and Install Requirements
+      run: cd ~/pytorch && python3.8 -m pip install -r requirements.txt 
+    - name: Build clean
+      run: cd ~/pytorch && python3.8 setup.py clean
+    - name: Build wheels
+      run: cd ~/pytorch && python3.8 setup.py bdist_wheel
