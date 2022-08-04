@@ -32,7 +32,7 @@ export function seriesWithInterpolatedTimes(
   startTime: dayjs.Dayjs,
   stopTime: dayjs.Dayjs,
   granularity: Granularity,
-  groupByFieldName: string,
+  groupByFieldName: string | undefined,
   timeFieldName: string,
   yAxisFieldName: string
 ) {
@@ -42,7 +42,22 @@ export function seriesWithInterpolatedTimes(
   data.forEach((d: any) => allTimes.add(d[timeFieldName]));
   const times: Array<string> = Array.from(allTimes).sort();
   const interpolatedTimes: Array<string> = [];
-  for (let t = startTime; t.isBefore(stopTime); t = t.add(1, granularity)) {
+
+  let prevT, t = startTime
+  for (let i = 0; t.isBefore(stopTime) && i < times.length; i++) {
+    prevT = t;
+    t = dayjs(times[i]);
+
+    // If the granularity isn't exactly the same, then do an extra check
+    let timeGap = t.diff(prevT, granularity);
+    if (timeGap > 1.15) {
+      // We're missing a large chunk of data, so we'll add an interpolated timestamp
+      // at the next expected granularity point.
+      // We ignore smaller time chunks that may be missing since those can be caused by daylight savings time
+      // and other time related funkiness
+      t = prevT.add(1, granularity)
+      i-- // We'll try processing at the old times[i] again next round, in case there are more gaps to interpolate
+    }
     interpolatedTimes.push(t.toISOString());
   }
 
@@ -108,7 +123,7 @@ export default function TimeSeriesPanel({
   queryName: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
-  groupByFieldName: string;
+  groupByFieldName?: string;
   timeFieldName: string;
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
@@ -130,6 +145,7 @@ export default function TimeSeriesPanel({
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+
   let startTime = queryParams.find((p) => p.name === "startTime")?.value;
   let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
 
@@ -148,9 +164,12 @@ export default function TimeSeriesPanel({
     yAxisFieldName
   );
 
+  // Add extra padding when the legend is active
+  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
+
   const options: EChartsOption = {
     title: { text: title },
-    grid: { top: 48, right: 200, bottom: 24, left: 48 },
+    grid: { top: 48, right: legend_padding, bottom: 24, left: 48 },
     dataset: { source: data },
     xAxis: { type: "time" },
     yAxis: {
