@@ -242,7 +242,7 @@ function CommitSummaryLine({
       )}
       {ttsAlert && (
         <span style={{ float: "right" }}>
-          <b>tts alert</b>
+          <ShowDurationInfoCheckbox sha={row.sha} />
         </span>
       )}
       <CommitLinks row={row} />
@@ -250,7 +250,7 @@ function CommitSummaryLine({
   );
 }
 
-function getTTSChanges(jobs: JobData[], prevRow: RowData | undefined) {
+function getTTSChanges(jobs: JobData[], prevRow: JobData[] | undefined) {
   function getAggregateTestTimes(jobs: JobData[] | undefined) {
     return _.reduce(
       jobs,
@@ -287,7 +287,7 @@ function getTTSChanges(jobs: JobData[], prevRow: RowData | undefined) {
   }
 
   const prevRowJobsAggregate = _.pickBy(
-    getAggregateTestTimes(prevRow?.jobs),
+    getAggregateTestTimes(prevRow),
     (value) => value.availableData
   );
 
@@ -405,15 +405,14 @@ function DurationInfo({
 function CommitSummary({
   row,
   prevRow,
-  showDurationInfo,
   expandAllDurationInfo,
 }: {
   row: RowData;
   prevRow: RowData | undefined;
-  showDurationInfo: boolean;
   expandAllDurationInfo: boolean;
 }) {
   const [jobFilter, _setJobFilter] = useContext(JobFilterContext);
+  const [showDurationInfo] = useContext(ShowDurationContext);
   const [highlighted, setHighlighted] = useState(false);
 
   const existingJobs = row.jobs.filter((job) => job.conclusion !== undefined);
@@ -442,7 +441,15 @@ function CommitSummary({
     className += " " + styles.workflowBoxHighlight;
   }
 
-  const { concerningTTS, notConcerningTTS } = getTTSChanges(jobs, prevRow);
+  const { concerningTTS, notConcerningTTS } = getTTSChanges(
+    jobs,
+    // also filter the previous jobs
+    jobFilter === null
+      ? prevRow?.jobs
+      : prevRow?.jobs.filter((job) =>
+          includesCaseInsensitive(job.name!, jobFilter)
+        )
+  );
 
   useEffect(() => {
     const onHashChanged = () => {
@@ -463,21 +470,42 @@ function CommitSummary({
   useScrollTo();
   return (
     <div id={row.sha} className={className}>
-      <CommitSummaryLine
-        row={row}
-        numPending={pendingJobs.length}
-        showRevert={failedJobs.length !== 0}
-        ttsAlert={concerningTTS.length > 0}
-      />
-      {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
-      {showDurationInfo && (
-        <DurationInfo
-          concerning={concerningTTS}
-          notConcerning={notConcerningTTS}
-          expandAllDurationInfo={expandAllDurationInfo}
+      <div
+        className={concerningTTS.length > 0 ? styles.workflowBoxTTSAlert : ""}
+      >
+        <CommitSummaryLine
+          row={row}
+          numPending={pendingJobs.length}
+          showRevert={failedJobs.length !== 0}
+          ttsAlert={concerningTTS.length > 0}
         />
-      )}
+        {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
+        {showDurationInfo && (
+          <DurationInfo
+            concerning={concerningTTS}
+            notConcerning={notConcerningTTS}
+            expandAllDurationInfo={expandAllDurationInfo}
+          />
+        )}
+      </div>
     </div>
+  );
+}
+
+function ShowDurationInfoCheckbox({ sha }: { sha: string | null }) {
+  const [showDurationInfo, setShowDurationInfo] =
+    useContext(ShowDurationContext);
+  const id = `showDurationInfoCheckbox-${sha ? sha : "top"}`;
+  return (
+    <>
+      <input
+        type="checkbox"
+        id={id}
+        checked={showDurationInfo}
+        onChange={() => setShowDurationInfo(!showDurationInfo)}
+      />
+      <label htmlFor={id}>Show duration info</label>
+    </>
   );
 }
 
@@ -488,8 +516,7 @@ function MiniHud({ params }: { params: HudParams }) {
   paramsNextPage.page = params.per_page * params.page + 1;
   paramsNextPage.per_page = 1;
   const extraRow = useHudData(paramsNextPage);
-
-  const [showDurationInfo, setShowDurationInfo] = useState(false);
+  const [showDurationInfo] = useContext(ShowDurationContext);
   const [expandAllDurationInfo, setExpandAllDurationInfo] = useState(false);
 
   if (data === undefined) {
@@ -501,13 +528,7 @@ function MiniHud({ params }: { params: HudParams }) {
   return (
     <>
       <div>
-        <input
-          type="checkbox"
-          id={"durationInfoCheckbox"}
-          checked={showDurationInfo}
-          onChange={() => setShowDurationInfo(!showDurationInfo)}
-        />
-        <label htmlFor={"durationInfoCheckbox"}>Show duration info</label>
+        <ShowDurationInfoCheckbox sha={null} />
         {showDurationInfo && (
           <>
             <input
@@ -531,7 +552,6 @@ function MiniHud({ params }: { params: HudParams }) {
               : array.at(index + 1)
           }
           key={row.sha}
-          showDurationInfo={showDurationInfo}
           expandAllDurationInfo={expandAllDurationInfo}
         />
       ))}
@@ -547,11 +567,17 @@ const JobHoverContext = createContext<
   [null | string, (name: null | string) => void]
 >([null, (_n) => {}]);
 
+const ShowDurationContext = createContext<[boolean, (name: boolean) => void]>([
+  false,
+  (_n) => {},
+]);
+
 export default function Page() {
   const router = useRouter();
   const params = packHudParams(router.query);
   const [jobFilter, setJobFilter] = useState<string | null>(null);
   const [jobHover, setJobHover] = useState<string | null>(null);
+  const [showDurationInfo, setShowDurationInfo] = useState<boolean>(false);
 
   const handleSubmit = useCallback(() => {
     if (jobFilter === "") {
@@ -587,14 +613,18 @@ export default function Page() {
 
       <JobFilterContext.Provider value={[jobFilter, setJobFilter]}>
         <JobHoverContext.Provider value={[jobHover, setJobHover]}>
-          <div style={{ display: "grid" }}>
-            {params.branch != undefined && (
-              <>
-                <MiniHud params={params} />
-                <PageSelector params={params} baseUrl="minihud" />
-              </>
-            )}
-          </div>
+          <ShowDurationContext.Provider
+            value={[showDurationInfo, setShowDurationInfo]}
+          >
+            <div style={{ display: "grid" }}>
+              {params.branch != undefined && (
+                <>
+                  <MiniHud params={params} />
+                  <PageSelector params={params} baseUrl="minihud" />
+                </>
+              )}
+            </div>
+          </ShowDurationContext.Provider>
         </JobHoverContext.Provider>
       </JobFilterContext.Provider>
     </SWRConfig>
