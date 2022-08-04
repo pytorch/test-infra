@@ -1,0 +1,2 @@
+tests/assets/*.json linguist-generated=true
+poetry.lock linguist-generated=true
