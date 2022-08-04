@@ -25,7 +25,7 @@ export default function Kpis() {
     
     return (
         <Grid container spacing={2}>
-            <Grid item lg={true} height={ROW_HEIGHT}>
+            <Grid item xs={true} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"Percent Jobs Red Over Time"}
                 queryName={"master_jobs_red"}
