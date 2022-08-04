@@ -4,6 +4,7 @@ on:
   workflow_call:
     inputs:
       domain:
+        description: 'name of the domain library calling this reusable workflow.'
         required: true
         type: string
 

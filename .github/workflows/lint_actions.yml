@@ -28,7 +28,7 @@ jobs:
       - name: Install requirements
         run: |
           set -eux
-          go install github.com/rhysd/actionlint/cmd/actionlint@7040327ca40aefd92888871131adc30c7d9c1b6d
+          go install github.com/rhysd/actionlint/cmd/actionlint@97ad72abf96ba516f4a49f2da567165eaebf7e5a
       - name: Run actionlint
         run: |
           set -eux
