@@ -61,7 +61,7 @@ function NavBar() {
               </Link>
             </li>
             <li>
-              <Link prefetch={false} href="https://hud.pytorch.org/metrics">
+              <Link prefetch={false} href="/metrics">
                 Metrics
               </Link>
             </li>
