@@ -23650,7 +23650,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_broadcast_object_list&suite=TestDistBackendWithSpawn&file=distributed/test_distributed_spawn.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7678989635).\n\nOver the past 3 hours, it has been determined flaky in 6 workflow(s) with 6 red and 6 green.",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82847/comments",
       "created_at": "2022-08-04T21:41:02Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/82847/events",
@@ -23709,7 +23709,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82847/timeline",
       "title": "DISABLED test_broadcast_object_list (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-08-04T21:41:04Z",
+      "updated_at": "2022-08-05T00:59:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82847",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
