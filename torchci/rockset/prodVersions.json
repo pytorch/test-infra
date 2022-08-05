@@ -10,7 +10,7 @@
     "recent_pr_workflows_query": "4e03cb13e8372050"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "57e5562a57427ae3",
+    "num_reverts": "dd2bac0ff36ea47f",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "670e34fc86adb3ad"
@@ -24,6 +24,7 @@
     "last_successful_workflow": "5d22927dd0b0956b",
     "master_commit_red_avg": "70391ac17f1c45bd",
     "master_commit_red": "e4e5cb062864bf1f",
+    "master_commit_red_percent": "a55ef03c1fa18b7c",
     "master_jobs_red_avg": "e5cc28eb51fc9fe9",
     "master_jobs_red": "aa08fa7af455e1b9",
     "queued_jobs_by_label": "52ab0f4570516f6b",

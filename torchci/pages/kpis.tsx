@@ -7,9 +7,10 @@ import { useState } from "react";
 const ROW_HEIGHT = 340;
 
 export default function Kpis() {
-    const [startTime, setStartTime] = useState(dayjs().startOf("year"));
+    // Start looking at data from 6 weeks in to avoid outlier data from the start of the year
+    const [startTime, setStartTime] = useState(dayjs().startOf("year").add(6, 'week'));
     const [stopTime, setStopTime] = useState(dayjs());
-        
+
     const timeParams: RocksetParam[] = [
         {
         name: "startTime",
@@ -25,7 +26,83 @@ export default function Kpis() {
     
     return (
         <Grid container spacing={2}>
-            <Grid item xs={true} height={ROW_HEIGHT}>
+            <Grid item xs={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"Avg Time To Signal - E2E (Weekly)"}
+                queryName={"time_to_signal"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[
+                    {
+                        name: "buildOrAll",
+                        type: "string",
+                        value: "all",
+                    },
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"week_bucket"}
+                yAxisFieldName={"avg_tts"}
+                yAxisLabel={"Hours"}
+                yAxisRenderer={(unit) => {
+                    return `${unit}`;
+                }} 
+                />
+            </Grid>
+            <Grid item xs={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"Avg Time To Signal - Builds only (Weekly)"}
+                queryName={"time_to_signal"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[
+                    {
+                        name: "buildOrAll",
+                        type: "string",
+                        value: "build",
+                    },
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"week_bucket"}
+                yAxisFieldName={"avg_tts"}
+                yAxisLabel={"Hours"}
+                yAxisRenderer={(unit) => {
+                    return `${unit}`;
+                }} 
+                />
+            </Grid>
+            <Grid item xs={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"# of Commits Red on Trunk (Weekly)"}
+                queryName={"num_reverts"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"bucket"}
+                yAxisFieldName={"num"}
+                yAxisRenderer={(unit) => {
+                    return `${unit}`;
+                }} 
+                />
+            </Grid>
+            <Grid item xs={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"% of Commits Red on Trunk (Weekly)"}
+                queryName={"master_commit_red_percent"}
+                queryCollection={"metrics"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"red"}
+                yAxisRenderer={(unit) => {
+                    return `${unit * 100} %`;
+                }} 
+                />
+            </Grid>
+            <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"% Jobs Red (Weekly)"}
                 queryName={"master_jobs_red"}
