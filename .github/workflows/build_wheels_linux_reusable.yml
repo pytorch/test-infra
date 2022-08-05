@@ -22,7 +22,11 @@ jobs:
       # Include domain-specific pre-build step here 
       # (where each domain lib brings its own setup script)
       # Use the domain input to call the right composite action
+    - name: Run pre-build script
+      run: ./packaging/pre_build_script.sh
     - name: Build clean
       run: python setup.py clean
     - name: Build wheels
       run: python setup.py bdist_wheel
+    - name: Run post-build script
+      run: ./packaging/post_build_script.sh
