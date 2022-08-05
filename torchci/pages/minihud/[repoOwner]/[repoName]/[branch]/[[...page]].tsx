@@ -242,6 +242,7 @@ function CommitSummaryLine({
       )}
       {ttsAlert && (
         <span style={{ float: "right" }}>
+          <b>TTS Alert </b>
           <ShowDurationInfoCheckbox sha={row.sha} />
         </span>
       )}
@@ -250,7 +251,7 @@ function CommitSummaryLine({
   );
 }
 
-function getTTSChanges(jobs: JobData[], prevRow: JobData[] | undefined) {
+function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
   function getAggregateTestTimes(jobs: JobData[] | undefined) {
     return _.reduce(
       jobs,
@@ -287,7 +288,7 @@ function getTTSChanges(jobs: JobData[], prevRow: JobData[] | undefined) {
   }
 
   const prevRowJobsAggregate = _.pickBy(
-    getAggregateTestTimes(prevRow),
+    getAggregateTestTimes(prevJobs),
     (value) => value.availableData
   );
 
@@ -300,7 +301,7 @@ function getTTSChanges(jobs: JobData[], prevRow: JobData[] | undefined) {
     let color = "black";
     if (
       !availableData ||
-      prevRow === undefined ||
+      prevJobs === undefined ||
       prevRowJobsAggregate[name] === undefined
     ) {
       return {
@@ -317,8 +318,8 @@ function getTTSChanges(jobs: JobData[], prevRow: JobData[] | undefined) {
     const percentChange = duration / prevDuration;
     const percentChangeString =
       percentChange >= 1
-        ? `+ ${((percentChange - 1) * 100).toFixed(2)}%`
-        : `- ${((1 - percentChange) * 100).toFixed(2)}%`;
+        ? `+ ${((percentChange - 1) * 100).toFixed(0)}%`
+        : `- ${((1 - percentChange) * 100).toFixed(0)}%`;
     const absoluteChange = Math.round(duration - prevDuration);
     const absoluteChangeString =
       absoluteChange >= 0
@@ -373,7 +374,7 @@ function DurationInfo({
     return (
       <tr style={{ color }}>
         <td style={{ width: "750px" }}>{name}</td>
-        <td style={{ width: "100px" }}>{duration}</td>
+        <td style={{ width: "150px" }}>{duration}</td>
         <td style={{ width: "100px" }}>{percentChangeString}</td>
         <td style={{ width: "100px" }}>{absoluteChangeString}</td>
       </tr>
