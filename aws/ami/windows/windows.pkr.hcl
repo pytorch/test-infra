@@ -46,8 +46,7 @@ build {
     destination = "C:\\ProgramData\\ssh\\sshd_config"
   }
 
-  # Install ssh server and conda, the latter needs to be installed under SYSTEM
-  # to avoid this https://github.com/ContinuumIO/anaconda-issues/issues/11799
+  # Install ssh server
   provisioner "powershell" {
     elevated_user     = "SYSTEM"
     elevated_password = ""
