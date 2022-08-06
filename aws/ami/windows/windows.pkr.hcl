@@ -46,12 +46,14 @@ build {
     destination = "C:\\ProgramData\\ssh\\sshd_config"
   }
 
-  # Install ssh server
+  # Install ssh server and conda, the latter needs to be installed under SYSTEM
+  # to avoid this https://github.com/ContinuumIO/anaconda-issues/issues/11799
   provisioner "powershell" {
     elevated_user     = "SYSTEM"
     elevated_password = ""
     scripts = [
       "${path.root}/scripts/Installers/Install-SSH.ps1",
+      "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
     ]
   }
 
@@ -64,7 +66,6 @@ build {
       "${path.root}/scripts/Installers/Install-Choco.ps1",
       "${path.root}/scripts/Installers/Install-Tools.ps1",
       "${path.root}/scripts/Installers/Install-VS.ps1",
-      "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
     ]
   }
 

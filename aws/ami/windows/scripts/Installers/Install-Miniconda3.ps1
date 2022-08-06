@@ -18,8 +18,10 @@ $condaURI = "https://repo.anaconda.com/miniconda/$condaFileName"
 Write-Output "Downloading Miniconda from $condaURI to $downloadDir, please wait ..."
 Invoke-WebRequest -Uri $condaURI -OutFile "$downloadDir\$condaFileName"
 
+# https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html
+$argsList = "/InstallationType=AllUsers /RegisterPython=0 /S /D=$installationDir"
+
 Write-Output "Installing Miniconda to $installationDir"
-$argsList = "/InstallationType=JustMe /RegisterPython=0 /S /AddToPath=0 /D=$installationDir"
 Start-Process -FilePath "$downloadDir\$condaFileName" -ArgumentList "$argsList" -Wait -NoNewWindow -PassThru
 
 $condaExe = "$installationDir\Scripts\conda.exe"
