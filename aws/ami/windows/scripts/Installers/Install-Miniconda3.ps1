@@ -37,5 +37,5 @@ Start-Process -FilePath $condaExe -ArgumentList "install -y $pythonDeps" -Wait -
 $cmakeDep = "-c conda-forge cmake=3.22.3"
 Start-Process -FilePath $condaExe -ArgumentList "install -y $cmakeDep" -Wait -NoNewWindow -PassThru
 
-# Clear out temp files
-Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+# Clean up the temp file
+Remove-Item -Path "$downloadDir\*" -Recurse -Force -ErrorAction SilentlyContinue
