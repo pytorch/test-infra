@@ -57,15 +57,19 @@ jobs:
           ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
       - name: Create environemnt variables from pytorch-pkg-helpers
         run: |
-          ${CONDA_RUN} python3 -m pytorch_pkg_helpers >> "${GITHUB_ENV}"
+          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+          ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Install delocate-wheel
         run: |
           ${CONDA_RUN} python3 -m pip install delocate
       - name: Install torch dependency
         run: |
+          source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} "${PIP_INSTALL_TORCH}"
       - name: Build the wheel (bdist_wheel)
         run: |
+          source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         run: |
