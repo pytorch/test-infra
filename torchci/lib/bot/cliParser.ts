@@ -51,7 +51,10 @@ mergeOption.add_argument("-f", "--force", {
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
-  help: "Merge with land time checks. This will create a new branch with your changes rebased on viable/strict and run additional tests (EXPERIMENTAL)",
+  help: "Merge with land time checks. This will create a new branch with your changes rebased " +
+  "on viable/strict and run a majority of trunk tests _before_ landing to increase trunk " +
+  "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
+  "that periodic is excluded. (EXPERIMENTAL)",
 });
 
 // Revert
