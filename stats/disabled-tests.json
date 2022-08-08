@@ -24332,7 +24332,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83026/comments",
@@ -24358,6 +24358,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "FBCA04",
+          "default": false,
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         },
         {
           "color": "1d76db",
@@ -24393,7 +24402,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83026/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T21:40:31Z",
+      "updated_at": "2022-08-08T23:41:42Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83026",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24421,7 +24430,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83027/comments",
@@ -24447,6 +24456,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "FBCA04",
+          "default": false,
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         },
         {
           "color": "1d76db",
@@ -24482,7 +24500,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83027/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T21:40:32Z",
+      "updated_at": "2022-08-08T23:41:21Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83027",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24510,7 +24528,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_div_cuda_int64&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_div_cuda_int64&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83028/comments",
@@ -24536,6 +24554,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "FBCA04",
+          "default": false,
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         },
         {
           "color": "1d76db",
@@ -24571,7 +24598,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83028/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_div_cuda_int64 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T21:40:31Z",
+      "updated_at": "2022-08-08T23:41:48Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83028",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24599,7 +24626,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7731328050).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83029/comments",
@@ -24625,6 +24652,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "FBCA04",
+          "default": false,
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         },
         {
           "color": "1d76db",
@@ -24660,7 +24696,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83029/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T21:40:32Z",
+      "updated_at": "2022-08-08T23:41:32Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83029",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
