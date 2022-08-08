@@ -23,7 +23,7 @@ jobs:
       PACKAGE_TYPE: wheel
     runs-on: macos-m1-12
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -37,13 +37,13 @@ jobs:
           fi
       - name: Clean conda environment
         run: |
-          conda clean --all --quiet
+          conda clean --all --quiet --yes
       - name: Create conda environment
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           conda create \
-            -y \
-            -p "${CONDA_ENV}" \
+            --yes \
+            --prefix "${CONDA_ENV}" \
             "python=${PYTHON_VERSION}" \
             cmake=3.22 \
             ninja=1.10 \
@@ -63,7 +63,7 @@ jobs:
           ${CONDA_RUN} python3 -m pip install delocate
       - name: Install torch dependency
         run: |
-          ${CONDA_RUN} python3 -m ${PIP_INSTALL_TORCH}
+          ${CONDA_RUN} "${PIP_INSTALL_TORCH}"
       - name: Build the wheel (bdist_wheel)
         run: |
           ${CONDA_RUN} python3 setup.py bdist_wheel
