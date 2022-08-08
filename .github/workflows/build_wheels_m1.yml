@@ -23,6 +23,8 @@ jobs:
     env:
       PYTHON_VERSION: ${{ matrix.python_version }}
       PACKAGE_TYPE: wheel
+      REPOSITORY: ${{ inputs.repository }}
+      REF: ${{ inputs.ref }}
     runs-on: macos-m1-12
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
@@ -40,6 +42,11 @@ jobs:
           else
             echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
           fi
+      - name: Set artifact name
+        run: |
+          # Set artifact name here since github actions doesn't have string manipulation tools
+          # and "/" is not allowed in artifact names
+          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
       - name: Clean conda environment
         run: |
           conda clean --all --quiet --yes
@@ -83,7 +90,7 @@ jobs:
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ inputs.repository }}-${{ inputs.ref }}-${{ matrix.python_version }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: dist/
       # TODO: Figure out upload method to s3
 
