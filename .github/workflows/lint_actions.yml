@@ -32,4 +32,5 @@ jobs:
       - name: Run actionlint
         run: |
           set -eux
-          actionlint
+          # Would like to eventually have this in a config file but it's here until then
+          actionlint -ignore "SC1090"
