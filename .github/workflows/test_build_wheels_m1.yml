@@ -12,3 +12,13 @@ jobs:
     with:
       repository: pytorch/audio
       ref: nightly
+  test_vision:
+    uses: ./.github/workflows/build_wheels_m1.yml
+    with:
+      repository: pytorch/vision
+      ref: nightly
+  test_text:
+    uses: ./.github/workflows/build_wheels_m1.yml
+    with:
+      repository: pytorch/text
+      ref: nightly
