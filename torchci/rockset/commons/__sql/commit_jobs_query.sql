@@ -75,7 +75,7 @@ WITH job as (
         circleci.job job
     WHERE
         job.pipeline.vcs.revision = :sha
-        AND CONCAT(job.organization.name, "/", job.project.name) = :repo
+        AND CONCAT(job.organization.name, '/', job.project.name) = :repo
 )
 SELECT
     sha,

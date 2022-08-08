@@ -1,7 +1,7 @@
 {
   "commons": {
     "hud_query": "a848c067c22e5a09",
-    "commit_jobs_query": "e05467fcb948e0ec",
+    "commit_jobs_query": "387b2da14e7d0d6b",
     "flaky_tests": "59d7546183743626",
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "50cb3694334ed63a",
