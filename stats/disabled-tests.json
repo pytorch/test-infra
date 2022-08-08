@@ -23073,6 +23073,15 @@
       "id": 1327176294,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -23124,7 +23133,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82719/timeline",
       "title": "DISABLED test_extra_fields (__main__.TestTorchTidyProfiler)",
-      "updated_at": "2022-08-03T12:54:09Z",
+      "updated_at": "2022-08-08T15:36:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82719",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -23161,6 +23170,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82720",
       "id": 1327176295,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -23213,7 +23231,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82720/timeline",
       "title": "DISABLED test_profiler_conv2d_bias_followed_by_batchnorm2d_pattern (__main__.TestExperimentalUtils)",
-      "updated_at": "2022-08-03T12:54:10Z",
+      "updated_at": "2022-08-08T15:36:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82720",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -23250,6 +23268,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82803",
       "id": 1328149052,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -23302,7 +23329,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82803/timeline",
       "title": "DISABLED test_worker_init_fn (__main__.TestDataLoader)",
-      "updated_at": "2022-08-04T06:44:57Z",
+      "updated_at": "2022-08-08T15:36:21Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82803",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -23339,6 +23366,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82847",
       "id": 1329202316,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -23391,7 +23427,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82847/timeline",
       "title": "DISABLED test_broadcast_object_list (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-08-05T00:59:15Z",
+      "updated_at": "2022-08-08T15:36:24Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82847",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
