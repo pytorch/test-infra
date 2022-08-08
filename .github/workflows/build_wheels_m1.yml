@@ -83,7 +83,7 @@ jobs:
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.python_version }}
+          name: ${{ inputs.repository }}-${{ inputs.ref }}-${{ matrix.python_version }}
           path: dist/
       # TODO: Figure out upload method to s3
 
