@@ -1,0 +1,24 @@
+name: Test Build M1 Wheels
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test_build_wheels_m1.yml
+      - .github/workflows/build_wheels_m1.yml
+
+jobs:
+  test_audio:
+    uses: ./.github/workflows/build_wheels_m1.yml
+    with:
+      repository: pytorch/audio
+      ref: nightly
+  test_vision:
+    uses: ./.github/workflows/build_wheels_m1.yml
+    with:
+      repository: pytorch/vision
+      ref: nightly
+  test_text:
+    uses: ./.github/workflows/build_wheels_m1.yml
+    with:
+      repository: pytorch/text
+      ref: nightly
