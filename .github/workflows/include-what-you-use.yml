@@ -1,0 +1,50 @@
+name: Build include-what-you-use (linux)
+
+on:
+  pull_request:
+    paths:
+      - 'tools/include-what-you-use/**'
+      - '.github/workflows/include-what-you-use.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/include-what-you-use/**'
+      - '.github/workflows/include-what-you-use.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build docker image
+        run: |
+          set -ex
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build ./tools/include-what-you-use --tag ghcr.io/pytorch/cilint-include-what-you-use:"$GITHUB_SHA" -f tools/include-what-you-use/Dockerfile
+      - name: Extract build results from docker image
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          set -ex
+          docker push ghcr.io/pytorch/cilint-include-what-you-use:"$GITHUB_SHA"
+
+          # Copying files directly from a docker image is not supported
+          # As a workaround, we create a temporary container, copy the files, and remove it
+          image_id=$(docker create ghcr.io/pytorch/cilint-include-what-you-use:"$GITHUB_SHA")
+          docker cp "$image_id":/iwyu-build/bin/include-what-you-use ./
+          docker cp "$image_id":/include-what-you-use/iwyu_tool.py ./
+          docker rm -v "$image_id"
+      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
+        name: Publish files
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: include-what-you-use
+          path: |
+              include-what-you-use
+              iwyu_tool.py
+          if-no-files-found: error
+          s3-prefix: linux64
+          s3-bucket: oss-clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
