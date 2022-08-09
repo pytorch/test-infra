@@ -2,11 +2,20 @@
   "sql_path": "__sql/num_reverts.sql",
   "default_parameters": [
     {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
       "name": "startTime",
       "type": "string",
       "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-01-01T00:00:00.000Z"
     }
   ],
-  "description": "",
-  "recursive": true
+  "description": "accept Revent % instead of Revert %D"
 }
