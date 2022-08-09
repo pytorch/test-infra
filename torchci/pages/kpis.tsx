@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
 
-const ROW_HEIGHT = 340;
+const ROW_HEIGHT = 240;
 
 export default function Kpis() {
     // Start looking at data from 6 weeks in to avoid outlier data from the start of the year
@@ -26,7 +26,7 @@ export default function Kpis() {
     
     return (
         <Grid container spacing={2}>
-            <Grid item xs={6} height={ROW_HEIGHT}>
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"Avg Time To Signal - E2E (Weekly)"}
                 queryName={"time_to_signal"}
@@ -43,12 +43,11 @@ export default function Kpis() {
                 timeFieldName={"week_bucket"}
                 yAxisFieldName={"avg_tts"}
                 yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => {
-                    return `${unit}`;
-                }} 
+                yAxisRenderer={(unit) => `${unit}`} 
                 />
             </Grid>
-            <Grid item xs={6} height={ROW_HEIGHT}>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"Avg Time To Signal - Builds only (Weekly)"}
                 queryName={"time_to_signal"}
@@ -65,12 +64,11 @@ export default function Kpis() {
                 timeFieldName={"week_bucket"}
                 yAxisFieldName={"avg_tts"}
                 yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => {
-                    return `${unit}`;
-                }} 
+                yAxisRenderer={(unit) => `${unit}`} 
                 />
             </Grid>
-            <Grid item xs={6} height={ROW_HEIGHT}>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"# of Commits Red on Trunk (Weekly)"}
                 queryName={"num_reverts"}
@@ -81,12 +79,10 @@ export default function Kpis() {
                 granularity={"week"}
                 timeFieldName={"bucket"}
                 yAxisFieldName={"num"}
-                yAxisRenderer={(unit) => {
-                    return `${unit}`;
-                }} 
+                yAxisRenderer={(unit) => `${unit}`} 
                 />
             </Grid>
-            <Grid item xs={6} height={ROW_HEIGHT}>
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"% of Commits Red on Trunk (Weekly)"}
                 queryName={"master_commit_red_percent"}
@@ -102,7 +98,7 @@ export default function Kpis() {
                 }} 
                 />
             </Grid>
-            <Grid item xs={6} height={ROW_HEIGHT}>
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"% Jobs Red (Weekly)"}
                 queryName={"master_jobs_red"}
