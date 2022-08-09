@@ -118,6 +118,8 @@ export default function TimeSeriesPanel({
   yAxisFieldName,
   // Callback to render the y axis value in some nice way.
   yAxisRenderer,
+  // What label to put on the y axis.
+  yAxisLabel,
 }: {
   title: string;
   queryCollection?: string;
@@ -128,6 +130,7 @@ export default function TimeSeriesPanel({
   timeFieldName: string;
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
+  yAxisLabel?: string;
 }) {
   // - Granularity
   // - Group by
@@ -167,13 +170,14 @@ export default function TimeSeriesPanel({
 
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? 200 : 48;
-
+  const title_padding = yAxisLabel ? 65 : 48
   const options: EChartsOption = {
     title: { text: title },
-    grid: { top: 48, right: legend_padding, bottom: 24, left: 48 },
+    grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
     dataset: { source: data },
     xAxis: { type: "time" },
     yAxis: {
+      name: yAxisLabel,
       type: "value",
       axisLabel: {
         formatter: yAxisRenderer,
