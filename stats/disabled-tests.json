@@ -24734,6 +24734,15 @@
       "id": 1333818043,
       "labels": [
         {
+          "color": "c5def5",
+          "default": false,
+          "description": "Add this issue/PR to JIT oncall triage queue",
+          "id": 679953983,
+          "name": "oncall: jit",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -24785,7 +24794,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83113/timeline",
       "title": "DISABLED test_tensor_properties (__main__.TestTorchTidyProfiler)",
-      "updated_at": "2022-08-09T21:43:36Z",
+      "updated_at": "2022-08-10T18:44:09Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83113",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
