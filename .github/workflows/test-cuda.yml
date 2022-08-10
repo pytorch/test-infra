@@ -44,4 +44,8 @@ jobs:
     - name: Build clean
       run: cd ~/pytorch && python3.8 setup.py clean
     - name: Build wheels
-      run: cd ~/pytorch && python3.8 setup.py bdist_wheel
+      run: |
+              cd ~/pytorch 
+              export PATH=/usr/local/cuda-11.6/bin:$PATH 
+              export LD_LIBRARY_PATH=/usr/local/cuda-11.6/lib64:$LD_LIBRARY_PATH 
+              python3.8 setup.py bdist_wheel

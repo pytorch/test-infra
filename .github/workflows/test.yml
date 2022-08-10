@@ -1,12 +1,13 @@
 name: CI
 on:
-  push:
-    branches: [ weiwangmeta/run_inside_containers ]
+  pull_request:
+    paths: 
+      - .github/workflow/test.yml
 jobs:
   build-wheels-in-container-test:
     runs-on: ubuntu-latest
     container:
-      image: pytorch/manylinux-builder:cuda11.6-main
+      image: pytorch/manylinux-builder:cpu
       env:
         NODE_ENV: development
       ports:
