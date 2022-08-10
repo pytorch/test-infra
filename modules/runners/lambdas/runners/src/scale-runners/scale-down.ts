@@ -2,10 +2,13 @@ import {
   GhRunner,
   RunnerInfo,
   getRepo,
-  getRunner,
-  listGithubRunners,
+  getRunnerOrg,
+  getRunnerRepo,
+  listGithubRunnersOrg,
+  listGithubRunnersRepo,
   listRunners,
-  removeGithubRunner,
+  removeGithubRunnerOrg,
+  removeGithubRunnerRepo,
   resetRunnersCaches,
   terminateRunner,
 } from './runners';
@@ -21,7 +24,7 @@ function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   return launchTimePlusMinimum < now;
 }
 
-export async function scaleDown(): Promise<void> {
+export default async function scaleDown(): Promise<void> {
   // list and sort runners, newest first. This ensure we keep the newest runners longer.
   const runners = (
     await listRunners({
@@ -52,30 +55,14 @@ export async function scaleDown(): Promise<void> {
       continue;
     }
 
-    if (ec2runner.repo === undefined) continue;
-    const repo = getRepo(ec2runner.repo);
-    const ghRunners = await listGithubRunners(repo);
-    let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
-    // Github's / Octokit's list for self hosted runners is inconsistent when listing out pages > 1
-    // so we attempt to do a sanity check here to make sure that the instance itself is actually
-    // orphaned and not busy, the ghRunnerId will only be populated if the runner was actually
-    // registered to Github so this should be a fairly safe call to make
-    if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
-      console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] not found in ` +
-          `listGithubRunners call, attempting to grab directly`,
-      );
-      ghRunner = await getRunner(repo, ec2runner.ghRunnerId);
+    let nonOrphan = false;
+    if (ec2runner.repo !== undefined) {
+      nonOrphan = nonOrphan || (await checkNeedRemoveRunnerRepo(ec2runner));
     }
-    // ec2Runner matches a runner that's registered to github
-    if (ghRunner) {
-      if (ghRunner.busy) {
-        console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is busy, skipping`);
-        continue;
-      } else {
-        await removeGithubRunner(ec2runner, ghRunner.id, repo);
-      }
-    } else {
+    if (ec2runner.org !== undefined) {
+      nonOrphan = nonOrphan || (await checkNeedRemoveRunnerOrg(ec2runner));
+    }
+    if (!nonOrphan) {
       // Remove orphan AWS runners.
       console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is orphaned, and will be removed.`);
       try {
@@ -84,5 +71,53 @@ export async function scaleDown(): Promise<void> {
         console.error(`Orphan runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
       }
     }
+  }
+}
+
+async function checkNeedRemoveRunnerRepo(ec2runner: RunnerInfo): Promise<boolean> {
+  const repo = getRepo(ec2runner.repo as string);
+  const ghRunners = await listGithubRunnersRepo(repo);
+  let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
+    console.warn(
+      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
+        `listGithubRunnersRepo call, attempting to grab directly`,
+    );
+    ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId);
+  }
+  // ec2Runner matches a runner that's registered to github
+  if (ghRunner) {
+    if (ghRunner.busy) {
+      console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) is busy, skipping`);
+    } else {
+      await removeGithubRunnerRepo(ec2runner, ghRunner.id, repo);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+async function checkNeedRemoveRunnerOrg(ec2runner: RunnerInfo): Promise<boolean> {
+  const org = ec2runner.org as string;
+  const ghRunners = await listGithubRunnersOrg(org as string);
+  let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
+    console.warn(
+      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
+        `listGithubRunnersOrg call, attempting to grab directly`,
+    );
+    ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId);
+  }
+  // ec2Runner matches a runner that's registered to github
+  if (ghRunner) {
+    if (ghRunner.busy) {
+      console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) is busy, skipping`);
+    } else {
+      await removeGithubRunnerOrg(ec2runner, ghRunner.id, org);
+    }
+    return true;
+  } else {
+    return false;
   }
 }

@@ -1,10 +1,13 @@
 import {
   Repo,
-  createRegistrationTokenForRepo,
+  RunnerType,
+  createRegistrationTokenOrg,
+  createRegistrationTokenRepo,
   createRunner,
   getRepoKey,
   getRunnerTypes,
-  listGithubRunners,
+  listGithubRunnersOrg,
+  listGithubRunnersRepo,
 } from './runners';
 
 import { Config } from './config';
@@ -23,7 +26,7 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
 
   const repo: Repo = {
     owner: payload.repositoryOwner,
-    repo: payload.repositoryName,
+    repo: Config.Instance.useOrganizationLevelRunners ? Config.Instance.scaleConfigRepo : payload.repositoryName,
   };
 
   const runnerTypes = await getRunnerTypes(repo);
@@ -43,18 +46,11 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
     }
     if (await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available)) {
       try {
-        const labelsArgument =
-          Config.Instance.runnersExtraLabels !== undefined
-            ? `--labels ${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
-            : `--labels ${runnerType.runnerTypeName}`;
-        const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
-        const token = await createRegistrationTokenForRepo(repo, payload.installationId);
         await createRunner({
           environment: Config.Instance.environment,
-          runnerConfig:
-            `--url ${Config.Instance.ghesUrlHost}/${repo.owner}/${repo.repo} ` +
-            `--token ${token} ${labelsArgument} ${ephemeralArgument}`,
-          repoName: getRepoKey(repo),
+          runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId),
+          orgName: Config.Instance.useOrganizationLevelRunners ? repo.owner : undefined,
+          repoName: Config.Instance.useOrganizationLevelRunners ? undefined : getRepoKey(repo),
           runnerType: runnerType,
         });
       } catch (e) {
@@ -66,13 +62,44 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
   }
 }
 
+async function createRunnerConfigArgument(
+  runnerType: RunnerType,
+  repo: Repo,
+  installationId: number | undefined,
+): Promise<string> {
+  const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
+  const labelsArgument =
+    Config.Instance.runnersExtraLabels !== undefined
+      ? `${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
+      : `${runnerType.runnerTypeName}`;
+
+  if (Config.Instance.useOrganizationLevelRunners) {
+    /* istanbul ignore next */
+    const runnerGroupArgument =
+      Config.Instance.runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
+    const token = await createRegistrationTokenOrg(repo.owner, installationId);
+    return (
+      `--url ${Config.Instance.ghesUrlHost}/${repo.owner} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
+    );
+  } else {
+    const token = await createRegistrationTokenRepo(repo, installationId);
+    return (
+      `--url ${Config.Instance.ghesUrlHost}/${repo.owner}/${repo.repo} ` +
+      `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
+    );
+  }
+}
+
 async function allRunnersBusy(
   runnerType: string,
   repo: Repo,
   isEphemeral: boolean,
   maxAvailable: number,
 ): Promise<boolean> {
-  const ghRunners = await listGithubRunners(repo);
+  const ghRunners = Config.Instance.useOrganizationLevelRunners
+    ? await listGithubRunnersOrg(repo.owner)
+    : await listGithubRunnersRepo(repo);
 
   const runnersWithLabel = ghRunners.filter(
     (x) => x.labels.some((y) => y.name === runnerType) && x.status.toLowerCase() !== 'offline',

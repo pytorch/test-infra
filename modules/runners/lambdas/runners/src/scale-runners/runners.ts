@@ -97,6 +97,22 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
       //   Your requested instance type (c5.2xlarge) is not supported in your requested Availability Zone (us-east-1e).
       //   Please retry your request by not specifying an Availability Zone or choosing us-east-1a, us-east-1b,
       //   us-east-1c, us-east-1d, us-east-1f.
+      const tags = [
+        { Key: 'Application', Value: 'github-action-runner' },
+        { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+      ];
+      if (runnerParameters.repoName !== undefined) {
+        tags.push({
+          Key: 'Repo',
+          Value: runnerParameters.repoName,
+        });
+      }
+      if (runnerParameters.orgName !== undefined) {
+        tags.push({
+          Key: 'Org',
+          Value: runnerParameters.orgName,
+        });
+      }
       const runInstancesResponse = await ec2
         .runInstances({
           MaxCount: 1,
@@ -134,14 +150,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           TagSpecifications: [
             {
               ResourceType: 'instance',
-              Tags: [
-                { Key: 'Application', Value: 'github-action-runner' },
-                {
-                  Key: 'Repo',
-                  Value: runnerParameters.repoName,
-                },
-                { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-              ],
+              Tags: tags,
             },
           ],
         })
@@ -220,32 +229,51 @@ export function resetRunnersCaches() {
   githubClient = undefined;
 }
 
-export async function createGitHubClientForRunner(repo: Repo, installationId?: number): Promise<Octokit> {
-  const repoKey = getRepoKey(repo);
-  const cachedOctokit = ghClientCache.get(repoKey) as Octokit;
+async function getGithubClient(): Promise<Octokit> {
+  if (githubClient === undefined) {
+    console.debug(`[getGithubClient] Need to instantiate base githubClient`);
+    const ghAuth = await createGithubAuth(undefined, 'app', Config.Instance.ghesUrlApi);
+    githubClient = await createOctoClient(ghAuth.token, Config.Instance.ghesUrlApi);
+  }
+  return githubClient;
+}
+
+export async function createGitHubClientForRunnerRepo(repo: Repo): Promise<Octokit> {
+  return createGitHubClientForRunner(getRepoKey(repo), async () => {
+    const localGithubClient = await getGithubClient();
+    return (await localGithubClient.apps.getRepoInstallation({ ...repo })).data.id;
+  });
+}
+
+export async function createGitHubClientForRunnerOrg(organization: string): Promise<Octokit> {
+  return createGitHubClientForRunner(organization, async () => {
+    const localGithubClient = await getGithubClient();
+    return (await localGithubClient.apps.getOrgInstallation({ org: organization })).data.id;
+  });
+}
+
+export async function createGitHubClientForRunnerInstallId(installationId: number): Promise<Octokit> {
+  return createGitHubClientForRunner(`${installationId}`, async () => {
+    return installationId;
+  });
+}
+
+async function createGitHubClientForRunner(
+  key: string,
+  installationIdCallback: () => Promise<number>,
+): Promise<Octokit> {
+  const cachedOctokit = ghClientCache.get(key) as Octokit;
 
   if (cachedOctokit) {
     return cachedOctokit;
   }
-  console.debug(`[createGitHubClientForRunner] Cache miss for ${repoKey}`);
+  console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
+  const installationId = await installationIdCallback();
 
-  let installationIdBase = installationId;
-  if (!installationIdBase) {
-    // note that even if node is assyncrhonous, in theory a concurrency in githubClient is still possible
-    // due to the await
-    let localGithubClient = githubClient;
-    if (!localGithubClient) {
-      console.debug(`[createGitHubClientForRunner] Need to instantiate base githubClient ${repo}`);
-      const ghAuth = await createGithubAuth(undefined, 'app', Config.Instance.ghesUrlApi);
-      githubClient = localGithubClient = await createOctoClient(ghAuth.token, Config.Instance.ghesUrlApi);
-    }
-    installationIdBase = (await localGithubClient.apps.getRepoInstallation({ ...repo })).data.id;
-  }
-
-  const ghAuth2 = await createGithubAuth(installationIdBase, 'installation', Config.Instance.ghesUrlApi);
+  const ghAuth2 = await createGithubAuth(installationId, 'installation', Config.Instance.ghesUrlApi);
   const octokit = await createOctoClient(ghAuth2.token, Config.Instance.ghesUrlApi);
 
-  ghClientCache.set(repoKey, octokit);
+  ghClientCache.set(key, octokit);
 
   return octokit;
 }
@@ -257,10 +285,9 @@ export type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
-export async function removeGithubRunner(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo): Promise<void> {
-  const githubAppClient = await createGitHubClientForRunner(repo);
-
+export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo) {
   try {
+    const githubAppClient = await createGitHubClientForRunnerRepo(repo);
     const result = await githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
       ...repo,
       runner_id: ghRunnerId,
@@ -271,16 +298,60 @@ export async function removeGithubRunner(ec2runner: RunnerInfo, ghRunnerId: numb
       await terminateRunner(ec2runner);
       console.info(
         `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
-          `and GitHub runner is de-registered.`,
+          `and GitHub runner is de-registered. (removeGithubRunnerRepo)`,
       );
     }
   } catch (e) {
-    console.warn(`Error scaling down '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`);
+    console.warn(
+      `Error scaling down (removeGithubRunnerRepo) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+    );
   }
 }
 
-export async function listGithubRunners(repo: Repo): Promise<GhRunners> {
-  const key = getRepoKey(repo);
+export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: number, org: string) {
+  try {
+    const githubAppClient = await createGitHubClientForRunnerOrg(org);
+    const result = await githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
+      org: org,
+      runner_id: ghRunnerId,
+    });
+
+    /* istanbul ignore next */
+    if (result?.status == 204) {
+      await terminateRunner(ec2runner);
+      console.info(
+        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
+          `and GitHub runner is de-registered. (removeGithubRunnerOrg)`,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      `Error scaling down (removeGithubRunnerOrg) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+    );
+  }
+}
+
+export async function listGithubRunnersRepo(repo: Repo): Promise<GhRunners> {
+  return listGithubRunners(getRepoKey(repo), async () => {
+    const client = await createGitHubClientForRunnerRepo(repo);
+    return await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
+      ...repo,
+      per_page: 100,
+    });
+  });
+}
+
+export async function listGithubRunnersOrg(org: string): Promise<GhRunners> {
+  return listGithubRunners(org, async () => {
+    const client = await createGitHubClientForRunnerOrg(org);
+    return await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
+      org: org,
+      per_page: 100,
+    });
+  });
+}
+
+async function listGithubRunners(key: string, listCallback: () => Promise<GhRunners>): Promise<GhRunners> {
   const cachedRunners = ghRunnersCache.get(key);
   // Exit out early if we have our key
   if (cachedRunners !== undefined) {
@@ -288,19 +359,15 @@ export async function listGithubRunners(repo: Repo): Promise<GhRunners> {
   }
 
   console.debug(`[listGithubRunners] Cache miss for ${key}`);
-  const client = await createGitHubClientForRunner(repo);
-  const runners = await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-    ...repo,
-    per_page: 100,
-  });
+  const runners = await listCallback();
   ghRunnersCache.set(key, runners);
   return runners;
 }
 
 export type GhRunner = UnboxPromise<ReturnType<Octokit['actions']['getSelfHostedRunnerForRepo']>>['data'];
 
-export async function getRunner(repo: Repo, runnerID: string): Promise<GhRunner | undefined> {
-  const client = await createGitHubClientForRunner(repo);
+export async function getRunnerRepo(repo: Repo, runnerID: string): Promise<GhRunner | undefined> {
+  const client = await createGitHubClientForRunnerRepo(repo);
 
   try {
     const runner = await client.actions.getSelfHostedRunnerForRepo({
@@ -313,7 +380,24 @@ export async function getRunner(repo: Repo, runnerID: string): Promise<GhRunner 
   }
 }
 
-export async function getRunnerTypes(repo: Repo): Promise<Map<string, RunnerType>> {
+export async function getRunnerOrg(org: string, runnerID: string): Promise<GhRunner | undefined> {
+  const client = await createGitHubClientForRunnerOrg(org);
+
+  try {
+    const runner = await client.actions.getSelfHostedRunnerForOrg({
+      org: org,
+      runner_id: runnerID as unknown as number,
+    });
+    return runner.data;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+export async function getRunnerTypes(
+  repo: Repo,
+  filepath = Config.Instance.scaleConfigRepoPath,
+): Promise<Map<string, RunnerType>> {
   const runnerTypeKey = getRepoKey(repo);
 
   if (runnerTypeCache.get(runnerTypeKey) !== undefined) {
@@ -321,10 +405,10 @@ export async function getRunnerTypes(repo: Repo): Promise<Map<string, RunnerType
   }
   console.debug(`[getRunnerTypes] cache miss for ${runnerTypeKey}`);
 
-  const githubAppClient = await createGitHubClientForRunner(repo);
+  const githubAppClient = await createGitHubClientForRunnerRepo(repo);
   const response = await githubAppClient.repos.getContent({
     ...repo,
-    path: '.github/scale-config.yml',
+    path: filepath,
   });
   /* istanbul ignore next */
   const { content } = { ...(response?.data || {}) };
@@ -332,15 +416,14 @@ export async function getRunnerTypes(repo: Repo): Promise<Map<string, RunnerType
   /* istanbul ignore next */
   if (response?.status != 200 || !content) {
     throw Error(
-      `Issue (${response.status}) retrieving '.github/scale-config.yml' ` +
-        `for https://github.com/${repo.owner}/${repo.repo}/`,
+      `Issue (${response.status}) retrieving '${filepath}' ` + `for https://github.com/${repo.owner}/${repo.repo}/`,
     );
   }
 
   const buff = Buffer.from(content, 'base64');
   const configYml = buff.toString('ascii');
 
-  console.debug(`scale-config.yml contents: ${configYml}`);
+  console.debug(`'${filepath}' contents: ${configYml}`);
 
   const config = YAML.parse(configYml);
   const result: Map<string, RunnerType> = new Map(
@@ -365,26 +448,47 @@ export async function getRunnerTypes(repo: Repo): Promise<Map<string, RunnerType
   return result;
 }
 
-export async function createRegistrationTokenForRepo(repo: Repo, installationId?: number): Promise<string> {
-  /* istanbul ignore next */
-  const key = installationId ? getRepoKey(repo) : installationId;
+export async function createRegistrationTokenRepo(repo: Repo, installationId?: number): Promise<string> {
+  return await createRegistrationToken(getRepoKey(repo), async () => {
+    const githubInstallationClient = installationId
+      ? await createGitHubClientForRunnerInstallId(installationId)
+      : await createGitHubClientForRunnerRepo(repo);
+    const response = await githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
+    /* istanbul ignore next */
+    if (response?.status != 201 || !response.data?.token) {
+      throw Error(
+        `[createRegistrationTokenRepo] Issue (${response.status}) retrieving registration token ` +
+          `for https://github.com/${repo.owner}/${repo.repo}/`,
+      );
+    }
+    return response.data.token;
+  });
+}
 
+export async function createRegistrationTokenOrg(org: string, installationId?: number): Promise<string> {
+  return await createRegistrationToken(org, async () => {
+    const githubInstallationClient = installationId
+      ? await createGitHubClientForRunnerInstallId(installationId)
+      : await createGitHubClientForRunnerOrg(org);
+    const response = await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: org });
+    /* istanbul ignore next */
+    if (response?.status != 201 || !response.data?.token) {
+      throw Error(
+        `[createRegistrationTokenOrg] Issue (${response.status}) retrieving registration token ` +
+          `for https://github.com/${org}/`,
+      );
+    }
+    return response.data.token;
+  });
+}
+
+async function createRegistrationToken(key: string, getKey: () => Promise<string>): Promise<string> {
   if (ghTokensCache.get(key) !== undefined) {
     return ghTokensCache.get(key) as string;
   }
 
-  console.debug(`[createRegistrationTokenForRepo] cache miss for ${key}`);
-  const githubInstallationClient = await createGitHubClientForRunner(repo, installationId);
-  const response = await githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
-
-  /* istanbul ignore next */
-  if (response?.status != 201 || !response.data?.token) {
-    throw Error(
-      `Issue (${response.status}) retrieving registration token ` +
-        `for https://github.com/${repo.owner}/${repo.repo}/`,
-    );
-  }
-
-  ghTokensCache.set(key, response.data.token);
-  return response.data.token;
+  console.debug(`[createRegistrationToken] cache miss for ${key}`);
+  const token = await getKey();
+  ghTokensCache.set(key, token);
+  return token;
 }

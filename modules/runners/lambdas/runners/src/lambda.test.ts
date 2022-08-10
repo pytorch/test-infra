@@ -3,7 +3,7 @@ import { scaleDown as scaleDownL, scaleUp as scaleUpL } from './lambda';
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
-import { scaleDown } from './scale-runners/scale-down';
+import scaleDown from './scale-runners/scale-down';
 import { scaleUp } from './scale-runners/scale-up';
 
 jest.mock('./scale-runners/scale-down');

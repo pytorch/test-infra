@@ -2,15 +2,21 @@ import {
   GhRunners,
   RunnerInfo,
   RunnerInputParameters,
-  createGitHubClientForRunner,
-  createRegistrationTokenForRepo,
+  createGitHubClientForRunnerInstallId,
+  createGitHubClientForRunnerOrg,
+  createGitHubClientForRunnerRepo,
+  createRegistrationTokenOrg,
+  createRegistrationTokenRepo,
   createRunner,
   getRepo,
-  getRunner,
+  getRunnerOrg,
+  getRunnerRepo,
   getRunnerTypes,
-  listGithubRunners,
+  listGithubRunnersOrg,
+  listGithubRunnersRepo,
   listRunners,
-  removeGithubRunner,
+  removeGithubRunnerOrg,
+  removeGithubRunnerRepo,
   resetRunnersCaches,
   terminateRunner,
 } from './runners';
@@ -41,7 +47,22 @@ beforeEach(() => {
   nock.disableNetConnect();
 });
 
-function createExpectedRunInstancesLinux(runnerParameters: RunnerInputParameters, subnetId: number) {
+function createExpectedRunInstancesLinux(runnerParameters: RunnerInputParameters, subnetId: number, enableOrg = false) {
+  const tags = [
+    { Key: 'Application', Value: 'github-action-runner' },
+    { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+  ];
+  if (enableOrg) {
+    tags.push({
+      Key: 'Org',
+      Value: runnerParameters.orgName as string,
+    });
+  } else {
+    tags.push({
+      Key: 'Repo',
+      Value: runnerParameters.repoName as string,
+    });
+  }
   return {
     MaxCount: 1,
     MinCount: 1,
@@ -72,14 +93,7 @@ function createExpectedRunInstancesLinux(runnerParameters: RunnerInputParameters
     TagSpecifications: [
       {
         ResourceType: 'instance',
-        Tags: [
-          { Key: 'Application', Value: 'github-action-runner' },
-          {
-            Key: 'Repo',
-            Value: runnerParameters.repoName,
-          },
-          { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
-        ],
+        Tags: tags,
       },
     ],
   };
@@ -256,6 +270,28 @@ describe('create runner', () => {
     expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
   });
 
+  it('calls run instances with the correct config for repo && linux && organization', async () => {
+    const runnerParameters = {
+      runnerConfig: 'bla',
+      environment: 'unit-test-env',
+      repoName: undefined,
+      orgName: 'SomeAwesomeCoder',
+      runnerType: {
+        instance_type: 'c5.2xlarge',
+        os: 'linux',
+        max_available: 200,
+        disk_size: 100,
+        runnerTypeName: 'linuxCpu',
+        is_ephemeral: true,
+      },
+    };
+
+    await createRunner(runnerParameters);
+
+    expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+    expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, true));
+  });
+
   it('calls run instances with the correct config for repo && windows', async () => {
     const runnerParameters = {
       runnerConfig: 'bla',
@@ -307,11 +343,11 @@ describe('create runner', () => {
           ResourceType: 'instance',
           Tags: [
             { Key: 'Application', Value: 'github-action-runner' },
+            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
             {
               Key: 'Repo',
               Value: runnerParameters.repoName,
             },
-            { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
           ],
         },
       ],
@@ -447,12 +483,12 @@ describe('resetRunnersCaches', () => {
     }
 
     resetRunnersCaches();
-    expect(await listGithubRunners(repo)).toEqual(irrelevantRunner);
-    expect(await createGitHubClientForRunner(repo)).toEqual(expectedReturn);
+    expect(await listGithubRunnersRepo(repo)).toEqual(irrelevantRunner);
+    expect(await createGitHubClientForRunnerRepo(repo)).toEqual(expectedReturn);
 
     resetRunnersCaches();
-    expect(await listGithubRunners(repo)).toEqual(irrelevantRunner);
-    expect(await createGitHubClientForRunner(repo)).toEqual(expectedReturn);
+    expect(await listGithubRunnersRepo(repo)).toEqual(irrelevantRunner);
+    expect(await createGitHubClientForRunnerRepo(repo)).toEqual(expectedReturn);
 
     expect(expectedReturn.paginate).toBeCalledTimes(2);
     expect(mockCreateGithubAuth).toHaveBeenCalledTimes(4);
@@ -460,7 +496,7 @@ describe('resetRunnersCaches', () => {
   });
 });
 
-describe('createGitHubClientForRunner', () => {
+describe('createGitHubClientForRunner variants', () => {
   const config = {
     ghesUrlApi: undefined,
   };
@@ -469,36 +505,96 @@ describe('createGitHubClientForRunner', () => {
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
 
-  it('runs twice and check if cached', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValueOnce({
-      data: { id: 'mockReturnValueOnce1' },
+  describe('createGitHubClientForRunnerRepo', () => {
+    it('runs twice and check if cached', async () => {
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValueOnce({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const expectedReturn = {
+        apps: { getRepoInstallation: getRepoInstallation },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce({
+        apps: { getRepoInstallation: getRepoInstallation },
+      } as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createGitHubClientForRunnerRepo(repo)).toEqual(expectedReturn);
+      expect(await createGitHubClientForRunnerRepo(repo)).toEqual(expectedReturn);
+
+      expect(mockCreateGithubAuth).toHaveBeenCalledTimes(2);
+      expect(mockCreateOctoClient).toHaveBeenCalledTimes(2);
+
+      expect(mockCreateGithubAuth).toHaveBeenCalledWith(undefined, 'app', undefined);
+      expect(mockCreateOctoClient).toHaveBeenCalledWith('token1', undefined);
+      expect(getRepoInstallation).toHaveBeenCalledWith(repo);
+      expect(mockCreateGithubAuth).toHaveBeenCalledWith('mockReturnValueOnce1', 'installation', undefined);
+      expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
     });
-    const expectedReturn = {
-      apps: { getRepoInstallation: getRepoInstallation },
-    };
+  });
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce({
-      apps: { getRepoInstallation: getRepoInstallation },
-    } as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
+  describe('createGitHubClientForRunnerOrg', () => {
+    it('runs twice and check if cached', async () => {
+      const org = 'MockedOrg';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValueOnce({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const expectedReturn = {
+        apps: { getOrgInstallation: getOrgInstallation },
+      };
 
-    resetRunnersCaches();
-    expect(await createGitHubClientForRunner(repo)).toEqual(expectedReturn);
-    expect(await createGitHubClientForRunner(repo)).toEqual(expectedReturn);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce({
+        apps: { getOrgInstallation: getOrgInstallation },
+      } as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
 
-    expect(mockCreateGithubAuth).toHaveBeenCalledTimes(2);
-    expect(mockCreateOctoClient).toHaveBeenCalledTimes(2);
+      resetRunnersCaches();
+      expect(await createGitHubClientForRunnerOrg(org)).toEqual(expectedReturn);
+      expect(await createGitHubClientForRunnerOrg(org)).toEqual(expectedReturn);
 
-    expect(mockCreateGithubAuth).toHaveBeenCalledWith(undefined, 'app', undefined);
-    expect(mockCreateOctoClient).toHaveBeenCalledWith('token1', undefined);
-    expect(getRepoInstallation).toHaveBeenCalledWith(repo);
-    expect(mockCreateGithubAuth).toHaveBeenCalledWith('mockReturnValueOnce1', 'installation', undefined);
-    expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
+      expect(mockCreateGithubAuth).toHaveBeenCalledTimes(2);
+      expect(mockCreateOctoClient).toHaveBeenCalledTimes(2);
+
+      expect(mockCreateGithubAuth).toHaveBeenCalledWith(undefined, 'app', undefined);
+      expect(mockCreateOctoClient).toHaveBeenCalledWith('token1', undefined);
+      expect(getOrgInstallation).toHaveBeenCalledWith({ org: org });
+      expect(mockCreateGithubAuth).toHaveBeenCalledWith('mockReturnValueOnce1', 'installation', undefined);
+      expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
+    });
+  });
+
+  describe('createGitHubClientForRunnerInstallId', () => {
+    it('runs twice and check if cached', async () => {
+      const installId = 113;
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const expectedReturn = {
+        apps: {},
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createGitHubClientForRunnerInstallId(installId)).toEqual(expectedReturn);
+      expect(await createGitHubClientForRunnerInstallId(installId)).toEqual(expectedReturn);
+
+      expect(mockCreateGithubAuth).toHaveBeenCalledTimes(1);
+      expect(mockCreateOctoClient).toHaveBeenCalledTimes(1);
+
+      expect(mockCreateGithubAuth).toHaveBeenCalledWith(installId, 'installation', undefined);
+      expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
+    });
   });
 });
 
@@ -514,38 +610,70 @@ describe('listGithubRunners', () => {
     },
   ];
 
-  it('runs twice and check if cached', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+  describe('listGithubRunnersRepo', () => {
+    it('runs twice and check if cached', async () => {
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: { listSelfHostedRunnersForRepo: '' },
+        apps: { getRepoInstallation: getRepoInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await listGithubRunnersRepo(repo)).toEqual(irrelevantRunner);
+      expect(await listGithubRunnersRepo(repo)).toEqual(irrelevantRunner);
+
+      expect(mockedOctokit.paginate).toBeCalledTimes(1);
+      expect(mockedOctokit.paginate).toBeCalledWith(mockedOctokit.actions.listSelfHostedRunnersForRepo, {
+        ...repo,
+        per_page: 100,
+      });
     });
-    const mockedOctokit = {
-      actions: { listSelfHostedRunnersForRepo: '' },
-      apps: { getRepoInstallation: getRepoInstallation },
-      paginate: jest.fn().mockResolvedValue(irrelevantRunner),
-    };
+  });
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+  describe('listGithubRunnersOrg', () => {
+    it('runs twice and check if cached', async () => {
+      const org = 'mocked_org';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: { listSelfHostedRunnersForOrg: 'XxXxX' },
+        apps: { getOrgInstallation: getOrgInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
 
-    resetRunnersCaches();
-    expect(await listGithubRunners(repo)).toEqual(irrelevantRunner);
-    expect(await listGithubRunners(repo)).toEqual(irrelevantRunner);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
-    expect(mockedOctokit.paginate).toBeCalledTimes(1);
-    expect(mockedOctokit.paginate).toBeCalledWith('', {
-      owner: 'owner',
-      repo: 'repo',
-      per_page: 100,
+      resetRunnersCaches();
+      expect(await listGithubRunnersOrg(org)).toEqual(irrelevantRunner);
+      expect(await listGithubRunnersOrg(org)).toEqual(irrelevantRunner);
+
+      expect(mockedOctokit.paginate).toBeCalledTimes(1);
+      expect(mockedOctokit.paginate).toBeCalledWith(mockedOctokit.actions.listSelfHostedRunnersForOrg, {
+        org: org,
+        per_page: 100,
+      });
     });
   });
 });
 
-describe('removeGithubRunner', () => {
+describe('removeGithubRunnerRepo', () => {
   const repo = { owner: 'owner', repo: 'repo' };
   const irrelevantRunnerInfo: RunnerInfo = {
     ...repo,
@@ -575,11 +703,15 @@ describe('removeGithubRunner', () => {
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
-    await removeGithubRunner(irrelevantRunnerInfo, runnerId, repo);
+    await removeGithubRunnerRepo(irrelevantRunnerInfo, runnerId, repo);
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
       ...repo,
       runner_id: runnerId,
+    });
+    expect(getRepoInstallation).toBeCalled();
+    expect(mockEC2.terminateInstances).toBeCalledWith({
+      InstanceIds: [irrelevantRunnerInfo.instanceId],
     });
   });
 
@@ -606,7 +738,88 @@ describe('removeGithubRunner', () => {
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
-    await removeGithubRunner(irrelevantRunnerInfo, runnerId, repo);
+    await removeGithubRunnerRepo(irrelevantRunnerInfo, runnerId, repo);
+
+    expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
+      ...repo,
+      runner_id: runnerId,
+    });
+    expect(getRepoInstallation).toBeCalled();
+    expect(mockEC2.terminateInstances).not.toBeCalled();
+  });
+});
+
+describe('removeGithubRunnerOrg', () => {
+  const org = 'mockedOrg';
+  const irrelevantRunnerInfo: RunnerInfo = {
+    org: org,
+    instanceId: '113',
+  };
+
+  it('succeeds', async () => {
+    const runnerId = 33;
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getOrgInstallation = jest.fn().mockResolvedValue({
+      data: { id: 'mockReturnValueOnce1' },
+    });
+    const mockedOctokit = {
+      actions: {
+        deleteSelfHostedRunnerFromOrg: jest.fn().mockResolvedValue({
+          status: 204,
+        }),
+      },
+      apps: { getOrgInstallation: getOrgInstallation },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+    resetRunnersCaches();
+    await removeGithubRunnerOrg(irrelevantRunnerInfo, runnerId, org);
+
+    expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
+      org: org,
+      runner_id: runnerId,
+    });
+    expect(getOrgInstallation).toBeCalled();
+    expect(mockEC2.terminateInstances).toBeCalledWith({
+      InstanceIds: [irrelevantRunnerInfo.instanceId],
+    });
+  });
+
+  it('fails', async () => {
+    const runnerId = 33;
+    const mockCreateGithubAuth = mocked(createGithubAuth);
+    const mockCreateOctoClient = mocked(createOctoClient);
+    const getOrgInstallation = jest.fn().mockResolvedValue({
+      data: { id: 'mockReturnValueOnce1' },
+    });
+    const mockedOctokit = {
+      actions: {
+        deleteSelfHostedRunnerFromOrg: jest.fn().mockImplementation(() => {
+          throw Error('error');
+        }),
+      },
+      apps: { getOrgInstallation: getOrgInstallation },
+    };
+
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+    resetRunnersCaches();
+    await removeGithubRunnerOrg(irrelevantRunnerInfo, runnerId, org);
+
+    expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
+      org: org,
+      runner_id: runnerId,
+    });
+    expect(getOrgInstallation).toBeCalled();
+    expect(mockEC2.terminateInstances).not.toBeCalled();
   });
 });
 
@@ -622,60 +835,121 @@ describe('getRunner', () => {
     },
   ];
 
-  it('succeeds', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+  describe('getRunnerRepo', () => {
+    it('succeeds', async () => {
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: {
+          listSelfHostedRunnersForRepo: '',
+          getSelfHostedRunnerForRepo: jest.fn().mockResolvedValue({ data: irrelevantRunner }),
+        },
+        apps: { getRepoInstallation: getRepoInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await getRunnerRepo(repo, '1234')).toEqual(irrelevantRunner);
+
+      expect(mockedOctokit.actions.getSelfHostedRunnerForRepo).toBeCalledWith({
+        ...repo,
+        runner_id: '1234',
+      });
     });
-    const mockedOctokit = {
-      actions: {
-        listSelfHostedRunnersForRepo: '',
-        getSelfHostedRunnerForRepo: jest.fn().mockResolvedValue({ data: irrelevantRunner }),
-      },
-      apps: { getRepoInstallation: getRepoInstallation },
-      paginate: jest.fn().mockResolvedValue(irrelevantRunner),
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    it('fails && return undefined', async () => {
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: {
+          listSelfHostedRunnersForRepo: '',
+          getSelfHostedRunnerForRepo: jest.fn().mockImplementation(() => {
+            throw Error('some error');
+          }),
+        },
+        apps: { getRepoInstallation: getRepoInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
 
-    resetRunnersCaches();
-    expect(await getRunner(repo, '1234')).toEqual(irrelevantRunner);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
-    expect(mockedOctokit.actions.getSelfHostedRunnerForRepo).toBeCalledWith({
-      ...repo,
-      runner_id: '1234',
+      resetRunnersCaches();
+      expect(await getRunnerRepo({ owner: 'owner', repo: 'repo' }, '1234')).toEqual(undefined);
     });
   });
 
-  it('fails && return undefined', async () => {
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+  describe('getRunnerOrg', () => {
+    it('succeeds', async () => {
+      const org = 'mockedOrg';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: {
+          listSelfHostedRunnersForOrg: '',
+          getSelfHostedRunnerForOrg: jest.fn().mockResolvedValue({ data: irrelevantRunner }),
+        },
+        apps: { getOrgInstallation: getOrgInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await getRunnerOrg(org, '1234')).toEqual(irrelevantRunner);
+
+      expect(mockedOctokit.actions.getSelfHostedRunnerForOrg).toBeCalledWith({
+        org: org,
+        runner_id: '1234',
+      });
     });
-    const mockedOctokit = {
-      actions: {
-        listSelfHostedRunnersForRepo: '',
-        getSelfHostedRunnerForRepo: jest.fn().mockImplementation(() => {
-          throw Error('some error');
-        }),
-      },
-      apps: { getRepoInstallation: getRepoInstallation },
-      paginate: jest.fn().mockResolvedValue(irrelevantRunner),
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    it('fails && return undefined', async () => {
+      const org = 'mockedOrg';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: {
+          listSelfHostedRunnersForOrg: '',
+          getSelfHostedRunnerForOrg: jest.fn().mockImplementation(() => {
+            throw Error('some error');
+          }),
+        },
+        apps: { getOrgInstallation: getOrgInstallation },
+        paginate: jest.fn().mockResolvedValue(irrelevantRunner),
+      };
 
-    resetRunnersCaches();
-    expect(await getRunner({ owner: 'owner', repo: 'repo' }, '1234')).toEqual(undefined);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await getRunnerOrg(org, '1234')).toEqual(undefined);
+    });
   });
 });
 
@@ -691,10 +965,13 @@ runner_types:
 
   it('gets the contents, twice', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
+    const token1 = 'token1';
+    const token2 = 'token2';
+    const repoId = 'mockReturnValueOnce1';
     const mockCreateGithubAuth = mocked(createGithubAuth);
     const mockCreateOctoClient = mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+      data: { id: repoId },
     });
     const mockedOctokit = {
       apps: { getRepoInstallation: getRepoInstallation },
@@ -706,12 +983,10 @@ runner_types:
       },
     };
 
-    // for (let i = 0; i < 2; i++) {
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: token1 } as unknown as Authentication);
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce({ token: token2 } as unknown as Authentication);
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    // }
 
     resetRunnersCaches();
     expect(await getRunnerTypes(repo)).toEqual(
@@ -744,6 +1019,23 @@ runner_types:
         ],
       ]),
     );
+
+    expect(mockCreateGithubAuth).toBeCalledTimes(2);
+    expect(mockCreateGithubAuth).toBeCalledWith(undefined, 'app', Config.Instance.ghesUrlApi);
+    expect(mockCreateGithubAuth).toBeCalledWith(repoId, 'installation', Config.Instance.ghesUrlApi);
+
+    expect(mockCreateOctoClient).toBeCalledTimes(2);
+    expect(mockCreateOctoClient).toBeCalledWith(token1, Config.Instance.ghesUrlApi);
+    expect(mockCreateOctoClient).toBeCalledWith(token2, Config.Instance.ghesUrlApi);
+
+    expect(getRepoInstallation).toBeCalledTimes(1);
+    expect(getRepoInstallation).toBeCalledWith({ ...repo });
+
+    expect(mockedOctokit.repos.getContent).toBeCalledTimes(1);
+    expect(mockedOctokit.repos.getContent).toBeCalledWith({
+      ...repo,
+      path: Config.Instance.scaleConfigRepoPath,
+    });
   });
 
   it('return is not 200', async () => {
@@ -773,60 +1065,192 @@ runner_types:
   });
 });
 
-describe('createRegistrationTokenForRepo', () => {
-  it('gets twice, using cache', async () => {
-    const testToken = 'TOKEN-AGDGADUWG113';
-    const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+describe('createRegistrationToken', () => {
+  describe('createRegistrationTokenRepo', () => {
+    it('gets twice, using cache', async () => {
+      const testToken = 'TOKEN-AGDGADUWG113';
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        apps: { getRepoInstallation: getRepoInstallation },
+        actions: {
+          createRegistrationTokenForRepo: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: { token: testToken },
+          }),
+        },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createRegistrationTokenRepo(repo)).toEqual(testToken);
+      expect(await createRegistrationTokenRepo(repo)).toEqual(testToken);
+      expect(mockCreateGithubAuth).toBeCalledTimes(2);
+      expect(mockCreateOctoClient).toBeCalledTimes(2);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith(repo);
+      expect(getRepoInstallation).toBeCalledTimes(1);
+      expect(getRepoInstallation).toBeCalledWith(repo);
     });
-    const mockedOctokit = {
-      apps: { getRepoInstallation: getRepoInstallation },
-      actions: {
-        createRegistrationTokenForRepo: jest.fn().mockResolvedValueOnce({
-          status: 201,
-          data: { token: testToken },
-        }),
-      },
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    it('gets twice, using cache, by installationId', async () => {
+      const testToken = 'TOKEN-AGDGADUWG113';
+      const installationId = 123;
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn();
+      const mockedOctokit = {
+        apps: { getRepoInstallation: getRepoInstallation },
+        actions: {
+          createRegistrationTokenForRepo: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: { token: testToken },
+          }),
+        },
+      };
 
-    resetRunnersCaches();
-    expect(await createRegistrationTokenForRepo(repo)).toEqual(testToken);
-    expect(await createRegistrationTokenForRepo(repo)).toEqual(testToken);
-    expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createRegistrationTokenRepo(repo, installationId)).toEqual(testToken);
+      expect(await createRegistrationTokenRepo(repo, installationId)).toEqual(testToken);
+      expect(mockCreateGithubAuth).toBeCalledTimes(1);
+      expect(mockCreateOctoClient).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith(repo);
+      expect(getRepoInstallation).not.toBeCalled();
+    });
+
+    it('fails to get, trow exception', async () => {
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        apps: { getRepoInstallation: getRepoInstallation },
+        actions: {
+          createRegistrationTokenForRepo: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: {},
+          }),
+        },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      await expect(createRegistrationTokenRepo(repo)).rejects.toThrow(Error);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith(repo);
+    });
   });
 
-  it('fails to get, trow exception', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
+  describe('createRegistrationTokenOrg', () => {
+    it('gets twice, using cache', async () => {
+      const testToken = 'TOKEN-AGDGADUWG113';
+      const org = 'WG113';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        apps: { getOrgInstallation: getOrgInstallation },
+        actions: {
+          createRegistrationTokenForOrg: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: { token: testToken },
+          }),
+        },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createRegistrationTokenOrg(org)).toEqual(testToken);
+      expect(await createRegistrationTokenOrg(org)).toEqual(testToken);
+      expect(mockCreateGithubAuth).toBeCalledTimes(2);
+      expect(mockCreateOctoClient).toBeCalledTimes(2);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
+      expect(getOrgInstallation).toBeCalledTimes(1);
+      expect(getOrgInstallation).toBeCalledWith({ org: org });
     });
-    const mockedOctokit = {
-      apps: { getRepoInstallation: getRepoInstallation },
-      actions: {
-        createRegistrationTokenForRepo: jest.fn().mockResolvedValueOnce({
-          status: 201,
-          data: {},
-        }),
-      },
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
-    mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+    it('gets twice, using cache, by installationId', async () => {
+      const testToken = 'TOKEN-AGDGADUWG113';
+      const installationId = 123;
+      const org = 'WG113';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn();
+      const mockedOctokit = {
+        apps: { getOrgInstallation: getOrgInstallation },
+        actions: {
+          createRegistrationTokenForOrg: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: { token: testToken },
+          }),
+        },
+      };
 
-    resetRunnersCaches();
-    await expect(createRegistrationTokenForRepo(repo)).rejects.toThrow(Error);
-    expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(await createRegistrationTokenOrg(org, installationId)).toEqual(testToken);
+      expect(await createRegistrationTokenOrg(org, installationId)).toEqual(testToken);
+      expect(mockCreateGithubAuth).toBeCalledTimes(1);
+      expect(mockCreateOctoClient).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
+      expect(getOrgInstallation).not.toBeCalled();
+    });
+
+    it('fails to get, trow exception', async () => {
+      const org = 'WG113';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        apps: { getOrgInstallation: getOrgInstallation },
+        actions: {
+          createRegistrationTokenForOrg: jest.fn().mockResolvedValueOnce({
+            status: 201,
+            data: {},
+          }),
+        },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      await expect(createRegistrationTokenOrg(org)).rejects.toThrow(Error);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
+      expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
+    });
   });
 });

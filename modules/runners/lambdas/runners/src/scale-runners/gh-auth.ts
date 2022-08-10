@@ -17,10 +17,10 @@ export interface GithubCredentials {
 
 let secretCache: GithubCredentials | undefined = undefined;
 
-async function getCredentialsFromSecretsManager(): Promise<GithubCredentials> {
+async function getCredentialsFromSecretsManager(secretsManagerSecretsId: string): Promise<GithubCredentials> {
   if (secretCache === undefined) {
     const secretsManager = new SecretsManager();
-    const data = await secretsManager.getSecretValue({ SecretId: Config.Instance.secretsManagerSecretsId }).promise();
+    const data = await secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
     if (data.SecretString === undefined) {
       throw Error('Issue grabbing secret');
     }
@@ -46,15 +46,27 @@ export async function createGithubAuth(
   authType: 'app' | 'installation',
   ghesApiUrl = '',
 ): Promise<Authentication> {
-  const githubCreds: GithubCredentials =
-    Config.Instance.secretsManagerSecretsId !== undefined
-      ? await getCredentialsFromSecretsManager()
-      : {
-          github_app_key_base64: Config.Instance.githubAppClientSecret,
-          github_app_id: Config.Instance.githubAppId,
-          github_app_client_id: Config.Instance.githubAppClientId,
-          github_app_client_secret: Config.Instance.githubAppClientSecret,
-        };
+  const githubCreds: GithubCredentials = await (async () => {
+    if (Config.Instance.secretsManagerSecretsId !== undefined) {
+      return await getCredentialsFromSecretsManager(Config.Instance.secretsManagerSecretsId);
+    }
+    if (
+      Config.Instance.githubAppClientSecret === undefined ||
+      Config.Instance.githubAppId === undefined ||
+      Config.Instance.githubAppClientId === undefined
+    ) {
+      throw Error(
+        "Either 'secretsManagerSecretsId' or all of 'githubAppClientSecret, " +
+          "githubAppId, githubAppClientId' must be defined",
+      );
+    }
+    return {
+      github_app_key_base64: Config.Instance.githubAppClientSecret as string,
+      github_app_id: Config.Instance.githubAppId as string,
+      github_app_client_id: Config.Instance.githubAppClientId as string,
+      github_app_client_secret: Config.Instance.githubAppClientSecret as string,
+    };
+  })();
 
   /* istanbul ignore next */
   const clientSecret = Config.Instance.kmsKeyId

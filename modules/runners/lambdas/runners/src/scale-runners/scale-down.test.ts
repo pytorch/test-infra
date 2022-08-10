@@ -1,9 +1,12 @@
 import {
   GhRunners,
-  getRunner,
-  listGithubRunners,
+  getRunnerOrg,
+  getRunnerRepo,
+  listGithubRunnersOrg,
+  listGithubRunnersRepo,
   listRunners,
-  removeGithubRunner,
+  removeGithubRunnerOrg,
+  removeGithubRunnerRepo,
   resetRunnersCaches,
   terminateRunner,
 } from './runners';
@@ -12,15 +15,18 @@ import { Config } from './config';
 import { mocked } from 'ts-jest/utils';
 import moment from 'moment';
 import nock from 'nock';
-import { scaleDown } from './scale-down';
+import scaleDown from './scale-down';
 
 jest.mock('./runners', () => ({
   /* eslint-disable @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./runners') as any),
-  getRunner: jest.fn(),
-  listGithubRunners: jest.fn(),
+  getRunnerRepo: jest.fn(),
+  getRunnerOrg: jest.fn(),
+  listGithubRunnersRepo: jest.fn(),
+  listGithubRunnersOrg: jest.fn(),
   listRunners: jest.fn(),
-  removeGithubRunner: jest.fn(),
+  removeGithubRunnerOrg: jest.fn(),
+  removeGithubRunnerRepo: jest.fn(),
   resetRunnersCaches: jest.fn(),
   terminateRunner: jest.fn(),
 }));
@@ -64,7 +70,7 @@ describe('scaleDown', () => {
       },
     ]);
     const mockedResetRunnersCaches = mocked(resetRunnersCaches);
-    const mockedListGithubRunners = mocked(listGithubRunners);
+    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
     await scaleDown();
 
@@ -177,7 +183,7 @@ describe('scaleDown', () => {
     });
   });
 
-  it('ec2runner with empty repo', async () => {
+  it('ec2runner with repo = undefined && org = undefined', async () => {
     mocked(listRunners).mockResolvedValue([
       {
         instanceId: 'WG113',
@@ -187,7 +193,7 @@ describe('scaleDown', () => {
       },
     ]);
     const mockedResetRunnersCaches = mocked(resetRunnersCaches);
-    const mockedListGithubRunners = mocked(listGithubRunners);
+    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
     await scaleDown();
 
@@ -195,105 +201,209 @@ describe('scaleDown', () => {
     expect(mockedListGithubRunners).not.toBeCalled();
   });
 
-  it('listGithubRunners returns [], getRunner returns undefined and terminateRunner with success', async () => {
-    const ec2runner = {
-      instanceId: 'WG113',
-      repo: 'owner/repo',
-      launchTime: moment(new Date())
-        .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-        .toDate(),
-      ghRunnerId: '33',
-    };
-    const repo = { owner: 'owner', repo: 'repo' };
-    mocked(listRunners).mockResolvedValue([ec2runner]);
-    const mockedListGithubRunners = mocked(listGithubRunners).mockResolvedValue([]);
-    const mockedGetRunner = mocked(getRunner).mockResolvedValue(undefined);
-    const mockedTerminateRunner = mocked(terminateRunner);
+  describe('RunnerInfo.repo !== undefined', () => {
+    it('listGithubRunnersRepo returns [], getRunnerRepo ret undefined and terminateRunner with success', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        repo: 'owner/repo',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      const repo = { owner: 'owner', repo: 'repo' };
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      const mockedListGithubRunners = mocked(listGithubRunnersRepo).mockResolvedValue([]);
+      const mockedGetRunner = mocked(getRunnerRepo).mockResolvedValue(undefined);
+      const mockedTerminateRunner = mocked(terminateRunner);
 
-    await scaleDown();
+      await scaleDown();
 
-    expect(mockedListGithubRunners).toBeCalledWith(repo);
-    expect(mockedGetRunner).toBeCalledWith(repo, ec2runner.ghRunnerId);
-    expect(mockedTerminateRunner).toBeCalledWith(ec2runner);
-  });
-
-  it('listGithubRunners returns [], getRunner returns undefined and terminateRunner with raises', async () => {
-    const ec2runner = {
-      instanceId: 'WG113',
-      repo: 'owner/repo',
-      launchTime: moment(new Date())
-        .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-        .toDate(),
-      ghRunnerId: '33',
-    };
-    mocked(listRunners).mockResolvedValue([ec2runner]);
-    mocked(listGithubRunners).mockResolvedValue([]);
-    mocked(getRunner).mockResolvedValue(undefined);
-    const mockedTerminateRunner = mocked(terminateRunner).mockImplementation(async () => {
-      throw Error('error on terminateRunner');
+      expect(mockedListGithubRunners).toBeCalledWith(repo);
+      expect(mockedGetRunner).toBeCalledWith(repo, ec2runner.ghRunnerId);
+      expect(mockedTerminateRunner).toBeCalledWith(ec2runner);
     });
 
-    await scaleDown();
+    it('listGithubRunnersRepo returns [], getRunnerRepo returns undefined and terminateRunner raises', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        repo: 'owner/repo',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersRepo).mockResolvedValue([]);
+      mocked(getRunnerRepo).mockResolvedValue(undefined);
+      const mockedTerminateRunner = mocked(terminateRunner).mockImplementation(async () => {
+        throw Error('error on terminateRunner');
+      });
 
-    expect(mockedTerminateRunner).toBeCalled();
+      await scaleDown();
+
+      expect(mockedTerminateRunner).toBeCalled();
+    });
+
+    it('listGithubRunnersRepo returns [(matches, nonbusy)], removeGithubRunnerRepo is called', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        repo: 'owner/repo',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      const matchRunner: GhRunners = [
+        {
+          id: 1,
+          name: ec2runner.instanceId,
+          os: 'linux',
+          status: 'busy',
+          busy: false,
+          labels: [],
+        },
+      ];
+      const repo = { owner: 'owner', repo: 'repo' };
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersRepo).mockResolvedValue(matchRunner);
+      const mockedGetRunner = mocked(getRunnerRepo).mockResolvedValue(undefined);
+      const mockedRemoveGithubRunner = mocked(removeGithubRunnerRepo);
+
+      await scaleDown();
+
+      expect(mockedGetRunner).not.toBeCalled();
+      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, repo);
+    });
+
+    it('listGithubRunnersRepo returns [(matches, nonbusy)], removeGithubRunnerRepo is NOT called', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        repo: 'owner/repo',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      const matchRunner: GhRunners = [
+        {
+          id: 1,
+          name: ec2runner.instanceId,
+          os: 'linux',
+          status: 'busy',
+          busy: true,
+          labels: [],
+        },
+      ];
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersRepo).mockResolvedValue(matchRunner);
+      const mockedRemoveGithubRunner = mocked(removeGithubRunnerRepo);
+
+      await scaleDown();
+
+      expect(mockedRemoveGithubRunner).not.toBeCalled();
+    });
   });
 
-  it('listGithubRunners returns [(matches, nonbusy)], removeGithubRunner is called', async () => {
-    const ec2runner = {
-      instanceId: 'WG113',
-      repo: 'owner/repo',
-      launchTime: moment(new Date())
-        .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-        .toDate(),
-      ghRunnerId: '33',
-    };
-    const matchRunner: GhRunners = [
-      {
-        id: 1,
-        name: ec2runner.instanceId,
-        os: 'linux',
-        status: 'busy',
-        busy: false,
-        labels: [],
-      },
-    ];
-    const repo = { owner: 'owner', repo: 'repo' };
-    mocked(listRunners).mockResolvedValue([ec2runner]);
-    mocked(listGithubRunners).mockResolvedValue(matchRunner);
-    const mockedGetRunner = mocked(getRunner).mockResolvedValue(undefined);
-    const mockedRemoveGithubRunner = mocked(removeGithubRunner);
+  describe('RunnerInfo.org !== undefined', () => {
+    it('listGithubRunnersOrg returns [], getRunnerOrg ret undefined and terminateRunner with success', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        org: 'owner',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      const mockedListGithubRunners = mocked(listGithubRunnersOrg).mockResolvedValue([]);
+      const mockedGetRunner = mocked(getRunnerOrg).mockResolvedValue(undefined);
+      const mockedTerminateRunner = mocked(terminateRunner);
 
-    await scaleDown();
+      await scaleDown();
 
-    expect(mockedGetRunner).not.toBeCalled();
-    expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, repo);
-  });
+      expect(mockedListGithubRunners).toBeCalledWith('owner');
+      expect(mockedGetRunner).toBeCalledWith('owner', ec2runner.ghRunnerId);
+      expect(mockedTerminateRunner).toBeCalledWith(ec2runner);
+    });
 
-  it('listGithubRunners returns [(matches, nonbusy)], removeGithubRunner is NOT called', async () => {
-    const ec2runner = {
-      instanceId: 'WG113',
-      repo: 'owner/repo',
-      launchTime: moment(new Date())
-        .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-        .toDate(),
-      ghRunnerId: '33',
-    };
-    const matchRunner: GhRunners = [
-      {
-        id: 1,
-        name: ec2runner.instanceId,
-        os: 'linux',
-        status: 'busy',
-        busy: true,
-        labels: [],
-      },
-    ];
-    mocked(listRunners).mockResolvedValue([ec2runner]);
-    mocked(listGithubRunners).mockResolvedValue(matchRunner);
-    const mockedRemoveGithubRunner = mocked(removeGithubRunner);
+    it('listGithubRunnersOrg returns [], getRunnerOrg returns undefined and terminateRunner raises', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        org: 'owner',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersOrg).mockResolvedValue([]);
+      mocked(getRunnerOrg).mockResolvedValue(undefined);
+      const mockedTerminateRunner = mocked(terminateRunner).mockImplementation(async () => {
+        throw Error('error on terminateRunner');
+      });
 
-    await scaleDown();
+      await scaleDown();
 
-    expect(mockedRemoveGithubRunner).not.toBeCalled();
+      expect(mockedTerminateRunner).toBeCalled();
+    });
+
+    it('listGithubRunnersOrg returns [(matches, nonbusy)], removeGithubRunnerOrg is called', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        org: 'owner',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      const matchRunner: GhRunners = [
+        {
+          id: 1,
+          name: ec2runner.instanceId,
+          os: 'linux',
+          status: 'busy',
+          busy: false,
+          labels: [],
+        },
+      ];
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersOrg).mockResolvedValue(matchRunner);
+      const mockedGetRunner = mocked(getRunnerOrg).mockResolvedValue(undefined);
+      const mockedRemoveGithubRunner = mocked(removeGithubRunnerOrg);
+
+      await scaleDown();
+
+      expect(mockedGetRunner).not.toBeCalled();
+      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, 'owner');
+    });
+
+    it('listGithubRunnersOrg returns [(matches, nonbusy)], removeGithubRunnerOrg is NOT called', async () => {
+      const ec2runner = {
+        instanceId: 'WG113',
+        org: 'owner',
+        launchTime: moment(new Date())
+          .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+          .toDate(),
+        ghRunnerId: '33',
+      };
+      const matchRunner: GhRunners = [
+        {
+          id: 1,
+          name: ec2runner.instanceId,
+          os: 'linux',
+          status: 'busy',
+          busy: true,
+          labels: [],
+        },
+      ];
+      mocked(listRunners).mockResolvedValue([ec2runner]);
+      mocked(listGithubRunnersOrg).mockResolvedValue(matchRunner);
+      const mockedRemoveGithubRunner = mocked(removeGithubRunnerOrg);
+
+      await scaleDown();
+
+      expect(mockedRemoveGithubRunner).not.toBeCalled();
+    });
   });
 });

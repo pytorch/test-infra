@@ -35,7 +35,7 @@ beforeEach(() => {
   nock.disableNetConnect();
 });
 
-describe('Test createGithubAuth', () => {
+describe('Test createOctoClient', () => {
   test('Creates app client to GitHub public', async () => {
     const token = '123456';
 
@@ -75,6 +75,25 @@ describe('Test createGithubAuth', () => {
     githubAppId: '1',
     kmsKeyId: 'key_id',
   };
+
+  describe('github keys are not from environment, nor secretsManagerSecretsId is provided', () => {
+    beforeEach(() => {
+      jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+        () =>
+          ({
+            ...config,
+            secretsManagerSecretsId: undefined,
+            githubAppClientSecret: undefined,
+            githubAppId: undefined,
+            githubAppClientId: undefined,
+          } as unknown as Config),
+      );
+    });
+
+    it('checks exception', async () => {
+      expect(createGithubAuth(installationId, authType)).rejects.toThrowError();
+    });
+  });
 
   describe('using github keys from environment', () => {
     beforeEach(() => {
