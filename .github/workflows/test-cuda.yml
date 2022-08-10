@@ -19,7 +19,7 @@ jobs:
       run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
 
     - name: Set up CPython 3.8 that comes with the docker image
-      run: export PATH=/opt/python/cp38-cp38/bin:$PATH
+      run: echo "/opt/python/cp38-cp38/bin" >> $GITHUB_PATH
     - name: Checkout PyTorch
       run: cd ~ && git clone https://github.com/pytorch/pytorch.git && cd pytorch && ls 
       #- uses: actions/checkout@v2
