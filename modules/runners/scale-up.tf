@@ -29,19 +29,20 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
+      ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       ENVIRONMENT                     = var.environment
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
       GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
       GITHUB_APP_ID                   = var.github_app.id
       GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAUNCH_TEMPLATE_NAME_LINUX      = aws_launch_template.linux_runner.name
-      LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
+      LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
-      SUBNET_IDS                      = join(",", var.subnet_ids)
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       SECURITY_GROUP_IDS              = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
+      SUBNET_IDS                      = join(",", var.subnet_ids)
     }
   }
 

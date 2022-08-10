@@ -28,17 +28,17 @@ resource "aws_lambda_function" "scale_down" {
 
   environment {
     variables = {
-      ENVIRONMENT                     = var.environment
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
-      KMS_KEY_ID                      = var.encryption.kms_key_id
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
-      MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
-      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
-      GITHUB_APP_ID                   = var.github_app.id
+      ENVIRONMENT                     = var.environment
+      GHES_URL                        = var.ghes_url
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
       GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
+      GITHUB_APP_ID                   = var.github_app.id
+      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
+      KMS_KEY_ID                      = var.encryption.kms_key_id
+      MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
-      GHES_URL                        = var.ghes_url
+      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
     }
   }
 
