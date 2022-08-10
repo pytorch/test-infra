@@ -24724,7 +24724,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_tensor_properties&suite=TestTorchTidyProfiler&file=test_profiler.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7752653860).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_tensor_properties&suite=TestTorchTidyProfiler&file=test_profiler.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7752653860).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @robieta @chaekit @aaronenyeshi @ngimel @nbcsm @guotuofeng @guyang3532 @gaoteng-git @tiffzhaofb",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83113/comments",
@@ -24733,15 +24733,6 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/83113",
       "id": 1333818043,
       "labels": [
-        {
-          "color": "c5def5",
-          "default": false,
-          "description": "Add this issue/PR to JIT oncall triage queue",
-          "id": 679953983,
-          "name": "oncall: jit",
-          "node_id": "MDU6TGFiZWw2Nzk5NTM5ODM=",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20jit"
-        },
         {
           "color": "f7e101",
           "default": false,
@@ -24759,6 +24750,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "79C48B",
+          "default": false,
+          "description": "profiler-related issues (cpu, gpu, kineto)",
+          "id": 1883229970,
+          "name": "oncall: profiler",
+          "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
         },
         {
           "color": "1d76db",
@@ -24794,7 +24794,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83113/timeline",
       "title": "DISABLED test_tensor_properties (__main__.TestTorchTidyProfiler)",
-      "updated_at": "2022-08-10T18:44:09Z",
+      "updated_at": "2022-08-10T23:33:15Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83113",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
