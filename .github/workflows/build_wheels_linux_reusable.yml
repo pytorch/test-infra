@@ -7,10 +7,16 @@ on:
         description: 'name of the domain library calling this reusable workflow.'
         required: true
         type: string
+      image:
+        description: 'docker image container for running the reusable workflow.'
+        required: true
+        type: string
 
 jobs:
   wheels:
     runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.image }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.x
