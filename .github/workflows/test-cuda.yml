@@ -2,6 +2,8 @@ name: CI-test-cuda
 on:
   push:
     branches: [ weiwangmeta/run_inside_containers ]
+    paths: 
+    - .github/workflow/test-cuda.yml
 jobs:
   build-wheels-in-container-test:
     runs-on: ubuntu-latest

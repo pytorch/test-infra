@@ -1,8 +1,9 @@
 name: CI
 on:
-  pull_request:
-    paths: 
-      - .github/workflow/test.yml
+  push:
+     branches: [ weiwangmeta/run_inside_containers ] 
+        paths: 
+                - .github/workflow/test.yml
 jobs:
   build-wheels-in-container-test:
     runs-on: ubuntu-latest
@@ -20,14 +21,7 @@ jobs:
       run: (ls /.dockerenv && echo Found dockerenv) || (echo No dockerenv)
 
     - name: Set up Python 3.8
-      run: |
-              yum install gcc openssl-devel bzip2-devel libffi-devel zlib-devel -y
-              cd /opt 
-              wget https://www.python.org/ftp/python/3.8.12/Python-3.8.12.tgz
-              tar xzf Python-3.8.12.tgz
-              cd Python-3.8.12
-              ./configure --enable-optimizations
-              make install
+      run: echo "/opt/python/cp38-cp38/bin" >> $GITHUB_PATH
     - name: Checkout PyTorch
       run: cd ~ && git clone https://github.com/pytorch/pytorch.git && cd pytorch && ls 
       #- uses: actions/checkout@v2
