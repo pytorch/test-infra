@@ -1,9 +1,8 @@
 name: CI
 on:
   push:
-     branches: [ weiwangmeta/run_inside_containers ] 
-        paths: 
-                - .github/workflow/test.yml
+    paths: 
+      - '.github/workflow/test.yml'
 jobs:
   build-wheels-in-container-test:
     runs-on: ubuntu-latest
