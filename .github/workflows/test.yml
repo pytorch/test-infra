@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     paths: 
-      - '.github/workflow/test.yml'
+      - '.github/workflows/test.yml'
 jobs:
   build-wheels-in-container-test:
     runs-on: ubuntu-latest
