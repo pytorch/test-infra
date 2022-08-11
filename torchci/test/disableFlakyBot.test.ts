@@ -5,7 +5,7 @@ import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
 nock.disableNetConnect();
 
 const flakyTestA = {
-  file: "file_a",
+  file: "file_a.py",
   suite: "suite_a",
   name: "test_a",
   numGreen: 4,
@@ -22,7 +22,7 @@ const flakyTestA = {
 };
 
 const flakyTestB = {
-  file: "file_b",
+  file: "file_b.py",
   suite: "suite_b",
   name: "test_b",
   numGreen: 4,
@@ -43,7 +43,7 @@ const flakyTestB = {
 };
 
 const flakyTestE = {
-  file: "file_e",
+  file: "file_e.py",
   suite: "suite_e",
   name: "test_e",
   numGreen: 4,
@@ -71,7 +71,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -100,7 +100,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue on main", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestB.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestB.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -203,7 +203,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const flakyTests = [
       flakyTestA,
       {
-        file: "file_b",
+        file: "file_b.py",
         suite: "suite_b",
         name: "test_b",
         numGreen: 4,
@@ -215,7 +215,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         branches: ["ciflow/all/12345"],
       },
       {
-        file: "file_c",
+        file: "file_c.py",
         suite: "suite_c",
         name: "test_c",
         numGreen: 4,
@@ -231,7 +231,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         branches: ["master", "gh/janeyx99/idk", "master"],
       },
       {
-        file: "file_d",
+        file: "file_d.py",
         suite: "suite_d",
         name: "test_d",
         numGreen: 4,
@@ -247,7 +247,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const expectedFlakyTestsOnTrunk = [
       flakyTestA,
       {
-        file: "file_c",
+        file: "file_c.py",
         suite: "suite_c",
         name: "test_c",
         numGreen: 4,
@@ -271,7 +271,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should return proper module and be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -290,7 +290,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -311,7 +311,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -332,7 +332,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: ill-formatted file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}.py`)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from("line1\nline2\nline3\nstill no owners\nline4\nlastline\n")
@@ -412,7 +412,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getIssueBodyForFlakyTest: should contain correct examples URL", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
-      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a&file=file_a"
+      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a&file=file_a.py"
     );
   });
 });
