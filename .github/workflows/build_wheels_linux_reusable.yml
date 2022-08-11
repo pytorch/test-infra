@@ -23,8 +23,8 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.x'
-    - name: Install dependencies
-      run: python -m pip install --upgrade setuptools wheel
+    # - name: Install dependencies
+    #   run: python -m pip install --upgrade setuptools wheel
       # Include domain-specific pre-build step here 
       # (where each domain lib brings its own setup script)
       # Use the domain input to call the right composite action
