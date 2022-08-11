@@ -139,6 +139,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/periodic",
     "ciflow/android",
     "ciflow/binaries",
+    "ciflow/mps",
     "ciflow/nightly",
     "ciflow/binaries_conda",
     "ciflow/binaries_libtorch",
@@ -163,6 +164,8 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
       "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
     body +=
       "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
+    body +=
+      "- `ciflow/mps` (`.github/workflows/mac-mps.yml`): Mac M1 build and MPS test\n";
     body +=
       "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
     body += "- `ciflow/binaries`: all binary build and upload jobs\n";
