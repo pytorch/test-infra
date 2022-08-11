@@ -31,10 +31,6 @@ module.exports = {
         source: "/minihud",
         destination: "/minihud/pytorch/pytorch/master/1",
       },
-      {
-        source: "/tts",
-        destination: "/tts/pytorch/pytorch/master",
-      },
     ];
   },
 };

@@ -45,7 +45,6 @@ export default function TablePanel({
       </Typography>
     );
   }
-
   return (
     <DataGrid
       {...dataGridProps}

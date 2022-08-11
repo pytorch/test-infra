@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { getOctokit, commitDataFromResponse } from "./github";
 import getRocksetClient from "./rockset";
-import rocksetVersions from "rockset/prodVersions.json";
+import rocksetVersions from "rockset/prodVersions";
 
 import { CommitData, JobData } from "./types";
 

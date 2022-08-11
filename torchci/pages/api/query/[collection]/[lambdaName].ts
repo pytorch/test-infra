@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import getRocksetClient, { RocksetParam } from "lib/rockset";
-import rocksetVersions from "rockset/prodVersions.json";
+import rocksetVersions from "rockset/prodVersions";
 
 export default async function handler(
   req: NextApiRequest,

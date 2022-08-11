@@ -172,14 +172,12 @@ function TTSPanel({
   queryParams,
   metricHeaderName,
   metricName,
-  branchName
 }: {
   title: string;
   queryName: string;
   queryParams: RocksetParam[];
   metricHeaderName: string;
   metricName: string;
-  branchName: string;
 }) {
   return (
     <TablePanel
@@ -195,27 +193,7 @@ function TTSPanel({
             durationDisplay(params.value),
         },
         { field: "count", headerName: "Count", flex: 1 },
-        {
-          field: "name",
-          headerName: "Name",
-          flex: 5,
-          // valueFormatter only treat the return value as string, so we need
-          // to use renderCell here to get the JSX
-          renderCell: (params: GridRenderCellParams<string>) => {
-            const jobName = params.value;
-            if (jobName === undefined) {
-              return `Invalid job name ${jobName}`;
-            }
-
-            const encodedJobName = encodeURIComponent(jobName);
-            const encodedBranchName = encodeURIComponent(branchName);
-            return (
-              <a href={`/tts/pytorch/pytorch/${encodedBranchName}?jobName=${encodedJobName}`}>
-                {jobName}
-              </a>
-            );
-          }
-        },
+        { field: "name", headerName: "Name", flex: 5 },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
     />
@@ -322,126 +300,6 @@ export function TimeRangePicker({
   );
 }
 
-/**
- * Allows the user to pick the TTS metrics.
- */
-export function TtsPercentilePicker({
-  ttsPercentile,
-  setTtsPercentile,
-}: {
-  ttsPercentile: number;
-  setTtsPercentile: any;
-}) {
-  function handleChange(e: SelectChangeEvent<number>) {
-    setTtsPercentile(e.target.value as number);
-  }
-
-  return (
-    <>
-      <FormControl>
-        <InputLabel id="tts-percentile-picker-select-label">Percentile</InputLabel>
-        <Select
-          defaultValue={ttsPercentile}
-          label="Percentile"
-          labelId="tts-percentile-picker-select-label"
-          onChange={handleChange}
-        >
-          <MenuItem value={-1.0}>avg</MenuItem>
-          <MenuItem value={0.50}>p50</MenuItem>
-          <MenuItem value={0.90}>p90</MenuItem>
-          <MenuItem value={0.95}>p95</MenuItem>
-          <MenuItem value={0.99}>p99</MenuItem>
-          <MenuItem value={1.00}>p100</MenuItem>
-        </Select>
-      </FormControl>
-    </>
-  );
-}
-
-function WorkflowDuration({
-  percentileParam,
-  timeParams,
-  workflowName,
-}: {
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
-  workflowName: string;
-}) {
-  const ttsPercentile = percentileParam.value;
-
-  let title: string = `p${ttsPercentile * 100} ${workflowName} workflow duration`;
-  let queryName: string = "workflow_duration_percentile";
-
-  // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
-    title = `avg ${workflowName} workflow duration`;
-    queryName = queryName.replace("percentile", "avg");
-  }
-
-  return (
-    <ScalarPanel
-      title={title}
-      queryName={queryName}
-      metricName={"duration_sec"}
-      valueRenderer={(value) => durationDisplay(value)}
-      queryParams={[
-        { name: "name", type: "string", value: workflowName },
-        percentileParam,
-        ...timeParams,
-      ]}
-      badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
-    />
-  );
-}
-
-function JobsDuration({
-  title,
-  branchName,
-  queryName,
-  metricName,
-  percentileParam,
-  timeParams,
-}: {
-  title: string;
-  branchName: string;
-  queryName: string;
-  metricName: string;
-  percentileParam: RocksetParam;
-  timeParams: RocksetParam[];
-}) {
-  const ttsPercentile = percentileParam.value;
-
-  let metricHeaderName: string = `p${ttsPercentile * 100}`;
-  let queryParams: RocksetParam[] = [
-    {
-      name: "branch",
-      type: "string",
-      value: branchName,
-    },
-    percentileParam,
-    ...timeParams,
-  ];
-
-  // -1 is the specical case where we will show the avg instead
-  if (ttsPercentile === -1) {
-    metricHeaderName = "avg";
-    queryName = queryName.replace("percentile", "avg");
-  }
-
-  return (
-    <Grid item xs={6} height={ROW_HEIGHT}>
-      <TTSPanel
-        title={title}
-        queryName={queryName}
-        queryParams={queryParams}
-        metricName={metricName}
-        metricHeaderName={metricHeaderName}
-        branchName={branchName}
-      />
-    </Grid>
-  );
-}
-
 const ROW_HEIGHT = 340;
 
 export default function Page() {
@@ -461,14 +319,6 @@ export default function Page() {
     },
   ];
 
-  const [ttsPercentile, setTtsPercentile] = useState<number>(0.50);
-
-  const percentileParam: RocksetParam = {
-    name: "percentile",
-    type: "float",
-    value: ttsPercentile,
-  };
-
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -480,10 +330,6 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
-        />
-        <TtsPercentilePicker
-          ttsPercentile={ttsPercentile}
-          setTtsPercentile={setTtsPercentile}
         />
       </Stack>
 
@@ -512,10 +358,17 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(value) => value > 10}
             />
-            <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
-              workflowName={"pull"}
+            <ScalarPanel
+              title={"p50 pull workflow duration"}
+              queryName={"workflow_duration_percentile"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "pull" },
+                { name: "percentile", type: "float", value: 0.50 },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
             />
           </Stack>
         </Grid>
@@ -530,10 +383,17 @@ export default function Page() {
               queryParams={[]}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
             />
-            <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
-              workflowName={"trunk"}
+            <ScalarPanel
+              title={"p50 trunk workflow duration"}
+              queryName={"workflow_duration_percentile"}
+              metricName={"duration_sec"}
+              valueRenderer={(value) => durationDisplay(value)}
+              queryParams={[
+                { name: "name", type: "string", value: "trunk" },
+                { name: "percentile", type: "float", value: 0.50 },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
             />
           </Stack>
         </Grid>
@@ -714,41 +574,59 @@ export default function Page() {
           />
         </Grid>
 
-        <JobsDuration
-          title={"Job time-to-signal, all branches"}
-          branchName={"%"}
-          queryName={"tts_percentile"}
-          metricName={"tts_sec"}
-          percentileParam={percentileParam}
-          timeParams={timeParams}
-        />
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TTSPanel
+            title={"Job time-to-signal, all branches"}
+            queryName={"tts_avg"}
+            queryParams={timeParams}
+            metricName={"tts_sec"}
+            metricHeaderName={"Time-to-signal"}
+          />
+        </Grid>
 
-        <JobsDuration
-          title={"Job time-to-signal, master-only"}
-          branchName={"master"}
-          queryName={"tts_percentile"}
-          metricName={"tts_sec"}
-          percentileParam={percentileParam}
-          timeParams={timeParams}
-        />
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TTSPanel
+            title={"Job time-to-signal, master-only"}
+            queryName={"tts_avg"}
+            queryParams={[
+              ...timeParams,
+              {
+                name: "branch",
+                type: "string",
+                value: "master",
+              },
+            ]}
+            metricName={"tts_sec"}
+            metricHeaderName={"Time-to-signal"}
+          />
+        </Grid>
 
-        <JobsDuration
-          title={"Job duration, all branches"}
-          branchName={"%"}
-          queryName={"job_duration_percentile"}
-          metricName={"duration_sec"}
-          percentileParam={percentileParam}
-          timeParams={timeParams}
-        />
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TTSPanel
+            title={"Job duration, all branches"}
+            queryName={"job_duration_avg"}
+            queryParams={timeParams}
+            metricName={"duration_sec"}
+            metricHeaderName={"Duration"}
+          />
+        </Grid>
 
-        <JobsDuration
-          title={"Job duration, master-only"}
-          branchName={"master"}
-          queryName={"job_duration_percentile"}
-          metricName={"duration_sec"}
-          percentileParam={percentileParam}
-          timeParams={timeParams}
-        />
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TTSPanel
+            title={"Job duration, master-only"}
+            queryName={"job_duration_avg"}
+            queryParams={[
+              ...timeParams,
+              {
+                name: "branch",
+                type: "string",
+                value: "master",
+              },
+            ]}
+            metricName={"duration_sec"}
+            metricHeaderName={"Duration"}
+          />
+        </Grid>
       </Grid>
     </div>
   );

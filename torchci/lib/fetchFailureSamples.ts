@@ -1,5 +1,5 @@
 import getRocksetClient from "lib/rockset";
-import rocksetVersions from "rockset/prodVersions.json";
+import rocksetVersions from "rockset/prodVersions";
 
 import { JobData } from "./types";
 

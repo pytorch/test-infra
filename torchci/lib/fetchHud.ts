@@ -2,7 +2,7 @@ import _ from "lodash";
 import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
-import rocksetVersions from "rockset/prodVersions.json";
+import rocksetVersions from "../rockset/prodVersions";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];

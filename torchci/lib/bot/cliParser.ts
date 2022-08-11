@@ -44,10 +44,10 @@ mergeOption.add_argument("-g", "--green", {
   help: "Merge when *all* status checks pass.",
 });
 mergeOption.add_argument("-f", "--force", {
-  metavar: "MESSAGE",
   help:
-`Merge without checking anything. This requires a reason for auditting purpose, for example:
-@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`
+    "Merge without checking anything. This requires a reason for auditting purpose, for example:\n" +
+    "`@pytorchbot merge -f '[MINOR] Fix lint. Expecting all PR tests to pass'`\n" +
+    "The reason must be longer than 2 words. ONLY USE THIS FOR CRITICAL FAILURES.",
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
@@ -112,7 +112,7 @@ parser.add_argument("-h", "--help", {
   action: "store_true",
 });
 
-const botCommandPattern = new RegExp(/^ *@pytorch(merge|)bot.*$/m);
+const botCommandPattern = new RegExp(/^@pytorch(merge|)bot.*$/m);
 
 export function getInputArgs(commentBody: string): string {
   const match = commentBody.match(botCommandPattern);
