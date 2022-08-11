@@ -161,7 +161,7 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
     "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
   try {
-    const result = await urllib.request(`${urlkey}${testFile}.py`);
+    const result = await urllib.request(`${urlkey}${testFile}`);
     const statusCode = result.res.statusCode;
     if (statusCode !== 200) {
       console.warn(`Error retrieving test file of flaky test: ${statusCode}`);
