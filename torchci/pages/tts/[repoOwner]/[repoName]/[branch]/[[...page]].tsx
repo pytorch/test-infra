@@ -127,12 +127,14 @@ function Graphs({
   ttsPercentile,
   selectedJobName,
   checkboxRef,
+  branchName,
 }: {
   queryParams: RocksetParam[];
   granularity: "hour" | "day" | "week" | "month" | "year";
   ttsPercentile: number;
   selectedJobName: string;
   checkboxRef: any;
+  branchName: string;
 }) {
   const [filter, setFilter] = useState(new Set());
   const ROW_HEIGHT = 800;
@@ -216,6 +218,9 @@ function Graphs({
     filter.has(item["name"])
   );
 
+  const encodedBranchName = encodeURIComponent(branchName);
+  const jobUrlPrefix = `/tts/pytorch/pytorch/${encodedBranchName}?jobName=`;
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={9} height={ROW_HEIGHT}>
@@ -236,7 +241,11 @@ function Graphs({
                 onChange={toggleFilter}
                 checked={filter.has(job["name"])}
               />
-              <label htmlFor={job["name"]}> {job["name"]}</label>
+              <label htmlFor={job["name"]}>
+                <a href={jobUrlPrefix + encodeURIComponent(job["name"])}>
+                  {job["name"]}
+                </a>
+              </label>
             </div>
           ))}
         </div>
@@ -333,6 +342,7 @@ export default function Page() {
         ttsPercentile={ttsPercentile}
         selectedJobName={jobName}
         checkboxRef={checkboxRef}
+        branchName={branch}
       />
     </div>
   );
