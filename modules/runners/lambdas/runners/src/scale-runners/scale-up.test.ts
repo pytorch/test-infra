@@ -185,7 +185,7 @@ describe('scaleUp', () => {
       minAvailableRunners: 10,
       runnerGroupName: 'group_one',
       runnersExtraLabels: 'extra-label',
-      useOrganizationLevelRunners: 'yes',
+      enableOrganizationRunners: 'yes',
     };
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     const repo = { repo: 'repo', owner: 'owner' };

@@ -1,4 +1,4 @@
-export function getBoolean(value: string | number | undefined | boolean, defaultVal = false) {
+export function getBoolean(value: string | number | undefined | boolean, defaultVal = false): boolean {
   if (value === undefined) return defaultVal;
 
   if (typeof value === 'string') value = value.toLowerCase();

@@ -26,7 +26,7 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
 
   const repo: Repo = {
     owner: payload.repositoryOwner,
-    repo: Config.Instance.useOrganizationLevelRunners ? Config.Instance.scaleConfigRepo : payload.repositoryName,
+    repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : payload.repositoryName,
   };
 
   const runnerTypes = await getRunnerTypes(repo);
@@ -49,8 +49,8 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
         await createRunner({
           environment: Config.Instance.environment,
           runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId),
-          orgName: Config.Instance.useOrganizationLevelRunners ? repo.owner : undefined,
-          repoName: Config.Instance.useOrganizationLevelRunners ? undefined : getRepoKey(repo),
+          orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
+          repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
           runnerType: runnerType,
         });
       } catch (e) {
@@ -73,7 +73,7 @@ async function createRunnerConfigArgument(
       ? `${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
       : `${runnerType.runnerTypeName}`;
 
-  if (Config.Instance.useOrganizationLevelRunners) {
+  if (Config.Instance.enableOrganizationRunners) {
     /* istanbul ignore next */
     const runnerGroupArgument =
       Config.Instance.runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
@@ -97,7 +97,7 @@ async function allRunnersBusy(
   isEphemeral: boolean,
   maxAvailable: number,
 ): Promise<boolean> {
-  const ghRunners = Config.Instance.useOrganizationLevelRunners
+  const ghRunners = Config.Instance.enableOrganizationRunners
     ? await listGithubRunnersOrg(repo.owner)
     : await listGithubRunnersRepo(repo);
 

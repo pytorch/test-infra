@@ -23,7 +23,7 @@ export class Config {
   readonly secretsManagerSecretsId: string | undefined;
   readonly securityGroupIds: string[];
   readonly subnetIds: string[];
-  readonly useOrganizationLevelRunners: boolean;
+  readonly enableOrganizationRunners: boolean;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
@@ -34,10 +34,10 @@ export class Config {
     this.githubAppClientSecret = process.env.GITHUB_APP_CLIENT_SECRET;
     this.githubAppId = process.env.GITHUB_APP_ID;
     this.kmsKeyId = process.env.KMS_KEY_ID;
-    this.launchTemplateNameLinux = this.envGetOrRaise('LAUNCH_TEMPLATE_NAME_LINUX');
-    this.launchTemplateNameWindows = this.envGetOrRaise('LAUNCH_TEMPLATE_NAME_WINDOWS');
-    this.launchTemplateVersionLinux = this.envGetOrRaise('LAUNCH_TEMPLATE_VERSION_LINUX');
-    this.launchTemplateVersionWindows = this.envGetOrRaise('LAUNCH_TEMPLATE_VERSION_WINDOWS');
+    this.launchTemplateNameLinux = process.env.LAUNCH_TEMPLATE_NAME_LINUX;
+    this.launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS;
+    this.launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
+    this.launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS;
 
     /* istanbul ignore next */
     const mnAvalRuns = Number(process.env.MIN_AVAILABLE_RUNNERS || '10');
@@ -58,7 +58,7 @@ export class Config {
     this.securityGroupIds = process.env.SECURITY_GROUP_IDS?.split(',') ?? [];
     /* istanbul ignore next */
     this.subnetIds = process.env.SUBNET_IDS?.split(',') ?? [];
-    this.useOrganizationLevelRunners = getBoolean(process.env.USE_ORGANIZATION_LEVEL_RUNNERS);
+    this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
   }
 
   static get Instance(): Config {
@@ -67,13 +67,6 @@ export class Config {
 
   static resetConfig() {
     this._instance = undefined;
-  }
-
-  protected envGetOrRaise(envName: string): string {
-    if (process.env[envName] === undefined) {
-      throw Error(`Environment variable ${envName} must be set`);
-    }
-    return process.env[envName] as string;
   }
 
   get shuffledSubnetIds(): string[] {

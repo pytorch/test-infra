@@ -1,4 +1,4 @@
-import { Authentication, StrategyOptions } from '@octokit/auth-app/dist-types/types';
+import { StrategyOptions } from '@octokit/auth-app/dist-types/types';
 
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
@@ -45,7 +45,7 @@ export async function createGithubAuth(
   installationId: number | undefined,
   authType: 'app' | 'installation',
   ghesApiUrl = '',
-): Promise<Authentication> {
+): Promise<string> {
   const githubCreds: GithubCredentials = await (async () => {
     if (Config.Instance.secretsManagerSecretsId !== undefined) {
       return await getCredentialsFromSecretsManager(Config.Instance.secretsManagerSecretsId);
@@ -96,5 +96,5 @@ export async function createGithubAuth(
     });
   }
 
-  return await createAppAuth(authOptions)({ type: authType });
+  return (await createAppAuth(authOptions)({ type: authType })).token;
 }

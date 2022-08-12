@@ -31,7 +31,7 @@ describe('Config', () => {
     process.env.SECRETSMANAGER_SECRETS_ID = 'SECRETSMANAGER_SECRETS_ID';
     process.env.SECURITY_GROUP_IDS = 'SECURITY_GROUP_IDS1,SECURITY_GROUP_IDS2,SECURITY_GROUP_IDS3';
     process.env.SUBNET_IDS = 'SUBNET_IDS1,SUBNET_IDS2,SUBNET_IDS3';
-    process.env.USE_ORGANIZATION_LEVEL_RUNNERS = 'YES';
+    process.env.ENABLE_ORGANIZATION_RUNNERS = 'YES';
 
     expect(Config.Instance.awsRegion).toBe('AWS_REGION');
     expect(Config.Instance.environment).toBe('ENVIRONMENT');
@@ -62,7 +62,7 @@ describe('Config', () => {
     expect(Config.Instance.shuffledSubnetIds).toContain('SUBNET_IDS2');
     expect(Config.Instance.shuffledSubnetIds).toContain('SUBNET_IDS3');
     expect(Config.Instance.subnetIds).toEqual(['SUBNET_IDS1', 'SUBNET_IDS2', 'SUBNET_IDS3']);
-    expect(Config.Instance.useOrganizationLevelRunners).toBeTruthy();
+    expect(Config.Instance.enableOrganizationRunners).toBeTruthy();
   });
 
   it('check defaults', () => {
@@ -88,7 +88,7 @@ describe('Config', () => {
     delete process.env.SECRETSMANAGER_SECRETS_ID;
     delete process.env.SECURITY_GROUP_IDS;
     delete process.env.SUBNET_IDS;
-    delete process.env.USE_ORGANIZATION_LEVEL_RUNNERS;
+    delete process.env.ENABLE_ORGANIZATION_RUNNERS;
 
     expect(Config.Instance.awsRegion).toBe('us-east-1');
     expect(Config.Instance.environment).toBe('gh-ci');
@@ -113,72 +113,6 @@ describe('Config', () => {
     expect(Config.Instance.securityGroupIds.length).toEqual(0);
     expect(Config.Instance.shuffledSubnetIds.length).toEqual(0);
     expect(Config.Instance.subnetIds.length).toEqual(0);
-    expect(Config.Instance.useOrganizationLevelRunners).toBeFalsy();
-  });
-
-  describe('raises exception for must set var', () => {
-    beforeEach(() => {
-      delete process.env.AWS_REGION;
-      delete process.env.ENVIRONMENT;
-      delete process.env.GHES_URL;
-      delete process.env.GITHUB_APP_CLIENT_ID;
-      delete process.env.GITHUB_APP_CLIENT_SECRET;
-      delete process.env.GITHUB_APP_ID;
-      delete process.env.KMS_KEY_ID;
-      process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'LAUNCH_TEMPLATE_NAME_LINUX';
-      process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'LAUNCH_TEMPLATE_NAME_WINDOWS';
-      process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
-      process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = 'LAUNCH_TEMPLATE_VERSION_WINDOWS';
-      delete process.env.MIN_AVAILABLE_RUNNERS;
-      delete process.env.MINIMUM_RUNNING_TIME_IN_MINUTES;
-      delete process.env.RUNNER_EXTRA_LABELS;
-      delete process.env.RUNNER_GROUP_NAME;
-      delete process.env.SCALE_CONFIG_REPO;
-      delete process.env.SCALE_CONFIG_REPO_PATH;
-      delete process.env.SECRETSMANAGER_SECRETS_ID;
-      delete process.env.SECURITY_GROUP_IDS;
-      delete process.env.SUBNET_IDS;
-      delete process.env.USE_ORGANIZATION_LEVEL_RUNNERS;
-    });
-
-    it('LAUNCH_TEMPLATE_NAME_LINUX', () => {
-      Config.resetConfig();
-
-      delete process.env.LAUNCH_TEMPLATE_NAME_LINUX;
-
-      expect(() => {
-        Config.Instance;
-      }).toThrowError();
-    });
-
-    it('LAUNCH_TEMPLATE_NAME_WINDOWS', () => {
-      Config.resetConfig();
-
-      delete process.env.LAUNCH_TEMPLATE_NAME_WINDOWS;
-
-      expect(() => {
-        Config.Instance;
-      }).toThrowError();
-    });
-
-    it('LAUNCH_TEMPLATE_VERSION_LINUX', () => {
-      Config.resetConfig();
-
-      delete process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
-
-      expect(() => {
-        Config.Instance;
-      }).toThrowError();
-    });
-
-    it('LAUNCH_TEMPLATE_VERSION_WINDOWS', () => {
-      Config.resetConfig();
-
-      delete process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS;
-
-      expect(() => {
-        Config.Instance;
-      }).toThrowError();
-    });
+    expect(Config.Instance.enableOrganizationRunners).toBeFalsy();
   });
 });

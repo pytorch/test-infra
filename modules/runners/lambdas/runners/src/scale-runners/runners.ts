@@ -233,7 +233,7 @@ async function getGithubClient(): Promise<Octokit> {
   if (githubClient === undefined) {
     console.debug(`[getGithubClient] Need to instantiate base githubClient`);
     const ghAuth = await createGithubAuth(undefined, 'app', Config.Instance.ghesUrlApi);
-    githubClient = await createOctoClient(ghAuth.token, Config.Instance.ghesUrlApi);
+    githubClient = await createOctoClient(ghAuth, Config.Instance.ghesUrlApi);
   }
   return githubClient;
 }
@@ -271,7 +271,7 @@ async function createGitHubClientForRunner(
   const installationId = await installationIdCallback();
 
   const ghAuth2 = await createGithubAuth(installationId, 'installation', Config.Instance.ghesUrlApi);
-  const octokit = await createOctoClient(ghAuth2.token, Config.Instance.ghesUrlApi);
+  const octokit = await createOctoClient(ghAuth2, Config.Instance.ghesUrlApi);
 
   ghClientCache.set(key, octokit);
 

@@ -22,7 +22,6 @@ import {
 } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 
-import { Authentication } from '@octokit/auth-app/dist-types/types';
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
 import { mocked } from 'ts-jest/utils';
@@ -476,9 +475,9 @@ describe('resetRunnersCaches', () => {
     };
 
     for (let i = 0; i < 2; i++) {
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
     }
 
@@ -517,11 +516,11 @@ describe('createGitHubClientForRunner variants', () => {
         apps: { getRepoInstallation: getRepoInstallation },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce({
         apps: { getRepoInstallation: getRepoInstallation },
       } as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
 
       resetRunnersCaches();
@@ -551,11 +550,11 @@ describe('createGitHubClientForRunner variants', () => {
         apps: { getOrgInstallation: getOrgInstallation },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce({
         apps: { getOrgInstallation: getOrgInstallation },
       } as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
 
       resetRunnersCaches();
@@ -582,7 +581,7 @@ describe('createGitHubClientForRunner variants', () => {
         apps: {},
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
 
       resetRunnersCaches();
@@ -624,9 +623,9 @@ describe('listGithubRunners', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -655,9 +654,9 @@ describe('listGithubRunners', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -697,9 +696,9 @@ describe('removeGithubRunnerRepo', () => {
       apps: { getRepoInstallation: getRepoInstallation },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -732,9 +731,9 @@ describe('removeGithubRunnerRepo', () => {
       apps: { getRepoInstallation: getRepoInstallation },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -772,9 +771,9 @@ describe('removeGithubRunnerOrg', () => {
       apps: { getOrgInstallation: getOrgInstallation },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -806,9 +805,9 @@ describe('removeGithubRunnerOrg', () => {
       apps: { getOrgInstallation: getOrgInstallation },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -852,9 +851,9 @@ describe('getRunner', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -883,9 +882,9 @@ describe('getRunner', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -910,9 +909,9 @@ describe('getRunner', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -942,9 +941,9 @@ describe('getRunner', () => {
         paginate: jest.fn().mockResolvedValue(irrelevantRunner),
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -983,9 +982,9 @@ runner_types:
       },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: token1 } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce(token1);
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: token2 } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce(token2);
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -1055,9 +1054,9 @@ runner_types:
       },
     };
 
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token1');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+    mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
     resetRunnersCaches();
@@ -1085,9 +1084,9 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -1118,7 +1117,7 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -1148,9 +1147,9 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -1179,9 +1178,9 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -1212,7 +1211,7 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();
@@ -1242,9 +1241,9 @@ describe('createRegistrationToken', () => {
         },
       };
 
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token1' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
-      mockCreateGithubAuth.mockResolvedValueOnce({ token: 'token2' } as unknown as Authentication);
+      mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
 
       resetRunnersCaches();

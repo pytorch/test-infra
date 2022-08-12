@@ -129,7 +129,7 @@ describe('Test createGithubAuth', () => {
       expect(mockedCreatAppAuth).toBeCalledTimes(1);
       expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
       expect(mockedAuth).toBeCalledWith({ type: authType });
-      expect(result.token).toBe(token);
+      expect(result).toBe(token);
     });
 
     test('Creates auth object for Enterprise Server', async () => {
@@ -163,7 +163,7 @@ describe('Test createGithubAuth', () => {
       expect(mockedCreatAppAuth).toBeCalledTimes(1);
       expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
       expect(mockedAuth).toBeCalledWith({ type: authType });
-      expect(result.token).toBe(token);
+      expect(result).toBe(token);
     });
 
     test('Throws an error when cannot decrypt', async () => {
@@ -218,8 +218,8 @@ describe('Test createGithubAuth', () => {
       expect(mockSMgetSecretValuePromise).toBeCalledTimes(2);
       expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
       expect(mockedAuth).toBeCalledWith({ type: authType });
-      expect(result1.token).toBe(token);
-      expect(result2.token).toBe(token);
+      expect(result1).toBe(token);
+      expect(result2).toBe(token);
     });
   });
 });
