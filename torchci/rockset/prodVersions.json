@@ -7,7 +7,8 @@
     "test_time_per_file": "50cb3694334ed63a",
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2",
-    "recent_pr_workflows_query": "4e03cb13e8372050"
+    "recent_pr_workflows_query": "4e03cb13e8372050",
+    "unclassified": "672227495ac70f7d"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",

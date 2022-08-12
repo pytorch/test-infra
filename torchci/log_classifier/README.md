@@ -21,3 +21,9 @@ the rule.
 Run `backfill.py`. Note that this uses the Lambda to run the rules, so you need
 to make sure [the live site](https://www.torch-ci.com/api/classifier/rules)
 reflects your changes before you run!
+
+## Why do we classify every log (including succeeding logs) but only backfill failing ones?
+
+Before Aug 12, 2022, the AWS lambda only classified failing jobs, because many of the log classifications are only relevant for failed jobs. However, after flaky tests started to be shielded from CI, CI now shows as "passing" even when it contained flakiness. To better equip developers in debugging these instances, we want to classify flaky tests as well, so we now classify all logs (and not only failing ones).
+
+However, we DON'T want to backfill succeeding jobs, as they often do not match any classification line (and if they do, it's usually because of an expected failure). Backfilling currently attempts to classify the most recent 1000 unclassified logs. Since succeeding jobs often have no classification, backfilling will not be able to tell that those jobs have already been classified and will attempt to re-classify these jobs.
