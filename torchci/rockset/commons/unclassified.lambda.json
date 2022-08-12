@@ -1,5 +1,5 @@
 {
   "sql_path": "__sql/unclassified.sql",
   "default_parameters": [],
-  "description": ""
+  "description": "all unclassified job ids from the last day"
 }
