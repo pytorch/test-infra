@@ -39,6 +39,31 @@ export default function Page() {
                 <code>{`${test.name}, ${test.suite}`}</code>
               </h1>
               from file <code>{`${test.file}`}</code>
+              <h4>Debugging instructions:</h4>
+              <p>
+                DO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests
+                from developers so CI will thus be green but it will be harder
+                to parse the logs. To find relevant log snippets:
+              </p>
+              <ol>
+                <li>
+                  Click on any of the workflow job links below, for example{" "}
+                  <a
+                    href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
+                  >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a>
+                </li>
+                <li>
+                  Click on the Test step of the job so that it is expanded.
+                  Otherwise, the grepping will not work.
+                </li>
+                <li>
+                  Grep for <code>{test.name}</code>
+                </li>
+                <li>
+                  There should be several instances run (as flaky tests are
+                  rerun in CI) from which you can study the logs.
+                </li>
+              </ol>
               <div>
                 <h4> Test workflow job URLs: </h4>
                 <ul>
@@ -59,30 +84,6 @@ export default function Page() {
                   <p>Example logs: </p> <LogViewer job={samples[0]} />
                 </div>
               )}
-              <h4>Debugging instructions:</h4>
-              <p>
-                As flaky tests will soon show as green, it will be harder to
-                parse the logs. To find relevant log snippets:
-              </p>
-              <ol>
-                <li>
-                  Click on any of the workflow job links above, for example{" "}
-                  <a
-                    href={`https://github.com/pytorch/pytorch/runs/${test.jobIds[0]}`}
-                  >{`${test.workflowNames[0]} / ${test.jobNames[0]}`}</a>
-                </li>
-                <li>
-                  Click on the Test step of the job so that it is expanded.
-                  Otherwise, the grepping will not work.
-                </li>
-                <li>
-                  Grep for <code>{test.name}</code>
-                </li>
-                <li>
-                  There should be several instances run (as flaky tests are
-                  rerun in CI) from which you can study the logs.
-                </li>
-              </ol>
             </div>
           );
         })
