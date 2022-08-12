@@ -25135,6 +25135,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -25177,7 +25186,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83301/timeline",
       "title": "DISABLED test_find_unused_parameters_kwarg_debug_info (__main__.DistributedDataParallelTest)",
-      "updated_at": "2022-08-11T21:40:50Z",
+      "updated_at": "2022-08-12T06:01:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83301",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
