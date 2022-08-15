@@ -27669,7 +27669,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "### \ud83d\udc1b Describe the bug\n\nWe have a SEV https://github.com/pytorch/pytorch/issues/83433 on Windows CI in which the list of disabled tests grows too big and breaks the limit of Windows env variable length of 32767 chars.  At the moment, the CI maintains the following two lists in different env variables:\r\n\r\n* Slow tests (SLOW_TESTS_DICT)\r\n* Flaky (disabled) tests (DISABLED_TESTS_DICT)\r\n\r\nWe should revisit the way we are using env variables here to see if there is a better or safer way to passing these information around.  Some limits to keep in mind:\r\n\r\n* Windows vs2019 runner has the upper limit of 32767 chars for env variable length\r\n* The number is 2619242 for Ubuntu 18.04 (bionic) deducted using `xargs --show-limits`\r\n* The number is 1048576 for mac OS deducted using `getconf ARG_MAX`\r\n\r\nSo there is always a limit.\r\n\r\ncc @seemethere @malfet @pytorch/pytorch-dev-infra @clee2000 \n\n### Versions\n\nAll versions",
+      "body": "### \ud83d\udc1b Describe the bug\r\n\r\nWe have a SEV https://github.com/pytorch/pytorch/issues/83433 on Windows CI in which the list of disabled tests grows too big and breaks the limit of Windows env variable length of 32767 chars.  At the moment, the CI maintains the following two lists in different env variables:\r\n\r\n* Slow tests (SLOW_TESTS_DICT)\r\n* Flaky (disabled) tests (DISABLED_TESTS_DICT)\r\n\r\nWe should revisit the way we are using env variables here to see if there is a better or safer way to passing these information around.  Some limits to keep in mind:\r\n\r\n* Windows vs2019 runner has the upper limit of 32767 chars for env variable length (learn from the SEV)\r\n* The number is 2619242 for Ubuntu 18.04 (bionic) deducted using `xargs --show-limits`\r\n* The number is 1048576 for mac OS deducted using `getconf ARG_MAX`\r\n\r\nSo there is always a limit.\r\n\r\ncc @seemethere @malfet @pytorch/pytorch-dev-infra @clee2000 \r\n\r\n### Versions\r\n\r\nAll versions",
       "closed_at": null,
       "comments": 0,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83458/comments",
@@ -27730,7 +27730,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83458/timeline",
       "title": "Look into how the CI passes the list of slow tests and disabled tests around using env variables",
-      "updated_at": "2022-08-15T19:21:49Z",
+      "updated_at": "2022-08-15T19:22:36Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83458",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/475357?v=4",
