@@ -5,8 +5,10 @@ import fetchFailureSamples from "lib/fetchFailureSamples";
 
 interface Data {}
 
+// The captures are based on the regex in the Python flaky unittest
+// classifications in torchci/pages/api/classifier/rules.ts
 export function getFlakyTestCapture(flakyTest: FlakyTestData): string {
-  return `${flakyTest.name}, ${flakyTest.suite}`;
+  return `${flakyTest.name}`;
 }
 
 export default async function handler(

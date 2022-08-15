@@ -195,8 +195,13 @@ export default async function handler(
         priority: 100,
       },
       {
-        name: "Python flaky unittest",
-        pattern: r`^\s*(test.*) (fail|error|succeed)?ed - num_retries_left:`,
+        name: "Python flaky unittest - failed",
+        pattern: r`^\s*(test.*) failed - num_retries_left:`,
+        priority: 100,
+      },
+      {
+        name: "Python flaky unittest - errored",
+        pattern: r`^\s*(test.*) errored - num_retries_left:`,
         priority: 100,
       },
       {
