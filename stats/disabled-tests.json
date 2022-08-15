@@ -23195,7 +23195,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multi_drop&suite=TestDataLoaderUtils&file=test_utils.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7682887501).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_multi_drop&suite=TestDataLoaderUtils&file=test_utils.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7682887501).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82865/comments",
@@ -23204,6 +23204,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/82865",
       "id": 1329414271,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.utils.data.DataLoader and Sampler",
+          "id": 1076923878,
+          "name": "module: dataloader",
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        },
         {
           "color": "006b75",
           "default": false,
@@ -23256,7 +23265,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82865/timeline",
       "title": "DISABLED test_multi_drop (__main__.TestDataLoaderUtils)",
-      "updated_at": "2022-08-08T15:48:23Z",
+      "updated_at": "2022-08-15T17:40:25Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82865",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
