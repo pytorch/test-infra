@@ -27491,7 +27491,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_square_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7840370218).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_square_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_square_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7840370218).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_square_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83452/comments",
@@ -27519,13 +27519,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83452/labels{/name}",
@@ -27552,7 +27552,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83452/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_square_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T18:44:13Z",
+      "updated_at": "2022-08-15T19:49:44Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83452",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -27580,7 +27580,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_special_erfcx_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7840370218).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_special_erfcx_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_special_erfcx_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7840370218).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_special_erfcx_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83453/comments",
@@ -27608,13 +27608,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83453/labels{/name}",
@@ -27641,7 +27641,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83453/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_special_erfcx_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T18:44:13Z",
+      "updated_at": "2022-08-15T19:48:19Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83453",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
