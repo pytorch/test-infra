@@ -2353,15 +2353,24 @@
       "assignee": null,
       "assignees": [],
       "author_association": "CONTRIBUTOR",
-      "body": "Disable this slow test according to oncall runbook\r\nOther pytorch_linux_xenial_cuda10_2_cudnn7_py3_gcc7 can pass.\r\n\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/369938/workflows/a4903602-9784-4e3e-8554-21965f9c693c/jobs/15607719\r\n",
+      "body": "Disable this slow test according to oncall runbook\r\nOther pytorch_linux_xenial_cuda10_2_cudnn7_py3_gcc7 can pass.\r\n\r\nhttps://app.circleci.com/pipelines/github/pytorch/pytorch/369938/workflows/a4903602-9784-4e3e-8554-21965f9c693c/jobs/15607719\r\n\n\ncc @mruberry",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/comments",
       "created_at": "2021-08-25T07:29:56Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/events",
       "html_url": "https://github.com/pytorch/pytorch/issues/63933",
       "id": 978813863,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Issues related to tests (not the torch.testing module)",
+          "id": 1300933336,
+          "name": "module: tests",
+          "node_id": "MDU6TGFiZWwxMzAwOTMzMzM2",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20tests"
+        },
         {
           "color": "006b75",
           "default": false,
@@ -2414,7 +2423,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/63933/timeline",
       "title": "DISABLED test_argminmax_large_axis_cuda (__main__.TestReductionsCUDA)",
-      "updated_at": "2021-12-21T21:27:33Z",
+      "updated_at": "2022-08-15T17:38:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/63933",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/1760893?v=4",
