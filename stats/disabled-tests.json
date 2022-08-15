@@ -21387,9 +21387,9 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32&suite=TestVmapOperatorsOpInfoCUDA&file=/var/lib/jenkins/workspace/functorch/test/test_vmap.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7541089355).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @zou3519",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32&suite=TestVmapOperatorsOpInfoCUDA&file=/var/lib/jenkins/workspace/functorch/test/test_vmap.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7541089355).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/comments",
       "created_at": "2022-07-27T18:42:52Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/events",
@@ -21431,6 +21431,15 @@
           "name": "module: vmap",
           "node_id": "MDU6TGFiZWwxODgzMzE5MDgy",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20vmap"
+        },
+        {
+          "color": "5319e7",
+          "default": false,
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/labels{/name}",
@@ -21457,7 +21466,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/timeline",
       "title": "DISABLED test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)",
-      "updated_at": "2022-08-15T16:00:17Z",
+      "updated_at": "2022-08-15T16:30:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82340",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
