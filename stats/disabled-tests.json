@@ -18340,7 +18340,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/timeline",
       "title": "DISABLED test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-08-15T16:11:24Z",
+      "updated_at": "2022-08-15T16:50:58Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
