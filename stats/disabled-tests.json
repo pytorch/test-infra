@@ -17660,7 +17660,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda&suite=TestNNDeviceTypeCUDA&file=test_nn.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7046451336).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda&suite=TestNNDeviceTypeCUDA&file=test_nn.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7046451336).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @albanD @mruberry @jbschlosser @walterddr @kshitij12345 @saketh-are",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80248/comments",
@@ -17669,6 +17669,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80248",
       "id": 1284214907,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.nn",
+          "id": 1076922764,
+          "name": "module: nn",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNzY0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nn"
+        },
         {
           "color": "006b75",
           "default": false,
@@ -17695,15 +17704,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80248/labels{/name}",
@@ -17730,7 +17730,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80248/timeline",
       "title": "DISABLED test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)",
-      "updated_at": "2022-06-29T14:10:32Z",
+      "updated_at": "2022-08-15T16:04:03Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80248",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -17758,7 +17758,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_worker_seed_reproducibility&suite=TestDataLoader&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7045717650).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_worker_seed_reproducibility&suite=TestDataLoader&file=test_dataloader.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7045717650).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @SsnL @VitalyFedyunin @ejguan @NivekT",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80249/comments",
@@ -17767,6 +17767,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80249",
       "id": 1284214906,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.utils.data.DataLoader and Sampler",
+          "id": 1076923878,
+          "name": "module: dataloader",
+          "node_id": "MDU6TGFiZWwxMDc2OTIzODc4",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20dataloader"
+        },
         {
           "color": "006b75",
           "default": false,
@@ -17793,15 +17802,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80249/labels{/name}",
@@ -17828,7 +17828,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80249/timeline",
       "title": "DISABLED test_worker_seed_reproducibility (__main__.TestDataLoader)",
-      "updated_at": "2022-06-29T14:04:06Z",
+      "updated_at": "2022-08-15T16:04:12Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80249",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18271,15 +18271,6 @@
       "id": 1286622206,
       "labels": [
         {
-          "color": "006b75",
-          "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
-        },
-        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -18296,15 +18287,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/labels{/name}",
@@ -18331,7 +18313,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/timeline",
       "title": "DISABLED test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-06-29T14:03:31Z",
+      "updated_at": "2022-08-15T16:02:57Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18590,15 +18572,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80933/labels{/name}",
@@ -18625,7 +18598,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80933/timeline",
       "title": "DISABLED test_reload_jit_extension (__main__.TestCppExtensionJIT)",
-      "updated_at": "2022-07-23T00:34:20Z",
+      "updated_at": "2022-08-15T16:01:45Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80933",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18699,15 +18672,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
-        },
-        {
           "color": "455561",
           "default": false,
           "description": "",
@@ -18741,7 +18705,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80934/timeline",
       "title": "DISABLED test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA)",
-      "updated_at": "2022-07-12T17:28:18Z",
+      "updated_at": "2022-08-15T16:01:50Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80934",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18804,15 +18768,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81004/labels{/name}",
@@ -18839,7 +18794,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81004/timeline",
       "title": "DISABLED test_all_to_all_single_equal_split_full_group_cuda (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:25:13Z",
+      "updated_at": "2022-08-15T16:01:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81004",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -18902,15 +18857,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81022/labels{/name}",
@@ -18937,7 +18883,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81022/timeline",
       "title": "DISABLED test_nccl_high_priority_stream (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:25:05Z",
+      "updated_at": "2022-08-15T16:01:38Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81022",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19000,15 +18946,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81023/labels{/name}",
@@ -19035,7 +18972,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81023/timeline",
       "title": "DISABLED test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:25:09Z",
+      "updated_at": "2022-08-15T16:01:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81023",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19098,15 +19035,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81028/labels{/name}",
@@ -19133,7 +19061,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81028/timeline",
       "title": "DISABLED test_broadcast_cuda (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:24:44Z",
+      "updated_at": "2022-08-15T16:01:27Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81028",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19196,15 +19124,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81029/labels{/name}",
@@ -19231,7 +19150,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81029/timeline",
       "title": "DISABLED test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:24:55Z",
+      "updated_at": "2022-08-15T16:01:23Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81029",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19294,15 +19213,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81030/labels{/name}",
@@ -19329,7 +19239,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81030/timeline",
       "title": "DISABLED test_all_to_all_single_equal_split_cuda (__main__.TestDistBackendWithSpawn)",
-      "updated_at": "2022-07-12T17:24:48Z",
+      "updated_at": "2022-08-15T16:01:30Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81030",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19401,15 +19311,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81034/labels{/name}",
@@ -19436,7 +19337,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81034/timeline",
       "title": "DISABLED test_partial_workers (__main__.TestDataLoader)",
-      "updated_at": "2022-07-12T17:24:20Z",
+      "updated_at": "2022-08-15T16:01:18Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81034",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -19508,15 +19409,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81082/labels{/name}",
@@ -19543,7 +19435,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81082/timeline",
       "title": "DISABLED test_segfault (__main__.TestDataLoaderPersistentWorkers)",
-      "updated_at": "2022-07-12T17:20:49Z",
+      "updated_at": "2022-08-15T16:01:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81082",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -20844,15 +20736,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/81962/labels{/name}",
@@ -20879,7 +20762,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/81962/timeline",
       "title": "DISABLED test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)",
-      "updated_at": "2022-07-22T04:01:52Z",
+      "updated_at": "2022-08-15T16:01:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/81962",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21183,7 +21066,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7505357375).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7505357375).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 2 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82168/comments",
@@ -21220,13 +21103,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "FBCA04",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82168/labels{/name}",
@@ -21253,7 +21136,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82168/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-01T04:38:20Z",
+      "updated_at": "2022-08-15T16:01:02Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82168",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21281,7 +21164,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_matmul_cuda_float32&suite=TestNestedTensorDeviceTypeCUDA&file=test_nestedtensor.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7529580974).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_matmul_cuda_float32&suite=TestNestedTensorDeviceTypeCUDA&file=test_nestedtensor.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7529580974).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @cpuhrsch @jbschlosser @bhosmer",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82299/comments",
@@ -21309,6 +21192,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20flaky-tests"
         },
         {
+          "color": "f7e101",
+          "default": false,
+          "description": "NestedTensor tag see issue #25032",
+          "id": 1537268693,
+          "name": "module: nestedtensor",
+          "node_id": "MDU6TGFiZWwxNTM3MjY4Njkz",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20nestedtensor"
+        },
+        {
           "color": "bfdadc",
           "default": false,
           "description": "Denotes a (flaky) test currently skipped in CI.",
@@ -21316,15 +21208,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82299/labels{/name}",
@@ -21351,7 +21234,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82299/timeline",
       "title": "DISABLED test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA)",
-      "updated_at": "2022-08-01T04:38:35Z",
+      "updated_at": "2022-08-15T16:00:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82299",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21379,7 +21262,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7529485338).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool&suite=TestForeachCUDA&file=test_foreach.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7529485338).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @crcrpar @mcarilli @ngimel",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82300/comments",
@@ -21416,13 +21299,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "FBCA04",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Issues related to multi-tensor apply kernels and foreach functions",
+          "id": 3027440319,
+          "name": "module: mta",
+          "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82300/labels{/name}",
@@ -21449,7 +21332,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82300/timeline",
       "title": "DISABLED test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-01T04:38:28Z",
+      "updated_at": "2022-08-15T16:00:52Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82300",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21477,7 +21360,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32&suite=TestVmapOperatorsOpInfoCUDA&file=/var/lib/jenkins/workspace/functorch/test/test_vmap.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7541089355).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32&suite=TestVmapOperatorsOpInfoCUDA&file=/var/lib/jenkins/workspace/functorch/test/test_vmap.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7541089355).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @zou3519",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/comments",
@@ -21514,13 +21397,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "f7e101",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "",
+          "id": 1883319082,
+          "name": "module: vmap",
+          "node_id": "MDU6TGFiZWwxODgzMzE5MDgy",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20vmap"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/labels{/name}",
@@ -21547,7 +21430,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82340/timeline",
       "title": "DISABLED test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)",
-      "updated_at": "2022-08-01T04:38:45Z",
+      "updated_at": "2022-08-15T16:00:17Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82340",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21610,15 +21493,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82385/labels{/name}",
@@ -21645,7 +21519,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82385/timeline",
       "title": "DISABLED test_find_unused_parameters_kwarg_debug_off (__main__.DistributedDataParallelTest)",
-      "updated_at": "2022-07-28T00:57:45Z",
+      "updated_at": "2022-08-15T15:59:16Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82385",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21673,7 +21547,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7552152283).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_false_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7552152283).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82398/comments",
@@ -21683,13 +21557,13 @@
       "id": 1320469204,
       "labels": [
         {
-          "color": "006b75",
+          "color": "f7e101",
           "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
           "color": "f7e101",
@@ -21708,15 +21582,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82398/labels{/name}",
@@ -21743,7 +21608,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82398/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_false_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-08-01T04:38:05Z",
+      "updated_at": "2022-08-15T15:59:13Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82398",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21771,7 +21636,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_true_none&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7552152283).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_true_none&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7552152283).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82399/comments",
@@ -21781,13 +21646,13 @@
       "id": 1320469207,
       "labels": [
         {
-          "color": "006b75",
+          "color": "f7e101",
           "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
           "color": "f7e101",
@@ -21806,15 +21671,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82399/labels{/name}",
@@ -21841,7 +21697,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82399/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_true_none (__main__.TestParityWithDDP)",
-      "updated_at": "2022-08-01T04:37:51Z",
+      "updated_at": "2022-08-15T15:58:54Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82399",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21904,15 +21760,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82400/labels{/name}",
@@ -21939,7 +21786,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82400/timeline",
       "title": "DISABLED test_find_unused_parameters_kwarg_grad_is_view_debug_info (__main__.DistributedDataParallelTest)",
-      "updated_at": "2022-08-01T15:06:59Z",
+      "updated_at": "2022-08-15T15:59:02Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82400",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -21967,7 +21814,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_true_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7554131571).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_reduce_scatter_offload_true_shard_grad_op&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7554131571).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82403/comments",
@@ -21977,13 +21824,13 @@
       "id": 1320891374,
       "labels": [
         {
-          "color": "006b75",
+          "color": "f7e101",
           "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
           "color": "f7e101",
@@ -22002,15 +21849,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82403/labels{/name}",
@@ -22037,7 +21875,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82403/timeline",
       "title": "DISABLED test_delayed_reduce_scatter_offload_true_shard_grad_op (__main__.TestParityWithDDP)",
-      "updated_at": "2022-08-01T04:37:41Z",
+      "updated_at": "2022-08-15T16:00:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82403",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22065,7 +21903,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_optim_step_offload_true_no_shard&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7579918750).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_delayed_optim_step_offload_true_no_shard&suite=TestParityWithDDP&file=distributed/fsdp/test_fsdp_core.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7579918750).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @pietern @mrshenli @pritamdamania87 @zhaojuanmao @satgera @rohan-varma @gqchen @aazzolini @osalpekar @jiayisuse @SciPioneer @H-Huang @kwen2501",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82490/comments",
@@ -22075,13 +21913,13 @@
       "id": 1322572927,
       "labels": [
         {
-          "color": "006b75",
+          "color": "f7e101",
           "default": false,
-          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
-          "id": 1301347167,
-          "name": "triaged",
-          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+          "description": "Add this issue/PR to distributed oncall triage queue",
+          "id": 679953883,
+          "name": "oncall: distributed",
+          "node_id": "MDU6TGFiZWw2Nzk5NTM4ODM=",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20distributed"
         },
         {
           "color": "f7e101",
@@ -22100,15 +21938,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82490/labels{/name}",
@@ -22135,7 +21964,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82490/timeline",
       "title": "DISABLED test_delayed_optim_step_offload_true_no_shard (__main__.TestParityWithDDP)",
-      "updated_at": "2022-08-01T19:52:31Z",
+      "updated_at": "2022-08-15T15:58:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82490",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22163,7 +21992,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_profiler_experimental_tree&suite=TestProfilerTree&file=test_profiler_tree.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7584372078).\n\nOver the past 3 hours, it has been determined flaky in 5 workflow(s) with 5 red and 5 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_profiler_experimental_tree&suite=TestProfilerTree&file=test_profiler_tree.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7584372078).\n\nOver the past 3 hours, it has been determined flaky in 5 workflow(s) with 5 red and 5 green.\n\ncc @robieta @chaekit @aaronenyeshi @ngimel @nbcsm @guotuofeng @guyang3532 @gaoteng-git @tiffzhaofb",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82499/comments",
@@ -22200,13 +22029,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "79C48B",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "profiler-related issues (cpu, gpu, kineto)",
+          "id": 1883229970,
+          "name": "oncall: profiler",
+          "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82499/labels{/name}",
@@ -22233,7 +22062,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82499/timeline",
       "title": "DISABLED test_profiler_experimental_tree (__main__.TestProfilerTree)",
-      "updated_at": "2022-08-01T19:52:50Z",
+      "updated_at": "2022-08-15T15:58:00Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82499",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22296,15 +22125,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82500/labels{/name}",
@@ -22331,7 +22151,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82500/timeline",
       "title": "DISABLED test_find_unused_parameters_kwarg_grad_is_view_debug_off (__main__.DistributedDataParallelTest)",
-      "updated_at": "2022-08-02T16:18:26Z",
+      "updated_at": "2022-08-15T15:58:12Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82500",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -22359,7 +22179,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_profiler_experimental_tree_with_memory&suite=TestProfilerTree&file=test_profiler_tree.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7584372078).\n\nOver the past 3 hours, it has been determined flaky in 5 workflow(s) with 5 red and 5 green.",
+      "body": "Platforms: linux, rocm\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_profiler_experimental_tree_with_memory&suite=TestProfilerTree&file=test_profiler_tree.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7584372078).\n\nOver the past 3 hours, it has been determined flaky in 5 workflow(s) with 5 red and 5 green.\n\ncc @robieta @chaekit @aaronenyeshi @ngimel @nbcsm @guotuofeng @guyang3532 @gaoteng-git @tiffzhaofb",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82501/comments",
@@ -22396,13 +22216,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "79C48B",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "profiler-related issues (cpu, gpu, kineto)",
+          "id": 1883229970,
+          "name": "oncall: profiler",
+          "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/82501/labels{/name}",
@@ -22429,7 +22249,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82501/timeline",
       "title": "DISABLED test_profiler_experimental_tree_with_memory (__main__.TestProfilerTree)",
-      "updated_at": "2022-08-01T19:52:42Z",
+      "updated_at": "2022-08-15T15:58:10Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82501",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24171,15 +23991,6 @@
           "name": "module: mta",
           "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83026/labels{/name}",
@@ -24206,7 +24017,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83026/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T23:41:42Z",
+      "updated_at": "2022-08-15T15:57:37Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83026",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24269,15 +24080,6 @@
           "name": "module: mta",
           "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83027/labels{/name}",
@@ -24304,7 +24106,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83027/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T23:41:21Z",
+      "updated_at": "2022-08-15T15:57:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83027",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24367,15 +24169,6 @@
           "name": "module: mta",
           "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83028/labels{/name}",
@@ -24402,7 +24195,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83028/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_div_cuda_int64 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T23:41:48Z",
+      "updated_at": "2022-08-15T15:57:33Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83028",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24465,15 +24258,6 @@
           "name": "module: mta",
           "node_id": "MDU6TGFiZWwzMDI3NDQwMzE5",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mta"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83029/labels{/name}",
@@ -24500,7 +24284,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83029/timeline",
       "title": "DISABLED test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)",
-      "updated_at": "2022-08-08T23:41:32Z",
+      "updated_at": "2022-08-15T15:57:41Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83029",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24563,15 +24347,6 @@
           "name": "oncall: profiler",
           "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83113/labels{/name}",
@@ -24598,7 +24373,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83113/timeline",
       "title": "DISABLED test_tensor_properties (__main__.TestTorchTidyProfiler)",
-      "updated_at": "2022-08-10T23:33:15Z",
+      "updated_at": "2022-08-15T16:00:04Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83113",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24661,15 +24436,6 @@
           "name": "oncall: profiler",
           "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83228/labels{/name}",
@@ -24696,7 +24462,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83228/timeline",
       "title": "DISABLED test_profiler_experimental_tree_with_memory_and_stack (__main__.TestProfilerTree)",
-      "updated_at": "2022-08-11T18:58:49Z",
+      "updated_at": "2022-08-15T15:57:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83228",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -24759,15 +24525,6 @@
           "name": "oncall: profiler",
           "node_id": "MDU6TGFiZWwxODgzMjI5OTcw",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/oncall:%20profiler"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83246/labels{/name}",
@@ -24794,7 +24551,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83246/timeline",
       "title": "DISABLED test_profiler_experimental_tree_with_record_function (__main__.TestProfilerTree)",
-      "updated_at": "2022-08-11T18:59:27Z",
+      "updated_at": "2022-08-15T15:57:25Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83246",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25009,7 +24766,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_matrix_exp_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_matrix_exp_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_matrix_exp_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_matrix_exp_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83396/comments",
@@ -25037,13 +24794,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83396/labels{/name}",
@@ -25070,7 +24827,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83396/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_matrix_exp_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:19Z",
+      "updated_at": "2022-08-15T15:57:22Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83396",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25196,7 +24953,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_nn_functional_mish_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_nn_functional_mish_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_nn_functional_mish_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_nn_functional_mish_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83398/comments",
@@ -25224,13 +24981,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83398/labels{/name}",
@@ -25257,7 +25014,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83398/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_nn_functional_mish_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:19Z",
+      "updated_at": "2022-08-15T15:57:11Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83398",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25383,7 +25140,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_special_log_ndtr_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_special_log_ndtr_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_special_log_ndtr_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_special_log_ndtr_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83400/comments",
@@ -25411,13 +25168,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83400/labels{/name}",
@@ -25444,7 +25201,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83400/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_special_log_ndtr_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:22Z",
+      "updated_at": "2022-08-15T15:56:49Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83400",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25472,7 +25229,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_linalg_inv_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_linalg_inv_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_linalg_inv_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_linalg_inv_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83401/comments",
@@ -25500,13 +25257,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83401/labels{/name}",
@@ -25533,7 +25290,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83401/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_linalg_inv_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:23Z",
+      "updated_at": "2022-08-15T15:56:26Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83401",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25561,7 +25318,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_max_reduction_no_dim_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_max_reduction_no_dim_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_max_reduction_no_dim_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_max_reduction_no_dim_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83402/comments",
@@ -25589,13 +25346,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83402/labels{/name}",
@@ -25622,7 +25379,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83402/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_max_reduction_no_dim_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:23Z",
+      "updated_at": "2022-08-15T15:56:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83402",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25650,7 +25407,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_erfc_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_erfc_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_erfc_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_erfc_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83403/comments",
@@ -25659,6 +25416,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/83403",
       "id": 1338509980,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -25676,15 +25442,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83403/labels{/name}",
@@ -25711,7 +25468,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83403/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_erfc_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:20Z",
+      "updated_at": "2022-08-15T15:55:53Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83403",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25837,7 +25594,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_single_output_functionalize&suite=make_functionalize_test.<locals>.FunctionalizeTest&file=/var/lib/jenkins/workspace/functorch/test/test_functionalize.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829691060).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_single_output_functionalize`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_single_output_functionalize&suite=make_functionalize_test.<locals>.FunctionalizeTest&file=/var/lib/jenkins/workspace/functorch/test/test_functionalize.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829691060).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_single_output_functionalize`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/comments",
@@ -25865,13 +25622,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "006b75",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "",
+          "id": 3883239637,
+          "name": "module: functionalization",
+          "node_id": "LA_kwDOA-j9z87ndYjV",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functionalization"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/labels{/name}",
@@ -25898,7 +25655,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/timeline",
       "title": "DISABLED test_single_output_functionalize (make_functionalize_test.<locals>.FunctionalizeTest)",
-      "updated_at": "2022-08-15T04:07:24Z",
+      "updated_at": "2022-08-15T15:55:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83405",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -26024,7 +25781,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_mH_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_mH_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_aot_autograd_exhaustive_mH_cpu_float32&suite=TestEagerFusionOpInfoCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829747412).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_aot_autograd_exhaustive_mH_cpu_float32`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83407/comments",
@@ -26033,6 +25790,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/83407",
       "id": 1338509983,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -26050,15 +25816,6 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
-        },
-        {
-          "color": "1d76db",
-          "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83407/labels{/name}",
@@ -26085,7 +25842,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83407/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_mH_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:21Z",
+      "updated_at": "2022-08-15T15:56:04Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83407",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -26239,13 +25996,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83409/labels{/name}",
@@ -26272,7 +26029,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83409/timeline",
       "title": "DISABLED test_aot_autograd_exhaustive_nn_functional_selu_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)",
-      "updated_at": "2022-08-15T04:07:23Z",
+      "updated_at": "2022-08-15T15:56:58Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83409",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
