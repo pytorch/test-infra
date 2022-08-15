@@ -204,7 +204,7 @@ export default function LogViewer({ job }: { job: JobData }) {
     });
   });
 
-  if (!isFailure(job.conclusion)) {
+  if (!job.failureLine && !isFailure(job.conclusion)) {
     return null;
   }
 
