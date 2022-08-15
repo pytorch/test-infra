@@ -56,8 +56,8 @@ def get_disable_issues() -> Dict[Any, Any]:
 
 
 def validate_and_sort(issues_json: Dict[str, Any]) -> None:
-    assert issues_json["total_count"] is len(issues_json["items"]), f"# issues {len(issues_json['items'])} does not" \
-         f"equal total count {issues_json['total_count']}."
+    assert issues_json["total_count"] == len(issues_json["items"]), f"# issues {len(issues_json['items'])} does not" \
+         f" equal total count {issues_json['total_count']}."
     assert not issues_json["incomplete_results"], f"Results were incomplete. There may be missing issues."
 
     # score changes every request, so we strip it out to avoid creating a commit every time we query.
