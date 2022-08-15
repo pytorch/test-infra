@@ -8,7 +8,8 @@ on:
 
 jobs:
   run-reusable-build-workflow:
-    uses: pytorch/test-infra/.github/workflows/build_wheels_linux_reusable.yml@nirav_reusable_wf_script
+    uses: pytorch/test-infra/.github/workflows/build_wheels_linux_reusable.yml@weiwangmeta/run_inside_containers
     with:
-      domain: "audio"
+      domain: "PyTorch Core"
+      runner: ubuntu-latest
       image: "pytorch/manylinux-cuda113" 

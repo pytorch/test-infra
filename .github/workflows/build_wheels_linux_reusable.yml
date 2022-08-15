@@ -42,7 +42,7 @@ jobs:
       run: cd ~/pytorch && python3.8 -m pip install -r requirements.txt 
     - name: Build clean
       run: cd ~/pytorch && python3.8 setup.py clean
-    - name: Build wheels
+      #- name: Build wheels
       #if: contains(inputs.image, 'cuda')
       #run: |
       #        cd ~/pytorch
