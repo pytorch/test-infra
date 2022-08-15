@@ -7,22 +7,47 @@ on:
         description: 'name of the domain library calling this reusable workflow.'
         required: true
         type: string
+      runner: 
+        description: 'type of machine you want to run the build on'
+        required: true
+        type: string
+      image: 
+        description: 'docker image container for running the reusable workflow.'
+        required: true
+        type: string
 
 jobs:
   wheels:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
+    container: 
+      image: ${{ inputs.image }}
+      ports: 
+        - 80
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.x
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+    - name: Set up Python 3.8
+      run: echo "/opt/python/cp38-cp38/bin" >> $GITHUB_PATH
+    - name: Checkout PyTorch
+      run: cd ~ && git clone https://github.com/pytorch/pytorch.git && cd pytorch && ls 
+      #- uses: actions/checkout@v2
+      #- name: Set up Python 3.x
+      #uses: actions/setup-python@v2
+      #with:
+      #  python-version: '3.x'
     - name: Install dependencies
-      run: python -m pip install --upgrade setuptools wheel
+      run: python3.8 -m pip install --upgrade setuptools wheel
       # Include domain-specific pre-build step here 
       # (where each domain lib brings its own setup script)
       # Use the domain input to call the right composite action
+    - name: Navigate to PyTorch Source Directory and Install Requirements
+      run: cd ~/pytorch && python3.8 -m pip install -r requirements.txt 
     - name: Build clean
-      run: python setup.py clean
+      run: cd ~/pytorch && python3.8 setup.py clean
     - name: Build wheels
-      run: python setup.py bdist_wheel
+      if: contains(inputs.image, 'cuda')
+      run: |
+              cd ~/pytorch
+              export PATH=/usr/local/cuda-11.6/bin:$PATH 
+              export LD_LIBRARY_PATH=/usr/local/cuda-11.6/lib64:$LD_LIBRARY_PATH 
+              python3.8 setup.py bdist_wheel
+      if: !contains(inputs.image, 'cuda')
+      run: cd ~/pytorch && python3.8 setup.py bdist_wheel

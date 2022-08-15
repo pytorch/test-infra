@@ -1,0 +1,15 @@
+name: Build PyTorch Linux Wheels
+
+on:
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  run-reusable-build-workflow:
+    uses: pytorch/test-infra/.github/workflows/build_wheels_linux_reusable.yml@weiwangmeta/run_inside_containers
+    with:
+      domain: PyTorch Core
+      runner: ubuntu-20.04-m60
+      image: pytorch/manylinux-builder:cuda11.6-main
