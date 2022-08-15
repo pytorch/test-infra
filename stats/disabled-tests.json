@@ -18261,7 +18261,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_backward_T_cuda_float32&suite=TestCompositeComplianceCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7082013410).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_backward_T_cuda_float32&suite=TestCompositeComplianceCUDA&file=test_ops.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7082013410).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 red and 1 green.\n\ncc @ezyang @albanD @zou3519 @gqchen @pearu @nikitaved @soulitzer @Lezcano @Varal7",
       "closed_at": null,
       "comments": 1,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/comments",
@@ -18270,6 +18270,24 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/80413",
       "id": 1286622206,
       "labels": [
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "Related to torch.autograd, and the autograd engine in general",
+          "id": 1076922545,
+          "name": "module: autograd",
+          "node_id": "MDU6TGFiZWwxMDc2OTIyNTQ1",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20autograd"
+        },
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -18287,6 +18305,15 @@
           "name": "skipped",
           "node_id": "MDU6TGFiZWwxNjc5NTMzNzE2",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
+        },
+        {
+          "color": "0e8a16",
+          "default": false,
+          "description": "Related to tensor subclasses",
+          "id": 3659674127,
+          "name": "tensor subclass",
+          "node_id": "LA_kwDOA-j9z87aIjIP",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/tensor%20subclass"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/labels{/name}",
@@ -18313,7 +18340,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/80413/timeline",
       "title": "DISABLED test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)",
-      "updated_at": "2022-08-15T16:02:57Z",
+      "updated_at": "2022-08-15T16:11:24Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/80413",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
