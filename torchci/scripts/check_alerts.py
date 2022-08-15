@@ -9,7 +9,6 @@ from typing import Any, List, Tuple, Dict
 
 import requests
 
-os.environ["GITHUB_TOKEN"] = "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"
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
 
@@ -141,17 +140,18 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
     issue[
         "title"
     ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on pytorch/pytorch master"
-    body = "Within the last 50 commits, there are the following failures on the master branch of pytorch: "
+    body = "Within the last 50 commits, there are the following failures on the master branch of pytorch: \n"
     for job in failed_jobs:
         failing_sha = job.failure_chain[-1]["sha"]
         hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
             job.job_name
         )
-        body += f"[{job.job_name}]({hud_link}) failed {len(job.failure_chain)} times consecutively starting with "
+        body += f"- [{job.job_name}]({hud_link}) failed {len(job.failure_chain)} times consecutively starting with "
         body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{REPO_OWNER}/{REPO_OWNER}/{failing_sha})"
-        body + "\n"
+        body += "\n\n"
 
     body += "Please review the errors and revert if needed."
+    issue["body"] = body
     issue["labels"] = labels
     issue["assignees"] = ["zengk95"]
 
@@ -252,7 +252,7 @@ def should_clear_alerts(sha_grid: Any):
         f"The first green SHA was at index {first_green_sha_ind} at {first_green['sha']}"
         + f"and the first red SHA was at index {first_red_sha_ind} at {first_red['sha']}"
     )
-    if first_green < 0:
+    if first_green_sha_ind < 0:
         return False
     return first_green_sha_ind < first_red_sha_ind
 
@@ -278,7 +278,7 @@ def main():
     job_names, sha_grid = fetch_hud_data()
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
-    # DO GITHUB STUFF
+    # Fetch alerts
     alerts = fetch_alerts()
     alerts_cleared = False
     # # Try to clear the alerts
