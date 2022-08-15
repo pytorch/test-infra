@@ -25,24 +25,31 @@ def send_lambda_request(id):
 
 
 def do_backfill(n):
+    if args.ids:
+        ids = args.ids
+    else:
+        # Import here to avoid requiring these dependencies in lambda
+        import json
+        from rockset import Client, ParamDict
+
+        # query rockset for unclassified failed GHA job ids
+        client = Client(
+            api_key=ROCKSET_API_KEY,
+            api_server="https://api.rs2.usw2.rockset.com",
+        )
+        with open("rockset/prodVersions.json", "r") as f:
+            rocksetVersions = json.load(f)
+        qlambda = client.QueryLambda.retrieve(
+            "unclassified", version=rocksetVersions["commons"]["unclassified"], workspace="commons"
+        )
+
+        params = ParamDict({
+            n: n
+        })
+        results = qlambda.execute(parameters=params).results
+        ids = [result["id"] for result in results]
     # Import here to avoid requiring these dependencies in lambda
-    from rockset import Client, ParamDict
     from concurrent.futures import ThreadPoolExecutor, wait
-
-    # query rockset for unclassified failed GHA job ids
-    client = Client(
-        api_key=ROCKSET_API_KEY,
-        api_server="https://api.rs2.usw2.rockset.com",
-    )
-    with open("rockset/prodVersions.json", "r") as f:
-        rocksetVersions = json.load(f)
-    qlambda = client.QueryLambda.retrieve(
-        "unclassified", version=rocksetVersions["commons"]["unclassified"], workspace="commons"
-    )
-
-    params = ParamDict()
-    results = qlambda.execute(parameters=params).results
-    ids = [result["id"] for result in results]
     with ThreadPoolExecutor() as executor:
         futures = []
         for id in ids:
@@ -74,7 +81,12 @@ if __name__ == "__main__":
         "--n",
         type=int,
         default=1000,
-        help="Classify the `n` most recent failed jobs",
+        help="Classify the `n` most recent failed jobs from the past day",
+    )
+    parser.add_argument(
+        "ids",
+        nargs="+",
+        help="GitHub actions job ids to classify",
     )
     args = parser.parse_args()
 

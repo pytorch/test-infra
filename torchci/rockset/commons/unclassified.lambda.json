@@ -1,5 +1,11 @@
 {
   "sql_path": "__sql/unclassified.sql",
-  "default_parameters": [],
-  "description": ""
+  "default_parameters": [
+    {
+      "name": "n",
+      "type": "int",
+      "value": "1000"
+    }
+  ],
+  "description": "up to n unclassified failed job ids from the last day"
 }
