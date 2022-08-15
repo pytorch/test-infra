@@ -12,4 +12,4 @@ jobs:
     with:
       domain: "PyTorch Core"
       runner: ubuntu-latest
-      image: "pytorch/manylinux-builder:cpu"
+      image: "pytorch/manylinux-builder:cuda11.6-main"
