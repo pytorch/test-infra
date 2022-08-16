@@ -35,12 +35,24 @@ function acceptBot(app: Probot): void {
           issue_number,
           labels: [CIFLOW_TRUNK_LABEL],
         });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_RUN,
+        });
       } else if (hasAcceptToShip) {
         await ctx.octokit.issues.createComment({
           owner,
           repo,
           issue_number,
           body: ACCEPT_MESSAGE,
+        });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_SHIP,
         });
       }
     }
