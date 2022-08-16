@@ -371,3 +371,15 @@ variable "scale_up_lambda_concurrency" {
   type        = number
   default     = 10
 }
+
+variable "must_have_issues_labels" {
+  description = "Open issues tagged with labels that must be present so scaleUp will run"
+  type        = list(string)
+  default     = []
+}
+
+variable "cant_have_issues_labels" {
+  description = "Open issues tagged with labels that should not be present so scaleUp will run"
+  type        = list(string)
+  default     = []
+}
