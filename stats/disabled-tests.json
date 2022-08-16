@@ -24822,7 +24822,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_single_output_functionalize&suite=make_functionalize_test.<locals>.FunctionalizeTest&file=/var/lib/jenkins/workspace/functorch/test/test_functionalize.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7829691060).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_single_output_functionalize`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @bdhirsh @ezyang",
       "closed_at": null,
-      "comments": 4,
+      "comments": 5,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/comments",
       "created_at": "2022-08-15T04:07:17Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/events",
@@ -24881,7 +24881,7 @@
       "state_reason": "reopened",
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83405/timeline",
       "title": "DISABLED test_single_output_functionalize (make_functionalize_test.<locals>.FunctionalizeTest)",
-      "updated_at": "2022-08-16T18:44:44Z",
+      "updated_at": "2022-08-16T21:40:43Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83405",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
