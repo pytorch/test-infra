@@ -2,9 +2,12 @@ import styles from "components/NavBar.module.css";
 import Link from "next/link";
 import React from "react";
 import { AiFillGithub } from "react-icons/ai";
-
+import { useSession, signIn, signOut } from "next-auth/react";
+import Image from "next/image";
 function NavBar() {
   // TODO: Rewrite Help Link
+  const session = useSession();
+  console.log("img", session.data?.user?.image);
   return (
     <div className={styles.linksContainer}>
       <div className={styles.links}>
@@ -70,6 +73,7 @@ function NavBar() {
                 KPIs
               </Link>
             </li>
+
             <li>
               <Link prefetch={false} href="/tts">
                 TTS
