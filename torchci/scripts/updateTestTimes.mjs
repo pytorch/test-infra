@@ -30,14 +30,7 @@ const periodic = await client.queryLambdas.executeQueryLambda(
 );
 
 let ret = {};
-for (const row of periodic.results) {
-  _.set(
-    ret,
-    `["${row.base_name}"]["${row.test_config}"]["${row.file}"]`,
-    row.time
-  );
-}
-for (const row of response.results) {
+for (const row of periodic.results.concat(response.results)) {
   _.set(
     ret,
     `["${row.base_name}"]["${row.test_config}"]["${row.file}"]`,
