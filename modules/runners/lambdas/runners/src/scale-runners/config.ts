@@ -30,7 +30,7 @@ export class Config {
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
     /* istanbul ignore next */
-    this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',') || [];
+    this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
     this.environment = process.env.ENVIRONMENT || 'gh-ci';
     /* istanbul ignore next */
     this.ghesUrl = process.env.GHES_URL;
@@ -53,7 +53,7 @@ export class Config {
     /* istanbul ignore next */
     this.minimumRunningTimeInMinutes = mnRunMin > 0 ? mnRunMin : 1;
     /* istanbul ignore next */
-    this.mustHaveIssuesLabels = process.env.MUST_HAVE_ISSUES_LABELS?.split(',') || [];
+    this.mustHaveIssuesLabels = process.env.MUST_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     /* istanbul ignore next */
@@ -61,9 +61,9 @@ export class Config {
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     /* istanbul ignore next */
-    this.securityGroupIds = process.env.SECURITY_GROUP_IDS?.split(',') ?? [];
+    this.securityGroupIds = process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0) ?? [];
     /* istanbul ignore next */
-    this.subnetIds = process.env.SUBNET_IDS?.split(',') ?? [];
+    this.subnetIds = process.env.SUBNET_IDS?.split(',').filter((w) => w.length > 0) ?? [];
     this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
   }
 
