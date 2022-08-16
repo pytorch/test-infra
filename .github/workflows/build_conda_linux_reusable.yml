@@ -1,0 +1,32 @@
+name: Build Linux Conda
+
+on:
+  workflow_call:
+    inputs:
+      domain:
+        description: 'name of the domain library calling this reusable workflow.'
+        required: true
+        type: string
+      image:
+        description: 'docker image container for running the reusable workflow.'
+        required: true
+        type: string
+
+jobs:
+  wheels:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.image }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run pre-build script
+      run: ./packaging/pre_build_script_conda.sh
+      # TODO: make the conda channel generalizable based on the domain input
+    - name: Build Conda Package
+      run: conda build -c defaults \
+              -c $CUDATOOLKIT_CHANNEL ${CONDA_CHANNEL_FLAGS:-} \
+              --no-anaconda-upload \
+              --python "$PYTHON_VERSION" \
+              packaging/torchaudio
+    - name: Run post-build script
+      run: ./packaging/post_build_script_conda.sh
