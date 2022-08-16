@@ -57,40 +57,6 @@ function acceptBot(app: Probot): void {
       }
     }
   });
-
-  app.on("pull_request.labeled", async (ctx) => {
-    const owner = ctx.payload.repository.owner.login;
-    const repo = ctx.payload.repository.name;
-    const issue_number = ctx.payload.pull_request.number;
-
-    if (ctx.payload.label.name === ACCEPT_2_RUN) {
-      await ctx.octokit.issues.addLabels({
-        owner,
-        repo,
-        issue_number,
-        labels: [CIFLOW_TRUNK_LABEL],
-      });
-      await ctx.octokit.issues.removeLabel({
-        owner,
-        repo,
-        issue_number,
-        name: ACCEPT_2_RUN,
-      });
-    } else if (ctx.payload.label.name === ACCEPT_2_SHIP) {
-      await ctx.octokit.issues.createComment({
-        owner,
-        repo,
-        issue_number,
-        body: ACCEPT_MESSAGE,
-      });
-      await ctx.octokit.issues.removeLabel({
-        owner,
-        repo,
-        issue_number,
-        name: ACCEPT_2_SHIP,
-      });
-    }
-  });
 }
 
 export default acceptBot;
