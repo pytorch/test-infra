@@ -39,10 +39,13 @@ describe("accept bot", () => {
 
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`"labels":["${CIFLOW_TRUNK_LABEL}"]`);
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["${CIFLOW_TRUNK_LABEL}"]`
+        );
         return true;
       })
-
+      .reply(200, {})
+      .delete(`/repos/${owner}/${repo}/issues/4/labels/${ACCEPT_2_RUN}`)
       .reply(200, {});
     await probot.receive(event);
 
@@ -66,7 +69,8 @@ describe("accept bot", () => {
         );
         return true;
       })
-
+      .reply(200, {})
+      .delete(`/repos/${owner}/${repo}/issues/4/labels/${ACCEPT_2_SHIP}`)
       .reply(200, {});
     await probot.receive(event);
 
