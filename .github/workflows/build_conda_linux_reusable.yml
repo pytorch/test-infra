@@ -21,12 +21,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run pre-build script
       run: ./packaging/pre_build_script_conda.sh
-      # TODO: make the conda channel generalizable based on the domain input
+    - name: Generate Conda Recipe Path
+      run: export CONDA_PATH=packaging/torch${{ inputs.domain }}
     - name: Build Conda Package
       run: conda build -c defaults \
-              -c $CUDATOOLKIT_CHANNEL ${CONDA_CHANNEL_FLAGS:-} \
+              -c "$CUDATOOLKIT_CHANNEL" "${CONDA_CHANNEL_FLAGS:-}" \
               --no-anaconda-upload \
               --python "$PYTHON_VERSION" \
-              packaging/torchaudio
+              "$CONDA_PATH" 
     - name: Run post-build script
       run: ./packaging/post_build_script_conda.sh
