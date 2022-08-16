@@ -25334,7 +25334,7 @@
       "author_association": "NONE",
       "body": "Platforms: mac, macos\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_nnc_pytrees_cpu&suite=TestPythonKeyCPU&file=/Users/runner/work/pytorch/pytorch/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7855255292).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_nnc_pytrees_cpu`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83511/comments",
       "created_at": "2022-08-16T12:51:21Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/83511/events",
@@ -25393,7 +25393,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83511/timeline",
       "title": "DISABLED test_nnc_pytrees_cpu (__main__.TestPythonKeyCPU)",
-      "updated_at": "2022-08-16T12:51:24Z",
+      "updated_at": "2022-08-16T15:42:58Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83511",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
