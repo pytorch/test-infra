@@ -1,25 +1,31 @@
-import { scaleUp } from './scale-up';
 import {
-  getRunnerTypes,
-  listGithubRunnersOrg,
-  listGithubRunnersRepo,
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
   createRunner,
-  getRepoKey,
+  getRunnerTypes,
+  listGithubRunnersOrg,
+  listGithubRunnersRepo,
 } from './runners';
 
 import { Config } from './config';
+import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
+import { scaleUp } from './scale-up';
 
 jest.mock('./runners');
+jest.mock('./gh-issues');
 
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   nock.disableNetConnect();
 });
+
+const baseCfg = {
+  mustHaveIssuesLabels: [],
+  cantHaveIssuesLabels: [],
+} as unknown as Config;
 
 describe('scaleUp', () => {
   it('does not accept sources that are not aws:sqs', async () => {
@@ -35,7 +41,7 @@ describe('scaleUp', () => {
   });
 
   it('provides runnerLabels that aren`t present on runnerTypes', async () => {
-    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => ({} as unknown as Config));
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
     const payload = {
       id: 10,
       eventType: 'event',
@@ -72,6 +78,7 @@ describe('scaleUp', () => {
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(
       () =>
         ({
+          ...baseCfg,
           minAvailableRunners: 1,
         } as unknown as Config),
     );
@@ -180,6 +187,7 @@ describe('scaleUp', () => {
 
   it('don`t have sufficient runners for organization', async () => {
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 10,
@@ -206,7 +214,6 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg).mockResolvedValue([
       {
@@ -259,6 +266,7 @@ describe('scaleUp', () => {
 
   it('don`t have sufficient runners', async () => {
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 10,
@@ -283,7 +291,6 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -333,6 +340,7 @@ describe('scaleUp', () => {
 
   it('runners are offline', async () => {
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 1,
@@ -357,7 +365,6 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -407,6 +414,7 @@ describe('scaleUp', () => {
 
   it('runners are busy', async () => {
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 1,
@@ -431,7 +439,6 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -481,6 +488,7 @@ describe('scaleUp', () => {
 
   it('max runners reached', async () => {
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 1,
@@ -503,7 +511,6 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -531,6 +538,7 @@ describe('scaleUp', () => {
   it('max runners reached, but new is ephemeral', async () => {
     const token = 'AGDGADUWG113';
     const config = {
+      ...baseCfg,
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 1,
@@ -552,7 +560,6 @@ describe('scaleUp', () => {
       is_ephemeral: true,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -586,11 +593,12 @@ describe('scaleUp', () => {
 
   it('fails to createRegistrationTokenRepo', async () => {
     const config = {
+      ...baseCfg,
+      mustHaveIssuesLabels: ['label_01', 'label_02'],
       environment: 'config.environ',
       ghesUrlHost: 'https://github.com',
       minAvailableRunners: 10,
     };
-    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     const payload = {
       id: 10,
       eventType: 'event',
@@ -607,7 +615,7 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRepoKey).mockImplementation(jest.requireActual('./runners').getRepoKey);
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
     mocked(listGithubRunnersRepo).mockResolvedValue([
       {
@@ -627,9 +635,78 @@ describe('scaleUp', () => {
     ]);
     mocked(createRegistrationTokenRepo).mockRejectedValue(Error('Does not work'));
     const mockedCreateRunner = mocked(createRunner);
+    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 2 }] as unknown as GhIssues);
 
     await scaleUp('aws:sqs', payload);
 
     expect(mockedCreateRunner).not.toBeCalled();
+  });
+
+  it('dont have mustHaveIssuesLabels', async () => {
+    const config = {
+      ...baseCfg,
+      mustHaveIssuesLabels: ['label_01', 'label_02'],
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 10,
+    };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const repo = {
+      repo: payload.repositoryName,
+      owner: payload.repositoryOwner,
+    };
+
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const mockedGetRunnerTypes = mocked(getRunnerTypes);
+    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
+
+    await scaleUp('aws:sqs', payload);
+    expect(mockedGetRunnerTypes).not.toBeCalled();
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[0]);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[1]);
+  });
+
+  it('have the issues that cant have', async () => {
+    const config = {
+      ...baseCfg,
+      cantHaveIssuesLabels: ['label_01', 'label_02'],
+      environment: 'config.environ',
+      ghesUrlHost: 'https://github.com',
+      minAvailableRunners: 10,
+    };
+    const payload = {
+      id: 10,
+      eventType: 'event',
+      repositoryName: 'repo',
+      repositoryOwner: 'owner',
+      installationId: 2,
+    };
+    const repo = {
+      repo: payload.repositoryName,
+      owner: payload.repositoryOwner,
+    };
+
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const mockedGetRunnerTypes = mocked(getRunnerTypes);
+    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
+    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
+
+    await scaleUp('aws:sqs', payload);
+    expect(mockedGetRunnerTypes).not.toBeCalled();
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0]);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[1]);
   });
 });

@@ -15,6 +15,7 @@ import {
 
 import { Config } from './config';
 import moment from 'moment';
+import { resetSecretCache } from './gh-auth';
 
 function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   const launchTimePlusMinimum = moment(runner.launchTime)
@@ -46,6 +47,7 @@ export default async function scaleDown(): Promise<void> {
 
   // Ensure a clean cache before attempting each scale down event
   resetRunnersCaches();
+  resetSecretCache();
 
   for await (const ec2runner of runners) {
     if (!runnerMinimumTimeExceeded(ec2runner)) {

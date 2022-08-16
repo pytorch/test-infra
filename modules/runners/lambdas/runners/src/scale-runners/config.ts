@@ -4,6 +4,8 @@ export class Config {
   private static _instance: Config | undefined;
 
   readonly awsRegion: string;
+  readonly cantHaveIssuesLabels: string[];
+  readonly enableOrganizationRunners: boolean;
   readonly environment: string;
   readonly ghesUrl: undefined | string;
   readonly githubAppClientId: string | undefined;
@@ -16,6 +18,7 @@ export class Config {
   readonly launchTemplateVersionWindows: string | undefined;
   readonly minAvailableRunners: number;
   readonly minimumRunningTimeInMinutes: number;
+  readonly mustHaveIssuesLabels: string[];
   readonly runnerGroupName: string | undefined;
   readonly runnersExtraLabels: undefined | string;
   readonly scaleConfigRepo: string;
@@ -23,10 +26,11 @@ export class Config {
   readonly secretsManagerSecretsId: string | undefined;
   readonly securityGroupIds: string[];
   readonly subnetIds: string[];
-  readonly enableOrganizationRunners: boolean;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
+    /* istanbul ignore next */
+    this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',') || [];
     this.environment = process.env.ENVIRONMENT || 'gh-ci';
     /* istanbul ignore next */
     this.ghesUrl = process.env.GHES_URL;
@@ -48,6 +52,8 @@ export class Config {
     const mnRunMin = Number(process.env.MINIMUM_RUNNING_TIME_IN_MINUTES || '10');
     /* istanbul ignore next */
     this.minimumRunningTimeInMinutes = mnRunMin > 0 ? mnRunMin : 1;
+    /* istanbul ignore next */
+    this.mustHaveIssuesLabels = process.env.MUST_HAVE_ISSUES_LABELS?.split(',') || [];
     this.runnerGroupName = process.env.RUNNER_GROUP_NAME;
     this.runnersExtraLabels = process.env.RUNNER_EXTRA_LABELS;
     /* istanbul ignore next */

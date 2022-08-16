@@ -128,7 +128,13 @@ describe('list instances', () => {
         },
       ],
     };
-    mockDescribeInstances.promise.mockReturnValue(mockRunningInstances);
+    mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
+  });
+
+  it('ec2 fails', async () => {
+    const errMsg = 'Error message';
+    mockDescribeInstances.promise.mockClear().mockRejectedValue(Error(errMsg));
+    expect(listRunners()).rejects.toThrowError(errMsg);
   });
 
   it('returns a list of instances', async () => {
@@ -216,6 +222,17 @@ describe('terminateRunner', () => {
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: [runner.instanceId],
     });
+  });
+
+  it('fails to terminate', async () => {
+    const errMsg = 'Error message';
+    const runner: RunnerInfo = {
+      instanceId: '1234',
+    };
+    mockEC2.terminateInstances.mockClear().mockReturnValue({
+      promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
+    });
+    expect(terminateRunner(runner)).rejects.toThrowError(errMsg);
   });
 });
 
@@ -505,6 +522,35 @@ describe('createGitHubClientForRunner variants', () => {
   });
 
   describe('createGitHubClientForRunnerRepo', () => {
+    it('createOctoClient fails', async () => {
+      const errMsg = 'Error message';
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
+      mockCreateOctoClient.mockRejectedValue(Error(errMsg));
+
+      resetRunnersCaches();
+      expect(createGitHubClientForRunnerRepo(repo)).rejects.toThrowError(errMsg);
+    });
+
+    it('getRepoInstallation fails', async () => {
+      const errMsg = 'Error message';
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const expectedReturn = {
+        apps: { getRepoInstallation: jest.fn().mockRejectedValueOnce(Error(errMsg)) },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
+      mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(createGitHubClientForRunnerRepo(repo)).rejects.toThrowError(errMsg);
+    });
+
     it('runs twice and check if cached', async () => {
       const repo = { owner: 'owner', repo: 'repo' };
       const mockCreateGithubAuth = mocked(createGithubAuth);
@@ -570,6 +616,22 @@ describe('createGitHubClientForRunner variants', () => {
       expect(mockCreateGithubAuth).toHaveBeenCalledWith('mockReturnValueOnce1', 'installation', undefined);
       expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
     });
+
+    it('getOrgInstallation fails', async () => {
+      const errMsg = 'Error message';
+      const org = 'MockedOrg';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const expectedReturn = {
+        apps: { getOrgInstallation: jest.fn().mockRejectedValueOnce(Error(errMsg)) },
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
+      mockCreateOctoClient.mockResolvedValueOnce(expectedReturn as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(createGitHubClientForRunnerOrg(org)).rejects.toThrowError(errMsg);
+    });
   });
 
   describe('createGitHubClientForRunnerInstallId', () => {
@@ -593,6 +655,19 @@ describe('createGitHubClientForRunner variants', () => {
 
       expect(mockCreateGithubAuth).toHaveBeenCalledWith(installId, 'installation', undefined);
       expect(mockCreateOctoClient).toHaveBeenCalledWith('token2', undefined);
+    });
+
+    it('createOctoClient fails', async () => {
+      const errMsg = 'Error message';
+      const installId = 113;
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
+      mockCreateOctoClient.mockRejectedValue(Error(errMsg));
+
+      resetRunnersCaches();
+      expect(createGitHubClientForRunnerInstallId(installId)).rejects.toThrowError(errMsg);
     });
   });
 });
@@ -638,6 +713,27 @@ describe('listGithubRunners', () => {
         per_page: 100,
       });
     });
+
+    it('paginate fails', async () => {
+      const errMsg = 'Error message';
+      const repo = { owner: 'owner', repo: 'repo' };
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getRepoInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: { listSelfHostedRunnersForRepo: '' },
+        apps: { getRepoInstallation: getRepoInstallation },
+        paginate: jest.fn().mockRejectedValue(Error(errMsg)),
+      };
+
+      mockCreateGithubAuth.mockResolvedValue('token1');
+      mockCreateOctoClient.mockResolvedValue(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(listGithubRunnersRepo(repo)).rejects.toThrowError(errMsg);
+    });
   });
 
   describe('listGithubRunnersOrg', () => {
@@ -668,6 +764,27 @@ describe('listGithubRunners', () => {
         org: org,
         per_page: 100,
       });
+    });
+
+    it('paginate fails', async () => {
+      const errMsg = 'Error message';
+      const org = 'mocked_org';
+      const mockCreateGithubAuth = mocked(createGithubAuth);
+      const mockCreateOctoClient = mocked(createOctoClient);
+      const getOrgInstallation = jest.fn().mockResolvedValue({
+        data: { id: 'mockReturnValueOnce1' },
+      });
+      const mockedOctokit = {
+        actions: { listSelfHostedRunnersForOrg: 'XxXxX' },
+        apps: { getOrgInstallation: getOrgInstallation },
+        paginate: jest.fn().mockRejectedValueOnce(Error(errMsg)),
+      };
+
+      mockCreateGithubAuth.mockResolvedValueOnce('token1');
+      mockCreateOctoClient.mockResolvedValueOnce(mockedOctokit as unknown as Octokit);
+
+      resetRunnersCaches();
+      expect(listGithubRunnersOrg(org)).rejects.toThrowError(errMsg);
     });
   });
 });

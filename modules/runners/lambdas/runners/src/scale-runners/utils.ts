@@ -1,3 +1,12 @@
+export interface Repo {
+  owner: string;
+  repo: string;
+}
+
+export function getRepoKey(repo: Repo): string {
+  return `${repo.owner}/${repo.repo}`;
+}
+
 export function getBoolean(value: string | number | undefined | boolean, defaultVal = false): boolean {
   if (value === undefined) return defaultVal;
 

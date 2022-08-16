@@ -29,6 +29,7 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
+      CANT_HAVE_ISSUES_LABELS         = join(",", var.cant_have_issues_labels)
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       ENVIRONMENT                     = var.environment
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
@@ -40,6 +41,7 @@ resource "aws_lambda_function" "scale_up" {
       LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
       LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
+      MUST_HAVE_ISSUES_LABELS         = join(",", var.must_have_issues_labels)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       SECURITY_GROUP_IDS              = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
       SUBNET_IDS                      = join(",", var.subnet_ids)

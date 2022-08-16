@@ -1,14 +1,14 @@
+import { Repo, getRepoKey } from './utils';
 import {
-  Repo,
   RunnerType,
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
   createRunner,
-  getRepoKey,
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
 } from './runners';
+import { getRepoIssuesWithLabel } from './gh-issues';
 
 import { Config } from './config';
 
@@ -26,10 +26,33 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
 
   const repo: Repo = {
     owner: payload.repositoryOwner,
-    repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : payload.repositoryName,
+    repo: payload.repositoryName,
   };
 
-  const runnerTypes = await getRunnerTypes(repo);
+  if (Config.Instance.mustHaveIssuesLabels) {
+    for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
+      const label = Config.Instance.mustHaveIssuesLabels[i];
+      if ((await getRepoIssuesWithLabel(repo, label)).length == 0) {
+        console.warn(
+          `Skipping scaleUp for repo ${repo} as a issue with label ${label} is required to be open but is not present`,
+        );
+        return;
+      }
+    }
+  }
+
+  for (let i = 0; i < Config.Instance.cantHaveIssuesLabels.length; i++) {
+    const label = Config.Instance.cantHaveIssuesLabels[i];
+    if ((await getRepoIssuesWithLabel(repo, label)).length > 0) {
+      console.warn(`Skipping scaleUp for repo ${repo} as a open issue with label ${label} must not be present`);
+      return;
+    }
+  }
+
+  const runnerTypes = await getRunnerTypes({
+    owner: repo.owner,
+    repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
+  });
   /* istanbul ignore next */
   const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
 
@@ -38,10 +61,7 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
   for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
     if (runnerType === undefined) {
-      console.info(
-        `Runner label '${runnerLabel}' was not found in config for ` +
-          `${payload.repositoryOwner}/${payload.repositoryName}`,
-      );
+      console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
       continue;
     }
     if (await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available)) {

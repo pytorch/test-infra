@@ -12,6 +12,8 @@ describe('Config', () => {
     Config.resetConfig();
 
     process.env.AWS_REGION = 'AWS_REGION';
+    process.env.CANT_HAVE_ISSUES_LABELS = 'label 1,label 2';
+    process.env.ENABLE_ORGANIZATION_RUNNERS = 'YES';
     process.env.ENVIRONMENT = 'ENVIRONMENT';
     process.env.GHES_URL = 'GHES_URL';
     process.env.GITHUB_APP_CLIENT_ID = 'GITHUB_APP_CLIENT_ID';
@@ -24,6 +26,7 @@ describe('Config', () => {
     process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = 'LAUNCH_TEMPLATE_VERSION_WINDOWS';
     process.env.MINIMUM_RUNNING_TIME_IN_MINUTES = '33';
     process.env.MIN_AVAILABLE_RUNNERS = '113';
+    process.env.MUST_HAVE_ISSUES_LABELS = 'label 1,label 2';
     process.env.RUNNER_EXTRA_LABELS = 'RUNNER_EXTRA_LABELS';
     process.env.RUNNER_GROUP_NAME = 'RUNNER_GROUP_NAME';
     process.env.SCALE_CONFIG_REPO = 'SCALE_CONFIG_REPO';
@@ -31,9 +34,9 @@ describe('Config', () => {
     process.env.SECRETSMANAGER_SECRETS_ID = 'SECRETSMANAGER_SECRETS_ID';
     process.env.SECURITY_GROUP_IDS = 'SECURITY_GROUP_IDS1,SECURITY_GROUP_IDS2,SECURITY_GROUP_IDS3';
     process.env.SUBNET_IDS = 'SUBNET_IDS1,SUBNET_IDS2,SUBNET_IDS3';
-    process.env.ENABLE_ORGANIZATION_RUNNERS = 'YES';
 
     expect(Config.Instance.awsRegion).toBe('AWS_REGION');
+    expect(Config.Instance.cantHaveIssuesLabels).toEqual(['label 1', 'label 2']);
     expect(Config.Instance.environment).toBe('ENVIRONMENT');
     expect(Config.Instance.ghesUrl).toBe('GHES_URL');
     expect(Config.Instance.ghesUrlApi).toBe('GHES_URL/api/v3');
@@ -48,6 +51,7 @@ describe('Config', () => {
     expect(Config.Instance.launchTemplateVersionWindows).toBe('LAUNCH_TEMPLATE_VERSION_WINDOWS');
     expect(Config.Instance.minAvailableRunners).toBe(113);
     expect(Config.Instance.minimumRunningTimeInMinutes).toBe(33);
+    expect(Config.Instance.mustHaveIssuesLabels).toEqual(['label 1', 'label 2']);
     expect(Config.Instance.runnerGroupName).toEqual('RUNNER_GROUP_NAME');
     expect(Config.Instance.runnersExtraLabels).toBe('RUNNER_EXTRA_LABELS');
     expect(Config.Instance.scaleConfigRepo).toEqual('SCALE_CONFIG_REPO');
@@ -69,6 +73,7 @@ describe('Config', () => {
     Config.resetConfig();
 
     delete process.env.AWS_REGION;
+    delete process.env.CANT_HAVE_ISSUES_LABELS;
     delete process.env.ENVIRONMENT;
     delete process.env.GHES_URL;
     delete process.env.GITHUB_APP_CLIENT_ID;
@@ -80,6 +85,7 @@ describe('Config', () => {
     process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
     process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = 'LAUNCH_TEMPLATE_VERSION_WINDOWS';
     delete process.env.MIN_AVAILABLE_RUNNERS;
+    delete process.env.MUST_HAVE_ISSUES_LABELS;
     delete process.env.MINIMUM_RUNNING_TIME_IN_MINUTES;
     delete process.env.RUNNER_EXTRA_LABELS;
     delete process.env.RUNNER_GROUP_NAME;
@@ -91,6 +97,7 @@ describe('Config', () => {
     delete process.env.ENABLE_ORGANIZATION_RUNNERS;
 
     expect(Config.Instance.awsRegion).toBe('us-east-1');
+    expect(Config.Instance.cantHaveIssuesLabels).toEqual([]);
     expect(Config.Instance.environment).toBe('gh-ci');
     expect(Config.Instance.ghesUrl).toBeUndefined();
     expect(Config.Instance.ghesUrlApi).toBeUndefined();
@@ -105,6 +112,7 @@ describe('Config', () => {
     expect(Config.Instance.launchTemplateVersionWindows).toBe('LAUNCH_TEMPLATE_VERSION_WINDOWS');
     expect(Config.Instance.minAvailableRunners).toBe(10);
     expect(Config.Instance.minimumRunningTimeInMinutes).toBe(10);
+    expect(Config.Instance.mustHaveIssuesLabels).toEqual([]);
     expect(Config.Instance.runnerGroupName).toBeUndefined();
     expect(Config.Instance.runnersExtraLabels).toBeUndefined();
     expect(Config.Instance.scaleConfigRepo).toEqual('test-infra');
