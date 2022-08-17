@@ -92,9 +92,8 @@ def condense_disable_issues(disable_issues):
                 for line in body.splitlines():
                     line = line.lower()
                     if line.startswith(key):
-                        pattern = re.compile(r"^\s+|\s*,\s*|\s+$")
                         platforms_to_skip.extend(
-                            [x for x in pattern.split(line[len(key):]) if x]
+                            [x.strip() for x in line[len(key):].split(",") if x.strip()]
                         )
             disabled_test_from_issues[test_name] = (
                 issue_number,

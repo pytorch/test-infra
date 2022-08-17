@@ -43,4 +43,4 @@ jobs:
           destination_branch: generated-stats
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
-          commit_message: "Updating disabled tests stats"
+          commit_message: "Updating condensed disabled tests stats"
