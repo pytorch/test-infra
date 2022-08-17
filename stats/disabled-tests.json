@@ -25342,6 +25342,15 @@
       "id": 1340308052,
       "labels": [
         {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "Problem is a flaky test in CI",
@@ -25402,7 +25411,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83511/timeline",
       "title": "DISABLED test_nnc_pytrees_cpu (__main__.TestPythonKeyCPU)",
-      "updated_at": "2022-08-16T21:30:19Z",
+      "updated_at": "2022-08-17T00:10:56Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83511",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
@@ -25439,6 +25448,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/83512",
       "id": 1340308055,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -25500,7 +25518,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83512/timeline",
       "title": "DISABLED test_batch_sampler (__main__.TestDataLoader)",
-      "updated_at": "2022-08-16T21:30:19Z",
+      "updated_at": "2022-08-17T00:11:07Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83512",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
