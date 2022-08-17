@@ -27,7 +27,7 @@ export async function getRepoIssuesWithLabel(repo: Repo, label: string, status =
         per_page: 100,
       });
       /* istanbul ignore next */
-      issues = issueResponse.items || [];
+      issues = issueResponse || [];
       issuesCache.set(key, issues);
     }
 

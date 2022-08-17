@@ -20,7 +20,7 @@ describe('getRepoIssuesWithLabel', () => {
     const issues = [{ id: '1' }, { id: '2' }];
 
     const mockedOctokit = {
-      paginate: jest.fn().mockResolvedValue({ items: issues }),
+      paginate: jest.fn().mockResolvedValue(issues),
       search: {
         issuesAndPullRequests: 'The Thing',
       },

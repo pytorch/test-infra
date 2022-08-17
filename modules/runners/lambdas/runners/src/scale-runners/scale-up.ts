@@ -29,25 +29,7 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
     repo: payload.repositoryName,
   };
 
-  if (Config.Instance.mustHaveIssuesLabels) {
-    for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
-      const label = Config.Instance.mustHaveIssuesLabels[i];
-      if ((await getRepoIssuesWithLabel(repo, label)).length == 0) {
-        console.warn(
-          `Skipping scaleUp for repo ${repo} as a issue with label ${label} is required to be open but is not present`,
-        );
-        return;
-      }
-    }
-  }
-
-  for (let i = 0; i < Config.Instance.cantHaveIssuesLabels.length; i++) {
-    const label = Config.Instance.cantHaveIssuesLabels[i];
-    if ((await getRepoIssuesWithLabel(repo, label)).length > 0) {
-      console.warn(`Skipping scaleUp for repo ${repo} as a open issue with label ${label} must not be present`);
-      return;
-    }
-  }
+  if (await shouldSkipForRepo(repo)) return;
 
   const runnerTypes = await getRunnerTypes({
     owner: repo.owner,
@@ -109,6 +91,34 @@ async function createRunnerConfigArgument(
       `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
     );
   }
+}
+
+async function shouldSkipForRepo(repo: Repo): Promise<boolean> {
+  if (Config.Instance.mustHaveIssuesLabels) {
+    for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
+      const label = Config.Instance.mustHaveIssuesLabels[i];
+      if ((await getRepoIssuesWithLabel(repo, label)).length == 0) {
+        console.warn(
+          `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as a issue with label ` +
+            `'${label}' is required to be open but is not present`,
+        );
+        return true;
+      }
+    }
+  }
+
+  for (let i = 0; i < Config.Instance.cantHaveIssuesLabels.length; i++) {
+    const label = Config.Instance.cantHaveIssuesLabels[i];
+    if ((await getRepoIssuesWithLabel(repo, label)).length > 0) {
+      console.warn(
+        `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as a open issue ` +
+          `with label '${label}' must not be present`,
+      );
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function allRunnersBusy(
