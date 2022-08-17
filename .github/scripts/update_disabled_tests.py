@@ -98,7 +98,7 @@ def condense_disable_issues(disable_issues):
                         )
             disabled_test_from_issues[test_name] = (
                 issue_number,
-                item["html_url"],
+                issue_url,
                 platforms_to_skip,
             )
     with open("disabled-tests-condensed.json", mode="w") as file:
