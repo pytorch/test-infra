@@ -1379,9 +1379,10 @@
     []
   ],
   "test_single_output (__main__.TestAOTAutograd)": [
-    "83574",
-    "https://github.com/pytorch/pytorch/issues/83574",
+    "83573",
+    "https://github.com/pytorch/pytorch/issues/83573",
     [
+      "linux",
       "win",
       "windows"
     ]
