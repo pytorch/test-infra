@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Generate new disabled test json
+      - name: Check for alerts and creates issue
         run: |
           .github/scripts/check_alerts.py

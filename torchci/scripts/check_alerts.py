@@ -9,6 +9,9 @@ from typing import Any, List, Tuple, Dict
 
 import requests
 
+ALL_SKIPPED_THRESHOLD = 100
+SIMILARITY_THRESHOLD = 0.75
+FAILURE_CHAIN_THRESHOLD = 2
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
 
@@ -49,8 +52,9 @@ GRAPHQL_URL = "https://api.github.com/graphql"
 class JobStatus:
     job_name: str = ""
     jobs: List[Any] = []
-    current_status: str = None
+    current_status: Any = None
     job_statuses: List[Any] = []
+    filtered_statuses: List[Any] = []
     failure_chain: List[Any] = []
     flaky_jobs: List[Any] = []
 
@@ -58,29 +62,29 @@ class JobStatus:
         self.job_name = job_name
         self.job_statuses = job_statuses
 
-        filtered_statuses = list(filter(is_job_not_pending_or_skipped, job_statuses))
-        self.current_status = self.get_current_status(filtered_statuses)
-        self.failure_chain = self.get_most_recent_failure_chain(filtered_statuses)
-        self.flaky_jobs = self.get_flaky_jobs(filtered_statuses)
+        self.filtered_statuses = list(
+            filter(is_job_not_pending_or_skipped, job_statuses)
+        )
+        self.current_status = self.get_current_status()
+        self.failure_chain = self.get_most_recent_failure_chain()
+        self.flaky_jobs = self.get_flaky_jobs()
 
-    def get_current_status(self, job_statuses: List[Any]) -> str:
-        return job_statuses[0] if len(job_statuses) > 0 else None
+    def get_current_status(self) -> Any:
+        return self.filtered_statuses[0] if len(self.filtered_statuses) > 0 else None
 
     # Returns a dict of failureCaptures -> List[Jobs]
-    def get_unique_failures(self, job_statuses: List[Any]) -> Dict[str, List[Any]]:
-        failures = {}
-        for job in job_statuses:
+    def get_unique_failures(self) -> Dict[str, List[Any]]:
+        failures = defaultdict(list)
+        for job in self.filtered_statuses:
             if job["conclusion"] == "failure":
                 found_similar_failure = False
                 if "failureCaptures" not in job:
-                    if "unclassified" not in failures:
-                        failures["unclassified"] = []
-                    failures["unclassified"].append(job)
+                    failures["unclassified"] = [job]
                     continue
 
                 for failure in failures:
                     seq = SequenceMatcher(None, job["failureCaptures"], failure)
-                    if seq.ratio() > 0.75:
+                    if seq.ratio() > SIMILARITY_THRESHOLD:
                         failures[failure].append(job)
                         found_similar_failure = True
                         break
@@ -90,21 +94,25 @@ class JobStatus:
         return failures
 
     # A flaky job is if it's the only job that has that failureCapture and is not the most recent job
-    def get_flaky_jobs(self, job_statuses: List[Any]) -> List[Any]:
-        unique_failures = self.get_unique_failures(job_statuses)
+    def get_flaky_jobs(self) -> List[Any]:
+        unique_failures = self.get_unique_failures()
         flaky_jobs = []
         for failure in unique_failures:
-            if len(failure) == 1 and failure["sha"] != self.current_status["sha"]:
-                flaky_jobs.append(failure)
+            failure_list = unique_failures[failure]
+            if (
+                len(failure_list) == 1
+                and failure_list[0]["sha"] != self.current_status["sha"]
+            ):
+                flaky_jobs.append(failure_list[0])
         return flaky_jobs
 
     # The most recent failure chain is an array of jobs that have the same-ish failures.
     # A success in the middle of the chain will terminate the chain.
-    def get_most_recent_failure_chain(self, job_statuses: List[Any]) -> List[Any]:
+    def get_most_recent_failure_chain(self) -> List[Any]:
         failures = []
         found_most_recent_failure = False
 
-        for job in job_statuses:
+        for job in self.filtered_statuses:
             if job["conclusion"] != "success":
                 failures.append(job)
                 found_most_recent_failure = True
@@ -117,7 +125,7 @@ class JobStatus:
         return (
             self.current_status != None
             and self.current_status["conclusion"] != "success"
-            and len(self.failure_chain) >= 2
+            and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
         )
 
     def __repr__(self) -> str:
@@ -125,14 +133,17 @@ class JobStatus:
 
 
 def fetch_alerts() -> Any:
-    variables = {"owner": REPO_OWNER, "name": REPO_NAME, "labels": labels}
-    r = requests.post(
-        GRAPHQL_URL,
-        json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
-        headers=headers,
-    )
-    data = json.loads(r.text)
-    return data["data"]["repository"]["issues"]["nodes"]
+    try:
+        variables = {"owner": REPO_OWNER, "name": REPO_NAME, "labels": labels}
+        r = requests.post(
+            GRAPHQL_URL,
+            json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
+            headers=headers,
+        )
+        data = json.loads(r.text)
+        return data["data"]["repository"]["issues"]["nodes"]
+    except Exception as e:
+        raise RuntimeError("Error fetching alerts", e)
 
 
 def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
@@ -176,11 +187,9 @@ def record_flaky_jobs(flaky_jobs: List[Any]) -> None:
 
 # Creates a Dict of Job Name -> [JobData]. Essentially a Column in HUD
 def map_job_data(jobNames: Any, shaGrid: Any) -> Dict[str, Any]:
-    jobData = {}
+    jobData = defaultdict(list)
     for sha in shaGrid:
         for ind, job in enumerate(sha["jobs"]):
-            if jobNames[ind] not in jobData:
-                jobData[jobNames[ind]] = []
             jobData[jobNames[ind]].append(job)
     return jobData
 
@@ -212,7 +221,9 @@ def categorize_shas(sha_grid: Any) -> List[Tuple[Any, str]]:
             categorized_shas.append((sha, FAILURE))
         elif conclusions[PENDING] > 0:
             categorized_shas.append((sha, PENDING))
-        elif conclusions[SKIPPED] > 100:
+        # If the SHA has 100+ skipped jobs, then that means this SHA is part of a stack and
+        # everything in this commit is skipped
+        elif conclusions[SKIPPED] > ALL_SKIPPED_THRESHOLD:
             categorized_shas.append((sha, SKIPPED))
         else:
             categorized_shas.append((sha, SUCCESS))
