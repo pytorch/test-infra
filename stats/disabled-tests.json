@@ -25644,7 +25644,7 @@
       "assignee": null,
       "assignees": [],
       "author_association": "NONE",
-      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_single_output&suite=TestAOTAutograd&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7869768260).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_single_output`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n",
+      "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_single_output&suite=TestAOTAutograd&file=/var/lib/jenkins/workspace/functorch/test/test_pythonkey.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7869768260).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_single_output`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @zou3519 @Chillee @samdow",
       "closed_at": null,
       "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83573/comments",
@@ -25653,6 +25653,15 @@
       "html_url": "https://github.com/pytorch/pytorch/issues/83573",
       "id": 1341139790,
       "labels": [
+        {
+          "color": "006b75",
+          "default": false,
+          "description": "This issue has been looked at a team member, and triaged and prioritized into an appropriate module",
+          "id": 1301347167,
+          "name": "triaged",
+          "node_id": "MDU6TGFiZWwxMzAxMzQ3MTY3",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/triaged"
+        },
         {
           "color": "f7e101",
           "default": false,
@@ -25672,13 +25681,13 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "1d76db",
+          "color": "5319e7",
           "default": false,
-          "description": "We do not know who is responsible for this feature, bug, or test case.",
-          "id": 3500281775,
-          "name": "module: unknown",
-          "node_id": "LA_kwDOA-j9z87Qog-v",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20unknown"
+          "description": "Pertaining to pytorch/functorch",
+          "id": 4354479697,
+          "name": "module: functorch",
+          "node_id": "LA_kwDOA-j9z88AAAABA4wWUQ",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20functorch"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/83573/labels{/name}",
@@ -25705,7 +25714,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83573/timeline",
       "title": "DISABLED test_single_output (__main__.TestAOTAutograd)",
-      "updated_at": "2022-08-17T06:46:33Z",
+      "updated_at": "2022-08-17T17:57:34Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83573",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
