@@ -8,7 +8,6 @@ import json
 from functools import lru_cache
 from typing import Any, Dict
 from urllib.request import urlopen, Request
-import re
 # Modified from https://github.com/pytorch/pytorch/blob/b00206d4737d1f1e7a442c9f8a1cadccd272a386/torch/hub.py#L129
 
 
