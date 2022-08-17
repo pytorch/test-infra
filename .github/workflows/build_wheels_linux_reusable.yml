@@ -3,7 +3,7 @@ name: Build Linux Wheels
 on:
   workflow_call:
     inputs:
-      domain:
+      repository:
         description: 'name of the domain library calling this reusable workflow.'
         required: true
         type: string
@@ -11,23 +11,30 @@ on:
         description: 'docker image container for running the reusable workflow.'
         required: true
         type: string
+      python_version:
+        description: 'python version to use for building wheels binary'
+        required: true
+        type: string
 
 jobs:
   wheels:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      PACKAGE_TYPE: wheel
+      REPOSITORY: ${{ inputs.repository }}
     container:
       image: ${{ inputs.image }}
     steps:
     - uses: actions/checkout@v2
-    # - name: Set up Python 3.x
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: '3.x'
-    # - name: Install dependencies
-    #   run: python -m pip install --upgrade setuptools wheel
-      # Include domain-specific pre-build step here 
-      # (where each domain lib brings its own setup script)
-      # Use the domain input to call the right composite action
+    - name: Install pytorch-pkg-helpers
+      run: |
+        python3 -m pip install pytorch-pkg-helpers==0.1.0
+    - name: Create environemnt variables from pytorch-pkg-helpers
+      run: |
+        BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+        python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+        echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
     - name: Run pre-build script
       run: ./packaging/pre_build_script.sh
     - name: Build clean
