@@ -1,5 +1,4 @@
 import { Label } from "@octokit/webhooks-types";
-import { Octokit } from "octokit";
 import { Probot } from "probot";
 
 function containsLabel(labels: Label[], labelName: string) {
