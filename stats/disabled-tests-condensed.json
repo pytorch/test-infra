@@ -936,6 +936,13 @@
       "linux"
     ]
   ],
+  "test_multi_threads (__main__.TestTorchrun)": [
+    "83654",
+    "https://github.com/pytorch/pytorch/issues/83654",
+    [
+      "linux"
+    ]
+  ],
   "test_multiple_dataloaders (__main__.TestDataLoaderPersistentWorkers)": [
     "70947",
     "https://github.com/pytorch/pytorch/issues/70947",
@@ -987,6 +994,14 @@
     "https://github.com/pytorch/pytorch/issues/83408",
     [
       "linux"
+    ]
+  ],
+  "test_nnc_pytrees_cpu (__main__.TestPythonKeyCPU)": [
+    "83511",
+    "https://github.com/pytorch/pytorch/issues/83511",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_no_cyclic_references (__main__.TestLRScheduler)": [
