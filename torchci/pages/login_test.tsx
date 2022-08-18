@@ -6,6 +6,9 @@ export default function MePage() {
   console.log("DATA IS", session.data);
 
   const handleClick = async () => {
+    if (!session) {
+      return;
+    }
     const response = await fetch(
       "https://api.github.com/repos/pytorch/test-infra/issues",
       {
@@ -19,11 +22,10 @@ export default function MePage() {
         }),
         headers: {
           Accept: "application/vnd.github+json",
-          Authorization: `token ${session.data.accessToken}`,
+          Authorization: `token ${session?.data?.accessToken}`,
         },
       }
     );
-    console.log("RESPONSE IS");
   };
 
   return (

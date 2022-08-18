@@ -15,6 +15,9 @@ export default (req, res) =>
     jwt: {
       secret: process.env.JWT_SECRET,
     },
+    theme: {
+      colorScheme: "light",
+    },
     callbacks: {
       async session({ session, token, user }) {
         session.user.id = token.id;

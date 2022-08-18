@@ -1,27 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
-import styles from "./header.module.css";
+import styles from "./LoginSection.module.css";
+import LoggedInMenu from "./LoggedInMenu";
 
 export default function LoginSection() {
   const { data: session, status } = useSession();
   const loading = status === "loading";
+  const [showLoginSection, setShowLoginSection] = useState(false);
 
   return (
     <>
-      <noscript>
-        <style>{`.nojs-show { opacity: 1; top: 0; }`}</style>
-      </noscript>
-      <div className={styles.signedInStatus}>
-        <p
-          className={`nojs-show ${
-            !session && loading ? styles.loading : styles.loaded
-          }`}
-        >
+      <span
+        className={`nojs-show ${
+          !session && loading ? styles.loading : styles.loaded
+        }`}
+      >
+        <span className={`nojs-show`}>
           {!session && (
             <>
-              <span className={styles.notSignedInText}>
-                You are not signed in
-              </span>
               <a
                 href={`/api/auth/signin`}
                 className={styles.buttonPrimary}
@@ -35,32 +31,26 @@ export default function LoginSection() {
             </>
           )}
           {session?.user && (
-            <>
+            <span>
               {session.user.image && (
-                <span
-                  style={{ backgroundImage: `url('${session.user.image}')` }}
+                <img
+                  onClick={() => {
+                    console.log("HELLO");
+                    setShowLoginSection(!showLoginSection);
+                  }}
+                  style={{
+                    backgroundImage: `url('${session.user.image}')`,
+                    display: "inline",
+                    cursor: "pointer",
+                  }}
                   className={styles.avatar}
                 />
               )}
-              <span className={styles.signedInText}>
-                <small>Signed in as</small>
-                <br />
-                <strong>{session.user.email ?? session.user.name}</strong>
-              </span>
-              <a
-                href={`/api/auth/signout`}
-                className={styles.button}
-                onClick={(e) => {
-                  e.preventDefault();
-                  signOut();
-                }}
-              >
-                Sign out
-              </a>
-            </>
+              {showLoginSection && <LoggedInMenu />}
+            </span>
           )}
-        </p>
-      </div>
+        </span>
+      </span>
     </>
   );
 }

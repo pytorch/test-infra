@@ -1,13 +1,8 @@
 import styles from "components/NavBar.module.css";
 import Link from "next/link";
-import React from "react";
 import { AiFillGithub } from "react-icons/ai";
-import { useSession, signIn, signOut } from "next-auth/react";
-import Image from "next/image";
+import LoginSection from "./LoginSection";
 function NavBar() {
-  // TODO: Rewrite Help Link
-  const session = useSession();
-  console.log("img", session.data?.user?.image);
   return (
     <div className={styles.linksContainer}>
       <div className={styles.links}>
@@ -50,6 +45,7 @@ function NavBar() {
             display: "inline",
             marginLeft: "auto",
             marginRight: "0px",
+            whiteSpace: "nowrap",
           }}
         >
           <ul style={{ marginBottom: "0" }} className={styles.menu}>
@@ -73,7 +69,9 @@ function NavBar() {
                 KPIs
               </Link>
             </li>
-
+            <li>
+              <LoginSection />
+            </li>
             <li>
               <Link prefetch={false} href="/tts">
                 TTS
