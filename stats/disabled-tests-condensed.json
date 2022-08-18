@@ -989,6 +989,14 @@
       "linux"
     ]
   ],
+  "test_nnc_pytrees_cpu (__main__.TestPythonKeyCPU)": [
+    "83511",
+    "https://github.com/pytorch/pytorch/issues/83511",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_no_cyclic_references (__main__.TestLRScheduler)": [
     "82948",
     "https://github.com/pytorch/pytorch/issues/82948",
