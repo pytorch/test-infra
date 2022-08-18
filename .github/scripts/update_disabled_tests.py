@@ -8,8 +8,9 @@ import json
 from functools import lru_cache
 from typing import Any, Dict
 from urllib.request import urlopen, Request
-
 # Modified from https://github.com/pytorch/pytorch/blob/b00206d4737d1f1e7a442c9f8a1cadccd272a386/torch/hub.py#L129
+
+
 def _read_url(url: Any) -> Any:
     with urlopen(url) as r:
         return r.headers, r.read().decode(r.headers.get_content_charset("utf-8"))
@@ -56,8 +57,8 @@ def get_disable_issues() -> Dict[Any, Any]:
 
 
 def validate_and_sort(issues_json: Dict[str, Any]) -> None:
-    assert issues_json["total_count"] is len(issues_json["items"]), f"# issues {len(issues_json['items'])} does not" \
-         f"equal total count {issues_json['total_count']}."
+    assert issues_json["total_count"] == len(issues_json["items"]), f"# issues {len(issues_json['items'])} does not" \
+        f" equal total count {issues_json['total_count']}."
     assert not issues_json["incomplete_results"], f"Results were incomplete. There may be missing issues."
 
     # score changes every request, so we strip it out to avoid creating a commit every time we query.
@@ -73,10 +74,40 @@ def write_issues_to_file(issues_json: Dict[Any, Any]) -> None:
         json.dump(issues_json, file, sort_keys=True, indent=2)
 
 
+def condense_disable_issues(disable_issues):
+    disabled_test_from_issues = dict()
+    for item in disable_issues["items"]:
+        title = item["title"]
+        key = "DISABLED "
+        issue_url = item["html_url"]
+        issue_number = issue_url.split("/")[-1]
+        if title.startswith(key):
+            test_name = title[len(key):].strip()
+            body = item["body"]
+            platforms_to_skip = []
+            key = "platforms:"
+            # When the issue has no body, it is assumed that all platforms should skip the test
+            if body is not None:
+                for line in body.splitlines():
+                    line = line.lower()
+                    if line.startswith(key):
+                        platforms_to_skip.extend(
+                            [x.strip() for x in line[len(key):].split(",") if x.strip()]
+                        )
+            disabled_test_from_issues[test_name] = (
+                issue_number,
+                issue_url,
+                platforms_to_skip,
+            )
+    with open("disabled-tests-condensed.json", mode="w") as file:
+        json.dump(disabled_test_from_issues, file, sort_keys=True, indent=2)
+
+
 def main() -> None:
     disable_issues = get_disable_issues()
     validate_and_sort(disable_issues)
     write_issues_to_file(disable_issues)
+    condense_disable_issues(disable_issues)
 
 
 if __name__ == "__main__":

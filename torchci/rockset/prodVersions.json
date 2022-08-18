@@ -5,9 +5,11 @@
     "flaky_tests": "59d7546183743626",
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "50cb3694334ed63a",
+    "test_time_per_file_periodic_jobs": "39c105542e297c09",
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2",
-    "recent_pr_workflows_query": "4e03cb13e8372050"
+    "recent_pr_workflows_query": "4e03cb13e8372050",
+    "unclassified": "df744380711131d9"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",

@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import sys
@@ -24,29 +25,31 @@ def send_lambda_request(id):
 
 
 def do_backfill(n):
+    if args.ids:
+        ids = args.ids
+    else:
+        # Import here to avoid requiring these dependencies in lambda
+        import json
+        from rockset import Client, ParamDict
+
+        # query rockset for unclassified failed GHA job ids
+        client = Client(
+            api_key=ROCKSET_API_KEY,
+            api_server="https://api.rs2.usw2.rockset.com",
+        )
+        with open("rockset/prodVersions.json", "r") as f:
+            rocksetVersions = json.load(f)
+        qlambda = client.QueryLambda.retrieve(
+            "unclassified", version=rocksetVersions["commons"]["unclassified"], workspace="commons"
+        )
+
+        params = ParamDict({
+            n: n
+        })
+        results = qlambda.execute(parameters=params).results
+        ids = [result["id"] for result in results]
     # Import here to avoid requiring these dependencies in lambda
-    from rockset import Client, Q, F, ParamDict
     from concurrent.futures import ThreadPoolExecutor, wait
-
-    # query rockset for failed GHA job ids
-    client = Client(
-        api_key=ROCKSET_API_KEY,
-        api_server="https://api.rs2.usw2.rockset.com",
-    )
-    qlambda = client.QueryLambda.retrieve(
-        "unclassified", version="672227495ac70f7d", workspace="commons"
-    )
-
-    params = ParamDict()
-    results = qlambda.execute(parameters=params).results
-    # q = (
-    #     Q("GitHub-Actions.workflow_job")
-    #     .where(F["conclusion"] == "failure")
-    #     .highest(n, F["_event_time"])
-    #     .select(F["id"])
-    # )
-    # results = client.sql(q)
-    ids = [result["id"] for result in results]
     with ThreadPoolExecutor() as executor:
         futures = []
         for id in ids:
@@ -65,7 +68,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="""\
-        Backfill classifications for failing jobs. This is useful when we add a
+        Backfill classifications for FAILED jobs. This is useful when we add a
         new rule and want old jobs to use it.
 
         You need to set ROCKSET_API_KEY to a valid Rockset API key and
@@ -78,7 +81,12 @@ if __name__ == "__main__":
         "--n",
         type=int,
         default=1000,
-        help="Classify the `n` most recent failed jobs",
+        help="Classify the `n` most recent failed jobs from the past day",
+    )
+    parser.add_argument(
+        "ids",
+        nargs="+",
+        help="GitHub actions job ids to classify",
     )
     args = parser.parse_args()
 

@@ -153,7 +153,16 @@ This test was disabled because it is failing in CI. See [recent examples](${exam
 
 Over the past ${NUM_HOURS} hours, it has been determined flaky in ${
     test.workflowIds.length
-  } workflow(s) with ${test.numRed} red and ${test.numGreen} green.`;
+  } workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.
+
+**Debugging instructions (after clicking on the recent samples link):**
+DO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
+To find relevant log snippets:
+1. Click on the workflow logs linked above
+2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.
+3. Grep for \`${test.name}\`
+4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
+`;
 }
 
 export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
@@ -161,7 +170,7 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
     "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
   try {
-    const result = await urllib.request(`${urlkey}${testFile}.py`);
+    const result = await urllib.request(`${urlkey}${testFile}`);
     const statusCode = result.res.statusCode;
     if (statusCode !== 200) {
       console.warn(`Error retrieving test file of flaky test: ${statusCode}`);

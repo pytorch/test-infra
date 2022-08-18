@@ -35,12 +35,74 @@ function acceptBot(app: Probot): void {
           issue_number,
           labels: [CIFLOW_TRUNK_LABEL],
         });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_RUN,
+        });
       } else if (hasAcceptToShip) {
         await ctx.octokit.issues.createComment({
           owner,
           repo,
           issue_number,
           body: ACCEPT_MESSAGE,
+        });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_SHIP,
+        });
+      }
+    }
+  });
+
+  app.on("pull_request.labeled", async (ctx) => {
+    const owner = ctx.payload.repository.owner.login;
+    const repo = ctx.payload.repository.name;
+    const issue_number = ctx.payload.pull_request.number;
+    ctx.payload.pull_request;
+
+    async function isApproved(): Promise<boolean> {
+      const reviews = await ctx.octokit.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: issue_number,
+      });
+      const isApproved =
+        reviews.data.filter((review) => review.state == "approved").length > 0;
+      return isApproved;
+    }
+
+    if (ctx.payload.label.name === ACCEPT_2_RUN) {
+      if (await isApproved()) {
+        await ctx.octokit.issues.addLabels({
+          owner,
+          repo,
+          issue_number,
+          labels: [CIFLOW_TRUNK_LABEL],
+        });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_RUN,
+        });
+      }
+    } else if (ctx.payload.label.name === ACCEPT_2_SHIP) {
+      if (await isApproved()) {
+        await ctx.octokit.issues.createComment({
+          owner,
+          repo,
+          issue_number,
+          body: ACCEPT_MESSAGE,
+        });
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number,
+          name: ACCEPT_2_SHIP,
         });
       }
     }

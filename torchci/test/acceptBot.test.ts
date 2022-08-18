@@ -39,10 +39,13 @@ describe("accept bot", () => {
 
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
-        expect(JSON.stringify(body)).toContain(`"labels":["${CIFLOW_TRUNK_LABEL}"]`);
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["${CIFLOW_TRUNK_LABEL}"]`
+        );
         return true;
       })
-
+      .reply(200, {})
+      .delete(`/repos/${owner}/${repo}/issues/4/labels/${ACCEPT_2_RUN}`)
       .reply(200, {});
     await probot.receive(event);
 
@@ -66,9 +69,46 @@ describe("accept bot", () => {
         );
         return true;
       })
-
+      .reply(200, {})
+      .delete(`/repos/${owner}/${repo}/issues/4/labels/${ACCEPT_2_SHIP}`)
       .reply(200, {});
     await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("Run when PR is accepted already and then labeled", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
+    payload.label.name = ACCEPT_2_RUN;
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const pr_number = payload.pull_request.number;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/20/reviews`)
+      .reply(200, [{ state: "approved" }])
+      .post(`/repos/${owner}/${repo}/issues/20/labels`)
+      .reply(200, {})
+      .delete(`/repos/${owner}/${repo}/issues/20/labels/${ACCEPT_2_RUN}`)
+      .reply(200, {});
+
+    await probot.receive({ name: "pull_request", id: "123", payload });
+
+    handleScope(scope);
+  });
+
+  test("Don't run when PR is not accepted and then labeled", async () => {
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
+    payload.label.name = ACCEPT_2_RUN;
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const pr_number = payload.pull_request.number;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/20/reviews`)
+      .reply(200, []);
+
+    await probot.receive({ name: "pull_request", id: "123", payload });
 
     handleScope(scope);
   });
