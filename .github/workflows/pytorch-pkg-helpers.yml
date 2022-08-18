@@ -1,0 +1,33 @@
+name: pytorch-pkg-helpers CI
+
+on:
+  pull_request:
+    paths:
+      - 'tools/pkg-helpers/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/pkg-helpers/**'
+
+defaults:
+  run:
+    working-directory: tools/pkg-helpers/
+
+jobs:
+  ci:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+          architecture: 'x64'
+          cache: 'pip'
+      - name: Install poetry
+        run: |
+          pip3 install poetry
+      - name: Run make all
+        run: |
+          make all
