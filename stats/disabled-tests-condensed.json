@@ -989,14 +989,6 @@
       "linux"
     ]
   ],
-  "test_nnc_pytrees_cpu (__main__.TestPythonKeyCPU)": [
-    "83511",
-    "https://github.com/pytorch/pytorch/issues/83511",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_no_cyclic_references (__main__.TestLRScheduler)": [
     "82948",
     "https://github.com/pytorch/pytorch/issues/82948",
@@ -1377,21 +1369,6 @@
     "61670",
     "https://github.com/pytorch/pytorch/issues/61670",
     []
-  ],
-  "test_single_output (__main__.TestAOTAutograd)": [
-    "83574",
-    "https://github.com/pytorch/pytorch/issues/83574",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_single_output_functionalize (make_functionalize_test.<locals>.FunctionalizeTest)": [
-    "83405",
-    "https://github.com/pytorch/pytorch/issues/83405",
-    [
-      "linux"
-    ]
   ],
   "test_slow_tasks (__main__.TestFunctionalAutogradBenchmark)": [
     "77260",
