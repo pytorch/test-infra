@@ -52,7 +52,7 @@ jobs:
       run: python setup.py bdist_wheel
     - name: Run post-build script
       run: ./packaging/post_build_script_wheel.sh
-    - name: Upload wheel to GitHub
+    # - name: Upload wheel to GitHub
       # Commenting upload step to avoid publishing until reusable workflows are
       # finalized, and ready to replace existing workflows.
       # uses: actions/upload-artifact@v3
