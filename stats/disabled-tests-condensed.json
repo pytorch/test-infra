@@ -170,14 +170,6 @@
       "mac"
     ]
   ],
-  "test_batch_sampler (__main__.TestDataLoader)": [
-    "83512",
-    "https://github.com/pytorch/pytorch/issues/83512",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_batch_sampler (__main__.TestDataLoaderPersistentWorkers)": [
     "70756",
     "https://github.com/pytorch/pytorch/issues/70756",
