@@ -813,6 +813,14 @@
       "windows"
     ]
   ],
+  "test_jvp_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "83660",
+    "https://github.com/pytorch/pytorch/issues/83660",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1366,6 +1374,14 @@
     "74548",
     "https://github.com/pytorch/pytorch/issues/74548",
     []
+  ],
+  "test_shuffle_batch_workers_prefetch (__main__.TestDataLoaderPersistentWorkers)": [
+    "83659",
+    "https://github.com/pytorch/pytorch/issues/83659",
+    [
+      "mac",
+      "macos"
+    ]
   ],
   "test_shuffle_iterdatapipe (__main__.TestFunctionalIterDataPipe)": [
     "74877",
