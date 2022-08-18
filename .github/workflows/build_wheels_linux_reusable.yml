@@ -4,15 +4,19 @@ on:
   workflow_call:
     inputs:
       repository:
-        description: 'name of the domain library calling this reusable workflow.'
+        description: 'name of the domain respository calling this reusable workflow.'
         required: true
         type: string
-      image:
+      docker_image:
         description: 'docker image container for running the reusable workflow.'
         required: true
         type: string
       python_version:
         description: 'python version to use for building wheels binary'
+        required: true
+        type: string
+      gpu_arch_version:
+        description: 'cuda version to use for building wheels binary'
         required: true
         type: string
 
@@ -23,10 +27,15 @@ jobs:
       PYTHON_VERSION: ${{ inputs.python_version }}
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
+      GPU_ARCH_VERSION: ${{ inputs.gpu_arch_version }}
     container:
-      image: ${{ inputs.image }}
+      image: ${{ inputs.docker_image }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+    - name: Set artifact name
+      run: |
+        echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
     - name: Install pytorch-pkg-helpers
       run: |
         python3 -m pip install pytorch-pkg-helpers==0.1.0
@@ -36,10 +45,17 @@ jobs:
         python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
         echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
     - name: Run pre-build script
-      run: ./packaging/pre_build_script.sh
+      run: ./packaging/pre_build_script_wheel.sh
     - name: Build clean
       run: python setup.py clean
     - name: Build wheels
       run: python setup.py bdist_wheel
     - name: Run post-build script
-      run: ./packaging/post_build_script.sh
+      run: ./packaging/post_build_script_wheel.sh
+    - name: Upload wheel to GitHub
+      # Commenting upload step to avoid publishing until reusable workflows are
+      # finalized, and ready to replace existing workflows.
+      # uses: actions/upload-artifact@v3
+      # with:
+      #   name: ${{ env.ARTIFACT_NAME }}
+      #   path: dist/
