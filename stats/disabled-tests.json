@@ -23669,7 +23669,7 @@
       "author_association": "NONE",
       "body": "Platforms: linux\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_no_cyclic_references&suite=TestLRScheduler&file=test_optim.py) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7715200087).\n\nOver the past 3 hours, it has been determined flaky in 3 workflow(s) with 3 red and 3 green.\n\ncc @vincentqb @jbschlosser @albanD",
       "closed_at": null,
-      "comments": 2,
+      "comments": 3,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/82948/comments",
       "created_at": "2022-08-08T00:57:41Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/82948/events",
@@ -23713,6 +23713,15 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
+          "color": "4ae269",
+          "default": false,
+          "description": "",
+          "id": 1756257244,
+          "name": "actionable",
+          "node_id": "MDU6TGFiZWwxNzU2MjU3MjQ0",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/actionable"
+        },
+        {
           "color": "f7e101",
           "default": false,
           "description": "",
@@ -23746,7 +23755,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/82948/timeline",
       "title": "DISABLED test_no_cyclic_references (__main__.TestLRScheduler)",
-      "updated_at": "2022-08-08T15:48:28Z",
+      "updated_at": "2022-08-18T14:06:05Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/82948",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
