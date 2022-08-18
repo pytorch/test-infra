@@ -51,7 +51,7 @@ def get_arguments():
 
 
 def get_repo_scale_cfg(org, repo, user, token):
-    for branch in ('master', 'main', ):
+    for branch in ('master', 'main', 'site', ):
         url = f'https://raw.githubusercontent.com/{org}/{repo}/{branch}/{SCALE_CFG_PATH}'
         wait_time = 10
         while True:
@@ -67,7 +67,7 @@ def get_repo_scale_cfg(org, repo, user, token):
                 else:
                     print(f'Exceeded github rate limit, waiting {wait_time}s')
                     time.sleep(wait_time)
-                    wait_time += 5
+                    wait_time += 10
     raise Exception(f'Could not find "{SCALE_CFG_PATH}" for {org}/{repo}')
 
 
@@ -88,7 +88,7 @@ def check_being_used(org, repo, name, user, token):
             else:
                 print(f'Exceeded github rate limit, waiting {wait_time}s')
                 time.sleep(wait_time)
-                wait_time += 5
+                wait_time += 10
         else:
             break
 
@@ -127,16 +127,21 @@ def main():
     errors_list = []
 
     for repo in args.repos:
-        scale_cfg = get_repo_scale_cfg(args.org, repo, args.user, args.token)
+        try:
+            scale_cfg = get_repo_scale_cfg(args.org, repo, args.user, args.token)
+        except Exception as e:
+            errors_list.append(e)
+
         for k, v in scale_cfg['runner_types'].items():
 
             found_in_repo = False
-            for _ in range(3):
+            sleep_times = [30, 60, 5, ]
+            for sleep_time in sleep_times:
                 if check_being_used(args.org, repo, k, args.user, args.token):
                     found_in_repo = True
                     break
                 print(f'WARNING! Found a instance_type ({k}) that seems to not be used in repo {args.org}/{repo} (will repeat, as it can be rate limiting)')
-                time.sleep(60)
+                time.sleep(sleep_time)
 
             if not found_in_repo:
                 print(f'WARNING! Found a instance_type ({k}) that seems to not be used in repo {args.org}/{repo} REALLY IGNORED!', file=sys.stderr)
@@ -186,10 +191,13 @@ def main():
             except Exception as e:
                 errors_list.append(e)
 
-    if not errors_list:
-        print(yaml.dump(consolidated, default_flow_style=False, sort_keys=True))
-    else:
-        print("Didn't work =(")
+    if errors_list:
+        print('*************************************************', file=sys.stderr)
+        for error in errors_list:
+            print(error, file=sys.stderr)
+
+    print('*************************************************', file=sys.stderr)
+    print(yaml.dump(consolidated, default_flow_style=False, sort_keys=True))
 
 
 if __name__ == '__main__':
