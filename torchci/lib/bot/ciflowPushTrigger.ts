@@ -204,9 +204,12 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     return;
   }
 
+  // TODO: Convert the test config label to tag is not yet supported and could
+  // only be done once we refactor the current workflows to support smaller
+  // workflow granularity per test config. After that, we can remove this check
+  // and do the same for these ciflow test config labels as what we are currently
+  // doing with ciflow/trunk, ciflow/periodic, and others
   if (valid_test_config_labels.includes(label)) {
-    // Convert the test config label to tag is not yet supported and could
-    // only be done once we refactor the current workflows to support it
     return;
   }
 
