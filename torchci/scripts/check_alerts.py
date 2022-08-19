@@ -143,6 +143,7 @@ def fetch_alerts() -> Any:
         data = json.loads(r.text)
         return data["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
+        print(headers)
         raise RuntimeError("Error fetching alerts", e, data)
 
 
