@@ -4,7 +4,10 @@ on:
     # Every 5 minutes
     - cron: "*/5 * * * *"
   # Have the ability to trigger this job manually through the API
+
   workflow_dispatch:
+  pull_request:
+
 
 jobs:
   update-disabled-tests:
