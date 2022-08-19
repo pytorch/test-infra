@@ -143,7 +143,6 @@ def fetch_alerts() -> Any:
         data = json.loads(r.text)
         return data["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
-        print(headers)
         raise RuntimeError("Error fetching alerts", e, data)
 
 
@@ -172,6 +171,7 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
 
 
 def create_issue(issue: Any) -> None:
+    print("Creating issue", issue)
     requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
 
 
@@ -300,7 +300,12 @@ def main():
     no_alert_currently_active = alerts_cleared == True or len(alerts) == 0
     if len(jobs_to_alert_on) > 0 and (no_alert_currently_active):
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
-
+    else:
+        print(
+            "Didn't find anything to alert on.",
+            no_alert_currently_active,
+            jobs_to_alert_on,
+        )
     # TODO: Record flaky jobs in rockset or something re run or analyze
 
 
