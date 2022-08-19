@@ -20,6 +20,6 @@ jobs:
            pip install requests
       - name: Check for alerts and creates issue
         run: |
-          python torchci/scripts/check_alerts.py
+          python3 torchci/scripts/check_alerts.py
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
