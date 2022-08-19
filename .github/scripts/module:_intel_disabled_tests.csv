@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_multi_threads (__main__.TestTorchrun),83654,https://github.com/pytorch/pytorch/issues/83654,"linux", "module: intel"

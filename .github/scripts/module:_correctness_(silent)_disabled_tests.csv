@@ -1,0 +1,3 @@
+Test,Issue,URL,Platforms,Labels
+test_fn_gradgrad_linalg_det_cuda_float64 (__main__.TestGradientsCUDA),62327,https://github.com/pytorch/pytorch/issues/62327,"", "module: autograd,module: linear algebra,module: correctness (silent)"
+test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA),62328,https://github.com/pytorch/pytorch/issues/62328,"", "module: autograd,module: linear algebra,module: correctness (silent),complex_autograd"

@@ -1,0 +1,12 @@
+Test,Issue,URL,Platforms,Labels
+test_call_fork_in_jit_with_profiling (__main__.TensorPipeJitRpcTestWithSpawn),60998,https://github.com/pytorch/pytorch/issues/60998,"", "oncall: distributed,oncall: jit,module: rpc"
+test_profiler (__main__.TestJit),65521,https://github.com/pytorch/pytorch/issues/65521,"", "oncall: jit,module: tests,oncall: profiler"
+test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest),69178,https://github.com/pytorch/pytorch/issues/69178,"mac", "oncall: distributed,oncall: jit,module: rpc"
+test_python_ir_utils_graph (__main__.TestJit),73473,https://github.com/pytorch/pytorch/issues/73473,"macos,linux", "oncall: jit"
+test_python_ir_utils (__main__.TestJit),73474,https://github.com/pytorch/pytorch/issues/73474,"macos", "oncall: jit"
+testAddSub (__main__.TestLazyReuseIr),77721,https://github.com/pytorch/pytorch/issues/77721,"asan,linux", "oncall: jit"
+testAdd (__main__.TestLazyReuseIr),77722,https://github.com/pytorch/pytorch/issues/77722,"asan,linux", "oncall: jit"
+testAddSubFallback (__main__.TestLazyReuseIr),77723,https://github.com/pytorch/pytorch/issues/77723,"asan,linux", "oncall: jit"
+test_dcgan_models (jit.test_models.TestModels),79142,https://github.com/pytorch/pytorch/issues/79142,"linux", "oncall: jit"
+test_reload_jit_extension (__main__.TestCppExtensionJIT),80933,https://github.com/pytorch/pytorch/issues/80933,"linux", "oncall: jit"
+test_profiler (test_jit.TestJit),81626,https://github.com/pytorch/pytorch/issues/81626,"linux", "oncall: jit"

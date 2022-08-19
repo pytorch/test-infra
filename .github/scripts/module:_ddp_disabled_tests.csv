@@ -1,0 +1,3 @@
+Test,Issue,URL,Platforms,Labels
+test_ddp_comparison (__main__.TensorPipeDdpComparisonTest),69662,https://github.com/pytorch/pytorch/issues/69662,"", "oncall: distributed,module: ddp"
+test_ddp_comparison_uneven_inputs (__main__.TensorPipeDdpComparisonTest),72891,https://github.com/pytorch/pytorch/issues/72891,"linux", "oncall: distributed,module: ddp"

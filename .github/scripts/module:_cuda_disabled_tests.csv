@@ -1,0 +1,6 @@
+Test,Issue,URL,Platforms,Labels
+test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity),75417,https://github.com/pytorch/pytorch/issues/75417,"windows", "module: windows,module: cpp,module: nn,module: loss,module: cuda"
+test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA),77124,https://github.com/pytorch/pytorch/issues/77124,"linux", "module: nn,module: cuda,module: memory usage"
+test_caching_pinned_memory (__main__.TestCuda),79508,https://github.com/pytorch/pytorch/issues/79508,"linux,rocm", "module: cuda"
+test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA),80934,https://github.com/pytorch/pytorch/issues/80934,"linux", "module: cuda,module: primTorch"
+test_gradgrad_nn_LazyConvTranspose3d_cuda_float64 (__main__.TestModuleCUDA),82701,https://github.com/pytorch/pytorch/issues/82701,"win,windows", "module: nn,module: cuda"

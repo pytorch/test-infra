@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA),77124,https://github.com/pytorch/pytorch/issues/77124,"linux", "module: nn,module: cuda,module: memory usage"

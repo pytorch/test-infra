@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_output_match_split_cpu_float32 (__main__.TestConsistencyCPU),82961,https://github.com/pytorch/pytorch/issues/82961,"mac,macos", "module: mps"

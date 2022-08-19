@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity),75417,https://github.com/pytorch/pytorch/issues/75417,"windows", "module: windows,module: cpp,module: nn,module: loss,module: cuda"

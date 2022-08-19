@@ -1,0 +1,9 @@
+Test,Issue,URL,Platforms,Labels
+test_fn_gradgrad_linalg_det_cuda_float64 (__main__.TestGradientsCUDA),62327,https://github.com/pytorch/pytorch/issues/62327,"", "module: autograd,module: linear algebra,module: correctness (silent)"
+test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA),62328,https://github.com/pytorch/pytorch/issues/62328,"", "module: autograd,module: linear algebra,module: correctness (silent),complex_autograd"
+test_profiler_seq_nr (__main__.TestAutograd),66893,https://github.com/pytorch/pytorch/issues/66893,"", "module: autograd,module: tests,oncall: profiler"
+test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64 (__main__.TestGradientsCUDA),76429,https://github.com/pytorch/pytorch/issues/76429,"linux", "module: autograd"
+test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA),77039,https://github.com/pytorch/pytorch/issues/77039,"rocm", "module: autograd,module: rocm"
+test_slow_tasks (__main__.TestFunctionalAutogradBenchmark),77260,https://github.com/pytorch/pytorch/issues/77260,"linux", "module: autograd"
+test_lobpcg (__main__.TestAutograd),80338,https://github.com/pytorch/pytorch/issues/80338,"linux", "module: autograd"
+test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA),80413,https://github.com/pytorch/pytorch/issues/80413,"linux", "module: autograd,tensor subclass"

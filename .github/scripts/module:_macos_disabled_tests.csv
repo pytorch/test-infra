@@ -1,0 +1,3 @@
+Test,Issue,URL,Platforms,Labels
+test_ind_worker_queue (__main__.TestIndividualWorkerQueue),68643,https://github.com/pytorch/pytorch/issues/68643,"macos,linux,win", "module: dataloader,module: macos"
+test_readall (test_zipfile.ZipfileTest),75406,https://github.com/pytorch/pytorch/issues/75406,"mac", "module: macos"

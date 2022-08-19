@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_bottleneck_cpu_only (__main__.TestBottleneck),68433,https://github.com/pytorch/pytorch/issues/68433,"", "module: performance,module: cpu"

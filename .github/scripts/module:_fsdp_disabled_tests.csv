@@ -1,0 +1,9 @@
+Test,Issue,URL,Platforms,Labels
+test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo),71183,https://github.com/pytorch/pytorch/issues/71183,"", "module: fsdp"
+test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint),71349,https://github.com/pytorch/pytorch/issues/71349,"", "oncall: distributed,module: fsdp"
+test_pure_fp16_cpu_offload_CPUOffload(offload_params=False) (__main__.TestPureFP16),73315,https://github.com/pytorch/pytorch/issues/73315,"linux", "oncall: distributed,module: fsdp"
+test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne),79017,https://github.com/pytorch/pytorch/issues/79017,"rocm", "module: fsdp"
+test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest),79510,https://github.com/pytorch/pytorch/issues/79510,"linux", "module: fsdp"
+test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP),79885,https://github.com/pytorch/pytorch/issues/79885,"linux,rocm", "module: fsdp"
+test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP),79886,https://github.com/pytorch/pytorch/issues/79886,"linux,rocm", "module: fsdp"
+test_delayed_reduce_scatter_offload_false_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP),80325,https://github.com/pytorch/pytorch/issues/80325,"linux,rocm", "module: fsdp"

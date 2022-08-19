@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_smoke (__main__.TestCollectEnv),77345,https://github.com/pytorch/pytorch/issues/77345,"linux", "module: ci"

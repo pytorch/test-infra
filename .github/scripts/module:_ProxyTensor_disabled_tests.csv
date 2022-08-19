@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_new_empty (__main__.TestSymbolicTracing),83408,https://github.com/pytorch/pytorch/issues/83408,"linux", "module: ProxyTensor"

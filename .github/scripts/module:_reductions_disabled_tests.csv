@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA),71248,https://github.com/pytorch/pytorch/issues/71248,"linux", "module: reductions,module: masked operators"

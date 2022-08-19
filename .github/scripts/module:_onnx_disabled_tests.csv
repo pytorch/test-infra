@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_keypoint_rcnn (__main__.TestONNXRuntime_opset11),66528,https://github.com/pytorch/pytorch/issues/66528,"", "module: onnx,onnx-triaged"

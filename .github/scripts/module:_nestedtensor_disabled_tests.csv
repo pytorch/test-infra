@@ -1,0 +1,3 @@
+Test,Issue,URL,Platforms,Labels
+test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA),82299,https://github.com/pytorch/pytorch/issues/82299,"linux,rocm", "module: nestedtensor"
+test_matmul_cuda_float64 (__main__.TestNestedTensorDeviceTypeCUDA),82588,https://github.com/pytorch/pytorch/issues/82588,"linux,rocm", "module: nestedtensor"

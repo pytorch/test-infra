@@ -1,0 +1,4 @@
+Test,Issue,URL,Platforms,Labels
+test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest),32644,https://github.com/pytorch/pytorch/issues/32644,"", "oncall: quantization"
+test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps),78377,https://github.com/pytorch/pytorch/issues/78377,"macos", "oncall: quantization"
+test_fq_module_per_tensor (quantization.core.test_workflow_ops.TestFakeQuantizeOps),80409,https://github.com/pytorch/pytorch/issues/80409,"mac", "oncall: quantization"

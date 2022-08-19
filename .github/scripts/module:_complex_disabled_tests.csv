@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA),81732,https://github.com/pytorch/pytorch/issues/81732,"linux", "module: nn,module: complex"

@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA),80934,https://github.com/pytorch/pytorch/issues/80934,"linux", "module: cuda,module: primTorch"

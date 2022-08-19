@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_jit_cuda_extension (__main__.TestCppExtensionJIT),61655,https://github.com/pytorch/pytorch/issues/61655,"windows", "module: windows,module: cpp-extensions"

@@ -1,0 +1,9 @@
+Test,Issue,URL,Platforms,Labels
+test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest),67154,https://github.com/pytorch/pytorch/issues/67154,"rocm", "module: rocm"
+test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest),68319,https://github.com/pytorch/pytorch/issues/68319,"rocm", "oncall: distributed,module: rocm"
+test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn),75052,https://github.com/pytorch/pytorch/issues/75052,"rocm", "oncall: distributed,module: rocm"
+test_post_localSGD_optimizer_parity_with_hierarchical_sgd_grad_is_view (__main__.TestDistBackendWithSpawn),75139,https://github.com/pytorch/pytorch/issues/75139,"rocm", "oncall: distributed,module: rocm"
+test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed),75984,https://github.com/pytorch/pytorch/issues/75984,"rocm", "oncall: distributed,module: rocm"
+test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA),77039,https://github.com/pytorch/pytorch/issues/77039,"rocm", "module: autograd,module: rocm"
+test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA),77237,https://github.com/pytorch/pytorch/issues/77237,"rocm", "module: rocm,module: tests"
+test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA),78205,https://github.com/pytorch/pytorch/issues/78205,"rocm", "module: rocm"

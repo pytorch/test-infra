@@ -1,0 +1,12 @@
+Test,Issue,URL,Platforms,Labels
+test_fn_gradgrad_linalg_det_cuda_float64 (__main__.TestGradientsCUDA),62327,https://github.com/pytorch/pytorch/issues/62327,"", "module: autograd,module: linear algebra,module: correctness (silent)"
+test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA),62328,https://github.com/pytorch/pytorch/issues/62328,"", "module: autograd,module: linear algebra,module: correctness (silent),complex_autograd"
+test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA),76962,https://github.com/pytorch/pytorch/issues/76962,"linux", "module: linear algebra"
+test_meta_linalg_ldl_factor_cuda (__main__.TestMetaCUDA),77020,https://github.com/pytorch/pytorch/issues/77020,"", "module: linear algebra"
+test_meta_linalg_ldl_factor_ex_cuda (__main__.TestMetaCUDA),77021,https://github.com/pytorch/pytorch/issues/77021,"", "module: linear algebra"
+test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA),77023,https://github.com/pytorch/pytorch/issues/77023,"", "module: linear algebra"
+test_meta_linalg_ldl_factor_cuda_complex64 (__main__.TestMetaCUDA),77024,https://github.com/pytorch/pytorch/issues/77024,"", "module: linear algebra"
+test_meta_linalg_ldl_factor_ex_cuda_complex128 (__main__.TestMetaCUDA),77025,https://github.com/pytorch/pytorch/issues/77025,"", "module: linear algebra"
+test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA),77026,https://github.com/pytorch/pytorch/issues/77026,"", "module: linear algebra"
+test_ldl_factor_cuda_complex128 (__main__.TestLinalgCUDA),77038,https://github.com/pytorch/pytorch/issues/77038,"linux", "module: linear algebra"
+test_ldl_factor_cuda_complex64 (__main__.TestLinalgCUDA),77040,https://github.com/pytorch/pytorch/issues/77040,"linux", "module: linear algebra"

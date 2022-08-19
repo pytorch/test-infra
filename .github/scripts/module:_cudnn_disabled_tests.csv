@@ -1,0 +1,2 @@
+Test,Issue,URL,Platforms,Labels
+test_conv_backend_cudnn3d_transposed_has_bias_False_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA),80318,https://github.com/pytorch/pytorch/issues/80318,"linux", "module: cudnn"
