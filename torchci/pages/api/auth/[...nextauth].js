@@ -22,6 +22,7 @@ export default (req, res) =>
       async session({ session, token, user }) {
         session.user.id = token.id;
         session.accessToken = token.accessToken;
+        session.userData = user;
         return session;
       },
       async jwt({ token, user, account, profile, isNewUser }) {
