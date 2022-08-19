@@ -143,7 +143,7 @@ def fetch_alerts() -> Any:
         data = json.loads(r.text)
         return data["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
-        raise RuntimeError("Error fetching alerts", e)
+        raise RuntimeError("Error fetching alerts", e, data)
 
 
 def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
