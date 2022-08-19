@@ -404,6 +404,13 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
   });
 
+  test("getPlatformsAffected: should correctly triage rocm without linux", async () => {
+    const workflowJobs = ["pull / whatever-rocm-linux / build"];
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "rocm"
+    ]);
+  });
+
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
       "Platforms: "
