@@ -51,21 +51,31 @@ function myBot(app: Probot): void {
     }
   });
 
-  async function addLabelsFromTitle(
-    existingLabels: string[],
+  function getLabelsToAddFromTitle(
     title: string,
-    context: Context
-  ): Promise<void> {
-    const labelSet = new Set(existingLabels);
-    const newLabels: string[] = [];
+  ): string[] {
+    const labelsToAdd: string[] = [];
 
     for (const [regex, label] of regexToLabel) {
       if (title.match(regex)) {
-        addLabel(labelSet, newLabels, label);
+        labelsToAdd.push(label);
       }
     }
 
+    return labelsToAdd;
+  }
+
+  async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
+    // labelsToAdd may have duplicates, so we cannot use a filter
+    const newLabels: string[] = []
+    labelsToAdd.forEach(l => {
+      if (!existingLabels.includes(l) && !newLabels.includes(l)) {
+        newLabels.push(l);
+      }
+    });
+
     if (newLabels.length) {
+      context.log(`Adding new labels: ${newLabels}}`);
       await context.octokit.issues.addLabels(
         context.issue({ labels: newLabels })
       );
@@ -78,7 +88,9 @@ function myBot(app: Probot): void {
     );
     const title = context.payload["issue"]["title"];
     context.log({ labels, title });
-    await addLabelsFromTitle(labels, title, context);
+
+    const labelsToAdd = getLabelsToAddFromTitle(title);
+    await addNewLabels(labels, labelsToAdd, context);
   });
 
   app.on(["pull_request.opened", "pull_request.edited"], async (context) => {
@@ -88,7 +100,8 @@ function myBot(app: Probot): void {
     const title = context.payload.pull_request.title;
     context.log({ labels, title });
 
-    await addLabelsFromTitle(labels, title, context);
+    const labelsToAdd = getLabelsToAddFromTitle(title);
+    await addNewLabels(labels, labelsToAdd, context);
   });
 }
 
