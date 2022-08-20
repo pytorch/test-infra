@@ -65,6 +65,18 @@ function myBot(app: Probot): void {
     return labelsToAdd;
   }
 
+  function getLabelsToAddFromFilesChanged(
+    filesChanged: string[],
+  ): string[] {
+    const labelsToAdd: string[] = [];
+
+    if (filesChanged.length > 0) {
+      // TODO: replace this with real conditional
+    }
+
+    return labelsToAdd;
+  }
+
   async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
     // labelsToAdd may have duplicates, so we cannot use a filter
     const newLabels: string[] = []
@@ -98,9 +110,15 @@ function myBot(app: Probot): void {
       (e) => e["name"]
     );
     const title = context.payload.pull_request.title;
-    context.log({ labels, title });
+    const filesChangedRes = await context.octokit.paginate("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+      owner: context.payload.repository.owner.name!,
+      repo: context.payload.repository.name,
+      pull_number: context.payload.pull_request.number
+    })
+    const filesChanged = filesChangedRes.map((f: any) => f.filename);
+    context.log({ labels, title, filesChanged });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title);
+    const labelsToAdd = getLabelsToAddFromTitle(title).concat(getLabelsToAddFromFilesChanged(filesChanged));
     await addNewLabels(labels, labelsToAdd, context);
   });
 }
