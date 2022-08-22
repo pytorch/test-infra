@@ -90,8 +90,7 @@ console.
 ### Modifying Deployment Settings
 
 If you ever need to modify the deployment settings like the oauth callbacks, domain names, there's a few places that you need to change these settings in. Here's a list:
-
-1. DNS Registry/Certificates (Owned by the OSS team)
+1. [DNS Registry/Certificates](https://fb.workplace.com/groups/osssupport) (Contact the the OSS team)
 2. [Environment Variables](https://vercel.com/torchci/torchci/settings/environment-variables)
 3. [OAuth Project](https://github.com/settings/applications/1973779) / [OAuth Project Local](https://github.com/settings/applications/1976306)
 4. [Domain Management](https://vercel.com/torchci/torchci/settings/domains)
