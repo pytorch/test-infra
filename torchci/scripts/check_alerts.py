@@ -313,7 +313,7 @@ def main():
         alerts_cleared = clear_alerts(alerts)
 
     # Create a new alert if no alerts active or edit the original one if there's a new update
-    no_alert_currently_active = alerts_cleared == True or len(alerts) == 0
+    no_alert_currently_active = alerts_cleared or len(alerts) == 0
     if len(jobs_to_alert_on) > 0 and (no_alert_currently_active):
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
     elif len(jobs_to_alert_on) > 0 and len(alerts) == 1:
