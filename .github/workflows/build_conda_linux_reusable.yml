@@ -26,6 +26,9 @@ jobs:
     - name: Clean conda environment
       run: |
         conda clean --all --quiet --yes
+    - name: Install conda build
+      run: |
+        conda install conda-build
     - uses: actions/checkout@v2
     - name: Run pre-build script
       run: ./packaging/pre_build_script_conda.sh
