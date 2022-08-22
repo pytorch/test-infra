@@ -1,4 +1,5 @@
 import json
+import numbers
 import os
 import urllib.parse
 from collections import defaultdict
@@ -31,6 +32,7 @@ query ($owner: String!, $name: String!, $labels: [String!]) {
         title
         closed
         number
+        body
       }
     }
   }
@@ -41,7 +43,6 @@ REPO_NAME = "test-infra"
 failure_label = "pytorch-alert"
 labels = [failure_label]
 headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
-
 
 CREATE_ISSUE_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues"
 UPDATE_ISSUE_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues/"
@@ -132,7 +133,7 @@ class JobStatus:
         return f"jobName: {self.job_name}"
 
 
-def fetch_alerts() -> Any:
+def fetch_alerts() -> List[Any]:
     try:
         variables = {"owner": REPO_OWNER, "name": REPO_NAME, "labels": labels}
         r = requests.post(
@@ -140,6 +141,7 @@ def fetch_alerts() -> Any:
             json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
             headers=headers,
         )
+        r.raise_for_status()
         data = json.loads(r.text)
         return data["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
@@ -147,6 +149,7 @@ def fetch_alerts() -> Any:
 
 
 def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
+    failed_jobs.sort(key=lambda status: status.job_name)
     issue = {}
     issue[
         "title"
@@ -166,17 +169,27 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
     issue["labels"] = labels
     issue["assignees"] = ["zengk95"]
 
-    print("Creating alerts for: ", failed_jobs)
+    print("Generating alerts for: ", failed_jobs)
     return issue
+
+
+def update_issue(issue: Any, issue_number: int) -> None:
+    print("Updating issue", issue)
+    r = requests.patch(
+        UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
+    )
+    r.raise_for_status()
 
 
 def create_issue(issue: Any) -> None:
     print("Creating issue", issue)
-    requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
+    r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
+    r.raise_for_status()
 
 
 def fetch_hud_data() -> Any:
     response = requests.get(HUD_API_URL)
+    response.raise_for_status()
     hud_data = json.loads(response.text)
     return (hud_data["jobNames"], hud_data["shaGrid"])
 
@@ -241,11 +254,12 @@ def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
 def clear_alerts(alerts: List[Any]) -> bool:
     cleared_alerts = 0
     for alert in alerts:
-        requests.patch(
+        r = requests.patch(
             UPDATE_ISSUE_URL + str(alert["number"]),
             json={"state": "closed"},
             headers=headers,
         )
+        r.raise_for_status()
         cleared_alerts += 1
     print(f"Clearing {cleared_alerts} alerts.")
     return cleared_alerts > 0
@@ -293,13 +307,22 @@ def main():
     # Fetch alerts
     alerts = fetch_alerts()
     alerts_cleared = False
-    # # Try to clear the alerts
-    if should_clear_alerts(sha_grid):
+
+    # Alerts should be singletons and there should only be 1 alert
+    # Alerts should also be cleared if the current status of HUD is green
+    if len(alerts) > 1 or should_clear_alerts(sha_grid):
         alerts_cleared = clear_alerts(alerts)
 
+    # Create a new alert if no alerts active or edit the original one if there's a new update
     no_alert_currently_active = alerts_cleared == True or len(alerts) == 0
     if len(jobs_to_alert_on) > 0 and (no_alert_currently_active):
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
+    elif len(jobs_to_alert_on) > 0 and len(alerts) == 1:
+        new_issue = generate_failed_job_issue(jobs_to_alert_on)
+        if alerts[0]["body"] != new_issue["body"]:
+            update_issue(new_issue, alerts[0]["number"])
+        else:
+            print("No new updates. Not updating any alerts.")
     else:
         print(
             "Didn't find anything to alert on.",
