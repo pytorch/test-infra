@@ -6,12 +6,18 @@ on:
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
+
 jobs:
   update-disabled-tests:
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install requests
+        run: |
+           pip3 install requests
       - name: Check for alerts and creates issue
         run: |
-          .github/scripts/check_alerts.py
+          python3 torchci/scripts/check_alerts.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
