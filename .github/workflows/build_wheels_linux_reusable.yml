@@ -65,6 +65,8 @@ jobs:
         ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
     - name: Create environemnt variables from pytorch-pkg-helpers
       run: |
+        # https://github.com/actions/checkout/issues/760#issuecomment-1097501613
+        git config --global --add safe.directory /__w/audio/audio
         BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
         ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
         echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
@@ -75,7 +77,7 @@ jobs:
       run: |
         source "${BUILD_ENV_FILE}"
         # shellcheck disable=SC2086
-        ${CONDA_RUN} pip_install --pre torch -f "https://download.pytorch.org/whl/nightly/${GPU_ARCH_VERSION}/torch_nightly.html"
+        ${CONDA_RUN} ${PIP_INSTALL_TORCH}
     - name: Run pre-build script with steps specific to the repository
       run: ./packaging/pre_build_script_wheel.sh
     - name: Build clean
