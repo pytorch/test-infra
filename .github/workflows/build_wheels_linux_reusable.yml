@@ -41,7 +41,6 @@ jobs:
       with:
         auto-update-conda: true
         python-version: ${PYTHON_VERSION}
-        activate-environment: build
     - name: Clean conda environment
       run: |
         conda clean --all --quiet --yes
