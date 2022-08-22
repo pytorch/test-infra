@@ -36,7 +36,7 @@ describe("auto-cc-bot", () => {
     await probot.receive({ name: "issues", payload, id: "2" });
   });
 
-  test("add a cc when issue is labeled", async () => {
+  test("add a cc when issue is labeled(skipping self)", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -44,7 +44,7 @@ describe("auto-cc-bot", () => {
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @ezyang @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled"); // testlabel
@@ -55,7 +55,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @ezyang",
+            body: "Arf arf\n\ncc @malfet",
           });
           return true;
         }
@@ -74,7 +74,7 @@ Some header text
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled"); // testlabel
@@ -85,7 +85,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "cc @ezyang",
+            body: "cc @malfet",
           });
           return true;
         }
@@ -137,7 +137,7 @@ Some header text
     nockTracker(`
 Some header text
 
-* testlabel @ezyang
+* testlabel @malfet
 `);
 
     const payload = require("./fixtures/issues.labeled");
@@ -148,7 +148,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @ezyang @moo @foo/bar @mar\nxxxx",
+            body: "Arf arf\n\ncc @malfet @moo @foo/bar @mar\nxxxx",
           });
           return true;
         }

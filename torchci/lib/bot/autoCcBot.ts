@@ -30,6 +30,11 @@ function myBot(app: Probot): void {
       }
     });
     context.log({ cc: Array.from(cc) }, "from subscriptions");
+    // Remove self from subscription
+    const author = context.payload[payloadType].user.login;
+    if (cc.delete(author)) {
+      context.log({ author: author }, "Removed self from subscriptions");
+    }
     if (cc.size) {
       // @ts-ignore
       const body = context.payload[payloadType]["body"];
