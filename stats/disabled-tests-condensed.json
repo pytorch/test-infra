@@ -1146,6 +1146,14 @@
       "rocm"
     ]
   ],
+  "test_profiler_experimental_tree_with_stack_and_torch_function (__main__.TestProfilerTree)": [
+    "83836",
+    "https://github.com/pytorch/pytorch/issues/83836",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_profiler_extra_cuda_copy_pattern (__main__.TestExperimentalUtils)": [
     "82873",
     "https://github.com/pytorch/pytorch/issues/82873",
