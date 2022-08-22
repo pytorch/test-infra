@@ -9,15 +9,23 @@ on:
         type: string
       image:
         description: 'docker image container for running the reusable workflow.'
-        required: true
+        required: false
         type: string
 
 jobs:
   wheels:
     runs-on: ubuntu-latest
-    container:
-      image: ${{ inputs.image }}
     steps:
+    - name: Setup miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        installer-url: https://github.com/conda-forge/miniforge/releases/download/4.8.3-2/Miniforge-pypy3-4.8.3-2-Linux-x86_64.sh
+        auto-update-conda: true
+        python-version: 3.8
+        activate-environment: build
+    - name: Clean conda environment
+      run: |
+        conda clean --all --quiet --yes
     - uses: actions/checkout@v2
     - name: Run pre-build script
       run: ./packaging/pre_build_script_conda.sh
