@@ -66,6 +66,7 @@ jobs:
     - name: Create environemnt variables from pytorch-pkg-helpers
       run: |
         # https://github.com/actions/checkout/issues/760#issuecomment-1097501613
+        # need to move this version.py get_root_dir(), and make it generic for all repositories
         git config --global --add safe.directory /__w/audio/audio
         BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
         ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
