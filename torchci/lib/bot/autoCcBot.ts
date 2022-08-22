@@ -31,6 +31,7 @@ function myBot(app: Probot): void {
     });
     context.log({ cc: Array.from(cc) }, "from subscriptions");
     // Remove self from subscription
+    // @ts-ignore
     const author = context.payload[payloadType].user.login;
     if (cc.delete(author)) {
       context.log({ author: author }, "Removed self from subscriptions");
