@@ -36,21 +36,54 @@ jobs:
     - name: Set artifact name
       run: |
         echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
+    - name: Setup miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${PYTHON_VERSION}
+        activate-environment: build
+    - name: Clean conda environment
+      run: |
+        conda clean --all --quiet --yes
+    - name: Create conda environment
+      run: |
+        CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+        conda create \
+          --yes \
+          --prefix "${CONDA_ENV}" \
+          "python=${PYTHON_VERSION}" \
+          cmake=3.22 \
+          ninja=1.10 \
+          numpy=1.23 \
+          pkg-config=0.29 \
+          wheel=0.37
+        echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+        echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
     - name: Install pytorch-pkg-helpers
       run: |
-        python3 -m pip install pytorch-pkg-helpers==0.1.0
+        ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
     - name: Create environemnt variables from pytorch-pkg-helpers
       run: |
         BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
-        python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+        ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
         echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
-    - name: Run pre-build script
+    - name: Install delocate-wheel
+      run: |
+        ${CONDA_RUN} python3 -m pip install delocate
+    - name: Install torch dependency
+      run: |
+        source "${BUILD_ENV_FILE}"
+        # shellcheck disable=SC2086
+        ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+    - name: Run pre-build script with steps specific to the repository
       run: ./packaging/pre_build_script_wheel.sh
     - name: Build clean
-      run: python setup.py clean
-    - name: Build wheels
-      run: python setup.py bdist_wheel
-    - name: Run post-build script
+      run: ${CONDA_RUN} python3 setup.py clean
+    - name: Build the wheel (bdist_wheel)
+      run: |
+        source "${BUILD_ENV_FILE}"
+        ${CONDA_RUN} python3 setup.py bdist_wheel
+    - name: Run post-build script with steps specific to the repository
       run: ./packaging/post_build_script_wheel.sh
     # - name: Upload wheel to GitHub
       # Commenting upload step to avoid publishing until reusable workflows are
