@@ -1,12 +1,11 @@
 import json
-import numbers
 import os
 import urllib.parse
 from collections import defaultdict
 from curses.ascii import CAN
 from difflib import SequenceMatcher
 from email.policy import default
-from typing import Any, List, Tuple, Dict
+from typing import Any, Dict, List, Tuple
 
 import requests
 
