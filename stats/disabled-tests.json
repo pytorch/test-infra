@@ -25646,7 +25646,7 @@
       "author_association": "NONE",
       "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_profiler_experimental_tree_with_stack_and_torch_function&suite=TestProfilerTree) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/7945503731).\n\nOver the past 3 hours, it has been determined flaky in 2 workflow(s) with 2 failures and 2 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_profiler_experimental_tree_with_stack_and_torch_function`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @robieta @chaekit @aaronenyeshi @ngimel @nbcsm @guotuofeng @guyang3532 @gaoteng-git @tiffzhaofb",
       "closed_at": null,
-      "comments": 1,
+      "comments": 2,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/83836/comments",
       "created_at": "2022-08-22T09:41:12Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/83836/events",
@@ -25705,7 +25705,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/83836/timeline",
       "title": "DISABLED test_profiler_experimental_tree_with_stack_and_torch_function (__main__.TestProfilerTree)",
-      "updated_at": "2022-08-22T09:41:18Z",
+      "updated_at": "2022-08-22T15:42:40Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/83836",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
