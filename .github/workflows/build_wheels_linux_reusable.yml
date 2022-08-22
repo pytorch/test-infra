@@ -41,7 +41,7 @@ jobs:
       with:
         installer-url: https://github.com/conda-forge/miniforge/releases/download/4.8.3-2/Miniforge-pypy3-4.8.3-2-Linux-x86_64.sh
         auto-update-conda: true
-        python-version: ${PYTHON_VERSION}
+        python-version: ${{ inputs.python_version }}
         activate-environment: build
     - name: Clean conda environment
       run: |
