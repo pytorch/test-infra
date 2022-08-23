@@ -18,14 +18,9 @@ WITH job as (
             PARSE_TIMESTAMP_ISO8601(job.started_at),
             PARSE_TIMESTAMP_ISO8601(job.completed_at)
         ) as duration_s,
-        classification.line as failure_line,
-        classification.context as failure_context,
-        classification.captures as failure_captures,
-        classification.line_num as failure_line_number,
     FROM
         workflow_job job
         INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
-        LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
@@ -67,15 +62,23 @@ WITH job as (
             PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
         ) as duration_s,
         -- Classifications not yet supported
-        null,
-        null,
-        null,
-        null,
     FROM
         circleci.job job
     WHERE
         job.pipeline.vcs.revision = :sha
         AND CONCAT(job.organization.name, '/', job.project.name) = :repo
+),
+-- Use a subquery for classifications to ensure we can do a lookup join, which greatly improves query performance.
+classification AS (
+    SELECT
+        classification.job_id,
+        classification.line,
+        classification.context,
+        classification.captures,
+        classification.line_num,
+    FROM
+        "GitHub-Actions".classification
+        INNER JOIN job ON classification.job_id = job.id HINT(join_strategy = lookup)
 )
 SELECT
     sha,
@@ -92,12 +95,13 @@ SELECT
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,
-    failure_line as failureLine,
-    failure_line_number as failureLineNumber,
-    failure_context as failureContext,
-    failure_captures as failureCaptures,
+    classification.line as failureLine,
+    classification.line_num as failureLineNumber,
+    classification.context as failureContext,
+    classification.captures as failureCaptures,
 from
     job
+    LEFT JOIN classification ON classification.job_id = job.id
 where
     job.sha = :sha
 ORDER BY

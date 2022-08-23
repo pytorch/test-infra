@@ -1,3 +1,81 @@
+WITH job AS (
+    SELECT
+        workflow.head_commit.id as sha,
+        job.name as job_name,
+        workflow.name as workflow_name,
+        job.id,
+        job.conclusion,
+        job.html_url as html_url,
+        CONCAT(
+            'https://ossci-raw-job-status.s3.amazonaws.com/log/',
+            CAST(job.id as string)
+        ) as log_url,
+        DATE_DIFF(
+            'SECOND',
+            PARSE_TIMESTAMP_ISO8601(job.started_at),
+            PARSE_TIMESTAMP_ISO8601(job.completed_at)
+        ) as duration_s,
+        workflow.repository.full_name as repo,
+        job_annotation.annotation as failure_annotation
+    FROM
+        workflow_job job
+        INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
+        LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
+        LEFT JOIN job_annotation ON job_annotation.jobID = job.id HINT(join_strategy = lookup)
+    WHERE
+        job.name != 'ciflow_should_run'
+        AND job.name != 'generate-test-matrix'
+        AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+        AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_commit.id)
+        AND workflow.repository.full_name = :repo
+    UNION
+        -- Handle CircleCI
+        -- IMPORTANT: this needs to have the same order as the query above
+    SELECT
+        job.pipeline.vcs.revision as sha,
+        -- Swap workflow and job name for consistency with GHA naming style.
+        job.workflow.name as job_name,
+        job.job.name as workflow_name,
+        job.job.number as id,
+        case
+            WHEN job.job.status = 'failed' then 'failure'
+            WHEN job.job.status = 'canceled' then 'cancelled'
+            else job.job.status
+        END as conclusion,
+        -- cirleci doesn't provide a url, piece one together out of the info we have
+        CONCAT(
+            job.workflow.url,
+            '/jobs/',
+            CAST(job.job.number AS string)
+        ) as html_url,
+        -- logs aren't downloaded currently, just reuse html_url
+        html_url as log_url,
+        DATE_DIFF(
+            'SECOND',
+            PARSE_TIMESTAMP_ISO8601(job.job.started_at),
+            PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
+        ) as duration_s,
+        CONCAT(job.organization.name, '/', job.project.name) as repo,
+        null,
+    FROM
+        circleci.job job
+    WHERE
+        ARRAY_CONTAINS(SPLIT(:shas, ','), job.pipeline.vcs.revision)
+        AND CONCAT(job.organization.name, '/', job.project.name) = :repo
+),
+-- Use a subquery for classifications to ensure we can do a lookup join, which greatly improves query performance.
+classification AS (
+    SELECT
+        classification.job_id,
+        classification.line,
+        classification.context,
+        classification.captures,
+        classification.line_num,
+    FROM
+        "GitHub-Actions".classification
+        INNER JOIN job ON classification.job_id = job.id HINT(join_strategy = lookup)
+)
 SELECT
     sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
@@ -9,85 +87,12 @@ SELECT
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,
-    failure_line as failureLine,
-    failure_context as failureContext,
-    failure_captures as failureCaptures,
-    failure_line_number as failureLineNumber,
     repo as repo,
+    classification.line as failureLine,
+    classification.line_num as failureLineNumber,
+    classification.context as failureContext,
+    classification.captures as failureCaptures,
     failure_annotation as failureAnnotation,
 FROM
-    (
-        SELECT
-            workflow.head_commit.id as sha,
-            job.name as job_name,
-            workflow.name as workflow_name,
-            job.id,
-            job.conclusion,
-            job.html_url as html_url,
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                CAST(job.id as string)
-            ) as log_url,
-            DATE_DIFF(
-                'SECOND',
-                PARSE_TIMESTAMP_ISO8601(job.started_at),
-                PARSE_TIMESTAMP_ISO8601(job.completed_at)
-            ) as duration_s,
-            classification.line as failure_line,
-            classification.context as failure_context,
-            classification.captures as failure_captures,
-            classification.line_num as failure_line_number,
-            workflow.repository.full_name as repo,
-            job_annotation.annotation as failure_annotation
-        FROM
-            workflow_job job
-            INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
-            LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
-            LEFT JOIN job_annotation ON job_annotation.jobID = job.id HINT(join_strategy = lookup)
-        WHERE
-            job.name != 'ciflow_should_run'
-            AND job.name != 'generate-test-matrix'
-            AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
-            AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-            AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_commit.id)
-            AND workflow.repository.full_name = :repo
-        UNION
-            -- Handle CircleCI
-            -- IMPORTANT: this needs to have the same order as the query above
-        SELECT
-            job.pipeline.vcs.revision as sha,
-            -- Swap workflow and job name for consistency with GHA naming style.
-            job.workflow.name as job_name,
-            job.job.name as workflow_name,
-            job.job.number as id,
-            case
-                WHEN job.job.status = 'failed' then 'failure'
-                WHEN job.job.status = 'canceled' then 'cancelled'
-                else job.job.status
-            END as conclusion,
-            -- cirleci doesn't provide a url, piece one together out of the info we have
-            CONCAT(
-                job.workflow.url,
-                '/jobs/',
-                CAST(job.job.number AS string)
-            ) as html_url,
-            -- logs aren't downloaded currently, just reuse html_url
-            html_url as log_url,
-            DATE_DIFF(
-                'SECOND',
-                PARSE_TIMESTAMP_ISO8601(job.job.started_at),
-                PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
-            ) as duration_s,
-            -- Classifications not yet supported
-            null,
-            null,
-            null,
-            null,
-            CONCAT(job.organization.name, '/', job.project.name) as repo,
-            null,
-        FROM
-            circleci.job job
-        WHERE
-            ARRAY_CONTAINS(SPLIT(:shas, ','), job.pipeline.vcs.revision)
-            AND CONCAT(job.organization.name, '/', job.project.name) = :repo
-    ) as job
+    job
+    LEFT JOIN classification ON classification.job_id = job.id
