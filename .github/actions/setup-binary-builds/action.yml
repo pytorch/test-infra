@@ -31,8 +31,6 @@ inputs:
 
 runs:
   using: composite
-  env:
-    PYTHON_VERSION: ${{ inputs.python-version }}
   steps:
       - uses: actions/checkout@v3
         with:
@@ -48,6 +46,8 @@ runs:
             echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
           fi
       - name: Set artifact name
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           # Set artifact name here since github actions doesn't have string manipulation tools
           # and "/" is not allowed in artifact names
@@ -74,6 +74,8 @@ runs:
           ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           conda create \
