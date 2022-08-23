@@ -55,7 +55,7 @@ runs:
           # and "/" is not allowed in artifact names
           echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
       - name: Setup miniconda (for pytorch_pkg_helpers)
-        if: ${{ inputs.setup-miniconda }}
+        if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: 3.9
