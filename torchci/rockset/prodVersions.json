@@ -1,7 +1,7 @@
 {
   "commons": {
-    "hud_query": "a848c067c22e5a09",
-    "commit_jobs_query": "387b2da14e7d0d6b",
+    "hud_query": "fe60c15ce8f200f1",
+    "commit_jobs_query": "a9c94520e706fc02",
     "flaky_tests": "59d7546183743626",
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "50cb3694334ed63a",
@@ -20,7 +20,7 @@
   "metrics": {
     "correlation_matrix": "4960260cbb0c5b48",
     "job_duration_avg": "124f44f27a7d8225",
-    "job_duration_percentile": "c64a455ac06003ba",
+    "job_duration_percentile": "9cc2fb692664e05f",
     "last_branch_push": "3d995ac2143586dc",
     "last_successful_jobs": "fd8bc3a2afc989a2",
     "last_successful_workflow": "5d22927dd0b0956b",
@@ -34,8 +34,8 @@
     "reverts": "f5bc84a10c4065a3",
     "tts_avg": "c0049352a4c38aa5",
     "tts_duration_historical": "593f718235d55e75",
-    "tts_duration_historical_percentile": "433d43743c002994",
-    "tts_percentile": "7d7dcb69f3bca3e2",
+    "tts_duration_historical_percentile": "4ccc23b6d3da41e5",
+    "tts_percentile": "a6f994a29726df6b",
     "strict_lag_sec": "f9523e8c8c3a3311",
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "34e698a78cb36669",
