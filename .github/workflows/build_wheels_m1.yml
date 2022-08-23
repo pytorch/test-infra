@@ -44,7 +44,7 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: ./.test-infra
-      - uses: ./.test-infra/.github/actions/setup-binary-build
+      - uses: ./.test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
