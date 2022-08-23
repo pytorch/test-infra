@@ -1,0 +1,90 @@
+name: Set up binary builds
+
+description: Clean workspace and check out PyTorch
+
+inputs:
+  repository:
+    description: If set to any value, don't use sudo to clean the workspace
+    required: false
+    type: string
+    default: ""
+  ref:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: string
+    default: nightly
+  submodules:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: string
+    default: recursive
+  setup-miniconda:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: boolean
+    default: false
+  python-version:
+    description: Works as stated in actions/checkout, but the default value is recursive
+    required: false
+    type: boolean
+    default: false
+
+runs:
+  using: composite
+  env:
+    PYTHON_VERSION: ${{ inputs.python-version }}
+  steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          submodules: ${{ inputs.submodules }}
+      - name: Set release CHANNEL
+        run: |
+          # reference ends with an RC suffix
+          if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
+            echo "CHANNEL=test" >> "${GITHUB_ENV}"
+          else
+            echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
+          fi
+      - name: Set artifact name
+        run: |
+          # Set artifact name here since github actions doesn't have string manipulation tools
+          # and "/" is not allowed in artifact names
+          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
+      - name: Setup miniconda (for pytorch_pkg_helpers)
+        if: ${{ inputs.setup-miniconda }}
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: 3.9
+      - name: Clean conda environment
+        run: |
+          conda clean --all --quiet --yes
+      - name: Generate file from pytorch_pkg_helpers
+        run: |
+          CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
+          conda create \
+            --yes \
+            --prefix "${CONDA_ENV}" \
+            "python=3.9"
+          CONDA_ENV="${CONDA_ENV}"
+          CONDA_RUN="conda run -p ${CONDA_ENV}"
+          ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
+          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+          ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+      - name: Setup conda environment for build
+        run: |
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          conda create \
+            --yes \
+            --prefix "${CONDA_ENV}" \
+            "python=${PYTHON_VERSION}" \
+            cmake=3.22 \
+            conda-build=3.21 \
+            ninja=1.10 \
+            numpy=1.23 \
+            pkg-config=0.29 \
+            wheel=0.37
+          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"

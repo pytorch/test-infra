@@ -11,6 +11,10 @@ on:
         description: 'Reference to checkout, defaults to "nightly"'
         default: "nightly"
         type: string
+      _setup_action:
+        description: "Checkout action to use (MAINLY USED FOR TESTING PURPOSES ON test-infra)"
+        default: "pytorch/test-infra/.github/actions/setup-binary-build@master"
+        type: string
 
 jobs:
   build:
@@ -30,48 +34,12 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v3
+      - uses: ${{ inputs._setup_action }}
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-      - name: Set release CHANNEL
-        run: |
-          # reference ends with an RC suffix
-          if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
-            echo "CHANNEL=test" >> "${GITHUB_ENV}"
-          else
-            echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
-          fi
-      - name: Set artifact name
-        run: |
-          # Set artifact name here since github actions doesn't have string manipulation tools
-          # and "/" is not allowed in artifact names
-          echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
-      - name: Clean conda environment
-        run: |
-          conda clean --all --quiet --yes
-      - name: Create conda environment
-        run: |
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-          conda create \
-            --yes \
-            --prefix "${CONDA_ENV}" \
-            "python=${PYTHON_VERSION}" \
-            cmake=3.22 \
-            ninja=1.10 \
-            numpy=1.23 \
-            pkg-config=0.29 \
-            wheel=0.37
-          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
-      - name: Install pytorch-pkg-helpers
-        run: |
-          ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
-      - name: Create environemnt variables from pytorch-pkg-helpers
-        run: |
-          BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
-          ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
-          echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+          setup-miniconda: false
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install delocate-wheel
         run: |
           ${CONDA_RUN} python3 -m pip install delocate
