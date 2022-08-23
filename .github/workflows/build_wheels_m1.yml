@@ -11,9 +11,9 @@ on:
         description: 'Reference to checkout, defaults to "nightly"'
         default: "nightly"
         type: string
-      _setup_action:
-        description: "Checkout action to use (MAINLY USED FOR TESTING PURPOSES ON test-infra)"
-        default: "pytorch/test-infra/.github/actions/setup-binary-build@master"
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
         type: string
 
 jobs:
@@ -34,7 +34,13 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
-      - uses: ${{ inputs._setup_action }}
+      - uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ github.repository.endswith('test-infra') && github.repository || 'pytorch/test-infra' }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: ./.test-infra
+      - uses: ./.test-infra/.github/actions/setup-binary-build
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
