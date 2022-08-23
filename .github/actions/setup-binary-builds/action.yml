@@ -37,7 +37,7 @@ runs:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
-          clean: false
+          path: ${{ inputs.repository }}
       - name: Set release CHANNEL
         shell: bash
         run: |

@@ -43,8 +43,8 @@ jobs:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
-          path: ./.test-infra
-      - uses: ./.test-infra/.github/actions/setup-binary-builds
+          path: test-infra
+      - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -59,17 +59,19 @@ jobs:
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Build the wheel (bdist_wheel)
+        working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
+        working-directory: ${{ inputs.repository }}
         run: |
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: dist/
+          path: ${{ inputs.repository }}/dist/
       # TODO: Figure out upload method to s3
 
 concurrency:
