@@ -38,6 +38,7 @@ runs:
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
       - name: Set release CHANNEL
+        shell: bash
         run: |
           # reference ends with an RC suffix
           if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
@@ -46,6 +47,7 @@ runs:
             echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
           fi
       - name: Set artifact name
+        shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
@@ -58,9 +60,11 @@ runs:
         with:
           python-version: 3.9
       - name: Clean conda environment
+        shell: bash
         run: |
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
+        shell: bash
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
           conda create \
@@ -74,6 +78,7 @@ runs:
           ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
+        shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
