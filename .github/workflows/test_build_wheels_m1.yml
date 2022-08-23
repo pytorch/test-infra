@@ -19,4 +19,5 @@ jobs:
     with:
       repository: ${{ matrix.repository }}
       ref: nightly
-      _setup_action: ${{ github.repository }}/.github/actions/setup-binary-build@${{ github.ref }}
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}

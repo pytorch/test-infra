@@ -11,6 +11,10 @@ on:
         description: 'Reference to checkout, defaults to "nightly"'
         default: "nightly"
         type: string
+      test-infra-repository:
+        description: "Test infra reference to use"
+        default: "pytorch/test-infra"
+        type: string
       test-infra-ref:
         description: "Test infra reference to use"
         default: ""
@@ -37,7 +41,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
-          repository: ${{ github.repository.endswith('test-infra') && github.repository || 'pytorch/test-infra' }}
+          repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: ./.test-infra
       - uses: ./.test-infra/.github/actions/setup-binary-build
