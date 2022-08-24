@@ -404,6 +404,13 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
   });
 
+  test("getPlatformsAffected: should correctly triage rocm without linux", async () => {
+    const workflowJobs = ["pull / whatever-rocm-linux / build"];
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "rocm"
+    ]);
+  });
+
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
       "Platforms: "
@@ -412,7 +419,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getIssueBodyForFlakyTest: should contain correct examples URL", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
-      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a&file=file_a.py"
+      "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a"
     );
   });
 });

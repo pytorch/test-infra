@@ -1,0 +1,23 @@
+name: Check Alerts
+on:
+  schedule:
+    # Every 5 minutes
+    - cron: "*/5 * * * *"
+  # Have the ability to trigger this job manually through the API
+  workflow_dispatch:
+
+
+jobs:
+  update-disabled-tests:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install requests
+        run: |
+           pip3 install requests
+      - name: Check for alerts and creates issue
+        run: |
+          python3 torchci/scripts/check_alerts.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

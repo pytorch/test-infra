@@ -132,6 +132,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
     workflowJobNames.forEach((workflowJobNames) => {
       if (
         workflowJobNames.includes(platform) &&
+        (platform == "rocm" || !workflowJobNames.includes("rocm")) &&
         !platformsToSkip.includes(platform)
       ) {
         platformsToSkip.push(platform);
@@ -142,7 +143,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  const examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}&file=${test.file}`;
+  const examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
   return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
     ", "
   )}
