@@ -6,6 +6,17 @@ import useSWR from "swr";
 import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+
+function sortJobs( jobA: JobData, jobB: JobData): number {
+  // Show failed jobs first, then pending jobs, then successful jobs
+  if (jobA.conclusion !== jobB.conclusion) {
+    return getConclusionSeverityForSorting(jobB.conclusion) - getConclusionSeverityForSorting(jobA.conclusion);
+  }
+
+  // Jobs with the same conclusion are sorted alphabetically
+  return ('' + jobA.jobName).localeCompare('' + jobB.jobName);  // the '' forces the type to be a string
+}
 
 export default function WorkflowBox({
   workflowName,
@@ -25,7 +36,7 @@ export default function WorkflowBox({
       <h3>{workflowName}</h3>
       <h4>Job Status</h4>
       <>
-        {jobs.map((job) => (
+        {jobs.sort(sortJobs).map((job) => (
           <div key={job.id}>
             <JobSummary job={job} />
             <LogViewer job={job} />

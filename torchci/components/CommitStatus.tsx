@@ -6,17 +6,27 @@ import styles from "components/commit.module.css";
 import _ from "lodash";
 import { isFailedJob } from "lib/jobUtils";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
-  const byWorkflow = _.groupBy(jobs, (job) => job.workflowName);
   if (jobs.length === 0) {
     return null;
   }
+  
+  const byWorkflow = _(jobs)
+    .groupBy(job => job.workflowName)
+    .sortBy(jobs => _(jobs)
+      .map(job => getConclusionSeverityForSorting(job.conclusion))
+      .max())
+    .reverse() // List workflows with failed jobs first
+    .value()
+
   return (
     <>
       <h1>Workflows</h1>
       <div className={styles.workflowContainer}>
-        {_.map(byWorkflow, (jobs, workflowName) => {
+        {_.map(byWorkflow, jobs => {
+          let workflowName = '' + jobs[0].workflowName
           return (
             <WorkflowBox
               key={workflowName}

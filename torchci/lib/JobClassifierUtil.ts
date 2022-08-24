@@ -141,6 +141,29 @@ export function getConclusionChar(conclusion?: string): string {
   }
 }
 
+export function getConclusionSeverityForSorting(conclusion?: string): number {
+  // Returns a severity level for the conclusion. 
+  // Used to sort jobs by severity
+  switch (conclusion) {
+    case JobStatus.Success:
+      return 0;
+    case JobStatus.Skipped:
+      return 1;
+    case JobStatus.Neutral:
+      return 2;
+    case JobStatus.Cancelled:
+      return 3;
+    case JobStatus.Pending:
+      return 4;
+    case undefined:
+      return 5;
+    case JobStatus.Failure:
+      return 6;
+    default:
+      return 7;
+  }
+}
+
 export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
   // Construct Job Groupping Mapping
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [jobs]
