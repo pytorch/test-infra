@@ -9,7 +9,11 @@ on:
 
 jobs:
   generate-matrix:
+    name: Generate binary build matrix
     uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
   test:
     needs: generate-matrix
     strategy:

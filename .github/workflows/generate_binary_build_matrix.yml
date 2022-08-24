@@ -17,7 +17,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "master"
+        default: "main"
         type: string
     outputs:
       matrix: 
