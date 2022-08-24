@@ -1,0 +1,54 @@
+name: Generates the binary build matrix
+
+on:
+  workflow_call:
+    inputs:
+      package-type:
+        description: "Package type to build from (wheel, conda, libtorch)"
+        default: "wheel"
+        type: string
+      os:
+        description: "Operating system to generate for (linux, windows, macos, macos-arm64)"
+        default: "linux"
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: "main"
+        type: string
+    outputs:
+      matrix:
+        description: "Generated build matrix"
+        value: ${{ jobs.generate.outputs.matrix }}
+
+jobs:
+  generate:
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Checkout test-infra repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+      - name: Generate test matrix
+        id: generate
+        env:
+          PACKAGE_TYPE: ${{ inputs.package-type }}
+          OS: ${{ inputs.os }}
+        run: |
+          set -eou pipefail
+          MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"
+          echo "${MATRIX_BLOB}"
+          echo "::set-output name=matrix::${MATRIX_BLOB}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.package-type }}-${{ inputs.os }}-${{ inputs.test-infra-repository }}-${{ inputs.test-infra-ref }}
+  cancel-in-progress: true
