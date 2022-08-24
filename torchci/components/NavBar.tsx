@@ -70,9 +70,6 @@ function NavBar() {
               </Link>
             </li>
             <li>
-              <LoginSection />
-            </li>
-            <li>
               <Link prefetch={false} href="/tts">
                 TTS
               </Link>
@@ -88,6 +85,9 @@ function NavBar() {
                   </a>
                 </Link>
               </span>
+            </li>
+            <li>
+              <LoginSection />
             </li>
           </ul>
         </div>
