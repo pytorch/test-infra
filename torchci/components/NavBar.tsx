@@ -1,10 +1,8 @@
 import styles from "components/NavBar.module.css";
 import Link from "next/link";
-import React from "react";
 import { AiFillGithub } from "react-icons/ai";
-
+import LoginSection from "./LoginSection";
 function NavBar() {
-  // TODO: Rewrite Help Link
   return (
     <div className={styles.linksContainer}>
       <div className={styles.links}>
@@ -47,6 +45,7 @@ function NavBar() {
             display: "inline",
             marginLeft: "auto",
             marginRight: "0px",
+            whiteSpace: "nowrap",
           }}
         >
           <ul style={{ marginBottom: "0" }} className={styles.menu}>
@@ -69,6 +68,9 @@ function NavBar() {
               <Link prefetch={false} href="/kpis">
                 KPIs
               </Link>
+            </li>
+            <li>
+              <LoginSection />
             </li>
             <li>
               <Link prefetch={false} href="/tts">
