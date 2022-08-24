@@ -50,5 +50,5 @@ jobs:
           echo "::set-output name=matrix::${MATRIX_BLOB}"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.package-type }}-${{ inputs.os }}-${{ inputs.test-infra-repository }}-${{ inputs.test-infra-ref }}
   cancel-in-progress: true
