@@ -9,7 +9,6 @@ on:
 
 jobs:
   generate-matrix:
-    name: Generate binary build matrix
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel

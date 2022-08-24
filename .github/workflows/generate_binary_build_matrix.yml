@@ -26,6 +26,8 @@ on:
 
 jobs:
   generate:
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v4
@@ -37,6 +39,7 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
       - name: Generate test matrix
+        id: generate
         env:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
