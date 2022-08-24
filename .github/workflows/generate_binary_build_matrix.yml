@@ -5,11 +5,11 @@ on:
     inputs:
       package-type:
         description: "Package type to build from (wheel, conda, libtorch)"
-        default: ""
+        default: "wheel"
         type: string
       os:
         description: "Operating system to generate for (linux, windows, macos, macos-arm64)"
-        default: ""
+        default: "linux"
         type: string
       test-infra-repository:
         description: "Test infra repository to use"

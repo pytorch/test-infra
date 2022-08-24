@@ -12,6 +12,8 @@ jobs:
     name: Generate binary build matrix
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
+      package-type: wheel
+      os: macos-arm64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
