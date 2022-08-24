@@ -659,11 +659,6 @@
     "https://github.com/pytorch/pytorch/issues/62328",
     []
   ],
-  "test_fn_gradgrad_linalg_det_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "62327",
-    "https://github.com/pytorch/pytorch/issues/62327",
-    []
-  ],
   "test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "81822",
     "https://github.com/pytorch/pytorch/issues/81822",
