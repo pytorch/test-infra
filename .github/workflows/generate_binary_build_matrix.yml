@@ -20,7 +20,7 @@ on:
         default: "master"
         type: string
     outputs:
-      matrix: ${{ steps.generate_matrix.outputs.matrix }}
+      matrix: ${{ jobs.generate-matrix.outputs.matrix }}
 
 jobs:
   generate-matrix:
@@ -35,7 +35,6 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
       - name: Generate test matrix
-        id: generate_matrix
         env:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
