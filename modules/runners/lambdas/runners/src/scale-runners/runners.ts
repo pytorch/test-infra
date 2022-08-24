@@ -128,48 +128,67 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
             Value: runnerParameters.orgName,
           });
         }
-        const runInstancesResponse = await ec2
-          .runInstances({
-            MaxCount: 1,
-            MinCount: 1,
-            LaunchTemplate: {
-              LaunchTemplateName:
-                runnerParameters.runnerType.os === 'linux'
-                  ? Config.Instance.launchTemplateNameLinux
-                  : Config.Instance.launchTemplateNameWindows,
-              Version:
-                runnerParameters.runnerType.os === 'linux'
-                  ? Config.Instance.launchTemplateVersionLinux
-                  : Config.Instance.launchTemplateVersionWindows,
-            },
-            InstanceType: runnerParameters.runnerType.instance_type,
-            BlockDeviceMappings: [
-              {
-                DeviceName: storageDeviceName,
-                Ebs: {
-                  VolumeSize: runnerParameters.runnerType.disk_size,
-                  VolumeType: 'gp3',
-                  Encrypted: true,
-                  DeleteOnTermination: true,
+
+        let runInstancesResponse = undefined;
+        let expBackOff = 5000;
+        for (;;) {
+          try {
+            runInstancesResponse = await ec2
+              .runInstances({
+                MaxCount: 1,
+                MinCount: 1,
+                LaunchTemplate: {
+                  LaunchTemplateName:
+                    runnerParameters.runnerType.os === 'linux'
+                      ? Config.Instance.launchTemplateNameLinux
+                      : Config.Instance.launchTemplateNameWindows,
+                  Version:
+                    runnerParameters.runnerType.os === 'linux'
+                      ? Config.Instance.launchTemplateVersionLinux
+                      : Config.Instance.launchTemplateVersionWindows,
                 },
-              },
-            ],
-            NetworkInterfaces: [
-              {
-                AssociatePublicIpAddress: true,
-                SubnetId: subnet,
-                Groups: Config.Instance.securityGroupIds,
-                DeviceIndex: 0,
-              },
-            ],
-            TagSpecifications: [
-              {
-                ResourceType: 'instance',
-                Tags: tags,
-              },
-            ],
-          })
-          .promise();
+                InstanceType: runnerParameters.runnerType.instance_type,
+                BlockDeviceMappings: [
+                  {
+                    DeviceName: storageDeviceName,
+                    Ebs: {
+                      VolumeSize: runnerParameters.runnerType.disk_size,
+                      VolumeType: 'gp3',
+                      Encrypted: true,
+                      DeleteOnTermination: true,
+                    },
+                  },
+                ],
+                NetworkInterfaces: [
+                  {
+                    AssociatePublicIpAddress: true,
+                    SubnetId: subnet,
+                    Groups: Config.Instance.securityGroupIds,
+                    DeviceIndex: 0,
+                  },
+                ],
+                TagSpecifications: [
+                  {
+                    ResourceType: 'instance',
+                    Tags: tags,
+                  },
+                ],
+              })
+              .promise();
+            break;
+          } catch (e) {
+            if (`${e}`.includes('RequestLimitExceeded')) {
+              if (expBackOff > 40000) {
+                throw e;
+              }
+              await new Promise((resolve) => setTimeout(resolve, expBackOff));
+              expBackOff = expBackOff * 1.5;
+            } else {
+              throw e;
+            }
+          }
+        }
+
         console.info(
           `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
           /* istanbul ignore next */
