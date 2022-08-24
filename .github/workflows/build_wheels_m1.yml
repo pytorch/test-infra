@@ -12,7 +12,7 @@ on:
         default: "nightly"
         type: string
       test-infra-repository:
-        description: "Test infra reference to use"
+        description: "Test infra repository to use"
         default: "pytorch/test-infra"
         type: string
       test-infra-ref:
