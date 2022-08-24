@@ -28,8 +28,7 @@ jobs:
   build:
     strategy:
       fail-fast: false
-      matrix:
-        include: ${{ fromJSON(inputs.build-matrix) }}
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
       PYTHON_VERSION: ${{ matrix.python_version }}
       PACKAGE_TYPE: wheel
