@@ -20,9 +20,9 @@ on:
         default: "main"
         type: string
     outputs:
-      matrix: 
+      matrix:
         description: "Generated build matrix"
-        value: ${{ jobs.generate-matrix.outputs.matrix }}
+        value: ${{ jobs.generate.outputs.matrix }}
 
 jobs:
   generate:
@@ -42,8 +42,8 @@ jobs:
           OS: ${{ inputs.os }}
         run: |
           set -eou pipefail
-          python3 tools/scripts/generate_binary_build_matrix.py
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"
+          echo "${MATRIX_BLOB}"
           echo "::set-output name=matrix::${MATRIX_BLOB}"
 
 concurrency:
