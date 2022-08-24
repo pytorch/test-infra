@@ -24,6 +24,6 @@ jobs:
         . packaging/pre_build_script_conda.sh
         export CONDA_PATH=packaging/${{ inputs.domain }}
         printenv
-        conda build -c defaults -c "$CUDATOOLKIT_CHANNEL" "${CONDA_CHANNEL_FLAGS:-}" --no-anaconda-upload --python "$PYTHON_VERSION" "$CONDA_PATH" 
+        conda build -c defaults -c "$CUDATOOLKIT_CHANNEL" "${CONDA_CHANNEL_FLAGS:-}" --no-anaconda-upload --python "$PYTHON_VERSION"  packaging/torchaudio 
     - name: Run post-build script
       run: . packaging/post_build_script_conda.sh
