@@ -23,6 +23,8 @@ jobs:
       run: . packaging/pre_build_script_conda.sh
     - name: Generate Conda Recipe Path
       run: export CONDA_PATH=packaging/${{ inputs.domain }}
+    - name: Dump Envs
+      run: printenv
     - name: Build Conda Package
       run: conda build -c defaults \
               -c "$CUDATOOLKIT_CHANNEL" "${CONDA_CHANNEL_FLAGS:-}" \
