@@ -8,7 +8,7 @@ import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 
-function sortJobs( jobA: JobData, jobB: JobData): number {
+function sortJobsByConclusion( jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
   if (jobA.conclusion !== jobB.conclusion) {
     return getConclusionSeverityForSorting(jobB.conclusion) - getConclusionSeverityForSorting(jobA.conclusion);
@@ -36,7 +36,7 @@ export default function WorkflowBox({
       <h3>{workflowName}</h3>
       <h4>Job Status</h4>
       <>
-        {jobs.sort(sortJobs).map((job) => (
+        {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
             <JobSummary job={job} />
             <LogViewer job={job} />
