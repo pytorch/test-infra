@@ -94,3 +94,8 @@ If you ever need to modify the deployment settings like the oauth callbacks, dom
 2. [Environment Variables](https://vercel.com/torchci/torchci/settings/environment-variables)
 3. [OAuth Project](https://github.com/settings/applications/1973779) / [OAuth Project Local](https://github.com/settings/applications/1976306)
 4. [Domain Management](https://vercel.com/torchci/torchci/settings/domains)
+
+
+### Analytics
+
+If you want to get data about the website performance, go to [Google Analytics](https://analytics.google.com/analytics/web/#/p309888230/reports/intelligenthome). If you don't have access, reach out to the [Pytorch DevX Team](https://github.com/pytorch/pytorch/wiki/Contact-Pytorch-Dev-Infra-Office).
