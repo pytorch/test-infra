@@ -877,6 +877,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_exhaustive_nn_functional_ctc_loss_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "84019",
+    "https://github.com/pytorch/pytorch/issues/84019",
+    [
+      "macos"
+    ]
+  ],
   "test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA)": [
     "82299",
     "https://github.com/pytorch/pytorch/issues/82299",
