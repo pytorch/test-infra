@@ -7,18 +7,17 @@ on:
       - .github/workflows/build_wheels_m1.yml
 
 jobs:
-  test_audio:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        repository:
+          - pytorch/audio
+          - pytorch/vision
+          - pytorch/text
     uses: ./.github/workflows/build_wheels_m1.yml
     with:
-      repository: pytorch/audio
+      repository: ${{ matrix.repository }}
       ref: nightly
-  test_vision:
-    uses: ./.github/workflows/build_wheels_m1.yml
-    with:
-      repository: pytorch/vision
-      ref: nightly
-  test_text:
-    uses: ./.github/workflows/build_wheels_m1.yml
-    with:
-      repository: pytorch/text
-      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
