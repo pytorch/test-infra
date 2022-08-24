@@ -19,20 +19,23 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
+      build-matrix:
+        description: "Build matrix to utilize"
+        default: ""
+        type: string
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        # TODO: Split this out into its own action to generate this
-        # TODO: Find a way to limit matrix for PR testing
-        python_version: ["3.8", "3.9", "3.10"]
+        include: ${{ fromJSON(inputs.build-matrix) }}
     env:
       PYTHON_VERSION: ${{ matrix.python_version }}
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+    name: ${{ matrix.build_name }}
     runs-on: macos-m1-12
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation

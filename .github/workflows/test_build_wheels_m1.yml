@@ -5,9 +5,13 @@ on:
     paths:
       - .github/workflows/test_build_wheels_m1.yml
       - .github/workflows/build_wheels_m1.yml
+      - .github/workflows/generate_binary_build_matrix.yml
 
 jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
   test:
+    needs: generate-matrix
     strategy:
       fail-fast: false
       matrix:
@@ -21,3 +25,4 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
