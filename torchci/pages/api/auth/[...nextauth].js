@@ -7,7 +7,7 @@ export default (req, res) =>
       GithubProvider({
         clientId: process.env.GITHUB_CLIENT_ID,
         clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        authorization: { params: { scope: "repo user workflow" } },
+        authorization: { params: { scope: "repo" } },
       }),
     ],
     debug: process.env.NODE_ENV === "development",
