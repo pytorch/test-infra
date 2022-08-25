@@ -1,11 +1,17 @@
+import { revertClassifications } from "lib/bot/Constants";
+import { fetcher } from "lib/GeneralUtils";
+import { isFailure } from "lib/JobClassifierUtil";
+import { CommitData, JobData } from "lib/types";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { useState } from "react";
+import { useState } from "react";
+import { Col, Container, Row } from "react-bootstrap";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
-import { revertClassifications } from "lib/bot/Constants";
 import ReactMarkdown from "react-markdown";
-import { Col, Container, Row } from "react-bootstrap";
+import useSWR from "swr";
+import { commentOnPR } from "lib/githubFunctions";
+import { useSession } from "next-auth/react";
 
 const getMessage = (
   message: string,
@@ -15,18 +21,71 @@ const getMessage = (
   return `@pytorchbot revert -m '${message}' -c '${classification}'
   
   ${suffix}
-  # blah
   `;
 };
 
+function getFailureMessage(commitData: CommitData, jobData: JobData[]): string {
+  if (commitData == null || jobData == null) {
+    return "";
+  }
+  const failedJobs = jobData.filter((job) => isFailure(job.conclusion));
+
+  const hudLink = `https://hud.pytorch.org/pytorch/pytorch/commit/${commitData.sha}`;
+  return `
+  # Additional Information
+
+  @${
+    commitData.author
+  } This PR is being reverted. The following jobs failed on this PR: 
+  ${failedJobs.map((failedJob) => `- ${failedJob.name}`)}
+  
+  For more information, check the [HUD](${hudLink}).
+  `;
+}
+
 export default function Revert() {
   const router = useRouter();
-  const commit = router.query.commit;
-  const { repoOwner, repoName, prNumber } = router.query;
-  const [disableButton, setDisableButton] = useState(false);
+  const sha = router.query.sha;
+
+  let { repoOwner, repoName, prNumber } = router.query;
   const [message, setMessage] = useState("");
   const [classification, setClassification] = useState("");
-  const msg = getMessage(message, classification, "");
+  const [disableButton, setDisableButton] = useState(false);
+  const [response, setResponse] = useState("");
+  const { data, error } = useSWR(
+    `/api/${repoOwner}/${repoName}/commit/${sha}`,
+    fetcher,
+    {
+      refreshInterval: 60 * 1000, // refresh every minute
+      // Refresh even when the user isn't looking, so that switching to the tab
+      // will always have fresh info.
+      refreshWhenHidden: true,
+    }
+  );
+
+  const session = useSession();
+
+  const msg = getMessage(
+    message,
+    classification,
+    getFailureMessage(data?.commit, data?.jobs)
+  );
+
+  if (error) {
+    return (
+      <div>Error while loading PR/Commit Data. Please try again later</div>
+    );
+  }
+
+  if (session.status == "loading" || session.status == "unauthenticated") {
+    return (
+      <div>
+        Error: You are not logged in. Please try revisiting this page after
+        logging in.
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -55,6 +114,7 @@ export default function Revert() {
 
               <Form.Label>Revert Classification</Form.Label>
               <Form.Select
+                defaultValue={Object.entries(revertClassifications)[0][0]}
                 aria-label="What type of breakage is this"
                 onChange={(e) => {
                   e.preventDefault();
@@ -69,7 +129,29 @@ export default function Revert() {
                   )
                 )}
               </Form.Select>
-              <Button variant="primary" type="submit">
+              <Button
+                variant="danger"
+                type="submit"
+                disabled={
+                  message.length == 0 ||
+                  classification.length == 0 ||
+                  disableButton
+                }
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDisableButton(true);
+                  commentOnPR(
+                    repoOwner as string,
+                    repoName as string,
+                    prNumber as string,
+                    msg,
+                    session?.data?.accessToken as string,
+                    (resp: string) => {
+                      setResponse(resp);
+                    }
+                  );
+                }}
+              >
                 Revert!
               </Button>
             </Form>
@@ -80,7 +162,7 @@ export default function Revert() {
               style={{
                 border: "1px solid",
                 borderRadius: "16px",
-                padding: "5px",
+                padding: "8px",
                 height: "100%",
               }}
             >
@@ -88,6 +170,7 @@ export default function Revert() {
             </div>
           </Col>
         </Row>
+        <pre>{response}</pre>
       </Container>
     </>
   );

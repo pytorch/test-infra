@@ -1,18 +1,20 @@
-export async function revertPR(
+export async function commentOnPR(
   owner: string,
   repo: string,
   issue_number: string,
   message: string,
-  classification: string,
-  token: string
+  accessToken: string,
+  onComplete: Function
 ) {
-  const commentUrl = `/repos/${owner}/${repo}/issues/${issue_number}/comments`;
-  const body = JSON.stringify({ body: "" });
-  const response = await fetch(commentUrl);
+  const commentUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${issue_number}/comments`;
+  console.log(commentUrl);
+  const response = await fetch(commentUrl, {
+    method: "POST",
+    body: JSON.stringify({ body: message }),
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `token ${accessToken}`,
+    },
+  });
+  onComplete(JSON.stringify(await response.json(), undefined, 2));
 }
-
-function generateRevertMessage(message: string, classification: string) {
-  const msgPrefix = `@pytorchbot revert -m '${message}' -c '${classification}'\n`;
-  
-}
-
