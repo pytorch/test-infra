@@ -1397,6 +1397,14 @@
     "https://github.com/pytorch/pytorch/issues/74877",
     []
   ],
+  "test_shuffle_workers (__main__.TestDataLoader)": [
+    "84032",
+    "https://github.com/pytorch/pytorch/issues/84032",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_shutdown_errors (__main__.TensorPipeRpcTestWithSpawn)": [
     "61670",
     "https://github.com/pytorch/pytorch/issues/61670",
