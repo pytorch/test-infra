@@ -83,9 +83,9 @@ jobs:
       run: |
         source "${BUILD_ENV_FILE}"
         conda build -c defaults \
-              -c "${{ env.cudatoolkit_channel }}" "${{ env.conda_channel_flags }}" \
+              -c "${{ env.CUDATOOLKIT_CHANNEL }}" "${{ env.CONDA_CHANNEL_FLAGS }}" \
               --no-anaconda-upload \
-              --python "${{ env.python_version }}" \
-              "${{ env.conda_path }}" 
+              --python "${{ env.PYTHON_VERSION }}" \
+              "${{ env.CONDA_PATH }}"
     - name: Run post-build script
       run: ./packaging/post_build_script_wheel.sh
