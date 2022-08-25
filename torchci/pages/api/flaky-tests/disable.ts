@@ -157,7 +157,7 @@ Over the past ${NUM_HOURS} hours, it has been determined flaky in ${
   } workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.
 
 **Debugging instructions (after clicking on the recent samples link):**
-DO NOT BE ALARMED THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
+DO NOT BE ALARMED IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
 To find relevant log snippets:
 1. Click on the workflow logs linked above
 2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.
