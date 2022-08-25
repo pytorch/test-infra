@@ -175,6 +175,20 @@
     "https://github.com/pytorch/pytorch/issues/70756",
     []
   ],
+  "test_binary_op_scalar_fastpath__foreach_div_cuda_int32 (__main__.TestForeachCUDA)": [
+    "84048",
+    "https://github.com/pytorch/pytorch/issues/84048",
+    [
+      "linux"
+    ]
+  ],
+  "test_binary_op_scalar_fastpath__foreach_div_cuda_int8 (__main__.TestForeachCUDA)": [
+    "84047",
+    "https://github.com/pytorch/pytorch/issues/84047",
+    [
+      "linux"
+    ]
+  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)": [
     "82168",
     "https://github.com/pytorch/pytorch/issues/82168",
@@ -712,6 +726,13 @@
     [
       "windows",
       "mac",
+      "linux"
+    ]
+  ],
+  "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
+    "84046",
+    "https://github.com/pytorch/pytorch/issues/84046",
+    [
       "linux"
     ]
   ],
