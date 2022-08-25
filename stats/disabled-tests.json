@@ -25605,15 +25605,6 @@
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/skipped"
         },
         {
-          "color": "f7e101",
-          "default": false,
-          "description": "Related to Apple Metal Performance Shaders framework",
-          "id": 4121057428,
-          "name": "module: mps",
-          "node_id": "LA_kwDOA-j9z871oliU",
-          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20mps"
-        },
-        {
           "color": "ededed",
           "default": false,
           "description": null,
@@ -25621,6 +25612,15 @@
           "name": "fx",
           "node_id": "LA_kwDOA-j9z88AAAABAyTfeQ",
           "url": "https://api.github.com/repos/pytorch/pytorch/labels/fx"
+        },
+        {
+          "color": "f7e101",
+          "default": false,
+          "description": "",
+          "id": 4452142994,
+          "name": "module: m1",
+          "node_id": "LA_kwDOA-j9z88AAAABCV5Pkg",
+          "url": "https://api.github.com/repos/pytorch/pytorch/labels/module:%20m1"
         }
       ],
       "labels_url": "https://api.github.com/repos/pytorch/pytorch/issues/84019/labels{/name}",
@@ -25647,7 +25647,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/84019/timeline",
       "title": "DISABLED test_make_fx_exhaustive_nn_functional_ctc_loss_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)",
-      "updated_at": "2022-08-24T21:33:33Z",
+      "updated_at": "2022-08-25T13:37:16Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/84019",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/u/31798555?v=4",
