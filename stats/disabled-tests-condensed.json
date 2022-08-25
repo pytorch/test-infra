@@ -700,13 +700,6 @@
     "https://github.com/pytorch/pytorch/issues/71183",
     []
   ],
-  "test_fq_module_per_tensor (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
-    "80409",
-    "https://github.com/pytorch/pytorch/issues/80409",
-    [
-      "mac"
-    ]
-  ],
   "test_fs (__main__.TestMultiprocessing)": [
     "76866",
     "https://github.com/pytorch/pytorch/issues/76866",
