@@ -36,16 +36,16 @@ def arch_type(arch_version: str) -> str:
     else:  # arch_version should always be "cpu" in this case
         return "cpu"
 
-def validation_runner(arch_type: str, os: str)
+def validation_runner(arch_type: str, os: str) -> str:
     if os == "linux":
         if arch_type == "cuda":
             return LINUX_GPU_RUNNER
-        else
+        else:
             return LINUX_CPU_RUNNER
     elif os == "windows":
         if arch_type == "cuda":
             return WIN_GPU_RUNNER
-        else
+        else:
             return WIN_CPU_RUNNER
     elif os == "macos-arm64":
         return MACOS_M1_RUNNER
