@@ -19,9 +19,13 @@ from typing import Dict, List, Tuple, Optional
 
 
 CUDA_ARCHES = ["10.2", "11.3", "11.6", "11.7"]
-
-
 ROCM_ARCHES = ["5.1.1", "5.2"]
+
+LINUX_GPU_RUNNER="ubuntu-20.04-m60"
+LINUX_CPU_RUNNER="ubuntu-20.04"
+WIN_GPU_RUNNER="windows-2019-m60"
+WIN_CPU_RUNNER="windows-2019"
+MACOS_M1_RUNNER="macos-m1-12"
 
 
 def arch_type(arch_version: str) -> str:
@@ -32,6 +36,21 @@ def arch_type(arch_version: str) -> str:
     else:  # arch_version should always be "cpu" in this case
         return "cpu"
 
+def validation_runner(arch_type: str, os: str)
+    if os == "linux":
+        if arch_type == "cuda":
+            return LINUX_GPU_RUNNER
+        else
+            return LINUX_CPU_RUNNER
+    elif os == "windows":
+        if arch_type == "cuda":
+            return WIN_GPU_RUNNER
+        else
+            return WIN_CPU_RUNNER
+    elif os == "macos-arm64":
+        return MACOS_M1_RUNNER
+    else: # default to linux cpu runner
+        return LINUX_CPU_RUNNER
 
 WHEEL_CONTAINER_IMAGES = {
     **{
@@ -120,6 +139,7 @@ def generate_conda_matrix(os: str) -> List[Dict[str, str]]:
                     "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
+                    "validation_runner": validation_runner(gpu_arch_type, os),
                 }
             )
     return ret
