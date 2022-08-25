@@ -18,6 +18,7 @@ import {
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import {
   createContext,
@@ -190,13 +191,19 @@ function CommitLinks({ row }: { row: RowData }) {
   );
 }
 
-function RevertButton({ prNum }: { prNum: number }) {
+function RevertButton({ prNum, sha }: { prNum: number; sha: string }) {
+  const router = useRouter();
+  const { repoName, repoOwner } = router.query;
+  const session = useSession();
+
+  if (session.status == "loading" || session.status == "unauthenticated") {
+    return null;
+  }
   return (
     <span className={styles.shaTitleElement}>
       <a
         target="_blank"
-        rel="noreferrer"
-        // href={`https://www.internalfb.com/intern/test/bouncycastle/?arcanist_name=fbsource&revision_or_diff_id=${row.diffNum}`}
+        href={`/${repoName}/${repoOwner}/pull/revert/${prNum}?sha=${sha}`}
       >
         <button className={styles.revertButton}>Revert</button>
       </a>
@@ -243,16 +250,8 @@ function CommitSummaryLine({
           <em>{numPending} pending</em>
         </span>
       )}
-      {showRevert && row.diffNum != null && (
-        <span className={styles.shaTitleElement}>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href={`https://www.internalfb.com/intern/test/bouncycastle/?arcanist_name=fbsource&revision_or_diff_id=${row.diffNum}`}
-          >
-            <button className={styles.revertButton}>Revert</button>
-          </a>
-        </span>
+      {showRevert && row.prNum != null && (
+        <RevertButton prNum={row.prNum} sha={row.sha} />
       )}
       {ttsAlert && (
         <span style={{ float: "right" }}>
