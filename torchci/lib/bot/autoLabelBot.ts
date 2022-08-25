@@ -3,12 +3,9 @@ import { Context, Probot } from "probot";
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
-  [/\[PyTorch Edge\]/gi, "release notes: mobile"],
-  [/caffe2/g, "caffe2"],
-  [/\[codemod\]/gi, "topic: not user facing"],
 ];
 
-const filenameRegexToLabel: [RegExp, string][] = [
+const filenameRegexToReleaseCategory: [RegExp, string][] = [
   // releng
   [/docker\//gi, "release notes: releng"],
   [/.circleci/gi, "release notes: releng"],
@@ -129,45 +126,66 @@ function myBot(app: Probot): void {
     return labelsToAdd;
   }
 
-  // from the code, it seems like category can only be one thing, but this function definitely
-  // just adds whatever matches. this can be changed to just add one category though, but I'm
-  // sure if that was intentionally in the first place.
   // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
-  function getLabelsToAddFromFilesChanged(
+  function getReleaseNotesCategoryAndTopic(
+    title: string,
+    labels: string[],
     filesChanged: string[],
-  ): string[] {
-    const labelsToAdd: string[] = [];
+  ): [string, string] {
+    let topic: string = "untopiced";
 
-    // used to determine if category cuda
-    let isCUDAOnly = filesChanged.length > 0;
+    if (labels.includes("module: bc-breaking")) {
+      // yes, there is some clowning with the - and _
+      topic = "topic: bc_breaking";
+    }
 
-    for(const file of filesChanged) {
-      // check for typical matches
-      for (const [regex, label] of filenameRegexToLabel) {
-        if (file.match(regex)) {
-          labelsToAdd.push(label);
-          // break on first label added
-          break;
-        }
+    if (labels.includes("module: deprecation")) {
+      topic = "topic: deprecation";
+    }
+
+    // don't re-categorize those with existing labels
+    if (labels.some(l => l.startsWith("release notes:" ) || l === "topic: not user facing")) {
+      // already topiced
+      if (labels.some(l => l.startsWith("topic:" ))) {
+        return ["skip", "skip"];
       }
+      return ["skip", topic];
+    }
 
-      if (!file.endsWith(".cu") && !file.endsWith(".cuh")) {
-        isCUDAOnly = false;
+    if (filesChanged.every(f => f.includes("caffe2"))) {
+      return ["caffe2", topic];
+    }
+
+    if (title.toLowerCase().includes("[codemod]")) {
+      return ["uncategorized", "topic: not user facing"];
+    }
+
+    for (const file of filesChanged) {
+      // check for typical matches
+      for (const [regex, label] of filenameRegexToReleaseCategory) {
+        if (file.match(regex)) {
+          // return here since we take the first match (first category of first matching file)
+          return [label, topic];
+        }
       }
     }
 
-    if (isCUDAOnly) {
-      labelsToAdd.push("release notes: cuda");
+    if (filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
+      return ["release notes: cuda", topic];
+    }
+
+    if (title.includes("[PyTorch Edge]")) {
+      return ["mobile", topic];
     }
 
     // OpInfo related
     if (filesChanged.length === 1 &&
         (filesChanged.at(0)?.includes("torch/testing/_internal/common_methods_invocations.py") ||
         filesChanged.at(0)?.includes("torch/_torch_docs.py"))) {
-          labelsToAdd.push("release notes: python_frontend")
+          return ["release notes: python_frontend", topic];
     }
 
-    return labelsToAdd;
+    return ["uncategorized", topic];
   }
 
   async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
@@ -211,7 +229,16 @@ function myBot(app: Probot): void {
     const filesChanged = filesChangedRes.map((f: any) => f.filename);
     context.log({ labels, title, filesChanged });
 
-    const labelsToAdd = getLabelsToAddFromTitle(title).concat(getLabelsToAddFromFilesChanged(filesChanged));
+    const labelsToAdd = getLabelsToAddFromTitle(title);
+
+    const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+    if (category !== "uncategorized" && category !== "skip") {
+      labelsToAdd.push(category);
+    }
+    if (topic !== "untopiced" && category !== "skip") {
+      labelsToAdd.push(topic);
+    }
+
     await addNewLabels(labels, labelsToAdd, context);
   });
 }
