@@ -27,6 +27,7 @@ jobs:
             conda-package-directory: packaging/vision
           - repository: pytorch/text
             conda-package-directory: packaging/text
+    name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_m1.yml
     with:
       conda-package-directory: ${{ matrix.conda-package-directory }}
