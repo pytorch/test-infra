@@ -190,6 +190,20 @@ function CommitLinks({ row }: { row: RowData }) {
   );
 }
 
+function RevertButton({ prNum }: { prNum: number }) {
+  return (
+    <span className={styles.shaTitleElement}>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        // href={`https://www.internalfb.com/intern/test/bouncycastle/?arcanist_name=fbsource&revision_or_diff_id=${row.diffNum}`}
+      >
+        <button className={styles.revertButton}>Revert</button>
+      </a>
+    </span>
+  );
+}
+
 function CommitSummaryLine({
   row,
   numPending,
