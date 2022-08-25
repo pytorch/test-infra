@@ -3,6 +3,7 @@ import * as probot from "probot";
 import * as utils from "./utils";
 import pytorchBot from "../lib/bot/pytorchBot";
 import { handleScope, requireDeepCopy } from "./common";
+import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 
 nock.disableNetConnect();
 
@@ -317,6 +318,53 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
+  test("revert command on HUD", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    const msg = getMessage(
+      "this is breaking stuff on trunk",
+      "nosignal",
+      getFailureMessage(
+        {
+          sha: "sha",
+          time: "",
+          commitUrl: "",
+          commitTitle: "",
+          commitMessageBody: "",
+          author: "randomPerson",
+          authorUrl: "",
+          prNum: 5,
+          diffNum: null,
+        },
+        []
+      )
+    );
+    event.payload.comment.body = msg;
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-revert","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
   test("revert command w/ explanation on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const reason =
@@ -594,7 +642,8 @@ describe("merge-bot", () => {
   test("Revert pull request review triggers dispatch and +1 comment", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.pull_request.user.login = "randomuser";
-    event.payload.review.body = "@pytorchbot revert -m 'this is a bad pr' -c 'nosignal'";
+    event.payload.review.body =
+      "@pytorchbot revert -m 'this is a bad pr' -c 'nosignal'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

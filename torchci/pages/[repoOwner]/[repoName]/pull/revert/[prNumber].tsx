@@ -13,36 +13,6 @@ import useSWR from "swr";
 import { commentOnPR } from "lib/githubFunctions";
 import { useSession } from "next-auth/react";
 
-const getMessage = (
-  message: string,
-  classification: string,
-  suffix: string
-) => {
-  return `@pytorchbot revert -m '${message}' -c '${classification}'
-  
-  ${suffix}
-  `;
-};
-
-function getFailureMessage(commitData: CommitData, jobData: JobData[]): string {
-  if (commitData == null || jobData == null) {
-    return "";
-  }
-  const failedJobs = jobData.filter((job) => isFailure(job.conclusion));
-
-  const hudLink = `https://hud.pytorch.org/pytorch/pytorch/commit/${commitData.sha}`;
-  return `
-  # Additional Information
-
-  @${
-    commitData.author
-  } This PR is being reverted. The following jobs failed on this PR: 
-  ${failedJobs.map((failedJob) => `- ${failedJob.name}`)}
-  
-  For more information, check the [HUD](${hudLink}).
-  `;
-}
-
 export default function Revert() {
   const router = useRouter();
   const sha = router.query.sha;
