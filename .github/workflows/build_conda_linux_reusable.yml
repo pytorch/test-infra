@@ -71,21 +71,20 @@ jobs:
         BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
         ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
         echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
-      # Using the wheel pre-script since I suspect it will be the same
+      # Using the wheel pre/post-scripts since they both just need to build
+      # FFMPEG. We can rename the script to be just pre_build_script.sh in a
+      # follow-up. 
     - name: Run pre-build script
       run: ./packaging/pre_build_script_wheel.sh
-    - name: Generate Conda Recipe Path
-      run: |
-        echo "CONDA_PATH=packaging/${{ inputs.domain }}" >> "{GITHUB_ENV}"
-        echo "CUDATOOLKIT_CHANNEL=nvidia" >> "{GITHUB_ENV}"
-        echo "CONDA_CHANNEL_FLAGS= -c pytorch-nightly" >> "{GITHUB_ENV}"
+      # Setting CONDA_CHANNEL_FLAGS in ad-hoc fashion for now. Going forward,
+      # we should incorporate the logic for this flag correclty in the
+      # pkg-helpers python library.
     - name: Build Conda Package
       run: |
         source "${BUILD_ENV_FILE}"
         export CONDA_PATH=packaging/${{ inputs.domain }}
         export CUDATOOLKIT_CHANNEL=nvidia
         export CONDA_CHANNEL_FLAGS=pytorch-nightly
-        echo $GITHUB_ENV
         conda build -c defaults \
               -c "$CUDATOOLKIT_CHANNEL" \
               -c "$CONDA_CHANNEL_FLAGS" \
