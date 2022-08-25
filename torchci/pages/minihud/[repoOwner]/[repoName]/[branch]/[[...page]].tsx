@@ -203,6 +203,7 @@ function RevertButton({ prNum, sha }: { prNum: number; sha: string }) {
     <span className={styles.shaTitleElement}>
       <a
         target="_blank"
+        rel="noreferrer"
         href={`/${repoName}/${repoOwner}/pull/revert/${prNum}?sha=${sha}`}
       >
         <button className={styles.revertButton}>Revert</button>
