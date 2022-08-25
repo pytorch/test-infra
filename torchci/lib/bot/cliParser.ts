@@ -1,4 +1,5 @@
 import { ArgumentParser, RawTextHelpFormatter, SUPPRESS } from "argparse";
+import { revertClassifications } from "./Constants";
 
 // The default ArgumentParser is designed to be used from the command line, so
 // when it encounters an error it calls process.exit. We want to throw an
@@ -45,16 +46,16 @@ mergeOption.add_argument("-g", "--green", {
 });
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
-  help:
-`Merge without checking anything. This requires a reason for auditting purpose, for example:
-@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`
+  help: `Merge without checking anything. This requires a reason for auditting purpose, for example:
+@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`,
 });
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
-  help: "Merge with land time checks. This will create a new branch with your changes rebased " +
-  "on viable/strict and run a majority of trunk tests _before_ landing to increase trunk " +
-  "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
-  "that periodic is excluded. (EXPERIMENTAL)",
+  help:
+    "Merge with land time checks. This will create a new branch with your changes rebased " +
+    "on viable/strict and run a majority of trunk tests _before_ landing to increase trunk " +
+    "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
+    "that periodic is excluded. (EXPERIMENTAL)",
 });
 
 // Revert
@@ -74,7 +75,7 @@ revert.add_argument("-m", "--message", {
 });
 revert.add_argument("-c", "--classification", {
   required: true,
-  choices: ["nosignal", "ignoredsignal", "landrace", "weird", "ghfirst"],
+  choices: Object.keys(revertClassifications),
   help: "A machine-friendly classification of the revert reason.",
 });
 
