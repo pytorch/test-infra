@@ -22,11 +22,11 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            conda-package-directory: packaging/audio
+            conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
-            conda-package-directory: packaging/vision
+            conda-package-directory: packaging/torchvision
           - repository: pytorch/text
-            conda-package-directory: packaging/text
+            conda-package-directory: packaging/torchtext
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_m1.yml
     with:
