@@ -80,7 +80,9 @@ jobs:
         echo "CUDATOOLKIT_CHANNEL=nvidia" >> "{GITHUB_ENV}"
         echo "CONDA_CHANNEL_FLAGS= -c pytorch-nightly" >> "{GITHUB_ENV}"
     - name: Build Conda Package
-      run: conda build -c defaults \
+      run: |
+        source "${BUILD_ENV_FILE}"
+        conda build -c defaults \
               -c "${{ env.cudatoolkit_channel }}" "${{ env.conda_channel_flags }}" \
               --no-anaconda-upload \
               --python "${{ env.python_version }}" \
