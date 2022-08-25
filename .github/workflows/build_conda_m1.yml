@@ -69,7 +69,7 @@ jobs:
             -c defaults \
             --no-anaconda-upload \
             --python "${PYTHON_VERSION}" \
-            --output-folder dist/
+            --output-folder dist/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
