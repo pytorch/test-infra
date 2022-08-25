@@ -20,12 +20,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repository:
-          - pytorch/audio
-          - pytorch/vision
-          - pytorch/text
+        include:
+          - repository: pytorch/audio
+            conda-package-directory: packaging/audio
+          - repository: pytorch/vision
+            conda-package-directory: packaging/vision
+          - repository: pytorch/text
+            conda-package-directory: packaging/text
     uses: ./.github/workflows/build_conda_m1.yml
     with:
+      conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
       ref: nightly
       test-infra-repository: ${{ github.repository }}
