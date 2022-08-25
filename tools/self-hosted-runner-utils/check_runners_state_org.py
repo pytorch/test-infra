@@ -21,12 +21,12 @@ def parse_args() -> argparse.Namespace:
         description="Display self hosted runners state for Github repositories"
     )
     parser.add_argument(
-        "repo",
+        "org",
         help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
         type=str,
     )
     parser.add_argument(
-        "org",
+        "--repo",
         help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
         type=str,
     )
@@ -56,19 +56,10 @@ def get_self_hosted_runners_org(org):
         list_item="runners",
     )
 
-    #
-    # headers, data = org._requester.requestJsonAndCheck(
-    #     "GET", f"https://api.github.com/orgs/{org.login}/actions/runners"
-    # )
-    # return SelfHostedActionsRunner.SelfHostedActionsRunner(
-    #     org._requester, headers, data, completed=True
-    # )
-
 
 def main() -> None:
     options = parse_args()
     gh = Github(options.token)
-    repo = gh.get_repo(options.repo)
     org = gh.get_organization(options.org)
     runners = get_self_hosted_runners_org(org)
     include_pattern = re.compile(options.include)
@@ -86,10 +77,6 @@ def main() -> None:
                         state.num_busy_per_label[str(label["name"])] += 1
     over_total = lambda num: f"{num}/{state.num_total}"
     percentage_of = lambda num, label: f"{state.num_busy_per_label[label]}/{num}"
-    num_queued_workflows = len([_ for _ in repo.get_workflow_runs(status="queued")])
-    num_in_progress_workflows = len(
-        [_ for _ in repo.get_workflow_runs(status="in_progress")]
-    )
     print(f"Self Hosted stats for {options.org}")
     print(f"{state.num_total:>15} total runners")
     print(f"{over_total(state.num_online):>15} online runners")
@@ -97,10 +84,17 @@ def main() -> None:
     print("Number of busy/online runners per label")
     for label, num_label in sorted(state.num_per_label.items()):
         print(f"{percentage_of(num_label, label):>15} {label}")
-    print()
-    print(f"Workflow stats for {options.org}")
-    print(f"{num_queued_workflows:>15} queued workflows")
-    print(f"{num_in_progress_workflows:>15} in_progress workflows")
+
+    if options.repo:
+        repo = gh.get_repo(f"{options.org}/{options.repo}")
+        num_queued_workflows = len([_ for _ in repo.get_workflow_runs(status="queued")])
+        num_in_progress_workflows = len(
+            [_ for _ in repo.get_workflow_runs(status="in_progress")]
+        )
+        print()
+        print(f"Workflow stats for {options.org}")
+        print(f"{num_queued_workflows:>15} queued workflows")
+        print(f"{num_in_progress_workflows:>15} in_progress workflows")
 
 
 if __name__ == "__main__":
