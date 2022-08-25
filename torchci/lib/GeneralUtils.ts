@@ -1,3 +1,4 @@
+import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
 
 export function includesCaseInsensitive(
