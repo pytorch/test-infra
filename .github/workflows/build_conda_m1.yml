@@ -1,0 +1,83 @@
+name: Build M1 Conda
+
+on:
+  workflow_call:
+    inputs:
+      conda-package-directory:
+        description: 'Directory where your meta.yaml for your conda package lives'
+        required: true
+        default: ""
+        type: string
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: "nightly"
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      build-matrix:
+        description: "Build matrix to utilize"
+        default: ""
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    env:
+      CONDA_PACKAGE_DIRECTORY: ${{ inputs.conda-package-directory }}
+      PYTHON_VERSION: ${{ matrix.python_version }}
+      PACKAGE_TYPE: conda
+      REPOSITORY: ${{ inputs.repository }}
+      REF: ${{ inputs.ref }}
+    name: ${{ matrix.build_name }}
+    runs-on: macos-m1-12
+    # If a build is taking longer than 60 minutes on these runners we need
+    # to have a conversation
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+      - uses: ./test-infra/.github/actions/setup-binary-builds
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          setup-miniconda: false
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Setup base environment variables
+        run: |
+          echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
+      - name: Build the wheel (bdist_wheel)
+        working-directory: ${{ inputs.repository }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} conda build \
+            -c defaults \
+            --no-anaconda-upload \
+            --python "${PYTHON_VERSION}" \
+            --output-folder dist/
+            "${CONDA_PACKAGE_DIRECTORY}"
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
+      # TODO: Figure out upload method to s3
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
