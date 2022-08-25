@@ -1,5 +1,5 @@
 import { revertClassifications } from "lib/bot/Constants";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcher, getMessage, getFailureMessage } from "lib/GeneralUtils";
 import { isFailure } from "lib/JobClassifierUtil";
 import { CommitData, JobData } from "lib/types";
 import Head from "next/head";
