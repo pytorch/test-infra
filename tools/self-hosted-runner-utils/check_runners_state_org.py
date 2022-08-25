@@ -22,12 +22,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "org",
-        help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
+        help="Org to display runner statistics",
         type=str,
     )
     parser.add_argument(
         "--repo",
-        help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
+        help="Repo to display workflow statistics",
         type=str,
     )
     parser.add_argument(
