@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "repo",
         help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
-        type=str,
+        type=str
     )
     parser.add_argument(
         "--include",
@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--token",
+        required=True,
         help="Github token to pull from (Can also pass GITHUB_TOKEN as an env variable)",
         type=str,
         default=os.getenv("GITHUB_TOKEN", ""),
@@ -43,8 +44,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     options = parse_args()
-    if options.token == "":
-        raise Exception("GITHUB_TOKEN or --token must be set")
     gh = Github(options.token)
     repo = gh.get_repo(options.repo)
     runners = repo.get_self_hosted_runners()
