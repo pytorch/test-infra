@@ -63,6 +63,12 @@ runner_types:
     is_ephemeral: false
     max_available: 400
     os: linux
+  linux.g4dn.12xlarge.nvidia.gpu:
+    disk_size: 150
+    instance_type: g4dn.12xlarge
+    is_ephemeral: false
+    max_available: 10
+    os: linux
   linux.p3.8xlarge.nvidia.gpu:
     instance_type: p3.8xlarge
     os: linux
