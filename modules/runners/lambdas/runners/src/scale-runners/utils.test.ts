@@ -1,4 +1,4 @@
-import { getBoolean } from './utils';
+import { getBoolean, getRepoKey, expBackOff } from './utils';
 import nock from 'nock';
 
 beforeEach(() => {
@@ -49,6 +49,55 @@ describe('./utils', () => {
       expect(getBoolean('INVALID')).toBeFalsy();
       expect(getBoolean('INVALID', false)).toBeFalsy();
       expect(getBoolean('INVALID', true)).toBeTruthy();
+    });
+  });
+
+  describe('getRepoKey', () => {
+    it('just create one', () => {
+      expect(getRepoKey({ owner: 'owner', repo: 'repo' })).toEqual('owner/repo');
+    });
+  });
+
+  describe('expBackOff', () => {
+    it('immediately returns', async () => {
+      expect(
+        await expBackOff(async () => {
+          return 10;
+        }),
+      ).toEqual(10);
+    });
+
+    it('fails twice, then returns', async () => {
+      let fails = 2;
+      expect(
+        await expBackOff(async () => {
+          if (fails < 1) return 10;
+          fails -= 1;
+          throw Error('something something RequestLimitExceeded something something');
+        }, 1),
+      ).toEqual(10);
+    });
+
+    it('fails by other reasons', async () => {
+      const msg = 'The error msg';
+      await expect(
+        expBackOff(async () => {
+          throw Error(msg);
+        }),
+      ).rejects.toThrow(msg);
+    });
+
+    it('fails until timeout', async () => {
+      const msg = 'something something RequestLimitExceeded something something';
+      await expect(
+        expBackOff(
+          async () => {
+            throw Error(msg);
+          },
+          1,
+          8,
+        ),
+      ).rejects.toThrow(msg);
     });
   });
 });

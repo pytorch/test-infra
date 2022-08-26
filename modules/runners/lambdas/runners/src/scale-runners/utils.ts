@@ -38,3 +38,27 @@ export function getBoolean(value: string | number | undefined | boolean, default
       return defaultVal;
   }
 }
+
+export async function expBackOff<T>(
+  callback: () => Promise<T>,
+  startMs = 3000,
+  maxMs = 20000,
+  backOffFactor = 2,
+): Promise<T> {
+  let expBackOffMs = startMs;
+  for (;;) {
+    try {
+      return await callback();
+    } catch (e) {
+      if (`${e}`.includes('RequestLimitExceeded')) {
+        if (expBackOffMs > maxMs) {
+          throw e;
+        }
+        await new Promise((resolve) => setTimeout(resolve, expBackOffMs));
+        expBackOffMs = expBackOffMs * backOffFactor;
+      } else {
+        throw e;
+      }
+    }
+  }
+}

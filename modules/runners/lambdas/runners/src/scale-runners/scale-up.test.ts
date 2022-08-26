@@ -15,6 +15,7 @@ import { scaleUp } from './scale-up';
 
 jest.mock('./runners');
 jest.mock('./gh-issues');
+jest.mock('./metrics');
 
 beforeEach(() => {
   jest.resetModules();

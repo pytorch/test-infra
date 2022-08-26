@@ -9,6 +9,7 @@ import {
   listGithubRunnersRepo,
 } from './runners';
 import { getRepoIssuesWithLabel } from './gh-issues';
+import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 
@@ -24,43 +25,54 @@ export interface ActionRequestMessage {
 export async function scaleUp(eventSource: string, payload: ActionRequestMessage): Promise<void> {
   if (eventSource !== 'aws:sqs') throw Error('Cannot handle non-SQS events!');
 
+  const metrics = new ScaleUpMetrics();
+
   const repo: Repo = {
     owner: payload.repositoryOwner,
     repo: payload.repositoryName,
   };
 
-  if (await shouldSkipForRepo(repo)) return;
+  if (await shouldSkipForRepo(repo)) {
+    metrics.skipRepo(repo);
+    return;
+  }
 
-  const runnerTypes = await getRunnerTypes({
-    owner: repo.owner,
-    repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
-  });
-  /* istanbul ignore next */
-  const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
+  metrics.runRepo(repo);
 
-  // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
-  // if no labels are found this should just be a no-op
-  for (const runnerLabel of runnerLabels) {
-    const runnerType = runnerTypes.get(runnerLabel);
-    if (runnerType === undefined) {
-      console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
-      continue;
-    }
-    if (await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available)) {
-      try {
-        await createRunner({
-          environment: Config.Instance.environment,
-          runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId),
-          orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
-          repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
-          runnerType: runnerType,
-        });
-      } catch (e) {
-        console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
+  try {
+    const runnerTypes = await getRunnerTypes({
+      owner: repo.owner,
+      repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
+    });
+    /* istanbul ignore next */
+    const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
+
+    // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
+    // if no labels are found this should just be a no-op
+    for (const runnerLabel of runnerLabels) {
+      const runnerType = runnerTypes.get(runnerLabel);
+      if (runnerType === undefined) {
+        console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
+        continue;
       }
-    } else {
-      console.info('There are available runners, no new runners will be created');
+      if (await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available)) {
+        try {
+          await createRunner({
+            environment: Config.Instance.environment,
+            runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId),
+            orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
+            repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
+            runnerType: runnerType,
+          });
+        } catch (e) {
+          console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
+        }
+      } else {
+        console.info('There are available runners, no new runners will be created');
+      }
     }
+  } finally {
+    metrics.sendMetrics();
   }
 }
 

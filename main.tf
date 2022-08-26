@@ -68,7 +68,7 @@ module "runners" {
   s3_bucket_runner_binaries           = module.runner_binaries.bucket
   s3_location_runner_binaries_linux   = local.s3_action_runner_url_linux
   s3_location_runner_binaries_windows = local.s3_action_runner_url_windows
-    
+
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels
 

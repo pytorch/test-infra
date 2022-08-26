@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "ts-node-dev src/local.ts",
-    "test": "NODE_ENV=test jest",
+    "test": "NODE_ENV=test jest --detectOpenHandles",
     "test:watch": "NODE_ENV=test jest --watch",
     "lint": "yarn eslint src",
     "watch": "ts-node-dev --respawn --exit-child src/local.ts",

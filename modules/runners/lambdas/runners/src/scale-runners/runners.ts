@@ -1,7 +1,7 @@
 import { EC2, SSM } from 'aws-sdk';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 
-import { getRepoKey, Repo } from './utils';
+import { getRepoKey, Repo, expBackOff } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Octokit } from '@octokit/rest';
@@ -129,65 +129,50 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           });
         }
 
-        let runInstancesResponse = undefined;
-        let expBackOff = 5000;
-        for (;;) {
-          try {
-            runInstancesResponse = await ec2
-              .runInstances({
-                MaxCount: 1,
-                MinCount: 1,
-                LaunchTemplate: {
-                  LaunchTemplateName:
-                    runnerParameters.runnerType.os === 'linux'
-                      ? Config.Instance.launchTemplateNameLinux
-                      : Config.Instance.launchTemplateNameWindows,
-                  Version:
-                    runnerParameters.runnerType.os === 'linux'
-                      ? Config.Instance.launchTemplateVersionLinux
-                      : Config.Instance.launchTemplateVersionWindows,
+        const runInstancesResponse = await expBackOff(() => {
+          return ec2
+            .runInstances({
+              MaxCount: 1,
+              MinCount: 1,
+              LaunchTemplate: {
+                LaunchTemplateName:
+                  runnerParameters.runnerType.os === 'linux'
+                    ? Config.Instance.launchTemplateNameLinux
+                    : Config.Instance.launchTemplateNameWindows,
+                Version:
+                  runnerParameters.runnerType.os === 'linux'
+                    ? Config.Instance.launchTemplateVersionLinux
+                    : Config.Instance.launchTemplateVersionWindows,
+              },
+              InstanceType: runnerParameters.runnerType.instance_type,
+              BlockDeviceMappings: [
+                {
+                  DeviceName: storageDeviceName,
+                  Ebs: {
+                    VolumeSize: runnerParameters.runnerType.disk_size,
+                    VolumeType: 'gp3',
+                    Encrypted: true,
+                    DeleteOnTermination: true,
+                  },
                 },
-                InstanceType: runnerParameters.runnerType.instance_type,
-                BlockDeviceMappings: [
-                  {
-                    DeviceName: storageDeviceName,
-                    Ebs: {
-                      VolumeSize: runnerParameters.runnerType.disk_size,
-                      VolumeType: 'gp3',
-                      Encrypted: true,
-                      DeleteOnTermination: true,
-                    },
-                  },
-                ],
-                NetworkInterfaces: [
-                  {
-                    AssociatePublicIpAddress: true,
-                    SubnetId: subnet,
-                    Groups: Config.Instance.securityGroupIds,
-                    DeviceIndex: 0,
-                  },
-                ],
-                TagSpecifications: [
-                  {
-                    ResourceType: 'instance',
-                    Tags: tags,
-                  },
-                ],
-              })
-              .promise();
-            break;
-          } catch (e) {
-            if (`${e}`.includes('RequestLimitExceeded')) {
-              if (expBackOff > 40000) {
-                throw e;
-              }
-              await new Promise((resolve) => setTimeout(resolve, expBackOff));
-              expBackOff = expBackOff * 1.5;
-            } else {
-              throw e;
-            }
-          }
-        }
+              ],
+              NetworkInterfaces: [
+                {
+                  AssociatePublicIpAddress: true,
+                  SubnetId: subnet,
+                  Groups: Config.Instance.securityGroupIds,
+                  DeviceIndex: 0,
+                },
+              ],
+              TagSpecifications: [
+                {
+                  ResourceType: 'instance',
+                  Tags: tags,
+                },
+              ],
+            })
+            .promise();
+        });
 
         console.info(
           `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
