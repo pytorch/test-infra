@@ -1052,6 +1052,13 @@
       "linux"
     ]
   ],
+  "test_normalize_operator_exhaustive_where_cpu_float32 (__main__.TestNormalizeOperatorsCPU)": [
+    "84118",
+    "https://github.com/pytorch/pytorch/issues/84118",
+    [
+      "macos"
+    ]
+  ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
