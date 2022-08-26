@@ -198,6 +198,7 @@ def generate_libtorch_matrix(
                     "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(
                         ".", "_"
                     ),
+                    "validation_runner": validation_runner(gpu_arch_type, os),
                 }
             )
     return ret
@@ -254,6 +255,7 @@ def generate_wheels_matrix(
                     "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
+                    "validation_runner": validation_runner(gpu_arch_type, os),
                 }
             )
     return ret
