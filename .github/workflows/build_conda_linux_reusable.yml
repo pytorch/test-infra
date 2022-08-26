@@ -7,27 +7,89 @@ on:
         description: 'name of the domain library calling this reusable workflow.'
         required: true
         type: string
-      image:
+      docker_image:
         description: 'docker image container for running the reusable workflow.'
+        required: true
+        type: string
+      python_version:
+        description: 'python version to use for building conda binary'
+        required: true
+        type: string
+      gpu_arch_version:
+        description: 'cuda version to use for building conda binary'
         required: true
         type: string
 
 jobs:
-  wheels:
+  conda:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      PACKAGE_TYPE: conda
+      DOMAIN: ${{ inputs.domain }}
+      GPU_ARCH_VERSION: ${{ inputs.gpu_arch_version }}
     container:
-      image: ${{ inputs.image }}
+      image: ${{ inputs.docker_image }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout the repository  
+      uses: actions/checkout@v2
+    - name: Set artifact name
+      run: |
+        echo "ARTIFACT_NAME=${DOMAIN/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
+    - name: Setup miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        installer-url: https://github.com/conda-forge/miniforge/releases/download/4.8.3-2/Miniforge-pypy3-4.8.3-2-Linux-x86_64.sh
+        auto-update-conda: true
+        python-version: ${{ inputs.python_version }}
+        activate-environment: build
+    - name: Clean conda environment
+      run: |
+        conda clean --all --quiet --yes
+    - name: Create conda environment
+      run: |
+        CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+        conda create \
+          --yes \
+          --prefix "${CONDA_ENV}" \
+          "python=${PYTHON_VERSION}" \
+          cmake=3.22 \
+          ninja=1.10 \
+          numpy=1.23 \
+          pkg-config=0.29 \
+          wheel=0.37
+        echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+        echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+    - name: Install pytorch-pkg-helpers
+      run: |
+        ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
+    - name: Create environemnt variables from pytorch-pkg-helpers
+      run: |
+        # https://github.com/actions/checkout/issues/760#issuecomment-1097501613
+        # need to move this version.py get_root_dir(), and make it generic for all repositories
+        git config --global --add safe.directory /__w/audio/audio
+        BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
+        ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+        echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
+      # Using the wheel pre/post-scripts since they both just need to build
+      # FFMPEG. We can rename the script to be just pre_build_script.sh in a
+      # follow-up. 
     - name: Run pre-build script
-      run: ./packaging/pre_build_script_conda.sh
-    - name: Generate Conda Recipe Path
-      run: export CONDA_PATH=packaging/${{ inputs.domain }}
+      run: ./packaging/pre_build_script_wheel.sh
+      # Setting CONDA_CHANNEL_FLAGS in ad-hoc fashion for now. Going forward,
+      # we should incorporate the logic for this flag correclty in the
+      # pkg-helpers python library.
     - name: Build Conda Package
-      run: conda build -c defaults \
-              -c "$CUDATOOLKIT_CHANNEL" "${CONDA_CHANNEL_FLAGS:-}" \
+      run: |
+        source "${BUILD_ENV_FILE}"
+        export CONDA_PATH=packaging/${{ inputs.domain }}
+        export CUDATOOLKIT_CHANNEL=nvidia
+        export CONDA_CHANNEL_FLAGS=pytorch-nightly
+        conda build -c defaults \
+              -c "$CUDATOOLKIT_CHANNEL" \
+              -c "$CONDA_CHANNEL_FLAGS" \
               --no-anaconda-upload \
-              --python "$PYTHON_VERSION" \
-              "$CONDA_PATH" 
+              --python "${{ env.PYTHON_VERSION }}" \
+              "$CONDA_PATH"
     - name: Run post-build script
-      run: ./packaging/post_build_script_conda.sh
+      run: ./packaging/post_build_script_wheel.sh
