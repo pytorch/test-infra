@@ -62,7 +62,7 @@ jobs:
       - name: Setup base environment variables
         run: |
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
-      - name: Build the wheel (bdist_wheel)
+      - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
