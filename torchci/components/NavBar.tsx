@@ -10,7 +10,7 @@ function NavBar() {
           <ul className={styles.menu}>
             <span className={styles.homeLink}>
               <Link prefetch={false} href="/">
-                Pytorch CI HUD
+                PyTorch CI HUD
               </Link>
             </span>
             <li>
