@@ -343,6 +343,14 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_column_stack_cpu_float16 (__main__.TestDecompCPU)": [
+    "84122",
+    "https://github.com/pytorch/pytorch/issues/84122",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
