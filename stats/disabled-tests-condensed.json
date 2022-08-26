@@ -343,6 +343,14 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)": [
+    "84150",
+    "https://github.com/pytorch/pytorch/issues/84150",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_comprehensive_column_stack_cpu_float16 (__main__.TestDecompCPU)": [
     "84122",
     "https://github.com/pytorch/pytorch/issues/84122",
