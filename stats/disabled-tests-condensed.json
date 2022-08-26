@@ -544,6 +544,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_rpc_existing_rank_can_communicate_with_new_rank (__main__.TensorPipeTensorPipeAgentRpcTest)": [
+    "84116",
+    "https://github.com/pytorch/pytorch/issues/84116",
+    [
+      "linux"
+    ]
+  ],
   "test_early_exit (__main__.TestDataLoaderPersistentWorkers)": [
     "74868",
     "https://github.com/pytorch/pytorch/issues/74868",
