@@ -3,8 +3,13 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["logs:CreateLogStream", "logs:PutLogEvents", "cloudwatch:PutMetricData"],
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
       "Resource": "${log_group_arn}*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "cloudwatch:PutMetricData",
+      "Resource": "*"
     }
   ]
 }
