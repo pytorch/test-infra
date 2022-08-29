@@ -1,0 +1,53 @@
+name: Set up conda environment for testing
+
+description: Clean workspace and check out PyTorch
+
+inputs:
+  python_version:
+    description: If set to any value, don't use sudo to clean the workspace
+    required: false
+    type: string
+    default: "3.9"
+
+runs:
+  using: composite
+  steps:
+      - name: Install miniconda onto the machine
+        shell: bash -l {0}
+        run: |
+          MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
+          mkdir -p "${MINICONDA_INSTALL_PATH_MACOS}"
+          case ${RUNNER_OS}-${RUNNER_ARCH} in
+            macOS-ARM64)
+              MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh"
+              ;;
+            macOS-X86)
+              MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
+              ;;
+            *)
+              echo "Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
+              exit 1
+              ;;
+          esac
+          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
+          bash "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH_MACOS}"
+          rm -rf "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
+          echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
+      - name: Setup conda environment
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+        run: |
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          conda create \
+            --yes \
+            --prefix "${CONDA_ENV}" \
+            "python=${PYTHON_VERSION}" \
+            cmake=3.22 \
+            conda-build=3.21 \
+            ninja=1.10 \
+            numpy=1.23 \
+            pkg-config=0.29 \
+            wheel=0.37
+          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"

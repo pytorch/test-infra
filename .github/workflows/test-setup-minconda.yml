@@ -1,0 +1,31 @@
+name: Test setup-miniconda
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-setup-miniconda.yml
+      - .github/actions/setup-miniconda/*
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner_type:
+          - macos-12
+          - macos-m1-12
+    env:
+      PYTHON_VERSION: 3.9
+    name: ${{ matrix.runner_type }}
+    runs-on: ${{ matrix.runner_type }}
+    # If a build is taking longer than 60 minutes on these runners we need
+    # to have a conversation
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test that setup-miniconda works
+        uses: ./test-infra/.github/actions/setup-miniconda
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
