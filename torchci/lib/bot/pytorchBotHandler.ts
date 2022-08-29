@@ -13,9 +13,6 @@ class PytorchBotHandler {
   commentId: number;
   login: string;
 
-  mergeCmdPat = new RegExp(
-    "^\\s*@pytorch(merge|)bot\\s+(force\\s+)?merge\\s+this\\s*(on\\s*green)?"
-  );
   forceMergeMessagePat = new RegExp("^\\s*\\S+\\s+\\S+.*");
 
   constructor(
