@@ -1,0 +1,38 @@
+name: Test Build M1 Conda
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test_build_conda_m1.yml
+      - .github/workflows/build_conda_m1.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: conda
+      os: macos-arm64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/audio
+            conda-package-directory: packaging/torchaudio
+          - repository: pytorch/vision
+            conda-package-directory: packaging/torchvision
+          - repository: pytorch/text
+            conda-package-directory: packaging/torchtext
+    name: ${{ matrix.repository }}
+    uses: ./.github/workflows/build_conda_m1.yml
+    with:
+      conda-package-directory: ${{ matrix.conda-package-directory }}
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
