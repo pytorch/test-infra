@@ -35,7 +35,7 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 
     a. Copy `torchci/.env.example` to `torchci/.env.local` to create a local copy of your environmnet variables. This will NOT be checked into git
 
-    b. For every environment setting defined in there, copy over the corresponding value [from Vercel](https://vercel.com/torchci/torchci/settings/environment-variables) (this requires access to our Vercel deployment)
+    b. For every environment setting defined in there, copy over the corresponding value [from Vercel](https://vercel.com/fbopensource/torchci/settings/environment-variables) (this requires access to our Vercel deployment)
     
 3. From `torchci` run `yarn dev` to start the dev server. The local endpoint will be printed on the console, it'll most likely be `http://localhost:3000`. You can find more useful yarn commands in `package.json` under the `scripts` section.
 
