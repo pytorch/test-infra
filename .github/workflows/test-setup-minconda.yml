@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Test that setup-miniconda works
-        uses: ./test-infra/.github/actions/setup-miniconda
+        uses: ./.github/actions/setup-miniconda
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
