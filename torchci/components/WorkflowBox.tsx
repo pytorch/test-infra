@@ -39,7 +39,7 @@ export default function WorkflowBox({
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
             <JobSummary job={job} />
-            <LogViewer job={job} />
+            {isFailedJob(job) && (<LogViewer job={job} />)}
           </div>
         ))}
       </>
