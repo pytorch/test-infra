@@ -472,7 +472,7 @@ describe("auto-label-bot", () => {
         "X-GitHub-Media-Type": "github.v3; format=json",
       })
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["mobile"] });
+        expect(body).toMatchObject({ labels: ["release notes: mobile"] });
         return true;
       })
       .reply(200);

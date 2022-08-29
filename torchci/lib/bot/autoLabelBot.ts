@@ -175,7 +175,7 @@ function myBot(app: Probot): void {
     }
 
     if (title.includes("[PyTorch Edge]")) {
-      return ["mobile", topic];
+      return ["release notes: mobile", topic];
     }
 
     // OpInfo related
