@@ -31,6 +31,13 @@ jobs:
         run: |
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "3.9"
+      - name: Can use ${CONDA_INSTALL}, installs older numpy
+        run: |
+          ${CONDA_INSTALL} numpy=1.19
+      - name: Can use ${CONDA_BUILD}, outputs version
+        run: |
+          ${CONDA_BUILD} --version
+          ${CONDA_BUILD} --version | grep "3.21"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}

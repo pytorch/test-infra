@@ -8,6 +8,11 @@ inputs:
     required: false
     type: string
     default: "3.9"
+  environment-file:
+    description: Environment file to install dependencies from
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: composite
@@ -37,12 +42,20 @@ runs:
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
+          ENV_FILE: ${{ inputs.environment-file }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          ENV_FILE_FLAG=""
+          if [[ -f "${ENV_FILE}" ]]; then
+            ENV_FILE_FLAG="--file ${ENV_FILE}"
+          else
+            echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
+          fi
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
             "python=${PYTHON_VERSION}" \
+            ${ENV_FILE_FLAG} \
             cmake=3.22 \
             conda-build=3.21 \
             ninja=1.10 \
@@ -51,3 +64,5 @@ runs:
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_BUILD=${CONDA_RUN} conda-build" >> "${GITHUB_ENV}"
