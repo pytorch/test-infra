@@ -41,9 +41,9 @@ jobs:
         run: |
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
-      - name: Can use ${CONDA_INSTALL}, installs older numpy
+      - name: Can use ${CONDA_INSTALL}, installs requests
         run: |
-          ${CONDA_INSTALL} numpy=1.17
+          ${CONDA_INSTALL} requests
       - name: Can use ${CONDA_BUILD}, outputs correct version
         run: |
           ${CONDA_BUILD} --version
