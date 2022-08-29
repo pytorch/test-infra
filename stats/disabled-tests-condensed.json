@@ -379,7 +379,8 @@
     "https://github.com/pytorch/pytorch/issues/84122",
     [
       "mac",
-      "macos"
+      "macos",
+      "win"
     ]
   ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
