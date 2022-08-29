@@ -11,6 +11,10 @@ on:
         description: "Operating system to generate for (linux, windows, macos, macos-arm64)"
         default: "linux"
         type: string
+      channel:
+        description: "Channel to use (nightly, test, release, all)"
+        default: "nightly"
+        type: string
       test-infra-repository:
         description: "Test infra repository to use"
         default: "pytorch/test-infra"
@@ -43,6 +47,7 @@ jobs:
         env:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"

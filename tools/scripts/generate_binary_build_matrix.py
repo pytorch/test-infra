@@ -164,7 +164,7 @@ def generate_libtorch_matrix(
 
     ret: List[Dict[str, str]] = []
 
-    if os == "macos-arm64" or os == "macos-x86":
+    if os == "macos-arm64" or os == "macos":
         return ret
 
     if arches is None:
@@ -189,8 +189,6 @@ def generate_libtorch_matrix(
             "static-with-deps",
             "static-without-deps",
         ]
-
-
 
     for abi_version in abi_versions:
         for arch_version in arches:
@@ -315,7 +313,7 @@ def main() -> None:
         help="Channel to use, default nightly",
         type=str,
         choices=["nightly", "test", "release", "all"],
-        default="nightly",
+        default=os.getenv("CHANNEL", "nightly"),
     )
     options = parser.parse_args()
     includes = []
