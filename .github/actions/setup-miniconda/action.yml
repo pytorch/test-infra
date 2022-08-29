@@ -30,7 +30,7 @@ runs:
               MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
               ;;
             *)
-              echo "Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
+            echo "::error::Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
               exit 1
               ;;
           esac
@@ -48,7 +48,7 @@ runs:
           ENV_FILE_FLAG=""
           if [[ -f "${ENV_FILE}" ]]; then
             ENV_FILE_FLAG="--file ${ENV_FILE}"
-          else
+          elif [[ -n "${ENV_FILE}" ]]
             echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
           fi
           conda create \
@@ -59,7 +59,6 @@ runs:
             cmake=3.22 \
             conda-build=3.21 \
             ninja=1.10 \
-            numpy=1.19 \
             pkg-config=0.29 \
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
