@@ -20,7 +20,10 @@ class PytorchBotLogger {
     try {
       const log = {
         TableName: TableName,
-        Item: { ...this.params, event, extra_data },
+        Item: {
+          dynamoKey: `${this.params.owner}/${this.params.repo}/${this.params.prNum}/${this.params.commentId}`,
+          Item: { ...this.params, event, extra_data },
+        },
       };
       if (process.env.NODE_ENV === "production") {
         await this.client.put(log);
