@@ -6,17 +6,11 @@ const titleRegexToLabel: [RegExp, string][] = [
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
-  // releng
-  [/docker\//gi, "release notes: releng"],
-  [/.circleci/gi, "release notes: releng"],
-  [/.github/gi, "release notes: releng"],
-  [/.jenkins/gi, "release notes: releng"],
-  [/.azure_pipelines/gi, "release notes: releng"],
   // dataloader_frontend => does that correlate best with release notes: AO frontend?
   [/torch\/utils\/data/gi, "module: dataloader"],
   [/test_data(loader|pipe)/gi, "module: dataloader"],
   // cpp_frontend => not a real category either
-  [/torch\/(csrc|cpp)\/api/gi, "module: dataloader"],
+  [/torch\/(csrc|cpp)\/api/gi, "module: cpp"],
   // distributed + its flavors
   [/c10d/gi, "release notes: distributed (c10d)"],
   [/distributed.*sharded/gi, "release notes: distributed (sharded)"],
@@ -64,6 +58,12 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/tools\/nn\/functional.py/gi, "module: nn"],
   // jit
   [/torch\/(csrc\/)?jit/gi, "release notes: jit"],
+  // releng
+  [/docker\//gi, "release notes: releng"],
+  [/.circleci/gi, "release notes: releng"],
+  [/.github/gi, "release notes: releng"],
+  [/.jenkins/gi, "release notes: releng"],
+  [/.azure_pipelines/gi, "release notes: releng"],
 ];
 
 function myBot(app: Probot): void {
@@ -152,7 +152,7 @@ function myBot(app: Probot): void {
       return ["skip", topic];
     }
 
-    if (filesChanged.every(f => f.includes("caffe2"))) {
+    if (filesChanged.length > 0 && filesChanged.every(f => f.includes("caffe2"))) {
       return ["caffe2", topic];
     }
 
@@ -170,7 +170,7 @@ function myBot(app: Probot): void {
       }
     }
 
-    if (filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
+    if (filesChanged.length > 0 && filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
       return ["release notes: cuda", topic];
     }
 
@@ -197,7 +197,7 @@ function myBot(app: Probot): void {
       }
     });
 
-    if (newLabels.length) {
+    if (newLabels.length > 0) {
       context.log(`Adding new labels: ${newLabels}}`);
       await context.octokit.issues.addLabels(
         context.issue({ labels: newLabels })
@@ -222,9 +222,10 @@ function myBot(app: Probot): void {
     );
     const title = context.payload.pull_request.title;
     const filesChangedRes = await context.octokit.paginate("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
-      owner: context.payload.repository.owner.name!,
+      owner: context.payload.repository.owner.login,
       repo: context.payload.repository.name,
-      pull_number: context.payload.pull_request.number
+      pull_number: context.payload.pull_request.number,
+      per_page: 100,
     })
     const filesChanged = filesChangedRes.map((f: any) => f.filename);
     context.log({ labels, title, filesChanged });
@@ -235,7 +236,7 @@ function myBot(app: Probot): void {
     if (category !== "uncategorized" && category !== "skip") {
       labelsToAdd.push(category);
     }
-    if (topic !== "untopiced" && category !== "skip") {
+    if (topic !== "untopiced" && topic !== "skip") {
       labelsToAdd.push(topic);
     }
 
