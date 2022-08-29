@@ -11,28 +11,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner_type:
+        runner-type:
           - macos-12
           - macos-m1-12
-    name: ${{ matrix.runner_type }}
-    runs-on: ${{ matrix.runner_type }}
+        # Only testing minimum and maximum versions here
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.10
+        exclude:
+          - runner-type: macos-m1-12
+            python-version: 3.7
+          - runner-type: macos-12
+            python-version: 3.8
+    name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
+    runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
+    env:
+      PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v3
       - name: Test that setup-miniconda works
         uses: ./.github/actions/setup-miniconda
         with:
-          python-version: "3.7"
-      - name: Can use ${CONDA_RUN}, outputs Python "3.7"
+          python-version: ${{ matrix.python-version }}
+      - name: Can use ${CONDA_RUN}, outputs correct python version
         run: |
           ${CONDA_RUN} python --version
-          ${CONDA_RUN} python --version | grep "3.7"
+          ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
       - name: Can use ${CONDA_INSTALL}, installs older numpy
         run: |
           ${CONDA_INSTALL} numpy=1.17
-      - name: Can use ${CONDA_BUILD}, outputs version
+      - name: Can use ${CONDA_BUILD}, outputs correct version
         run: |
           ${CONDA_BUILD} --version
           ${CONDA_BUILD} --version | grep "3.21"
