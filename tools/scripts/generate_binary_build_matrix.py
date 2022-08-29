@@ -321,7 +321,7 @@ def main() -> None:
     if options.channel == "all":
         for channel in CUDA_ACRHES_DICT:
             CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
-            includes.append(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
+            includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
     else:
         CUDA_ARCHES = CUDA_ACRHES_DICT[options.channel]
         includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
