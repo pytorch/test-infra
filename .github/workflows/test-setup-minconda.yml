@@ -16,14 +16,14 @@ jobs:
           - macos-m1-12
         # Only testing minimum and maximum versions here
         python-version:
-          - 3.7
-          - 3.8
-          - 3.10
+          - "3.7"
+          - "3.8"
+          - "3.10"
         exclude:
           - runner-type: macos-m1-12
-            python-version: 3.7
+            python-version: "3.7"
           - runner-type: macos-12
-            python-version: 3.8
+            python-version: "3.8"
     name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
