@@ -6,7 +6,6 @@ on:
       conda-package-directory:
         description: 'Directory where your meta.yaml for your conda package lives'
         required: true
-        default: ""
         type: string
       repository:
         description: 'Repository to checkout, defaults to ""'
