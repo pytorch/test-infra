@@ -3,7 +3,7 @@ name: Set up conda environment for testing
 description: Clean workspace and check out PyTorch
 
 inputs:
-  python_version:
+  python-version:
     description: If set to any value, don't use sudo to clean the workspace
     required: false
     type: string
