@@ -48,7 +48,7 @@ runs:
           ENV_FILE_FLAG=""
           if [[ -f "${ENV_FILE}" ]]; then
             ENV_FILE_FLAG="--file ${ENV_FILE}"
-          elif [[ -n "${ENV_FILE}" ]]
+          elif [[ -n "${ENV_FILE}" ]]; then
             echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
           fi
           conda create \
