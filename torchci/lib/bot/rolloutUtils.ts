@@ -48,6 +48,21 @@ const landCheckPilotGroup = new Set([
   "wanchaol",
   "zhaojuanmao",
   "yaroslavvb",
+  // Quansight
+  "nkaretnikov",
+  "pearu",
+  "ysiraichi",
+  "vfdev-5",
+  "pmeier",
+  "bjuncek",
+  "lezcano",
+  "nikitaved",
+  "kurtamohler",
+  "kshitij12345",
+  "peterbell10",
+  "HaoZeke",
+  "amjames",
+  "fdrocha",
 ]);
 
 export const POSSIBLE_USERS = [
