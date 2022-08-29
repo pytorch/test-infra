@@ -14,7 +14,7 @@ const landCheckPilotGroup = new Set([
   "osalpekar",
   "malfet",
   "kit1980",
-  // Core members
+  // Core
   "albanD",
   "anjali411",
   "bdhirsh",
@@ -31,6 +31,23 @@ const landCheckPilotGroup = new Set([
   "samdow",
   "SherlockNoMad",
   "dagitses",
+  // Distributed
+  "aazzolini",
+  "awgu",
+  "yhcharles",
+  "H-Huang",
+  "wz337",
+  "fduwjj",
+  "kwen2501",
+  "mingzhe09088",
+  "pbelevich",
+  "pritamdamania87",
+  "kumpera",
+  "rohan-varma",
+  "mrshenli",
+  "wanchaol",
+  "zhaojuanmao",
+  "yaroslavvb",
 ]);
 
 export const POSSIBLE_USERS = [
