@@ -358,6 +358,14 @@
       "windows"
     ]
   ],
+  "test_comprehensive_column_stack_cpu_bfloat16 (__main__.TestDecompCPU)": [
+    "84191",
+    "https://github.com/pytorch/pytorch/issues/84191",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_comprehensive_column_stack_cpu_float16 (__main__.TestDecompCPU)": [
     "84122",
     "https://github.com/pytorch/pytorch/issues/84122",
