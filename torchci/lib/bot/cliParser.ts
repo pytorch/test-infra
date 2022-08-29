@@ -57,6 +57,10 @@ mergeOption.add_argument("-l", "--land-checks", {
     "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
     "that periodic is excluded. (EXPERIMENTAL)",
 });
+mergeOption.add_argument("-r", "--rebase", {
+  action: "store_true",
+  help: "Rebase the PR to re run checks before merging"
+});
 
 // Revert
 const revert = commands.add_parser("revert", {
