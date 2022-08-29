@@ -6,11 +6,9 @@ const titleRegexToLabel: [RegExp, string][] = [
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
-  // dataloader_frontend => does that correlate best with release notes: AO frontend?
-  [/torch\/utils\/data/gi, "module: dataloader"],
-  [/test_data(loader|pipe)/gi, "module: dataloader"],
-  // cpp_frontend => not a real category either
-  [/torch\/(csrc|cpp)\/api/gi, "module: cpp"],
+  // dataloader_frontend
+  [/torch\/utils\/data/gi, "release notes: dataloader"],
+  [/test_data(loader|pipe)/gi, "release notes: dataloader"],
   // distributed + its flavors
   [/c10d/gi, "release notes: distributed (c10d)"],
   [/distributed.*sharded/gi, "release notes: distributed (sharded)"],
@@ -33,7 +31,7 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/(torch|test)\/quantization/gi, "release notes: quantization"],
   [/aten\/src\/ATen\/native\/quantized/gi, "release notes: quantization"],
   [/torch\/nn\/quantiz(ed|able)/gi, "release notes: quantization"],
-  // package => is this supposed to be package/deploy?
+  // package
   [/(torch|test)\/package/gi, "release notes: package/deploy"],
   // mobile
   [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
@@ -45,17 +43,17 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi, "release notes: linalg_frontend"],
   [/test\/test_linalg.py/gi, "release notes: linalg_frontend"],
   [/torch\/linalg/gi, "release notes: linalg_frontend"],
-  // sparse_frontend => also did not exist
-  [/aten\/src\/ATen\/native\/sparse/gi, "module: sparse"],
-  [/torch\/sparse/gi, "module: sparse"],
-  [/torch\/_masked\/__init__.py/gi, "module: sparse"],
+  // sparse_frontend
+  [/aten\/src\/ATen\/native\/sparse/gi, "release notes: sparse"],
+  [/torch\/sparse/gi, "release notes: sparse"],
+  [/torch\/_masked\/__init__.py/gi, "release notes: sparse"],
   // autograd_frontend => also did not exist
-  [/tools\/autograd/gi, "module: autograd"],
+  [/tools\/autograd/gi, "release notes: autograd"],
   // nn_frontend => also did not exist
-  [/test\/test_nn.py/gi, "module: nn"],
-  [/test\/test_module.py/gi, "module: nn"],
-  [/tools\/nn\/modules/gi, "module: nn"],
-  [/tools\/nn\/functional.py/gi, "module: nn"],
+  [/test\/test_nn.py/gi, "release notes: nn"],
+  [/test\/test_module.py/gi, "release notes: nn"],
+  [/tools\/nn\/modules/gi, "release notes: nn"],
+  [/tools\/nn\/functional.py/gi, "release notes: nn"],
   // jit
   [/torch\/(csrc\/)?jit/gi, "release notes: jit"],
   // releng
@@ -64,6 +62,8 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/.github/gi, "release notes: releng"],
   [/.jenkins/gi, "release notes: releng"],
   [/.azure_pipelines/gi, "release notes: releng"],
+  // cpp_frontend
+  [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"],
 ];
 
 function myBot(app: Probot): void {
