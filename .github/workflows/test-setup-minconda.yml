@@ -29,6 +29,7 @@ jobs:
           python_version: "3.9"
       - name: Can use ${CONDA_RUN}, outputs Python "3.9"
         run: |
+          ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "3.9"
 
 concurrency:
