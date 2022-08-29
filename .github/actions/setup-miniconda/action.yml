@@ -8,6 +8,11 @@ inputs:
     required: false
     type: string
     default: "3.9"
+  environment-file:
+    description: Environment file to install dependencies from
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: composite
@@ -25,7 +30,7 @@ runs:
               MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
               ;;
             *)
-              echo "Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
+            echo "::error::Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
               exit 1
               ;;
           esac
@@ -37,17 +42,26 @@ runs:
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
+          ENV_FILE: ${{ inputs.environment-file }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          ENV_FILE_FLAG=""
+          if [[ -f "${ENV_FILE}" ]]; then
+            ENV_FILE_FLAG="--file ${ENV_FILE}"
+          elif [[ -n "${ENV_FILE}" ]]; then
+            echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
+          fi
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
             "python=${PYTHON_VERSION}" \
+            ${ENV_FILE_FLAG} \
             cmake=3.22 \
             conda-build=3.21 \
             ninja=1.10 \
-            numpy=1.23 \
             pkg-config=0.29 \
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
+          echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
