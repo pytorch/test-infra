@@ -14,8 +14,6 @@ jobs:
         runner_type:
           - macos-12
           - macos-m1-12
-    env:
-      PYTHON_VERSION: 3.9
     name: ${{ matrix.runner_type }}
     runs-on: ${{ matrix.runner_type }}
     # If a build is taking longer than 60 minutes on these runners we need
@@ -26,14 +24,14 @@ jobs:
       - name: Test that setup-miniconda works
         uses: ./.github/actions/setup-miniconda
         with:
-          python-version: "3.9"
-      - name: Can use ${CONDA_RUN}, outputs Python "3.9"
+          python-version: "3.7"
+      - name: Can use ${CONDA_RUN}, outputs Python "3.7"
         run: |
           ${CONDA_RUN} python --version
-          ${CONDA_RUN} python --version | grep "3.9"
+          ${CONDA_RUN} python --version | grep "3.7"
       - name: Can use ${CONDA_INSTALL}, installs older numpy
         run: |
-          ${CONDA_INSTALL} numpy=1.19
+          ${CONDA_INSTALL} numpy=1.17
       - name: Can use ${CONDA_BUILD}, outputs version
         run: |
           ${CONDA_BUILD} --version

@@ -27,7 +27,7 @@ This action provides the following environment variables to use with the provide
           ${CONDA_RUN} python --version | grep "3.9"
       - name: Can use ${CONDA_INSTALL}, installs older numpy
         run: |
-          ${CONDA_INSTALL} numpy=1.19
+          ${CONDA_INSTALL} numpy=1.17
       - name: Can use ${CONDA_BUILD}, outputs version
         run: |
           ${CONDA_BUILD} --version
