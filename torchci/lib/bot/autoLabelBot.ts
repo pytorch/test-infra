@@ -1,8 +1,69 @@
 import { Context, Probot } from "probot";
 
-const regexToLabel: [RegExp, string][] = [
+const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
+];
+
+const filenameRegexToReleaseCategory: [RegExp, string][] = [
+  // dataloader_frontend
+  [/torch\/utils\/data/gi, "release notes: dataloader"],
+  [/test_data(loader|pipe)/gi, "release notes: dataloader"],
+  // distributed + its flavors
+  [/c10d/gi, "release notes: distributed (c10d)"],
+  [/distributed.*sharded/gi, "release notes: distributed (sharded)"],
+  [/distributed.*ddp/gi, "release notes: distributed (ddp)"],
+  [/distributed.*pipeline/gi, "release notes: distributed (pipeline)"],
+  [/distributed.*fsdp/gi, "release notes: distributed (fsdp)"],
+  [/distributed.*rpc/gi, "release notes: distributed (rpc)"],
+  // vulkan
+  [/vulkan/gi, "release notes: vulkan"],
+  // foreach_frontend
+  [/foreach/gi, "release notes: foreach_frontend"],
+  // onnx
+  [/onnx/gi, "release notes: onnx"],
+  // fx
+  [/torch\/fx/gi, "release notes: fx"],
+  [/test_fx/gi, "release notes: fx"],
+  // ao
+  [/(torch|test)\/ao/gi, "release notes: AO frontend"],
+  // quantization
+  [/(torch|test)\/quantization/gi, "release notes: quantization"],
+  [/aten\/src\/ATen\/native\/quantized/gi, "release notes: quantization"],
+  [/torch\/nn\/quantiz(ed|able)/gi, "release notes: quantization"],
+  // package
+  [/(torch|test)\/package/gi, "release notes: package/deploy"],
+  // mobile
+  [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
+  [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],
+  [/test\/mobile/gi, "release notes: mobile"],
+  [/torch\/backends\/_nnapi\//gi, "release notes: mobile"],
+  [/test\/test_nnapi.py/gi, "release notes: mobile"],
+  // linalg_frontend
+  [/aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi, "release notes: linalg_frontend"],
+  [/test\/test_linalg.py/gi, "release notes: linalg_frontend"],
+  [/torch\/linalg/gi, "release notes: linalg_frontend"],
+  // sparse_frontend
+  [/aten\/src\/ATen\/native\/sparse/gi, "release notes: sparse"],
+  [/torch\/sparse/gi, "release notes: sparse"],
+  [/torch\/_masked\/__init__.py/gi, "release notes: sparse"],
+  // autograd_frontend => also did not exist
+  [/tools\/autograd/gi, "release notes: autograd"],
+  // nn_frontend => also did not exist
+  [/test\/test_nn.py/gi, "release notes: nn"],
+  [/test\/test_module.py/gi, "release notes: nn"],
+  [/tools\/nn\/modules/gi, "release notes: nn"],
+  [/tools\/nn\/functional.py/gi, "release notes: nn"],
+  // jit
+  [/torch\/(csrc\/)?jit/gi, "release notes: jit"],
+  // releng
+  [/docker\//gi, "release notes: releng"],
+  [/.circleci/gi, "release notes: releng"],
+  [/.github/gi, "release notes: releng"],
+  [/.jenkins/gi, "release notes: releng"],
+  [/.azure_pipelines/gi, "release notes: releng"],
+  // cpp_frontend
+  [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"],
 ];
 
 function myBot(app: Probot): void {
@@ -56,13 +117,75 @@ function myBot(app: Probot): void {
   ): string[] {
     const labelsToAdd: string[] = [];
 
-    for (const [regex, label] of regexToLabel) {
+    for (const [regex, label] of titleRegexToLabel) {
       if (title.match(regex)) {
         labelsToAdd.push(label);
       }
     }
 
     return labelsToAdd;
+  }
+
+  // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
+  function getReleaseNotesCategoryAndTopic(
+    title: string,
+    labels: string[],
+    filesChanged: string[],
+  ): [string, string] {
+    let topic: string = "untopiced";
+
+    if (labels.includes("module: bc-breaking")) {
+      // yes, there is some clowning with the - and _
+      topic = "topic: bc_breaking";
+    }
+
+    if (labels.includes("module: deprecation")) {
+      topic = "topic: deprecation";
+    }
+
+    // don't re-categorize those with existing labels
+    if (labels.some(l => l.startsWith("release notes:" ) || l === "topic: not user facing")) {
+      // already topiced
+      if (labels.some(l => l.startsWith("topic:" ))) {
+        return ["skip", "skip"];
+      }
+      return ["skip", topic];
+    }
+
+    if (filesChanged.length > 0 && filesChanged.every(f => f.includes("caffe2"))) {
+      return ["caffe2", topic];
+    }
+
+    if (title.toLowerCase().includes("[codemod]")) {
+      return ["uncategorized", "topic: not user facing"];
+    }
+
+    for (const file of filesChanged) {
+      // check for typical matches
+      for (const [regex, label] of filenameRegexToReleaseCategory) {
+        if (file.match(regex)) {
+          // return here since we take the first match (first category of first matching file)
+          return [label, topic];
+        }
+      }
+    }
+
+    if (filesChanged.length > 0 && filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
+      return ["release notes: cuda", topic];
+    }
+
+    if (title.includes("[PyTorch Edge]")) {
+      return ["release notes: mobile", topic];
+    }
+
+    // OpInfo related
+    if (filesChanged.length === 1 &&
+        (filesChanged.at(0)?.includes("torch/testing/_internal/common_methods_invocations.py") ||
+        filesChanged.at(0)?.includes("torch/_torch_docs.py"))) {
+          return ["release notes: python_frontend", topic];
+    }
+
+    return ["uncategorized", topic];
   }
 
   async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
@@ -74,7 +197,7 @@ function myBot(app: Probot): void {
       }
     });
 
-    if (newLabels.length) {
+    if (newLabels.length > 0) {
       context.log(`Adding new labels: ${newLabels}}`);
       await context.octokit.issues.addLabels(
         context.issue({ labels: newLabels })
@@ -98,9 +221,25 @@ function myBot(app: Probot): void {
       (e) => e["name"]
     );
     const title = context.payload.pull_request.title;
-    context.log({ labels, title });
+    const filesChangedRes = await context.octokit.paginate("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+      owner: context.payload.repository.owner.login,
+      repo: context.payload.repository.name,
+      pull_number: context.payload.pull_request.number,
+      per_page: 100,
+    })
+    const filesChanged = filesChangedRes.map((f: any) => f.filename);
+    context.log({ labels, title, filesChanged });
 
     const labelsToAdd = getLabelsToAddFromTitle(title);
+
+    const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+    if (category !== "uncategorized" && category !== "skip") {
+      labelsToAdd.push(category);
+    }
+    if (topic !== "untopiced" && topic !== "skip") {
+      labelsToAdd.push(topic);
+    }
+
     await addNewLabels(labels, labelsToAdd, context);
   });
 }
