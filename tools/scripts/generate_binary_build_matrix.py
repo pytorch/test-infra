@@ -157,10 +157,15 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
 def generate_libtorch_matrix(
     os: str,
     channel: str,
-    abi_versions: Optional[str] = None,
+    abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
+
+    ret: List[Dict[str, str]] = []
+
+    if os == "macos-arm64" or os == "macos-x86":
+        return ret
 
     if arches is None:
         arches = ["cpu"]
@@ -185,7 +190,7 @@ def generate_libtorch_matrix(
             "static-without-deps",
         ]
 
-    ret: List[Dict[str, str]] = []
+
 
     for abi_version in abi_versions:
         for arch_version in arches:
