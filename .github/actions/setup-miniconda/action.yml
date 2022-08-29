@@ -64,5 +64,5 @@ runs:
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
           echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_BUILD=${CONDA_RUN} conda-build" >> "${GITHUB_ENV}"
