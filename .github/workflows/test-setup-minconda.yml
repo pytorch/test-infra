@@ -26,7 +26,7 @@ jobs:
       - name: Test that setup-miniconda works
         uses: ./.github/actions/setup-miniconda
         with:
-          python-version: "3.9"
+          python_version: "3.9"
       - name: Can use ${CONDA_RUN}, outputs Python "3.9"
         run: |
           ${CONDA_RUN} python --version | grep "3.9"
