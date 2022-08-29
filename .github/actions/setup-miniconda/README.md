@@ -1,6 +1,6 @@
 # setup-miniconda
 
-Sets up miniconda in your ${RUNNER_TEMP} environment and gives you the ${CONDA_RUN} environment variable so you don't have to worry about polluting non-empeheral runners anymore
+Sets up miniconda in your `${RUNNER_TEMP}` environment and gives you the `${CONDA_RUN}` environment variable so you don't have to worry about polluting non-empeheral runners anymore
 
 ## Supported platforms
 
