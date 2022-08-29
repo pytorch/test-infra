@@ -23,6 +23,13 @@
       "linux"
     ]
   ],
+  "test_Dropout1d_cpu (__main__.TestNNDeviceTypeCPU)": [
+    "84186",
+    "https://github.com/pytorch/pytorch/issues/84186",
+    [
+      "linux"
+    ]
+  ],
   "test_MaxUnpool_index_errors_case2_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "81841",
     "https://github.com/pytorch/pytorch/issues/81841",
