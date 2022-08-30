@@ -8,12 +8,14 @@ SELECT
 FROM
     (
         SELECT
-            -- Since we're grouping by run_url ARBITRARY(item.machine_type) should realilistically only have 1 value
+            -- Since we're grouping by run_url ARBITRARY(item.machine_type) should realistically only have 1 value
             PERCENT_RANK() OVER (
                 PARTITION BY ARBITRARY(item.machine_type)
                 ORDER BY
                     SUM(item.queue_time) DESC
             ) AS percentile,
+            -- Summing here allows us to group queued events and non-queued events by their run_url so if a workflow
+            -- was queued it'll sum with its 0 counterpart here
             SUM(item.queue_time) AS queue_time,
             ARBITRARY(item.machine_type) AS machine_type,
             item.granularity_bucket AS granularity_bucket
