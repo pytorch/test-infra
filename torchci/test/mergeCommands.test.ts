@@ -127,7 +127,9 @@ describe("merge-bot", () => {
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });;
 
     await probot.receive(event);
     handleScope(scope);
@@ -157,7 +159,9 @@ describe("merge-bot", () => {
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });
 
     await probot.receive(event);
     handleScope(scope);
@@ -180,6 +184,38 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("reject merge -f without write access", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -f 'cuz I want to'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          "You are not authorized"
+        );
+        return true;
+      })
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "read" });
 
     await probot.receive(event);
     handleScope(scope);
@@ -209,7 +245,9 @@ describe("merge-bot", () => {
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });
 
     await probot.receive(event);
     handleScope(scope);
@@ -239,7 +277,9 @@ describe("merge-bot", () => {
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });
 
     await probot.receive(event);
     handleScope(scope);
@@ -796,7 +836,9 @@ some other text lol
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });
 
     await probot.receive(event);
     handleScope(scope);
