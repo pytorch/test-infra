@@ -216,12 +216,16 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     const labelsToAdd = labels.map((s: string) => s.trim());
 
     const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
-    const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
-    const ciflowLabels = labelsToAdd.filter((l: string) => l.startsWith("ciflow/"));
+    const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l)); 
+    const protectedLabels = labelsToAdd.filter((l: string) => 
+        l.startsWith("topic:") ||
+        l.startsWith("release notes:")
+    );
+
     const hasWritePermission = await this.hasWritePermissions(ctx.payload?.comment?.user?.login);
-    if (!hasWritePermission && ciflowLabels.length > 0) {
+    if (!hasWritePermission && protectedLabels.length > 0) {
         return await this.addComment(
-            "Can't add following labels to PR: " + ciflowLabels.join(", ") +
+            "Can't add following labels to PR: " + protectedLabels.join(", ") +
             " Please ping one of the reviewers for help."
         );
     }
