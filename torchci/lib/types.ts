@@ -102,6 +102,7 @@ export interface RecentWorkflowsData {
 
 export interface TTSChange {
   name: string | undefined;
+  htmlUrl: string | undefined;
   duration: string;
   color: string;
   percentChangeString: string;
