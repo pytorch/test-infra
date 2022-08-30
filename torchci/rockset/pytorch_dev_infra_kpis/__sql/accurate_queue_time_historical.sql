@@ -74,7 +74,7 @@ FROM
                     AND job._event_time <= PARSE_DATETIME_ISO8601(:stopTime)
             ) item
         GROUP BY
-            item.run_url
+            item.run_url,
             item.granularity_bucket
     ) item
 WHERE
@@ -84,7 +84,7 @@ WHERE
             AND item.percentile >= (1.0 - :percentile)
     )
 GROUP BY
-    item.machine_type
+    item.machine_type,
     item.granularity_bucket
 ORDER BY
     MAX(item.queue_time) DESC

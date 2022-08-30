@@ -20,6 +20,11 @@
       "name": "timezone",
       "type": "string",
       "value": "America/Los_Angeles"
+    },
+    {
+      "name": "percentile",
+      "type": "float",
+      "value": "0.99"
     }
   ],
   "description": ""
