@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/accurate_queue_time_historical.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": ""
+}
