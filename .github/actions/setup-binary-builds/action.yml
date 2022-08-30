@@ -65,6 +65,7 @@ runs:
         run: |
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
+        working-directory: ${{ inputs.repository }}
         shell: bash
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
