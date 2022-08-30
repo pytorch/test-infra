@@ -23,6 +23,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
+    "76428",
+    "https://github.com/pytorch/pytorch/issues/76428",
+    [
+      "linux"
+    ]
+  ],
   "test_Dropout1d_cpu (__main__.TestNNDeviceTypeCPU)": [
     "84186",
     "https://github.com/pytorch/pytorch/issues/84186",
