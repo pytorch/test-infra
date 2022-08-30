@@ -260,6 +260,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
           [key: string]: {
             duration: number;
             availableData: boolean;
+            htmlUrl: string | undefined;
           };
         },
         cur
@@ -273,7 +274,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
         ) {
           let name = cur.name.substring(0, cur.name.indexOf(","));
           if (!(name in prev)) {
-            prev[name] = { duration: 0, availableData: true };
+            prev[name] = { duration: 0, availableData: true, htmlUrl: cur.htmlUrl };
           }
           if (cur.conclusion != "success" || cur.durationS === undefined) {
             prev[name].availableData = false;
@@ -294,6 +295,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
 
   function getDurationInfo(
     name: string,
+    htmlUrl: string | undefined,
     duration: number,
     availableData: boolean
   ) {
@@ -307,6 +309,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
       return {
         concerningChange: false,
         name,
+        htmlUrl,
         color,
         duration: durationString,
         percentChangeString: "",
@@ -333,6 +336,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
       concerningChange,
       color,
       name,
+      htmlUrl,
       duration: durationString,
       percentChangeString,
       absoluteChangeString,
@@ -341,7 +345,7 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
 
   const [concerningTTS, notConcerningTTS] = _.partition(
     _.map(getAggregateTestTimes(jobs), (value, key) => {
-      return getDurationInfo(key, value.duration, value.availableData);
+      return getDurationInfo(key, value.htmlUrl, value.duration, value.availableData);
     }),
     (e) => e.concerningChange
   );
@@ -360,12 +364,14 @@ function DurationInfo({
 }) {
   function Row({
     name,
+    htmlUrl,
     duration,
     color,
     percentChangeString,
     absoluteChangeString,
   }: {
     name: string | undefined;
+    htmlUrl: string | undefined;
     duration: string;
     color: string;
     percentChangeString: string;
@@ -373,7 +379,11 @@ function DurationInfo({
   }) {
     return (
       <tr style={{ color }}>
-        <td style={{ width: "750px" }}>{name}</td>
+        <td style={{ width: "750px" }}>
+            <a href={htmlUrl}>
+               {name}
+            </a>
+        </td>
         <td style={{ width: "150px" }}>{duration}</td>
         <td style={{ width: "100px" }}>{percentChangeString}</td>
         <td style={{ width: "100px" }}>{absoluteChangeString}</td>
