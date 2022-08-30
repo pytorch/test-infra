@@ -22,10 +22,16 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
+            pre-script: packaging/pre_build_script_wheel.sh
+            post-script: packaging/post_build_script_wheel.sh
             conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
+            pre-script: ""
+            post-script: ""
             conda-package-directory: packaging/torchvision
           - repository: pytorch/text
+            pre-script: ""
+            post-script: ""
             conda-package-directory: packaging/torchtext
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_m1.yml
@@ -36,3 +42,5 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
