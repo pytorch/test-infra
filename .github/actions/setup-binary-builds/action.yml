@@ -33,6 +33,7 @@ runs:
   using: composite
   steps:
       - name: Remove repository directory (if exists)
+        shell: bash
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
