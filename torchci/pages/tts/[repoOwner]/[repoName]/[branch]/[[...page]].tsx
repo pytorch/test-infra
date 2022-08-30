@@ -261,7 +261,7 @@ function Graphs({
             <Panel title={"tts"} series={tts_series} />
             <Panel title={"duration"} series={duration_series} />
             <Panel
-              title={"total test time (commit granularity)"}
+              title={"total test time across shards (commit granularity)"}
               series={agg_test_time_series}
             />
           </Stack>
