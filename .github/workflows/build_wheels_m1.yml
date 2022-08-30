@@ -71,7 +71,7 @@ jobs:
       - name: Run pre-script
         env:
           PRE_SCRIPT: ${{ inputs.pre-script }}
-        if: ${{ inputs.pre-script != "" }}
+        if: ${{ inputs.pre-script != '' }}
         run: |
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -96,7 +96,7 @@ jobs:
       - name: Run post-script
         env:
           post_SCRIPT: ${{ inputs.post-script }}
-        if: ${{ inputs.post-script != "" }}
+        if: ${{ inputs.post-script != '' }}
         run: |
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
