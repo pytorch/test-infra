@@ -64,7 +64,9 @@ describe("label-bot", () => {
         expect(JSON.stringify(body)).toContain(`{"labels":["enhancement"]}`);
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "read" });
     await probot.receive(event);
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -106,7 +108,9 @@ describe("label-bot", () => {
         );
         return true;
       })
-      .reply(200, {});
+      .reply(200, {})
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
+      .reply(200, {'permission': "write" });
     await probot.receive(event);
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());

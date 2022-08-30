@@ -188,6 +188,21 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return labels.map((d: any) => d.name);
   }
 
+  async getUserPermissions(username: string) : Promise<string> {
+    const { ctx, owner, repo } = this;
+    const res = await ctx.octokit.repos.getCollaboratorPermissionLevel({
+        owner: owner,
+        repo: repo,
+        username
+    });
+    return res?.data?.permission;
+  }
+
+  async hasWritePermissions(username: string) : Promise<boolean> {
+    const permissions = await this.getUserPermissions(username);
+    return permissions === "admin" || permissions === "write";
+  }
+
   async handleLabel(labels: string[]) {
     const { ctx } = this;
     /**
@@ -202,6 +217,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     const filteredLabels = labelsToAdd.filter((l: string) => repoLabels.has(l));
     const invalidLabels = labelsToAdd.filter((l: string) => !repoLabels.has(l));
+    const ciflowLabels = labelsToAdd.filter((l: string) => l.startsWith("ciflow/"));
+    const hasWritePermission = await this.hasWritePermissions(ctx.payload?.comment?.user?.login);
+    if (!hasWritePermission && ciflowLabels.length > 0) {
+        return await this.addComment(
+            "Can't add following labels to PR: " + ciflowLabels.join(", ") +
+            " Please ping one of the reviewers for help."
+        );
+    }
     if (invalidLabels.length > 0) {
       await this.addComment(
         "Didn't find following labels among repository labels: " +
