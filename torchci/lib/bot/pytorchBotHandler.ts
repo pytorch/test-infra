@@ -1,3 +1,4 @@
+import { stringify } from "querystring";
 import shlex from "shlex";
 import { addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
@@ -118,31 +119,45 @@ class PytorchBotHandler {
     return matches != undefined && matches.length != 0;
   }
 
-  async handleMerge(
-    forceMessage: string,
-    mergeOnGreen: boolean,
-    landChecks: boolean
-  ) {
+  async reasonToRejectForceRequest(forceMessage: string): Promise<string | null> {
     const { ctx } = this;
 
-    const forceRequested = forceMessage != undefined;
-    const isValidMessage = this.isValidForceMergeMessage(forceMessage);
     const hasWritePermission = await this.hasWritePermissions(ctx.payload?.comment?.user?.login);
-    const canForce = forceRequested && isValidMessage && hasWritePermission
+    if (!hasWritePermission) {
+        return "You are not authorized to force merges to this repository. Please use the regular `@pytorchmergebot merge` command instead"
+    }    
 
-    if (!forceRequested || canForce) {
-      await this.dispatchEvent("try-merge", forceRequested, mergeOnGreen, landChecks);
-      await this.ackComment();
-    } else {
-      await this.handleConfused(
-        true,
-`You need to provide a reason for using force merge, in the format @pytorchbot merge -f 'Explanation'.
+    const isValidMessage = this.isValidForceMergeMessage(forceMessage);
+    if (!isValidMessage) {
+      return `You need to provide a reason for using force merge, in the format @pytorchbot merge -f 'Explanation'.
 The explanation needs to be clear on why this is needed. Here are some good examples:
 * Bypass checks due to unrelated upstream failures from ...
 * This is a minor fix to ..., which shouldn't break anything
 * This is pre-tested in a previous CI run
 * Bypass flaky ... check`
-      );
+    }
+
+    return null
+  }
+
+  async handleMerge(
+    forceMessage: string,
+    mergeOnGreen: boolean,
+    landChecks: boolean
+  ) {
+
+    const forceRequested = forceMessage != undefined;
+    let rejection_reason = null
+
+    if (forceRequested) {
+      rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
+    }
+
+    if (!rejection_reason) {
+      await this.dispatchEvent("try-merge", forceRequested, mergeOnGreen, landChecks);
+      await this.ackComment();
+    } else {
+      await this.handleConfused(true, rejection_reason);
     }
   }
 
