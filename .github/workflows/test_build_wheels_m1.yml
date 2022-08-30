@@ -20,14 +20,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repository:
-          - pytorch/audio
-          - pytorch/vision
-          - pytorch/text
+        include:
+          - repository: pytorch/audio
+            pre-script: packaging/pre_build_script_wheel.sh
+            post-script: packaging/post_build_script_wheel.sh
+          - repository: pytorch/vision
+            pre-script: ""
+            post-script: ""
+          - repository: pytorch/text
+            pre-script: ""
+            post-script: ""
     uses: ./.github/workflows/build_wheels_m1.yml
+    name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}

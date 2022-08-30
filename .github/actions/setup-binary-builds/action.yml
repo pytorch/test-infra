@@ -32,6 +32,12 @@ inputs:
 runs:
   using: composite
   steps:
+      - name: Remove repository directory (if exists)
+        shell: bash
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          rm -rfv "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
@@ -65,6 +71,7 @@ runs:
         run: |
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
+        working-directory: ${{ inputs.repository }}
         shell: bash
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"

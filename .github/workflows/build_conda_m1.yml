@@ -27,6 +27,14 @@ on:
         description: "Build matrix to utilize"
         default: ""
         type: string
+      pre-script:
+        description: "Pre script to run prior to build"
+        default: ""
+        type: string
+      post-script:
+        description: "Post script to run prior to build"
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -58,6 +66,18 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Run pre-script
+        working-directory: ${{ inputs.repository }}
+        env:
+          PRE_SCRIPT: ${{ inputs.pre-script }}
+        if: ${{ inputs.pre-script != '' }}
+        run: |
+          if [[ ! -f ${PRE_SCRIPT} ]]; then
+            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
+            exit 1
+          else
+            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+          fi
       - name: Setup base environment variables
         run: |
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
@@ -77,6 +97,18 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+      - name: Run post-script
+        working-directory: ${{ inputs.repository }}
+        env:
+          POST_SCRIPT: ${{ inputs.post-script }}
+        if: ${{ inputs.post-script != '' }}
+        run: |
+          if [[ ! -f ${POST_SCRIPT} ]]; then
+            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
+            exit 1
+          else
+            ${CONDA_RUN} bash "${POST_SCRIPT}"
+          fi
       # TODO: Figure out upload method to s3
 
 concurrency:
