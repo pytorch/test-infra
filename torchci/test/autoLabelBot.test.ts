@@ -3,6 +3,7 @@ import { Probot } from "probot";
 import * as utils from "./utils";
 import { requireDeepCopy } from "./common";
 import myProbotApp from "../lib/bot/autoLabelBot";
+import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();
 
@@ -12,7 +13,13 @@ describe("auto-label-bot", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
   });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  })
 
   test("add triage review when issue is labeled high priority", async () => {
     nock("https://api.github.com")
@@ -127,6 +134,31 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("non pytorch/pytorch repo do NOT add any release notes category labels", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["title"] = "Change to CI files";
+    payload["pull_request"]["labels"] = [];
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(false);
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 

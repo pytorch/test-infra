@@ -1,4 +1,5 @@
 import { Context, Probot } from "probot";
+import { isPyTorchPyTorch } from "./utils";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -220,10 +221,12 @@ function myBot(app: Probot): void {
     const labels: string[] = context.payload.pull_request.labels.map(
       (e) => e["name"]
     );
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
     const title = context.payload.pull_request.title;
     const filesChangedRes = await context.octokit.paginate("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
-      owner: context.payload.repository.owner.login,
-      repo: context.payload.repository.name,
+      owner,
+      repo,
       pull_number: context.payload.pull_request.number,
       per_page: 100,
     })
@@ -232,12 +235,15 @@ function myBot(app: Probot): void {
 
     const labelsToAdd = getLabelsToAddFromTitle(title);
 
-    const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
-    if (category !== "uncategorized" && category !== "skip") {
-      labelsToAdd.push(category);
-    }
-    if (topic !== "untopiced" && topic !== "skip") {
-      labelsToAdd.push(topic);
+    // only categorize for release notes for prs in pytorch/pytorch
+    if (isPyTorchPyTorch(owner, repo)) {
+      const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+      if (category !== "uncategorized" && category !== "skip") {
+        labelsToAdd.push(category);
+      }
+      if (topic !== "untopiced" && topic !== "skip") {
+        labelsToAdd.push(topic);
+      }
     }
 
     await addNewLabels(labels, labelsToAdd, context);
