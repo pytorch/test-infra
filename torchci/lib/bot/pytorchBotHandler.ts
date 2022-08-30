@@ -123,11 +123,15 @@ class PytorchBotHandler {
     mergeOnGreen: boolean,
     landChecks: boolean
   ) {
-    const isForced = forceMessage != undefined;
-    const isValidMessage = this.isValidForceMergeMessage(forceMessage);
+    const { ctx } = this;
 
-    if (!isForced || isValidMessage) {
-      await this.dispatchEvent("try-merge", isForced, mergeOnGreen, landChecks);
+    const forceRequested = forceMessage != undefined;
+    const isValidMessage = this.isValidForceMergeMessage(forceMessage);
+    const hasWritePermission = await this.hasWritePermissions(ctx.payload?.comment?.user?.login);
+    const canForce = forceRequested && isValidMessage && hasWritePermission
+
+    if (!forceRequested || canForce) {
+      await this.dispatchEvent("try-merge", forceRequested, mergeOnGreen, landChecks);
       await this.ackComment();
     } else {
       await this.handleConfused(
