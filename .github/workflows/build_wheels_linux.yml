@@ -1,0 +1,115 @@
+name: Build Linux Wheels
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: "nightly"
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      build-matrix:
+        description: "Build matrix to utilize"
+        default: ""
+        type: string
+      pre-script:
+        description: "Pre script to run prior to build"
+        default: ""
+        type: string
+      post-script:
+        description: "Post script to run prior to build"
+        default: ""
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    env:
+      PYTHON_VERSION: ${{ matrix.python_version }}
+      PACKAGE_TYPE: wheel
+      REPOSITORY: ${{ inputs.repository }}
+      REF: ${{ inputs.ref }}
+    name: ${{ matrix.build_name }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.container_image }}
+    # If a build is taking longer than 60 minutes on these runners we need
+    # to have a conversation
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+      - uses: ./test-infra/.github/actions/setup-binary-builds
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          setup-miniconda: false
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install delocate-wheel
+        run: |
+          ${CONDA_RUN} python3 -m pip install delocate
+      - name: Install torch dependency
+        run: |
+          source "${BUILD_ENV_FILE}"
+          # shellcheck disable=SC2086
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+      - name: Run pre-script
+        working-directory: ${{ inputs.repository }}
+        env:
+          PRE_SCRIPT: ${{ inputs.pre-script }}
+        if: ${{ inputs.pre-script != '' }}
+        run: |
+          if [[ ! -f ${PRE_SCRIPT} ]]; then
+            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
+            exit 1
+          else
+            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+          fi
+      - name: Build the wheel (bdist_wheel)
+        working-directory: ${{ inputs.repository }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} python3 setup.py bdist_wheel
+      - name: Delocate wheel
+        working-directory: ${{ inputs.repository }}
+        run: |
+          ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
+      - name: Upload wheel to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
+      - name: Run post-script
+        working-directory: ${{ inputs.repository }}
+        env:
+          POST_SCRIPT: ${{ inputs.post-script }}
+        if: ${{ inputs.post-script != '' }}
+        run: |
+          if [[ ! -f ${POST_SCRIPT} ]]; then
+            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
+            exit 1
+          else
+            ${CONDA_RUN} bash "${POST_SCRIPT}"
+          fi
+      # TODO: Figure out upload method to s3
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
