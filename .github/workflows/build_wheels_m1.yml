@@ -97,7 +97,7 @@ jobs:
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
-          post_SCRIPT: ${{ inputs.post-script }}
+          POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
           if [[ ! -f ${POST_SCRIPT} ]]; then
