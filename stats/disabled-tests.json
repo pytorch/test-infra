@@ -26256,7 +26256,7 @@
       "author_association": "NONE",
       "body": "Platforms: win, windows\n\nThis test was disabled because it is failing in CI. See [recent examples](https://hud.pytorch.org/flakytest?name=test_comprehensive_cartesian_prod_cpu_bfloat16&suite=TestDecompCPU) and the most recent trunk [workflow logs](https://github.com/pytorch/pytorch/runs/8040946459).\n\nOver the past 3 hours, it has been determined flaky in 1 workflow(s) with 1 failures and 1 successes.\n\n**Debugging instructions (after clicking on the recent samples link):**\nDO NOT BE ALARMED IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.\nTo find relevant log snippets:\n1. Click on the workflow logs linked above\n2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.\n3. Grep for `test_comprehensive_cartesian_prod_cpu_bfloat16`\n4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.\n\n\ncc @ezyang @mruberry @ngimel",
       "closed_at": null,
-      "comments": 3,
+      "comments": 4,
       "comments_url": "https://api.github.com/repos/pytorch/pytorch/issues/84150/comments",
       "created_at": "2022-08-26T21:40:53Z",
       "events_url": "https://api.github.com/repos/pytorch/pytorch/issues/84150/events",
@@ -26324,7 +26324,7 @@
       "state_reason": null,
       "timeline_url": "https://api.github.com/repos/pytorch/pytorch/issues/84150/timeline",
       "title": "DISABLED test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)",
-      "updated_at": "2022-08-29T22:29:56Z",
+      "updated_at": "2022-08-30T04:24:28Z",
       "url": "https://api.github.com/repos/pytorch/pytorch/issues/84150",
       "user": {
         "avatar_url": "https://avatars.githubusercontent.com/in/40112?v=4",
