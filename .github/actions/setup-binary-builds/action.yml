@@ -32,6 +32,11 @@ inputs:
 runs:
   using: composite
   steps:
+      - name: Remove repository directory (if exists)
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          rm -rfv "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
