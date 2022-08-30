@@ -20,6 +20,7 @@ import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
+import { RevertModal } from "lib/RevertModal";
 import {
   createContext,
   CSSProperties,
@@ -251,9 +252,7 @@ function CommitSummaryLine({
           <em>{numPending} pending</em>
         </span>
       )}
-      {showRevert && row.prNum != null && (
-        <RevertButton prNum={row.prNum} sha={row.sha} />
-      )}
+      {showRevert && row.prNum != null && <RevertModal row={row} />}
       {ttsAlert && (
         <span style={{ float: "right" }}>
           <b>TTS Alert </b>

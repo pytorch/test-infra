@@ -1,16 +1,23 @@
 import {
+  Box,
+  Dialog,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
+  Modal,
   Select,
   TextareaAutosize,
   TextField,
+  Typography,
 } from "@mui/material";
 import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
+import { GridCloseIcon } from "@mui/x-data-grid";
 import { revertClassifications } from "lib/bot/Constants";
 import { fetcher, getFailureMessage, getMessage } from "lib/GeneralUtils";
 import { commentOnPR } from "lib/githubFunctions";
+import { RowData } from "lib/types";
 import { useSession } from "next-auth/react";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -18,39 +25,69 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import useSWR from "swr";
 
-export default function Revert() {
-  const router = useRouter();
-  const sha = router.query.sha;
+const style = {
+  position: "absolute" as "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  width: 800,
+  bgcolor: "background.paper",
+  border: "2px solid #000",
+  boxShadow: 24,
+  p: 4,
+};
 
-  let { repoOwner, repoName, prNumber } = router.query;
+export function RevertModal({ row }: { row: RowData }) {
+  const [open, setOpen] = useState(false);
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+
+  return (
+    <>
+      <Button
+        variant="contained"
+        color="error"
+        size="small"
+        onClick={handleOpen}
+      >
+        Revert
+      </Button>
+      <Dialog
+        maxWidth={"lg"}
+        open={open}
+        onClose={handleClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box display="flex" alignItems="center">
+          <div style={{ position: "absolute", top: 0, right: 0 }}>
+            <IconButton onClick={handleClose}>
+              <GridCloseIcon />
+            </IconButton>
+          </div>
+        </Box>
+        <Revert row={row} />
+      </Dialog>
+    </>
+  );
+}
+
+export default function Revert({ row }: { row: RowData }) {
+  const router = useRouter();
+
+  const { repoOwner, repoName } = router.query;
+  const prNumber = row.prNum;
   const [message, setMessage] = useState("");
   const [classification, setClassification] = useState("");
   const [disableButton, setDisableButton] = useState(false);
-  const [response, setResponse] = useState("");
-  const { data, error } = useSWR(
-    `/api/${repoOwner}/${repoName}/commit/${sha}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
 
   const session = useSession();
 
   const msg = getMessage(
     message,
     classification,
-    getFailureMessage(data?.commit, data?.jobs)
+    getFailureMessage(row, row.jobs)
   );
-
-  if (error) {
-    return (
-      <div>Error while loading PR/Commit Data. Please try again later</div>
-    );
-  }
 
   if (session.status == "loading" || session.status == "unauthenticated") {
     return (
@@ -61,13 +98,12 @@ export default function Revert() {
     );
   }
 
+  const onClose = () => {
+    router.push(`https://github.com/${repoOwner}/${repoName}/pull/${prNumber}`);
+  };
+
   return (
-    <>
-      <Head>
-        <title>
-          Revert PR #{prNumber} in {repoOwner}/{repoName}
-        </title>
-      </Head>
+    <div style={{ margin: "16px" }}>
       <Grid container spacing={2}>
         <Grid item xs={6}>
           <h1>
@@ -106,32 +142,6 @@ export default function Revert() {
                 )
               )}
             </Select>
-            <br />
-            <Button
-              variant="contained"
-              type="submit"
-              disabled={
-                message.length == 0 ||
-                classification.length == 0 ||
-                disableButton
-              }
-              onClick={(e) => {
-                e.preventDefault();
-                setDisableButton(true);
-                commentOnPR(
-                  repoOwner as string,
-                  repoName as string,
-                  prNumber as string,
-                  msg,
-                  session?.data?.accessToken as string,
-                  (resp: string) => {
-                    setResponse(resp);
-                  }
-                );
-              }}
-            >
-              Revert!
-            </Button>
           </FormControl>
         </Grid>
         <Grid item xs={6}>
@@ -147,8 +157,32 @@ export default function Revert() {
             <ReactMarkdown>{msg}</ReactMarkdown>
           </div>
         </Grid>
-        <pre>{response}</pre>
+        <Grid item lg={12}>
+          <Button
+            style={{ marginTop: 32 }}
+            fullWidth={true}
+            variant="contained"
+            type="submit"
+            disabled={
+              message.length == 0 || classification.length == 0 || disableButton
+            }
+            onClick={(e) => {
+              e.preventDefault();
+              setDisableButton(true);
+              commentOnPR(
+                repoOwner as string,
+                repoName as string,
+                String(prNumber),
+                msg,
+                session?.data?.accessToken as string,
+                onClose
+              );
+            }}
+          >
+            Revert!
+          </Button>
+        </Grid>
       </Grid>
-    </>
+    </div>
   );
 }
