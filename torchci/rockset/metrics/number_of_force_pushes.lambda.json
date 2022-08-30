@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/number_of_force_pushes.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-07-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-08-01T00:00:00.000Z"
+    }
+  ],
+  "description": "Count the number of force pushes"
+}
