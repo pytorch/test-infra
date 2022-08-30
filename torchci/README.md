@@ -87,10 +87,20 @@ console.
 4. Update `rockset/prodVersion.json` with the new version of the lambda.
 
 
+### Alerts
+
+The scripts/check_alerts.py queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
+SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
+Github Issue.
+
+Once the issue is created, internal webhooks create a task out of the issue. Then a [butterfly bot
+rule](https://www.internalfb.com/butterfly/rule/2024866984357962) will trigger to assign the task to 
+the oncall and update it to a UBN so that it alerts the current oncall.
+
 ### Modifying Deployment Settings
 
 If you ever need to modify the deployment settings like the oauth callbacks, domain names, there's a few places that you need to change these settings in. Here's a list:
 1. [DNS Registry/Certificates](https://fb.workplace.com/groups/osssupport) (Contact the the OSS team)
-2. [Environment Variables](https://vercel.com/torchci/torchci/settings/environment-variables)
+2. [Environment Variables](https://vercel.com/fbopensource/torchci/settings/environment-variables)
 3. [OAuth Project](https://github.com/settings/applications/1973779) / [OAuth Project Local](https://github.com/settings/applications/1976306)
-4. [Domain Management](https://vercel.com/torchci/torchci/settings/domains)
+4. [Domain Management](https://vercel.com/fbopensource/torchci/settings/domains)
