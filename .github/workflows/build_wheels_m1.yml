@@ -69,6 +69,7 @@ jobs:
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run pre-script
+        working-directory: ${{ inputs.repository }}
         env:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
@@ -77,7 +78,7 @@ jobs:
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            bash "${PRE_SCRIPT}"
+            ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
@@ -94,6 +95,7 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
       - name: Run post-script
+        working-directory: ${{ inputs.repository }}
         env:
           post_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
@@ -102,7 +104,7 @@ jobs:
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            bash "${POST_SCRIPT}"
+            ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       # TODO: Figure out upload method to s3
 
