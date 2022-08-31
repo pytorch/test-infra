@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# taken from the builder repo
+# taken from the builder repo https://github.com/pytorch/builder/blob/main/analytics/github_analyze.py
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Iterable, Optional, Union
@@ -353,7 +353,7 @@ def commits_missing_in_branch(repo: GitRepo, branch: str, orig_branch: str, mile
             if not mentioned_after_cut:
                 continue
             mentioned_in_release = any(html_url in commit_message for commit_message in release_commits.values())
-            # if Issue is mentioned is release branch, than it was picked already
+            # if Issue is mentioned in release branch, than it was picked already
             if mentioned_in_release:
                 continue
         print(f'{html_url};{issue["title"]};{state}')
