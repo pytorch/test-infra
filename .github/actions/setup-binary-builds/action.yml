@@ -31,12 +31,9 @@ inputs:
 
 runs:
   using: composite
-  defaults:
-      run:
-        shell: bash -l {0}
   steps:
       - name: Remove repository directory (if exists)
-        # shell: bash
+        shell: bash -l {0}
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
@@ -48,7 +45,7 @@ runs:
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
       - name: Set release CHANNEL
-        # shell: bash
+        shell: bash -l {0}
         run: |
           # reference ends with an RC suffix
           if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
@@ -57,7 +54,7 @@ runs:
             echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
           fi
       - name: Set artifact name
-        # shell: bash
+        shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
@@ -66,6 +63,7 @@ runs:
           echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
       - name: Setup miniconda (for pytorch_pkg_helpers)
         if: ${{ inputs.setup-miniconda == 'true' }}
+        shell: bash -l {0}
         uses: conda-incubator/setup-miniconda@v2
         with:
           # installer-url: https://github.com/conda-forge/miniforge/releases/download/4.8.3-2/Miniforge-pypy3-4.8.3-2-Linux-x86_64.sh
@@ -75,12 +73,12 @@ runs:
           auto-activate-base: true
           activate-environment: test
       - name: Clean conda environment
-        # shell: bash -l {0}
+        shell: bash -l {0}
         run: |
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
-        # shell: bash
+        shell: bash -l {0}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
           conda create \
@@ -94,7 +92,7 @@ runs:
           ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
-        # shell: bash
+        shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
