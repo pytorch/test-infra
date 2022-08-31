@@ -70,7 +70,7 @@ export default function Kpis() {
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"# of Commits Red on Trunk (Weekly)"}
+                title={"# of Reverts (Weekly)"}
                 queryName={"num_reverts"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[
