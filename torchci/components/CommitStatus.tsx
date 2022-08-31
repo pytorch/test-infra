@@ -7,11 +7,9 @@ import _ from "lodash";
 import { isFailedJob } from "lib/jobUtils";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
-import { useRouter } from "next/router";
 import useScrollTo from "lib/useScrollTo";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
-  const router = useRouter();
   useScrollTo();
 
   if (jobs.length === 0) {
