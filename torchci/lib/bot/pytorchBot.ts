@@ -11,16 +11,17 @@ function pytorchBot(app: Probot): void {
     const prNum = ctx.payload.issue.number;
     const commentId = ctx.payload.comment.id;
 
-    const pytorchbotHandler = new PytorchBotHandler(
+    const pytorchbotHandler = new PytorchBotHandler({
       owner,
       repo,
       prNum,
       ctx,
-      ctx.payload.comment.html_url,
-      ctx.payload.comment.user.login,
+      url: ctx.payload.comment.html_url,
+      login: ctx.payload.comment.user.login,
       commentId,
-      true
-    );
+      commentBody,
+      useReactions: true,
+    });
 
     const skipUsers = [
       54816060, // pytorch-bot
@@ -56,16 +57,17 @@ function pytorchBot(app: Probot): void {
       const prNum = ctx.payload.pull_request.number;
       const commentId = ctx.payload.review.id;
 
-      const pytorchbotHandler = new PytorchBotHandler(
+      const pytorchbotHandler = new PytorchBotHandler({
         owner,
         repo,
         prNum,
         ctx,
-        ctx.payload.pull_request.html_url,
-        ctx.payload.pull_request.user.login,
+        url: ctx.payload.pull_request.html_url,
+        login: ctx.payload.pull_request.user.login,
         commentId,
-        false // Don't use reactions
-      );
+        commentBody: reviewBody ?? "",
+        useReactions: false,
+      });
       if (reviewBody == null) {
         return;
       }
