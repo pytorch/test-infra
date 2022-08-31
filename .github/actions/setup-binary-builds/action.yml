@@ -69,7 +69,7 @@ runs:
           auto-update-conda: true
           python-version: 3.9
           auto-activate-base: true
-          activate-environment: base
+          activate-environment: test
       - name: Clean conda environment
         shell: bash -l {0}
         run: |
