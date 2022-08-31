@@ -85,11 +85,13 @@ jobs:
           fi
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
@@ -102,6 +104,7 @@ jobs:
         env:
           POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
+        shell: bash -l {0}
         run: |
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
