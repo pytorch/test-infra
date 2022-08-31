@@ -4,26 +4,19 @@ import {
   FormControl,
   IconButton,
   InputLabel,
-  MenuItem,
-  Modal,
-  Select,
-  TextareaAutosize,
-  TextField,
-  Typography,
+  MenuItem, Select, TextField
 } from "@mui/material";
 import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import { GridCloseIcon } from "@mui/x-data-grid";
 import { revertClassifications } from "lib/bot/Constants";
-import { fetcher, getFailureMessage, getMessage } from "lib/GeneralUtils";
+import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import { commentOnPR } from "lib/githubFunctions";
 import { RowData } from "lib/types";
 import { useSession } from "next-auth/react";
-import Head from "next/head";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import useSWR from "swr";
 
 const style = {
   position: "absolute" as "absolute",
