@@ -139,6 +139,8 @@ def get_base_download_url_for_repo(repo: str, channel: str, gpu_arch_type: str, 
 
     if gpu_arch_type != "cpu":
         base_url_for_type= f"{base_url_for_type}/{desired_cuda}"
+    else
+        base_url_for_type= f"{base_url_for_type}/{gpu_arch_type}"
 
     return base_url_for_type
 
