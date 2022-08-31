@@ -118,7 +118,7 @@ export default function Kpis() {
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"# of force merges (Weekly)"}
+                title={"# of Force Merges (Weekly)"}
                 queryName={"number_of_force_pushes_historical"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[
