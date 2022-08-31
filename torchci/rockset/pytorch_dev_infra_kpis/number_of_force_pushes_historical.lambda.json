@@ -9,12 +9,12 @@
     {
       "name": "startTime",
       "type": "string",
-      "value": "2022-01-01T00:00:00.000Z"
+      "value": "2022-07-01T00:00:00.000Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2023-01-01T00:00:00.000Z"
+      "value": "2022-08-01T00:00:00.000Z"
     }
   ],
   "description": "Number of force pushes over time"
