@@ -141,7 +141,7 @@ export default function Kpis() {
                 yAxisFieldName={"diff_hr"}
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
-                // some outliers make this graph hard to read, so set a maximum yaxis˚
+                // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
                 ymax={7}
               />
             </Grid>
@@ -156,7 +156,7 @@ export default function Kpis() {
                 yAxisFieldName={"diff_hr"}
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
-                // some outliers make this graph hard to read, so set a maximum yaxis˚
+                // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
                 ymax={7}
               />
             </Grid>
