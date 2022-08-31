@@ -16,6 +16,7 @@ CLASSIFICATIONS = {
     "weird": "Weird",
     "ghfirst": "GHFirst",
     "manual": "Not through pytorchbot",
+    "unknown": "Got @pytorchbot revert command, but no corresponding commit"
 }
 
 
@@ -28,21 +29,29 @@ def find_corresponding_gitlog_commit(
     return None
 
 
-def format_string_for_markdown(
-    commit: GitCommit, rockset_result: Optional[Dict[str, str]] = None
+def format_string_for_markdown_short(
+    commit: Optional[GitCommit], rockset_result: Optional[Dict[str, str]] = None
 ) -> str:
-    s = f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
+    s = ""
+    if commit is None:
+        s += "- cannot find commit corresponding to @pytorchbot revert comment"
+    else:
+        s += f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
     if rockset_result is not None:
         s += f' by [comment]({rockset_result["comment_url"]})'
     return s
 
 
-def format_string_for_markdown2(
+def format_string_for_markdown_long(
     commit: GitCommit, rockset_result: Optional[Dict[str, str]] = None
 ) -> str:
-    s = f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
+    s = ""
+    if commit is None:
+        s += "- cannot find commit corresponding to @pytorchbot revert comment"
+    else:
+        s = f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
     if rockset_result is not None:
-        s += f'\n  - because {rockset_result["message"]} ([comment]({rockset_result["comment_url"]}))'
+        s += f'\n  - {rockset_result["message"]} ([comment]({rockset_result["comment_url"]}))'
     return s
 
 
@@ -101,39 +110,29 @@ def main():
     start_time, end_time = get_start_stop_times()
     rockset_reverts = get_rockset_reverts(start_time, end_time)
     gitlog_reverts = get_gitlog_reverts(start_time, end_time)
-    classifcation_dict1 = defaultdict(lambda: [])
-    classifcation_dict2 = defaultdict(lambda: [])
+    classification_dict = defaultdict(lambda: [])
 
     for rockset_revert in rockset_reverts:
         pr_num = re.search(r"/(\d+)\#", rockset_revert["comment_url"]).group(1)
         commit = find_corresponding_gitlog_commit(pr_num, gitlog_reverts)
         if commit is not None:
-            classifcation_dict1[rockset_revert["code"]].append(
-                format_string_for_markdown(commit, rockset_revert)
-            )
-            classifcation_dict2[rockset_revert["code"]].append(
-                format_string_for_markdown2(commit, rockset_revert)
-            )
-        if commit is None:
-            print(
-                f"I cant find the commit corresponding to {rockset_revert['comment_url']}",
-                file=sys.stderr,
-            )
+            classification_dict[rockset_revert["code"]].append((commit, rockset_revert))
+        else:
+            classification_dict["unknown"].append((None, rockset_revert))
 
     for gitlog_revert in gitlog_reverts:
-        classifcation_dict1["manual"].append(format_string_for_markdown(gitlog_revert))
-        classifcation_dict2["manual"].append(format_string_for_markdown(gitlog_revert))
+        classification_dict["manual"].append((gitlog_revert, None))
 
     print(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}")
-    for classification, reverts in classifcation_dict1.items():
+    for classification, reverts in classification_dict.items():
         print(f"\n### {CLASSIFICATIONS[classification]}\n")
-        for revert in reverts:
-            print(revert)
+        for commit, rockset_result in reverts:
+            print(format_string_for_markdown_short(commit, rockset_result))
     print(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}")
-    for classification, reverts in classifcation_dict2.items():
+    for classification, reverts in classification_dict.items():
         print(f"\n### {CLASSIFICATIONS[classification]}\n")
-        for revert in reverts:
-            print(revert)
+        for commit, rockset_result in reverts:
+            print(format_string_for_markdown_long(commit, rockset_result))
 
 
 if __name__ == "__main__":
