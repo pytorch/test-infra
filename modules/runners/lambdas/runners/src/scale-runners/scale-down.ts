@@ -85,7 +85,14 @@ async function checkNeedRemoveRunnerRepo(ec2runner: RunnerInfo): Promise<boolean
       `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
         `listGithubRunnersRepo call, attempting to grab directly`,
     );
-    ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId);
+    try {
+      ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId);
+    } catch (e) {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when ` + `getRunnerRepo call: ${e}`,
+      );
+      return false;
+    }
   }
   // ec2Runner matches a runner that's registered to github
   if (ghRunner) {
@@ -109,7 +116,15 @@ async function checkNeedRemoveRunnerOrg(ec2runner: RunnerInfo): Promise<boolean>
       `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
         `listGithubRunnersOrg call, attempting to grab directly`,
     );
-    ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId);
+    try {
+      ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId);
+    } catch (e) {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
+          `listGithubRunnersOrg call: ${e}`,
+      );
+      return false;
+    }
   }
   // ec2Runner matches a runner that's registered to github
   if (ghRunner) {
