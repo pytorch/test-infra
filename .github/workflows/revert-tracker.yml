@@ -39,11 +39,7 @@ jobs:
           source_file: test-infra/${{ steps.generate-reverts-file.outputs.revert_file }}
           destination_repo: "pytorch/test-infra"
           destination_folder: "reverts"
-          destination_branch: csl/reverttest
-          user_email: "csl@fb.com"
-          user_name: "Catherine Lee"
-          # if this gets merged ill use these instead of my own branch and identity
-          # destination_branch: generated-stats
-          # user_email: 'test-infra@pytorch.org'
-          # user_name: 'PyTorch Test Infra'
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "PyTorch Test Infra"
           commit_message: "Updating helper for reverts"
