@@ -48,8 +48,6 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/aten\/src\/ATen\/native\/sparse/gi, "release notes: sparse"],
   [/torch\/sparse/gi, "release notes: sparse"],
   [/torch\/_masked\/__init__.py/gi, "release notes: sparse"],
-  // autograd_frontend => also did not exist
-  [/tools\/autograd/gi, "release notes: autograd"],
   // nn_frontend => also did not exist
   [/test\/test_nn.py/gi, "release notes: nn"],
   [/test\/test_module.py/gi, "release notes: nn"],
