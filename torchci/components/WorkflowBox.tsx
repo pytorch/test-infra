@@ -31,8 +31,9 @@ export default function WorkflowBox({
     : styles.workflowBoxSuccess;
 
   const workflowId = jobs[0].workflowId;
+  const anchorName = encodeURIComponent(workflowName.toLowerCase())
   return (
-    <div className={workflowClass}>
+    <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
       <h4>Job Status</h4>
       <>

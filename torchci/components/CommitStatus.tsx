@@ -7,12 +7,14 @@ import _ from "lodash";
 import { isFailedJob } from "lib/jobUtils";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import useScrollTo from "lib/useScrollTo";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
+  useScrollTo();
+
   if (jobs.length === 0) {
     return null;
   }
-  
   const byWorkflow = _(jobs)
     .groupBy(job => job.workflowName)
     .sortBy(
