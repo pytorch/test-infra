@@ -1,0 +1,42 @@
+name: revert printer
+
+on:
+  repository_dispatch:
+  push:
+  schedule:
+    # At 16:39 (9:39 AM PST) on Monday
+    - cron: 39 16 * * 1
+
+jobs:
+  revert_printer:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          path: test-infra
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          repository: pytorch/pytorch
+          path: pytorch
+          fetch-depth: 0
+      - run: |
+          cd test-infra
+          python3 -m pip install rockset==0.8.3
+          python3 -m torchci.scripts.reverts > reverts.md
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+      - name: Push file to this repository
+        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "test-infra/reverts.md"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "reverts"
+          destination_branch: csl/reverttest
+          user_email: "csl@fb.com"
+          user_name: "Catherine Lee"
+          commit_message: "Updating helper for reverts"
