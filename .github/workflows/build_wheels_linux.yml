@@ -60,7 +60,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install delocate-wheel
         run: |
