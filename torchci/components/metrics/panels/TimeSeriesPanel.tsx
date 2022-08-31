@@ -13,7 +13,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 dayjs.extend(utc);
 
-export type Granularity = "hour" | "day" | "week" | "month" | "year";
+export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
 
 // Adapted from echarts
 // see: https://github.com/apache/echarts/blob/master/src/util/format.ts
@@ -43,22 +43,23 @@ export function seriesWithInterpolatedTimes(
   const times: Array<string> = Array.from(allTimes).sort();
   const interpolatedTimes: Array<string> = [];
 
-  let prevT, t = startTime
+  let prevT,
+    t = startTime;
   for (let i = 0; t.isBefore(stopTime) && i < times.length; i++) {
     prevT = t;
     t = dayjs(times[i]);
 
-    // Normally the time difference is expected to be 1 (or less) of whatever the granularity is.
-    // Things like Daylight Savings Time can cause it to increase or decrease a bit.
-    // We don't want to interpolate data just because of DST though!
-    // For that, we buffer the accpetable granularity a bit
     let timeGap = t.diff(prevT, granularity);
     if (timeGap > 1.15) {
       // We're missing too large a chunk of data, so we'll add an interpolated timestamp
       // at the next expected granularity point.
-      t = prevT.add(1, granularity)
-      i-- // Try processing at the old times[i] again next round, in case there are more gaps to interpolate
+      t = prevT.add(1, granularity);
+      i--; // Try processing at the old times[i] again next round, in case there are more gaps to interpolate
     }
+    // Normally the time difference is expected to be 1 (or less) of whatever the granularity is.
+    // Things like Daylight Savings Time can cause it to increase or decrease a bit.
+    // We don't want to interpolate data just because of DST though!
+    // For that, we buffer the accpetable granularity a bit
     interpolatedTimes.push(t.toISOString());
   }
 
@@ -77,14 +78,19 @@ export function seriesWithInterpolatedTimes(
     );
 
     // Fill with 0, see the above comment on interpolation.
-    const data = interpolatedTimes.map((t) => {
-      const item = byTimeNormalized[t];
-      if (item === undefined) {
-        return [t, 0];
-      } else {
-        return [t, item[yAxisFieldName]];
-      }
-    });
+    const data = interpolatedTimes
+      .map((t) => {
+        const item = byTimeNormalized[t];
+        if (item === undefined && granularity !== "minute") {
+          return [t, 0];
+        } else if (item === undefined) {
+          return undefined;
+        } else {
+          return [t, item[yAxisFieldName]];
+        }
+      })
+      .filter((t) => t !== undefined);
+
     return {
       name: key,
       type: "line",
@@ -120,6 +126,8 @@ export default function TimeSeriesPanel({
   yAxisRenderer,
   // What label to put on the y axis.
   yAxisLabel,
+  // Maximum value for the y axis
+  ymax,
 }: {
   title: string;
   queryCollection?: string;
@@ -131,6 +139,7 @@ export default function TimeSeriesPanel({
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
   yAxisLabel?: string;
+  ymax?: number;
 }) {
   // - Granularity
   // - Group by
@@ -170,7 +179,7 @@ export default function TimeSeriesPanel({
 
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? 200 : 48;
-  const title_padding = yAxisLabel ? 65 : 48
+  const title_padding = yAxisLabel ? 65 : 48;
   const options: EChartsOption = {
     title: { text: title },
     grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
@@ -182,6 +191,7 @@ export default function TimeSeriesPanel({
       axisLabel: {
         formatter: yAxisRenderer,
       },
+      max: ymax,
     },
     // @ts-ignore
     series,

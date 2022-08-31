@@ -16,11 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/router";
-import {
-  useCallback,
-  useRef,
-  useState
-} from "react";
+import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -79,48 +75,6 @@ function Panel({
   );
 }
 
-function getSeries(
-  data: any,
-  startTime: dayjs.Dayjs,
-  stopTime: dayjs.Dayjs,
-  granularity: any,
-  groupByFieldName: string,
-  timeFieldName: string,
-  yAxisFieldName: string
-) {
-  if (granularity == "minute") {
-    // dont interpolate, this is kinda like equivalent of granularity commit
-    let byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
-    return _.map(byGroup, (value, key) => {
-      const data = value
-        .map((t: any) => {
-          return [t[timeFieldName], t[yAxisFieldName]];
-        })
-        .sort();
-      return {
-        name: key,
-        type: "line",
-        symbol: "circle",
-        symbolSize: 4,
-        data,
-        emphasis: {
-          focus: "series",
-        },
-      };
-    });
-  } else {
-    return seriesWithInterpolatedTimes(
-      data,
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      timeFieldName,
-      yAxisFieldName
-    );
-  }
-}
-
 function Graphs({
   queryParams,
   granularity,
@@ -130,7 +84,7 @@ function Graphs({
   branchName,
 }: {
   queryParams: RocksetParam[];
-  granularity: "hour" | "day" | "week" | "month" | "year";
+  granularity: Granularity;
   ttsPercentile: number;
   selectedJobName: string;
   checkboxRef: any;
@@ -193,23 +147,23 @@ function Graphs({
   startTime = dayjs(startTime).startOf(granularity);
   stopTime = dayjs(stopTime).endOf(granularity);
 
-  const tts_true_series = getSeries(
+  const tts_true_series = seriesWithInterpolatedTimes(
     data,
     startTime,
     stopTime,
     granularity,
     groupByFieldName,
     timeFieldName,
-    ttsFieldName,
+    ttsFieldName
   );
-  const duration_true_series = getSeries(
+  const duration_true_series = seriesWithInterpolatedTimes(
     data,
     startTime,
     stopTime,
     granularity,
     groupByFieldName,
     timeFieldName,
-    durationFieldName,
+    durationFieldName
   );
   var tts_series = tts_true_series.filter((item: any) =>
     filter.has(item["name"])
@@ -232,7 +186,10 @@ function Graphs({
         </Paper>
       </Grid>
       <Grid item xs={3} height={ROW_HEIGHT}>
-        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }} ref={checkboxRef}>
+        <div
+          style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
+          ref={checkboxRef}
+        >
           {tts_true_series.map((job) => (
             <div key={job["name"]}>
               <input
@@ -277,7 +234,7 @@ function GranularityPicker({
         <MenuItem value={"week"}>week</MenuItem>
         <MenuItem value={"day"}>day</MenuItem>
         <MenuItem value={"hour"}>hour</MenuItem>
-        <MenuItem value={"minute"}>minute</MenuItem>
+        <MenuItem value={"minute"}>minute (no interpolation)</MenuItem>
       </Select>
     </FormControl>
   );
@@ -285,10 +242,12 @@ function GranularityPicker({
 
 export default function Page() {
   const router = useRouter();
-  const branch: string = router.query.branch as string ?? "master";
-  const jobName: string = router.query.jobName as string ?? "none";
+  const branch: string = (router.query.branch as string) ?? "master";
+  const jobName: string = (router.query.jobName as string) ?? "none";
   const percentile: number =
-    router.query.percentile === undefined ? 0.50: parseFloat(router.query.percentile as string);
+    router.query.percentile === undefined
+      ? 0.5
+      : parseFloat(router.query.percentile as string);
 
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
