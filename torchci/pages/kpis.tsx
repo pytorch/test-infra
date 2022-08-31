@@ -151,7 +151,7 @@ export default function Kpis() {
                 queryName={"strict_lag_historical"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[...timeParams]}
-                granularity={"milliseconds"}
+                granularity={"minute"}
                 timeFieldName={"push_time"}
                 yAxisFieldName={"diff_hr"}
                 yAxisLabel={"Hours"}
