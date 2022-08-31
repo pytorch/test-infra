@@ -182,7 +182,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
-                    "channel": channel if channel == "release" else f"pytorch-{channel}",
+                    "channel": "pytorch" if channel == "release" else f"pytorch-{channel}",
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
             )
