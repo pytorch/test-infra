@@ -39,6 +39,7 @@ def format_string_for_markdown_short(
         s += f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
     if rockset_result is not None:
         s += f' by [comment]({rockset_result["comment_url"]})'
+    s += "\n"
     return s
 
 
@@ -52,6 +53,7 @@ def format_string_for_markdown_long(
         s = f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
     if rockset_result is not None:
         s += f'\n  - {rockset_result["message"]} ([comment]({rockset_result["comment_url"]}))'
+    s += "\n"
     return s
 
 
@@ -123,16 +125,19 @@ def main():
     for gitlog_revert in gitlog_reverts:
         classification_dict["manual"].append((gitlog_revert, None))
 
-    print(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}")
-    for classification, reverts in classification_dict.items():
-        print(f"\n### {CLASSIFICATIONS[classification]}\n")
-        for commit, rockset_result in reverts:
-            print(format_string_for_markdown_short(commit, rockset_result))
-    print(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}")
-    for classification, reverts in classification_dict.items():
-        print(f"\n### {CLASSIFICATIONS[classification]}\n")
-        for commit, rockset_result in reverts:
-            print(format_string_for_markdown_long(commit, rockset_result))
+    filename = f"{start_time.split('T')[0]}.md"
+    with open(filename, "w") as f:
+        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}\n")
+        for classification, reverts in classification_dict.items():
+            f.write(f"\n### {CLASSIFICATIONS[classification]}\n\n")
+            for commit, rockset_result in reverts:
+                f.write(format_string_for_markdown_short(commit, rockset_result))
+        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}\n")
+        for classification, reverts in classification_dict.items():
+            f.write(f"\n### {CLASSIFICATIONS[classification]}\n\n")
+            for commit, rockset_result in reverts:
+                f.write(format_string_for_markdown_long(commit, rockset_result))
+    print(filename)
 
 
 if __name__ == "__main__":

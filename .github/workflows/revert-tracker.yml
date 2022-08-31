@@ -21,19 +21,22 @@ jobs:
           repository: pytorch/pytorch
           path: pytorch
           fetch-depth: 0
-      - run: |
+      - id: generate-reverts-file
+        run: |
           cd test-infra
           python3 -m pip install rockset==0.8.3
-          python3 -m torchci.scripts.reverts > reverts.md
+          file=$(python3 -m torchci.scripts.reverts)
+          echo "::set-output name=revert_file::$file"
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
       - name: Push file to this repository
+        if: steps.generate-reverts-file.outputs.revert_file != 'None'
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source_file: "test-infra/reverts.md"
+          source_file: test-infra/${{ steps.generate-reverts-file.outputs.revert_file }}
           destination_repo: "pytorch/test-infra"
           destination_folder: "reverts"
           destination_branch: csl/reverttest
