@@ -1467,6 +1467,11 @@
       "macos"
     ]
   ],
+  "test_shuffle_iterdatapipe (__main__.TestFunctionalIterDataPipe)": [
+    "74877",
+    "https://github.com/pytorch/pytorch/issues/74877",
+    []
+  ],
   "test_shuffle_workers (__main__.TestDataLoader)": [
     "84032",
     "https://github.com/pytorch/pytorch/issues/84032",
