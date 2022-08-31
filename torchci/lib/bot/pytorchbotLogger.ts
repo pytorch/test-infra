@@ -9,6 +9,7 @@ class PytorchBotLogger {
 
   constructor(params: PytorchbotParams) {
     this.params = params;
+    delete this.params.ctx;
     try {
       this.client = getDynamoClient();
     } catch (exception) {
