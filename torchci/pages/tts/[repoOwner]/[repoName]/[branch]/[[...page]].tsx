@@ -130,7 +130,7 @@ function Graphs({
   branchName,
 }: {
   queryParams: RocksetParam[];
-  granularity: "hour" | "day" | "week" | "month" | "year";
+  granularity: "milliseconds" | "hour" | "day" | "week" | "month" | "year";
   ttsPercentile: number;
   selectedJobName: string;
   checkboxRef: any;
