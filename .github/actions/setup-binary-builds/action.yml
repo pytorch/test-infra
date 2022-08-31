@@ -66,6 +66,7 @@ runs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           python-version: 3.9
+          activate-environment: build
       - name: Clean conda environment
         shell: bash
         run: |
