@@ -33,13 +33,12 @@ export default function WorkflowBox({
     if (router.isReady) {
       const path = window.location.hash;
       const id = path.replace('#', '');
-      if (id) {
-        document
-          .getElementById(id)
-          .scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      const anchor = document.getElementById(id);
+      if (anchor) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
       }
     }
-  });
+  }, []);
 
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
