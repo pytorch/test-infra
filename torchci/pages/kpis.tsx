@@ -130,6 +130,36 @@ export default function Kpis() {
                 yAxisRenderer={(unit) => `${unit}`}
                 />
             </Grid>
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+              <TimeSeriesPanel
+                title={"viable/strict Lag (Daily)"}
+                queryName={"strict_lag_historical"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[...timeParams]}
+                granularity={"day"}
+                timeFieldName={"push_time"}
+                yAxisFieldName={"diff_hr"}
+                yAxisLabel={"Hours"}
+                yAxisRenderer={(unit) => `${unit}`}
+                // some outliers make this graph hard to read, so set a maximum yaxis˚
+                ymax={7}
+              />
+            </Grid>
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+              <TimeSeriesPanel
+                title={"viable/strict Lag (Per Commit)"}
+                queryName={"strict_lag_historical"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[...timeParams]}
+                granularity={"milliseconds"}
+                timeFieldName={"push_time"}
+                yAxisFieldName={"diff_hr"}
+                yAxisLabel={"Hours"}
+                yAxisRenderer={(unit) => `${unit}`}
+                // some outliers make this graph hard to read, so set a maximum yaxis˚
+                ymax={7}
+              />
+            </Grid>
         </Grid>
     );
 }

@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/strict_lag_historical.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-06-09T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-06-19T00:06:32.839Z"
+    }
+  ],
+  "description": ""
+}
