@@ -41,5 +41,8 @@
     "workflow_duration_avg": "34e698a78cb36669",
     "workflow_duration_percentile": "703d4a1a2a719a34",
     "workflow_load": "eff394d8e0b76436"
+  },
+  "testing": {
+    "test": "a9e5d116b3e75db9"
   }
 }

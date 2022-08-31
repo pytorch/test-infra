@@ -16,11 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useRouter } from "next/router";
-import {
-  useCallback,
-  useRef,
-  useState
-} from "react";
+import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -71,11 +67,13 @@ function Panel({
   };
 
   return (
-    <ReactECharts
-      style={{ height: "100%", width: "100%" }}
-      option={options}
-      notMerge={true}
-    />
+    <Paper sx={{ p: 2, height: "33%" }} elevation={3}>
+      <ReactECharts
+        style={{ height: "100%", width: "100%" }}
+        option={options}
+        notMerge={true}
+      />
+    </Paper>
   );
 }
 
@@ -136,8 +134,8 @@ function Graphs({
   checkboxRef: any;
   branchName: string;
 }) {
-  const [filter, setFilter] = useState(new Set());
-  const ROW_HEIGHT = 800;
+  const [filter, setFilter] = useState<string[]>([]);
+  const ROW_HEIGHT = 1000;
 
   let queryName = "tts_duration_historical_percentile";
   let ttsFieldName = "tts_percentile_sec";
@@ -156,9 +154,18 @@ function Graphs({
     JSON.stringify(queryParams)
   )}`;
 
+  const aggregate_test_time_url = `/api/query/testing/test?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
   const { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+
+  const { data: aggregate_test_time_data, error: aggregate_test_time_error } =
+    useSWR(aggregate_test_time_url, fetcher, {
+      refreshInterval: 60 * 60 * 1000, // refresh every hour
+    });
 
   if (error !== undefined) {
     // TODO: figure out how to deterine what error it actually is, can't just log the error
@@ -175,16 +182,6 @@ function Graphs({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  function toggleFilter(e: any) {
-    var jobName = e.target.id;
-    const next = new Set(filter);
-    if (filter.has(jobName)) {
-      next.delete(jobName);
-    } else {
-      next.add(jobName);
-    }
-    setFilter(next);
-  }
   let startTime = queryParams.find((p) => p.name === "startTime")?.value;
   let stopTime = queryParams.find((p) => p.name === "stopTime")?.value;
 
@@ -200,7 +197,7 @@ function Graphs({
     granularity,
     groupByFieldName,
     timeFieldName,
-    ttsFieldName,
+    ttsFieldName
   );
   const duration_true_series = getSeries(
     data,
@@ -209,48 +206,87 @@ function Graphs({
     granularity,
     groupByFieldName,
     timeFieldName,
-    durationFieldName,
+    durationFieldName
   );
+  const agg_test_time_true_series = getSeries(
+    aggregate_test_time_data,
+    startTime,
+    stopTime,
+    "minute", // don't interpolate, also this is at the commit granularity
+    groupByFieldName,
+    "created_at_time",
+    "duration_sum_sec"
+  );
+
+  var all_job_names = _.map(
+    _.unionBy(
+      tts_true_series,
+      duration_true_series,
+      agg_test_time_true_series,
+      (item) => item["name"]
+    ),
+    (item) => item["name"]
+  ).sort();
+
+  function toggleFilter(e: any) {
+    var jobName = e.target.id;
+    if (e.target.checked) {
+      setFilter([...filter, jobName]);
+    } else if (filter.includes(jobName)) {
+      const next = [...filter];
+      next.splice(next.indexOf(jobName), 1);
+      setFilter(next);
+    }
+  }
+
   var tts_series = tts_true_series.filter((item: any) =>
-    filter.has(item["name"])
+    filter.includes(item["name"])
   );
   var duration_series = duration_true_series.filter((item: any) =>
-    filter.has(item["name"])
+    filter.includes(item["name"])
+  );
+  var agg_test_time_series = agg_test_time_true_series.filter((item: any) =>
+    filter.includes(item["name"])
   );
 
   const encodedBranchName = encodeURIComponent(branchName);
   const jobUrlPrefix = `/tts/pytorch/pytorch/${encodedBranchName}?jobName=`;
 
+  const checkboxStyle = { overflow: "auto", height: "100%", fontSize: "15px" };
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={9} height={ROW_HEIGHT}>
-        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"tts"} series={tts_series} />
-        </Paper>
-        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"duration"} series={duration_series} />
-        </Paper>
-      </Grid>
-      <Grid item xs={3} height={ROW_HEIGHT}>
-        <div style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }} ref={checkboxRef}>
-          {tts_true_series.map((job) => (
-            <div key={job["name"]}>
-              <input
-                type="checkbox"
-                id={job["name"]}
-                onChange={toggleFilter}
-                checked={filter.has(job["name"])}
-              />
-              <label htmlFor={job["name"]}>
-                <a href={jobUrlPrefix + encodeURIComponent(job["name"])}>
-                  {job["name"]}
-                </a>
-              </label>
+    <>
+      <Grid container spacing={2}>
+        <Grid container item xs={9}>
+          <Stack justifyContent={"space-between"} flexGrow={1}>
+            <Panel title={"tts"} series={tts_series} />
+            <Panel title={"duration"} series={duration_series} />
+            <Panel
+              title={"total test time (commit granularity)"}
+              series={agg_test_time_series}
+            />
+          </Stack>
+        </Grid>
+        <Grid item xs={3} height={ROW_HEIGHT}>
+          <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+            <div style={checkboxStyle} ref={checkboxRef}>
+              {all_job_names.map((name) => (
+                <div key={name}>
+                  <input
+                    type="checkbox"
+                    id={name}
+                    onChange={toggleFilter}
+                    checked={filter.includes(name)}
+                  />
+                  <label htmlFor={name}>
+                    <a href={jobUrlPrefix + encodeURIComponent(name)}>{name}</a>
+                  </label>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </Paper>
+        </Grid>
       </Grid>
-    </Grid>
+    </>
   );
 }
 
@@ -285,10 +321,12 @@ function GranularityPicker({
 
 export default function Page() {
   const router = useRouter();
-  const branch: string = router.query.branch as string ?? "master";
-  const jobName: string = router.query.jobName as string ?? "none";
+  const branch: string = (router.query.branch as string) ?? "master";
+  const jobName: string = (router.query.jobName as string) ?? "none";
   const percentile: number =
-    router.query.percentile === undefined ? 0.50: parseFloat(router.query.percentile as string);
+    router.query.percentile === undefined
+      ? 0.5
+      : parseFloat(router.query.percentile as string);
 
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
