@@ -12,7 +12,6 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
   if (jobs.length === 0) {
     return null;
   }
-  
   const byWorkflow = _(jobs)
     .groupBy(job => job.workflowName)
     .sortBy(

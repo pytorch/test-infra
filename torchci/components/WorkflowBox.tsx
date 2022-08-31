@@ -7,6 +7,8 @@ import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import { useRouter } from "next/router";
+import { useCallback } from "react";
 
 function sortJobsByConclusion( jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -25,14 +27,29 @@ export default function WorkflowBox({
   workflowName: string;
   jobs: JobData[];
 }) {
+  const router = useRouter();
+  // This will scroll to the anchor when the page loads
+  const ref = useCallback(() => {
+    if (router.isReady) {
+      const path = window.location.hash;
+      const id = path.replace('#', '');
+      if (id) {
+        document
+          .getElementById(id)
+          .scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      }
+    }
+  });
+
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
     ? styles.workflowBoxFail
     : styles.workflowBoxSuccess;
 
   const workflowId = jobs[0].workflowId;
+  const anchorName = encodeURIComponent(workflowName.toLowerCase())
   return (
-    <div className={workflowClass}>
+    <div id={anchorName} className={workflowClass} ref={ref}>
       <h3>{workflowName}</h3>
       <h4>Job Status</h4>
       <>
