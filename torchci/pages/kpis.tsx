@@ -23,7 +23,7 @@ export default function Kpis() {
         value: stopTime,
         },
     ];
-    
+
     return (
         <Grid container spacing={2}>
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -43,7 +43,7 @@ export default function Kpis() {
                 timeFieldName={"week_bucket"}
                 yAxisFieldName={"avg_tts"}
                 yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => `${unit}`} 
+                yAxisRenderer={(unit) => `${unit}`}
                 />
             </Grid>
 
@@ -64,7 +64,7 @@ export default function Kpis() {
                 timeFieldName={"week_bucket"}
                 yAxisFieldName={"avg_tts"}
                 yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => `${unit}`} 
+                yAxisRenderer={(unit) => `${unit}`}
                 />
             </Grid>
 
@@ -79,9 +79,10 @@ export default function Kpis() {
                 granularity={"week"}
                 timeFieldName={"bucket"}
                 yAxisFieldName={"num"}
-                yAxisRenderer={(unit) => `${unit}`} 
+                yAxisRenderer={(unit) => `${unit}`}
                 />
             </Grid>
+
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"% of Commits Red on Trunk (Weekly)"}
@@ -95,9 +96,10 @@ export default function Kpis() {
                 yAxisFieldName={"red"}
                 yAxisRenderer={(unit) => {
                     return `${unit * 100} %`;
-                }} 
+                }}
                 />
             </Grid>
+
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                 title={"% Jobs Red (Weekly)"}
@@ -111,6 +113,21 @@ export default function Kpis() {
                 yAxisRenderer={(unit) => {
                     return `${unit * 100} %`;
                 }}
+                />
+            </Grid>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"# of force merges (Weekly)"}
+                queryName={"number_of_force_pushes_historical"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"bucket"}
+                yAxisFieldName={"count"}
+                yAxisRenderer={(unit) => `${unit}`}
                 />
             </Grid>
         </Grid>

@@ -13,6 +13,7 @@
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",
+    "number_of_force_pushes_historical": "d335eee3527a9c3c",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "670e34fc86adb3ad"

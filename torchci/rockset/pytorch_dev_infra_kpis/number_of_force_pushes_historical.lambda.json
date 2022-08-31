@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/number_of_force_pushes_historical.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-01-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-01-01T00:00:00.000Z"
+    }
+  ],
+  "description": "Number of force pushes over time"
+}
