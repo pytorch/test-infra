@@ -38,6 +38,9 @@ WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
 
+CONDA_INSTALL_BASE="conda install pytorch torchvision torchaudio"
+WHL_INSTALL_BASE="pip3 install torch torchvision torchaudio"
+DOWNLOAD_URL_BASE="https://download.pytorch.org"
 
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
@@ -81,7 +84,6 @@ CONDA_CONTAINER_IMAGES = {
 }
 
 
-
 LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str] = {
     **{
         (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:cuda{gpu_arch}"
@@ -117,6 +119,35 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
 def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
+def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str) -> str:
+    conda_channels = "-c pytorch" if channel == "release" else f"-c pytorch-{channel}"
+
+    if gpu_arch_type == "cuda":
+        if float(arch_version) <= 11.3:
+            conda_package_type = f"cudatoolkit={arch_version}"
+        else:
+            conda_package_type = f"pytorch-cuda={arch_version}"
+            conda_channels = f"{conda_channels} -c nvidia"
+    else:
+        conda_package_type = "cpuonly"
+
+    return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
+
+def get_base_download_url_for_repo(repo: str, channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
+    base_url_for_type = f"{DOWNLOAD_URL_BASE}/{repo}"
+    base_url_for_type = base_url_for_type if channel == "release" else f"{base_url_for_type}/{channel}"
+
+    if gpu_arch_type != "cpu":
+        base_url_for_type= f"{base_url_for_type}/{desired_cuda}"
+
+    return base_url_for_type
+
+def get_libtorch_install_command(channel: str, gpu_arch_type: str, libtorch_variant: str, devtoolset: str, desired_cuda: str) -> str:
+    build_name = f"libtorch-{devtoolset}-{libtorch_variant}-latest.zip" if devtoolset ==  "cxx11-abi" else f"libtorch-{libtorch_variant}-latest.zip"
+    return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
+
+def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
+    return f"{WHL_INSTALL_BASE} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
@@ -134,6 +165,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = "" if arch_version == "cpu" else arch_version
+
             ret.append(
                 {
                     "python_version": python_version,
@@ -149,6 +181,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
+                    "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
             )
     return ret
@@ -201,16 +234,16 @@ def generate_libtorch_matrix(
                 # ROCm builds without-deps failed even in ROCm runners; skip for now
                 if gpu_arch_type == "rocm" and "without-deps" in libtorch_variant:
                     continue
+                desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
+                devtoolset = abi_version if os != "windows" else ""
                 ret.append(
                     {
                         "gpu_arch_type": gpu_arch_type,
                         "gpu_arch_version": gpu_arch_version,
-                        "desired_cuda": translate_desired_cuda(
-                            gpu_arch_type, gpu_arch_version
-                        ),
+                        "desired_cuda": desired_cuda,
                         "libtorch_variant": libtorch_variant,
                         "libtorch_config": abi_version if os == "windows" else "",
-                        "devtoolset": abi_version if os != "windows" else "",
+                        "devtoolset": devtoolset,
                         "container_image": LIBTORCH_CONTAINER_IMAGES[
                             (arch_version, abi_version)
                         ]
@@ -221,6 +254,7 @@ def generate_libtorch_matrix(
                             ".", "_"
                         ),
                         "validation_runner": validation_runner(gpu_arch_type, os),
+                        "installation": get_libtorch_install_command(channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda),
                         "channel": channel
                     }
                 )
@@ -266,20 +300,20 @@ def generate_wheels_matrix(
             # Skip rocm 3.11 binaries for now as the docker image are not correct
             if python_version == "3.11" and gpu_arch_type == "rocm":
                 continue
+            desired_cuda =  translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             ret.append(
                 {
                     "python_version": python_version,
                     "gpu_arch_type": gpu_arch_type,
                     "gpu_arch_version": gpu_arch_version,
-                    "desired_cuda": translate_desired_cuda(
-                        gpu_arch_type, gpu_arch_version
-                    ),
+                    "desired_cuda": desired_cuda,
                     "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
                     "package_type": package_type,
                     "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
+                    "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda),
                     "channel": channel,
                 }
             )
