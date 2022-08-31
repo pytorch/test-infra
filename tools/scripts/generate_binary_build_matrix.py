@@ -38,8 +38,9 @@ WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
 
-CONDA_INSTALL_BASE="conda install pytorch torchvision torchaudio"
-WHL_INSTALL_BASE="pip3 install torch torchvision torchaudio"
+PACKAGES_TO_INSTALL="torch torchvision torchaudio"
+CONDA_INSTALL_BASE=f"conda install {PACKAGES_TO_INSTALL}"
+WHL_INSTALL_BASE="pip3 install"
 DOWNLOAD_URL_BASE="https://download.pytorch.org"
 
 def arch_type(arch_version: str) -> str:
@@ -149,7 +150,8 @@ def get_libtorch_install_command(channel: str, gpu_arch_type: str, libtorch_vari
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
 def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
-    return f"{WHL_INSTALL_BASE} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+    whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
+    return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
