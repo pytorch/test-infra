@@ -166,7 +166,6 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
     body += "Please review the errors and revert if needed."
     issue["body"] = body
     issue["labels"] = labels
-    issue["assignees"] = ["zengk95"]
 
     print("Generating alerts for: ", failed_jobs)
     return issue
