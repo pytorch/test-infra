@@ -47,7 +47,7 @@ jobs:
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ input.runner-type }}
+    runs-on: ${{ inputs.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
