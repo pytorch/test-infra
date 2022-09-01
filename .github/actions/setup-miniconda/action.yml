@@ -25,7 +25,7 @@ runs:
         run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
       - name: Setup miniconda cache
         id: miniconda-cache
-        if: ${{ runner.os }} == 'macOS' && ${{ environment-file }} == ''
+        if: ${{ runner.os }} == 'macOS'
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
