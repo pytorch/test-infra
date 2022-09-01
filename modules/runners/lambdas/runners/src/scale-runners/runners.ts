@@ -14,6 +14,7 @@ export interface RunnerInfo {
   org?: string;
   runnerType?: string;
   ghRunnerId?: string;
+  environment?: string;
 }
 
 export interface ListRunnerFilters {
@@ -70,6 +71,7 @@ export async function listRunners(filters: ListRunnerFilters | undefined = undef
             org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
             runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
             ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
+            environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
           })) ?? []
         );
       }) ?? []
@@ -80,14 +82,29 @@ export async function listRunners(filters: ListRunnerFilters | undefined = undef
   }
 }
 
+function getParameterNameForRunner(environment: string, instanceId: string): string {
+  return `${environment}-${instanceId}`;
+}
+
 export async function terminateRunner(runner: RunnerInfo): Promise<void> {
   try {
-    await new EC2()
-      .terminateInstances({
-        InstanceIds: [runner.instanceId],
-      })
-      .promise();
-    console.debug('Runner terminated.' + runner.instanceId);
+    const ec2 = new EC2();
+    const ssm = new SSM();
+
+    await expBackOff(() => {
+      return ec2.terminateInstances({ InstanceIds: [runner.instanceId] }).promise();
+    });
+    console.info(`Runner terminated: ${runner.instanceId}`);
+
+    const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
+    try {
+      await expBackOff(() => {
+        return ssm.deleteParameter({ Name: paramName }).promise();
+      });
+      console.info(`Parameter deleted: ${paramName}`);
+    } catch (e) {
+      console.error(`[terminateRunner - SSM.deleteParameter] Failed deleting parameter ${paramName}: ${e}`);
+    }
   } catch (e) {
     console.error(`[terminateRunner]: ${e}`);
     throw e;
@@ -185,7 +202,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
           runInstancesResponse.Instances?.map(async (i: EC2.Instance) => {
             await ssm
               .putParameter({
-                Name: runnerParameters.environment + '-' + (i.InstanceId as string),
+                Name: getParameterNameForRunner(runnerParameters.environment, i.InstanceId as string),
                 Value: runnerParameters.runnerConfig,
                 Type: 'SecureString',
               })
