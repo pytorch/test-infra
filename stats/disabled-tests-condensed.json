@@ -473,6 +473,13 @@
     "https://github.com/pytorch/pytorch/issues/60290",
     []
   ],
+  "test_ddp_uneven_input_exception (__main__.TestDistBackendWithSpawn)": [
+    "84420",
+    "https://github.com/pytorch/pytorch/issues/84420",
+    [
+      "rocm"
+    ]
+  ],
   "test_ddp_uneven_inputs_stop_iteration_sync_bn (__main__.TestDistBackendWithSpawn)": [
     "78113",
     "https://github.com/pytorch/pytorch/issues/78113",
