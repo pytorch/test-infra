@@ -87,14 +87,19 @@ runs:
             ninja=1.10 \
             pkg-config=0.29 \
             wheel=0.37
-      - name: Copy conda environment and update GitHub env
+      - name: Clone the base conda environment and update GitHub env
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
           CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-          mv "${CONDA_BASE_ENV}" "${CONDA_ENV}"
+          # TODO: conda-build could not be cloned, so it could not be cached
+          conda create \
+            --yes \
+            --prefix "${CONDA_ENV}" \
+            --clone "${CONDA_BASE_ENV}" \
+            conda-build=3.21
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
