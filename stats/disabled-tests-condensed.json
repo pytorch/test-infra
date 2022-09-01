@@ -362,7 +362,9 @@
     "https://github.com/pytorch/pytorch/issues/84150",
     [
       "win",
-      "windows"
+      "windows",
+      "mac",
+      "macos"
     ]
   ],
   "test_comprehensive_cartesian_prod_cpu_float16 (__main__.TestDecompCPU)": [
