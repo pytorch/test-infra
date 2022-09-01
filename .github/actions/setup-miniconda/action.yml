@@ -4,7 +4,7 @@ description: Clean workspace and check out PyTorch
 
 inputs:
   python-version:
-    description: If set to any value, don't use sudo to clean the workspace
+    description: If set to any value, dont use sudo to clean the workspace
     required: false
     type: string
     default: "3.9"
@@ -17,7 +17,21 @@ inputs:
 runs:
   using: composite
   steps:
+      # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
+      # to refresh the cache daily
+      - name: Get date
+        id: get-date
+        shell: bash
+        run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
+      - name: Setup miniconda cache
+        id: miniconda-cache
+        if: ${{ RUNNER_OS }} == 'macOS'
+        uses: actions/cache@v2
+        with:
+          path: ${{ RUNNER_TEMP }}/miniconda
+          key: miniconda-${{ RUNNER_OS }}-${{ RUNNER_ARCH }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
       - name: Install miniconda onto the machine
+        if: steps.miniconda-cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
         run: |
           MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
@@ -37,14 +51,26 @@ runs:
           curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
           bash "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH_MACOS}"
           rm -rf "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
+      - name: Update GitHub path
+        shell: bash
+        run: |
+          MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
+      - name: Setup miniconda env cache
+        id: miniconda-env-cache
+        if: ${{ RUNNER_OS }} == 'macOS'
+        uses: actions/cache@v2
+        with:
+          path: ${{ RUNNER_TEMP }}/conda-python-${{ inputs.python-version }}
+          key: miniconda-env-${{ RUNNER_OS }}-${{ RUNNER_ARCH }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
       - name: Setup conda environment
+        if: steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
           ENV_FILE: ${{ inputs.environment-file }}
         run: |
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
           ENV_FILE_FLAG=""
           if [[ -f "${ENV_FILE}" ]]; then
             ENV_FILE_FLAG="--file ${ENV_FILE}"
@@ -53,7 +79,7 @@ runs:
           fi
           conda create \
             --yes \
-            --prefix "${CONDA_ENV}" \
+            --prefix "${CONDA_BASE_ENV}" \
             "python=${PYTHON_VERSION}" \
             ${ENV_FILE_FLAG} \
             cmake=3.22 \
@@ -61,6 +87,15 @@ runs:
             ninja=1.10 \
             pkg-config=0.29 \
             wheel=0.37
+      - name: Clone the base conda environment and update GitHub env
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          CONDA_BASE_ENV: ${{ RUNNER_TEMP }}/conda-python-${{ inputs.python-version }}
+        run: |
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          conda create --yes --prefix "${CONDA_ENV}" --clone "${CONDA_BASE_ENV}"
+
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
