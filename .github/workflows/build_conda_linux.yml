@@ -87,8 +87,10 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
+          CUDATOOLKIT_CHANNEL="nvidia"
           ${CONDA_RUN} conda build \
             -c defaults \
+            -c "$CUDATOOLKIT_CHANNEL" \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --python "${PYTHON_VERSION}" \
