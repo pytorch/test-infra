@@ -30,7 +30,7 @@ jobs:
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
-    uses: ./.github/workflows/build_wheels_m1.yml
+    uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
