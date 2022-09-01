@@ -65,11 +65,8 @@ runs:
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2
         with:
-          # installer-url: https://github.com/conda-forge/miniforge/releases/download/4.8.3-2/Miniforge-pypy3-4.8.3-2-Linux-x86_64.sh
           miniconda-version: "latest"
-          # auto-update-conda: true
           python-version: 3.9
-          # auto-activate-base: true
           activate-environment: test
       - name: Clean conda environment
         shell: bash -l {0}
