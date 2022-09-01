@@ -110,7 +110,7 @@ class PytorchBotHandler {
     leaveMessage: boolean,
     message: string = "@pytorch bot did not understand your command. Please try `@pytorchbot --help` for other commands."
   ) {
-    this.logger.log("confused", { message });
+    await this.logger.log("confused", { message });
     if (this.useReactions) {
       await reactOnComment(this.ctx, "confused");
     }
@@ -190,13 +190,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async handleRevert(reason: string) {
-    this.logger.log("revert", { reason });
+    await this.logger.log("revert", { reason });
     await this.dispatchEvent("try-revert", false, false, false, reason);
     await this.ackComment();
   }
 
   async handleRebase(branch: string) {
-    this.logger.log("rebase", { branch });
+    await this.logger.log("rebase", { branch });
     const { ctx } = this;
     async function comment_author_in_pytorch_org() {
       try {
@@ -253,7 +253,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async handleLabel(labels: string[]) {
-    this.logger.log("label", { labels });
+    await this.logger.log("label", { labels });
     const { ctx } = this;
     /**
      * 1. Get all existing repo labels
