@@ -37,7 +37,7 @@ LINUX_CPU_RUNNER="ubuntu-20.04"
 WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
-MACOS_XL_RUNNER="macos-12-xl"
+MACOS_X86_RUNNER="macos-12"
 
 CONDA_INSTALL_BASE="conda install pytorch torchvision torchaudio"
 WHL_INSTALL_BASE="pip3 install torch torchvision torchaudio"
@@ -65,7 +65,7 @@ def validation_runner(arch_type: str, os: str) -> str:
     elif os == "macos-arm64":
         return MACOS_M1_RUNNER
     elif os == "macos-x86_64":
-        return MACOS_XL_RUNNER
+        return MACOS_X86_RUNNER
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
@@ -360,18 +360,10 @@ def main() -> None:
     if options.channel == "all":
         for channel in CUDA_ACRHES_DICT:
             CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
-            if options.operating_system == "macos":
-              includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type]("macos-arm64", channel))
-              includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type]("macos-x86_64", channel))
-            else: 
-              includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
+            includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
     else:
         CUDA_ARCHES = CUDA_ACRHES_DICT[options.channel]
-        if options.operating_system == "macos":
-          includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type]("macos-arm64", options.channel))
-          includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type]("macos-x86_64", options.channel))
-        else: 
-          includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
+        includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
 
     print(json.dumps({"include": includes}))
 
