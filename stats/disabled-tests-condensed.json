@@ -189,13 +189,6 @@
     "https://github.com/pytorch/pytorch/issues/70756",
     []
   ],
-  "test_binary_op_scalar_fastpath__foreach_div_cuda_int32 (__main__.TestForeachCUDA)": [
-    "84048",
-    "https://github.com/pytorch/pytorch/issues/84048",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalar_fastpath__foreach_div_cuda_int8 (__main__.TestForeachCUDA)": [
     "84047",
     "https://github.com/pytorch/pytorch/issues/84047",
