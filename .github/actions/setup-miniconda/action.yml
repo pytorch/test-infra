@@ -25,11 +25,11 @@ runs:
         run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
       - name: Setup miniconda cache
         id: miniconda-cache
-        if: ${{ runner.os }} == 'macOS'
+        if: ${{ runner.os }} == 'macOS' && ${{ environment-file }} == ''
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
+          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-date.outputs.today }}
       - name: Install miniconda onto the machine
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
@@ -62,7 +62,7 @@ runs:
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
+          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
       - name: Setup conda environment
         if: steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
