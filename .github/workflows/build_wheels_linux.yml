@@ -37,6 +37,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
+        exclude:
+          python_version: "3.11"
     env:
       PYTHON_VERSION: ${{ matrix.python_version }}
       PACKAGE_TYPE: wheel
