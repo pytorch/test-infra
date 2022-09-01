@@ -1,4 +1,4 @@
-name: Test Build M1 Wheels
+name: Test Build MacOS Wheels
 
 on:
   pull_request:
