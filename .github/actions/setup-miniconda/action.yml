@@ -25,11 +25,11 @@ runs:
         run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
       - name: Setup miniconda cache
         id: miniconda-cache
-        if: ${{ RUNNER_OS }} == 'macOS'
+        if: ${{ runner.os }} == 'macOS'
         uses: actions/cache@v2
         with:
-          path: ${{ RUNNER_TEMP }}/miniconda
-          key: miniconda-${{ RUNNER_OS }}-${{ RUNNER_ARCH }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
+          path: ${{ runner.temp }}/miniconda
+          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
       - name: Install miniconda onto the machine
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
@@ -58,11 +58,11 @@ runs:
           echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
       - name: Setup miniconda env cache
         id: miniconda-env-cache
-        if: ${{ RUNNER_OS }} == 'macOS'
+        if: ${{ runner.os }} == 'macOS'
         uses: actions/cache@v2
         with:
-          path: ${{ RUNNER_TEMP }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ RUNNER_OS }}-${{ RUNNER_ARCH }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
+          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
+          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(environment-file) }}
       - name: Setup conda environment
         if: steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
@@ -91,7 +91,7 @@ runs:
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
-          CONDA_BASE_ENV: ${{ RUNNER_TEMP }}/conda-python-${{ inputs.python-version }}
+          CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           conda create --yes --prefix "${CONDA_ENV}" --clone "${CONDA_BASE_ENV}"
