@@ -76,6 +76,22 @@ export interface HudParams {
 export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
+  state: string;
+  mergeable: boolean;
+  reviewData: {
+    state: string;
+    user: string | undefined;
+    association:
+      | "COLLABORATOR"
+      | "CONTRIBUTOR"
+      | "FIRST_TIMER"
+      | "FIRST_TIME_CONTRIBUTOR"
+      | "MANNEQUIN"
+      | "MEMBER"
+      | "NONE"
+      | "OWNER";
+  }[];
+  labels: (string | undefined)[];
 }
 export interface FlakyTestData {
   file: string;

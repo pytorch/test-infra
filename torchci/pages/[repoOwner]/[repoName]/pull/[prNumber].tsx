@@ -1,6 +1,7 @@
 import CommitStatus from "components/CommitStatus";
 import ErrorBoundary from "components/ErrorBoundary";
-import { PRData } from "lib/types";
+import { MergeModal } from "lib/MergeModal";
+import { CommitData, JobData, PRData } from "lib/types";
 import { useRouter } from "next/router";
 import React, { useState, useEffect } from "react";
 import useSWR from "swr";
@@ -11,29 +12,14 @@ function CommitInfo({
   repoOwner,
   repoName,
   sha,
+  commitData,
 }: {
   repoOwner: string;
   repoName: string;
   sha: string;
+  commitData: { commit: CommitData; jobs: JobData[] };
 }) {
-  const { data, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
-  if (error != null) {
-    return <div>Error occured</div>;
-  }
-
-  if (data === undefined) {
-    return <div>Loading...</div>;
-  }
-  const { commit, jobs } = data;
+  const { commit, jobs } = commitData;
 
   return <CommitStatus commit={commit} jobs={jobs} />;
 }
@@ -92,6 +78,17 @@ function Page() {
   });
   const [selectedSha, setSelectedSha] = useState("");
 
+  let commitSha = sha == null ? selectedSha : sha;
+  const { data: commitData, error } = useSWR(
+    commitSha != null
+      ? `/api/${repoOwner}/${repoName}/commit/${commitSha}`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 60 * 1000,
+      refreshWhenHidden: true,
+    }
+  );
   const prData = data as PRData | undefined;
 
   useEffect(() => {
@@ -101,9 +98,10 @@ function Page() {
     setSelectedSha(selected);
   }, [prData?.shas, sha]);
 
-  if (prData === undefined) {
+  if (prData === undefined || commitData === undefined) {
     return <div>Loading...</div>;
   }
+
   return (
     <div>
       <h1>
@@ -116,6 +114,11 @@ function Page() {
           </a>
         </code>
       </h1>
+      <MergeModal
+        prData={prData}
+        commit={commitData.commit}
+        jobs={commitData.jobs}
+      />
       <CommitHeader
         repoOwner={repoOwner as string}
         repoName={repoName as string}
@@ -127,6 +130,7 @@ function Page() {
           repoOwner={repoOwner as string}
           repoName={repoName as string}
           sha={selectedSha}
+          commitData={commitData}
         />
       </ErrorBoundary>
     </div>

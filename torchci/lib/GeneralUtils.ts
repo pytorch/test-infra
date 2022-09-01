@@ -42,3 +42,7 @@ export function getFailureMessage(
   For more information, check the [HUD](${hudLink}).
   `;
 }
+
+export function getPrURL(repo: string, owner: string, prNumber: number) {
+  return `https://github.com/${repo}/${owner}/pull/${prNumber}`;
+}

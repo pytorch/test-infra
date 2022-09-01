@@ -4,7 +4,9 @@ import {
   FormControl,
   IconButton,
   InputLabel,
-  MenuItem, Select, TextField
+  MenuItem,
+  Select,
+  TextField,
 } from "@mui/material";
 import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
@@ -17,18 +19,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-
-const style = {
-  position: "absolute" as "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: 800,
-  bgcolor: "background.paper",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-};
 
 export function RevertModal({ row }: { row: RowData }) {
   const [open, setOpen] = useState(false);
