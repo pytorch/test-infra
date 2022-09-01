@@ -57,7 +57,7 @@ runs:
           MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
       - name: Setup miniconda env cache (with env file)
-        id: miniconda-env-cache
+        id: miniconda-env-cache-env-file
         if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} != ''
         uses: actions/cache@v2
         with:
@@ -71,7 +71,7 @@ runs:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
       - name: Setup conda environment
-        if: steps.miniconda-env-cache.outputs.cache-hit != 'true'
+        if: steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
