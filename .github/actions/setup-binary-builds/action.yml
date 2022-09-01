@@ -96,6 +96,13 @@ runs:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          if [[ "$PYTHON_VERSION" = "3.7" ]]
+          then
+            NUMPY_VERSION="1.21"
+          else
+            NUMPY_VERSION="1.23"
+          fi
+          echo $NUMPY_VERSION
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
@@ -103,7 +110,7 @@ runs:
             cmake=3.22 \
             conda-build=3.21 \
             ninja=1.10 \
-            numpy=1.23 \
+            "numpy=${NUMPY_VERSION}" \
             pkg-config=0.29 \
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
