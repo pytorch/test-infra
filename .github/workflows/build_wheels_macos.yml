@@ -1,4 +1,4 @@
-name: Build M1 Wheels
+name: Build MacOS Wheels
 
 on:
   workflow_call:
@@ -31,6 +31,10 @@ on:
         description: "Post script to run prior to build"
         default: ""
         type: string
+      runner-type:
+        description: "Runner environment specified."
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -43,7 +47,7 @@ jobs:
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
     name: ${{ matrix.build_name }}
-    runs-on: macos-m1-12
+    runs-on: ${{ input.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60

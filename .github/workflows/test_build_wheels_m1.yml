@@ -3,8 +3,8 @@ name: Test Build M1 Wheels
 on:
   pull_request:
     paths:
-      - .github/workflows/test_build_wheels_macos.yml
-      - .github/workflows/build_wheels_m1.yml
+      - .github/workflows/test_build_wheels_m1.yml
+      - .github/workflows/build_wheels_macos.yml
       - .github/workflows/generate_binary_build_matrix.yml
 
 jobs:
@@ -40,4 +40,4 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
-      runs-on: macos-m1-12
+      runner-type: macos-m1-12
