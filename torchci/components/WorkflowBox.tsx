@@ -70,10 +70,21 @@ function Artifacts({ workflowId }: { workflowId: string }) {
 
   return (
     <>
-      <h4>Artifacts</h4>
-      {artifacts.map((artifact, ind) => {
-        return <JobArtifact key={ind} {...artifact} />;
-      })}
+      <details>
+        <summary
+          style={{
+            fontSize: "1em",
+            marginTop: "1.33em",
+            marginBottom: "1.33em",
+            fontWeight: "bold",
+          }}
+        >
+          Expand to see Artifacts
+        </summary>
+        {artifacts.map((artifact, ind) => {
+          return <JobArtifact key={ind} {...artifact} />;
+        })}
+      </details>
     </>
   );
 }
