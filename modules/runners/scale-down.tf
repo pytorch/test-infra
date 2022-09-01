@@ -87,7 +87,9 @@ resource "aws_iam_role" "scale_down" {
 resource "aws_iam_role_policy" "scale_down" {
   name   = "${var.environment}-lambda-scale-down-policy"
   role   = aws_iam_role.scale_down.name
-  policy = templatefile("${path.module}/policies/lambda-scale-down.json", {})
+  policy = templatefile("${path.module}/policies/lambda-scale-down.json", {
+    arn_ssm_parameters = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment}-*"
+  })
 }
 
 resource "aws_iam_role_policy" "scale_down_logging" {

@@ -12,8 +12,14 @@
     {
       "Effect": "Allow",
       "Action": [
-        "ec2:TerminateInstances",
         "ssm:DeleteParameter"
+      ],
+      "Resource": "${arn_ssm_parameters}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:TerminateInstances"
       ],
       "Resource": ["*"],
       "Condition": {
