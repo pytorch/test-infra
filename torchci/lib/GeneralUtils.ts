@@ -46,3 +46,11 @@ export function getFailureMessage(
 export function getPrURL(repo: string, owner: string, prNumber: number) {
   return `https://github.com/${repo}/${owner}/pull/${prNumber}`;
 }
+
+export function getMergeMessage(flag: string, forceMessage: string): string {
+  const formattedForceMessage =
+    forceMessage != null && forceMessage.length != 0
+      ? `-m "${forceMessage}"`
+      : "";
+  return `@pytorchbot merge -${flag} ${formattedForceMessage}`;
+}
