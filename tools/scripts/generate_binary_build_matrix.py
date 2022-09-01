@@ -244,11 +244,6 @@ def generate_wheels_matrix(
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
 
-        if os == "linux":
-            # NOTE: We only build 3.11 wheel on linux as 3.11 is not
-            # available on conda right now
-            python_versions.append("3.11")
-
     if arches is None:
         # Define default compute archivectures
         arches = ["cpu"]
