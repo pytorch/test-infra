@@ -14,6 +14,7 @@ WHERE
     AND name = :name
     AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND workflow.run_attempt = 1
 GROUP BY
     workflow.name
 ORDER BY
