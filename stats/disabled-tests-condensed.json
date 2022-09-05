@@ -961,6 +961,13 @@
       "rocm"
     ]
   ],
+  "test_load_with_different_shard_plan (__main__.TestDistributedReshardOnLoad)": [
+    "84531",
+    "https://github.com/pytorch/pytorch/issues/84531",
+    [
+      "rocm"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
