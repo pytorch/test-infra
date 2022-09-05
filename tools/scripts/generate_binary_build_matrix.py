@@ -37,7 +37,7 @@ LINUX_CPU_RUNNER="ubuntu-20.04"
 WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
-MACOS_RUNNER="macos-12"
+MACOS_RUNNER="macos-12" # MACOS_X86_RUNNER="macos-12"
 
 PACKAGES_TO_INSTALL_WHL="torch torchvision torchaudio"
 PACKAGES_TO_INSTALL_CONDA="pytorch torchvision torchaudio"
@@ -68,6 +68,8 @@ def validation_runner(arch_type: str, os: str) -> str:
         return MACOS_M1_RUNNER
     elif os == "macos":
         return MACOS_RUNNER
+    # elif os == "macos-x86_64":
+    #     return MACOS_X86_RUNNER
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
