@@ -37,6 +37,7 @@ LINUX_CPU_RUNNER="ubuntu-20.04"
 WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
+MACOS_RUNNER="macos-12"
 
 PACKAGES_TO_INSTALL_WHL="torch torchvision torchaudio"
 PACKAGES_TO_INSTALL_CONDA="pytorch torchvision torchaudio"
@@ -65,6 +66,8 @@ def validation_runner(arch_type: str, os: str) -> str:
             return WIN_CPU_RUNNER
     elif os == "macos-arm64":
         return MACOS_M1_RUNNER
+    elif os == "macos":
+        return MACOS_RUNNER
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
@@ -184,7 +187,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
                     "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
-                    "validation_runner": validation_runner(gpu_arch_type, os),
+                    "validation_runner": validation_runner(gpu_arch_type, os), # TODO - where do we use it?
                     "channel": channel,
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
@@ -363,6 +366,7 @@ def main() -> None:
             includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
     else:
         CUDA_ARCHES = CUDA_ACRHES_DICT[options.channel]
+                                                                              # mac                     # night
         includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
 
     print(json.dumps({"include": includes}))
