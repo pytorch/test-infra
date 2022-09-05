@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel
-      os: macos-arm64
+      os: macos
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
