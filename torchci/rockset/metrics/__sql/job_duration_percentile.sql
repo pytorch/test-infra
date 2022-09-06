@@ -27,6 +27,7 @@ FROM (
             AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
             AND job.conclusion = 'success'
             AND workflow.head_branch LIKE :branch
+            AND workflow.run_attempt = 1
     ) AS duration
 ) AS p
 WHERE

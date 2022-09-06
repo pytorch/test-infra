@@ -38,6 +38,7 @@ FROM (
             AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
             AND workflow.name IN ('pull', 'trunk', 'nightly', 'periodic')
             AND workflow.head_branch LIKE :branch
+            AND workflow.run_attempt = 1
     ) AS tts_duration
 ) AS p
 WHERE
