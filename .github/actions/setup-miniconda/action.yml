@@ -17,21 +17,7 @@ inputs:
 runs:
   using: composite
   steps:
-      # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
-      # to refresh the cache daily. This is kind of optional though
-      - name: Get date
-        id: get-date
-        shell: bash
-        run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
-      - name: Setup miniconda cache
-        id: miniconda-cache
-        if: ${{ runner.os }} == 'macOS'
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-date.outputs.today }}
       - name: Install miniconda onto the machine
-        if: steps.miniconda-cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
         run: |
           MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
@@ -51,33 +37,14 @@ runs:
           curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
           bash "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH_MACOS}"
           rm -rf "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
-      - name: Update GitHub path
-        shell: bash
-        run: |
-          MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
-      - name: Setup miniconda env cache (with env file)
-        id: miniconda-env-cache-env-file
-        if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} != ''
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}
-      - name: Setup miniconda env cache (without env file)
-        id: miniconda-env-cache
-        if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} == ''
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
       - name: Setup conda environment
-        if: steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
           ENV_FILE: ${{ inputs.environment-file }}
         run: |
-          CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           ENV_FILE_FLAG=""
           if [[ -f "${ENV_FILE}" ]]; then
             ENV_FILE_FLAG="--file ${ENV_FILE}"
@@ -86,7 +53,7 @@ runs:
           fi
           conda create \
             --yes \
-            --prefix "${CONDA_BASE_ENV}" \
+            --prefix "${CONDA_ENV}" \
             "python=${PYTHON_VERSION}" \
             ${ENV_FILE_FLAG} \
             cmake=3.22 \
@@ -94,22 +61,6 @@ runs:
             ninja=1.10 \
             pkg-config=0.29 \
             wheel=0.37
-      - name: Clone the base conda environment and update GitHub env
-        shell: bash
-        env:
-          PYTHON_VERSION: ${{ inputs.python-version }}
-          CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-        run: |
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-          conda create \
-            --yes \
-            --prefix "${CONDA_ENV}" \
-            --clone "${CONDA_BASE_ENV}" \
-
-          # TODO: conda-build could not be cloned because it hardcodes the path, so it
-          # could not be cached
-          conda install -p ${CONDA_ENV} conda-build=3.21
-
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
