@@ -4,6 +4,7 @@ import nock from 'nock';
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
 

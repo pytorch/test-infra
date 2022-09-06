@@ -1,21 +1,12 @@
 import { EC2, SSM } from 'aws-sdk';
 import { createGithubAuth, createOctoClient } from './gh-auth';
+import { Metrics } from './metrics';
 
-import { getRepoKey, Repo, expBackOff } from './utils';
+import { getRepoKey, Repo, RunnerInfo, expBackOff } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Octokit } from '@octokit/rest';
 import YAML from 'yaml';
-
-export interface RunnerInfo {
-  instanceId: string;
-  launchTime?: Date;
-  repo?: string;
-  org?: string;
-  runnerType?: string;
-  ghRunnerId?: string;
-  environment?: string;
-}
 
 export interface ListRunnerFilters {
   repoName?: string;
@@ -40,7 +31,10 @@ export interface RunnerInputParameters {
   runnerType: RunnerType;
 }
 
-export async function listRunners(filters: ListRunnerFilters | undefined = undefined): Promise<RunnerInfo[]> {
+export async function listRunners(
+  metrics: Metrics,
+  filters: ListRunnerFilters | undefined = undefined,
+): Promise<RunnerInfo[]> {
   try {
     const ec2Filters = [
       { Name: 'tag:Application', Values: ['github-action-runner'] },
@@ -58,7 +52,13 @@ export async function listRunners(filters: ListRunnerFilters | undefined = undef
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
-    const runningInstances = await new EC2().describeInstances({ Filters: ec2Filters }).promise();
+    const runningInstances = await metrics.trackRequest(
+      metrics.ec2DescribeInstancesAWSCallSuccess,
+      metrics.ec2DescribeInstancesAWSCallFailure,
+      () => {
+        return new EC2().describeInstances({ Filters: ec2Filters }).promise();
+      },
+    );
     /* istanbul ignore next */
     return (
       runningInstances?.Reservations?.flatMap((reservation) => {
@@ -86,20 +86,32 @@ function getParameterNameForRunner(environment: string, instanceId: string): str
   return `${environment}-${instanceId}`;
 }
 
-export async function terminateRunner(runner: RunnerInfo): Promise<void> {
+export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
     const ec2 = new EC2();
     const ssm = new SSM();
 
     await expBackOff(() => {
-      return ec2.terminateInstances({ InstanceIds: [runner.instanceId] }).promise();
+      return metrics.trackRequest(
+        metrics.ec2TerminateInstancesAWSCallSuccess,
+        metrics.ec2TerminateInstancesAWSCallFailure,
+        () => {
+          return ec2.terminateInstances({ InstanceIds: [runner.instanceId] }).promise();
+        },
+      );
     });
     console.info(`Runner terminated: ${runner.instanceId}`);
 
     const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
     try {
       await expBackOff(() => {
-        return ssm.deleteParameter({ Name: paramName }).promise();
+        return metrics.trackRequest(
+          metrics.ssmdeleteParameterAWSCallSuccess,
+          metrics.ssmdeleteParameterAWSCallFailure,
+          () => {
+            return ssm.deleteParameter({ Name: paramName }).promise();
+          },
+        );
       });
       console.info(`Parameter deleted: ${paramName}`);
     } catch (e) {
@@ -111,7 +123,7 @@ export async function terminateRunner(runner: RunnerInfo): Promise<void> {
   }
 }
 
-export async function createRunner(runnerParameters: RunnerInputParameters): Promise<void> {
+export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<void> {
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
@@ -147,48 +159,54 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         }
 
         const runInstancesResponse = await expBackOff(() => {
-          return ec2
-            .runInstances({
-              MaxCount: 1,
-              MinCount: 1,
-              LaunchTemplate: {
-                LaunchTemplateName:
-                  runnerParameters.runnerType.os === 'linux'
-                    ? Config.Instance.launchTemplateNameLinux
-                    : Config.Instance.launchTemplateNameWindows,
-                Version:
-                  runnerParameters.runnerType.os === 'linux'
-                    ? Config.Instance.launchTemplateVersionLinux
-                    : Config.Instance.launchTemplateVersionWindows,
-              },
-              InstanceType: runnerParameters.runnerType.instance_type,
-              BlockDeviceMappings: [
-                {
-                  DeviceName: storageDeviceName,
-                  Ebs: {
-                    VolumeSize: runnerParameters.runnerType.disk_size,
-                    VolumeType: 'gp3',
-                    Encrypted: true,
-                    DeleteOnTermination: true,
+          return metrics.trackRequest(
+            metrics.ec2RunInstancesAWSCallSuccess,
+            metrics.ec2RunInstancesAWSCallFailure,
+            () => {
+              return ec2
+                .runInstances({
+                  MaxCount: 1,
+                  MinCount: 1,
+                  LaunchTemplate: {
+                    LaunchTemplateName:
+                      runnerParameters.runnerType.os === 'linux'
+                        ? Config.Instance.launchTemplateNameLinux
+                        : Config.Instance.launchTemplateNameWindows,
+                    Version:
+                      runnerParameters.runnerType.os === 'linux'
+                        ? Config.Instance.launchTemplateVersionLinux
+                        : Config.Instance.launchTemplateVersionWindows,
                   },
-                },
-              ],
-              NetworkInterfaces: [
-                {
-                  AssociatePublicIpAddress: true,
-                  SubnetId: subnet,
-                  Groups: Config.Instance.securityGroupIds,
-                  DeviceIndex: 0,
-                },
-              ],
-              TagSpecifications: [
-                {
-                  ResourceType: 'instance',
-                  Tags: tags,
-                },
-              ],
-            })
-            .promise();
+                  InstanceType: runnerParameters.runnerType.instance_type,
+                  BlockDeviceMappings: [
+                    {
+                      DeviceName: storageDeviceName,
+                      Ebs: {
+                        VolumeSize: runnerParameters.runnerType.disk_size,
+                        VolumeType: 'gp3',
+                        Encrypted: true,
+                        DeleteOnTermination: true,
+                      },
+                    },
+                  ],
+                  NetworkInterfaces: [
+                    {
+                      AssociatePublicIpAddress: true,
+                      SubnetId: subnet,
+                      Groups: Config.Instance.securityGroupIds,
+                      DeviceIndex: 0,
+                    },
+                  ],
+                  TagSpecifications: [
+                    {
+                      ResourceType: 'instance',
+                      Tags: tags,
+                    },
+                  ],
+                })
+                .promise();
+            },
+          );
         });
 
         console.info(
@@ -200,13 +218,21 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
         await Promise.all(
           /* istanbul ignore next */
           runInstancesResponse.Instances?.map(async (i: EC2.Instance) => {
-            await ssm
-              .putParameter({
-                Name: getParameterNameForRunner(runnerParameters.environment, i.InstanceId as string),
-                Value: runnerParameters.runnerConfig,
-                Type: 'SecureString',
-              })
-              .promise();
+            await expBackOff(() => {
+              return metrics.trackRequest(
+                metrics.ssmPutParameterAWSCallSuccess,
+                metrics.ssmPutParameterAWSCallFailure,
+                () => {
+                  return ssm
+                    .putParameter({
+                      Name: runnerParameters.environment + '-' + (i.InstanceId as string),
+                      Value: runnerParameters.runnerConfig,
+                      Type: 'SecureString',
+                    })
+                    .promise();
+                },
+              );
+            });
           }) ?? [],
         );
 
@@ -233,23 +259,6 @@ export async function createRunner(runnerParameters: RunnerInputParameters): Pro
   }
 }
 
-export function getRepo(repoDef: string, repoName?: string): Repo {
-  try {
-    if (repoName !== undefined) {
-      return { owner: repoDef, repo: repoName };
-    }
-
-    const repoArr = repoDef.split('/');
-    if (repoArr.length != 2) {
-      throw Error('getRepo: repoDef string must be in the format "owner/repo_name"');
-    }
-    return { owner: repoArr[0], repo: repoArr[1] };
-  } catch (e) {
-    console.error(`[getRepo]: ${e}`);
-    throw e;
-  }
-}
-
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghRunnersCache = new LRU({ maxAge: 30 * 1000 });
@@ -264,14 +273,14 @@ export function resetRunnersCaches() {
   runnerTypeCache.reset();
 }
 
-async function getGithubClient(): Promise<Octokit> {
+async function getGithubClient(metrics: Metrics): Promise<Octokit> {
   try {
     let githubClient: Octokit | undefined = ghMainClientCache.get('client') as Octokit;
     /* istanbul ignore next */
     if (githubClient === undefined) {
       console.debug(`[getGithubClient] Need to instantiate base githubClient`);
-      const ghAuth = await createGithubAuth(undefined, 'app', Config.Instance.ghesUrlApi);
-      githubClient = await createOctoClient(ghAuth, Config.Instance.ghesUrlApi);
+      const ghAuth = await createGithubAuth(undefined, 'app', Config.Instance.ghesUrlApi, metrics);
+      githubClient = createOctoClient(ghAuth, Config.Instance.ghesUrlApi);
       ghMainClientCache.set('client', githubClient);
     }
     return githubClient;
@@ -281,12 +290,18 @@ async function getGithubClient(): Promise<Octokit> {
   }
 }
 
-export async function createGitHubClientForRunnerRepo(repo: Repo): Promise<Octokit> {
+export async function createGitHubClientForRunnerRepo(repo: Repo, metrics: Metrics): Promise<Octokit> {
   try {
-    return await createGitHubClientForRunner(getRepoKey(repo), async () => {
+    return await createGitHubClientForRunner(metrics, getRepoKey(repo), async () => {
       try {
-        const localGithubClient = await getGithubClient();
-        return (await localGithubClient.apps.getRepoInstallation({ ...repo })).data.id;
+        const localGithubClient = await getGithubClient(metrics);
+        return await metrics.trackRequest(
+          metrics.getRepoInstallationGHCallSuccess,
+          metrics.getRepoInstallationGHCallFailure,
+          async () => {
+            return (await localGithubClient.apps.getRepoInstallation({ ...repo })).data.id;
+          },
+        );
       } catch (e) {
         console.error(`[createGitHubClientForRunnerRepo <anonymous>]: ${e}`);
         throw e;
@@ -298,12 +313,18 @@ export async function createGitHubClientForRunnerRepo(repo: Repo): Promise<Octok
   }
 }
 
-export async function createGitHubClientForRunnerOrg(organization: string): Promise<Octokit> {
+export async function createGitHubClientForRunnerOrg(organization: string, metrics: Metrics): Promise<Octokit> {
   try {
-    return await createGitHubClientForRunner(organization, async () => {
+    return await createGitHubClientForRunner(metrics, organization, async () => {
       try {
-        const localGithubClient = await getGithubClient();
-        return (await localGithubClient.apps.getOrgInstallation({ org: organization })).data.id;
+        const localGithubClient = await getGithubClient(metrics);
+        return await metrics.trackRequest(
+          metrics.getRepoInstallationGHCallSuccess,
+          metrics.getRepoInstallationGHCallFailure,
+          async () => {
+            return (await localGithubClient.apps.getOrgInstallation({ org: organization })).data.id;
+          },
+        );
       } catch (e) {
         console.error(`[createGitHubClientForRunnerOrg <anonymous>]: ${e}`);
         throw e;
@@ -315,9 +336,9 @@ export async function createGitHubClientForRunnerOrg(organization: string): Prom
   }
 }
 
-export async function createGitHubClientForRunnerInstallId(installationId: number): Promise<Octokit> {
+export async function createGitHubClientForRunnerInstallId(installationId: number, metrics: Metrics): Promise<Octokit> {
   try {
-    return await createGitHubClientForRunner(`${installationId}`, async () => {
+    return await createGitHubClientForRunner(metrics, `${installationId}`, async () => {
       return installationId;
     });
   } catch (e) {
@@ -327,6 +348,7 @@ export async function createGitHubClientForRunnerInstallId(installationId: numbe
 }
 
 async function createGitHubClientForRunner(
+  metrics: Metrics,
   key: string,
   installationIdCallback: () => Promise<number>,
 ): Promise<Octokit> {
@@ -338,8 +360,8 @@ async function createGitHubClientForRunner(
 
     console.debug(`[createGitHubClientForRunner] Cache miss for ${key}`);
     const installationId = await installationIdCallback();
-    const ghAuth2 = await createGithubAuth(installationId, 'installation', Config.Instance.ghesUrlApi);
-    const octokit = await createOctoClient(ghAuth2, Config.Instance.ghesUrlApi);
+    const ghAuth2 = await createGithubAuth(installationId, 'installation', Config.Instance.ghesUrlApi, metrics);
+    const octokit = createOctoClient(ghAuth2, Config.Instance.ghesUrlApi);
 
     ghClientCache.set(key, octokit);
     return octokit;
@@ -356,17 +378,23 @@ type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
-export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo) {
+export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo, metrics: Metrics) {
   try {
-    const githubAppClient = await createGitHubClientForRunnerRepo(repo);
-    const result = await githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
-      ...repo,
-      runner_id: ghRunnerId,
-    });
+    const githubAppClient = await createGitHubClientForRunnerRepo(repo, metrics);
+    const result = await metrics.trackRequest(
+      metrics.deleteSelfHostedRunnerFromRepoGHCallSuccess,
+      metrics.deleteSelfHostedRunnerFromRepoGHCallFailure,
+      () => {
+        return githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
+          ...repo,
+          runner_id: ghRunnerId,
+        });
+      },
+    );
 
     /* istanbul ignore next */
     if (result?.status == 204) {
-      await terminateRunner(ec2runner);
+      await terminateRunner(ec2runner, metrics);
       console.info(
         `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
           `and GitHub runner is de-registered. (removeGithubRunnerRepo)`,
@@ -379,17 +407,23 @@ export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: 
   }
 }
 
-export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: number, org: string) {
+export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: number, org: string, metrics: Metrics) {
   try {
-    const githubAppClient = await createGitHubClientForRunnerOrg(org);
-    const result = await githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
-      org: org,
-      runner_id: ghRunnerId,
-    });
+    const githubAppClient = await createGitHubClientForRunnerOrg(org, metrics);
+    const result = await metrics.trackRequest(
+      metrics.deleteSelfHostedRunnerFromOrgGHCallSuccess,
+      metrics.deleteSelfHostedRunnerFromOrgGHCallFailure,
+      () => {
+        return githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
+          org: org,
+          runner_id: ghRunnerId,
+        });
+      },
+    );
 
     /* istanbul ignore next */
     if (result?.status == 204) {
-      await terminateRunner(ec2runner);
+      await terminateRunner(ec2runner, metrics);
       console.info(
         `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
           `and GitHub runner is de-registered. (removeGithubRunnerOrg)`,
@@ -402,15 +436,21 @@ export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: n
   }
 }
 
-export async function listGithubRunnersRepo(repo: Repo): Promise<GhRunners> {
+export async function listGithubRunnersRepo(repo: Repo, metrics: Metrics): Promise<GhRunners> {
   try {
     return await listGithubRunners(getRepoKey(repo), async () => {
       try {
-        const client = await createGitHubClientForRunnerRepo(repo);
-        return await client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-          ...repo,
-          per_page: 100,
-        });
+        const client = await createGitHubClientForRunnerRepo(repo, metrics);
+        return await metrics.trackRequest(
+          metrics.listSelfHostedRunnersForRepoGHCallSuccess,
+          metrics.listSelfHostedRunnersForRepoGHCallFailure,
+          () => {
+            return client.paginate(client.actions.listSelfHostedRunnersForRepo, {
+              ...repo,
+              per_page: 100,
+            });
+          },
+        );
       } catch (e) {
         console.error(`[listGithubRunnersRepo <anonymous>]: ${e}`);
         throw e;
@@ -422,15 +462,21 @@ export async function listGithubRunnersRepo(repo: Repo): Promise<GhRunners> {
   }
 }
 
-export async function listGithubRunnersOrg(org: string): Promise<GhRunners> {
+export async function listGithubRunnersOrg(org: string, metrics: Metrics): Promise<GhRunners> {
   try {
     return await listGithubRunners(org, async () => {
       try {
-        const client = await createGitHubClientForRunnerOrg(org);
-        return await client.paginate(client.actions.listSelfHostedRunnersForOrg, {
-          org: org,
-          per_page: 100,
-        });
+        const client = await createGitHubClientForRunnerOrg(org, metrics);
+        return await metrics.trackRequest(
+          metrics.listSelfHostedRunnersForOrgGHCallSuccess,
+          metrics.listSelfHostedRunnersForOrgGHCallFailure,
+          () => {
+            return client.paginate(client.actions.listSelfHostedRunnersForOrg, {
+              org: org,
+              per_page: 100,
+            });
+          },
+        );
       } catch (e) {
         console.error(`[listGithubRunnersOrg <anonymous>]: ${e}`);
         throw e;
@@ -445,7 +491,6 @@ export async function listGithubRunnersOrg(org: string): Promise<GhRunners> {
 async function listGithubRunners(key: string, listCallback: () => Promise<GhRunners>): Promise<GhRunners> {
   try {
     const cachedRunners = ghRunnersCache.get(key);
-    // Exit out early if we have our key
     if (cachedRunners !== undefined) {
       return cachedRunners as GhRunners;
     }
@@ -462,30 +507,44 @@ async function listGithubRunners(key: string, listCallback: () => Promise<GhRunn
 
 export type GhRunner = UnboxPromise<ReturnType<Octokit['actions']['getSelfHostedRunnerForRepo']>>['data'];
 
-export async function getRunnerRepo(repo: Repo, runnerID: string): Promise<GhRunner | undefined> {
-  const client = await createGitHubClientForRunnerRepo(repo);
+export async function getRunnerRepo(repo: Repo, runnerID: string, metrics: Metrics): Promise<GhRunner | undefined> {
+  const client = await createGitHubClientForRunnerRepo(repo, metrics);
 
   try {
-    const runner = await client.actions.getSelfHostedRunnerForRepo({
-      ...repo,
-      runner_id: runnerID as unknown as number,
-    });
-    return runner.data;
+    return (
+      await metrics.trackRequest(
+        metrics.getSelfHostedRunnerForRepoGHCallSuccess,
+        metrics.getSelfHostedRunnerForRepoGHCallFailure,
+        () => {
+          return client.actions.getSelfHostedRunnerForRepo({
+            ...repo,
+            runner_id: runnerID as unknown as number,
+          });
+        },
+      )
+    ).data;
   } catch (e) {
     console.warn(`[getRunnerRepo <inner try>]: ${e}`);
     return undefined;
   }
 }
 
-export async function getRunnerOrg(org: string, runnerID: string): Promise<GhRunner | undefined> {
-  const client = await createGitHubClientForRunnerOrg(org);
+export async function getRunnerOrg(org: string, runnerID: string, metrics: Metrics): Promise<GhRunner | undefined> {
+  const client = await createGitHubClientForRunnerOrg(org, metrics);
 
   try {
-    const runner = await client.actions.getSelfHostedRunnerForOrg({
-      org: org,
-      runner_id: runnerID as unknown as number,
-    });
-    return runner.data;
+    return (
+      await metrics.trackRequest(
+        metrics.getSelfHostedRunnerForOrgGHCallSuccess,
+        metrics.getSelfHostedRunnerForOrgGHCallFailure,
+        () => {
+          return client.actions.getSelfHostedRunnerForOrg({
+            org: org,
+            runner_id: runnerID as unknown as number,
+          });
+        },
+      )
+    ).data;
   } catch (e) {
     console.warn(`[getRunnerOrg <inner try>]: ${e}`);
     return undefined;
@@ -494,8 +553,10 @@ export async function getRunnerOrg(org: string, runnerID: string): Promise<GhRun
 
 export async function getRunnerTypes(
   repo: Repo,
+  metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
+  let status = 'noRun';
   try {
     const runnerTypeKey = getRepoKey(repo);
 
@@ -504,15 +565,23 @@ export async function getRunnerTypes(
     }
     console.debug(`[getRunnerTypes] cache miss for ${runnerTypeKey}`);
 
+    status = 'doRun';
     /* istanbul ignore next */
     const githubAppClient = Config.Instance.enableOrganizationRunners
-      ? await createGitHubClientForRunnerOrg(repo.owner)
-      : await createGitHubClientForRunnerRepo(repo);
+      ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
+      : await createGitHubClientForRunnerRepo(repo, metrics);
 
-    const response = await githubAppClient.repos.getContent({
-      ...repo,
-      path: filepath,
-    });
+    const response = await metrics.trackRequest(
+      metrics.reposGetContentGHCallSuccess,
+      metrics.reposGetContentGHCallFailure,
+      () => {
+        return githubAppClient.repos.getContent({
+          ...repo,
+          path: filepath,
+        });
+      },
+    );
+
     /* istanbul ignore next */
     const { content } = { ...(response?.data || {}) };
 
@@ -548,21 +617,39 @@ export async function getRunnerTypes(
     runnerTypeCache.set(runnerTypeKey, result);
     console.debug(`configuration: ${JSON.stringify(result)}`);
 
+    status = 'success';
     return result;
   } catch (e) {
     console.error(`[getRunnerTypes]: ${e}`);
     throw e;
+  } finally {
+    if (status == 'doRun') {
+      metrics.getRunnerTypesFailure();
+    } else if (status == 'success') {
+      metrics.getRunnerTypesSuccess();
+    }
   }
 }
 
-export async function createRegistrationTokenRepo(repo: Repo, installationId?: number): Promise<string> {
+export async function createRegistrationTokenRepo(
+  repo: Repo,
+  metrics: Metrics,
+  installationId?: number,
+): Promise<string> {
   try {
     return await createRegistrationToken(getRepoKey(repo), async () => {
       try {
         const githubInstallationClient = installationId
-          ? await createGitHubClientForRunnerInstallId(installationId)
-          : await createGitHubClientForRunnerRepo(repo);
-        const response = await githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
+          ? await createGitHubClientForRunnerInstallId(installationId, metrics)
+          : await createGitHubClientForRunnerRepo(repo, metrics);
+        const response = await metrics.trackRequest(
+          metrics.createRegistrationTokenForRepoGHCallSuccess,
+          metrics.createRegistrationTokenForRepoGHCallFailure,
+          () => {
+            return githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
+          },
+        );
+
         /* istanbul ignore next */
         if (response?.status != 201 || !response.data?.token) {
           throw Error(
@@ -582,14 +669,24 @@ export async function createRegistrationTokenRepo(repo: Repo, installationId?: n
   }
 }
 
-export async function createRegistrationTokenOrg(org: string, installationId?: number): Promise<string> {
+export async function createRegistrationTokenOrg(
+  org: string,
+  metrics: Metrics,
+  installationId?: number,
+): Promise<string> {
   try {
     return await createRegistrationToken(org, async () => {
       try {
         const githubInstallationClient = installationId
-          ? await createGitHubClientForRunnerInstallId(installationId)
-          : await createGitHubClientForRunnerOrg(org);
-        const response = await githubInstallationClient.actions.createRegistrationTokenForOrg({ org: org });
+          ? await createGitHubClientForRunnerInstallId(installationId, metrics)
+          : await createGitHubClientForRunnerOrg(org, metrics);
+        const response = await metrics.trackRequest(
+          metrics.createRegistrationTokenForOrgGHCallSuccess,
+          metrics.createRegistrationTokenForOrgGHCallFailure,
+          () => {
+            return githubInstallationClient.actions.createRegistrationTokenForOrg({ org: org });
+          },
+        );
         /* istanbul ignore next */
         if (response?.status != 201 || !response.data?.token) {
           throw Error(

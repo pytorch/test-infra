@@ -16,6 +16,7 @@ import { mocked } from 'ts-jest/utils';
 import moment from 'moment';
 import nock from 'nock';
 import scaleDown from './scale-down';
+import * as MetricsModule from './metrics';
 
 jest.mock('./runners', () => ({
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -34,8 +35,11 @@ jest.mock('./runners', () => ({
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
+
+const metrics = new MetricsModule.ScaleDownMetrics();
 
 describe('scaleDown', () => {
   const minimumRunningTimeInMinutes = 10;
@@ -49,16 +53,37 @@ describe('scaleDown', () => {
           environment: environment,
         } as Config),
     );
+    jest.spyOn(MetricsModule, 'ScaleDownMetrics').mockReturnValue(metrics);
+    jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
+      return;
+    });
   });
 
   it('no runners are found', async () => {
+    const ec2runner = {
+      instanceId: 'WG113',
+      repo: 'owner/repo',
+      launchTime: moment(new Date())
+        .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+        .toDate(),
+      ghRunnerId: '33',
+    };
+    const matchRunner: GhRunners = [
+      {
+        id: 1,
+        name: ec2runner.instanceId,
+        os: 'linux',
+        status: 'busy',
+        busy: true,
+        labels: [],
+      },
+    ];
     const mockedListRunners = mocked(listRunners).mockResolvedValue([]);
-    const mockedResetRunnersCaches = mocked(resetRunnersCaches);
+    mocked(listGithubRunnersRepo).mockResolvedValue(matchRunner);
 
     await scaleDown();
 
-    expect(mockedListRunners).toBeCalledWith({ environment: environment });
-    expect(mockedResetRunnersCaches).not.toBeCalled();
+    expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
   });
 
   it('runners not live for minimum time', async () => {
@@ -70,12 +95,10 @@ describe('scaleDown', () => {
       },
     ]);
     const mockedResetRunnersCaches = mocked(resetRunnersCaches);
-    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
     await scaleDown();
 
     expect(mockedResetRunnersCaches).toBeCalledTimes(1);
-    expect(mockedListGithubRunners).not.toBeCalled();
   });
 
   describe('tests sorting - no particular goal here', () => {
@@ -219,9 +242,9 @@ describe('scaleDown', () => {
 
       await scaleDown();
 
-      expect(mockedListGithubRunners).toBeCalledWith(repo);
-      expect(mockedGetRunner).toBeCalledWith(repo, ec2runner.ghRunnerId);
-      expect(mockedTerminateRunner).toBeCalledWith(ec2runner);
+      expect(mockedListGithubRunners).toBeCalledWith(repo, metrics);
+      expect(mockedGetRunner).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
+      expect(mockedTerminateRunner).toBeCalledWith(ec2runner, metrics);
     });
 
     it('listGithubRunnersRepo returns [], getRunnerRepo returns undefined and terminateRunner raises', async () => {
@@ -273,7 +296,7 @@ describe('scaleDown', () => {
       await scaleDown();
 
       expect(mockedGetRunner).not.toBeCalled();
-      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, repo);
+      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, repo, metrics);
     });
 
     it('listGithubRunnersRepo returns [(matches, nonbusy)], removeGithubRunnerRepo is NOT called', async () => {
@@ -322,9 +345,9 @@ describe('scaleDown', () => {
 
       await scaleDown();
 
-      expect(mockedListGithubRunners).toBeCalledWith('owner');
-      expect(mockedGetRunner).toBeCalledWith('owner', ec2runner.ghRunnerId);
-      expect(mockedTerminateRunner).toBeCalledWith(ec2runner);
+      expect(mockedListGithubRunners).toBeCalledWith('owner', metrics);
+      expect(mockedGetRunner).toBeCalledWith('owner', ec2runner.ghRunnerId, metrics);
+      expect(mockedTerminateRunner).toBeCalledWith(ec2runner, metrics);
     });
 
     it('listGithubRunnersOrg returns [], getRunnerOrg returns undefined and terminateRunner raises', async () => {
@@ -375,7 +398,7 @@ describe('scaleDown', () => {
       await scaleDown();
 
       expect(mockedGetRunner).not.toBeCalled();
-      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, 'owner');
+      expect(mockedRemoveGithubRunner).toBeCalledWith(ec2runner, matchRunner[0].id, 'owner', metrics);
     });
 
     it('listGithubRunnersOrg returns [(matches, nonbusy)], removeGithubRunnerOrg is NOT called', async () => {

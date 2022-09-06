@@ -1,6 +1,7 @@
 import AWS from 'aws-sdk';
 import { Config } from '../config';
 import { decrypt } from './index';
+import { ScaleUpMetrics } from '../metrics';
 import nock from 'nock';
 
 const decryptedStr = 'The Decrypted String';
@@ -25,11 +26,13 @@ jest.mock('aws-sdk', () => ({
     },
   },
   KMS: jest.fn().mockImplementation(() => mockKms),
+  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
 
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
 
@@ -47,7 +50,9 @@ describe('decrypt', () => {
           } as Config),
       );
 
-      expect(await decrypt(encrypted.toString('base64'), key, environmentName)).toBe(decryptedStr);
+      expect(await decrypt(encrypted.toString('base64'), key, environmentName, new ScaleUpMetrics())).toBe(
+        decryptedStr,
+      );
       expect(AWS.config.update).toBeCalledWith({
         region: awsRegion,
       });

@@ -5,6 +5,7 @@ import { Config } from './config';
 import { RequestInterface } from '@octokit/types';
 import { createAppAuth } from '@octokit/auth-app';
 import { decrypt } from './kms';
+import { ScaleUpMetrics } from './metrics';
 import nock from 'nock';
 import { request } from '@octokit/request';
 
@@ -24,19 +25,27 @@ jest.mock('aws-sdk', () => ({
   SecretsManager: jest.fn().mockImplementation(() => ({
     getSecretValue: mockSMgetSecretValue,
   })),
+  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
+
+const metrics = new ScaleUpMetrics();
 
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
+
+  jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
+    return;
+  });
 });
 
 describe('Test createOctoClient', () => {
   test('Creates app client to GitHub public', async () => {
     const token = '123456';
 
-    const result = await createOctoClient(token);
+    const result = createOctoClient(token);
 
     expect(result.request.endpoint.DEFAULTS.baseUrl).toBe('https://api.github.com');
   });
@@ -46,7 +55,7 @@ describe('Test createOctoClient', () => {
     const enterpriseServer = 'https://github.enterprise.notgoingtowork';
     const token = '123456';
 
-    const result = await createOctoClient(token, enterpriseServer);
+    const result = createOctoClient(token, enterpriseServer);
 
     expect(result.request.endpoint.DEFAULTS.baseUrl).toBe(enterpriseServer);
     expect(result.request.endpoint.DEFAULTS.mediaType.previews).toStrictEqual(['antiope']);
@@ -56,7 +65,6 @@ describe('Test createOctoClient', () => {
 describe('Test createGithubAuth', () => {
   const mockedDecrypt = decrypt as unknown as jest.Mock;
   const mockedCreatAppAuth = createAppAuth as unknown as jest.Mock;
-  const mockedDefaults = jest.spyOn(request, 'defaults');
   let mockedRequestInterface: MockProxy<RequestInterface>;
 
   const installationId = 1;
@@ -90,7 +98,7 @@ describe('Test createGithubAuth', () => {
 
     it('captures the exception', async () => {
       resetSecretCache();
-      await expect(createGithubAuth(installationId, authType)).rejects.toThrowError(message);
+      await expect(createGithubAuth(installationId, authType, '', new ScaleUpMetrics())).rejects.toThrowError(message);
     });
   });
 
@@ -119,7 +127,7 @@ describe('Test createGithubAuth', () => {
 
       it('checks exception', async () => {
         resetSecretCache();
-        await expect(createGithubAuth(installationId, authType)).rejects.toThrowError();
+        await expect(createGithubAuth(installationId, authType, '', new ScaleUpMetrics())).rejects.toThrowError();
       });
     });
 
@@ -157,10 +165,20 @@ describe('Test createGithubAuth', () => {
         });
 
         resetSecretCache();
-        const result = await createGithubAuth(installationId, authType);
+        const result = await createGithubAuth(installationId, authType, '', metrics);
 
-        expect(mockedDecrypt).toBeCalledWith(config.githubAppClientSecret, config.kmsKeyId, config.environment);
-        expect(mockedDecrypt).toBeCalledWith(config.githubAppClientSecret, config.kmsKeyId, config.environment);
+        expect(mockedDecrypt).toBeCalledWith(
+          config.githubAppClientSecret,
+          config.kmsKeyId,
+          config.environment,
+          metrics,
+        );
+        expect(mockedDecrypt).toBeCalledWith(
+          config.githubAppClientSecret,
+          config.kmsKeyId,
+          config.environment,
+          metrics,
+        );
         expect(mockedCreatAppAuth).toBeCalledTimes(1);
         expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
         expect(mockedAuth).toBeCalledWith({ type: authType });
@@ -168,10 +186,12 @@ describe('Test createGithubAuth', () => {
       });
 
       test('Creates auth object for Enterprise Server', async () => {
+        const mockedDefaults = jest.spyOn(request, 'defaults');
         const githubServerUrl = 'https://github.enterprise.notgoingtowork';
 
         mockedRequestInterface = mock<RequestInterface>();
         mockedDefaults.mockImplementation(() => {
+          console.error('mockedDefaults.mockImplementation -> mockedRequestInterface.defaults');
           return mockedRequestInterface.defaults({ baseUrl: githubServerUrl });
         });
 
@@ -192,10 +212,20 @@ describe('Test createGithubAuth', () => {
         });
 
         resetSecretCache();
-        const result = await createGithubAuth(installationId, authType, githubServerUrl);
+        const result = await createGithubAuth(installationId, authType, githubServerUrl, metrics);
 
-        expect(mockedDecrypt).toBeCalledWith(config.githubAppClientSecret, config.kmsKeyId, config.environment);
-        expect(mockedDecrypt).toBeCalledWith(config.githubAppClientSecret, config.kmsKeyId, config.environment);
+        expect(mockedDecrypt).toBeCalledWith(
+          config.githubAppClientSecret,
+          config.kmsKeyId,
+          config.environment,
+          metrics,
+        );
+        expect(mockedDecrypt).toBeCalledWith(
+          config.githubAppClientSecret,
+          config.kmsKeyId,
+          config.environment,
+          metrics,
+        );
         expect(mockedCreatAppAuth).toBeCalledTimes(1);
         expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
         expect(mockedAuth).toBeCalledWith({ type: authType });
@@ -205,7 +235,7 @@ describe('Test createGithubAuth', () => {
       test('Throws an error when cannot decrypt', async () => {
         mockedDecrypt.mockResolvedValue(undefined);
 
-        await expect(createGithubAuth(installationId, authType)).rejects.toThrow(Error);
+        await expect(createGithubAuth(installationId, authType, '', new ScaleUpMetrics())).rejects.toThrow(Error);
         expect(mockedCreatAppAuth).not.toHaveBeenCalled();
       });
     });
@@ -242,16 +272,18 @@ describe('Test createGithubAuth', () => {
         });
 
         resetSecretCache();
-        await expect(createGithubAuth(installationId, authType)).rejects.toThrow('Issue grabbing secret');
-        const result1 = await createGithubAuth(installationId, authType);
-        const result2 = await createGithubAuth(installationId, authType);
+        await expect(createGithubAuth(installationId, authType, '', new ScaleUpMetrics())).rejects.toThrow(
+          'Issue grabbing secret',
+        );
+        const result1 = await createGithubAuth(installationId, authType, '', metrics);
+        const result2 = await createGithubAuth(installationId, authType, '', metrics);
 
         expect(mockSMgetSecretValue).toBeCalledTimes(2);
         expect(mockSMgetSecretValue).toHaveBeenCalledWith({ SecretId: Config.Instance.secretsManagerSecretsId });
         expect(mockSMgetSecretValuePromise).toBeCalledTimes(2);
 
-        expect(mockedDecrypt).toBeCalledWith('github_app_client_secret', config.kmsKeyId, config.environment);
-        expect(mockedDecrypt).toBeCalledWith('github_app_key_base64', config.kmsKeyId, config.environment);
+        expect(mockedDecrypt).toBeCalledWith('github_app_client_secret', config.kmsKeyId, config.environment, metrics);
+        expect(mockedDecrypt).toBeCalledWith('github_app_key_base64', config.kmsKeyId, config.environment, metrics);
         expect(mockSMgetSecretValuePromise).toBeCalledTimes(2);
         expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
         expect(mockedAuth).toBeCalledWith({ type: authType });

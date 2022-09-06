@@ -12,6 +12,7 @@ import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { scaleUp } from './scale-up';
+import * as MetricsModule from './metrics';
 
 jest.mock('./runners');
 jest.mock('./gh-issues');
@@ -20,6 +21,7 @@ jest.mock('./metrics');
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
 
@@ -28,7 +30,15 @@ const baseCfg = {
   cantHaveIssuesLabels: [],
 } as unknown as Config;
 
+const metrics = new MetricsModule.ScaleUpMetrics();
+
 describe('scaleUp', () => {
+  beforeEach(() => {
+    jest.spyOn(MetricsModule, 'ScaleUpMetrics').mockReturnValue(metrics);
+    jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
+      return;
+    });
+  });
   it('does not accept sources that are not aws:sqs', async () => {
     const payload = {
       id: 10,
@@ -71,7 +81,7 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' });
+    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' }, metrics);
     expect(mockedListGithubRunners).not.toBeCalled();
   });
 
@@ -180,9 +190,9 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-    expect(mockedGetRunnerTypes).toBeCalledWith(repo);
+    expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
     expect(mockedListGithubRunners).toBeCalledTimes(2);
-    expect(mockedListGithubRunners).toBeCalledWith(repo);
+    expect(mockedListGithubRunners).toBeCalledWith(repo, metrics);
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
 
@@ -251,18 +261,21 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload);
 
-    expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner);
+    expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner, metrics);
     expect(mockedCreateRegistrationTokenForOrg).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForOrg).toBeCalledWith(repo.owner, 2);
+    expect(mockedCreateRegistrationTokenForOrg).toBeCalledWith(repo.owner, metrics, 2);
     expect(mockedCreateRunner).toBeCalledTimes(1);
-    expect(mockedCreateRunner).toBeCalledWith({
-      environment: config.environment,
-      runnerConfig:
-        `--url ${config.ghesUrlHost}/owner --token ${token} ` +
-        `--labels linux.2xlarge,extra-label  --runnergroup group_one`,
-      orgName: repo.owner,
-      runnerType: runnerType1,
-    });
+    expect(mockedCreateRunner).toBeCalledWith(
+      {
+        environment: config.environment,
+        runnerConfig:
+          `--url ${config.ghesUrlHost}/owner --token ${token} ` +
+          `--labels linux.2xlarge,extra-label  --runnergroup group_one`,
+        orgName: repo.owner,
+        runnerType: runnerType1,
+      },
+      metrics,
+    );
   });
 
   it('don`t have sufficient runners', async () => {
@@ -329,14 +342,17 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, 2);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
     expect(mockedCreateRunner).toBeCalledTimes(1);
-    expect(mockedCreateRunner).toBeCalledWith({
-      environment: config.environment,
-      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
-      repoName: 'owner/repo',
-      runnerType: runnerType1,
-    });
+    expect(mockedCreateRunner).toBeCalledWith(
+      {
+        environment: config.environment,
+        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        repoName: 'owner/repo',
+        runnerType: runnerType1,
+      },
+      metrics,
+    );
   });
 
   it('runners are offline', async () => {
@@ -403,14 +419,17 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, 0);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 0);
     expect(mockedCreateRunner).toBeCalledTimes(1);
-    expect(mockedCreateRunner).toBeCalledWith({
-      environment: config.environment,
-      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
-      repoName: 'owner/repo',
-      runnerType: runnerType1,
-    });
+    expect(mockedCreateRunner).toBeCalledWith(
+      {
+        environment: config.environment,
+        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        repoName: 'owner/repo',
+        runnerType: runnerType1,
+      },
+      metrics,
+    );
   });
 
   it('runners are busy', async () => {
@@ -477,14 +496,17 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, undefined);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, undefined);
     expect(mockedCreateRunner).toBeCalledTimes(1);
-    expect(mockedCreateRunner).toBeCalledWith({
-      environment: config.environment,
-      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
-      repoName: 'owner/repo',
-      runnerType: runnerType1,
-    });
+    expect(mockedCreateRunner).toBeCalledWith(
+      {
+        environment: config.environment,
+        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        repoName: 'owner/repo',
+        runnerType: runnerType1,
+      },
+      metrics,
+    );
   });
 
   it('max runners reached', async () => {
@@ -583,13 +605,16 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload);
 
-    expect(mockedCreateRunner).toBeCalledWith({
-      environment: config.environment,
-      // eslint-disable-next-line max-len
-      runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge --ephemeral`,
-      repoName: 'owner/repo',
-      runnerType: runnerType1,
-    });
+    expect(mockedCreateRunner).toBeCalledWith(
+      {
+        environment: config.environment,
+        // eslint-disable-next-line max-len
+        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge --ephemeral`,
+        repoName: 'owner/repo',
+        runnerType: runnerType1,
+      },
+      metrics,
+    );
   });
 
   it('fails to createRegistrationTokenRepo', async () => {
@@ -674,8 +699,8 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
     expect(mockedGetRunnerTypes).not.toBeCalled();
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
-    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[0]);
-    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[1]);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[0], metrics);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[1], metrics);
   });
 
   it('have the issues that cant have', async () => {
@@ -707,7 +732,7 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
     expect(mockedGetRunnerTypes).not.toBeCalled();
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
-    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0]);
-    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[1]);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0], metrics);
+    expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[1], metrics);
   });
 });

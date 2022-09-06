@@ -12,6 +12,7 @@ jest.mock('./scale-runners/scale-up');
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
 

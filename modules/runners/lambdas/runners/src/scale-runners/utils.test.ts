@@ -1,13 +1,30 @@
-import { getBoolean, getRepoKey, expBackOff } from './utils';
+import { getBoolean, getRepoKey, expBackOff, getRepo } from './utils';
 import nock from 'nock';
 
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
+  jest.restoreAllMocks();
   nock.disableNetConnect();
 });
 
 describe('./utils', () => {
+  describe('getRepo', () => {
+    it('returns the repo from single string', () => {
+      expect(getRepo('owner/repo')).toEqual({ owner: 'owner', repo: 'repo' });
+    });
+
+    it('returns the repo from two strings', () => {
+      expect(getRepo('owner', 'repo')).toEqual({ owner: 'owner', repo: 'repo' });
+    });
+
+    it('throws error when repoDef is not in the correct format', () => {
+      expect(() => {
+        getRepo('owner/repo/invalid');
+      }).toThrowError();
+    });
+  });
+
   describe('getBoolean', () => {
     it('check true values', () => {
       expect(getBoolean(true)).toBeTruthy();

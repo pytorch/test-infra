@@ -3,6 +3,16 @@ export interface Repo {
   repo: string;
 }
 
+export interface RunnerInfo {
+  instanceId: string;
+  launchTime?: Date;
+  repo?: string;
+  org?: string;
+  runnerType?: string;
+  ghRunnerId?: string;
+  environment?: string;
+}
+
 export function getRepoKey(repo: Repo): string {
   return `${repo.owner}/${repo.repo}`;
 }
@@ -60,5 +70,22 @@ export async function expBackOff<T>(
         throw e;
       }
     }
+  }
+}
+
+export function getRepo(repoDef: string, repoName?: string): Repo {
+  try {
+    if (repoName !== undefined) {
+      return { owner: repoDef, repo: repoName };
+    }
+
+    const repoArr = repoDef.split('/');
+    if (repoArr.length != 2) {
+      throw Error('getRepo: repoDef string must be in the format "owner/repo_name"');
+    }
+    return { owner: repoArr[0], repo: repoArr[1] };
+  } catch (e) {
+    console.error(`[getRepo]: ${e}`);
+    throw e;
   }
 }

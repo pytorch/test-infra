@@ -9,7 +9,7 @@ import {
   listGithubRunnersRepo,
 } from './runners';
 import { getRepoIssuesWithLabel } from './gh-issues';
-import { ScaleUpMetrics } from './metrics';
+import { ScaleUpMetrics, Metrics } from './metrics';
 
 import { Config } from './config';
 
@@ -32,18 +32,21 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
     repo: payload.repositoryName,
   };
 
-  if (await shouldSkipForRepo(repo)) {
-    metrics.skipRepo(repo);
-    return;
-  }
-
-  metrics.runRepo(repo);
-
   try {
-    const runnerTypes = await getRunnerTypes({
-      owner: repo.owner,
-      repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
-    });
+    if (await shouldSkipForRepo(repo, metrics)) {
+      metrics.skipRepo(repo);
+      return;
+    }
+
+    metrics.runRepo(repo);
+
+    const runnerTypes = await getRunnerTypes(
+      {
+        owner: repo.owner,
+        repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
+      },
+      metrics,
+    );
     /* istanbul ignore next */
     const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
 
@@ -55,16 +58,37 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
         console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
         continue;
       }
-      if (await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available)) {
+      if (
+        await allRunnersBusy(
+          runnerType.runnerTypeName,
+          repo,
+          runnerType.is_ephemeral,
+          runnerType.max_available,
+          metrics,
+        )
+      ) {
         try {
-          await createRunner({
-            environment: Config.Instance.environment,
-            runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId),
-            orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
-            repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
-            runnerType: runnerType,
-          });
+          await createRunner(
+            {
+              environment: Config.Instance.environment,
+              runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics),
+              orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
+              repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
+              runnerType: runnerType,
+            },
+            metrics,
+          );
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName);
+          } else {
+            metrics.runnersRepoCreate(repo, runnerType.runnerTypeName);
+          }
         } catch (e) {
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnersOrgCreateFail(repo.owner, runnerType.runnerTypeName);
+          } else {
+            metrics.runnersRepoCreateFail(repo, runnerType.runnerTypeName);
+          }
           console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
         }
       } else {
@@ -80,6 +104,7 @@ async function createRunnerConfigArgument(
   runnerType: RunnerType,
   repo: Repo,
   installationId: number | undefined,
+  metrics: Metrics,
 ): Promise<string> {
   const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
   const labelsArgument =
@@ -91,13 +116,13 @@ async function createRunnerConfigArgument(
     /* istanbul ignore next */
     const runnerGroupArgument =
       Config.Instance.runnerGroupName !== undefined ? `--runnergroup ${Config.Instance.runnerGroupName}` : '';
-    const token = await createRegistrationTokenOrg(repo.owner, installationId);
+    const token = await createRegistrationTokenOrg(repo.owner, metrics, installationId);
     return (
       `--url ${Config.Instance.ghesUrlHost}/${repo.owner} ` +
       `--token ${token} --labels ${labelsArgument} ${ephemeralArgument} ${runnerGroupArgument}`
     );
   } else {
-    const token = await createRegistrationTokenRepo(repo, installationId);
+    const token = await createRegistrationTokenRepo(repo, metrics, installationId);
     return (
       `--url ${Config.Instance.ghesUrlHost}/${repo.owner}/${repo.repo} ` +
       `--token ${token} --labels ${labelsArgument} ${ephemeralArgument}`
@@ -105,11 +130,11 @@ async function createRunnerConfigArgument(
   }
 }
 
-async function shouldSkipForRepo(repo: Repo): Promise<boolean> {
+async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
   if (Config.Instance.mustHaveIssuesLabels) {
     for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
       const label = Config.Instance.mustHaveIssuesLabels[i];
-      if ((await getRepoIssuesWithLabel(repo, label)).length == 0) {
+      if ((await getRepoIssuesWithLabel(repo, label, metrics)).length == 0) {
         console.warn(
           `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as a issue with label ` +
             `'${label}' is required to be open but is not present`,
@@ -121,7 +146,7 @@ async function shouldSkipForRepo(repo: Repo): Promise<boolean> {
 
   for (let i = 0; i < Config.Instance.cantHaveIssuesLabels.length; i++) {
     const label = Config.Instance.cantHaveIssuesLabels[i];
-    if ((await getRepoIssuesWithLabel(repo, label)).length > 0) {
+    if ((await getRepoIssuesWithLabel(repo, label, metrics)).length > 0) {
       console.warn(
         `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as a open issue ` +
           `with label '${label}' must not be present`,
@@ -138,10 +163,11 @@ async function allRunnersBusy(
   repo: Repo,
   isEphemeral: boolean,
   maxAvailable: number,
+  metrics: ScaleUpMetrics,
 ): Promise<boolean> {
   const ghRunners = Config.Instance.enableOrganizationRunners
-    ? await listGithubRunnersOrg(repo.owner)
-    : await listGithubRunnersRepo(repo);
+    ? await listGithubRunnersOrg(repo.owner, metrics)
+    : await listGithubRunnersRepo(repo, metrics);
 
   const runnersWithLabel = ghRunners.filter(
     (x) => x.labels.some((y) => y.name === runnerType) && x.status.toLowerCase() !== 'offline',
@@ -152,8 +178,19 @@ async function allRunnersBusy(
       `${runnersWithLabel.length}/${ghRunners.length} are busy`,
   );
 
+  if (Config.Instance.enableOrganizationRunners) {
+    metrics.ghRunnersOrgStats(repo.owner, runnerType, runnersWithLabel.length, runnersWithLabel.length, busyCount);
+  } else {
+    metrics.ghRunnersRepoStats(repo, runnerType, runnersWithLabel.length, runnersWithLabel.length, busyCount);
+  }
+
   // If a runner isn't ephemeral then maxAvailable should be applied
   if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
+    if (Config.Instance.enableOrganizationRunners) {
+      metrics.ghRunnersOrgMaxHit(repo.owner, runnerType);
+    } else {
+      metrics.ghRunnersRepoMaxHit(repo, runnerType);
+    }
     console.info(`Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length}`);
     return false;
   }

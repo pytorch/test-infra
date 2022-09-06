@@ -7,6 +7,7 @@ import { StrategyOptions } from '@octokit/auth-app/dist-types/types';
 import { createAppAuth } from '@octokit/auth-app';
 import { decrypt } from './kms';
 import { request } from '@octokit/request';
+import { Metrics } from './metrics';
 
 export interface GithubCredentials {
   github_app_key_base64: string;
@@ -21,13 +22,22 @@ export function resetSecretCache() {
   secretCache.reset();
 }
 
-async function getCredentialsFromSecretsManager(secretsManagerSecretsId: string): Promise<GithubCredentials> {
+async function getCredentialsFromSecretsManager(
+  secretsManagerSecretsId: string,
+  metrics: Metrics,
+): Promise<GithubCredentials> {
   try {
     let secret = secretCache.get(secretsManagerSecretsId) as GithubCredentials;
 
     if (secret === undefined) {
       const secretsManager = new SecretsManager();
-      const data = await secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
+      const data = await metrics.trackRequest(
+        metrics.smGetSecretValueAWSCallSuccess,
+        metrics.smGetSecretValueAWSCallFailure,
+        () => {
+          return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
+        },
+      );
       if (data.SecretString === undefined) {
         throw Error('Issue grabbing secret');
       }
@@ -42,7 +52,7 @@ async function getCredentialsFromSecretsManager(secretsManagerSecretsId: string)
   }
 }
 
-export async function createOctoClient(token: string, ghesApiUrl = ''): Promise<Octokit> {
+export function createOctoClient(token: string, ghesApiUrl = ''): Octokit {
   const ocktokitOptions: OctokitOptions = {
     auth: token,
   };
@@ -53,9 +63,9 @@ export async function createOctoClient(token: string, ghesApiUrl = ''): Promise<
   return new Octokit(ocktokitOptions);
 }
 
-async function getGithubCredentials(): Promise<GithubCredentials> {
+async function getGithubCredentials(metrics: Metrics): Promise<GithubCredentials> {
   if (Config.Instance.secretsManagerSecretsId !== undefined) {
-    return await getCredentialsFromSecretsManager(Config.Instance.secretsManagerSecretsId);
+    return await getCredentialsFromSecretsManager(Config.Instance.secretsManagerSecretsId, metrics);
   }
   if (
     Config.Instance.githubAppClientSecret === undefined ||
@@ -79,9 +89,10 @@ export async function createGithubAuth(
   installationId: number | undefined,
   authType: 'app' | 'installation',
   ghesApiUrl = '',
+  metrics: Metrics,
 ): Promise<string> {
   try {
-    const githubCreds = await getGithubCredentials();
+    const githubCreds = await getGithubCredentials(metrics);
 
     /* istanbul ignore next */
     const clientSecret = Config.Instance.kmsKeyId
@@ -89,6 +100,7 @@ export async function createGithubAuth(
           githubCreds.github_app_client_secret,
           Config.Instance.kmsKeyId as string,
           Config.Instance.environment,
+          metrics,
         )
       : githubCreds.github_app_client_secret;
 
@@ -98,6 +110,7 @@ export async function createGithubAuth(
           githubCreds.github_app_key_base64,
           Config.Instance.kmsKeyId as string,
           Config.Instance.environment,
+          metrics,
         )
       : githubCreds.github_app_key_base64;
 
@@ -119,7 +132,13 @@ export async function createGithubAuth(
       });
     }
 
-    const auth = await createAppAuth(authOptions)({ type: authType });
+    const auth = await metrics.trackRequest(
+      metrics.createAppAuthGHCallSuccess,
+      metrics.createAppAuthGHCallFailure,
+      () => {
+        return createAppAuth(authOptions)({ type: authType });
+      },
+    );
 
     let tokenDisplayInfo = '';
     if (auth.type !== undefined) tokenDisplayInfo += ` Type: ${auth.type}`;
