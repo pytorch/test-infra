@@ -25,14 +25,14 @@ jobs:
             pre-script: packaging/pre_build_script_wheel.sh
             post-script: packaging/post_build_script_wheel.sh
             conda-package-directory: packaging/torchaudio
-          # - repository: pytorch/vision
-          #   pre-script: ""
-          #   post-script: ""
-          #   conda-package-directory: packaging/torchvision
-          # - repository: pytorch/text
-          #   pre-script: ""
-          #   post-script: ""
-          #   conda-package-directory: packaging/torchtext
+          - repository: pytorch/vision
+            pre-script: ""
+            post-script: ""
+            conda-package-directory: packaging/torchvision
+          - repository: pytorch/text
+            pre-script: ""
+            post-script: ""
+            conda-package-directory: packaging/torchtext
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_linux.yml
     with:
