@@ -67,10 +67,10 @@ def validation_runner(arch_type: str, os: str) -> str:
             return WIN_CPU_RUNNER
     elif os == "macos-arm64":
         return MACOS_M1_RUNNER
-    # elif os == "macos":
-    #     return MACOS_RUNNER
-    elif os == "macos-x86_64":
-        return MACOS_X86_RUNNER
+    elif os == "macos":
+        return MACOS_RUNNER
+    # elif os == "macos-x86_64":
+        # return MACOS_X86_RUNNER
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
