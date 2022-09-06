@@ -982,6 +982,19 @@
       "macos"
     ]
   ],
+  "test_masked_bmm (__main__.TestMatMul)": [
+    "84586",
+    "https://github.com/pytorch/pytorch/issues/84586",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA)": [
     "82299",
     "https://github.com/pytorch/pytorch/issues/82299",
