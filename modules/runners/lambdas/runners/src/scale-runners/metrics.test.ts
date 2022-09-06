@@ -33,7 +33,7 @@ describe('./metrics', () => {
 
     it('sends empty metrics', async () => {
       const m = new ScaleUpMetrics();
-      m.sendMetrics();
+      await m.sendMetrics();
       expect(mockCloudWatch.putMetricData).not.toBeCalled();
     });
 
@@ -44,7 +44,7 @@ describe('./metrics', () => {
       m.runRepo({ owner: 'o', repo: 'r' });
       m.runRepo({ owner: 'o', repo: 'r' });
       m.runRepo({ owner: 'o', repo: 'r' });
-      m.sendMetrics();
+      await m.sendMetrics();
 
       expect(mockCloudWatch.putMetricData).toBeCalledWith({
         MetricData: [
@@ -67,7 +67,7 @@ describe('./metrics', () => {
       m.createAppAuthGHCallSuccess(113);
       m.createAppAuthGHCallSuccess(33);
       m.createAppAuthGHCallFailure(113);
-      m.sendMetrics();
+      await m.sendMetrics();
 
       expect(mockCloudWatch.putMetricData).toBeCalledWith({
         MetricData: [

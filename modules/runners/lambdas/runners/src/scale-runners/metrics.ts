@@ -2,6 +2,11 @@ import { CloudWatch } from 'aws-sdk';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
 
+interface CloudWatchMetricReq {
+  MetricData: Array<CloudWatchMetric>;
+  Namespace: string;
+}
+
 interface CloudWatchMetric {
   Counts: Array<number>;
   MetricName: string;
@@ -82,31 +87,46 @@ export class Metrics {
     }
 
     const timestamp = new Date();
-    const awsMetrics = {
-      MetricData: new Array<CloudWatchMetric>(),
-      Namespace: `${Config.Instance.environment}-${this.lambda}`,
-    };
+    let metricsReqCounts = 25;
+    const awsMetrics = new Array<CloudWatchMetricReq>();
 
     this.metrics.forEach((vals, name) => {
-      const dt: CloudWatchMetric = {
-        Counts: [],
-        MetricName: name,
-        Timestamp: timestamp,
-        Unit: this.getMetricType(name),
-        Values: [],
-      };
+      let metricUnitCounts = 100;
 
       vals.forEach((count, val) => {
-        dt.Counts.push(count);
-        dt.Values.push(val);
+        if (metricsReqCounts >= 25) {
+          metricsReqCounts = 0;
+          metricUnitCounts = 100;
+          awsMetrics.push({
+            MetricData: new Array<CloudWatchMetric>(),
+            Namespace: `${Config.Instance.environment}-${this.lambda}`,
+          });
+        }
+        metricsReqCounts += 1;
+
+        if (metricUnitCounts >= 100) {
+          metricUnitCounts = 0;
+          awsMetrics[awsMetrics.length - 1].MetricData.push({
+            Counts: [],
+            MetricName: name,
+            Timestamp: timestamp,
+            Unit: this.getMetricType(name),
+            Values: [],
+          });
+        }
+        metricUnitCounts += 1;
+
+        const md = awsMetrics[awsMetrics.length - 1].MetricData;
+        md[md.length - 1].Counts.push(count);
+        md[md.length - 1].Values.push(val);
       });
-
-      awsMetrics.MetricData.push(dt);
     });
 
-    await expBackOff(() => {
-      return this.cloudwatch.putMetricData(awsMetrics).promise();
-    });
+    for (const metricsReq of awsMetrics.values()) {
+      await expBackOff(() => {
+        return this.cloudwatch.putMetricData(metricsReq).promise();
+      });
+    }
   }
 
   // GitHub API CALLS
