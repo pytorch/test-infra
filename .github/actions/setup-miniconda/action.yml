@@ -29,7 +29,7 @@ runs:
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ steps.get-date.outputs.today }}
+          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
       - name: Install miniconda onto the machine
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
         shell: bash -l {0}
