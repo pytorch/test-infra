@@ -5,6 +5,7 @@ import {
   EmitterWebhookEventName as WebhookEvents,
 } from "@octokit/webhooks";
 import { getDynamoClient } from "lib/dynamo";
+import { getBigQueryClient } from "lib/bigquery";
 
 function narrowType<E extends WebhookEvents>(
   event: E,
@@ -13,7 +14,9 @@ function narrowType<E extends WebhookEvents>(
   return context.name === event;
 }
 
-async function handleWorkflowJob(
+const BQ_DATASET_ID = "pytorch_oss_ci";
+
+async function handleWorkflowJobOrRun(
   event: WebhookEvent<"workflow_run" | "workflow_job">
 ) {
   // [WebhookEvent typing]: `event` is really a Probot.Context, but if we try to
@@ -31,14 +34,17 @@ async function handleWorkflowJob(
   let key;
   let payload;
   let table;
+  let bqTable;
   if (narrowType("workflow_job", event)) {
     key = `${key_prefix}${event.payload.workflow_job.id}`;
     payload = event.payload.workflow_job;
     table = "torchci-workflow-job";
+    bqTable = "workflow_job";
   } else if (narrowType("workflow_run", event)) {
     key = `${key_prefix}${event.payload.workflow_run.id}`;
     payload = event.payload.workflow_run;
     table = "torchci-workflow-run";
+    bqTable = "workflow_run";
   }
 
   const client = getDynamoClient();
@@ -49,6 +55,16 @@ async function handleWorkflowJob(
       ...payload,
     },
   });
+
+  const bqClient = getBigQueryClient();
+  const res = await bqClient
+    .dataset(BQ_DATASET_ID)
+    .table(bqTable as string)
+    .insert(payload, {
+      // Ignore unknown values, just in case GitHub adds more things to their schema.
+      ignoreUnknownValues: true,
+    });
+  context.log.info(res);
 }
 
 async function handleIssues(event: WebhookEvent<"issues">) {
@@ -64,9 +80,7 @@ async function handleIssues(event: WebhookEvent<"issues">) {
   });
 }
 
-async function handleIssueComment(
-  event: WebhookEvent<"issue_comment">
-) {
+async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
@@ -136,7 +150,7 @@ async function handlePullRequestReviewComment(
 }
 
 export default function webhookToDynamo(app: Probot) {
-  app.on(["workflow_job", "workflow_run"], handleWorkflowJob);
+  app.on(["workflow_job", "workflow_run"], handleWorkflowJobOrRun);
   app.on("issues", handleIssues);
   app.on("issue_comment", handleIssueComment);
   app.on("pull_request", handlePullRequest);
