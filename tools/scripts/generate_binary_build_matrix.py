@@ -169,7 +169,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
     elif os == "windows":
         # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
         arches += list_without(CUDA_ARCHES, ["10.2"])
-    elif os == "macos-arm64":
+    elif os == "macos-arm64" or os == "macos":
         python_versions = list_without(python_versions, ["3.7"])
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
@@ -286,7 +286,7 @@ def generate_wheels_matrix(
     if python_versions is None:
         # Define default python version
         python_versions = list(FULL_PYTHON_VERSIONS)
-        if os == "macos-arm64":
+        if os == "macos-arm64" or os == "macos":
             python_versions = list_without(python_versions, ["3.7"])
 
         if os == "linux":
