@@ -17,13 +17,13 @@
     "number_of_force_pushes_historical": "d335eee3527a9c3c",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
-    "time_to_signal": "670e34fc86adb3ad",
+    "time_to_signal": "0628a40515be1873",
     "strict_lag_historical": "d2a09d13caf8b76a"
   },
   "metrics": {
     "correlation_matrix": "4960260cbb0c5b48",
-    "job_duration_avg": "124f44f27a7d8225",
-    "job_duration_percentile": "9cc2fb692664e05f",
+    "job_duration_avg": "10a88ea2ebb80647",
+    "job_duration_percentile": "96507ed62db7a3a8",
     "last_branch_push": "3d995ac2143586dc",
     "last_successful_jobs": "fd8bc3a2afc989a2",
     "last_successful_workflow": "5d22927dd0b0956b",
@@ -36,14 +36,14 @@
     "queued_jobs_by_label": "52ab0f4570516f6b",
     "queued_jobs": "7b5ef18c1273bab2",
     "reverts": "f5bc84a10c4065a3",
-    "tts_avg": "c0049352a4c38aa5",
-    "tts_duration_historical": "593f718235d55e75",
-    "tts_duration_historical_percentile": "4ccc23b6d3da41e5",
-    "tts_percentile": "a6f994a29726df6b",
+    "tts_avg": "2dd4a04e091c58aa",
+    "tts_percentile": "cc993e55cc1804f0",
+    "tts_duration_historical": "b50886e19e057356",
+    "tts_duration_historical_percentile": "db31fc175359b91c",
     "strict_lag_sec": "f9523e8c8c3a3311",
     "queue_times_historical": "7f4d6599362e70ba",
-    "workflow_duration_avg": "34e698a78cb36669",
-    "workflow_duration_percentile": "703d4a1a2a719a34",
+    "workflow_duration_avg": "b92d60f09ac39069",
+    "workflow_duration_percentile": "a69732c03132613c",
     "workflow_load": "eff394d8e0b76436"
   }
 }

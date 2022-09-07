@@ -20,6 +20,7 @@ FROM (
         	AND workflow.name = :name
         	AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         	AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+            AND workflow.run_attempt = 1
     ) AS tts
 ) AS p
 WHERE
