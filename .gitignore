@@ -32,3 +32,9 @@ aws/lambda/github-webhook-rds-sync/python/*
 aws/lambda/github-webhook-rds-sync/hooks/*
 aws/lambda/rds-proxy/python/*
 aws/lambda/github-status-sync/python/*
+
+
+.vercel
+torchci/api/log/classify/target/
+torchci/api/log/classify/Cargo.lock
+**/*.rs.bk

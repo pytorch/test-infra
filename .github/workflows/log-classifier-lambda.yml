@@ -1,0 +1,37 @@
+name: log-classifier-lambda
+
+on:
+  pull_request:
+    paths:
+      - aws/lambda/log-classifier/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/log-classifier-lambda.yml
+      - aws/lambda/log-classifier/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/log-classifier/
+
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-20.04
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - run: pip3 install cargo-lambda
+      - run: cargo lambda build --release
+      - run: cargo lambda deploy
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
