@@ -4,7 +4,7 @@ description: Clean workspace and check out PyTorch
 
 inputs:
   python-version:
-    description: If set to any value, don't use sudo to clean the workspace
+    description: If set to any value, dont use sudo to clean the workspace
     required: false
     type: string
     default: "3.9"
@@ -100,7 +100,7 @@ runs:
           PYTHON_VERSION: ${{ inputs.python-version }}
           CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
         run: |
-          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}_$(uuidgen)"
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
@@ -108,7 +108,7 @@ runs:
 
           # TODO: conda-build could not be cloned because it hardcodes the path, so it
           # could not be cached
-          conda install -p ${CONDA_ENV} conda-build=3.21
+          conda install --yes -p ${CONDA_ENV} conda-build=3.21
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
