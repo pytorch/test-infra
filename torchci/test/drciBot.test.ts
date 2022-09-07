@@ -62,9 +62,9 @@ describe("verify-drci-functionality", () => {
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
   });
 
-  test("Dr. CI does not comment when user of PR is swang392", async () => {
+  test("Dr. CI does not comment when user of PR is not a rollout user", async () => {
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "not_a_real_user";
+    payload["pull_request"]["user"]["login"] = "not_a_rollout_user";
 
     const mock = jest.spyOn(drciUtils, "formDrciHeader");
     mock.mockImplementation();
