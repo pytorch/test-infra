@@ -4,7 +4,6 @@ import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import { NUM_MINUTES, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
-import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 interface PRandJobs {
     head_sha: string;
@@ -124,10 +123,6 @@ export async function updateCommentWithWorkflow(
     comment: string,
 ): Promise<void> {
     const { pr_number, owner_login } = pr_info;
-    if (!POSSIBLE_USERS.includes(owner_login!)) {
-        console.log("did not make a comment");
-        return;
-    }
     const octokit = await getOctokit(OWNER, REPO);
     const { id, body } = await getDrciComment(
         pr_number!,
