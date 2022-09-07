@@ -33,7 +33,7 @@ runs:
   using: composite
   steps:
       - name: Remove repository directory (if exists)
-        shell: bash
+        shell: bash -l {0}
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
@@ -45,7 +45,7 @@ runs:
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
       - name: Set release CHANNEL
-        shell: bash
+        shell: bash -l {0}
         run: |
           # reference ends with an RC suffix
           if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
@@ -54,7 +54,7 @@ runs:
             echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
           fi
       - name: Set artifact name
-        shell: bash
+        shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
@@ -65,14 +65,16 @@ runs:
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2
         with:
+          miniconda-version: "latest"
           python-version: 3.9
+          activate-environment: test
       - name: Clean conda environment
-        shell: bash
+        shell: bash -l {0}
         run: |
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
-        shell: bash
+        shell: bash -l {0}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
           conda create \
@@ -86,11 +88,18 @@ runs:
           ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
-        shell: bash
+        shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          if [[ "$PYTHON_VERSION" = "3.7" ]]
+          then
+            NUMPY_VERSION="1.21"
+          else
+            NUMPY_VERSION="1.23"
+          fi
+          echo $NUMPY_VERSION
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
@@ -98,7 +107,7 @@ runs:
             cmake=3.22 \
             conda-build=3.21 \
             ninja=1.10 \
-            numpy=1.23 \
+            "numpy=${NUMPY_VERSION}" \
             pkg-config=0.29 \
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
