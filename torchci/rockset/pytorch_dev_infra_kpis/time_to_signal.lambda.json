@@ -12,5 +12,5 @@
       "value": "2022-01-01T00:00:00.000Z"
     }
   ],
-  "description": "Exclude failed workflows from TTS"
+  "description": "TTS for successful workflows"
 }

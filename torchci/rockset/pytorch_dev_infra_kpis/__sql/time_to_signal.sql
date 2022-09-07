@@ -33,7 +33,7 @@ completed_workflows as (
         AND w.repository.full_name = 'pytorch/pytorch'
         and PARSE_TIMESTAMP_ISO8601(w.created_at) > PARSE_TIMESTAMP_ISO8601(:startTime)
         and w.run_attempt = 1 
-  		and w.head_sha in (select sha from successful_commits)
+        and w.head_sha in (select sha from successful_commits)
 ),
 tts_by_sha as (
     select
