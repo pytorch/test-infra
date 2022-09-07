@@ -40,6 +40,7 @@ def test_get_conda_version_variables(gpu_arch_version, pytorch_version, expected
                 "export CONDA_BUILD_VARIANT='cpu'",
                 "export CMAKE_USE_CUDA='0'",
                 "export CONDA_CUDATOOLKIT_CONSTRAINT=''",
+                "export CUDATOOLKIT_CHANNEL=nvidia",
             ],
         ),
         (
@@ -48,6 +49,7 @@ def test_get_conda_version_variables(gpu_arch_version, pytorch_version, expected
                 "export CONDA_BUILD_VARIANT='cpu'",
                 "export CMAKE_USE_CUDA='0'",
                 "export CONDA_CUDATOOLKIT_CONSTRAINT=''",
+                "export CUDATOOLKIT_CHANNEL=nvidia",
             ],
         ),
         (
@@ -56,6 +58,7 @@ def test_get_conda_version_variables(gpu_arch_version, pytorch_version, expected
                 "export CONDA_BUILD_VARIANT='cuda'",
                 "export CMAKE_USE_CUDA='1'",
                 "export CONDA_CUDATOOLKIT_CONSTRAINT='- pytorch-cuda=11.6 # [not osx]'",
+                "export CUDATOOLKIT_CHANNEL=nvidia",
             ],
         ),
         (
@@ -64,6 +67,7 @@ def test_get_conda_version_variables(gpu_arch_version, pytorch_version, expected
                 "export CONDA_BUILD_VARIANT='cuda'",
                 "export CMAKE_USE_CUDA='1'",
                 "export CONDA_CUDATOOLKIT_CONSTRAINT='- cudatoolkit >=11.3,<11.4 # [not osx]'",
+                "export CUDATOOLKIT_CHANNEL=nvidia",
             ],
         ),
     ],
