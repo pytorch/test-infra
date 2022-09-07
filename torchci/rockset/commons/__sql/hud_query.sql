@@ -16,12 +16,9 @@ WITH job AS (
             PARSE_TIMESTAMP_ISO8601(job.completed_at)
         ) as duration_s,
         workflow.repository.full_name as repo,
-        job_annotation.annotation as failure_annotation
     FROM
         workflow_job job
         INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
-        LEFT JOIN "GitHub-Actions".classification ON classification.job_id = job.id HINT(join_strategy = lookup)
-        LEFT JOIN job_annotation ON job_annotation.jobID = job.id HINT(join_strategy = lookup)
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
@@ -57,7 +54,6 @@ WITH job AS (
             PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
         ) as duration_s,
         CONCAT(job.organization.name, '/', job.project.name) as repo,
-        null,
     FROM
         circleci.job job
     WHERE
@@ -69,12 +65,11 @@ classification AS (
     SELECT
         classification.job_id,
         classification.line,
-        classification.context,
         classification.captures,
         classification.line_num,
     FROM
         "GitHub-Actions".classification
-        INNER JOIN job ON classification.job_id = job.id HINT(join_strategy = lookup)
+        INNER JOIN job ON classification.job_id = job.id
 )
 SELECT
     sha,
@@ -90,9 +85,7 @@ SELECT
     repo as repo,
     classification.line as failureLine,
     classification.line_num as failureLineNumber,
-    classification.context as failureContext,
     classification.captures as failureCaptures,
-    failure_annotation as failureAnnotation,
 FROM
     job
     LEFT JOIN classification ON classification.job_id = job.id
