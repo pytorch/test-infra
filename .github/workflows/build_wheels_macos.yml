@@ -84,6 +84,10 @@ jobs:
           else
             ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
+      - name: Build clean
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} python3 setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
