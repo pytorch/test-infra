@@ -73,12 +73,11 @@ classification AS (
     SELECT
         classification.job_id,
         classification.line,
-        classification.context,
         classification.captures,
         classification.line_num,
     FROM
         "GitHub-Actions".classification
-        INNER JOIN job ON classification.job_id = job.id HINT(join_strategy = lookup)
+        INNER JOIN job ON classification.job_id = job.id
 )
 SELECT
     sha,
@@ -97,7 +96,6 @@ SELECT
     duration_s as durationS,
     classification.line as failureLine,
     classification.line_num as failureLineNumber,
-    classification.context as failureContext,
     classification.captures as failureCaptures,
 from
     job

@@ -16,7 +16,6 @@ export interface JobData {
   durationS?: number;
   failureLine?: string;
   failureLineNumber?: number;
-  failureContext?: string;
   failureCaptures?: string;
   repo?: string;
   failureAnnotation?: string;

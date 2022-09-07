@@ -1,5 +1,4 @@
 import CopyLink from "components/CopyLink";
-import JobAnnotationToggle from "components/JobAnnotationToggle";
 import JobConclusion from "components/JobConclusion";
 import JobFilterInput from "components/JobFilterInput";
 import JobLinks from "components/JobLinks";
@@ -115,9 +114,6 @@ function FailedJob({ job }: { job: JobData }) {
         />
         <label htmlFor="setfilterbox">Set filter | </label>
         <JobLinks job={job} />
-      </div>
-      <div>
-        <JobAnnotationToggle job={job} />
       </div>
       <LogViewer job={job} />
     </div>
