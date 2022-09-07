@@ -93,7 +93,8 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} python3 setup.py bdist_wheel
+          python_tag="$(echo "cp$PYTHON_VERSION" | tr -d '.')"
+          ${CONDA_RUN} python3 setup.py bdist_wheel --plat-name win_amd64 --python-tag $python_tag
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
         run: |
