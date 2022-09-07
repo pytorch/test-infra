@@ -29,7 +29,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -79,7 +79,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -123,7 +123,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
     payload["pull_request"]["state"] = "closed";
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
@@ -141,7 +141,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = "torchdynamo";
 
