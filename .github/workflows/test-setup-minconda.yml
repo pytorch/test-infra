@@ -41,9 +41,9 @@ jobs:
         run: |
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
-      - name: Can use ${CONDA_INSTALL}, installs requests
+      - name: Can use ${CONDA_INSTALL}, installs conda packages
         run: |
-          ${CONDA_INSTALL} requests
+          ${CONDA_INSTALL} cffi ninja typing_extensions dataclasses pip
       - name: Can use ${CONDA_BUILD}, outputs correct version
         run: |
           ${CONDA_BUILD} --version
