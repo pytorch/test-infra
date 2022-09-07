@@ -5,10 +5,10 @@ import nock from "nock";
 import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
-import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 const comment_id = 10;
 const comment_node_id = "abcd";
+const some_user = "github_user"
 
 describe("verify-drci-functionality", () => {
   let probot: Probot;
@@ -23,13 +23,13 @@ describe("verify-drci-functionality", () => {
     jest.restoreAllMocks();
   });
 
-  test("Dr. CI comments if user of PR is swang392", async () => {
+  test("Dr. CI comments on any user's PR", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
+    payload["pull_request"]["user"]["login"] = some_user;
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -62,24 +62,13 @@ describe("verify-drci-functionality", () => {
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
   });
 
-  test("Dr. CI does not comment when user of PR is not a rollout user", async () => {
-    const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "not_a_rollout_user";
-
-    const mock = jest.spyOn(drciUtils, "formDrciHeader");
-    mock.mockImplementation();
-
-    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
-    expect(mock).not.toHaveBeenCalled();
-  });
-
   test("Dr. CI edits existing comment if a comment is already present", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
+    payload["pull_request"]["user"]["login"] = some_user;
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -123,7 +112,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
+    payload["pull_request"]["user"]["login"] = some_user;
     payload["pull_request"]["state"] = "closed";
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
@@ -141,7 +130,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = _.sample(POSSIBLE_USERS);
+    payload["pull_request"]["user"]["login"] = some_user;
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = "torchdynamo";
 
