@@ -1,9 +1,11 @@
+import _ from "lodash";
 import { Probot } from "probot";
 import * as utils from "./utils";
 import nock from "nock";
 import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 const comment_id = 10;
 const comment_node_id = "abcd";
@@ -27,7 +29,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "swang392";
+    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -58,15 +60,11 @@ describe("verify-drci-functionality", () => {
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
-
-    if (!nock.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
   });
 
   test("Dr. CI does not comment when user of PR is swang392", async () => {
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "not_swang392";
+    payload["pull_request"]["user"]["login"] = "not_a_real_user";
 
     const mock = jest.spyOn(drciUtils, "formDrciHeader");
     mock.mockImplementation();
@@ -81,7 +79,7 @@ describe("verify-drci-functionality", () => {
       .reply(200, { token: "test" });
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["user"]["login"] = "swang392";
+    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
@@ -117,9 +115,41 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+  });
 
-    if (!nock.isDone()) {
-      console.error("pending mocks: %j", scope.pendingMocks());
-    }
+  test("Dr. CI does not comment when the PR is not open", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = require("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["state"] = "closed";
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = REPO;
+
+    const mock = jest.spyOn(drciUtils, "formDrciHeader");
+    mock.mockImplementation();
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  test("Dr. CI does not comment when the repo is not PyTorch", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = require("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
+    payload["pull_request"]["state"] = "closed";
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = "torchdynamo";
+
+    const mock = jest.spyOn(drciUtils, "formDrciHeader");
+    mock.mockImplementation();
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    expect(mock).not.toHaveBeenCalled();
   });
 });
