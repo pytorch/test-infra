@@ -1,6 +1,5 @@
 import { Context, Probot } from "probot";
 import { DRCI_COMMENT_START, OWNER, REPO, formDrciComment } from "lib/drciUtils";
-import { POSSIBLE_USERS } from "lib/bot/rolloutUtils";
 
 async function getDrciComment(
   context: Context,
@@ -44,11 +43,6 @@ export default function drciBot(app: Probot): void {
       }
 
       context.log(prOwner);
-
-      if (!POSSIBLE_USERS.includes(prOwner)) {
-        context.log("did not make a comment");
-        return;
-      }
 
       const existingDrciData = await getDrciComment(
         context,
