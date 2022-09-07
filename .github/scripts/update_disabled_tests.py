@@ -69,11 +69,6 @@ def validate_and_sort(issues_json: Dict[str, Any]) -> None:
     issues_json["items"].sort(key=lambda x: x["url"])
 
 
-def write_issues_to_file(issues_json: Dict[Any, Any]) -> None:
-    with open("disabled-tests.json", mode="w") as file:
-        json.dump(issues_json, file, sort_keys=True, indent=2)
-
-
 def condense_disable_issues(disable_issues):
     disabled_test_from_issues = dict()
     for item in disable_issues["items"]:
@@ -106,7 +101,6 @@ def condense_disable_issues(disable_issues):
 def main() -> None:
     disable_issues = get_disable_issues()
     validate_and_sort(disable_issues)
-    write_issues_to_file(disable_issues)
     condense_disable_issues(disable_issues)
 
 
