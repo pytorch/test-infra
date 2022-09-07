@@ -100,7 +100,6 @@ runs:
             ninja=1.10 \
             numpy=1.23 \
             pkg-config=0.29 \
-            wheel=0.37 \
-            mkl=2022.1.0
+            wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"

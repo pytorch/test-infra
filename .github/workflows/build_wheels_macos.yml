@@ -92,7 +92,7 @@ jobs:
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
-          source "${BUILD_ENV_FILE}"
+          $(CONDA_RUN) LIBRARY_PATH="${CONDA_ENV}/lib"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
