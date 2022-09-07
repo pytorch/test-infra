@@ -142,7 +142,6 @@ describe("verify-drci-functionality", () => {
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = _.random(POSSIBLE_USERS, 1);
-    payload["pull_request"]["state"] = "closed";
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = "torchdynamo";
 
