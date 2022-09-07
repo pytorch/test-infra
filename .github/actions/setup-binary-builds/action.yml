@@ -37,7 +37,7 @@ runs:
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
-          rm -rfv "${REPOSITORY}"
+          rm -rf "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
@@ -100,6 +100,7 @@ runs:
             ninja=1.10 \
             numpy=1.23 \
             pkg-config=0.29 \
-            wheel=0.37
+            wheel=0.37 \
+            mkl=2022.1.0
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
