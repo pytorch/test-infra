@@ -1,20 +1,7 @@
 import React from "react";
 import { JobData } from "../lib/types";
 import JobLinks from "./JobLinks";
-
-function JobFailureContext({ job }: { job: JobData }) {
-  if (job.failureContext == null) {
-    return null;
-  }
-  return (
-    <details>
-      <summary>
-        <code>{job.failureLine}</code>
-      </summary>
-      <pre>{job.failureContext}</pre>
-    </details>
-  );
-}
+import LogViewer from "./LogViewer";
 
 export default function JobTooltip({ job }: { job: JobData }) {
   // For nonexistent jobs, just show something basic:
@@ -29,7 +16,7 @@ export default function JobTooltip({ job }: { job: JobData }) {
         <em>click to pin this tooltip, double-click for job page</em>
       </div>
       <JobLinks job={job} />
-      <JobFailureContext job={job} />
+      <LogViewer job={job} />
     </div>
   );
 }
