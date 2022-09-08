@@ -1,10 +1,10 @@
 with failed_workflows as (
-	Select
-        DISTINCT(w.head_commit.id)	as sha
+	select
+        distinct(w.head_commit.id)	as sha
     from commons.workflow_run w
     where
         w.conclusion in ('failure', 'startup_failure', 'cancelled')
-        AND w.repository.full_name = 'pytorch/pytorch'
+        and w.repository.full_name = 'pytorch/pytorch'
 ),
 successful_commits as (
   select 
@@ -12,7 +12,7 @@ successful_commits as (
       count(*) as cnt,
       MIN(w.created_at) as created_at
   from 
-      commons.workflow_run w LEFT OUTER JOIN failed_workflows f on w.head_commit.id = f.sha
+      commons.workflow_run w left outer join failed_workflows f on w.head_commit.id = f.sha
   where 
       f.sha is null
       and PARSE_TIMESTAMP_ISO8601(w.created_at) > PARSE_TIMESTAMP_ISO8601(:startTime)
@@ -30,7 +30,7 @@ completed_workflows as (
         commons.workflow_run w
     where
         status = 'completed'
-        AND w.repository.full_name = 'pytorch/pytorch'
+        and w.repository.full_name = 'pytorch/pytorch'
         and PARSE_TIMESTAMP_ISO8601(w.created_at) > PARSE_TIMESTAMP_ISO8601(:startTime)
         and w.run_attempt = 1 
         and w.head_sha in (select sha from successful_commits)
