@@ -8,11 +8,10 @@ SELECT
 FROM
     commons.workflow_job job
     JOIN commons.workflow_run workflow on job.run_id = workflow.id
-    LEFT JOIN "GitHub-Actions".classification on classification.job_id = job.id
 WHERE
 	job.conclusion = 'failure'
-    AND classification.line IS NULL
     AND job._event_time > (CURRENT_TIMESTAMP() - HOURS(24))
+    AND job.torchci_classification IS NULL
 ORDER BY
 	job._event_time ASC
 LIMIT :n

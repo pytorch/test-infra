@@ -1,14 +1,3 @@
-with c as (
-    SELECT
-        *
-    from
-        "GitHub-Actions".classification c
-    where
-        c.captures = :captures
-        AND c._event_time > (CURRENT_TIMESTAMP() - INTERVAL 14 day)
-    ORDER BY
-        c._event_time DESC
-)
 SELECT
     job._event_time as time,
     w.name as workflowName,
@@ -30,17 +19,14 @@ SELECT
         PARSE_TIMESTAMP_ISO8601(job.started_at),
         PARSE_TIMESTAMP_ISO8601(job.completed_at)
     ) as durationS,
-    c.line as failureLine,
-    c.line_num as failureLineNumber,
-    c.context as failureContext,
-    c.captures AS failureCaptures,
+    torchci_classification.line as failureLine,
+    torchci_classification.line_num as failureLineNumber,
+    torchci_classification.captures AS failureCaptures,
 from
     workflow_run w
-    INNER JOIN (
-        workflow_job job
-        INNER JOIN c on job.id = c.job_id
-    ) ON w.id = job.run_id
+    INNER JOIN workflow_job job ON w.id = job.run_id
 where
-    c.captures = :captures
+    torchci_classification.captures = :captures
+    AND job._event_time > (CURRENT_TIMESTAMP() - INTERVAL 14 day)
 ORDER BY
-    c._event_time DESC
+    workflow_job._event_time DESC

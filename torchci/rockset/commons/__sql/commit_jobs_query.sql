@@ -1,7 +1,7 @@
 WITH job as (
     SELECT
         job._event_time as time,
-        workflow.head_commit.id as sha,
+        workflow.head_sha as sha,
         job.name as job_name,
         workflow.name as workflow_name,
         job.id,
@@ -18,15 +18,19 @@ WITH job as (
             PARSE_TIMESTAMP_ISO8601(job.started_at),
             PARSE_TIMESTAMP_ISO8601(job.completed_at)
         ) as duration_s,
+        job.torchci_classification.line,
+        job.torchci_classification.captures,
+        job.torchci_classification.line_num,
     FROM
         workflow_job job
-        INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
+        INNER JOIN workflow_run workflow on workflow.id = job.run_id
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND workflow.head_commit.id = :sha
+        AND workflow.head_sha = :sha
+        AND job.head_sha = :sha
         AND workflow.repository.full_name = :repo
     UNION
         -- Handle CircleCI
@@ -62,22 +66,14 @@ WITH job as (
             PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
         ) as duration_s,
         -- Classifications not yet supported
+        null,
+        null,
+        null,
     FROM
         circleci.job job
     WHERE
         job.pipeline.vcs.revision = :sha
         AND CONCAT(job.organization.name, '/', job.project.name) = :repo
-),
--- Use a subquery for classifications to ensure we can do a lookup join, which greatly improves query performance.
-classification AS (
-    SELECT
-        classification.job_id,
-        classification.line,
-        classification.captures,
-        classification.line_num,
-    FROM
-        "GitHub-Actions".classification
-        INNER JOIN job ON classification.job_id = job.id
 )
 SELECT
     sha,
@@ -94,13 +90,10 @@ SELECT
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,
-    classification.line as failureLine,
-    classification.line_num as failureLineNumber,
-    classification.captures as failureCaptures,
+    line as failureLine,
+    line_num as failureLineNumber,
+    captures as failureCaptures,
 from
     job
-    LEFT JOIN classification ON classification.job_id = job.id
-where
-    job.sha = :sha
 ORDER BY
     name
