@@ -89,6 +89,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
+          CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "pytorch-${CHANNEL}" \
