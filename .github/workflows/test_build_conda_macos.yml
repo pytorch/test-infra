@@ -1,4 +1,4 @@
-name: Test Build M1 Conda
+name: Test Build MacOS Conda
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: conda
-      os: macos-arm64
+      os: macos
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
@@ -44,4 +44,4 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
-      runner-type: macos-m1-12
+      runner-type: macos-12
