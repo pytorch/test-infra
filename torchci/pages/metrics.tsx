@@ -762,7 +762,7 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Change in number of tests from previous commit"}
+            title={"Number of tests run"}
             queryName={"num_tests_run"}
             queryParams={[...timeParams]}
             granularity={"minute"}
