@@ -44,7 +44,7 @@ jobs:
       - name: Can use ${CONDA_INSTALL}, installs conda packages (x86-64)
         if: ${{ matrix.runner-type == 'macos-12' }}
         run: |
-          ${CONDA_INSTALL} mkl=2021.2.0 mkl-include=2021.2.0 numpy=1.18.5 pyyaml=5.3 setuptools=46.0.0 cmake=3.19 cffi ninja typing_extensions dataclasses pip
+          ${CONDA_INSTALL} mkl=2021.2.0 mkl-include=2021.2.0 numpy=1.18.5 pyyaml=5.3 cmake=3.19 cffi ninja typing_extensions dataclasses pip
       - name: Can use ${CONDA_INSTALL}, installs conda packages (arm)
         if: ${{ matrix.runner-type == 'macos-m1-12' }}
         run: |
