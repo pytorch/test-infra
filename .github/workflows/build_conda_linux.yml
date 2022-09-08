@@ -85,37 +85,12 @@ jobs:
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
-        # TODO: We can remove the case statement for handling
-        # CONDA_CUDATOOLKIT_CONSTRAINT once we cut a release for the
-        # pytorch-pkg-helpers library
         run: |
           source "${BUILD_ENV_FILE}"
           CUDATOOLKIT_CHANNEL="nvidia"
-          case "$CU_VERSION" in
-            cu117)
-              export CONDA_CUDATOOLKIT_CONSTRAINT="- pytorch-cuda=11.7 # [not osx]"
-              ;;
-            cu116)
-              export CONDA_CUDATOOLKIT_CONSTRAINT="- pytorch-cuda=11.6 # [not osx]"
-              ;;
-            cu113)
-              export CONDA_CUDATOOLKIT_CONSTRAINT="- cudatoolkit >=11.3,<11.4 # [not osx]"
-              ;;
-            cu102)
-              export CONDA_CUDATOOLKIT_CONSTRAINT="- cudatoolkit >=10.2,<10.3 # [not osx]"
-              ;;
-            cpu)
-              export CONDA_CUDATOOLKIT_CONSTRAINT=""
-              export CONDA_BUILD_VARIANT="cpu"
-              ;;
-            *)
-              echo "Unrecognized CU_VERSION=$CU_VERSION"
-              exit 1
-              ;;
-          esac
           ${CONDA_RUN} conda build \
             -c defaults \
-            -c "$CUDATOOLKIT_CHANNEL" \
+            -c ${{ env.CUDATOOLKIT_CHANNEL }} \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --python "${PYTHON_VERSION}" \
