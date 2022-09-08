@@ -126,7 +126,7 @@ export default function TimeSeriesPanel({
   yAxisRenderer,
   // What label to put on the y axis.
   yAxisLabel,
-  // Maximum value for the y axis
+  // Additional EChartsOption (ex max y value)
   additionalOptions,
 }: {
   title: string;
