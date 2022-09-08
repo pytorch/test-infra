@@ -39,10 +39,6 @@ on:
         description: "Runner environment specified."
         default: ""
         type: string
-      runner-type:
-        description: "Runner environment specified."
-        default: ""
-        type: string
 
 jobs:
   build:
