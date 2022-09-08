@@ -90,7 +90,6 @@ runs:
             "python=${PYTHON_VERSION}" \
             ${ENV_FILE_FLAG} \
             cmake=3.22 \
-            conda-build=3.21 \
             ninja=1.10 \
             pkg-config=0.29 \
             wheel=0.37
