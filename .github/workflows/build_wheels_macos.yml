@@ -92,6 +92,12 @@ jobs:
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
+          if [[ "$(uname)" == Darwin ]]; then
+            arch_name="$(uname -m)"
+            if [ "${arch_name}" != "arm64" ]; then
+              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
+            fi
+          fi
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
