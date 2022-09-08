@@ -759,6 +759,20 @@ export default function Page() {
           percentileParam={percentileParam}
           timeParams={timeParams}
         />
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Change in number of tests from previous commit"}
+            queryName={"num_tests_run"}
+            queryParams={[...timeParams]}
+            granularity={"minute"}
+            groupByFieldName={"workflow_name"}
+            timeFieldName={"push_event_time"}
+            yAxisFieldName={"avg_num_tests"}
+            yAxisRenderer={(value) => value}
+            additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
       </Grid>
     </div>
   );

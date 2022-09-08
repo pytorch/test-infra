@@ -142,7 +142,7 @@ export default function Kpis() {
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
                 // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-                ymax={7}
+                additionalOptions={{ yAxis: { max: 7 } }}
               />
             </Grid>
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -157,7 +157,7 @@ export default function Kpis() {
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
                 // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-                ymax={7}
+                additionalOptions={{ yAxis: { max: 7 } }}
               />
             </Grid>
         </Grid>
