@@ -126,8 +126,8 @@ export default function TimeSeriesPanel({
   yAxisRenderer,
   // What label to put on the y axis.
   yAxisLabel,
-  // Maximum value for the y axis
-  ymax,
+  // Additional EChartsOption (ex max y value)
+  additionalOptions,
 }: {
   title: string;
   queryCollection?: string;
@@ -139,7 +139,7 @@ export default function TimeSeriesPanel({
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
   yAxisLabel?: string;
-  ymax?: number;
+  additionalOptions?: EChartsOption;
 }) {
   // - Granularity
   // - Group by
@@ -180,37 +180,41 @@ export default function TimeSeriesPanel({
   // Add extra padding when the legend is active
   const legend_padding = groupByFieldName !== undefined ? 200 : 48;
   const title_padding = yAxisLabel ? 65 : 48;
-  const options: EChartsOption = {
-    title: { text: title },
-    grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
-    dataset: { source: data },
-    xAxis: { type: "time" },
-    yAxis: {
-      name: yAxisLabel,
-      type: "value",
-      axisLabel: {
-        formatter: yAxisRenderer,
+  const options: EChartsOption = _.merge(
+    {
+      title: { text: title },
+      grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
+      dataset: { source: data },
+      xAxis: { type: "time" },
+      yAxis: {
+        name: yAxisLabel,
+        type: "value",
+        axisLabel: {
+          formatter: yAxisRenderer,
+        },
       },
-      max: ymax,
+      // @ts-ignore
+      series,
+      legend: {
+        orient: "vertical",
+        right: 10,
+        top: "center",
+        type: "scroll",
+      },
+      // @ts-ignore
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) =>
+          `${params.seriesName}` +
+          `<br/>${dayjs(params.value[0])
+            .local()
+            .format("M/D h:mm:ss A")}<br/>` +
+          `${getTooltipMarker(params.color)}` +
+          `<b>${yAxisRenderer(params.value[1])}</b>`,
+      },
     },
-    // @ts-ignore
-    series,
-    legend: {
-      orient: "vertical",
-      right: 10,
-      top: "center",
-      type: "scroll",
-    },
-    // @ts-ignore
-    tooltip: {
-      trigger: "item",
-      formatter: (params: any) =>
-        `${params.seriesName}` +
-        `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
-        `${getTooltipMarker(params.color)}` +
-        `<b>${yAxisRenderer(params.value[1])}</b>`,
-    },
-  };
+    additionalOptions
+  );
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
