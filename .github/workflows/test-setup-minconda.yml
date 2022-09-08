@@ -20,10 +20,10 @@ jobs:
           - "3.8"
           - "3.10"
         exclude:
-          # - runner-type: macos-12
-          #   python-version: "3.8"
           - runner-type: macos-m1-12
             python-version: "3.7"
+          - runner-type: macos-12
+            python-version: "3.8"
     name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
@@ -41,14 +41,9 @@ jobs:
         run: |
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
-      - name: Can use ${CONDA_INSTALL}, installs conda packages (x86-64)
-        if: ${{ matrix.runner-type == 'macos-12' }}
+      - name: Can use ${CONDA_INSTALL}, installs some conda packages
         run: |
-          ${CONDA_INSTALL} mkl=2022.1.0 mkl-include=2022.1.0 numpy=1.22.3 pyyaml=5.3 setuptools=46.0.0 cmake=3.22.1 cffi ninja typing_extensions dataclasses pip
-      - name: Can use ${CONDA_INSTALL}, installs conda packages (arm)
-        if: ${{ matrix.runner-type == 'macos-m1-12' }}
-        run: |
-          ${CONDA_INSTALL} numpy=1.22.3 pyyaml=6.0 setuptools=61.2.0 cmake=3.22.1 cffi ninja typing_extensions dataclasses pip
+          ${CONDA_INSTALL} numpy cmake cffi ninja typing_extensions dataclasses pip
       - name: Can use ${CONDA_BUILD}, outputs correct version
         run: |
           ${CONDA_BUILD} --version
