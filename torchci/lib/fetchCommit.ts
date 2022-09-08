@@ -12,29 +12,30 @@ export default async function fetchCommit(
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
-  const res = await octokit.rest.repos.getCommit({ owner, repo, ref: sha });
-  const commit = commitDataFromResponse(res.data);
-
   const rocksetClient = getRocksetClient();
-  const commitJobsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "commit_jobs_query",
-    rocksetVersions.commons.commit_jobs_query as string,
-    {
-      parameters: [
-        {
-          name: "sha",
-          type: "string",
-          value: sha,
-        },
-        {
-          name: "repo",
-          type: "string",
-          value: `${owner}/${repo}`,
-        },
-      ],
-    }
-  );
+
+  const [githubResponse, commitJobsQuery] = await Promise.all([
+    octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
+    await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "commit_jobs_query",
+      rocksetVersions.commons.commit_jobs_query as string,
+      {
+        parameters: [
+          {
+            name: "sha",
+            type: "string",
+            value: sha,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: `${owner}/${repo}`,
+          },
+        ],
+      }
+    ),
+  ]);
 
   let jobs = commitJobsQuery.results!;
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
@@ -46,7 +47,7 @@ export default async function fetchCommit(
   jobs = _.sortBy(jobs, "name");
 
   return {
-    commit,
+    commit: commitDataFromResponse(githubResponse.data),
     jobs,
   };
 }
