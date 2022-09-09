@@ -85,10 +85,13 @@ jobs:
       - name: Setup base environment variables
         run: |
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
+      - name: Uninstall MKL for TorchAudio x86 build
+        if: ${{ inputs.repository == 'pytorch/audio' && inputs.runner-type == 'macos-12' }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          conda uninstall -p "${CONDA_ENV}" -y mkl
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
-        env:
-          CONDA_EXTRA_BUILD_CONSTRAINT: "- mkl<=2021.2.0"
         run: |
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda build \
