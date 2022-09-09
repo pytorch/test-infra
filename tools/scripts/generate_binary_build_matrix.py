@@ -38,7 +38,6 @@ WIN_GPU_RUNNER="windows-2019-m60"
 WIN_CPU_RUNNER="windows-2019"
 MACOS_M1_RUNNER="macos-m1-12"
 MACOS_RUNNER="macos-12"
-MACOS_X86_RUNNER="macos-12"
 
 PACKAGES_TO_INSTALL_WHL="torch torchvision torchaudio"
 PACKAGES_TO_INSTALL_CONDA="pytorch torchvision torchaudio"
@@ -69,8 +68,6 @@ def validation_runner(arch_type: str, os: str) -> str:
         return MACOS_M1_RUNNER
     elif os == "macos":
         return MACOS_RUNNER
-    # elif os == "macos-x86_64":
-        # return MACOS_X86_RUNNER
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
@@ -190,7 +187,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
                     "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
                     ),
-                    "validation_runner": validation_runner(gpu_arch_type, os), # TODO - where do we use it?
+                    "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
