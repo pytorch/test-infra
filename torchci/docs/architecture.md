@@ -37,14 +37,14 @@ above, because GitHub doesn't generate webhooks for them.
 Notably, this means that **installing the PyTorch Bot app to repos will not
 enable these write paths**. They must be manually wired up.
 
-#### Build artifacts
+### Build artifacts
 Our build jobs create various artifacts that we want to save to persistent
 storage and use later. For example, most of our build jobs produce binary wheel
 distributions of PyTorch that are later downloaded by our test jobs.
 
 These are uploaded to S3 directly by the GitHub workflows in `pytorch/pytorch`.
 
-#### Logs and log classifications
+### Logs and log classifications
 Logs are downloaded by the [`github-status-test`] AWS lambda, which receives
 webhooks through a manual connection with the `pytorch/pytorch` repo.
 `github-status-test` then pings another lambda, [`log-classifier`], which
@@ -57,7 +57,7 @@ webhooks endpoint, and modified so that all repos that `torchci` is installed
 on benefits from log downloads and classifications, but this is not currently
 implemented. Add @suo as a reviewer on a PR if you want to add it!
 
-#### Test statistics
+### Test statistics
 See the [README](https://github.com/pytorch/pytorch/tree/master/tools/stats).
 
 ### CircleCI results
