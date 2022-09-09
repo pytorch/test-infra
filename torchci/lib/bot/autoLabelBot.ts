@@ -65,6 +65,41 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"],
 ];
 
+const notUserFacingPatterns: RegExp[] = [
+  /\.azure_pipelines/g,
+  /\.circleci/g,
+  /\.github/g,
+  /\.jenkins/g,
+  /\.vscode/g,
+  /docker/g,
+  /Dockerfile/g,
+  /Makefile/g,
+  /mypy_plugins/g,
+  /mypy(-strict)?\.ini/g,
+  /scripts/g,
+  /setup\.py/g,
+  /test\//g,
+  /third_party/g,
+  /tools/g,
+  /torchgen/g,
+  /CODEOWNERS/g,
+  /\.bazel(rc|version)/g,
+  /\.buck/g,
+  /\.ctags\.d/g,
+  /\.git/g,
+  /\.clang/g,
+  /\.cmakelintrc/g,
+  /\.coveragerc/g,
+  /\.dockerignore/g,
+  /\.flake8/g,
+  /\.gdbinit/g,
+  /\.isort\.cfg/g,
+  /lintrunner/g,
+  /[a-zA-Z]+.md/gi,
+  /\.(ini|toml|txt)/g,
+  /\.gdbinit/g,
+]
+
 function myBot(app: Probot): void {
   function addLabel(
     labelSet: Set<string>,
@@ -75,6 +110,11 @@ function myBot(app: Probot): void {
       newLabels.push(l);
       labelSet.add(l);
     }
+  }
+
+  function isNotUserFacing(filesChanged: string[]): boolean {
+    return filesChanged.length > 0 &&
+      filesChanged.every(f => notUserFacingPatterns.some(p => f.match(p)));
   }
 
   app.on("issues.labeled", async (context) => {
@@ -140,6 +180,12 @@ function myBot(app: Probot): void {
 
     if (labels.includes("module: deprecation")) {
       topic = "topic: deprecation";
+    }
+
+    // these files do not warrant a real category and mostly not user facing
+    // we want to return this _before_ categorizing
+    if (isNotUserFacing(filesChanged)) {
+      return ["skip", "topic: not user facing"];
     }
 
     // don't re-categorize those with existing labels
