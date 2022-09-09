@@ -98,7 +98,7 @@ jobs:
           if [[ "$(uname)" == Darwin ]]; then
             arch_name="$(uname -m)"
             if [ "${arch_name}" != "arm64" ]; then
-              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2019.0"
+              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2022.0.1"
             fi
           fi
 
