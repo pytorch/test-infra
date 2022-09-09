@@ -1,0 +1,181 @@
+# Rules for matching logs against.
+# The rules are ordered by priority, first rule being the highest priority.
+
+# Guidelines for writing rules:
+# - Use a raw string literal ('single-quote') to avoid having to escape
+#   characters, or a multi-line string literal ('''triple-quote''') if your
+#   string has a single-quote character inside it.
+# - Start with ^ if you can, it makes filtering out non-matching lines faster.
+# - Try to make sure the produced "captures" field is useful:
+#   - It should have enough information to identify the failure.
+#   - It should be groupable; e.g. there should be no random noise in the capture group.
+# - If no capture groups are specified, the "captures" field is the whole match.
+# - Try to match against as much information as possible, so that captures are interesting.
+#     For example, instead of 'error: ', do 'error: .*'
+# - You can use capture groups to filter out line noise, so that we can aggregate on captures.
+#     For example, for the failure 'FAIL [10.2s]: test_foo', 'test_foo' is a
+#     good capture group, as it filters out test timings which might be
+#     variable.
+[[rule]]
+name = 'Operator backwards compatibility'
+pattern = '^The PR is introducing backward incompatible changes to the operator library.'
+
+[[rule]]
+name = 'Lintrunner failure'
+pattern = '^>>> Lint for.*'
+
+[[rule]]
+name = 'GHA timeout'
+pattern = '^##\[error\]The action has timed out.'
+
+[[rule]]
+name = 'GHA cancellation'
+pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
+
+[[rule]]
+name = 'bazel build failure'
+pattern = '^Target //:\w+ failed to build'
+
+[[rule]]
+name = 'gtest failure'
+pattern = '(^\[  FAILED  \].*) \(\d+'
+
+[[rule]]
+name = 'No trailing spaces'
+pattern = '^The above lines have trailing spaces; please remove them'
+
+[[rule]]
+name = '''GitHub workflows weren't regenerated'''
+pattern = '^As shown by the above diff, the committed \.github/workflows'
+
+[[rule]]
+name = 'Docker image push failure'
+pattern = '''^name unknown: The repository with name '.*' does not exist in the registry'''
+
+[[rule]]
+name = 'Windows PyLong API usage check'
+pattern = '^Usage of PyLong_\{From,As\}\{Unsigned\}Long API may lead to overflow errors on Windows'
+
+[[rule]]
+name = 'npm error'
+pattern = '^npm ERR! code .*'
+
+[[rule]]
+name = 'NVIDIA installation failure'
+pattern = '^ERROR: Installation has failed.*?nvidia'
+
+[[rule]]
+name = 'Bazel build failure'
+pattern = '^FAILED: Build did NOT complete successfully'
+
+[[rule]]
+name = 'Python unittest failure'
+pattern = 'FAIL \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'Python unittest error'
+pattern = 'ERROR \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'Python pytest failure'
+pattern = '=== FAILURES ==='
+
+[[rule]]
+name = 'failed to download github artifacts'
+pattern = 'List Artifacts failed:.*'
+
+[[rule]]
+name = 'MSVC out of memory'
+pattern = 'Catastrophic error: .*'
+
+[[rule]]
+name = 'MSVC compiler error'
+pattern = '^.*\(\d+\): error C\d+:.*'
+
+[[rule]]
+name = 'MSVC compiler fatal'
+pattern = '^.*\(\d+\): fatal error C\d+:.*'
+
+[[rule]]
+name = 'Compile error'
+pattern = '^.*\d+:\d+: error: .*'
+
+[[rule]]
+name = 'MSVC mt.exe manifest error'
+pattern = '^mt.exe : general error c101008d: Failed to write the updated manifest to the resource of file'
+
+[[rule]]
+name = 'Curl error'
+pattern = 'curl: .* error:'
+
+[[rule]]
+name = 'Dirty checkout'
+pattern = '^Build left local git repository checkout dirty'
+
+[[rule]]
+name = 'Docker manifest error'
+pattern = '''^ERROR: Something has gone wrong and the previous image isn't available for the merge-base of your branch'''
+
+[[rule]]
+name = 'flake8 error'
+pattern = '^.*:\d+:\d: [EBFW]\d+ .*'
+
+[[rule]]
+name = 'apt-get update failure'
+pattern = '^E: Failed to fetch.*'
+
+[[rule]]
+name = 'Dependency fetch error'
+pattern = '^Error downloading packages:'
+
+[[rule]]
+name = 'ASAN failure'
+pattern = '^ERROR: AddressSanitizer'
+
+[[rule]]
+name = 'undefined reference linker error'
+pattern = 'undefined reference to .*'
+
+[[rule]]
+name = 'Python AttributeError'
+pattern = '^AttributeError: .*'
+
+[[rule]]
+name = 'CUDA out of memory error'
+pattern = '^RuntimeError: CUDA out of memory.'
+
+[[rule]]
+name = 'Python Test File RuntimeError'
+pattern = '^RuntimeError: test.* failed'
+
+[[rule]]
+name = 'Python flaky unittest - failed'
+pattern = '^\s*(test.*) failed - num_retries_left:'
+
+[[rule]]
+name = 'Python flaky unittest - errored'
+pattern = '^\s*(test.*) errored - num_retries_left:'
+
+[[rule]]
+name = 'Python RuntimeError'
+pattern = '^RuntimeError: .*'
+
+[[rule]]
+name = 'Python ModuleNotFoundError'
+pattern = '^ModuleNotFoundError: .*'
+
+[[rule]]
+name = 'Python ImportError'
+pattern = '^ImportError: .*'
+
+[[rule]]
+name = 'Docker login failure'
+pattern = '''Docker login for '.*' failed.*'''
+
+[[rule]]
+name = 'conda failure'
+pattern = 'An unexpected error has occurred. Conda has prepared the above report.'
+
+[[rule]]
+name = 'GHA error'
+pattern = '^##\[error\](.*)'

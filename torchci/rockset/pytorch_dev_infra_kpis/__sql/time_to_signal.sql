@@ -1,4 +1,27 @@
-with completed_workflows as (
+with failed_workflows as (
+	select
+        distinct(w.head_commit.id)	as sha
+    from commons.workflow_run w
+    where
+        w.conclusion in ('failure', 'startup_failure', 'cancelled')
+        and w.repository.full_name = 'pytorch/pytorch'
+),
+successful_commits as (
+  select 
+      w.head_commit.id as sha,
+      count(*) as cnt,
+      MIN(w.created_at) as created_at
+  from 
+      commons.workflow_run w left outer join failed_workflows f on w.head_commit.id = f.sha
+  where 
+      f.sha is null
+      and PARSE_TIMESTAMP_ISO8601(w.created_at) > PARSE_TIMESTAMP_ISO8601(:startTime)
+      AND w.repository.full_name = 'pytorch/pytorch'
+      and w.conclusion = 'success'
+      and w.run_attempt = 1 
+  group by sha
+),
+completed_workflows as (
     select
         w.created_at as created_at,
         w.id,
@@ -7,9 +30,10 @@ with completed_workflows as (
         commons.workflow_run w
     where
         status = 'completed'
-        AND w.repository.full_name = 'pytorch/pytorch'
+        and w.repository.full_name = 'pytorch/pytorch'
         and PARSE_TIMESTAMP_ISO8601(w.created_at) > PARSE_TIMESTAMP_ISO8601(:startTime)
         and w.run_attempt = 1 
+        and w.head_sha in (select sha from successful_commits)
 ),
 tts_by_sha as (
     select
@@ -37,8 +61,8 @@ select
 from
     tts_by_sha
 where
-    job_cnt > 15
+    job_cnt > 35
 group by
     week_bucket
 order by
-    week_bucket asc
+    week_bucket desc
