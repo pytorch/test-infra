@@ -83,7 +83,7 @@ runs:
             "python=3.9"
           CONDA_ENV="${CONDA_ENV}"
           CONDA_RUN="conda run -p ${CONDA_ENV}"
-          ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.0
+          ${CONDA_RUN} python3 -m pip install pytorch-pkg-helpers==0.1.3
           BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
           ${CONDA_RUN} python3 -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
