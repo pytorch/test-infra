@@ -37,7 +37,7 @@ runs:
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
-          rm -rfv "${REPOSITORY}"
+          rm -rf "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
