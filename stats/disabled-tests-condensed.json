@@ -266,11 +266,6 @@
       "linux"
     ]
   ],
-  "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
-    "68433",
-    "https://github.com/pytorch/pytorch/issues/68433",
-    []
-  ],
   "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
     "81028",
     "https://github.com/pytorch/pytorch/issues/81028",
