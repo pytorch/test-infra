@@ -7,8 +7,8 @@ import { useState } from "react";
 const ROW_HEIGHT = 240;
 
 export default function Kpis() {
-    // Start looking at data from 6 weeks in to avoid outlier data from the start of the year
-    const [startTime, setStartTime] = useState(dayjs().startOf("year").add(6, 'week'));
+    // Looking at data from the past 6 months
+    const [startTime, setStartTime] = useState(dayjs().subtract(6, 'month'));
     const [stopTime, setStopTime] = useState(dayjs());
 
     const timeParams: RocksetParam[] = [
@@ -142,7 +142,7 @@ export default function Kpis() {
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
                 // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-                ymax={7}
+                additionalOptions={{ yAxis: { max: 7 } }}
               />
             </Grid>
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -157,7 +157,7 @@ export default function Kpis() {
                 yAxisLabel={"Hours"}
                 yAxisRenderer={(unit) => `${unit}`}
                 // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-                ymax={7}
+                additionalOptions={{ yAxis: { max: 7 } }}
               />
             </Grid>
         </Grid>

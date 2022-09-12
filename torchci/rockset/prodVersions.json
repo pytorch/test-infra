@@ -1,23 +1,23 @@
 {
   "commons": {
-    "hud_query": "5329660e8057caf2",
-    "commit_jobs_query": "90e009e81c0f58de",
+    "hud_query": "f5ebefcdd53b6ff5",
+    "commit_jobs_query": "935a7b9f251dc4aa",
     "flaky_tests": "59d7546183743626",
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "50cb3694334ed63a",
     "test_time_per_file_periodic_jobs": "39c105542e297c09",
     "issue_query": "f29a1afe94563601",
-    "failure_samples_query": "2961636418a148c2",
+    "failure_samples_query": "7be8da412210d424",
     "recent_pr_workflows_query": "4e03cb13e8372050",
     "reverted_prs_with_reason": "f35155a95a233476",
-    "unclassified": "df744380711131d9"
+    "unclassified": "1b31a2d8f4ab7230"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",
     "number_of_force_pushes_historical": "7f57dbe505878a81",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
-    "time_to_signal": "0628a40515be1873",
+    "time_to_signal": "ff332d025976c103",
     "strict_lag_historical": "d2a09d13caf8b76a"
   },
   "metrics": {
@@ -33,6 +33,7 @@
     "master_jobs_red_avg": "e5cc28eb51fc9fe9",
     "master_jobs_red": "aa08fa7af455e1b9",
     "number_of_force_pushes": "7c12c25f00d85d5d",
+    "num_tests_run": "e936cba33f530f8a",
     "queued_jobs_by_label": "52ab0f4570516f6b",
     "queued_jobs": "7b5ef18c1273bab2",
     "reverts": "f5bc84a10c4065a3",
