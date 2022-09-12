@@ -96,10 +96,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "$(uname)" == Darwin ]]; then
-            arch_name="$(uname -m)"
-            if [ "${arch_name}" != "arm64" ]; then
-              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
-            fi
+            export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
           fi
 
           ${CONDA_RUN} conda build \
@@ -112,7 +109,7 @@ jobs:
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
         if: ${{matrix.python_version == 3.10 && matrix.validation_runner == 'macos-12' && failure()}}
-        timeout-minutes: 30
+        timeout-minutes: 60
         with:
           limit-access-to-actor: true
           install-dependencies: true
