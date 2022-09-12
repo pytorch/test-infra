@@ -70,7 +70,7 @@ runs:
       - name: Get disk space usage and throw an error for low disk space
         shell: bash
         run: |
-          echo "Print the avilable disk space for manual inspection"
+          echo "Print the available disk space for manual inspection"
           df -h
 
           MINIMUM_AVAILABLE_SPACE_IN_GB=3
