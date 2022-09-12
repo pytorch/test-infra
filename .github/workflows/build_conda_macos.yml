@@ -111,7 +111,7 @@ jobs:
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
-        if: ${{matrix.python_version == 3.10 and failure()}}
+        if: ${{matrix.python_version == 3.10 && failure()}}
         timeout-minutes: 15
         with:
           limit-access-to-actor: true
