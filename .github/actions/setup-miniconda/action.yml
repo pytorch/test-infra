@@ -38,6 +38,7 @@ runs:
           bash "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH_MACOS}"
           rm -rf "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
           echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
+
       - name: Setup conda environment
         shell: bash
         env:
@@ -65,3 +66,28 @@ runs:
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
           echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+
+      - name: Get disk space usage and throw an error for low disk space
+        shell: bash
+        run: |
+          echo "Print the available disk space for manual inspection"
+          df -h
+
+          MINIMUM_AVAILABLE_SPACE_IN_GB=3
+
+          df -h | tr -s ' ' | cut -d' ' -f 4,9 | while read -r LINE;
+          do
+            AVAIL=$(echo $LINE | cut -f1 -d' ')
+            MOUNT=$(echo $LINE | cut -f2 -d' ')
+
+            if [ "$MOUNT" = "/" ]; then
+              AVAIL_IN_GB=${AVAIL::${#AVAIL}-2}
+
+              if [ "$AVAIL_IN_GB" -lt "$MINIMUM_AVAILABLE_SPACE_IN_GB" ]; then
+                echo "There is only $AVAIL free space left in $MOUNT, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_GB}Gi. Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
+                exit 1;
+              else
+                echo "There is $AVAIL free space left in $MOUNT, continue"
+              fi
+            fi
+          done
