@@ -130,6 +130,7 @@ jobs:
         run: |
           ./test/smoke_test/run_smoke_test.sh
           ./test/smoke_test/run_smoke_test.sh
+          ./test/smoke_test/run_smoke_test.sh
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
