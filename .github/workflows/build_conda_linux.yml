@@ -128,8 +128,7 @@ jobs:
           fi
       - name: Smoke Test
         run: |
-                #source /usr/local/etc/profile.d/conda.sh && conda activate python${PYTHON_VERSION}
-                #conda install 'ffmpeg<5'
+          ./test/smoke_test/run_smoke_test.sh
           ./test/smoke_test/run_smoke_test.sh
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
