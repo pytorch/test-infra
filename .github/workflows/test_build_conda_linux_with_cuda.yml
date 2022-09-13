@@ -39,7 +39,7 @@ jobs:
       ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      build-matrix: {"include": [{"python_version": "3.7", "gpu_arch_type": "cpu", "gpu_arch_version": "", "desired_cuda": "cpu", "container_image": "pytorch/conda-builder:cpu", "package_type": "conda", "build_name": "conda-py3_7-cpu", "validation_runner": "ubuntu-20.04", "channel": "nightly", "installation": "conda install pytorch torchvision torchaudio cpuonly -c pytorch-nightly"}]} # ${{ needs.generate-matrix.outputs.matrix }}
+      build-matrix:  ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
