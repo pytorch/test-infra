@@ -118,6 +118,10 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
+
+export function isPending(conclusion?: string) {
+  return conclusion == undefined || conclusion == JobStatus.Pending;
+}
 export function getConclusionChar(conclusion?: string): string {
   switch (conclusion) {
     case JobStatus.Success:
@@ -142,7 +146,7 @@ export function getConclusionChar(conclusion?: string): string {
 }
 
 export function getConclusionSeverityForSorting(conclusion?: string): number {
-  // Returns a severity level for the conclusion. 
+  // Returns a severity level for the conclusion.
   // Used to sort jobs by severity
   switch (conclusion) {
     case JobStatus.Success:
