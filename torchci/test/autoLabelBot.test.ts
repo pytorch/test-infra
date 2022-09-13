@@ -659,13 +659,7 @@ describe("auto-label-bot", () => {
       .reply(200, prFiles, {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
-      })
-      .post("/repos/zhouzhuojie/gha-ci-playground/pulls/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["topic: not user facing"] });
-        return true;
-      })
-      .reply(200);
-
+      });
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
