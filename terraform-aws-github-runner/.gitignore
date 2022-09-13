@@ -25,3 +25,6 @@ example/*.secrets*.tfvars
 **/coverage/*
 
 /build/
+
+yarn.lock
+node_modules/

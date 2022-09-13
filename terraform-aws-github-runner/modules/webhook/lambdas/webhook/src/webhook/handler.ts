@@ -4,7 +4,7 @@ import { sendActionRequest } from '../sqs';
 import { WorkflowJobEvent } from '@octokit/webhooks-types';
 import { decrypt } from '../kms';
 
-const DEFAULT_PATTERNS = [/windows-.*/, /ubuntu-.*/, /macos-.*/]
+const DEFAULT_PATTERNS = [/windows-.*/, /ubuntu-.*/, /macos-.*/];
 
 export const handle = async (headers: IncomingHttpHeaders, payload: any): Promise<number> => {
   // ensure header keys lower case since github headers can contain capitals.
@@ -55,8 +55,8 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
         return 200;
       }
       if (isDefault(body.workflow_job.labels)) {
-        console.debug('Ignoring default label')
-        return 200
+        console.debug('Ignoring default label');
+        return 200;
       }
       await sendActionRequest({
         id: body.workflow_job.id,
@@ -65,7 +65,7 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
         eventType: githubEvent,
         installationId: installationId,
         runnerLabels: body.workflow_job.labels,
-        callbackUrl: body.workflow_job.html_url
+        callbackUrl: body.workflow_job.html_url,
       });
     }
   } else {
@@ -79,10 +79,10 @@ function isDefault(labels: string[]): boolean {
   for (const label of labels) {
     for (const pattern of DEFAULT_PATTERNS) {
       if (label.match(pattern)) {
-        console.debug(`Matched default label ${label}`)
-        return true
+        console.debug(`Matched default label ${label}`);
+        return true;
       }
     }
   }
-  return false
+  return false;
 }

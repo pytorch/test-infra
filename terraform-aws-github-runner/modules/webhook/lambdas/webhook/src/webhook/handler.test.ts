@@ -29,20 +29,6 @@ describe('handler', () => {
     expect(resp).toBe(500);
   });
 
-  it('returns 401 if signature is invalid', async () => {
-    const resp = await handle({ 'X-Hub-Signature': 'bbb' }, 'aaaa');
-    expect(resp).toBe(401);
-  });
-
-  it('handles check_run events', async () => {
-    const resp = await handle(
-      { 'X-Hub-Signature': 'sha1=4a82d2f60346e16dab3546eb3b56d8dde4d5b659', 'X-GitHub-Event': 'check_run' },
-      JSON.stringify(check_run_event),
-    );
-    expect(resp).toBe(200);
-    expect(sendActionRequest).toBeCalled();
-  });
-
   it('does not handle other events', async () => {
     const resp = await handle(
       { 'X-Hub-Signature': 'sha1=4a82d2f60346e16dab3546eb3b56d8dde4d5b659', 'X-GitHub-Event': 'push' },
