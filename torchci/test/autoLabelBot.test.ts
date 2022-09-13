@@ -661,7 +661,7 @@ describe("auto-label-bot", () => {
         "X-GitHub-Media-Type": "github.v3; format=json",
       })
       .post("/repos/zhouzhuojie/gha-ci-playground/pulls/31/labels", (body) => {
-        expect(body).not.toMatchObject({ labels: ["topic: not user facing"] });
+        expect(body).toMatchObject({ labels: ["topic: not user facing"] });
         return true;
       })
       .reply(200);
