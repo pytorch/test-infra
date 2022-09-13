@@ -85,11 +85,6 @@ jobs:
       - name: Setup base environment variables
         run: |
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
-      # - name: Uninstall MKL for TorchAudio x86 build
-      #   if: ${{ inputs.repository == 'pytorch/audio' && inputs.runner-type == 'macos-12' }}
-      #   run: |
-      #     source "${BUILD_ENV_FILE}"
-      #     conda uninstall -p "${CONDA_ENV}" -y mkl
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         run: |
@@ -98,9 +93,6 @@ jobs:
           if [[ "$(uname)" == Darwin ]]; then
             export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
           fi
-
-# ${CONDA_RUN} conda build -c defaults -c "pytorch-${CHANNEL}" --no-anaconda-upload --python "${PYTHON_VERSION}" --output-folder dist/ "${CONDA_PACKAGE_DIRECTORY}"
-# -c conda-forge
 
           ${CONDA_RUN} conda build \
             -c defaults \
