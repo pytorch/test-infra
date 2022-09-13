@@ -6,7 +6,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/lambda-runners.yml
-      - "modules/runners/lambdas/runners/**"
+      - "terraform-aws-github-runner/modules/runners/lambdas/runners/**"
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     container: node:12
     defaults:
       run:
-        working-directory: modules/runners/lambdas/runners
+        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
 
     steps:
       - uses: actions/checkout@v2

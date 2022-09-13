@@ -6,7 +6,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/lambda-webhook.yml
-      - "modules/webhook/lambdas/webhook/**"
+      - "terraform-aws-github-runner/modules/webhook/lambdas/webhook/**"
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     container: node:12
     defaults:
       run:
-        working-directory: modules/webhook/lambdas/webhook
+        working-directory: terraform-aws-github-runner/modules/webhook/lambdas/webhook
 
     steps:
       - uses: actions/checkout@v2
