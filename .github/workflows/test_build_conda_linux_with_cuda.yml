@@ -32,7 +32,7 @@ jobs:
             post-script: ""
             conda-package-directory: packaging/torchvision
     name: ${{ matrix.repository }}
-    uses: ./.github/workflows/build_conda_linux.yml@weiwangmeta/torchaudio_conda_binary_smoke_test
+    uses: ./.github/workflows/build_conda_linux.yml
     with:
       conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
