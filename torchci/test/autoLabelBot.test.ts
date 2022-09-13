@@ -660,7 +660,7 @@ describe("auto-label-bot", () => {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
       })
-      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+      .post("/repos/zhouzhuojie/gha-ci-playground/pulls/31/labels", (body) => {
         expect(body).not.toMatchObject({ labels: ["topic: not user facing"] });
         return true;
       })
