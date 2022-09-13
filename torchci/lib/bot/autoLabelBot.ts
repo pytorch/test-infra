@@ -100,6 +100,10 @@ const notUserFacingPatterns: RegExp[] = [
   /\.gdbinit/g,
 ]
 
+const notUserFacingPatternExceptions: RegExp[] = [
+  /tools\/autograd/g,
+]
+
 function myBot(app: Probot): void {
   function addLabel(
     labelSet: Set<string>,
@@ -114,7 +118,8 @@ function myBot(app: Probot): void {
 
   function isNotUserFacing(filesChanged: string[]): boolean {
     return filesChanged.length > 0 &&
-      filesChanged.every(f => notUserFacingPatterns.some(p => f.match(p)));
+      filesChanged.every(f => (notUserFacingPatterns.some(p => f.match(p)) &&
+                               !notUserFacingPatternExceptions.some(p => f.match(p))));
   }
 
   app.on("issues.labeled", async (context) => {
