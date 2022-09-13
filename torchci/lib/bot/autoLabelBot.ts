@@ -104,6 +104,32 @@ const notUserFacingPatternExceptions: RegExp[] = [
   /tools\/autograd/g,
 ]
 
+// For in the specified repo, if any file path matches the given regex we will apply the label
+// corresponding to that file to the PR
+//
+// Format: "owner/repo": [
+//  [/regex-for-path1/, "label-to-apply"],
+//  [/regex-for-path2/, "label-to-apply"],
+// ]
+const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
+  // Sample entry below
+  // "pytorch/pytorch": [
+  //    [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"]
+  // ],
+  "pytorch/fake-test-repo": [
+    [/somefolder/gi, "cool-label"]
+  ]
+}
+
+function getRepoSpecificLabels(owner: string, repo: string): [RegExp, string][] {
+  var repoKey = owner + "/" + repo;
+  if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
+    return []
+  }
+
+  return repoSpecificAutoLabels[repoKey]
+}
+
 function myBot(app: Probot): void {
   function addLabel(
     labelSet: Set<string>,
@@ -292,6 +318,18 @@ function myBot(app: Probot): void {
       }
       if (topic !== "untopiced" && topic !== "skip") {
         labelsToAdd.push(topic);
+      }
+    }
+
+    // Add a repo specific labels (if any)
+    var repoSpecificLables = getRepoSpecificLabels(owner, repo)
+
+    for (const file of filesChanged) {
+      // check for typical matches
+      for (const [regex, label] of repoSpecificLables) {
+        if (file.match(regex)) {
+          labelsToAdd.push(label)
+        }
       }
     }
 
