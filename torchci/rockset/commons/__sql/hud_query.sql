@@ -1,6 +1,6 @@
 WITH job AS (
     SELECT
-        workflow.head_commit.id as sha,
+        job.head_sha as sha,
         job.name as job_name,
         workflow.name as workflow_name,
         job.id,
@@ -16,15 +16,19 @@ WITH job AS (
             PARSE_TIMESTAMP_ISO8601(job.completed_at)
         ) as duration_s,
         workflow.repository.full_name as repo,
+        job.torchci_classification.line,
+        job.torchci_classification.captures,
+        job.torchci_classification.line_num,
     FROM
         workflow_job job
-        INNER JOIN workflow_run workflow on workflow.id = job.run_id HINT(join_strategy = lookup)
+        INNER JOIN workflow_run workflow on workflow.id = job.run_id
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_commit.id)
+        AND ARRAY_CONTAINS(SPLIT(:shas, ','), job.head_sha)
+        AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_sha)
         AND workflow.repository.full_name = :repo
     UNION
         -- Handle CircleCI
@@ -54,22 +58,14 @@ WITH job AS (
             PARSE_TIMESTAMP_ISO8601(job.job.stopped_at)
         ) as duration_s,
         CONCAT(job.organization.name, '/', job.project.name) as repo,
+        null,
+        null,
+        null,
     FROM
         circleci.job job
     WHERE
         ARRAY_CONTAINS(SPLIT(:shas, ','), job.pipeline.vcs.revision)
         AND CONCAT(job.organization.name, '/', job.project.name) = :repo
-),
--- Use a subquery for classifications to ensure we can do a lookup join, which greatly improves query performance.
-classification AS (
-    SELECT
-        classification.job_id,
-        classification.line,
-        classification.captures,
-        classification.line_num,
-    FROM
-        "GitHub-Actions".classification
-        INNER JOIN job ON classification.job_id = job.id
 )
 SELECT
     sha,
@@ -83,9 +79,8 @@ SELECT
     log_url as logUrl,
     duration_s as durationS,
     repo as repo,
-    classification.line as failureLine,
-    classification.line_num as failureLineNumber,
-    classification.captures as failureCaptures,
+    line as failureLine,
+    line_num as failureLineNumber,
+    captures as failureCaptures,
 FROM
     job
-    LEFT JOIN classification ON classification.job_id = job.id

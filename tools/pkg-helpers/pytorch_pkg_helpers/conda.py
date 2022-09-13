@@ -62,6 +62,7 @@ def get_conda_cuda_variables(platform: str, gpu_arch_version: str) -> List[str]:
         f"export CONDA_BUILD_VARIANT='{conda_build_variant}'",
         f"export CMAKE_USE_CUDA='{cmake_use_cuda}'",
         f"export CONDA_CUDATOOLKIT_CONSTRAINT='{conda_cuda_toolkit_constraint}'",
+        f"export CUDATOOLKIT_CHANNEL=nvidia",
     ]
 
 

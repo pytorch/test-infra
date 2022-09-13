@@ -567,4 +567,74 @@ describe("auto-label-bot", () => {
 
     scope.done();
   });
+
+  test("topic: not user facing is added for unusing facing files", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["title"] = "Not user facing!";
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [
+      {"filename": ".github/scripts/update_commit_hashes.py"},
+      {"filename": "CODEOWNERS"},
+      {"filename": "something/Makefile"},
+      {"filename": "test/test_jit.py"},
+      {"filename": "third_party/eigen"},
+      {"filename": "blah.ini"},
+      {"filename": "blah.txt"},
+      {"filename": "blah.md"},
+      {"filename": "blah.MD"},
+    ];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["topic: not user facing"] });
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("topic: not user facing is NOT added if there's an interesting file", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["title"] = "Linalg plus other irrelevant stuff";
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [
+      {"filename": "torch/linalg/a.cu"},
+      {"filename": "blah.ini"},
+      {"filename": "blah.txt"},
+      {"filename": "blah.md"},
+      {"filename": "blah.MD"},
+    ];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["release notes: linalg_frontend"] });
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
 });
