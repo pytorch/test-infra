@@ -1368,9 +1368,11 @@
     []
   ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
-    "70516",
-    "https://github.com/pytorch/pytorch/issues/70516",
-    []
+    "84937",
+    "https://github.com/pytorch/pytorch/issues/84937",
+    [
+      "asan"
+    ]
   ],
   "test_readall (test_zipfile.ZipfileTest)": [
     "75406",
