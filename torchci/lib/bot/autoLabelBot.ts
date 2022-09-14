@@ -114,11 +114,10 @@ const notUserFacingPatternExceptions: RegExp[] = [
 //  [/regex-for-path2/, "label-to-apply"],
 // ]
 const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
-  // Sample entry below
   "pytorch/pytorch": [
-      [/aten\/src\/ATen\/mps/gi, , "ciflow/mps"],
-      [/aten\/src\/ATen\/native\/mps/gi, , "ciflow/mps"],
-      [/test\/test_mps.py/gi, , "ciflow/mps"],
+      [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
+      [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
+      [/test\/test_mps.py/gi, "ciflow/mps"],
   ],
   "pytorch/fake-test-repo": [
     [/somefolder/gi, "cool-label"]
