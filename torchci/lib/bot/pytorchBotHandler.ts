@@ -1,4 +1,3 @@
-import { stringify } from "querystring";
 import _ from "lodash";
 import shlex from "shlex";
 import { addLabels, reactOnComment } from "./botUtils";
