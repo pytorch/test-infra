@@ -127,10 +127,19 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Smoke Test
+        working-directory: ${{ inputs.repository }}
         run: |
-          ./test/smoke_test/run_smoke_test.sh
-          ./test/smoke_test/run_smoke_test.sh
-          ./test/smoke_test/run_smoke_test.sh
+          pwd
+          #./test/smoke_test/run_smoke_test.sh
+          . ~/miniconda3/etc/profile.d/conda.sh
+          set -ex
+          conda create -yp test-luck python=3.10 numpy
+          conda run -p test-luck python3 -mpip install torch --pre --extra-index-url=https://download.pytorch.org/whl/${CHANNEL}
+          conda run -p test-luck python3 -mpip install dist/*.whl
+          # Test torch is importable, by changing cwd and running import commands
+          conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
+          conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
+          conda env remove -p test-luck
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
