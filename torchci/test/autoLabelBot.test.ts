@@ -329,7 +329,7 @@ describe("auto-label-bot", () => {
     payload["repository"]["owner"]["login"] = "pytorch";
     payload["repository"]["name"] = "fake-test-repo";
     const prFiles = requireDeepCopy("./fixtures/pull_files");
-    prFiles["items"] = [{"filename": "somefolder/a.py"}, {"filename": "otherfolder/b.py"}]
+    prFiles["items"] = [{"filename": "somefolder/a.py"}, {"filename": "otherfolder/b.py"}];
 
     const scope = nock("https://api.github.com")
       .get("/repos/pytorch/fake-test-repo/pulls/31/files?per_page=100")
