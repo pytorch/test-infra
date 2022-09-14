@@ -324,7 +324,7 @@ describe("auto-label-bot", () => {
       .reply(200, { token: "test" });
 
     const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
-    payload["pull_request"]["title"] = "modify a pytorch/tau file";
+    payload["pull_request"]["title"] = "modify a pytorch/fake-test-repo file";
     payload["pull_request"]["labels"] = [];
     payload["repository"]["owner"]["login"] = "pytorch";
     payload["repository"]["name"] = "fake-test-repo";

@@ -124,10 +124,10 @@ const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
 function getRepoSpecificLabels(owner: string, repo: string): [RegExp, string][] {
   var repoKey = owner + "/" + repo;
   if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
-    return []
+    return [];
   }
 
-  return repoSpecificAutoLabels[repoKey]
+  return repoSpecificAutoLabels[repoKey];
 }
 
 function myBot(app: Probot): void {
@@ -322,13 +322,13 @@ function myBot(app: Probot): void {
     }
 
     // Add a repo specific labels (if any)
-    var repoSpecificLables = getRepoSpecificLabels(owner, repo)
+    var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
 
     for (const file of filesChanged) {
       // check for typical matches
-      for (const [regex, label] of repoSpecificLables) {
+      for (const [regex, label] of repoSpecificLabels) {
         if (file.match(regex)) {
-          labelsToAdd.push(label)
+          labelsToAdd.push(label);
         }
       }
     }
