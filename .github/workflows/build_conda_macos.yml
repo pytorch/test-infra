@@ -102,12 +102,10 @@ jobs:
             fi
           fi
 
-          echo "$(uname)"
-          echo "${arch_name}"
-
           ${CONDA_RUN} conda build \
             -c defaults \
             $CONDA_CHANNEL_FLAGS \
+            -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --python "${PYTHON_VERSION}" \
             --output-folder dist/ \
