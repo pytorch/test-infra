@@ -37,6 +37,8 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   // mobile
   [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
   [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],
+  [/aten\/src\/ATen\/native\/mps/gi, "release notes: mps"],
+  [/aten\/src\/ATen\/mps/gi, "release notes: mps"],
   [/test\/mobile/gi, "release notes: mobile"],
   [/torch\/backends\/_nnapi\//gi, "release notes: mobile"],
   [/test\/test_nnapi.py/gi, "release notes: mobile"],
@@ -112,10 +114,11 @@ const notUserFacingPatternExceptions: RegExp[] = [
 //  [/regex-for-path2/, "label-to-apply"],
 // ]
 const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
-  // Sample entry below
-  // "pytorch/pytorch": [
-  //    [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"]
-  // ],
+  "pytorch/pytorch": [
+      [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
+      [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
+      [/test\/test_mps.py/gi, "ciflow/mps"],
+  ],
   "pytorch/fake-test-repo": [
     [/somefolder/gi, "cool-label"]
   ]
