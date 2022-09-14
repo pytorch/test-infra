@@ -103,3 +103,15 @@ runner_types:
     is_ephemeral: false
     max_available: 150
     os: windows
+  windows.4xlarge.canary:
+    disk_size: 256
+    instance_type: c5d.4xlarge
+    is_ephemeral: false
+    max_available: 420
+    os: windows
+  windows.8xlarge.nvidia.gpu.canary:
+    disk_size: 256
+    instance_type: p3.2xlarge
+    is_ephemeral: false
+    max_available: 150
+    os: windows
