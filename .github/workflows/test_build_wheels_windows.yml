@@ -3,6 +3,7 @@ name: Test Build Windows Wheels
 on:
   pull_request:
     paths:
+      - .github/actions/setup-binary-builds/action.yml
       - .github/workflows/test_build_wheels_windows.yml
       - .github/workflows/build_wheels_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
