@@ -59,9 +59,9 @@ mergeOption.add_argument("-l", "--land-checks", {
 });
 mergeOption.add_argument("-r", "--rebase", {
   help: "Rebase the PR to re run checks before merging.  It will accept a branch name and " +
-  "will default to master if not specifiedd.",
-  const: "master",
-  nargs: "?"
+  "will default to master if not specified.",
+  nargs: "?",
+  const: true
 });
 
 // Revert

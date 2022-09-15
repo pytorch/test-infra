@@ -911,6 +911,8 @@ some other text lol
         }
       )
       .reply(200, {})
+      .get(`/repos/${owner}/${repo}`)
+      .reply(200, { default_branch: "master" })
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
           `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"master"}}`

@@ -143,13 +143,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     mergeOnGreen: boolean,
     landChecks: boolean,
     landChecksEnrolled: boolean,
-    rebase: string
+    rebase: string | boolean
   ) {
     const extra_data = {
       forceMessage,
       mergeOnGreen,
       landChecks,
       landChecksEnrolled,
+      rebase,
     };
     const forceRequested = forceMessage != undefined;
     let rejection_reason = null;
@@ -159,6 +160,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     if (!rejection_reason) {
+      if (rebase === true) {
+        const { ctx, owner, repo } = this;
+        rebase = (
+          await ctx.octokit.rest.repos.get({
+            owner,
+            repo,
+          })
+        )?.data?.default_branch;
+      }
       await this.logger.log("merge", extra_data);
       await this.dispatchEvent("try-merge", {
         force: forceRequested,
