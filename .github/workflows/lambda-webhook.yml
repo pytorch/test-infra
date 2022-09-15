@@ -2,7 +2,7 @@ name: Lambda Webhook
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
     paths:
       - .github/workflows/lambda-webhook.yml
@@ -22,6 +22,8 @@ jobs:
         run: yarn install
       - name: Run linter
         run: yarn lint
+      - name: Format Check
+        run: yarn format-check
       - name: Run tests
         run: yarn test
       - name: Build distribution

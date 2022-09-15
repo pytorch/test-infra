@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.2"
+  required_providers {
+    null = "~> 3.1"
+  }
+}
+
 resource "null_resource" "download" {
   count = length(var.lambdas)
 

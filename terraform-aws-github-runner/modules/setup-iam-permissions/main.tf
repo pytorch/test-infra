@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.2"
+  required_providers {
+    aws = "~> 4.3"
+  }
+}
+
 data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "deploy" {
