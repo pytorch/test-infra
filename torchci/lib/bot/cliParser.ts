@@ -58,8 +58,10 @@ mergeOption.add_argument("-l", "--land-checks", {
     "that periodic is excluded. (EXPERIMENTAL)",
 });
 mergeOption.add_argument("-r", "--rebase", {
-  action: "store_true",
-  help: "Rebase the PR to re run checks before merging"
+  help: "Rebase the PR to re run checks before merging.  It will accept a branch name and " +
+  "will default to master if not specifiedd.",
+  const: "master",
+  nargs: "?"
 });
 
 // Revert

@@ -143,7 +143,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     mergeOnGreen: boolean,
     landChecks: boolean,
     landChecksEnrolled: boolean,
-    rebase: boolean
+    rebase: string
   ) {
     const extra_data = {
       forceMessage,
