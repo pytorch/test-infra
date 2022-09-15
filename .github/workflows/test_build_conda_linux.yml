@@ -6,6 +6,7 @@ on:
       - .github/workflows/test_build_conda_linux.yml
       - .github/workflows/build_conda_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
+  workflow_dispatch:
 
 jobs:
   generate-matrix:
