@@ -132,8 +132,8 @@ jobs:
           #./test/smoke_test/run_smoke_test.sh
           set -ex
           conda create -yp test-luck python=3.10 numpy
-          conda run -p test-luck python3 -mpip install torch --pre --extra-index-url=https://download.pytorch.org/whl/nightly
-          conda run -p test-luck python3 -mpip install dist/linux-64/*.whl
+          conda run -p test-luck python3 -m pip install torch --pre --extra-index-url=https://download.pytorch.org/whl/nightly
+          conda run -p test-luck conda install -v -y -c file://{$PWD}/dist torchaudio
           # Test torch is importable, by changing cwd and running import commands
           conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
           conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
