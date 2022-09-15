@@ -123,8 +123,9 @@ jobs:
           source "${BUILD_ENV_FILE}"
           "${CONDA_RUN}" conda install -yq anaconda-client
           set -x
-          export ANACONDA_PATH=$("${CONDA_RUN}" conda info --base)/bin
-          $ANACONDA_PATH/anaconda  -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ANACONDA_PATH=$("${CONDA_RUN}" conda info --base)/bin
+          export ANACONDA_PATH
+          "$ANACONDA_PATH/anaconda"  -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
