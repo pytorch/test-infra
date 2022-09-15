@@ -22,7 +22,7 @@ ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
     "nightly": ["10.2", "11.6", "11.7"],
     "test": ["10.2", "11.6"],
-    "release": ["10.2", "11.6"]
+    "release": ["10.2", "11.3", "11.6"]
 }
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
