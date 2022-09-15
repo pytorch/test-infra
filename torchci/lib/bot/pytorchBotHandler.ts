@@ -1,4 +1,4 @@
-import { stringify } from "querystring";
+import _ from "lodash";
 import shlex from "shlex";
 import { addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
@@ -54,35 +54,18 @@ class PytorchBotHandler {
     }
   }
 
-  async dispatchEvent(
-    event_type: string,
-    force: boolean = false,
-    onGreen: boolean = false,
-    landChecks: boolean = false,
-    reason: string = "",
-    branch: string = ""
-  ) {
+  async dispatchEvent(event_type: string, payload: any) {
     const { owner, repo, url, ctx, prNum, commentId } = this;
-    let payload: any = {
+
+    let filtered_payload = _.pickBy(payload, function (val) {
+      return val !== "" && val !== false;
+    });
+
+    let client_payload = {
       pr_num: prNum,
       comment_id: commentId,
+      ...filtered_payload,
     };
-
-    if (force) {
-      payload.force = true;
-    } else if (onGreen) {
-      payload.on_green = true;
-    } else if (landChecks) {
-      payload.land_checks = true;
-    }
-
-    if (reason.length > 0) {
-      payload.reason = reason;
-    }
-
-    if (branch.length > 0) {
-      payload.branch = branch;
-    }
 
     ctx.log(
       `Creating dispatch event of type "${event_type}" for comment ${url}`
@@ -91,7 +74,7 @@ class PytorchBotHandler {
       owner: owner,
       repo: repo,
       event_type: event_type,
-      client_payload: payload,
+      client_payload: client_payload,
     });
   }
 
@@ -159,13 +142,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     forceMessage: string,
     mergeOnGreen: boolean,
     landChecks: boolean,
-    landChecksEnrolled: boolean
+    landChecksEnrolled: boolean,
+    rebase: string | boolean
   ) {
     const extra_data = {
       forceMessage,
       mergeOnGreen,
       landChecks,
       landChecksEnrolled,
+      rebase,
     };
     const forceRequested = forceMessage != undefined;
     let rejection_reason = null;
@@ -175,13 +160,22 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     if (!rejection_reason) {
+      if (rebase === true) {
+        const { ctx, owner, repo } = this;
+        rebase = (
+          await ctx.octokit.rest.repos.get({
+            owner,
+            repo,
+          })
+        )?.data?.default_branch;
+      }
       await this.logger.log("merge", extra_data);
-      await this.dispatchEvent(
-        "try-merge",
-        forceRequested,
-        mergeOnGreen,
-        landChecks || landChecksEnrolled
-      );
+      await this.dispatchEvent("try-merge", {
+        force: forceRequested,
+        on_green: mergeOnGreen,
+        land_checks: landChecks || landChecksEnrolled,
+        rebase: rebase,
+      });
       await this.ackComment();
     } else {
       await this.logger.log("merge-error", extra_data);
@@ -191,7 +185,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async handleRevert(reason: string) {
     await this.logger.log("revert", { reason });
-    await this.dispatchEvent("try-revert", false, false, false, reason);
+    await this.dispatchEvent("try-revert", { reason: reason });
     await this.ackComment();
   }
 
@@ -216,7 +210,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
       (await comment_author_in_pytorch_org())
     ) {
-      await this.dispatchEvent("try-rebase", false, false, false, "", branch);
+      await this.dispatchEvent("try-rebase", { branch: branch });
       await this.ackComment();
     } else {
       await this.addComment(
@@ -319,7 +313,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           args.force,
           args.green,
           args.land_checks,
-          this.login != null && isInLandCheckAllowlist(this.login)
+          this.login != null && isInLandCheckAllowlist(this.login),
+          args.rebase
         );
       case "rebase": {
         if (args.stable) {
