@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.2"
+  required_providers {
+    aws = "~> 4.3"
+  }
+}
+
 locals {
   webhook_endpoint = "webhook"
   role_path        = var.role_path == null ? "/${var.environment}/" : var.role_path

@@ -1,3 +1,10 @@
+terraform {
+  required_version = ">= 1.2"
+  required_providers {
+    aws = "~> 4.3"
+  }
+}
+
 locals {
   action_runner_distribution_object_key_linux   = "actions-runner-linux-x64.tar.gz"
   action_runner_distribution_object_key_windows = "actions-runner-windows-x64.zip"

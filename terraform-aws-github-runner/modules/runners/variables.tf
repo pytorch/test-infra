@@ -56,12 +56,6 @@ variable "block_device_mappings" {
   default     = {}
 }
 
-variable "market_options" {
-  description = "Market options for the action runner instances."
-  type        = string
-  default     = "spot"
-}
-
 variable "instance_type" {
   description = "Default instance type for the action runner."
   type        = string
@@ -143,18 +137,6 @@ variable "minimum_running_time_in_minutes" {
   default     = 5
 }
 
-variable "runner_extra_labels" {
-  description = "Extra labels for the runners (GitHub). Separate each label by a comma"
-  type        = string
-  default     = ""
-}
-
-variable "runner_group_name" {
-  description = "Name of the runner group."
-  type        = string
-  default     = "Default"
-}
-
 variable "lambda_zip" {
   description = "File location of the lambda zip file."
   type        = string
@@ -197,12 +179,6 @@ variable "runner_as_root" {
   default     = false
 }
 
-variable "runners_maximum_count" {
-  description = "The maximum number of runners that will be created."
-  type        = number
-  default     = 3
-}
-
 variable "encryption" {
   description = "KMS key to encrypted lambda environment secrets. Either provide a key and `encrypt` set to `true`. Or set the key to `null` and encrypt to `false`."
   type = object({
@@ -240,16 +216,19 @@ variable "enable_ssm_on_runners" {
 
 variable "lambda_s3_bucket" {
   description = "S3 bucket from which to specify lambda functions. This is an alternative to providing local files directly."
+  type        = string
   default     = null
 }
 
 variable "runners_lambda_s3_key" {
   description = "S3 key for runners lambda function. Required if using S3 bucket to specify lambdas."
+  type        = string
   default     = null
 }
 
 variable "runners_lambda_s3_object_version" {
   description = "S3 object version for runners lambda function. Useful if S3 versioning is enabled on source bucket."
+  type        = string
   default     = null
 }
 
@@ -275,36 +254,6 @@ variable "cloudwatch_config" {
   description = "(optional) Replaces the module default cloudwatch log config. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html for details."
   type        = string
   default     = null
-}
-
-variable "runner_log_files" {
-  description = "(optional) List of logfiles to send to cloudwatch, will only be used if `enable_cloudwatch_agent` is set to true. Object description: `log_group_name`: Name of the log group, `prefix_log_group`: If true, the log group name will be prefixed with `/github-self-hosted-runners/<var.environment>`, `file_path`: path to the log file, `log_stream_name`: name of the log stream."
-  type = list(object({
-    log_group_name   = string
-    prefix_log_group = bool
-    file_path        = string
-    log_stream_name  = string
-  }))
-  default = [
-    {
-      "log_group_name" : "messages",
-      "prefix_log_group" : true,
-      "file_path" : "/var/log/messages",
-      "log_stream_name" : "{instance_id}"
-    },
-    {
-      "log_group_name" : "user_data",
-      "prefix_log_group" : true,
-      "file_path" : "/var/log/user-data.log",
-      "log_stream_name" : "{instance_id}"
-    },
-    {
-      "log_group_name" : "runner",
-      "prefix_log_group" : true,
-      "file_path" : "/home/ec2-user/actions-runner/_diag/Runner_**.log",
-      "log_stream_name" : "{instance_id}"
-    }
-  ]
 }
 
 variable "ghes_url" {
