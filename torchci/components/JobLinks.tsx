@@ -1,4 +1,4 @@
-import { durationHuman } from "./TimeUtils";
+import { durationHuman, LocalTimeHuman } from "./TimeUtils";
 import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
@@ -17,6 +17,11 @@ export default function JobLinks({ job }: { job: JobData }) {
   const durationS =
     job.durationS != null ? (
       <span>{` | Duration: ${durationHuman(job.durationS!)}`}</span>
+    ) : null;
+
+  const eventTime =
+    job.time != null ? (
+      <span>{` | Started: `}<LocalTimeHuman timestamp={job.time} /></span>
     ) : null;
 
   const failureCaptures =
@@ -38,6 +43,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {rawLogs}
       {failureCaptures}
       {durationS}
+      {eventTime}
       <DisableIssue job={job} />
     </span>
   );
