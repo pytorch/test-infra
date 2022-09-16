@@ -1,32 +1,53 @@
+WITH classifications AS (
+    SELECT
+        c.job_id,
+        c._event_time,
+        c.line,
+        c.line_num,
+        c.context,
+        -- c.captures can be an array or a string type. Make it always be a string
+        CASE
+            IS_SCALAR(c.captures)
+            WHEN true THEN c.captures
+            WHEN false THEN ARRAY_JOIN(c.captures, '\n')
+        END AS captures,
+    FROM
+        "GitHub-Actions".classification c
+    WHERE
+        c._event_time > (CURRENT_TIMESTAMP() - INTERVAL 14 day)
+)
 SELECT
-    job._event_time as time,
-    w.name as workflowName,
-    job.name as jobName,
-    CONCAT(w.name, ' / ', job.name) as name,
-    w.head_commit.id as sha,
-    job.id as id,
+    job._event_time AS time,
+    w.name AS workflowName,
+    job.name AS jobName,
+    CONCAT(w.name, ' / ', job.name) AS name,
+    w.head_sha AS sha,
+    job.id AS id,
     CASE
-        when job.conclusion is NULL then 'pending'
-        else job.conclusion
-    END as conclusion,
-    job.html_url as htmlUrl,
+        WHEN job.conclusion IS NULL THEN 'pending'
+        ELSE job.conclusion
+    END AS conclusion,
+    job.html_url AS htmlUrl,
     CONCAT(
         'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-        CAST(job.id as string)
-    ) as logUrl,
+        CAST(job.id AS string)
+    ) AS logUrl,
     DATE_DIFF(
         'SECOND',
         PARSE_TIMESTAMP_ISO8601(job.started_at),
         PARSE_TIMESTAMP_ISO8601(job.completed_at)
-    ) as durationS,
-    torchci_classification.line as failureLine,
-    torchci_classification.line_num as failureLineNumber,
-    torchci_classification.captures AS failureCaptures,
-from
-    workflow_run w
-    INNER JOIN workflow_job job ON w.id = job.run_id
-where
-    torchci_classification.captures = :captures
-    AND job._event_time > (CURRENT_TIMESTAMP() - INTERVAL 14 day)
+    ) AS durationS,
+    c.line AS failureLine,
+    c.line_num AS failureLineNumber,
+    c.context AS failureContext,
+    c.captures AS failureCaptures,
+FROM
+    classifications c
+    JOIN commons.workflow_job job ON job.id = c.job_id
+    JOIN commons.workflow_run w HINT(access_path = column_scan) ON w.id = job.run_id
+WHERE
+    w.head_branch LIKE :branch
+    AND w.repository.full_name = :repo
+    AND c.captures LIKE FORMAT('%{}%', :captures)
 ORDER BY
-    workflow_job._event_time DESC
+    c._event_time DESC

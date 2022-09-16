@@ -1,0 +1,91 @@
+name: TFLint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/tflint.yml"
+      - "terraform-aws-github-runner/**"
+
+jobs:
+  tflint:
+    runs-on: ubuntu-latest
+    container: node:12
+
+    steps:
+    - uses: actions/checkout@v2
+      name: Checkout source code
+
+    - uses: terraform-linters/setup-tflint@v2
+      name: Setup TFLint
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+          terraform_version: 1.2.9
+
+    - name: Show version
+      run: tflint --version
+
+    - name: "Init TFLint download-lambda"
+      working-directory: terraform-aws-github-runner/modules/download-lambda
+      run: tflint --init
+    - name: "Init terraform download-lambda"
+      working-directory: terraform-aws-github-runner/modules/download-lambda
+      run: terraform init
+    - name: "Run TFLint download-lambda"
+      working-directory: terraform-aws-github-runner/modules/download-lambda
+      run: tflint --module
+
+    - name: "Init TFLint runner-binaries-syncer"
+      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
+      run: tflint --init
+    - name: "Init terraform runner-binaries-syncer"
+      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
+      run: terraform init
+    - name: "Run TFLint runner-binaries-syncer"
+      working-directory: terraform-aws-github-runner/modules/runner-binaries-syncer
+      run: tflint --module
+
+    - name: "Init TFLint runners"
+      working-directory: terraform-aws-github-runner/modules/runners
+      run: tflint --init
+    - name: "Init terraform runners"
+      working-directory: terraform-aws-github-runner/modules/runners
+      run: terraform init
+    - name: "Run TFLint runners"
+      working-directory: terraform-aws-github-runner/modules/runners
+      run: tflint --module
+
+    - name: "Init TFLint setup-iam-permissions"
+      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
+      run: tflint --init
+    - name: "Init terraform setup-iam-permissions"
+      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
+      run: terraform init
+    - name: "Run TFLint setup-iam-permissions"
+      working-directory: terraform-aws-github-runner/modules/setup-iam-permissions
+      run: tflint --module
+
+    - name: "Init TFLint webhook"
+      working-directory: terraform-aws-github-runner/modules/webhook
+      run: tflint --init
+    - name: "Init terraform webhook"
+      working-directory: terraform-aws-github-runner/modules/webhook
+      run: terraform init
+    - name: "Run TFLint webhook"
+      working-directory: terraform-aws-github-runner/modules/webhook
+      run: tflint --module
+
+    - name: "Init TFLint main"
+      working-directory: terraform-aws-github-runner
+      run: tflint --init
+    - name: "Init terraform main"
+      working-directory: terraform-aws-github-runner
+      run: terraform init
+    - name: "Run TFLint main"
+      working-directory: terraform-aws-github-runner
+      run: tflint --module

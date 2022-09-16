@@ -37,6 +37,8 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   // mobile
   [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
   [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],
+  [/aten\/src\/ATen\/native\/mps/gi, "release notes: mps"],
+  [/aten\/src\/ATen\/mps/gi, "release notes: mps"],
   [/test\/mobile/gi, "release notes: mobile"],
   [/torch\/backends\/_nnapi\//gi, "release notes: mobile"],
   [/test\/test_nnapi.py/gi, "release notes: mobile"],
@@ -100,6 +102,37 @@ const notUserFacingPatterns: RegExp[] = [
   /\.gdbinit/g,
 ]
 
+const notUserFacingPatternExceptions: RegExp[] = [
+  /tools\/autograd/g,
+]
+
+// For in the specified repo, if any file path matches the given regex we will apply the label
+// corresponding to that file to the PR
+//
+// Format: "owner/repo": [
+//  [/regex-for-path1/, "label-to-apply"],
+//  [/regex-for-path2/, "label-to-apply"],
+// ]
+const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
+  "pytorch/pytorch": [
+      [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
+      [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
+      [/test\/test_mps.py/gi, "ciflow/mps"],
+  ],
+  "pytorch/fake-test-repo": [
+    [/somefolder/gi, "cool-label"]
+  ]
+}
+
+function getRepoSpecificLabels(owner: string, repo: string): [RegExp, string][] {
+  var repoKey = owner + "/" + repo;
+  if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
+    return [];
+  }
+
+  return repoSpecificAutoLabels[repoKey];
+}
+
 function myBot(app: Probot): void {
   function addLabel(
     labelSet: Set<string>,
@@ -114,7 +147,8 @@ function myBot(app: Probot): void {
 
   function isNotUserFacing(filesChanged: string[]): boolean {
     return filesChanged.length > 0 &&
-      filesChanged.every(f => notUserFacingPatterns.some(p => f.match(p)));
+      filesChanged.every(f => (notUserFacingPatterns.some(p => f.match(p)) &&
+                               !notUserFacingPatternExceptions.some(p => f.match(p))));
   }
 
   app.on("issues.labeled", async (context) => {
@@ -287,6 +321,18 @@ function myBot(app: Probot): void {
       }
       if (topic !== "untopiced" && topic !== "skip") {
         labelsToAdd.push(topic);
+      }
+    }
+
+    // Add a repo specific labels (if any)
+    var repoSpecificLabels = getRepoSpecificLabels(owner, repo);
+
+    for (const file of filesChanged) {
+      // check for typical matches
+      for (const [regex, label] of repoSpecificLabels) {
+        if (file.match(regex)) {
+          labelsToAdd.push(label);
+        }
       }
     }
 
