@@ -268,7 +268,7 @@ def clear_alerts(alerts: List[Any]) -> bool:
 
 # We need to clear alerts is there is a commit that's all green is before a commit that has a red
 # If there's pending things after the all green commit, that's fine, as long as it's all green/pending
-def master_is_green(sha_grid: Any):
+def trunk_is_green(sha_grid: Any):
     categorized_shas = categorize_shas(sha_grid)
     first_green_sha_ind = find_first_sha(categorized_shas, SUCCESS)
     first_red_sha_ind = find_first_sha(categorized_shas, FAILURE)
