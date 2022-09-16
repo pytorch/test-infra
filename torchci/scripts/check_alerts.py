@@ -312,7 +312,7 @@ def main():
     if len(jobs_to_alert_on) == 0 :
         print("Didn't find anything to alert on.")
 
-        if master_is_green(sha_grid):
+        if trunk_is_green(sha_grid):
             clear_alerts(existing_alerts)
             existing_alerts = [] # all alerts have now been cleared
 
