@@ -38,6 +38,11 @@ function NavBar() {
                 TorchAudio
               </Link>
             </li>
+            <li>
+              <Link prefetch={false} href="/hud/pytorch/builder/main">
+                TorchBuilder
+              </Link>
+            </li>
           </ul>
         </div>
         <div
