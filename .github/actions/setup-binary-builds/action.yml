@@ -99,6 +99,7 @@ runs:
             "python=${PYTHON_VERSION}" \
             cmake=3.22 \
             conda-build=3.21 \
+            ninja=1.10 \
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
