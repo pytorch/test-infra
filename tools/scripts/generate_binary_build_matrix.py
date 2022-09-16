@@ -17,11 +17,9 @@ import json
 
 from typing import Dict, List, Tuple, Optional
 
-#FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 FULL_PYTHON_VERSIONS = ["3.9"]
 ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
-    # "nightly": ["11.6", "11.7"],
     "nightly": ["11.6"],
     "test": ["10.2", "11.6"],
     "release": ["10.2", "11.3", "11.6"]
