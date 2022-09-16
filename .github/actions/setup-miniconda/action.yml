@@ -73,21 +73,21 @@ runs:
           echo "Print the available disk space for manual inspection"
           df -h
 
-          MINIMUM_AVAILABLE_SPACE_IN_GB=3
+          # 3GB can still fail some tests, so set the minimum requirement space to 4GB
+          MINIMUM_AVAILABLE_SPACE_IN_KB=$((4 * 1024 * 1024))
 
-          df -h | tr -s ' ' | cut -d' ' -f 4,9 | while read -r LINE;
+          # Use KB to avoid floating point warning like 3.1GB
+          df -k | tr -s ' ' | cut -d' ' -f 4,9 | while read -r LINE;
           do
             AVAIL=$(echo $LINE | cut -f1 -d' ')
             MOUNT=$(echo $LINE | cut -f2 -d' ')
 
             if [ "$MOUNT" = "/" ]; then
-              AVAIL_IN_GB=${AVAIL::${#AVAIL}-2}
-
-              if [ "$AVAIL_IN_GB" -lt "$MINIMUM_AVAILABLE_SPACE_IN_GB" ]; then
-                echo "There is only $AVAIL free space left in $MOUNT, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_GB}Gi. Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
+              if [ "$AVAIL" -lt "$MINIMUM_AVAILABLE_SPACE_IN_KB" ]; then
+                echo "There is only ${AVAIL}KB free space left in $MOUNT, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_KB}KB. Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
                 exit 1;
               else
-                echo "There is $AVAIL free space left in $MOUNT, continue"
+                echo "There is ${AVAIL}KB free space left in $MOUNT, continue"
               fi
             fi
           done
