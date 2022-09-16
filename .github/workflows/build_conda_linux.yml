@@ -133,7 +133,7 @@ jobs:
           set -ex
           #conda create -yp test-luck python=3.10 numpy
           #conda run -p test-luck conda install pytorch -c pytorch-nightly
-          ${CONDA_RUN} conda install -v -y -c file://$PWD/dist torchaudio
+          ${CONDA_RUN} conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
           # Test torch is importable, by changing cwd and running import commands
           conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
           conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
