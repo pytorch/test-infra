@@ -268,7 +268,7 @@ def clear_alerts(alerts: List[Any]) -> bool:
 
 # We need to clear alerts is there is a commit that's all green is before a commit that has a red
 # If there's pending things after the all green commit, that's fine, as long as it's all green/pending
-def should_clear_alerts(sha_grid: Any):
+def master_is_green(sha_grid: Any):
     categorized_shas = categorize_shas(sha_grid)
     first_green_sha_ind = find_first_sha(categorized_shas, SUCCESS)
     first_red_sha_ind = find_first_sha(categorized_shas, FAILURE)
@@ -309,16 +309,13 @@ def main():
     existing_alerts = fetch_alerts()
 
     # Alerts should also be cleared if the current status of HUD is green
-    if len(jobs_to_alert_on) == 0 and should_clear_alerts(sha_grid):
-        if clear_alerts(existing_alerts):
+    if len(jobs_to_alert_on) == 0 :
+        print("Didn't find anything to alert on.")
+
+        if master_is_green(sha_grid):
+            clear_alerts(existing_alerts)
             existing_alerts = [] # all alerts have now been cleared
 
-    if len(jobs_to_alert_on) == 0:
-        print(
-            "Didn't find anything to alert on.",
-            no_alert_currently_active,
-            jobs_to_alert_on,
-        )
         return
 
     # Find the existing alert for recurrently failing jobs (if any).
@@ -330,7 +327,6 @@ def main():
             break
 
     # Create a new alert if no alerts active or edit the original one if there's a new update
-    no_alert_currently_active = len(existing_alerts) == 0
     if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
         if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
