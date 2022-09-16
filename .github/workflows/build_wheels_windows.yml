@@ -1,12 +1,8 @@
-name: Build Linux Conda
+name: Build Windows Wheels
 
 on:
   workflow_call:
     inputs:
-      conda-package-directory:
-        description: 'Directory where your meta.yaml for your conda package lives'
-        required: true
-        type: string
       repository:
         description: 'Repository to checkout, defaults to ""'
         default: ""
@@ -35,6 +31,10 @@ on:
         description: "Post script to run prior to build"
         default: ""
         type: string
+      runner-type:
+        description: "Runner environment specified."
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -42,16 +42,15 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.build-matrix) }}
     env:
-      CONDA_PACKAGE_DIRECTORY: ${{ inputs.conda-package-directory }}
       PYTHON_VERSION: ${{ matrix.python_version }}
-      PACKAGE_TYPE: conda
+      PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
-      CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ matrix.container_image }}
+    runs-on: ${{ inputs.runner-type }}
+    defaults:
+      run:
+        shell: bash -l {0}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -66,8 +65,13 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: false
+          setup-miniconda: true
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install torch dependency
+        run: |
+          source "${BUILD_ENV_FILE}"
+          # shellcheck disable=SC2086
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -80,24 +84,17 @@ jobs:
           else
             ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
-      - name: Setup base environment variables
-        run: |
-          echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
-      - name: Build the conda (conda-build)
+      - name: Build clean
         working-directory: ${{ inputs.repository }}
-        env:
-          CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
-            -c defaults \
-            -c "${CUDATOOLKIT_CHANNEL}" \
-            -c "pytorch-${CHANNEL}" \
-            --no-anaconda-upload \
-            --python "${PYTHON_VERSION}" \
-            --output-folder dist/ \
-            "${CONDA_PACKAGE_DIRECTORY}"
-      - name: Upload artifact to GitHub
+          ${CONDA_RUN} python setup.py clean
+      - name: Build the wheel (bdist_wheel)
+        working-directory: ${{ inputs.repository }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} python setup.py bdist_wheel
+      - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -114,18 +111,7 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Upload package to conda
-        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
-        env:
-          CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
-        run: |
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
-          set -x
-          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
-          export ANACONDA_PATH
-          "$ANACONDA_PATH/anaconda"  -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+      # TODO: Figure out upload method to s3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
