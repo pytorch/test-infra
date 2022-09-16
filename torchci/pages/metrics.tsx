@@ -622,7 +622,7 @@ export default function Page() {
                   name: "jobNames",
                   type: "string",
                   value:
-                    "docs push / build-docs (python, 30),docs push / build-docs (cpp, 180)",
+                    "docs push / build-docs (python, 30);docs push / build-docs (cpp, 180)",
                 },
               ]}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
