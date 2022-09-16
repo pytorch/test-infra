@@ -82,14 +82,17 @@ class JobStatus:
                     failures["unclassified"] = [job]
                     continue
 
+                # This is now a list returned by HUD API, not a string
+                failureCaptures = " ".join(job["failureCaptures"])
+
                 for failure in failures:
-                    seq = SequenceMatcher(None, job["failureCaptures"], failure)
+                    seq = SequenceMatcher(None, failureCaptures, failure)
                     if seq.ratio() > SIMILARITY_THRESHOLD:
                         failures[failure].append(job)
                         found_similar_failure = True
                         break
                 if found_similar_failure == False:
-                    failures[job["failureCaptures"]] = [job]
+                    failures[failureCaptures] = [job]
 
         return failures
 
