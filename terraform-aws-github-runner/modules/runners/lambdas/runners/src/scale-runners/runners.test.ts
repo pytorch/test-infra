@@ -7,12 +7,14 @@ import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
   createRunner,
+  getParameterNameForRunner,
   getRunnerOrg,
   getRunnerRepo,
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
   listRunners,
+  listSSMParameters,
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
   resetRunnersCaches,
@@ -32,7 +34,12 @@ const mockEC2 = {
   runInstances: jest.fn(),
   terminateInstances: jest.fn().mockReturnValue({ promise: jest.fn() }),
 };
-const mockSSM = { putParameter: jest.fn() };
+const mockSSMdescribeParametersRet = jest.fn();
+const mockSSM = {
+  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
+  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
+};
 jest.mock('aws-sdk', () => ({
   EC2: jest.fn().mockImplementation(() => mockEC2),
   SSM: jest.fn().mockImplementation(() => mockSSM),
@@ -214,18 +221,61 @@ describe('list instances', () => {
   });
 });
 
+describe('listSSMParameters', () => {
+  beforeEach(() => {
+    mockSSMdescribeParametersRet.mockClear();
+
+    resetRunnersCaches();
+  });
+
+  it('calls twice, check if cached, resets cache, calls again', async () => {
+    const api1 = ['lalala', 'helloWorld'];
+    const api2 = ['asdf', 'fdsa'];
+    const api3 = ['AGDGADUWG113', '33'];
+    const ret1 = new Set(api1.concat(api2));
+    const ret2 = new Set(api3);
+
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      NextToken: 'token',
+      Parameters: api1.map(s => { return {Name: s}; }),
+    });
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: api2.map(s => { return {Name: s}; }),
+    });
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: api3.map(s => { return {Name: s}; }),
+    });
+
+    await expect(listSSMParameters(metrics)).resolves.toEqual(ret1);
+    await expect(listSSMParameters(metrics)).resolves.toEqual(ret1);
+    resetRunnersCaches();
+    await expect(listSSMParameters(metrics)).resolves.toEqual(ret2);
+
+    expect(mockSSMdescribeParametersRet).toBeCalledTimes(3);
+    expect(mockSSM.describeParameters).toBeCalledWith();
+    expect(mockSSM.describeParameters).toBeCalledWith({ NextToken: 'token', });
+    expect(mockSSM.describeParameters).toBeCalledWith();
+  });
+});
+
 describe('terminateRunner', () => {
   beforeEach(() => {
-    jest.mock('aws-sdk', () => ({
-      EC2: jest.fn().mockImplementation(() => mockEC2),
-    }));
+    mockSSMdescribeParametersRet.mockClear();
+
+    resetRunnersCaches();
   });
 
   it('calls terminateInstances', async () => {
     const runner: RunnerInfo = {
       instanceId: '1234',
+      environment: 'environ'
     };
-
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [getParameterNameForRunner(
+        runner.environment as string,
+        runner.instanceId
+      )].map(s => { return {Name: s}; }),
+    });
     await terminateRunner(runner, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledWith({

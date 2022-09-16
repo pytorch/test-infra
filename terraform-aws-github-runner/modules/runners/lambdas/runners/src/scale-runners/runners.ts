@@ -82,14 +82,51 @@ export async function listRunners(
   }
 }
 
-function getParameterNameForRunner(environment: string, instanceId: string): string {
+export function getParameterNameForRunner(environment: string, instanceId: string): string {
   return `${environment}-${instanceId}`;
+}
+
+export async function listSSMParameters(metrics: Metrics): Promise<Set<string>> {
+  const key = 'notUsedNow';
+
+  let parametersList: Set<string> = ssmParametersCache.get(key) as Set<string>;
+
+  if (parametersList === undefined) {
+    parametersList = new Set();
+    const ssm = new SSM();
+    let nextToken: string | undefined = undefined;
+
+    do {
+      const response = await expBackOff(() => {
+        return metrics.trackRequest(
+          metrics.ssmDescribeParametersAWSCallSuccess,
+          metrics.ssmDescribeParametersAWSCallFailure,
+          () => {
+            if (nextToken) {
+              const reqParam: SSM.DescribeParametersRequest = { NextToken: nextToken };
+              return ssm.describeParameters(reqParam).promise();
+            }
+            return ssm.describeParameters().promise();
+          },
+        );
+      });
+      nextToken = response.NextToken;
+      /* istanbul ignore next */
+      response.Parameters?.forEach((metadata) => {
+        /* istanbul ignore next */
+        if (metadata.Name) { parametersList.add(metadata.Name); }
+      });
+    } while(nextToken);
+
+    ssmParametersCache.set(key, parametersList);
+  }
+
+  return parametersList;
 }
 
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
     const ec2 = new EC2();
-    const ssm = new SSM();
 
     await expBackOff(() => {
       return metrics.trackRequest(
@@ -103,17 +140,27 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
     console.info(`Runner terminated: ${runner.instanceId}`);
 
     const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
+
     try {
-      await expBackOff(() => {
-        return metrics.trackRequest(
-          metrics.ssmdeleteParameterAWSCallSuccess,
-          metrics.ssmdeleteParameterAWSCallFailure,
-          () => {
-            return ssm.deleteParameter({ Name: paramName }).promise();
-          },
-        );
-      });
-      console.info(`Parameter deleted: ${paramName}`);
+      const params = await listSSMParameters(metrics);
+
+      if (params.has(paramName)) {
+        const ssm = new SSM();
+        await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.ssmdeleteParameterAWSCallSuccess,
+            metrics.ssmdeleteParameterAWSCallFailure,
+            () => {
+              return ssm.deleteParameter({ Name: paramName }).promise();
+            },
+          );
+        });
+        console.info(`Parameter deleted: ${paramName}`);
+      } else {
+        /* istanbul ignore next */
+        console.info(`Parameter "${paramName}" not found in SSM, no need to delete it`);
+      }
+
     } catch (e) {
       console.error(`[terminateRunner - SSM.deleteParameter] Failed deleting parameter ${paramName}: ${e}`);
     }
@@ -121,6 +168,37 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
     console.error(`[terminateRunner]: ${e}`);
     throw e;
   }
+}
+
+async function addSSMParameterRunnerConfig(
+  instances: EC2.InstanceList,
+  runnerParameters: RunnerInputParameters,
+  ssm: SSM,
+  metrics: Metrics
+): Promise<void> {
+  const createdSSMParams = await Promise.all(
+    /* istanbul ignore next */
+    instances.map(async (i: EC2.Instance) => {
+      const parameterName = getParameterNameForRunner(runnerParameters.environment, (i.InstanceId as string));
+      return await expBackOff(() => {
+        return metrics.trackRequest(
+          metrics.ssmPutParameterAWSCallSuccess,
+          metrics.ssmPutParameterAWSCallFailure,
+          async () => {
+            await ssm
+              .putParameter({
+                Name: parameterName,
+                Value: runnerParameters.runnerConfig,
+                Type: 'SecureString',
+              })
+              .promise();
+            return parameterName;
+          },
+        );
+      });
+    }) ?? [],
+  );
+  console.debug(`Created SSM Parameters(s): ${createdSSMParams.join(',')}`);
 }
 
 export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<void> {
@@ -209,32 +287,13 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           );
         });
 
-        console.info(
-          `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
-          /* istanbul ignore next */
-          runInstancesResponse.Instances?.map((i) => i.InstanceId).join(','),
-        );
-
-        await Promise.all(
-          /* istanbul ignore next */
-          runInstancesResponse.Instances?.map(async (i: EC2.Instance) => {
-            await expBackOff(() => {
-              return metrics.trackRequest(
-                metrics.ssmPutParameterAWSCallSuccess,
-                metrics.ssmPutParameterAWSCallFailure,
-                () => {
-                  return ssm
-                    .putParameter({
-                      Name: runnerParameters.environment + '-' + (i.InstanceId as string),
-                      Value: runnerParameters.runnerConfig,
-                      Type: 'SecureString',
-                    })
-                    .promise();
-                },
-              );
-            });
-          }) ?? [],
-        );
+        if (runInstancesResponse.Instances) {
+          console.info(
+            `Created instance(s) [${runnerParameters.runnerType.runnerTypeName}]: `,
+            runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
+          );
+          addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics);
+        }
 
         // breaks
         break;
@@ -264,6 +323,7 @@ const ghClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghRunnersCache = new LRU({ maxAge: 30 * 1000 });
 const ghTokensCache = new LRU({ maxAge: 60 * 1000 });
 const runnerTypeCache = new LRU({ maxAge: 60 * 1000 });
+const ssmParametersCache = new LRU({ maxAge: 10 * 1000 });
 
 export function resetRunnersCaches() {
   ghClientCache.reset();
@@ -271,6 +331,7 @@ export function resetRunnersCaches() {
   ghRunnersCache.reset();
   ghTokensCache.reset();
   runnerTypeCache.reset();
+  ssmParametersCache.reset();
 }
 
 async function getGithubClient(metrics: Metrics): Promise<Octokit> {
