@@ -317,6 +317,37 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
+  test("custom repo labels get add when on a matching repo and file", async () => {
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["title"] = "modify a pytorch/fake-test-repo file";
+    payload["pull_request"]["labels"] = [];
+    payload["repository"]["owner"]["login"] = "pytorch";
+    payload["repository"]["name"] = "fake-test-repo";
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [{"filename": "somefolder/a.py"}, {"filename": "otherfolder/b.py"}];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/pytorch/fake-test-repo/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/pytorch/fake-test-repo/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .post("/repos/pytorch/fake-test-repo/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["cool-label"] });
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
   test("caffe2 files trigger caffe2 label", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -633,6 +664,33 @@ describe("auto-label-bot", () => {
       })
       .reply(200);
 
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("topic: not user facing is NOT added if matches both include and exclude list", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    payload["pull_request"]["title"] = "Derivatives.yaml change plus other irrelevant stuff";
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [
+      {"filename": "tools/autograd/derivatives.yaml"},
+      {"filename": "blah.ini"},
+      {"filename": "blah.txt"},
+      {"filename": "blah.md"},
+      {"filename": "blah.MD"},
+    ];
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
