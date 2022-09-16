@@ -1513,14 +1513,6 @@
       "linux"
     ]
   ],
-  "test_serialization_offset (__main__.TestOldSerialization)": [
-    "84898",
-    "https://github.com/pytorch/pytorch/issues/84898",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_sharding (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "67295",
     "https://github.com/pytorch/pytorch/issues/67295",
