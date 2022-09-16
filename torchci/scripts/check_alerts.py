@@ -268,7 +268,7 @@ def clear_alerts(alerts: List[Any]) -> bool:
 
 # We need to clear alerts is there is a commit that's all green is before a commit that has a red
 # If there's pending things after the all green commit, that's fine, as long as it's all green/pending
-def should_clear_alerts(sha_grid: Any):
+def trunk_is_green(sha_grid: Any):
     categorized_shas = categorize_shas(sha_grid)
     first_green_sha_ind = find_first_sha(categorized_shas, SUCCESS)
     first_red_sha_ind = find_first_sha(categorized_shas, FAILURE)
@@ -306,32 +306,37 @@ def main():
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
     # Fetch alerts
-    alerts = fetch_alerts()
-    alerts_cleared = False
+    existing_alerts = fetch_alerts()
 
-    # Alerts should be singletons and there should only be 1 alert
     # Alerts should also be cleared if the current status of HUD is green
-    if len(alerts) > 1 or should_clear_alerts(sha_grid):
-        alerts_cleared = clear_alerts(alerts)
+    if len(jobs_to_alert_on) == 0 :
+        print("Didn't find anything to alert on.")
+
+        if trunk_is_green(sha_grid):
+            clear_alerts(existing_alerts)
+            existing_alerts = [] # all alerts have now been cleared
+
+        return
+
+    # Find the existing alert for recurrently failing jobs (if any).
+    # We're going to update the existing alert if possible instead of filing a new one.
+    existing_recurrent_job_failure_alert = None
+    for alert in existing_alerts:
+        if "Recurrently Failing Jobs on pytorch/pytorch master" in alert["title"]:
+            existing_recurrent_job_failure_alert = alert
+            break
 
     # Create a new alert if no alerts active or edit the original one if there's a new update
-    no_alert_currently_active = alerts_cleared or len(alerts) == 0
-    if len(jobs_to_alert_on) > 0 and (no_alert_currently_active):
-        create_issue(generate_failed_job_issue(jobs_to_alert_on))
-    elif len(jobs_to_alert_on) > 0 and len(alerts) == 1:
+    if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
-        if alerts[0]["body"] != new_issue["body"]:
-            update_issue(new_issue, alerts[0]["number"])
+        if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
+            update_issue(new_issue, existing_recurrent_job_failure_alert["number"])
         else:
             print("No new updates. Not updating any alerts.")
     else:
-        print(
-            "Didn't find anything to alert on.",
-            no_alert_currently_active,
-            jobs_to_alert_on,
-        )
-    # TODO: Record flaky jobs in rockset or something re run or analyze
+        create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
+    # TODO: Record flaky jobs in rockset or something re run or analyze
 
 if __name__ == "__main__":
     main()
