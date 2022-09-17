@@ -1,0 +1,30 @@
+# Terraform lock files
+*.lock.hcl
+
+# state
+*.tfstate*
+
+# Module directory
+.terraform/
+
+# keys
+*id_rsa*
+
+# other
+.idea
+.DS_Store
+*.out
+example/*.secrets*.tfvars
+.envrc
+*.zip
+*.gz
+*.tgz
+*.env
+.vscode
+
+**/coverage/*
+
+/build/
+
+yarn.lock
+node_modules/

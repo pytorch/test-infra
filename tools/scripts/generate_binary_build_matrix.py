@@ -20,8 +20,8 @@ from typing import Dict, List, Tuple, Optional
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
-    "nightly": ["10.2", "11.3", "11.6", "11.7"],
-    "test": ["10.2", "11.3", "11.6"],
+    "nightly": ["10.2", "11.6", "11.7"],
+    "test": ["10.2", "11.6"],
     "release": ["10.2", "11.3", "11.6"]
 }
 PRE_CXX11_ABI = "pre-cxx11"
@@ -32,18 +32,18 @@ DEBUG = "debug"
 # By default use Nightly for CUDA arches
 CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
-LINUX_GPU_RUNNER="ubuntu-20.04-m60"
-LINUX_CPU_RUNNER="ubuntu-20.04"
-WIN_GPU_RUNNER="windows-2019-m60"
-WIN_CPU_RUNNER="windows-2019"
-MACOS_M1_RUNNER="macos-m1-12"
-MACOS_RUNNER="macos-12"
+LINUX_GPU_RUNNER = "ubuntu-20.04-m60"
+LINUX_CPU_RUNNER = "ubuntu-20.04"
+WIN_GPU_RUNNER = "windows-2019-m60"
+WIN_CPU_RUNNER = "windows-2019"
+MACOS_M1_RUNNER = "macos-m1-12"
+MACOS_RUNNER = "macos-12"
 
-PACKAGES_TO_INSTALL_WHL="torch torchvision torchaudio"
-PACKAGES_TO_INSTALL_CONDA="pytorch torchvision torchaudio"
-CONDA_INSTALL_BASE=f"conda install {PACKAGES_TO_INSTALL_CONDA}"
-WHL_INSTALL_BASE="pip3 install"
-DOWNLOAD_URL_BASE="https://download.pytorch.org"
+PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_CONDA = "pytorch torchvision torchaudio"
+CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
+WHL_INSTALL_BASE = "pip3 install"
+DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
@@ -109,8 +109,6 @@ LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str] = {
     ("cpu", PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu",
     ("cpu", CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu",
 }
-
-FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 
 def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
@@ -303,7 +301,7 @@ def generate_wheels_matrix(
             # Skip rocm 3.11 binaries for now as the docker image are not correct
             if python_version == "3.11" and gpu_arch_type == "rocm":
                 continue
-            desired_cuda =  translate_desired_cuda(gpu_arch_type, gpu_arch_version)
+            desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             ret.append(
                 {
                     "python_version": python_version,
@@ -357,10 +355,8 @@ def main() -> None:
 
     if options.channel == "all":
         for channel in CUDA_ACRHES_DICT:
-            CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
             includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
     else:
-        CUDA_ARCHES = CUDA_ACRHES_DICT[options.channel]
         includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
 
     print(json.dumps({"include": includes}))
