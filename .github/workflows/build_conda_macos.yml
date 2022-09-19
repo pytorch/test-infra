@@ -106,13 +106,6 @@ jobs:
             --python "${PYTHON_VERSION}" \
             --output-folder dist/ \
             "${CONDA_PACKAGE_DIRECTORY}"
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{matrix.validation_runner == 'macos-12' && failure()}}
-        timeout-minutes: 60
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
         with:
