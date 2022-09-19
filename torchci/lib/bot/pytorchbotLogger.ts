@@ -11,7 +11,13 @@ class PytorchBotLogger {
     this.params = params;
     delete this.params.ctx;
     try {
-      this.client = getDynamoClient();
+      var config = {
+        marshallOptions: {
+          convertEmptyValues: true,
+          removeUndefinedValues: true,
+        }
+      }
+      this.client = getDynamoClient(config);
     } catch (exception) {
       console.error("Error getting Dynamo Client", exception);
     }
@@ -23,7 +29,7 @@ class PytorchBotLogger {
         TableName: TableName,
         Item: {
           dynamoKey: `${this.params.owner}/${this.params.repo}/${this.params.prNum}/${this.params.commentId}`,
-          Item: { ...this.params, event, extra_data },
+          item: { ...this.params, event, extra_data },
         },
       };
       if (process.env.NODE_ENV === "production") {
