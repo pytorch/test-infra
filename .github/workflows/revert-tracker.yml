@@ -3,8 +3,8 @@ name: revert printer
 on:
   repository_dispatch:
   schedule:
-    # At 16:39 (9:39 AM PST) on Monday
-    - cron: 39 16 * * 1
+    # At 15:10 (8:10 AM PST) on Monday
+    - cron: 10 15 * * 1
 
 jobs:
   revert_printer:
