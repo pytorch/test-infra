@@ -271,6 +271,13 @@
     "https://github.com/pytorch/pytorch/issues/68433",
     []
   ],
+  "test_bottleneck_cuda (__main__.TestBottleneck)": [
+    "85284",
+    "https://github.com/pytorch/pytorch/issues/85284",
+    [
+      "linux"
+    ]
+  ],
   "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
     "81028",
     "https://github.com/pytorch/pytorch/issues/81028",
