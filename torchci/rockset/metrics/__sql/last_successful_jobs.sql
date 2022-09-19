@@ -14,7 +14,7 @@ with successful_jobs as (
         workflow.repository.full_name = 'pytorch/pytorch'
         AND workflow.head_branch IN ('master', 'main')
         AND job.conclusion = 'success'
-        AND ARRAY_CONTAINS(SPLIT(:jobNames, ','), job.name)
+        AND ARRAY_CONTAINS(SPLIT(:jobNames, ';'), job.name)
     order by
         job._event_time desc
 ),
@@ -33,7 +33,7 @@ select
 from
     successful_commits
 where
-    distinct_names >= LENGTH(SPLIT(:jobNames, ','))
+    distinct_names >= LENGTH(SPLIT(:jobNames, ';'))
 order by
     seconds_ago
 limit

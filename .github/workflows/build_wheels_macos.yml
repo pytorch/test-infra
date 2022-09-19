@@ -115,7 +115,15 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      # TODO: Figure out upload method to s3
+      - name: Upload package to pytorch.org
+        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
+        run: |
+          pip install --user awscli
+          aws s3 cp "dist/*.whl" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}" --acl public-read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
