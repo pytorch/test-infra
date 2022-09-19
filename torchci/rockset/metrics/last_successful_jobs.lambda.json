@@ -4,8 +4,8 @@
     {
       "name": "jobNames",
       "type": "string",
-      "value": "docs push / build-docs (python),docs push / build-docs (cpp)"
+      "value": "docs push / build-docs (python, 30);docs push / build-docs (cpp, 180)"
     }
   ],
-  "description": "given a comma-separated list of jobs, return the number of seconds since master built all the jobs successfully"
+  "description": "given a semicolon-separated list of jobs, return the number of seconds since master built all the jobs successfully"
 }
