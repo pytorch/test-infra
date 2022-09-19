@@ -35,14 +35,14 @@ const merge = commands.add_parser("merge", {
   help: "Merge a PR",
   description:
     "Merge an accepted PR, subject to the rules in .github/merge_rules.json.\n" +
-    "By default, this will wait for all required checks to succeed before merging.",
+    "By default, this will wait for all required checks (lint, pull) to succeed before merging.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
 const mergeOption = merge.add_mutually_exclusive_group();
 mergeOption.add_argument("-g", "--green", {
   action: "store_true",
-  help: "Merge when *all* status checks pass.",
+  help: "Merge when all status checks running on the PR pass. To add status checks, use labels like `ciflow/trunk`.",
 });
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
