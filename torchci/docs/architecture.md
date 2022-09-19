@@ -85,7 +85,7 @@ To get the basic HUD working, you will need to:
 2. Configure CircleCI to send webhooks to `torchci` (see above). This requires
    admin access to CircleCI. (**NOTE**: Only required if running CircleCI workflows)
 
-You won't get any of the other goodies listed in "Secondary with paths" above,
+You won't get any of the other goodies listed in "Secondary write paths" above,
 but other than that, things should work!
 
 [Build/CI POCs]: https://pytorch.org/docs/master/community/persons_of_interest.html#build-ci
