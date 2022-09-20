@@ -376,24 +376,6 @@ export class Metrics {
   }
 
   /* istanbul ignore next */
-  ssmDescribeParametersAWSCallSuccess(ms: number) {
-    this.countEntry(`aws.calls.total`, 1);
-    this.countEntry(`aws.ssm.calls.total`, 1);
-    this.countEntry(`aws.ssm.describeParameters.count`, 1);
-    this.countEntry(`aws.ssm.describeParameters.success`, 1);
-    this.addEntry(`aws.ssm.describeParameters.wallclock`, ms);
-  }
-
-  /* istanbul ignore next */
-  ssmDescribeParametersAWSCallFailure(ms: number) {
-    this.countEntry(`aws.calls.total`, 1);
-    this.countEntry(`aws.ssm.calls.total`, 1);
-    this.countEntry(`aws.ssm.describeParameters.count`, 1);
-    this.countEntry(`aws.ssm.describeParameters.failure`, 1);
-    this.addEntry(`aws.ssm.describeParameters.wallclock`, ms);
-  }
-
-  /* istanbul ignore next */
   ssmPutParameterAWSCallSuccess(ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);

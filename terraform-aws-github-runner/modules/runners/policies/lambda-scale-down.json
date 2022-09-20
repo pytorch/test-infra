@@ -19,13 +19,6 @@
     {
       "Effect": "Allow",
       "Action": [
-        "ssm:DescribeParameters"
-      ],
-      "Resource": ["*"]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
         "ec2:TerminateInstances"
       ],
       "Resource": ["*"],

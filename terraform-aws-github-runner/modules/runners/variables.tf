@@ -2,12 +2,6 @@ variable "aws_region" {
   description = "AWS region."
   type        = string
 }
-# AWS_REGION_INSTANCES
-variable "aws_region_instances" {
-  description = "AWS region to run EC2 runners."
-  default     = []
-  type        = list(string)
-}
 
 variable "vpc_id" {
   description = "The VPC for the security groups."
@@ -33,12 +27,6 @@ variable "tags" {
   description = "Map of tags that will be added to created resources. By default resources will be tagged with name and environment."
   type        = map(string)
   default     = {}
-}
-
-variable "runner_extra_labels" {
-  description = "Extra labels for the runners (GitHub). Separate each label by a comma"
-  type        = string
-  default     = ""
 }
 
 variable "environment" {

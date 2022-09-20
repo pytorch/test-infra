@@ -3,11 +3,6 @@
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["ssm:DescribeParameters"],
-      "Resource": ["*"]
-    },
-    {
-      "Effect": "Allow",
       "Action": ["ssm:DeleteParameter"],
       "Resource": "${arn_ssm_parameters}"
     },
