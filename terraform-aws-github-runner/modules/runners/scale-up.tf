@@ -29,7 +29,7 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      AWS_REGION                      = var.aws_region
+      AWS_REGION                      = join(",", var.aws_region)
       AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
       CANT_HAVE_ISSUES_LABELS         = join(",", var.cant_have_issues_labels)
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
