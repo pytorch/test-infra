@@ -2,6 +2,12 @@ variable "aws_region" {
   description = "AWS region."
   type        = string
 }
+# AWS_REGION_INSTANCES
+variable "aws_region_instances" {
+  description = "AWS region to run EC2 runners."
+  default     = []
+  type        = list(string)
+}
 
 variable "vpc_id" {
   description = "The VPC for the security groups."

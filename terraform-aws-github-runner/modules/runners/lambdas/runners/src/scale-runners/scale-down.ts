@@ -1,15 +1,14 @@
+import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
 import {
   GhRunner,
   getRunnerOrg,
   getRunnerRepo,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
-  listRunners,
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
-  resetRunnersCaches,
-  terminateRunner,
-} from './runners';
+  resetGHRunnersCaches,
+} from './gh-runners';
 import { RunnerInfo, getRepo } from './utils';
 
 import { Config } from './config';
@@ -32,6 +31,7 @@ export default async function scaleDown(): Promise<void> {
   try {
     // Ensure a clean cache before attempting each scale down event
     resetRunnersCaches();
+    resetGHRunnersCaches();
     resetSecretCache();
 
     const runners = (
