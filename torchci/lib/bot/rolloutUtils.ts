@@ -1,4 +1,4 @@
-const landCheckPilotGroup = new Set([
+const landCheckPilotGroup = [
   "landchecktestuser",
   "zengk95",
   "atalman",
@@ -63,8 +63,8 @@ const landCheckPilotGroup = new Set([
   "HaoZeke",
   "amjames",
   "fdrocha",
-]);
+];
 
 export function isInLandCheckAllowlist(username: string) {
-  return landCheckPilotGroup.any(u => u.toLowerCase() === username.toLowerCase());
+  return landCheckPilotGroup.some(u => u.toLowerCase() === username.toLowerCase());
 }
