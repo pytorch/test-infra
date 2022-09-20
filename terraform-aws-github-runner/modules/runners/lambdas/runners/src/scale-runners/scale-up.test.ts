@@ -1,11 +1,11 @@
-import { createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
+  createRunner,
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
-} from './gh-runners';
+} from './runners';
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
@@ -15,7 +15,6 @@ import { scaleUp } from './scale-up';
 import * as MetricsModule from './metrics';
 
 jest.mock('./runners');
-jest.mock('./gh-runners');
 jest.mock('./gh-issues');
 jest.mock('./metrics');
 

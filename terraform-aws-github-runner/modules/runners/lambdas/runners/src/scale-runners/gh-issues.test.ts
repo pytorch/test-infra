@@ -1,13 +1,12 @@
 import { getRepoIssuesWithLabel, resetIssuesCache } from './gh-issues';
 
 import { Octokit } from '@octokit/rest';
-import { createGitHubClientForRunnerRepo } from './gh-runners';
+import { createGitHubClientForRunnerRepo } from './runners';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { ScaleUpMetrics } from './metrics';
 
 jest.mock('./runners');
-jest.mock('./gh-runners');
 
 beforeEach(() => {
   jest.resetModules();

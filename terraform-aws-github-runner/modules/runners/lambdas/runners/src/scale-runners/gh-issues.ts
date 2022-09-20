@@ -1,7 +1,7 @@
 import { Repo, getRepoKey } from './utils';
 import LRU from 'lru-cache';
 import { Octokit } from '@octokit/rest';
-import { createGitHubClientForRunnerRepo } from './gh-runners';
+import { createGitHubClientForRunnerRepo } from './runners';
 import { Metrics } from './metrics';
 
 type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
