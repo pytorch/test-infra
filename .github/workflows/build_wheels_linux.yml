@@ -104,6 +104,11 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
+      - name: Run Smoke Tests
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/*.whl"
+          ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
       - name: Upload package to pytorch.org
         if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
