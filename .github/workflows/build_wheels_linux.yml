@@ -67,6 +67,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+          pwd
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -104,6 +105,7 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
+          pwd
       - name: Run Smoke Tests
         run: |
           source "${BUILD_ENV_FILE}"
