@@ -1,12 +1,9 @@
 import { EC2, SSM } from 'aws-sdk';
-import { Repo, RunnerInfo, expBackOff, getRepoKey } from './utils';
-import { createGithubAuth, createOctoClient } from './gh-auth';
+import { RunnerInfo, expBackOff } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics } from './metrics';
-import { Octokit } from '@octokit/rest';
-import YAML from 'yaml';
 
 export interface ListRunnerFilters {
   repoName?: string;

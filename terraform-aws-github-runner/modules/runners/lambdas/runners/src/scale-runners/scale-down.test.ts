@@ -7,7 +7,6 @@ import {
   listGithubRunnersRepo,
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
-  resetGHRunnersCaches,
 } from './gh-runners';
 
 import { Config } from './config';
