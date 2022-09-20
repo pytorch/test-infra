@@ -81,6 +81,7 @@ module "runners" {
   cant_have_issues_labels = var.cant_have_issues_labels
 
   instance_type         = var.instance_type
+  market_options        = var.market_options
   block_device_mappings = var.block_device_mappings
 
   runner_architecture = local.runner_architecture
@@ -95,6 +96,7 @@ module "runners" {
   minimum_running_time_in_minutes      = var.minimum_running_time_in_minutes
   runner_extra_labels                  = var.runner_extra_labels
   runner_as_root                       = var.runner_as_root
+  runners_maximum_count                = var.runners_maximum_count
   idle_config                          = var.idle_config
   enable_ssm_on_runners                = var.enable_ssm_on_runners
   runner_additional_security_group_ids = var.runner_additional_security_group_ids
@@ -111,6 +113,8 @@ module "runners" {
   logging_retention_in_days        = var.logging_retention_in_days
   enable_cloudwatch_agent          = var.enable_cloudwatch_agent
   cloudwatch_config                = var.cloudwatch_config
+  runner_log_files                 = var.runner_log_files
+  runner_group_name                = var.runner_group_name
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
 
   instance_profile_path     = var.instance_profile_path

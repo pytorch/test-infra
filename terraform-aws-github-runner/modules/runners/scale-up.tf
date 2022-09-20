@@ -44,7 +44,6 @@ resource "aws_lambda_function" "scale_up" {
       LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
       MUST_HAVE_ISSUES_LABELS         = join(",", var.must_have_issues_labels)
-      RUNNER_EXTRA_LABELS             = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
       SECURITY_GROUP_IDS              = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
       SUBNET_IDS                      = join(",", var.subnet_ids)
