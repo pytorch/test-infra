@@ -1724,6 +1724,13 @@
     "https://github.com/pytorch/pytorch/issues/60494",
     []
   ],
+  "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
+    "85341",
+    "https://github.com/pytorch/pytorch/issues/85341",
+    [
+      "linux"
+    ]
+  ],
   "test_worker_init_fn (__main__.TestDataLoader)": [
     "82803",
     "https://github.com/pytorch/pytorch/issues/82803",
