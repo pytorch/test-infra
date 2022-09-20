@@ -1,4 +1,4 @@
-const landCheckPilotGroup = [
+const landCheckPilotGroup = new Set([
   "landchecktestuser",
   "zengk95",
   "atalman",
