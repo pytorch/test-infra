@@ -66,5 +66,5 @@ const landCheckPilotGroup = [
 ];
 
 export function isInLandCheckAllowlist(username: string) {
-  return landCheckPilotGroup.some(u => u.toLowerCase() === username.toLowerCase());
+  return landCheckPilotGroup.has(username.toLowerCase());
 }
