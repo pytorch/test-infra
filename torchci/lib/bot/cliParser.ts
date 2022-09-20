@@ -89,7 +89,7 @@ revert.add_argument("-c", "--classification", {
 const rebase = commands.add_parser("rebase", {
   help: "Rebase a PR",
   description:
-    "Rebase a PR. Rebasing defaults to the default branch of pytorch (master).\n" +
+    "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch.\n" +
     "You, along with any member of the pytorch organization, can rebase your PR.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
@@ -98,6 +98,10 @@ const branch_selection = rebase.add_mutually_exclusive_group();
 branch_selection.add_argument("-s", "--stable", {
   action: "store_true",
   help: "Rebase to viable/strict",
+});
+branch_selection.add_argument("-m", "--master", {
+  action: "store_true",
+  help: "Rebase to master (trunk)",
 });
 branch_selection.add_argument("-b", "--branch", {
   help: "Branch you would like to rebase to",
