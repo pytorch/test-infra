@@ -4,6 +4,7 @@ import * as utils from "./utils";
 import pytorchBot from "../lib/bot/pytorchBot";
 import { handleScope, requireDeepCopy } from "./common";
 import { getFailureMessage, getMessage } from "lib/GeneralUtils";
+import { isInLandCheckAllowlist } from "lib/bot/rolloutUtils";
 
 nock.disableNetConnect();
 
@@ -1038,5 +1039,10 @@ some other text lol
     await probot.receive(eventQuoted);
 
     handleScope(scope);
+  });
+
+  test("Land check allow list is case insensitive", async () => {
+    const username = "Lezcano";
+    expect(isInLandCheckAllowlist(username)).toBeTruthy();
   });
 });
