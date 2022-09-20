@@ -36,6 +36,7 @@ resource "aws_sqs_queue" "queued_builds" {
 module "webhook" {
   source = "./modules/webhook"
 
+  aws_region  = var.aws_region
   environment = var.environment
   tags        = local.tags
   encryption = {
