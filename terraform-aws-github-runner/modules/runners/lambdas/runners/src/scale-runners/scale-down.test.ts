@@ -1,13 +1,15 @@
-import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
 import {
   GhRunners,
   getRunnerOrg,
   getRunnerRepo,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
+  listRunners,
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
-} from './gh-runners';
+  resetRunnersCaches,
+  terminateRunner,
+} from './runners';
 
 import { Config } from './config';
 import { mocked } from 'ts-jest/utils';
@@ -16,23 +18,16 @@ import nock from 'nock';
 import scaleDown from './scale-down';
 import * as MetricsModule from './metrics';
 
-jest.mock('./gh-runners', () => ({
+jest.mock('./runners', () => ({
   /* eslint-disable @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./runners') as any),
   getRunnerRepo: jest.fn(),
   getRunnerOrg: jest.fn(),
   listGithubRunnersRepo: jest.fn(),
   listGithubRunnersOrg: jest.fn(),
+  listRunners: jest.fn(),
   removeGithubRunnerOrg: jest.fn(),
   removeGithubRunnerRepo: jest.fn(),
-  resetGHRunnersCaches: jest.fn(),
-  terminateRunner: jest.fn(),
-}));
-
-jest.mock('./runners', () => ({
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  ...(jest.requireActual('./runners') as any),
-  listRunners: jest.fn(),
   resetRunnersCaches: jest.fn(),
   terminateRunner: jest.fn(),
 }));

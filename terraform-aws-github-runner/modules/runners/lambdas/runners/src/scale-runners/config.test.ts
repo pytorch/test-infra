@@ -13,7 +13,6 @@ describe('Config', () => {
     Config.resetConfig();
 
     process.env.AWS_REGION = 'AWS_REGION';
-    process.env.AWS_REGION_INSTANCES = 'AWS_REGION_INSTANCES_2,AWS_REGION_INSTANCES_1';
     process.env.CANT_HAVE_ISSUES_LABELS = 'label 1,label 2';
     process.env.ENABLE_ORGANIZATION_RUNNERS = 'YES';
     process.env.ENVIRONMENT = 'ENVIRONMENT';
@@ -38,11 +37,6 @@ describe('Config', () => {
     process.env.SUBNET_IDS = 'SUBNET_IDS1,SUBNET_IDS2,SUBNET_IDS3';
 
     expect(Config.Instance.awsRegion).toBe('AWS_REGION');
-    expect(Config.Instance.awsRegionInstances).toEqual([
-      'AWS_REGION',
-      'AWS_REGION_INSTANCES_1',
-      'AWS_REGION_INSTANCES_2',
-    ]);
     expect(Config.Instance.cantHaveIssuesLabels).toEqual(['label 1', 'label 2']);
     expect(Config.Instance.environment).toBe('ENVIRONMENT');
     expect(Config.Instance.ghesUrl).toBe('GHES_URL');
@@ -80,7 +74,6 @@ describe('Config', () => {
     Config.resetConfig();
 
     delete process.env.AWS_REGION;
-    delete process.env.AWS_REGION_INSTANCES;
     delete process.env.CANT_HAVE_ISSUES_LABELS;
     delete process.env.ENVIRONMENT;
     delete process.env.GHES_URL;
@@ -105,7 +98,6 @@ describe('Config', () => {
     delete process.env.ENABLE_ORGANIZATION_RUNNERS;
 
     expect(Config.Instance.awsRegion).toBe('us-east-1');
-    expect(Config.Instance.awsRegionInstances).toEqual(['us-east-1']);
     expect(Config.Instance.cantHaveIssuesLabels).toEqual([]);
     expect(Config.Instance.environment).toBe('gh-ci');
     expect(Config.Instance.ghesUrl).toBeUndefined();
