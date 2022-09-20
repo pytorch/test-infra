@@ -319,7 +319,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       case "rebase": {
         if (!args.branch) {
           args.branch = "viable/strict";
-        } else if (args.master) {
+        }
+        if (args.master) {
           args.branch = "master";
         }
         return await this.handleRebase(args.branch);
