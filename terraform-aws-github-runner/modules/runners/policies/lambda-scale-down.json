@@ -12,10 +12,16 @@
     {
       "Effect": "Allow",
       "Action": [
-        "ssm:DeleteParameter",
-        "ssm:DescribeParameters"
+        "ssm:DeleteParameter"
       ],
       "Resource": "${arn_ssm_parameters}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:DescribeParameters"
+      ],
+      "Resource": ["*"]
     },
     {
       "Effect": "Allow",

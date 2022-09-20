@@ -4,7 +4,7 @@
     {
       "Effect": "Allow",
       "Action": ["ssm:DescribeParameters"],
-      "Resource": "${arn_ssm_parameters}"
+      "Resource": ["*"]
     },
     {
       "Effect": "Allow",
