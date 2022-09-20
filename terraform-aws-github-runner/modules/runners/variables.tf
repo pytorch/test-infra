@@ -35,6 +35,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "runner_extra_labels" {
+  description = "Extra labels for the runners (GitHub). Separate each label by a comma"
+  type        = string
+  default     = ""
+}
+
 variable "environment" {
   description = "A name that identifies the environment, used as prefix and for tagging."
   type        = string
