@@ -420,6 +420,13 @@
       "linux"
     ]
   ],
+  "test_compute_bucket_assignment_by_size_sparse_error_without_logger (__main__.TestDistBackendWithSpawn)": [
+    "85339",
+    "https://github.com/pytorch/pytorch/issues/85339",
+    [
+      "linux"
+    ]
+  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
