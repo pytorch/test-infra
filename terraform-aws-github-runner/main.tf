@@ -136,17 +136,14 @@ module "runners" {
 module "runner_binaries" {
   source = "./modules/runner-binaries-syncer"
 
-  aws_region  = var.aws_region
   environment = var.environment
   tags        = local.tags
 
   distribution_bucket_name = "${var.environment}-dist-${random_string.random.result}"
 
-  runner_architecture              = local.runner_architecture
   runner_allow_prerelease_binaries = var.runner_allow_prerelease_binaries
 
   lambda_s3_bucket                = var.lambda_s3_bucket
-  syncer_lambda_s3_key            = var.syncer_lambda_s3_key
   syncer_lambda_s3_object_version = var.syncer_lambda_s3_object_version
   lambda_zip                      = var.runner_binaries_syncer_lambda_zip
   lambda_timeout                  = var.runner_binaries_syncer_lambda_timeout
