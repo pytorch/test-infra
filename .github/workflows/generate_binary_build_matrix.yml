@@ -25,8 +25,8 @@ on:
         type: string
       with-cuda:
         description: "Build with Cuda?"
-        default: true
-        type: boolean
+        default: "enable"
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"

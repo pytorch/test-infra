@@ -45,6 +45,9 @@ CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
+CUDA_ENABLE = "enable"
+CUDA_DISABLE = "disable"
+
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
         return "cuda"
@@ -155,12 +158,12 @@ def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: st
     whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: bool) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = FULL_PYTHON_VERSIONS
 
-    if with_cuda:
+    if with_cuda == CUDA_ENABLE:
         if os == "linux":
             arches += CUDA_ARCHES
         elif os == "windows":
@@ -200,7 +203,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: bool) -> List[Dict[s
 def generate_libtorch_matrix(
     os: str,
     channel: str,
-    with_cuda: bool,
+    with_cuda: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -214,7 +217,7 @@ def generate_libtorch_matrix(
     if arches is None:
         arches = ["cpu"]
 
-        if with_cuda:
+        if with_cuda == CUDA_ENABLE:
             if os == "linux":
                 arches += CUDA_ARCHES
                 arches += ROCM_ARCHES
@@ -277,11 +280,12 @@ def generate_libtorch_matrix(
 def generate_wheels_matrix(
     os: str,
     channel: str,
-    with_cuda: bool,
+    with_cuda: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
+
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
@@ -296,7 +300,7 @@ def generate_wheels_matrix(
         # Define default compute archivectures
         arches = ["cpu"]
 
-        if with_cuda:
+        if with_cuda == CUDA_ENABLE:
             if os == "linux":
                 arches += CUDA_ARCHES + ROCM_ARCHES
             elif os == "windows":
@@ -360,13 +364,12 @@ def main() -> None:
         choices=["nightly", "test", "release", "all"],
         default=os.getenv("CHANNEL", "nightly"),
     )
-    )
     parser.add_argument(
         "--with-cuda",
         help="Build with Cuda?",
-        type=bool,
-        # default=os.getenv("WITH_CUDA", True),
-        default=os.getenv("WITH_CUDA", False),
+        type=str,
+        choices=[CUDA_ENABLE, CUDA_DISABLE],
+        default=os.getenv("WITH_CUDA", CUDA_ENABLE),
     )
     options = parser.parse_args()
     includes = []
