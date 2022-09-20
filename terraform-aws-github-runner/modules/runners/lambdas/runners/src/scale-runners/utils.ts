@@ -60,7 +60,7 @@ export async function expBackOff<T>(
     try {
       return await callback();
     } catch (e) {
-      if (`${e}`.includes('RequestLimitExceeded') || `${e}`.includes('ThrottlingException')) {
+      if (`${e}`.includes('RequestLimitExceeded')) {
         if (expBackOffMs > maxMs) {
           throw e;
         }
