@@ -28,10 +28,10 @@ export interface RunnerType {
   is_ephemeral: boolean;
 }
 
-const SHOULD_NOT_TRY_LIST_SSM="SHOULD_NOT_TRY_LIST_SSM";
+const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
 
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
-const ssmParametersCache = new LRU({ maxAge: Config.Instance.minimumRunningTimeInMinutes * 60 * 1000 / 2 });
+const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
 export function resetRunnersCaches() {
   ssmParametersCache.reset();
@@ -185,7 +185,6 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
         console.error(`[terminateRunner - SSM.deleteParameter] Failed deleting parameter ${paramName}: ${e}`);
       }
     }
-
   } catch (e) {
     console.error(`[terminateRunner]: ${e}`);
     throw e;
