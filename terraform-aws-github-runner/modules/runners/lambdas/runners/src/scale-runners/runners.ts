@@ -132,6 +132,23 @@ export async function listSSMParameters(metrics: Metrics): Promise<Set<string>> 
   return parametersSet;
 }
 
+async function doDeleteSSMParameter(paramName: string, metrics: Metrics): Promise<void> {
+  try {
+    const ssm = new SSM();
+    await expBackOff(() => {
+      return metrics.trackRequest(
+        metrics.ssmdeleteParameterAWSCallSuccess,
+        metrics.ssmdeleteParameterAWSCallFailure,
+        () => {
+          return ssm.deleteParameter({ Name: paramName }).promise();
+        },
+      );
+    });
+  } catch (e) {
+    console.error(`[terminateRunner - SSM.deleteParameter] Failed deleting parameter ${paramName}: ${e}`);
+  }
+}
+
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
     const ec2 = new EC2();
@@ -145,36 +162,18 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
         },
       );
     });
-    console.info(`Runner terminated: ${runner.instanceId}`);
+    console.info(`Runner terminated: ${runner.instanceId} ${runner.runnerType}`);
 
     const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
 
     if (ssmParametersCache.has(SHOULD_NOT_TRY_LIST_SSM)) {
-      const ssm = new SSM();
-      await expBackOff(() => {
-        return metrics.trackRequest(
-          metrics.ssmdeleteParameterAWSCallSuccess,
-          metrics.ssmdeleteParameterAWSCallFailure,
-          () => {
-            return ssm.deleteParameter({ Name: paramName }).promise();
-          },
-        );
-      });
+      doDeleteSSMParameter(paramName, metrics);
     } else {
       try {
         const params = await listSSMParameters(metrics);
 
         if (params.has(paramName)) {
-          const ssm = new SSM();
-          await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.ssmdeleteParameterAWSCallSuccess,
-              metrics.ssmdeleteParameterAWSCallFailure,
-              () => {
-                return ssm.deleteParameter({ Name: paramName }).promise();
-              },
-            );
-          });
+          doDeleteSSMParameter(paramName, metrics);
           console.info(`Parameter deleted: ${paramName}`);
         } else {
           /* istanbul ignore next */
@@ -182,7 +181,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
         }
       } catch (e) {
         ssmParametersCache.set(SHOULD_NOT_TRY_LIST_SSM, 1, 60 * 1000);
-        console.error(`[terminateRunner - SSM.deleteParameter] Failed deleting parameter ${paramName}: ${e}`);
+        console.error(`[terminateRunner - listSSMParameters] Failed to list parameters or check if available: ${e}`);
       }
     }
   } catch (e) {
