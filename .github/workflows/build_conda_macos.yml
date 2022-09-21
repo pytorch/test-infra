@@ -1,4 +1,4 @@
-name: Build M1 Conda
+name: Build MacOS Conda
 
 on:
   workflow_call:
@@ -35,6 +35,10 @@ on:
         description: "Post script to run prior to build"
         default: ""
         type: string
+      runner-type:
+        description: "Runner environment specified."
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -49,7 +53,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: cpu
     name: ${{ matrix.build_name }}
-    runs-on: macos-m1-12
+    runs-on: ${{ inputs.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -85,8 +89,18 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           source "${BUILD_ENV_FILE}"
+
+          if [[ "$(uname)" == Darwin ]]; then
+            arch_name="$(uname -m)"
+            if [ "${arch_name}" != "arm64" ]; then
+              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
+            fi
+          fi
+
           ${CONDA_RUN} conda build \
             -c defaults \
+            -c conda-forge \
+            -c nvidia \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --python "${PYTHON_VERSION}" \
@@ -109,7 +123,24 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      # TODO: Figure out upload method to s3
+      - name: Upload package to conda
+        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} conda install -yq anaconda-client
+          set -x
+          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
+          export ANACONDA_PATH
+          arch_name="$(uname -m)"
+          if [ "${arch_name}" = "arm64" ]; then
+            export ARCH_NAME="osx-arm64"
+          else
+            export ARCH_NAME="osx-64"
+          fi
+          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}/*.tar.bz2" -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

@@ -4,6 +4,7 @@ export class Config {
   private static _instance: Config | undefined;
 
   readonly awsRegion: string;
+  readonly awsRegionInstances: string[];
   readonly cantHaveIssuesLabels: string[];
   readonly enableOrganizationRunners: boolean;
   readonly environment: string;
@@ -29,6 +30,10 @@ export class Config {
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
+    this.awsRegionInstances = Array.from(
+      /* istanbul ignore next */
+      new Set(process.env.AWS_REGION_INSTANCES?.split(',').filter((w) => w.length > 0) || []).add(this.awsRegion),
+    ).sort();
     /* istanbul ignore next */
     this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
     this.environment = process.env.ENVIRONMENT || 'gh-ci';

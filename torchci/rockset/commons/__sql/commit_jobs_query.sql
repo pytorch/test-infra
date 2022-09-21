@@ -93,6 +93,7 @@ SELECT
     line as failureLine,
     line_num as failureLineNumber,
     captures as failureCaptures,
+    time,
 from
     job
 ORDER BY
