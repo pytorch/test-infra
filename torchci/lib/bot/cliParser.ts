@@ -97,11 +97,7 @@ const rebase = commands.add_parser("rebase", {
 const branch_selection = rebase.add_mutually_exclusive_group();
 branch_selection.add_argument("-s", "--stable", {
   action: "store_true",
-  help: "Rebase to viable/strict",
-});
-branch_selection.add_argument("-m", "--master", {
-  action: "store_true",
-  help: "Rebase to master (trunk)",
+  help: "[DEPRECATED] Rebase onto viable/strict",
 });
 branch_selection.add_argument("-b", "--branch", {
   help: "Branch you would like to rebase to",
