@@ -1,17 +1,16 @@
+import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey } from './utils';
+import { RunnerType, createRunner } from './runners';
 import {
-  RunnerType,
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
-  createRunner,
   getRunnerTypes,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
-} from './runners';
-import { getRepoIssuesWithLabel } from './gh-issues';
-import { ScaleUpMetrics, Metrics } from './metrics';
+} from './gh-runners';
 
 import { Config } from './config';
+import { getRepoIssuesWithLabel } from './gh-issues';
 
 export interface ActionRequestMessage {
   id: number;
