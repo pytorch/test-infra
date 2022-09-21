@@ -127,17 +127,19 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Smoke Test
-        working-directory: ${{ inputs.repository }}
         run: |
           #./test/smoke_test/run_smoke_test.sh
-          set -ex
-          conda create -yp test python=3.9 numpy=1.23
-          conda run -p test  conda install pytorch cpuonly -c pytorch-nightly
-          conda run -p test conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
+          # set -ex
+          # conda create -yp test python=3.9 numpy=1.23
+          # conda run -p test  conda install pytorch cpuonly -c pytorch-nightly
+          # conda run -p test conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} conda install -v -y -c "file://$HOME/${{ inputs.repository }}/dist/linux-64" torchaudio
+          ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
           # Test torch is importable, by changing cwd and running import commands
-          conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
-          conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
-          conda env remove -p test-luck
+          # conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
+          # conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
+          # conda env remove -p test-luck
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
