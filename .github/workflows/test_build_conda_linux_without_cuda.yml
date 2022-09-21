@@ -1,4 +1,4 @@
-name: Test Build Linux Conda
+name: Test Build Linux Conda without CUDA
 
 on:
   pull_request:

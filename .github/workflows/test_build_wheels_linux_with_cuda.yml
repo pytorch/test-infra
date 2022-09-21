@@ -1,4 +1,4 @@
-name: Test Build Linux Wheels
+name: Test Build Linux Wheels with CUDA
 
 on:
   pull_request:
@@ -17,7 +17,6 @@ jobs:
       os: linux
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      with-cuda: disable
   test:
     needs: generate-matrix
     strategy:
@@ -28,9 +27,6 @@ jobs:
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
           - repository: pytorch/vision
-            pre-script: ""
-            post-script: ""
-          - repository: pytorch/text
             pre-script: ""
             post-script: ""
     uses: ./.github/workflows/build_wheels_linux.yml

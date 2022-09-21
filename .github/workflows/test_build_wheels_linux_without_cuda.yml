@@ -1,11 +1,11 @@
-name: Test Build Linux Conda with CUDA
+name: Test Build Linux Wheels without CUDA
 
 on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_conda_linux.yml
-      - .github/workflows/build_conda_linux.yml
+      - .github/workflows/test_build_wheels_linux.yml
+      - .github/workflows/build_wheels_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
   workflow_dispatch:
 
@@ -13,28 +13,23 @@ jobs:
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
-      package-type: conda
+      package-type: wheel
       os: linux
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
   test:
     needs: generate-matrix
     strategy:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio
-            pre-script: packaging/pre_build_script.sh
-            post-script: packaging/post_build_script.sh
-            conda-package-directory: packaging/torchaudio
-          - repository: pytorch/vision
+          - repository: pytorch/text
             pre-script: ""
             post-script: ""
-            conda-package-directory: packaging/torchvision
+    uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
-    uses: ./.github/workflows/build_conda_linux.yml
     with:
-      conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
       ref: nightly
       test-infra-repository: ${{ github.repository }}
