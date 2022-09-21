@@ -1,7 +1,7 @@
 name: Test Build Linux Conda with CUDA
 
 on:
-  pull-request:
+  pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
       - .github/workflows/test_build_conda_linux.yml
