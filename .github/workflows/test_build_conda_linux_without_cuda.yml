@@ -24,14 +24,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio
-            pre-script: packaging/pre_build_script.sh
-            post-script: packaging/post_build_script.sh
-            conda-package-directory: packaging/torchaudio
-          - repository: pytorch/vision
-            pre-script: ""
-            post-script: ""
-            conda-package-directory: packaging/torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
