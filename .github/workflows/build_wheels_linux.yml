@@ -31,6 +31,10 @@ on:
         description: "Post script to run prior to build"
         default: ""
         type: string
+      package-name:
+        description: "Name of the actual python package that is imported"
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -106,7 +110,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
           pwd
-      - name: Run Smoke Tests
+      - name: Run Primitive Smoke Tests
         run: |
           echo "ls pytorch/audio"
           ls pytorch/audio
@@ -118,7 +122,7 @@ jobs:
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME" 
-          ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
+          ${CONDA_RUN} python3 -c "import ${{ inputs.package-name }}; print('package version is ', ${{ inputs.package-name }}.__version__)"
       - name: Upload package to pytorch.org
         if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
