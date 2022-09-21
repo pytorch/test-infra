@@ -108,6 +108,8 @@ jobs:
           pwd
       - name: Run Smoke Tests
         run: |
+          ls pytorch/audio
+          ls pytorch/audio/dist
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install $(ls "${{ inputs.repository }}/dist/*.whl")
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
