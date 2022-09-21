@@ -115,7 +115,9 @@ jobs:
           echo "ls pytorch/audio/dist/*.whl"
           ls pytorch/audio/dist/*.whl
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install $(ls "${{ inputs.repository }}/dist/*.whl")
+          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/*.whl")
+          echo "$WHEEL_NAME"
+          ${CONDA_RUN} pip install "$WHEEL_NAME" 
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
       - name: Upload package to pytorch.org
         if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
