@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
         # BUILD_VERSION for legacy scripts
         default=os.getenv("BUILD_VERSION", os.getenv("BASE_BUILD_VERSION", "")),
     )
+    parser.add_argument(
+        "--arch-name",
+        type=str,
+        help="Architecture name of the machine (uname -m)",
+        default=os.getenv("ARCH_NAME", None),
+    )
     options = parser.parse_args()
     return options
 
@@ -72,6 +78,7 @@ def parse_args() -> argparse.Namespace:
 def main():
     options = parse_args()
     variables = []
+
     if options.package_type == "conda":
         # TODO: Eventually it'd be nice to not have to rely on conda being installed
         output = subprocess.check_output(
@@ -100,8 +107,13 @@ def main():
                 channel=options.channel,
             )
         )
+
     if options.platform == "darwin":
         variables.extend(get_macos_variables())
+
+        if options.arch_name is not None and options.arch_name != "arm64":
+            variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT=- mkl<=2021.2.0")
+
     variables.extend(
         get_cuda_variables(
             options.package_type, options.platform, options.gpu_arch_version
