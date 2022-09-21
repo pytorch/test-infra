@@ -4,7 +4,7 @@ description: Clean workspace and check out PyTorch
 
 inputs:
   python-version:
-    description: If set to any value, don't use sudo to clean the workspace
+    description: If set to any value, dont use sudo to clean the workspace
     required: false
     type: string
     default: "3.9"
@@ -73,8 +73,9 @@ runs:
           echo "Print the available disk space for manual inspection"
           df -h
 
-          # 3GB can still fail some tests, so set the minimum requirement space to 4GB
-          MINIMUM_AVAILABLE_SPACE_IN_KB=$((4 * 1024 * 1024))
+          # Set the minimum requirement space to 4GB
+          MINIMUM_AVAILABLE_SPACE_IN_GB=4
+          MINIMUM_AVAILABLE_SPACE_IN_KB=$(($MINIMUM_AVAILABLE_SPACE_IN_GB * 1024 * 1024))
 
           # Use KB to avoid floating point warning like 3.1GB
           df -k | tr -s ' ' | cut -d' ' -f 4,9 | while read -r LINE;
