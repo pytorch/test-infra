@@ -4,8 +4,7 @@
 
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
-import { Octokit, App } from "octokit";
-import { createAppAuth } from "@octokit/auth-app";
+import { Octokit } from "octokit";
 import rockset from "@rockset/client";
 
 function getDynamoClient() {
@@ -21,25 +20,11 @@ function getDynamoClient() {
 }
 
 async function getOctokit(owner, repo) {
-  let privateKey = process.env.PRIVATE_KEY;
+  let privateKey = process.env.PYTORCH_HUD_TOKEN;
   privateKey = Buffer.from(privateKey, "base64").toString();
 
-  const app = new App({
-    appId: process.env.APP_ID,
-    privateKey,
-  });
-  const installation = await app.octokit.request(
-    "GET /repos/{owner}/{repo}/installation",
-    { owner, repo }
-  );
-
   return new Octokit({
-    authStrategy: createAppAuth,
-    auth: {
-      appId: process.env.APP_ID,
-      privateKey,
-      installationId: installation.data.id,
-    },
+    auth: privateKey
   });
 }
 
