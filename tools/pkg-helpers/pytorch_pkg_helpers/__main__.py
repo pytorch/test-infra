@@ -112,7 +112,7 @@ def main():
         variables.extend(get_macos_variables())
 
         if options.arch_name is not None and options.arch_name != "arm64":
-            variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT=- mkl<=2021.2.0")
+            variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT=\"- mkl<=2021.2.0\"")
 
     variables.extend(
         get_cuda_variables(
