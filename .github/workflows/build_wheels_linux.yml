@@ -115,7 +115,7 @@ jobs:
           echo "ls pytorch/audio/dist/*.whl"
           ls pytorch/audio/dist/*.whl
           source "${BUILD_ENV_FILE}"
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/*.whl")
+          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} pip install "$WHEEL_NAME" 
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
