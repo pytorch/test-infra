@@ -109,12 +109,14 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Run Primitive Smoke Tests
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME" 
-          ${CONDA_RUN} python3 -c "import ${{ inputs.package-name }}; print('package version is ', ${{ inputs.package-name }}.__version__)"
+          ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to pytorch.org
         if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
