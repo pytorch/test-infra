@@ -139,7 +139,7 @@ jobs:
           WHEEL_NAME=$(ls $CONDA_OUTPUT_PATH)
           echo "$WHEEL_NAME"
           ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
-          ${CONDA_RUN} conda install --offline "${{ inputs.repository }}/dist/linux-64/$WHEEL_NAME"
+          ${CONDA_RUN} conda install --offline "$WHEEL_NAME"
           # ${CONDA_RUN} conda install -v -y -c "file://$HOME/${{ inputs.repository }}/dist/linux-64" torchaudio
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
           # Test torch is importable, by changing cwd and running import commands
