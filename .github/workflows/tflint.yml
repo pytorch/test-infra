@@ -10,6 +10,7 @@ on:
 
 jobs:
   tflint:
+    name: TFLint
     runs-on: ubuntu-latest
     container: node:12
 
