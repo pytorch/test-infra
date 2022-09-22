@@ -74,6 +74,12 @@ runner_types:
     os: linux
     max_available: 10
     disk_size: 150
+  linux.g5.4xlarge.nvidia.gpu:
+    instance_type: g5.4xlarge
+    os: linux
+    max_available: 10
+    disk_size: 150
+    is_ephemeral: true
   linux.large:
     disk_size: 10
     instance_type: c5.large
