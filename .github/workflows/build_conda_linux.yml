@@ -134,7 +134,9 @@ jobs:
           # conda run -p test  conda install pytorch cpuonly -c pytorch-nightly
           # conda run -p test conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
           source "${BUILD_ENV_FILE}"
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/linux-64/*.tar.bz2")
+          CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"*.tar.bz2
+          echo "$CONDA_OUTPUT_PATH"
+          WHEEL_NAME=$(ls $CONDA_OUTPUT_PATH)
           echo "$WHEEL_NAME"
           ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
           ${CONDA_RUN} conda install --offline "${{ inputs.repository }}/dist/linux-64/$WHEEL_NAME"
