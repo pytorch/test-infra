@@ -129,23 +129,14 @@ jobs:
       - name: Smoke Test
         run: |
           #./test/smoke_test/run_smoke_test.sh
-          # set -ex
-          # conda create -yp test python=3.9 numpy=1.23
-          # conda run -p test  conda install pytorch cpuonly -c pytorch-nightly
-          # conda run -p test conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
           source "${BUILD_ENV_FILE}"
-          CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"*.tar.bz2
+          CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"
           echo "$CONDA_OUTPUT_PATH"
-          WHEEL_NAME=$(ls $CONDA_OUTPUT_PATH)
+          WHEEL_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
           echo "$WHEEL_NAME"
           ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
           ${CONDA_RUN} conda install --offline "$WHEEL_NAME"
-          # ${CONDA_RUN} conda install -v -y -c "file://$HOME/${{ inputs.repository }}/dist/linux-64" torchaudio
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
-          # Test torch is importable, by changing cwd and running import commands
-          # conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
-          # conda run --cwd /tmp -p test-luck python3 -c "import torch;import torchaudio;torchaudio.set_audio_backend('sox_io')"
-          # conda env remove -p test-luck
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
