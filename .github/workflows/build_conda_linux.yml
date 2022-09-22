@@ -134,7 +134,11 @@ jobs:
           # conda run -p test  conda install pytorch cpuonly -c pytorch-nightly
           # conda run -p test conda install /__w/test-infra/test-infra/pytorch/audio/dist/linux-64/torchaudio*.tar.bz2 
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -v -y -c "file://$HOME/${{ inputs.repository }}/dist/linux-64" torchaudio
+          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/linux-64/*.tar.bz2")
+          echo "$WHEEL_NAME"
+          ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
+          ${CONDA_RUN} conda install --offline "${{ inputs.repository }}/dist/linux-64/$WHEEL_NAME"
+          # ${CONDA_RUN} conda install -v -y -c "file://$HOME/${{ inputs.repository }}/dist/linux-64" torchaudio
           ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
           # Test torch is importable, by changing cwd and running import commands
           # conda run --cwd /tmp -p test-luck python3 -c "import torchaudio;print('torchaudio version is ', torchaudio.__version__)"
