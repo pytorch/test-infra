@@ -1,0 +1,34 @@
+name: Trigger Linux Wheels Build for Nightlies/Release
+
+on:
+  repository_dispatch:
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+  build:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/audio
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
+            package-name: torchaudio
+    uses: ./.github/workflows/build_wheels_linux.yml
+    name: ${{ matrix.repository }}
+    with: 
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
+      package-name: ${{ matrix.package-name }}
