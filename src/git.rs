@@ -9,10 +9,7 @@ use log::debug;
 use regex::Regex;
 
 pub fn get_head() -> Result<String> {
-    let output = Command::new("git")
-        .arg("rev-parse")
-        .arg("HEAD")
-        .output()?;
+    let output = Command::new("git").arg("rev-parse").arg("HEAD").output()?;
     ensure_output("git rev-parse", &output)?;
     let head = std::str::from_utf8(&output.stdout)?.trim();
     Ok(head.to_string())
@@ -118,9 +115,27 @@ pub fn get_changed_files(git_root: &AbsPath, relative_to: Option<&str>) -> Resul
 
     log_files("Linting working tree diff files: ", &working_tree_files);
 
-    working_tree_files
+    let deleted_working_tree_files: HashSet<String> = working_tree_files_str
+        .lines()
+        .filter(|line| !line.is_empty())
+        // Filter IN deleted files.
+        .filter(|line| line.starts_with('D'))
+        // Strip the status prefix.
+        .map(|line| re.replace(line, "").to_string())
+        .collect();
+
+    log_files(
+        "These files were deleted in the working tree and won't be checked: ",
+        &working_tree_files,
+    );
+
+    let all_files = working_tree_files
         .union(&commit_files)
-        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<HashSet<_>>();
+
+    all_files
+        .difference(&deleted_working_tree_files)
         // Git reports files relative to the root of git root directory, so retrieve
         // that and prepend it to the file paths.
         .map(|f| format!("{}/{}", git_root.display(), f))
@@ -279,6 +294,30 @@ mod tests {
 
         let files = git.changed_files(None)?;
         assert_eq!(files.len(), 0);
+        Ok(())
+    }
+
+    // Files that were deleted/moved in the working tree should not be checked,
+    // since obviously they are gone.
+    #[test]
+    fn moved_files_working_tree() -> Result<()> {
+        let git = GitCheckout::new()?;
+        git.write_file("test_1.txt", "Initial commit")?;
+        git.add(".")?;
+        git.commit("commit 1")?;
+
+        git.write_file("test_2.txt", "foo")?;
+        git.add(".")?;
+        git.commit("commit 2")?;
+
+        let output = Command::new("git")
+            .args(&["mv", "test_2.txt", "new.txt"])
+            .current_dir(git.root.path())
+            .output()?;
+        assert!(output.status.success());
+
+        let files = git.changed_files(None)?;
+        assert!(files.contains(&"new.txt".to_string()));
         Ok(())
     }
 
