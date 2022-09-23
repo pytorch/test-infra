@@ -52,7 +52,6 @@ jobs:
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
       CU_VERSION: cpu
-      ARCH_NAME: ${{ uname -m }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need

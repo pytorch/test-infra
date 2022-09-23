@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
         "--arch-name",
         type=str,
         help="Architecture name of the machine (uname -m)",
-        default=os.getenv("ARCH_NAME", None),
+        default=None,
     )
     options = parser.parse_args()
     return options
@@ -109,7 +109,6 @@ def main():
         )
 
     variables.extend(get_macos_variables())
-
     # if options.platform == "darwin":
     #     variables.extend(get_macos_variables())
 
