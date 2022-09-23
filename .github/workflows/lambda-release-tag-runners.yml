@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     container: node:12
     outputs:
-      date: v${{ steps.date.outputs.date }}
+      date: ${{ steps.date.outputs.date }}
     steps:
       # - name: Checkout branch
       #   uses: actions/checkout@v3
