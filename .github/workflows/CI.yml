@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Initialize git config for testing
         run: |
           git config --global user.email "fake@email.com"
@@ -26,6 +29,9 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
     - uses: messense/maturin-action@v1
       with:
         manylinux: auto
@@ -42,6 +48,9 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
     - uses: messense/maturin-action@v1
       with:
         command: build
@@ -57,6 +66,9 @@ jobs:
     needs: test
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
     - uses: messense/maturin-action@v1
       with:
         command: build
