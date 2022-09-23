@@ -44,7 +44,9 @@ jobs:
       #   with:
       #     repo-token: ${{ secrets.GITHUB_TOKEN }}
       #     tag: v${{ steps.date.outputs.date }}
-      - uses: ./.github/workflows/lambda-do-release-runners.yml
-        with:
-          # tag: v${{ steps.date.outputs.date }}
-          tag: v20220923-145840
+  release-lambdas:
+    needs: tag
+    uses: ./.github/workflows/lambda-do-release-runners.yml
+    with:
+      # tag: v${{ steps.date.outputs.date }}
+      tag: v20220923-145840
