@@ -15,4 +15,3 @@ jobs:
         uses: ./.github/workflows/lambda-do-release-runners.yml
         with:
           tag: ${{ github.ref }}
-        secrets: inherit
