@@ -91,6 +91,13 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
+          if [[ "$(uname)" == Darwin ]]; then
+            arch_name="$(uname -m)"
+            if [ "${arch_name}" != "arm64" ]; then
+              export CONDA_EXTRA_BUILD_CONSTRAINT="- mkl<=2021.2.0"
+            fi
+          fi
+
           ${CONDA_RUN} conda build \
             -c defaults \
             -c conda-forge \
