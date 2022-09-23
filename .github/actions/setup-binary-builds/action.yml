@@ -76,8 +76,6 @@ runs:
         shell: bash -l {0}
         run: |
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
-          ARCH_NAME="${uname -m}"
-
           conda create \
             --yes \
             --prefix "${CONDA_ENV}" \
