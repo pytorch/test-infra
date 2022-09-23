@@ -160,7 +160,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     if (!rejection_reason) {
-      console.log(rebase);
       if (
         rebase &&
         !(await this.hasWritePermissions(
