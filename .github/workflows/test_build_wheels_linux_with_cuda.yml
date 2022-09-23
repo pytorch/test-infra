@@ -1,4 +1,4 @@
-name: Test Build Linux Wheels
+name: Test Build Linux Wheels with CUDA
 
 on:
   pull_request:
@@ -31,10 +31,6 @@ jobs:
             pre-script: ""
             post-script: ""
             package-name: torchvision
-          - repository: pytorch/text
-            pre-script: ""
-            post-script: ""
-            package-name: torchtext
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
