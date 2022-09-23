@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     container: node:12
     steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
       - name: Call 'Upload Release for runners lambdas'
         uses: ./.github/workflows/lambda-do-release-runners.yml
         with:
