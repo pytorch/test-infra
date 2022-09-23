@@ -161,13 +161,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (!rejection_reason) {
       if (rebase === true) {
-        const { ctx, owner, repo } = this;
-        rebase = (
-          await ctx.octokit.rest.repos.get({
-            owner,
-            repo,
-          })
-        )?.data?.default_branch;
+        rebase = "viable/strict";
       }
       await this.logger.log("merge", extra_data);
       await this.dispatchEvent("try-merge", {
