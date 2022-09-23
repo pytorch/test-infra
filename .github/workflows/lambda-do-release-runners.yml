@@ -28,7 +28,8 @@ jobs:
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
       - name: Install zip
         uses: montudor/action-zip@v1
-        args: cd terraform-aws-github-runner/modules/runners/lambdas/runners/dist && zip ../runners.zip index.js
+        with:
+          args: cd terraform-aws-github-runner/modules/runners/lambdas/runners/dist && zip ../runners.zip index.js
       - name: Create Release
         uses: actions/create-release@v1
         id: create_release
