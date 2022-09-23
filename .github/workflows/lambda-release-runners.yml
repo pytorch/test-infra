@@ -3,38 +3,16 @@ on:
     tags:
       - 'v*'
 
-name: Upload Release for runners lambdas
+name: Call 'Upload Release for runners lambdas'
 
 jobs:
-  build:
-    name: Upload Release for runners lambdas
+  call-release:
+    name: Call 'Upload Release for runners lambdas'
     runs-on: ubuntu-latest
     container: node:12
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install dependencies
-        run: yarn install
-        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
-      - name: Build distribution
-        run: yarn dist
-        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
-      - name: Create Release
-        uses: actions/create-release@v1
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Call 'Upload Release for runners lambdas'
+        uses: .github/workflows/lambda-do-release-runners.yml
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Runner lambdas ${{ github.ref }}
-          draft: false
-          prerelease: false
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: terraform-aws-github-runner/modules/runners/lambdas/runners/runners.zip
-          asset_name: runners.zip
-          asset_content_type: application/zip
+          tag: v${{ steps.date.outputs.date }}
+        secrets: inherit
