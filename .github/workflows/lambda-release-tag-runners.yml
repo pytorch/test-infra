@@ -44,6 +44,6 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           tag: v${{ steps.date.outputs.date }}
-      - uses: pytorch/test-infra/./.github/workflows/lambda-do-release-runners.yml@${ref}
+      - uses: pytorch/test-infra/./.github/workflows/lambda-do-release-runners.yml@${{ github.ref }}
         with:
           tag: v${{ steps.date.outputs.date }}
