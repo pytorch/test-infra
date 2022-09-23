@@ -894,7 +894,7 @@ some other text lol
     handleScope(scope);
   });
 
-  test("merge rebase", async () => {
+  test("merge rebase default", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r";
@@ -912,11 +912,9 @@ some other text lol
         }
       )
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}`)
-      .reply(200, { default_branch: "master" })
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"master"}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"viable/strict"}}`
         );
         return true;
       })
@@ -926,10 +924,10 @@ some other text lol
     handleScope(scope);
   });
 
-  test("merge rebase", async () => {
+  test("merge rebase custom branch", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -r viable/strict";
+    event.payload.comment.body = "@pytorchbot merge -r master";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -946,7 +944,7 @@ some other text lol
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"viable/strict"}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"master"}}`
         );
         return true;
       })
