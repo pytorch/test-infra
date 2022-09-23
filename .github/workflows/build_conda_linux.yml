@@ -127,6 +127,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Smoke Test
+        if: ${{ inputs.repository == "pytorch/audio"}}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
