@@ -111,9 +111,8 @@ def main():
     if options.platform == "darwin":
         variables.extend(get_macos_variables())
 
-        print(f"### arch_name: {options.arch_name}")
-        if options.arch_name is not None and options.arch_name != "arm64":
-            variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT='- mkl<=2021.2.0'")
+        # if options.arch_name is not None and options.arch_name != "arm64":
+        #     variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT='- mkl<=2021.2.0'")
 
     variables.extend(
         get_cuda_variables(
