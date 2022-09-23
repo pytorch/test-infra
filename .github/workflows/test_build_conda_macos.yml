@@ -16,7 +16,6 @@ jobs:
       os: macos
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      arch-name: uname -m
   test:
     needs: generate-matrix
     strategy:

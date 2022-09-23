@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
         "--arch-name",
         type=str,
         help="Architecture name of the machine (uname -m)",
-        default=None,
+        default=os.getenv("ARCH_NAME", None),
     )
     options = parser.parse_args()
     return options
