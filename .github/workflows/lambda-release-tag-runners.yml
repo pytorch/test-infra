@@ -40,7 +40,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           tag: v${{ steps.date.outputs.date }}
       - name: Call 'Upload Release for runners lambdas'
-        uses: .github/workflows/lambda-do-release-runners.yml
+        uses: ./.github/workflows/lambda-do-release-runners.yml
         with:
           tag: v${{ steps.date.outputs.date }}
         secrets: inherit
