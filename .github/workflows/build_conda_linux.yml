@@ -127,16 +127,17 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Smoke Test
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
-          #./test/smoke_test/run_smoke_test.sh
           source "${BUILD_ENV_FILE}"
           CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"
           echo "$CONDA_OUTPUT_PATH"
-          WHEEL_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
-          echo "$WHEEL_NAME"
+          BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
+          echo "$BINARY_NAME"
           ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
-          ${CONDA_RUN} conda install --offline "$WHEEL_NAME"
-          ${CONDA_RUN} python3 -c "import torchaudio; print('torchaudio version is ', torchaudio.__version__)"
+          ${CONDA_RUN} conda install --offline "$BINARY_NAME"
+          ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
