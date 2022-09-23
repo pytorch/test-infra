@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
         "--arch-name",
         type=str,
         help="Architecture name of the machine (uname -m)",
-        default=os.getenv("ARCH_NAME", None),
+        default=None,
     )
     options = parser.parse_args()
     return options
@@ -108,8 +108,10 @@ def main():
             )
         )
 
-    if options.platform == "darwin":
-        variables.extend(get_macos_variables())
+    variables.extend(get_macos_variables())
+
+    # if options.platform == "darwin":
+    #     variables.extend(get_macos_variables())
 
         # if options.arch_name is not None and options.arch_name != "arm64":
         #     variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT='- mkl<=2021.2.0'")
