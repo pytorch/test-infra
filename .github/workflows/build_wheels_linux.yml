@@ -35,6 +35,10 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
+      build-type:
+        description: "Type of build: development, nightly, or release"
+        default: ""
+        type: string
 
 jobs:
   build:
@@ -118,7 +122,7 @@ jobs:
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME" 
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to pytorch.org
-        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ inputs.build-type == 'nightly' || inputs.build-type == 'release' }}
         working-directory: ${{ inputs.repository }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
