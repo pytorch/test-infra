@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2022-09-23
+
+### Bug Fixes
+
+- Don't check files that were deleted/moved in working tree ([0fbb2f3](https://github.com/suo/lintrunner/commit/0fbb2f3d01a08088606ee6650e98d9db9b0b7b3a))
+
+### Testing
+
+- Add unit test for trailing whitespace ([bbbcffd](https://github.com/suo/lintrunner/commit/bbbcffd7d095b16fc831fe48c163b4805e6a9aa0))
+- Add missing snapshot ([9fda576](https://github.com/suo/lintrunner/commit/9fda576f330392c244527defb6e80250663744c6))
+
 ## [0.9.2] - 2022-05-11
 
 ### Bug Fixes
