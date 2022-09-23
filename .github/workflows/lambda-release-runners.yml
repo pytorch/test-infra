@@ -15,8 +15,10 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: yarn install
+        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
       - name: Build distribution
         run: yarn dist
+        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
       - name: Create Release
         uses: actions/create-release@v1
         id: create_release
@@ -33,6 +35,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./terraform-aws-github-runner/modules/runners/lambdas/runners/runners.zip
+          asset_path: terraform-aws-github-runner/modules/runners/lambdas/runners/runners.zip
           asset_name: runners.zip
           asset_content_type: application/zip
