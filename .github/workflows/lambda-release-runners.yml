@@ -7,13 +7,13 @@ name: Call 'Upload Release for runners lambdas'
 
 jobs:
   call-release:
-    - name: Checkout branch "master"
-      uses: actions/checkout@v3
-    - name: Call 'Upload Release for runners lambdas'
-      runs-on: ubuntu-latest
-      container: node:12
-      steps:
-        - name: Call 'Upload Release for runners lambdas'
-          uses: ./.github/workflows/lambda-do-release-runners.yml
-          with:
-            tag: ${{ github.ref }}
+    name: Call 'Upload Release for runners lambdas'
+    runs-on: ubuntu-latest
+    container: node:12
+    steps:
+      - name: Checkout branch "master"
+        uses: actions/checkout@v3
+      - name: Call 'Upload Release for runners lambdas'
+        uses: ./.github/workflows/lambda-do-release-runners.yml
+        with:
+          tag: ${{ github.ref }}
