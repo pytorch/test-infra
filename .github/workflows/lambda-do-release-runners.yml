@@ -3,7 +3,8 @@ on:
     inputs:
       tag:
         type: string
-        retuired: true
+        description: tag to create release
+        required: true
 
 name: Upload Release for runners lambdas
 

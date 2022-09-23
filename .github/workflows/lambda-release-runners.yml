@@ -14,5 +14,5 @@ jobs:
       - name: Call 'Upload Release for runners lambdas'
         uses: ./.github/workflows/lambda-do-release-runners.yml
         with:
-          tag: v${{ steps.date.outputs.date }}
+          tag: ${{ github.ref }}
         secrets: inherit
