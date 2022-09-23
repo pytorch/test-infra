@@ -171,9 +171,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         );
         rebase = false;
       }
-      if (rebase === true) {
-        rebase = "viable/strict";
-      }
       await this.logger.log("merge", extra_data);
       await this.dispatchEvent("try-merge", {
         force: forceRequested,
