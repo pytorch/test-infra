@@ -34,16 +34,17 @@ jobs:
       #     check-name: "Run tests for runners lambda"
       #     repo-token: ${{ secrets.GITHUB_TOKEN }}
       #     wait-interval: 30
-      - name: Get current date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y%m%d-%H%M%S')"
-      - name: Tag snapshot
-        uses: tvdias/github-tagger@v0.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          tag: v${{ steps.date.outputs.date }}
+      # - name: Get current date
+      #   id: date
+      #   run: echo "::set-output name=date::$(date +'%Y%m%d-%H%M%S')"
+      # - name: Tag snapshot
+      #   uses: tvdias/github-tagger@v0.0.1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+      #     tag: v${{ steps.date.outputs.date }}
       - uses: ./.github/workflows/lambda-do-release-runners.yml
         with:
-          tag: v${{ steps.date.outputs.date }}
+          # tag: v${{ steps.date.outputs.date }}
+          tag: v20220923-145840

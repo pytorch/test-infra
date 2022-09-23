@@ -13,6 +13,8 @@ jobs:
     name: Upload Release for runners lambdas
     runs-on: ubuntu-latest
     container: node:12
+    env:
+      REF: ${{ inputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
