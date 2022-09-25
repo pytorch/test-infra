@@ -661,6 +661,14 @@
       "linux"
     ]
   ],
+  "test_exception_single (__main__.ForkTest)": [
+    "75409",
+    "https://github.com/pytorch/pytorch/issues/75409",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_exception_single (__main__.SpawnTest)": [
     "78982",
     "https://github.com/pytorch/pytorch/issues/78982",
@@ -1384,6 +1392,13 @@
     "70516",
     "https://github.com/pytorch/pytorch/issues/70516",
     []
+  ],
+  "test_readall (test_zipfile.ZipfileTest)": [
+    "75406",
+    "https://github.com/pytorch/pytorch/issues/75406",
+    [
+      "mac"
+    ]
   ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
     "75168",
