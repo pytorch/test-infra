@@ -37,23 +37,9 @@
       "linux"
     ]
   ],
-  "test_MaxUnpool_index_errors_case2_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "81841",
-    "https://github.com/pytorch/pytorch/issues/81841",
-    [
-      "linux"
-    ]
-  ],
   "test_MaxUnpool_index_errors_case4_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "81966",
     "https://github.com/pytorch/pytorch/issues/81966",
-    [
-      "linux"
-    ]
-  ],
-  "test_MaxUnpool_index_errors_case6_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "81840",
-    "https://github.com/pytorch/pytorch/issues/81840",
     [
       "linux"
     ]
