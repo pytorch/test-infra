@@ -15,8 +15,8 @@ jobs:
         include:
           - repository: pytorch/torchdynamo
             ref: main
-            build-script: "python setup.py bdist_wheel"
-            test-script: "pip install -r requirements.txt && pytest test -o log_cli=False"
+            build-script: "make setup_nightly && python setup.py bdist_wheel"
+            test-script: "make setup_nightly && pytest test -o log_cli=False"
     uses: ./.github/workflows/build_test_linux.yml
     name: ${{ matrix.repository }}
     with:
