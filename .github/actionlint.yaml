@@ -1,3 +1,4 @@
 self-hosted-runner:
   labels:
     - macos-m1-12
+    - linux.2xlarge
