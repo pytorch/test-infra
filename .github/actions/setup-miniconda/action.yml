@@ -8,6 +8,11 @@ inputs:
     required: false
     type: string
     default: "3.9"
+  miniconda-version:
+    description: Miniconda version to install
+    required: false
+    type: string
+    default: "4.12.0"
   environment-file:
     description: Environment file to install dependencies from
     required: false
@@ -22,40 +27,45 @@ runs:
       - name: Get date
         id: get-date
         shell: bash
-        run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
+        run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')d"
       - name: Setup miniconda cache
         id: miniconda-cache
-        if: ${{ runner.os }} == 'macOS'
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
           key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
-      - name: Install miniconda onto the machine
+      - name: Install miniconda (${{ inputs.miniconda-version }})
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
+        env:
+          MINICONDA_VERSION: ${{ inputs.miniconda-version }}
         shell: bash -l {0}
         run: |
-          MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
-          mkdir -p "${MINICONDA_INSTALL_PATH_MACOS}"
+          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
+          mkdir -p "${MINICONDA_INSTALL_PATH}"
           case ${RUNNER_OS}-${RUNNER_ARCH} in
+            Linux-X64)
+              MINICONDA_ARCH="Linux-x86_64"
+              ;;
             macOS-ARM64)
-              MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh"
+              MINICONDA_ARCH="MacOSX-arm64"
               ;;
             macOS-X64)
-              MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
+              MINICONDA_ARCH="MacOSX-x86_64"
               ;;
             *)
             echo "::error::Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
               exit 1
               ;;
           esac
-          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
-          bash "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH_MACOS}"
-          rm -rf "${MINICONDA_INSTALL_PATH_MACOS}/miniconda.sh"
-      - name: Update GitHub path
+          MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py39_${MINICONDA_VERSION}-${MINICONDA_ARCH}.sh"
+          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH}/miniconda.sh"
+          bash "${MINICONDA_INSTALL_PATH}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH}"
+          rm -rf "${MINICONDA_INSTALL_PATH}/miniconda.sh"
+      - name: Update GitHub path to include miniconda install
         shell: bash
         run: |
-          MINICONDA_INSTALL_PATH_MACOS="${RUNNER_TEMP}/miniconda"
-          echo "${MINICONDA_INSTALL_PATH_MACOS}/bin" >> $GITHUB_PATH
+          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
+          echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
       - name: Setup miniconda env cache (with env file)
         id: miniconda-env-cache-env-file
         if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} != ''
@@ -70,7 +80,7 @@ runs:
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
-      - name: Setup conda environment
+      - name: Setup conda environment with python (v${{ inputs.python-version }})
         if: steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:

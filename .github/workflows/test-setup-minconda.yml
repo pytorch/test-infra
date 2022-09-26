@@ -14,6 +14,7 @@ jobs:
         runner-type:
           - macos-12
           - macos-m1-12
+          - linux.2xlarge
         # Only testing minimum and maximum versions here
         python-version:
           - "3.7"
@@ -23,6 +24,8 @@ jobs:
           - runner-type: macos-m1-12
             python-version: "3.7"
           - runner-type: macos-12
+            python-version: "3.8"
+          - runner-type: linux.2xlarge
             python-version: "3.8"
     name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.runner-type }}
