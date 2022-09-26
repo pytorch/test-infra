@@ -113,6 +113,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Run Primitive Smoke Tests
+        shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
@@ -123,6 +124,7 @@ jobs:
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to pytorch.org
         if: ${{ inputs.build-type == 'nightly' || inputs.build-type == 'release' }}
+        shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
