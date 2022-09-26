@@ -73,7 +73,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
       - name: Setup miniconda with python (v${{ inputs.python-version }})
-        uses: ./.github/actions/setup-miniconda
+        uses: ./test-infra/.github/actions/setup-miniconda
         with:
           python-version: ${{ inputs.python-version }}
       - name: Setup useful environment variables
@@ -123,7 +123,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
       - name: Setup miniconda with python (v${{ inputs.python-version }})
-        uses: ./.github/actions/setup-miniconda
+        uses: ./test-infra/.github/actions/setup-miniconda
         with:
           python-version: ${{ inputs.python-version }}
       - name: Setup useful environment variables
