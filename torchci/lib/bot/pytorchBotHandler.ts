@@ -144,7 +144,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     rebase: string | boolean
   ) {
 
-    const landChecksEnrolled = true // Leaving this here for now so that the change shows up in our land check metrics. Todo: remove once we have confidence in the rollout
+    // Leaving this here for now so that the change shows up in our land check metrics.
+    // TODO: Remove once we validate & finalize the rollout
+    const landChecksEnrolled = true
 
     const extra_data = {
       forceMessage,
