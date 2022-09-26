@@ -52,7 +52,7 @@ jobs:
   build:
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
-    runs-on: ${{ inputs.build_runner }}
+    runs-on: ${{ inputs.build-runner }}
     # TODO: Eventually replace this image with one we build / maintain
     container:
       image: ghcr.io/catthehacker/ubuntu:runner-20.04@sha256:9e98251c4f25c59f41242caa49ac316601f64d7ca09d12d0700bfd73657ee07d
