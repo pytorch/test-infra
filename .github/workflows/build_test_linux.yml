@@ -92,7 +92,7 @@ jobs:
           # If the default execution path is followed then we should get a wheel in the dist/ folder
           # attempt to just grab whatever is in there and scoop it all up
           if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
-            cp -r dist/*whl "${RUNNER_ARTIFACT_DIR}/"
+            mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
           fi
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
