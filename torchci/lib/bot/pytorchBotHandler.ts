@@ -3,7 +3,6 @@ import shlex from "shlex";
 import { addLabels, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
-import { isInLandCheckAllowlist } from "./rolloutUtils";
 
 export interface PytorchbotParams {
   owner: string;
@@ -142,9 +141,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     forceMessage: string,
     mergeOnGreen: boolean,
     landChecks: boolean,
-    landChecksEnrolled: boolean,
     rebase: string | boolean
   ) {
+
+    const landChecksEnrolled = true // Leaving this here for now so that the change shows up in our land check metrics. Todo: remove once we have confidence in the rollout
+
     const extra_data = {
       forceMessage,
       mergeOnGreen,
@@ -293,6 +294,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (args.help) {
       return await this.addComment(getHelp());
     }
+
     switch (args.command) {
       case "revert":
         return await this.handleRevert(args.message);
@@ -301,7 +303,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           args.force,
           args.green,
           args.land_checks,
-          this.login != null && isInLandCheckAllowlist(this.login),
           args.rebase
         );
       case "rebase": {
