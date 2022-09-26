@@ -1,0 +1,153 @@
+name: Build / Test on Linux
+
+on:
+  workflow_call:
+    inputs:
+      build-script:
+        description: 'Build script to utilize in the build step'
+        default: "python setup.py bdist_wheel"
+        type: string
+      build-runner:
+        description: 'Runner type to utilize for the build step'
+        default: "linux.2xlarge"
+        type: string
+      build-timeout:
+        description: 'Timeout for the build step (in minutes)'
+        default: 30
+        type: number
+      test-script:
+        description: 'Test script to utilize in the test step'
+        default: "python setup.py test"
+        type: string
+      test-runner:
+        description: 'Runner type to utilize for the test step'
+        default: "linux.2xlarge"
+        type: string
+      test-timeout:
+        description: 'Timeout for the test step (in minutes)'
+        default: 60
+        type: number
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: "nightly"
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      python-version:
+        description: "Python version to test for"
+        default: "3.8"
+        type: string
+
+jobs:
+  build:
+    env:
+      PYTHON_VERSION: ${{ inputs.python_version }}
+    runs-on: ${{ inputs.build_runner }}
+    # TODO: Eventually replace this image with one we build / maintain
+    container:
+      image: ghcr.io/catthehacker/ubuntu:runner-20.04@sha256:9e98251c4f25c59f41242caa49ac316601f64d7ca09d12d0700bfd73657ee07d
+    timeout-minutes: ${{ inputs.build-timeout }}
+    steps:
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+      - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          path: ${{ inputs.repository || github.repository }}
+      - name: Setup miniconda with python (v${{ inputs.python-version }})
+        uses: ./.github/actions/setup-miniconda
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Setup useful environment variables
+        working-directory: ${{ inputs.repository }}
+        run: |
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts/" >> "${GITHUB_ENV}"
+      - name: Run build script (${inputs.build-script})
+        env:
+          BUILD_SCRIPT: ${{ inputs.build-script }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          ${CONDA_RUN} bash -c "${BUILD_SCRIPT}"
+      - name: Check if there are potential artifacts and move them to the correct artifact location
+        working-directory: ${{ inputs.repository }}
+        run: |
+          # If the default execution path is followed then we should get a wheel in the dist/ folder
+          # attempt to just grab whatever is in there and scoop it all up
+          if [[ -e dist/*.whl ]]; then
+            cp -r dist/* "${RUNNER_ARTIFACT_DIR}"
+          fi
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          path: ${{ runner.temp }}/artifacts/
+  test:
+    env:
+      PYTHON_VERSION: ${{ inputs.python-version }}
+    runs-on: ${{ inputs.test-runner }}
+    # TODO: Eventually replace this image with one we build / maintain
+    container:
+      image: ghcr.io/catthehacker/ubuntu:runner-20.04@sha256:9e98251c4f25c59f41242caa49ac316601f64d7ca09d12d0700bfd73657ee07d
+    timeout-minutes: ${{ inputs.test-timeout }}
+    needs: build
+    steps:
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+      - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          path: ${{ inputs.repository || github.repository }}
+      - name: Setup miniconda with python (v${{ inputs.python-version }})
+        uses: ./.github/actions/setup-miniconda
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Setup useful environment variables
+        working-directory: ${{ inputs.repository }}
+        run: |
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts/" >> "${GITHUB_ENV}"
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ${{ runner.temp }}/artifacts/
+      - name: Install artifacts from build (if any)
+        working-directory: ${{ inputs.repository }}
+        run: |
+          if [[ -e "${RUNNER_ARTIFACT_DIR}/*.whl" ]]; then
+            # Naively try to install any wheels if we built some in the previous step
+            ${CONDA_RUN} pip install "${RUNNER_ARTIFACT_DIR}/*.whl"
+          fi
+      - name: Run test script (${inputs.test-script})
+        env:
+          TEST_SCRIPT: ${{ inputs.test-script }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          ${CONDA_RUN} bash -c "${TEST_SCRIPT}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
