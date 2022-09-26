@@ -72,6 +72,7 @@ runs:
         run: |
           conda clean --all --quiet --yes
       - name: Check architecture name
+        shell: bash -l {0}
         run: echo $ARCH_NAME
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
