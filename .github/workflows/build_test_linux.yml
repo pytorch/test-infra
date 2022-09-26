@@ -53,9 +53,10 @@ jobs:
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
     runs-on: ${{ inputs.build-runner }}
-    # TODO: Eventually replace this image with one we build / maintain
-    container:
-      image: ghcr.io/catthehacker/ubuntu:act-22.04@sha256:cc76b0c9eabdf405eaefdd7afe7952a26b499448d6c760847af8bacff0234f29
+    # TODO: Eventually this should run in a container, we need to make a container that matches up
+    #       with the users for our self hosted runner infra since using actions/checkout with a root
+    #       user in a container will make it so that the directories will need to be chowned to the
+    #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.build-timeout }}
     steps:
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
@@ -79,8 +80,9 @@ jobs:
       - name: Setup useful environment variables
         working-directory: ${{ inputs.repository }}
         run: |
-          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+          RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${RUNNER_ARTIFACT_DIR}"
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
       - name: Run build script (${{ inputs.build-script }})
         env:
           BUILD_SCRIPT: ${{ inputs.build-script }}
@@ -103,9 +105,10 @@ jobs:
     env:
       PYTHON_VERSION: ${{ inputs.python-version }}
     runs-on: ${{ inputs.test-runner }}
-    # TODO: Eventually replace this image with one we build / maintain
-    container:
-      image: ghcr.io/catthehacker/ubuntu:act-22.04@sha256:cc76b0c9eabdf405eaefdd7afe7952a26b499448d6c760847af8bacff0234f29
+    # TODO: Eventually this should run in a container, we need to make a container that matches up
+    #       with the users for our self hosted runner infra since using actions/checkout with a root
+    #       user in a container will make it so that the directories will need to be chowned to the
+    #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.test-timeout }}
     needs: build
     steps:
@@ -130,8 +133,9 @@ jobs:
       - name: Setup useful environment variables
         working-directory: ${{ inputs.repository }}
         run: |
-          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+          RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${RUNNER_ARTIFACT_DIR}"
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
