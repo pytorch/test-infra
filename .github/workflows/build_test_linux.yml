@@ -80,6 +80,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+          mkdir -p "${RUNNER_ARTIFACT_DIR}"
       - name: Run build script (${{ inputs.build-script }})
         env:
           BUILD_SCRIPT: ${{ inputs.build-script }}
@@ -130,6 +131,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+          mkdir -p "${RUNNER_ARTIFACT_DIR}"
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
