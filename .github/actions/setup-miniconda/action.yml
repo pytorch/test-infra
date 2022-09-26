@@ -30,7 +30,6 @@ runs:
         run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
       - name: Setup miniconda cache
         id: miniconda-cache
-        if: ${{ runner.os }} == 'macOS'
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
@@ -41,8 +40,7 @@ runs:
           MINICONDA_VERSION: ${{ inputs.miniconda-version }}
         shell: bash -l {0}
         run: |
-          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT}/miniconda"
-          echo "MINICONDA_INSTALL_PATH=${MINICONDA_INSTALL_PATH}" >> "${GITHUB_ENV}"
+          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           mkdir -p "${MINICONDA_INSTALL_PATH}"
           case ${RUNNER_OS}-${RUNNER_ARCH} in
             Linux-X64)
@@ -66,6 +64,7 @@ runs:
       - name: Update GitHub path to include miniconda install
         shell: bash
         run: |
+          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
       - name: Setup miniconda env cache (with env file)
         id: miniconda-env-cache-env-file
