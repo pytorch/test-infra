@@ -80,7 +80,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts/" >> "${GITHUB_ENV}"
-      - name: Run build script (${inputs.build-script})
+      - name: Run build script (${{ inputs.build-script }})
         env:
           BUILD_SCRIPT: ${{ inputs.build-script }}
         working-directory: ${{ inputs.repository }}
@@ -91,8 +91,8 @@ jobs:
         run: |
           # If the default execution path is followed then we should get a wheel in the dist/ folder
           # attempt to just grab whatever is in there and scoop it all up
-          if [[ -e dist/*.whl ]]; then
-            cp -r dist/* "${RUNNER_ARTIFACT_DIR}"
+          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" > /dev/null 2>dev/null; then
+            cp -r dist/*whl "${RUNNER_ARTIFACT_DIR}/"
           fi
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@v3
@@ -137,11 +137,11 @@ jobs:
       - name: Install artifacts from build (if any)
         working-directory: ${{ inputs.repository }}
         run: |
-          if [[ -e "${RUNNER_ARTIFACT_DIR}/*.whl" ]]; then
+          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" > /dev/null 2>dev/null; then
             # Naively try to install any wheels if we built some in the previous step
             ${CONDA_RUN} pip install "${RUNNER_ARTIFACT_DIR}/*.whl"
           fi
-      - name: Run test script (${inputs.test-script})
+      - name: Run test script (${{ inputs.test-script }})
         env:
           TEST_SCRIPT: ${{ inputs.test-script }}
         working-directory: ${{ inputs.repository }}
