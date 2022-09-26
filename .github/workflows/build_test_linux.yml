@@ -91,7 +91,7 @@ jobs:
         run: |
           # If the default execution path is followed then we should get a wheel in the dist/ folder
           # attempt to just grab whatever is in there and scoop it all up
-          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" > /dev/null 2>dev/null; then
+          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" >/dev/null 2>/dev/null; then
             cp -r dist/*whl "${RUNNER_ARTIFACT_DIR}/"
           fi
       - name: Upload artifact to GitHub
@@ -137,7 +137,7 @@ jobs:
       - name: Install artifacts from build (if any)
         working-directory: ${{ inputs.repository }}
         run: |
-          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" > /dev/null 2>dev/null; then
+          if find "${RUNNER_ARTIFACT_DIR}" -name "*.whl" >/dev/null 2>/dev/null; then
             # Naively try to install any wheels if we built some in the previous step
             ${CONDA_RUN} pip install "${RUNNER_ARTIFACT_DIR}/*.whl"
           fi
