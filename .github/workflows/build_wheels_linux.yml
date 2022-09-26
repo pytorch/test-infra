@@ -132,6 +132,10 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
+          set +x
+          export AWS_ACCESS_KEY_ID="${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}"
+          export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}"
+          set -x
           for pkg in dist/*; do
             ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}" --acl public-read
           done
