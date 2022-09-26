@@ -966,6 +966,7 @@ some other text lol
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r";
+
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
