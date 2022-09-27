@@ -1344,6 +1344,11 @@
       "linux"
     ]
   ],
+  "test_profiler_seq_nr (__main__.TestAutograd)": [
+    "66893",
+    "https://github.com/pytorch/pytorch/issues/66893",
+    []
+  ],
   "test_proper_exit (__main__.TestDataLoader)": [
     "70517",
     "https://github.com/pytorch/pytorch/issues/70517",
