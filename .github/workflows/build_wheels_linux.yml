@@ -39,6 +39,13 @@ on:
         description: "Type of build: development, nightly, or release"
         default: ""
         type: string
+    secrets:
+      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
+        description: "AWS Access Key passed from caller workflow"
+        required: false
+      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
+        description: "AWS Secret Access Ket passed from caller workflow"
+        required: false
 
 jobs:
   build:
