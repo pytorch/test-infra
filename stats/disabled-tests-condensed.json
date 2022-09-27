@@ -1717,6 +1717,13 @@
     "https://github.com/pytorch/pytorch/issues/60494",
     []
   ],
+  "test_vjpvjp_matrix_exp_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "85755",
+    "https://github.com/pytorch/pytorch/issues/85755",
+    [
+      "linux"
+    ]
+  ],
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
