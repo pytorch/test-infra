@@ -27,6 +27,7 @@ jobs:
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
             package-name: torchtext
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}

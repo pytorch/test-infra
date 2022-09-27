@@ -124,6 +124,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Run Primitive Smoke Tests
+        working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
