@@ -22,7 +22,7 @@ on:
       download-artifact:
         description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
         default: false
-        type: boolean
+        type: string
       repository:
         description: 'Repository to checkout, defaults to ""'
         default: ""
