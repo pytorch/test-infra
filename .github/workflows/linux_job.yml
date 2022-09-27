@@ -21,7 +21,7 @@ on:
         type: string
       download-artifact:
         description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
-        default: false
+        default: ''
         type: string
       repository:
         description: 'Repository to checkout, defaults to ""'
