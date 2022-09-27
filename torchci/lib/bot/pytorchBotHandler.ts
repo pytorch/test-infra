@@ -160,14 +160,19 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     if (!rejection_reason) {
+      if (
+        rebase &&
+        !(await this.hasWritePermissions(
+          this.ctx.payload?.comment?.user?.login
+        ))
+      ) {
+        await this.addComment(
+          "You don't have permissions to rebase this PR, only people with write permissions may rebase PRs."
+        );
+        rebase = false;
+      }
       if (rebase === true) {
-        const { ctx, owner, repo } = this;
-        rebase = (
-          await ctx.octokit.rest.repos.get({
-            owner,
-            repo,
-          })
-        )?.data?.default_branch;
+        rebase = "viable/strict";
       }
       await this.logger.log("merge", extra_data);
       await this.dispatchEvent("try-merge", {
@@ -192,29 +197,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async handleRebase(branch: string) {
     await this.logger.log("rebase", { branch });
     const { ctx } = this;
-    async function comment_author_in_pytorch_org() {
-      try {
-        return (
-          (
-            await ctx.octokit.rest.orgs.getMembershipForUser({
-              org: "pytorch",
-              username: ctx.payload.comment.user.login,
-            })
-          )?.data?.state == "active"
-        );
-      } catch (error) {
-        return false;
-      }
-    }
-    if (
-      ctx.payload.comment.user.login == ctx.payload.issue.user.login ||
-      (await comment_author_in_pytorch_org())
-    ) {
+    if (await this.hasWritePermissions(ctx.payload?.comment?.user?.login)) {
       await this.dispatchEvent("try-rebase", { branch: branch });
       await this.ackComment();
     } else {
       await this.addComment(
-        "You don't have permissions to rebase this PR, only the PR author and pytorch organization members may rebase this PR."
+        "You don't have permissions to rebase this PR, only people with write permissions may rebase PRs."
       );
     }
   }
@@ -317,7 +305,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           args.rebase
         );
       case "rebase": {
-        if (args.stable) {
+        if (!args.branch) {
           args.branch = "viable/strict";
         }
         return await this.handleRebase(args.branch);

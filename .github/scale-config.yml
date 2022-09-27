@@ -74,10 +74,15 @@ runner_types:
     os: linux
     max_available: 10
     disk_size: 150
-  # TODO: Revert it back to being c5.large/10GB instance once https://github.com/pytorch/pytorch/issues/85362 is resolved
-  linux.large:
+  linux.g5.4xlarge.nvidia.gpu:
+    instance_type: g5.4xlarge
+    os: linux
+    max_available: 10
     disk_size: 150
-    instance_type: c5.2xlarge
+    is_ephemeral: true
+  linux.large:
+    disk_size: 10
+    instance_type: c5.large
     is_ephemeral: false
     os: linux
   linux.p324xlarge.nvidia.gpu:

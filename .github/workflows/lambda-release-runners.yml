@@ -1,0 +1,17 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Call 'Upload Release for runners lambdas'
+
+jobs:
+  call-release:
+    name: Call 'Upload Release for runners lambdas'
+    runs-on: ubuntu-latest
+    container: node:12
+    steps:
+      - name: Call 'Upload Release for runners lambdas'
+        uses: ./.github/workflows/lambda-do-release-runners.yml
+        with:
+          tag: ${{ github.ref }}
