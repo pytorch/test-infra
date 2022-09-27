@@ -42,7 +42,7 @@ const merge = commands.add_parser("merge", {
 const mergeOption = merge.add_mutually_exclusive_group();
 mergeOption.add_argument("-g", "--green", {
   action: "store_true",
-  help: "Merge when all status checks running on the PR pass. To add status checks, use labels like `ciflow/trunk`.",
+  help: "Merge when all status checks running on the PR pass, skipping the land validation checks. To add status checks, use labels like `ciflow/trunk`.",
 });
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
@@ -52,7 +52,7 @@ mergeOption.add_argument("-f", "--force", {
 mergeOption.add_argument("-l", "--land-checks", {
   action: "store_true",
   help:
-    "Merge with land time checks. This will create a new branch with your changes rebased " +
+    "[DEPRECATED - this is now the default behavior] Merge with land time checks. This will create a new branch with your changes rebased " +
     "on viable/strict and run a majority of trunk tests _before_ landing to increase trunk " +
     "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
     "that periodic is excluded. (EXPERIMENTAL)",
