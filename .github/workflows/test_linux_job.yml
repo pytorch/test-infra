@@ -10,7 +10,6 @@ on:
 jobs:
   build-dynamo:
     uses: ./.github/workflows/linux_job.yml
-    name: ${{ matrix.repository }}
     with:
       repository: pytorch/torchdynamo
       ref: main
@@ -24,7 +23,6 @@ jobs:
   test-dynamo:
     needs: build-dynamo
     uses: ./.github/workflows/linux_job.yml
-    name: ${{ matrix.repository }}
     with:
       repository: pytorch/torchdynamo
       ref: main

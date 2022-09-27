@@ -116,7 +116,7 @@ jobs:
           # detached container should get cleaned up by teardown_ec2_linux
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
-            --env-file="/tmp/github_env_${GITHUB_RUN_ID}" \
+            --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
             --security-opt seccomp=unconfined \
             --cap-add=SYS_PTRACE \
             --tty \
