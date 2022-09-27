@@ -57,11 +57,12 @@ mergeOption.add_argument("-l", "--land-checks", {
     "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
     "that periodic is excluded. (EXPERIMENTAL)",
 });
-mergeOption.add_argument("-r", "--rebase", {
-  help: "Rebase the PR to re run checks before merging.  It will accept a branch name and " +
-  "will default to master if not specified.",
+merge.add_argument("-r", "--rebase", {
+  help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
+  "will default to viable/strict if not specified.",
   nargs: "?",
-  const: true
+  const: "viable/strict",
+  choices: ["viable/strict", "master"],
 });
 
 // Revert
