@@ -69,12 +69,12 @@ jobs:
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
-    runs-on: ${{ inputs.build-runner }}
+    runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
     #       user in a container will make it so that the directories will need to be chowned to the
     #       ec2-user prior to a checkout being able to be run by ec2-user
-    timeout-minutes: ${{ inputs.build-timeout }}
+    timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
