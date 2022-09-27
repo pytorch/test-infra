@@ -35,10 +35,17 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
-      build-type:
-        description: "Type of build: development, nightly, or release"
+      trigger-event:
+        description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+    secrets:
+      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
+        description: "AWS Access Key passed from caller workflow"
+        required: false
+      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
+        description: "AWS Secret Access Ket passed from caller workflow"
+        required: false
 
 jobs:
   build:
@@ -123,7 +130,7 @@ jobs:
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME" 
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to pytorch.org
-        if: ${{ inputs.build-type == 'nightly' || inputs.build-type == 'release' }}
+        if: ${{ inputs.trigger-event == 'push' }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         env:
