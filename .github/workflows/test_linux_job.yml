@@ -1,0 +1,38 @@
+name: Test build/test linux workflow
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/linux_job.yml
+      - .github/workflows/test_linux_job.yml
+  workflow_dispatch:
+
+jobs:
+  build-dynamo:
+    uses: ./.github/workflows/linux_job.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: pytorch/torchdynamo
+      ref: main
+      runner: linux.2xlarge
+      script: |
+        make setup_nightly
+        python setup.py bdist_wheel
+      upload-artifact: dynamo-cpu-build
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+  test-dynamo:
+    needs: build-dynamo
+    uses: ./.github/workflows/linux_job.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: pytorch/torchdynamo
+      ref: main
+      runner: linux.2xlarge
+      script: |
+        make setup_nightly
+        pip install ${RUNNER_ARTIFACT_DIR}/*.whl
+        pytest test -o log_cli=False
+      download-artifact: dynamo-cpu-build
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
