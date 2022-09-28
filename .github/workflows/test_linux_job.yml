@@ -14,26 +14,26 @@ jobs:
       repository: pytorch/vision
       ref: main
       runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         .circleci/unittest/linux/scripts/setup_env.sh
         .circleci/unittest/linux/scripts/install.sh
         .circleci/unittest/linux/scripts/run_test.sh
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
   test-vision-gpu:
     uses: ./.github/workflows/linux_job.yml
     with:
       repository: pytorch/vision
       ref: main
       runner: linux.4xlarge.nvidia.gpu
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cuda
+      gpu-arch-version: "11.6"
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         export CU_VERSION=cu116
         .circleci/unittest/linux/scripts/setup_env.sh
         .circleci/unittest/linux/scripts/install.sh
         .circleci/unittest/linux/scripts/run_test.sh
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      gpu-arch-type: cuda
-      gpu-arch-version: "11.6"
