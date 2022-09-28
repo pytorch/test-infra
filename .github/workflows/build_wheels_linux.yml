@@ -143,6 +143,12 @@ jobs:
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+          ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+      - uses: ./test-infra/.github/workflows/binary_verification.yml
+        if: ${{ env.PYTHON_VERSION == 3.8 && matrix.desired_cuda == 'cpu' }}
+        with:
+          artifact-name: ${{ env.ARTIFACT_NAME }}
+          container-image: ${{ matrix.container_image }}
       - name: Upload package to pytorch.org
         if: ${{ inputs.trigger-event == 'push' }}
         shell: bash -l {0}
