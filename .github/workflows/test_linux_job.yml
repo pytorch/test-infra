@@ -8,31 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-dynamo:
+  test-vision-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
-      repository: pytorch/torchdynamo
+      repository: pytorch/vision
       ref: main
       runner: linux.2xlarge
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
-        make PIP="python3 -m pip" setup_nightly
-        python3 setup.py bdist_wheel
-      upload-artifact: dynamo-cpu-build
+        .circleci/unittest/linux/scripts/setup_env.sh
+        .circleci/unittest/linux/scripts/install.sh
+        .circleci/unittest/linux/scripts/run_test.sh
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-  test-dynamo:
-    needs: build-dynamo
+  test-vision-gpu:
     uses: ./.github/workflows/linux_job.yml
     with:
-      repository: pytorch/torchdynamo
+      repository: pytorch/vision
       ref: main
-      runner: linux.2xlarge
+      runner: linux.4xlarge.nvidia.gpu
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
-        make PIP="python3 -m pip" setup_nightly
-        python3 -m pip install ${RUNNER_ARTIFACT_DIR}/*.whl
-        python3 -m pytest test -o log_cli=False
-      download-artifact: dynamo-cpu-build
+        export CU_VERSION=cu116
+        .circleci/unittest/linux/scripts/setup_env.sh
+        .circleci/unittest/linux/scripts/install.sh
+        .circleci/unittest/linux/scripts/run_test.sh
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cuda
+      gpu-arch-version: "11.6"

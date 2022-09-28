@@ -39,30 +39,21 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
-      python-version:
-        description: "Python version to set up environment for"
-        default: "3.8"
+      # TODO: Add a python switcher script to the manylinux-builder images
+      # python-version:
+      #   description: "Python version to use"
+      #   default: "3.8"
+      #   type: string
+      gpu-arch-type:
+        description: "GPU arch type to use"
+        default: "cpu"
         type: string
       gpu-arch-version:
-        description: "GPU arch version to test"
-        default: "3.8"
+        description: "GPU arch version to use"
+        default: ""
         type: string
 
 jobs:
-  determine-docker-image:
-    runs-on: linux.large
-    timeout-minutes: 10
-    outputs:
-      docker-image: ${{ steps.determine.outputs.docker-image }}
-    steps:
-      - name: Determine docker image
-        id: determine
-        run: |
-          # TODO: Eventually we should just build our own docker images here instead of relying directly on what's built for pytorch core
-          #       Since what's built on pytorch core could potentially be unstable for the rest of CI users
-          # TODO: Set logic here to determine docker image based on gpu-arch-version and python-version
-          echo '::set-output name=docker-image::pytorch/manylinux-builder:cpu'
-
   job:
     needs:
       - determine-docker-image
@@ -111,13 +102,22 @@ jobs:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
 
+      - name: Determine docker image
+        id: determine
+        env:
+          GPU_ARCH_TYPE: ${{ inputs.gpu-arch-type }}
+          GPU_ARCH_VERSION: ${{ inputs.gpu-arch-version }}
+        run: |
+          # TODO: We need an image that's not
+          echo '::set-output name=docker-image::pytorch/manylinux-builder:${GPU_ARCH_TYPE}${GPU_ARCH_VERSION}'
+
       - name: Run script in container
         env:
           SCRIPT: ${{ inputs.script }}
+          DOCKER_IMAGE: ${{ steps.determine.outputs.docker-image }}
         working-directory: ${{ inputs.repository }}
         run: |
-          # Echo our user script into a temporary script locally
-          echo "${SCRIPT}" > "${RUNNER_TEMP}/exec_script"
+          echo "${SCRIPT}" >> "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
           # detached container should get cleaned up by teardown_ec2_linux
           container_name=$(docker run \
