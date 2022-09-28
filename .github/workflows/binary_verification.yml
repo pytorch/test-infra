@@ -18,7 +18,7 @@ jobs:
     container:
       image: ${{ inputs.container-image }}
     steps:
-      - name: actions/download-artifact@v3
+      - uses: actions/download-artifact@v3
         with:
           name: ${{ inputs.artifact-name }}
           path: nova
@@ -47,30 +47,30 @@ jobs:
         run: |
           set -ex
           pushd circle/extracted
-          find . -name "*.so" > $HOME/circle_so_sizes.txt
-          find . -name "*.so" | xargs du -sc > $HOME/circle_so_names.txt
+          find . -name "*.so" > "$HOME"/circle_so_sizes.txt
+          find . -name "*.so" | xargs du -sc > "$HOME"/circle_so_names.txt
           CIRCLE_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so)
-          ldd ./torchaudio/_torchaudio.so > $HOME/circle_ldd_dump.txt
+          ldd ./torchaudio/_torchaudio.so > "$HOME"/circle_ldd_dump.txt
           popd
           
           pushd nova/extracted
-          find . -name "*.so" > $HOME/nova_so_names.txt
-          find . -name "*.so" | xargs du -sc > $HOME/nova_so_names.txt
+          find . -name "*.so" > "$HOME"/nova_so_names.txt
+          find . -name "*.so" | xargs du -sc > "$HOME"/nova_so_names.txt
           NOVA_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so)
-          ldd ./torchaudio/_torchaudio.so > $HOME/nova_ldd_dump.txt
+          ldd ./torchaudio/_torchaudio.so > "$HOME"/nova_ldd_dump.txt
           popd
           
           echo "CIRCLE_NUM_SYMBOLS:"
           echo "$CIRCLE_NUM_SYMBOLS"
           echo "NOVA_NUM_SYMBOLS"
           echo "$NOVA_NUM_SYMBOLS"
-          cat $HOME/circle_so_names.txt
-          cat $HOME/nova_so_names.txt
-          diff $HOME/circle_so_names.txt $HOME/nova_so_names.txt
-          cat $HOME/circle_so_sizes.txt
-          cat $HOME/nova_so_sizes.txt
-          diff $HOME/circle_so_sizes.txt $HOME/nova_so_sizes.txt
-          cat $HOME/circle_ldd_dump.txt
-          cat $HOME/nova_ldd_dump.txt
-          diff $HOME/circle_ldd_dump.txt $HOME/nova_ldd_dump.txt
+          cat "$HOME"/circle_so_names.txt
+          cat "$HOME"/nova_so_names.txt
+          diff "$HOME"/circle_so_names.txt "$HOME"/nova_so_names.txt
+          cat "$HOME"/circle_so_sizes.txt
+          cat "$HOME"/nova_so_sizes.txt
+          diff "$HOME"/circle_so_sizes.txt "$HOME"/nova_so_sizes.txt
+          cat "$HOME"/circle_ldd_dump.txt
+          cat "$HOME"/nova_ldd_dump.txt
+          diff "$HOME"/circle_ldd_dump.txt "$HOME"/nova_ldd_dump.txt
 
