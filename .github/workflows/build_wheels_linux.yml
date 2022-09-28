@@ -107,7 +107,7 @@ jobs:
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
           echo "finding libavdevice.so"
-          find /usr -name 'libavdevice.so'
+          find . -name 'libavdevice.so'
           echo "printing LD_LIBRARY_PATH"
           echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
@@ -129,12 +129,12 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
+      # - name: Setup tmate session
+      #   uses: mxschmitt/action-tmate@v3
+      #   timeout-minutes: 60
+      #   with:
+      #     limit-access-to-actor: true
+      #     install-dependencies: true
       - name: Run Primitive Smoke Tests
         shell: bash -l {0}
         env:
