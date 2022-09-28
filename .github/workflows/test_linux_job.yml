@@ -13,7 +13,7 @@ jobs:
     with:
       repository: pytorch/vision
       ref: main
-      runner: linux.2xlarge
+      runner: linux.4xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cpu
