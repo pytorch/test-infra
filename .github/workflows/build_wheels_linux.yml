@@ -138,7 +138,7 @@ jobs:
             ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            ${CONDA_RUN} python3 "${SMOKE_TEST_SCRIPT}"
+            ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
         if: ${{ inputs.trigger-event == 'push' }}
