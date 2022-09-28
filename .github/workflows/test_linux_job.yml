@@ -14,9 +14,10 @@ jobs:
       repository: pytorch/torchdynamo
       ref: main
       runner: linux.2xlarge
+      env:
+        PIP: python3 -m pip
       script: |
-        make setup_nightly
-        python setup.py bdist_wheel
+        python3 setup.py bdist_wheel
       upload-artifact: dynamo-cpu-build
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -27,9 +28,11 @@ jobs:
       repository: pytorch/torchdynamo
       ref: main
       runner: linux.2xlarge
+      env:
+        PIP: python3 -m pip
       script: |
         make setup_nightly
-        pip install ${RUNNER_ARTIFACT_DIR}/*.whl
+        python3 -m pip install ${RUNNER_ARTIFACT_DIR}/*.whl
         pytest test -o log_cli=False
       download-artifact: dynamo-cpu-build
       test-infra-repository: ${{ github.repository }}
