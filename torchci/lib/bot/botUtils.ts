@@ -23,13 +23,31 @@ export async function addComment(ctx: any, message: string) {
 }
 
 export async function addLabels(ctx: any, labelsToAdd: string[]) {
-  ctx.log(
-    `Adding label(s) ${labelsToAdd} to issue ${ctx.payload.issue.html_url}`
+  if (ctx.payload.issue) {
+    ctx.log(
+      `Adding label(s) ${labelsToAdd} to issue ${ctx.payload.issue.html_url}`
+    );
+  }
+  if (ctx.payload.pull_request) {
+    ctx.log(
+      `Adding label(s) ${labelsToAdd} to pull request ${ctx.payload.pull_request.html_url}`
+    );
+  }
+  await ctx.octokit.issues.addLabels(
+    ctx.issue({ labels: labelsToAdd })
   );
-  await ctx.octokit.issues.addLabels({
+}
+
+export async function getUserPermissions(ctx: any, username: string): Promise<string> {
+  const res = await ctx.octokit.repos.getCollaboratorPermissionLevel({
     owner: ctx.payload.repository.owner.login,
     repo: ctx.payload.repository.name,
-    issue_number: ctx.payload.issue.number,
-    labels: labelsToAdd,
+    username,
   });
+  return res?.data?.permission;
+}
+
+export async function hasWritePermissions(ctx: any, username: string): Promise<boolean> {
+  const permissions = await getUserPermissions(ctx, username);
+  return permissions === "admin" || permissions === "write";
 }

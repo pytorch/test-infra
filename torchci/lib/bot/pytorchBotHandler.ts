@@ -1,6 +1,6 @@
 import _ from "lodash";
 import shlex from "shlex";
-import { addLabels, reactOnComment } from "./botUtils";
+import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
 import { isInLandCheckAllowlist } from "./rolloutUtils";
@@ -216,19 +216,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return labels.map((d: any) => d.name);
   }
 
-  async getUserPermissions(username: string): Promise<string> {
-    const { ctx, owner, repo } = this;
-    const res = await ctx.octokit.repos.getCollaboratorPermissionLevel({
-      owner: owner,
-      repo: repo,
-      username,
-    });
-    return res?.data?.permission;
-  }
-
   async hasWritePermissions(username: string): Promise<boolean> {
-    const permissions = await this.getUserPermissions(username);
-    return permissions === "admin" || permissions === "write";
+    return _hasWP(this.ctx, username);
   }
 
   async handleLabel(labels: string[]) {
