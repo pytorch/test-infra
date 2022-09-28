@@ -106,11 +106,11 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
-          echo "finding libavdevice.so"
-          find . -name 'libavdevice.so'
-          echo "printing LD_LIBRARY_PATH"
-          export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
-          echo "$LD_LIBRARY_PATH"
+          # echo "finding libavdevice.so"
+          # find . -name 'libavdevice.so'
+          # echo "printing LD_LIBRARY_PATH"
+          # export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+          # echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
@@ -148,6 +148,7 @@ jobs:
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME" 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
+            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
