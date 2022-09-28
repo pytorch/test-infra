@@ -27,12 +27,6 @@ export async function addLabels(ctx: any, labelsToAdd: string[]) {
     ctx.log(
       `Adding label(s) ${labelsToAdd} to issue ${ctx.payload.issue.html_url}`
     );
-//    await ctx.octokit.issues.addLabels({
-//      owner: ctx.payload.repository.owner.login,
-//      repo: ctx.payload.repository.name,
-//      issue_number: ctx.payload.issue.number,
-//      labels: labelsToAdd,
-//    });
   }
   if (ctx.payload.pull_request) {
     ctx.log(
@@ -44,8 +38,7 @@ export async function addLabels(ctx: any, labelsToAdd: string[]) {
   );
 }
 
-export async function getUserPermissions(ctx: Context,
-                                         username: string): Promise<string> {
+export async function getUserPermissions(ctx: any, username: string): Promise<string> {
   const res = await ctx.octokit.repos.getCollaboratorPermissionLevel({
     owner: ctx.payload.repository.owner.login,
     repo: ctx.payload.repository.name,
@@ -54,8 +47,7 @@ export async function getUserPermissions(ctx: Context,
   return res?.data?.permission;
 }
 
-export async function hasWritePermissions(ctx: Context,
-                                          username: string): Promise<boolean> {
+export async function hasWritePermissions(ctx: any, username: string): Promise<boolean> {
   const permissions = await getUserPermissions(ctx, username);
   return permissions === "admin" || permissions === "write";
 }
