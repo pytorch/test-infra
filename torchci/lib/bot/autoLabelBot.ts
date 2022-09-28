@@ -1,6 +1,8 @@
 import { Context, Probot } from "probot";
-import { addLabels } from "./botUtils";
+import { addLabels, hasWritePermissions } from "./botUtils";
 import { isPyTorchPyTorch } from "./utils";
+
+export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -333,6 +335,30 @@ function myBot(app: Probot): void {
     }
 
     await addNewLabels(labels, labelsToAdd, context);
+  });
+
+  app.on("pull_request_review.submitted", async (context) => {
+    // Apply `ciflow/trunk` to PRs in PyTorch/PyTorch that has been reviewed
+    if (context.payload.review.state !== "approved") {
+      return;
+    }
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return;
+    }
+    const labels: string[] = context.payload.pull_request.labels.map(
+      (e) => e["name"]
+    );
+    if (labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
+      return;
+    }
+    const reviewer = context.payload.review.user.login;
+    // Ignore reviews from users without write permissions
+    if (!await hasWritePermissions(context, reviewer)) {
+      return;
+    }
+    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
   });
 }
 
