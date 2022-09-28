@@ -131,6 +131,16 @@ jobs:
           )
           docker exec -t "${container_name}" bash -c "/exec"
 
+      - name: Chown repository directory
+        uses: ./.github/actions/chown-directory
+        with:
+          directory: ${{ github.workspace }}/${{ env.repository }}
+
+      - name: Chown artifacts
+        uses: ./.github/actions/chown-directory
+        with:
+          directory: ${{ env.RUNNER_ARTIFACT_DIR }}
+
       - name: Check if there are potential artifacts and move them to the correct artifact location
         working-directory: ${{ inputs.repository }}
         id: check-artifacts
