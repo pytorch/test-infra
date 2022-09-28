@@ -10,12 +10,12 @@ on:
 jobs:
   build-dynamo:
     uses: ./.github/workflows/linux_job.yml
+    env:
+      PIP: python3 -m pip
     with:
       repository: pytorch/torchdynamo
       ref: main
       runner: linux.2xlarge
-      env:
-        PIP: python3 -m pip
       script: |
         python3 setup.py bdist_wheel
       upload-artifact: dynamo-cpu-build
@@ -24,12 +24,12 @@ jobs:
   test-dynamo:
     needs: build-dynamo
     uses: ./.github/workflows/linux_job.yml
+    env:
+      PIP: python3 -m pip
     with:
       repository: pytorch/torchdynamo
       ref: main
       runner: linux.2xlarge
-      env:
-        PIP: python3 -m pip
       script: |
         make setup_nightly
         python3 -m pip install ${RUNNER_ARTIFACT_DIR}/*.whl
