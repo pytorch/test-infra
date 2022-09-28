@@ -252,13 +252,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)": [
-    "82300",
-    "https://github.com/pytorch/pytorch/issues/82300",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_tensorlists_fastpath__foreach_div_cuda_int16 (__main__.TestForeachCUDA)": [
     "83513",
     "https://github.com/pytorch/pytorch/issues/83513",
