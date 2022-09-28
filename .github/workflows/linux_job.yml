@@ -69,6 +69,7 @@ jobs:
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
+      DOCKER_IMAGE: ${{ needs.determine-docker-image.outputs.docker-image }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -90,6 +91,10 @@ jobs:
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
 
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
@@ -108,11 +113,11 @@ jobs:
       - name: Run script in container
         env:
           SCRIPT: ${{ inputs.script }}
-          DOCKER_IMAGE: ${{ needs.determine-docker-image.outputs.docker-image }}
         working-directory: ${{ inputs.repository }}
         run: |
           # Echo our user script into a temporary script locally
           echo "${SCRIPT}" > "${RUNNER_TEMP}/exec_script"
+          chmod +x "${RUNNER_TEMP}/exec_script"
           # detached container should get cleaned up by teardown_ec2_linux
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
@@ -128,7 +133,7 @@ jobs:
             -w /work \
             "${DOCKER_IMAGE}"
           )
-          docker exec -t "${container_name}" bash -c "/exec"
+          docker exec -t "${container_name}" bash /exec
 
       - name: Chown repository directory
         uses: ./.github/actions/chown-directory
