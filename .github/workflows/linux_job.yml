@@ -29,7 +29,7 @@ on:
         type: string
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
-        default: "nightly"
+        default: ""
         type: string
       test-infra-repository:
         description: "Test infra repository to use"
