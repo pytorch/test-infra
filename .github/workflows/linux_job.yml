@@ -122,11 +122,13 @@ jobs:
           docker exec -t "${container_name}" bash -x /exec
 
       - name: Chown repository directory
+        if: ${{ always() }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
 
       - name: Chown artifacts
+        if: ${{ always() }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ env.RUNNER_ARTIFACT_DIR }}
