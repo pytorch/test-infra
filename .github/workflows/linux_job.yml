@@ -159,7 +159,7 @@ jobs:
             mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
           fi
           # Set to fail upload step if there are no files for upload and expected files for upload
-          echo '::set-output name=if-no-files-found::fail'
+          echo '::set-output name=if-no-files-found::error'
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
