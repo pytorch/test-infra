@@ -15,6 +15,7 @@ jobs:
       ref: main
       runner: linux.2xlarge
       script: |
+        export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         make PIP="python3 -m pip" setup_nightly
         python3 setup.py bdist_wheel
       upload-artifact: dynamo-cpu-build
@@ -28,6 +29,7 @@ jobs:
       ref: main
       runner: linux.2xlarge
       script: |
+        export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         make PIP="python3 -m pip" setup_nightly
         python3 -m pip install ${RUNNER_ARTIFACT_DIR}/*.whl
         pytest test -o log_cli=False
