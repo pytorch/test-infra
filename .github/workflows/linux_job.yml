@@ -121,7 +121,6 @@ jobs:
             --cap-add=SYS_PTRACE \
             --tty \
             --detach \
-            --user ec2-user \
             ${GPU_FLAG:-} \
             -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
             -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
@@ -165,4 +164,5 @@ jobs:
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
 
       - name: Teardown Linux
+        if: ${{ always() }}
         uses: ./test-infra/.github/actions/teardown-linux
