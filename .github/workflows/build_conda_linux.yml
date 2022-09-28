@@ -35,6 +35,18 @@ on:
         description: "Post script to run prior to build"
         default: ""
         type: string
+      package-name:
+        description: "Name of the actual python package that is imported"
+        default: ""
+        type: string
+      trigger-event:
+        description: "Trigger Event in caller that determines whether or not to upload"
+        default: ""
+        type: string
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN:
+        description: "Access Token needed to upload binaries to anaconda"
+        required: false
 
 jobs:
   build:
@@ -115,7 +127,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Upload package to conda
-        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
         env:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
