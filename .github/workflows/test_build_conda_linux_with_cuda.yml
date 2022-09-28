@@ -27,10 +27,10 @@ jobs:
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             conda-package-directory: packaging/torchaudio
-          - repository: pytorch/vision
-            pre-script: ""
-            post-script: ""
-            conda-package-directory: packaging/torchvision
+          # - repository: pytorch/vision
+          #   pre-script: ""
+          #   post-script: ""
+          #   conda-package-directory: packaging/torchvision
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_linux.yml
     with:
