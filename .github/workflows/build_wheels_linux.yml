@@ -106,11 +106,6 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
-          # echo "finding libavdevice.so"
-          # find . -name 'libavdevice.so'
-          # echo "printing LD_LIBRARY_PATH"
-          # export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
-          # echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
@@ -130,12 +125,6 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      # - name: Setup tmate session
-      #   uses: mxschmitt/action-tmate@v3
-      #   timeout-minutes: 60
-      #   with:
-      #     limit-access-to-actor: true
-      #     install-dependencies: true
       - name: Run Primitive Smoke Tests
         shell: bash -l {0}
         env:
