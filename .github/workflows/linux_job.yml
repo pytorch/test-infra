@@ -94,6 +94,7 @@ jobs:
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
         with:
+          docker-image: ${{ env.DOCKER_IMAGE }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
