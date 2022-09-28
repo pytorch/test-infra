@@ -18,6 +18,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
+        export CU_VERSION=cpu
         .circleci/unittest/linux/scripts/setup_env.sh
         .circleci/unittest/linux/scripts/install.sh
         .circleci/unittest/linux/scripts/run_test.sh
