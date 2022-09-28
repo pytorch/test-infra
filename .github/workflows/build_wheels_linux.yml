@@ -107,7 +107,7 @@ jobs:
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
           echo "finding libavdevice.so"
-          find /usr -name 'libavdevice.so.58'
+          find /usr -name 'libavdevice.so'
           echo "printing LD_LIBRARY_PATH"
           echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
