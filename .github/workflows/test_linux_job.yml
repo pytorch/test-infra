@@ -12,12 +12,13 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     with:
       repository: pytorch/vision
-      ref: main
+      ref: 2d92728341bbd3dc1e0f1e86c6a436049bbb3403
       runner: linux.4xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cpu
       gpu-arch-version: ""
+      timeout: 60
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         export CU_VERSION=cpu
@@ -29,12 +30,13 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     with:
       repository: pytorch/vision
-      ref: main
-      runner: linux.4xlarge.nvidia.gpu
+      ref: 2d92728341bbd3dc1e0f1e86c6a436049bbb3403
+      runner: linux.8xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cuda
       gpu-arch-version: "11.6"
+      timeout: 60
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         export CU_VERSION=cu116
