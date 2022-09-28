@@ -49,7 +49,7 @@ on:
         type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
-        description: "TODO"
+        description: "Access Token needed to upload binaries to anaconda"
         required: false
 
 jobs:
