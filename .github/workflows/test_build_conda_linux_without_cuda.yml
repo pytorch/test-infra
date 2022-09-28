@@ -39,6 +39,5 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
-      build-type: development
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
