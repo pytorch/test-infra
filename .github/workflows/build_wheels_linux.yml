@@ -106,6 +106,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
+          echo "finding libavdevice.so"
+          find /usr -name 'libavdevice.so.58'
+          echo "printing LD_LIBRARY_PATH"
+          echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
