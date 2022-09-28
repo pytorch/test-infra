@@ -104,6 +104,8 @@ jobs:
         shell: bash -l {0}
         run: |
           source "${BUILD_ENV_FILE}"
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
