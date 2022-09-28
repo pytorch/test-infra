@@ -109,6 +109,7 @@ jobs:
           echo "finding libavdevice.so"
           find . -name 'libavdevice.so'
           echo "printing LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
           echo "$LD_LIBRARY_PATH"
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
