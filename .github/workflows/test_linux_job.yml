@@ -16,9 +16,12 @@ jobs:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         export CU_VERSION=cpu
+        export UPLOAD_CHANNEL=nightly
         .circleci/unittest/linux/scripts/setup_env.sh
         .circleci/unittest/linux/scripts/install.sh
         .circleci/unittest/linux/scripts/run_test.sh
@@ -35,6 +38,7 @@ jobs:
       script: |
         export PATH="/opt/python/cp38-cp38/bin:${PATH}"
         export CU_VERSION=cu116
+        export UPLOAD_CHANNEL=nightly
         .circleci/unittest/linux/scripts/setup_env.sh
         .circleci/unittest/linux/scripts/install.sh
         .circleci/unittest/linux/scripts/run_test.sh
