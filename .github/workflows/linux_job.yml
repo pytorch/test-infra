@@ -74,6 +74,14 @@ jobs:
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
 
+      - name: Determine docker image
+        env:
+          GPU_ARCH_TYPE: ${{ inputs.gpu-arch-type }}
+          GPU_ARCH_VERSION: ${{ inputs.gpu-arch-version }}
+        run: |
+          # TODO: We need an image that's not necessarily our release images
+          echo "DOCKER_IMAGE=pytorch/manylinux-builder:${GPU_ARCH_TYPE}${GPU_ARCH_VERSION}" >> "${GITHUB_ENV}"
+
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
         with:
@@ -93,15 +101,6 @@ jobs:
         with:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
-
-      - name: Determine docker image
-        id: determine
-        env:
-          GPU_ARCH_TYPE: ${{ inputs.gpu-arch-type }}
-          GPU_ARCH_VERSION: ${{ inputs.gpu-arch-version }}
-        run: |
-          # TODO: We need an image that's not necessarily our release images
-          echo '::set-output name=docker-image::pytorch/manylinux-builder:${GPU_ARCH_TYPE}${GPU_ARCH_VERSION}'
 
       - name: Run script in container
         env:
