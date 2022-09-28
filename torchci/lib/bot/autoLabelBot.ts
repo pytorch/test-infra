@@ -1,4 +1,5 @@
 import { Context, Probot } from "probot";
+import { addLabels } from "./botUtils";
 import { isPyTorchPyTorch } from "./utils";
 
 const titleRegexToLabel: [RegExp, string][] = [
@@ -179,9 +180,7 @@ function myBot(app: Probot): void {
     }
 
     if (newLabels.length) {
-      await context.octokit.issues.addLabels(
-        context.issue({ labels: newLabels })
-      );
+      await addLabels(context, newLabels);
     }
   });
 
@@ -277,10 +276,7 @@ function myBot(app: Probot): void {
     });
 
     if (newLabels.length > 0) {
-      context.log(`Adding new labels: ${newLabels}}`);
-      await context.octokit.issues.addLabels(
-        context.issue({ labels: newLabels })
-      );
+      await addLabels(context, newLabels);
     }
   }
 
