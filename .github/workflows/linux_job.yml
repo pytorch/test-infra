@@ -51,9 +51,10 @@ on:
 jobs:
   job:
     env:
+      DOCKER_IMAGE: pytorch/manylinux-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
       PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
-      DOCKER_IMAGE: pytorch/manylinux-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
+      SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -96,9 +97,6 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Run script in container
-        env:
-          SCRIPT: ${{ inputs.script }}
-          DOCKER_IMAGE: ${{ steps.determine.outputs.docker-image }}
         working-directory: ${{ inputs.repository }}
         run: |
           echo "${SCRIPT}" >> "${RUNNER_TEMP}/exec_script"
