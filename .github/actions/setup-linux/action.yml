@@ -55,9 +55,18 @@ runs:
         mkdir -p "${RUNNER_ARTIFACT_DIR}"
         echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
 
+    - name: Needs nvidia driver?
+      id: needs-nvidia-driver
+      run: |
+        needs=0
+        if lspci -v | grep "VGA.*NVIDIA" >/dev/null 2>/dev/null; then
+          needs=1
+        fi
+        echo "::set-output name=does::${needs}"
+
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
       uses: nick-fields/retry@7d4a37704547a311dbb66ebdf5b23ec19374a767
-      if: contains(runner.name, 'nvidia.gpu')
+      if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
       with:
         timeout_minutes: 10
         max_attempts: 3

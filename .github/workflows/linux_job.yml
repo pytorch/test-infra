@@ -52,7 +52,6 @@ jobs:
   job:
     env:
       DOCKER_IMAGE: pytorch/manylinux-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
-      PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
       SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
