@@ -39,11 +39,6 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
-      # TODO: Add a python switcher script to the manylinux-builder images
-      # python-version:
-      #   description: "Python version to use"
-      #   default: "3.8"
-      #   type: string
       gpu-arch-type:
         description: "GPU arch type to use"
         default: "cpu"
@@ -55,12 +50,9 @@ on:
 
 jobs:
   job:
-    needs:
-      - determine-docker-image
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
-      DOCKER_IMAGE: ${{ needs.determine-docker-image.outputs.docker-image }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -108,7 +100,7 @@ jobs:
           GPU_ARCH_TYPE: ${{ inputs.gpu-arch-type }}
           GPU_ARCH_VERSION: ${{ inputs.gpu-arch-version }}
         run: |
-          # TODO: We need an image that's not
+          # TODO: We need an image that's not necessarily our release images
           echo '::set-output name=docker-image::pytorch/manylinux-builder:${GPU_ARCH_TYPE}${GPU_ARCH_VERSION}'
 
       - name: Run script in container
