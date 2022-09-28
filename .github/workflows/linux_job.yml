@@ -53,6 +53,7 @@ jobs:
     env:
       PYTHON_VERSION: ${{ inputs.python_version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
+      DOCKER_IMAGE: pytorch/manylinux-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -73,14 +74,6 @@ jobs:
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
-
-      - name: Determine docker image
-        env:
-          GPU_ARCH_TYPE: ${{ inputs.gpu-arch-type }}
-          GPU_ARCH_VERSION: ${{ inputs.gpu-arch-version }}
-        run: |
-          # TODO: We need an image that's not necessarily our release images
-          echo "DOCKER_IMAGE=pytorch/manylinux-builder:${GPU_ARCH_TYPE}${GPU_ARCH_VERSION}" >> "${GITHUB_ENV}"
 
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
