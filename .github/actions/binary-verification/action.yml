@@ -12,7 +12,6 @@ runs:
   using: composite
   steps:
     - uses: actions/download-artifact@v3
-      shell: bash -l {0}
       with:
         name: ${{ inputs.artifact-name }}
         path: nova
