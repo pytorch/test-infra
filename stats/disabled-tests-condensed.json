@@ -600,6 +600,14 @@
       "rocm"
     ]
   ],
+  "test_delayed_reduce_scatter_offload_true_shard_grad_op (__main__.TestParityWithDDP)": [
+    "82403",
+    "https://github.com/pytorch/pytorch/issues/82403",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_device_map_gpu_default_to_non_default (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "80008",
     "https://github.com/pytorch/pytorch/issues/80008",
