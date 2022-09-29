@@ -156,13 +156,6 @@
     "https://github.com/pytorch/pytorch/issues/38317",
     []
   ],
-  "test_backward_multiple_output_tensors (__main__.TensorPipeDistAutogradTest)": [
-    "77516",
-    "https://github.com/pytorch/pytorch/issues/77516",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_multiple_round_trips (__main__.TensorPipeDistAutogradTest)": [
     "77453",
     "https://github.com/pytorch/pytorch/issues/77453",
@@ -597,14 +590,6 @@
     "78447",
     "https://github.com/pytorch/pytorch/issues/78447",
     [
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_true_shard_grad_op (__main__.TestParityWithDDP)": [
-    "82403",
-    "https://github.com/pytorch/pytorch/issues/82403",
-    [
-      "linux",
       "rocm"
     ]
   ],
@@ -1774,12 +1759,22 @@
       "linux"
     ]
   ],
+  "test_worker_seed (__main__.TestDataLoaderPersistentWorkers)": [
+    "62969",
+    "https://github.com/pytorch/pytorch/issues/62969",
+    []
+  ],
   "test_worker_seed_reproducibility (__main__.TestDataLoader)": [
     "80249",
     "https://github.com/pytorch/pytorch/issues/80249",
     [
       "linux"
     ]
+  ],
+  "test_worker_seed_reproducibility (__main__.TestDataLoaderPersistentWorkers)": [
+    "62970",
+    "https://github.com/pytorch/pytorch/issues/62970",
+    []
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "75984",
