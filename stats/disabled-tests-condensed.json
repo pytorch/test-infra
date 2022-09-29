@@ -141,13 +141,6 @@
     "https://github.com/pytorch/pytorch/issues/38317",
     []
   ],
-  "test_backward_multiple_output_tensors (__main__.TensorPipeDistAutogradTest)": [
-    "77516",
-    "https://github.com/pytorch/pytorch/issues/77516",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_multiple_round_trips (__main__.TensorPipeDistAutogradTest)": [
     "77453",
     "https://github.com/pytorch/pytorch/issues/77453",
