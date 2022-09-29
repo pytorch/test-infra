@@ -23,6 +23,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
+    "77317",
+    "https://github.com/pytorch/pytorch/issues/77317",
+    [
+      "linux"
+    ]
+  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -140,6 +147,13 @@
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
     []
+  ],
+  "test_backward_multiple_output_tensors (__main__.TensorPipeDistAutogradTest)": [
+    "77516",
+    "https://github.com/pytorch/pytorch/issues/77516",
+    [
+      "linux"
+    ]
   ],
   "test_backward_multiple_round_trips (__main__.TensorPipeDistAutogradTest)": [
     "77453",
