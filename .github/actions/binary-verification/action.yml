@@ -45,16 +45,18 @@ runs:
       run: |
         set -ex
         pushd circle/extracted
-        find . -name "*.so" > "$HOME"/circle_so_sizes.txt
-        find . -name "*.so" | xargs du -sc > "$HOME"/circle_so_names.txt
+        find . -name "*.so" > "$HOME"/circle_so_names.txt
+        find . -name "*.so" | xargs du -sc > "$HOME"/circle_so_sizes.txt
         CIRCLE_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so | wc -l)
+        chmod +x ./torchaudio/_torchaudio.so
         ldd ./torchaudio/_torchaudio.so > "$HOME"/circle_ldd_dump.txt
         popd
         
         pushd nova/extracted
         find . -name "*.so" > "$HOME"/nova_so_names.txt
-        find . -name "*.so" | xargs du -sc > "$HOME"/nova_so_names.txt
+        find . -name "*.so" | xargs du -sc > "$HOME"/nova_so_sizes.txt
         NOVA_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so | wc -l)
+        chmod +x ./torchaudio/_torchaudio.so
         ldd ./torchaudio/_torchaudio.so > "$HOME"/nova_ldd_dump.txt
         popd
         
