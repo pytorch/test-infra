@@ -106,7 +106,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
-          export USE_OPENMP="0"
+          export USE_OPENMP="1"
           ${CONDA_RUN} pip install numpy future cmake ninja
           ${CONDA_RUN} python setup.py clean
           ${CONDA_RUN} python setup.py bdist_wheel
