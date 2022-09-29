@@ -7,20 +7,24 @@ inputs:
     description: "Name of the Nova artifact uploaded to GitHub"
     default: ""
     type: string
+  repository:
+    description: "Name of domain repo"
+    default: ""
+    type: string
 
 runs:
   using: composite
   steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: nova
+    # - uses: actions/download-artifact@v3
+    #   with:
+    #     name: ${{ inputs.artifact-name }}
+    #     path: nova
     - name: Unpack Nova Binary
       shell: bash -l {0}
       run: |
         set -ex
-        ls
-        ls nova
+        mkdir nova
+        mv "${{ inputs.repository }}/dist/"*.whl nova/
         pushd nova
         mkdir extracted
         WHEEL_NAME=$(ls ./*.whl)

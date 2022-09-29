@@ -106,6 +106,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
+          export USE_OPENMP="0"
           ${CONDA_RUN} pip install numpy future cmake ninja
           ${CONDA_RUN} python setup.py clean
           ${CONDA_RUN} python setup.py bdist_wheel
@@ -150,6 +151,7 @@ jobs:
         if: ${{ env.PYTHON_VERSION == 3.8 && matrix.desired_cuda == 'cpu' && inputs.repository == 'pytorch/audio' }}
         with:
           artifact-name: ${{ env.ARTIFACT_NAME }}
+          repository: ${{ inputs.repository }}
       - name: Upload package to pytorch.org
         if: ${{ inputs.trigger-event == 'push' }}
         shell: bash -l {0}
