@@ -27,14 +27,17 @@ jobs:
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
             post-script: ""
+            package-name: torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
             post-script: ""
+            package-name: torchtext
     uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}
     with:
