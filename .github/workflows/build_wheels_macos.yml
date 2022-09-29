@@ -157,7 +157,7 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
-            ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+            ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
         if: ${{ inputs.trigger-event == 'push' }}
