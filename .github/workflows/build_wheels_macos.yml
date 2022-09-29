@@ -147,7 +147,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
+
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          ${CONDA_RUN} pip install ffmpeg
+
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
