@@ -31,7 +31,7 @@ runs:
       run: |
         set -ex
         mkdir circle
-        curl https://download.pytorch.org/whl/nightly/cpu/torchaudio-0.13.0.dev20220928%2Bcpu-cp38-cp38-linux_x86_64.whl --output circle/wheel.whl
+        curl https://download.pytorch.org/whl/nightly/cpu/torchaudio-0.13.0.dev20220929%2Bcpu-cp38-cp38-linux_x86_64.whl --output circle/wheel.whl
     - name: Unpack CircleCI Binary
       shell: bash -l {0}
       run: |
@@ -43,7 +43,7 @@ runs:
     - name: Run Verification
       shell: bash -l {0}
       run: |
-        set -ex
+        set -x
         pushd circle/extracted
         find . -name "*.so" > "$HOME"/circle_so_names.txt
         find . -name "*.so" | xargs du -sc > "$HOME"/circle_so_sizes.txt
