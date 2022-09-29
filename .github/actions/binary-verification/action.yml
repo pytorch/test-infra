@@ -14,16 +14,16 @@ runs:
     - uses: actions/download-artifact@v3
       with:
         name: ${{ inputs.artifact-name }}
+        path: nova
     - name: Unpack Nova Binary
       shell: bash -l {0}
       run: |
         set -ex
         ls
         ls nova
-        unzip ${{ inputs.artifact-name }}.zip "*" -d "nova"
         pushd nova
         mkdir extracted
-        WHEEL_NAME=$(ls "./")
+        WHEEL_NAME=$(ls ./*.whl)
         python3 -m zipfile --extract "$WHEEL_NAME" extracted/
         popd
     - name: Fetch CircleCI Binary
