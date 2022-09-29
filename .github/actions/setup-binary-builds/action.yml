@@ -44,6 +44,11 @@ runs:
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
+      - name: Submodule Update
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        run: |
+          git submodule update --init --recursive
       - name: Set release CHANNEL
         shell: bash -l {0}
         run: |

@@ -106,7 +106,8 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
-          pip install numpy future cmake ninja
+          ${CONDA_RUN} pip install numpy future cmake ninja
+          ${CONDA_RUN} python setup.py clean
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
