@@ -18,7 +18,9 @@ runs:
       shell: bash -l {0}
       run: |
         set -ex
-        unzip ${{ inputs.artifact-name }} "*" -d "nova"
+        ls
+        ls nova
+        unzip ${{ inputs.artifact-name }}.zip "*" -d "nova"
         pushd nova
         mkdir extracted
         WHEEL_NAME=$(ls "./")
