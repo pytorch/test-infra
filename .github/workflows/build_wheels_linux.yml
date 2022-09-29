@@ -145,7 +145,7 @@ jobs:
           fi
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - uses: ./test-infra/.github/actions/binary-verification
-        if: ${{ env.PYTHON_VERSION == 3.8 && matrix.desired_cuda == 'cpu' }}
+        if: ${{ env.PYTHON_VERSION == 3.8 && matrix.desired_cuda == 'cpu' && inputs.repository == 'pytorch/audio' }}
         with:
           artifact-name: ${{ env.ARTIFACT_NAME }}
       - name: Upload package to pytorch.org
