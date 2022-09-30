@@ -6,6 +6,8 @@ import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
 
+nock.disableNetConnect();
+
 const comment_id = 10;
 const comment_node_id = "abcd";
 const some_user = "github_user"
@@ -33,6 +35,9 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, { results: [] });
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${OWNER}/${REPO}/issues/31/comments`,
@@ -72,6 +77,9 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, { results: [] });
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${OWNER}/${REPO}/issues/31/comments`,
