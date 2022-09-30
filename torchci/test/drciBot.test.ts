@@ -5,6 +5,7 @@ import nock from "nock";
 import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import { handleScope } from "./common";
 
 nock.disableNetConnect();
 
@@ -65,6 +66,8 @@ describe("verify-drci-functionality", () => {
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    handleScope(scope);
+    handleScope(rockset);
   });
 
   test("Dr. CI edits existing comment if a comment is already present", async () => {
@@ -112,6 +115,8 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    handleScope(scope);
+    handleScope(rockset);
   });
 
   test("Dr. CI does not comment when the PR is not open", async () => {
