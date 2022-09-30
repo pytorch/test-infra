@@ -113,7 +113,11 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
-          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          ${CONDA_RUN} export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+
+          echo "######"
+          echo $FFMPEG_ROOT
+
           export USE_FFMPEG="1"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
@@ -160,7 +164,6 @@ jobs:
 
             echo "#####"
             echo $LD_LIBRARY_PATH
-            echo $FFMPEG_ROOT
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
