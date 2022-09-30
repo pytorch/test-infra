@@ -35,7 +35,7 @@ runs:
       run: |
         set -ex
         mkdir circle
-        curl https://download.pytorch.org/whl/nightly/cpu/torchaudio-0.13.0.dev20220929%2Bcpu-cp38-cp38-linux_x86_64.whl --output circle/wheel.whl
+        curl https://download.pytorch.org/whl/nightly/cpu/torchaudio-0.13.0.dev20220930%2Bcpu-cp38-cp38-linux_x86_64.whl --output circle/wheel.whl
     - name: Unpack CircleCI Binary
       shell: bash -l {0}
       run: |
