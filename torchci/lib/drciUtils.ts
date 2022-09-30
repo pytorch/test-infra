@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
 
@@ -69,12 +70,33 @@ export async function getActiveSEVs(issues: IssueData[]): Promise<string> {
   if (activeSEVs.length === 0) {
     return "";
   }
-  const merge_blocking = activeSEVs.filter((issue: IssueData) => issue.body.toLowerCase().includes("merge blocking")).length;
-  if (merge_blocking > 0) {
-    return `## :heavy_exclamation_mark: ${merge_blocking} Merge Blocking SEVs
-There is an active merge blocking SEV.  Please view them [here](${SEV_SEARCH_URL}).  If you must merge, use \`@pytorchbot merge -f\`.`;
+  const [merge_blocking, not_merge_blocking] = _.partition(
+    activeSEVs,
+    (issue: IssueData) => issue.body.toLowerCase().includes("merge blocking")
+  );
+  const sev_list = merge_blocking
+    .concat(not_merge_blocking)
+    .map(
+      (issue: IssueData) =>
+        `* ${
+          issue.body.toLowerCase().includes("merge blocking")
+            ? "(merge blocking) "
+            : ""
+        }[${issue.title}](${issue.html_url.replace(
+          "github.com",
+          "hud.pytorch.org"
+        )})`
+    )
+    .join("\n");
+  if (merge_blocking.length > 0) {
+    return `## :heavy_exclamation_mark: ${merge_blocking.length} Merge Blocking SEVs
+There is an active merge blocking SEV.  Please view them [here](${SEV_SEARCH_URL}) or below:
+${sev_list}\n
+If you must merge, use \`@pytorchbot merge -f\`.`;
   } else {
     return `## :heavy_exclamation_mark: ${activeSEVs.length} Active SEVs
-There are ${activeSEVs.length} currently active SEVs.  If your PR is affected, please view them [here](${SEV_SEARCH_URL}) to see possible workarounds.`;
+There are ${activeSEVs.length} currently active SEVs.   If your PR is affected, please view them [here](${SEV_SEARCH_URL}) or below:
+${sev_list}\n
+`;
   }
 }
