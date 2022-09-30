@@ -929,6 +929,11 @@
       "linux"
     ]
   ],
+  "test_iterable_style_dataset (__main__.TestDataLoaderPersistentWorkers)": [
+    "62968",
+    "https://github.com/pytorch/pytorch/issues/62968",
+    []
+  ],
   "test_jit_cuda_extension (__main__.TestCppExtensionJIT)": [
     "61655",
     "https://github.com/pytorch/pytorch/issues/61655",
