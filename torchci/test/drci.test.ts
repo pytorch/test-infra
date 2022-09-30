@@ -177,7 +177,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       expect((await getActiveSEVs([closedSev])) === "").toBeTruthy();
     });
 
-    test("test dr ci comment with sevs", async () => {
+    test("test form dr ci comment with sevs", async () => {
       const originalWorkflows = [
         recentWorkflowA,
         recentWorkflowB,
