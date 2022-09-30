@@ -36,6 +36,7 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, { results: [] });
@@ -80,6 +81,7 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, { results: [] });
