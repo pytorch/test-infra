@@ -149,7 +149,7 @@ jobs:
           echo "$WHEEL_NAME"
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
-          ${CONDA_RUN} pip install ffmpeg-python
+          ${CONDA_RUN} pip install numpy
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
@@ -157,6 +157,11 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+
+            echo "#####"
+            echo $LD_LIBRARY_PATH
+            echo $FFMPEG_ROOT
+
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Setup tmate session
