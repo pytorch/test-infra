@@ -113,7 +113,7 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
-          ${CONDA_RUN} export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export FFMPEG_ROOT="${PWD}"/${{ inputs.repository }}/third_party/ffmpeg
 
           echo "######"
           echo $FFMPEG_ROOT
