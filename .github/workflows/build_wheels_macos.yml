@@ -113,10 +113,9 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
-          export FFMPEG_ROOT="${PWD}"/${{ inputs.repository }}/third_party/ffmpeg
-
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           echo "######"
-          echo $FFMPEG_ROOT
+          echo ${FFMPEG_ROOT}
 
           export USE_FFMPEG="1"
 
@@ -163,7 +162,7 @@ jobs:
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
 
             echo "#####"
-            echo $LD_LIBRARY_PATH
+            echo ${LD_LIBRARY_PATH}
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
