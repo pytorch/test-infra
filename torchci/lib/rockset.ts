@@ -9,8 +9,10 @@ export interface RocksetParam {
 }
 
 export default function getRocksetClient(): MainApi {
+  console.log("getting rockset client");
   if (typeof process.env.ROCKSET_API_KEY === "undefined") {
     throw "ROCKSET_API_KEY is not defined, add it to your .env.local file";
   }
+  console.log("finished getting rockset client");
   return rockset(process.env.ROCKSET_API_KEY);
 }

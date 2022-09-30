@@ -10,6 +10,7 @@ class PytorchBotLogger {
   constructor(params: PytorchbotParams) {
     this.params = params;
     delete this.params.ctx;
+    console.log("creating logger");
     try {
       var config = {
         marshallOptions: {
