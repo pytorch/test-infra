@@ -35,7 +35,7 @@ export default function drciBot(app: Probot): void {
       );
       const existingDrciID = existingDrciData.id;
       const existingDrciComment = existingDrciData.body;
-      const sev = await getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+      const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
       const drciComment = formDrciComment(prNum, "", sev);
 
       if (existingDrciComment === drciComment) {

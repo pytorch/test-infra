@@ -62,7 +62,7 @@ export async function getDrciComment(
   return { id: 0, body: "" };
 }
 
-export async function getActiveSEVs(issues: IssueData[]): Promise<string> {
+export function getActiveSEVs(issues: IssueData[]): string {
   const activeSEVs = issues.filter(
     (issue: IssueData) => issue.state === "open"
   );

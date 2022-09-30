@@ -37,7 +37,7 @@ export async function updateDrciComments() {
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
-    const sevs = await getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+    const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
 
     for (const [pr_number, pr_info] of workflowsByPR) {
         const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);

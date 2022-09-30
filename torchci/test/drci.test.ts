@@ -165,16 +165,16 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     test("test getActiveSevs function", async () => {
       expect(
-        (await getActiveSEVs([sev, closedSev])).includes(
+        getActiveSEVs([sev, closedSev]).includes(
           "## :heavy_exclamation_mark: 1 Active SEVs"
         )
       ).toBeTruthy();
       expect(
-        (await getActiveSEVs([sev, mergeBlockingSev])).includes(
+        getActiveSEVs([sev, mergeBlockingSev]).includes(
           "## :heavy_exclamation_mark: 1 Merge Blocking SEVs"
         )
       ).toBeTruthy();
-      expect((await getActiveSEVs([closedSev])) === "").toBeTruthy();
+      expect(getActiveSEVs([closedSev]) === "").toBeTruthy();
     });
 
     test("test form dr ci comment with sevs", async () => {
@@ -197,7 +197,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const comment = formDrciComment(
         1001,
         failureInfo,
-        await getActiveSEVs([sev, mergeBlockingSev])
+        getActiveSEVs([sev, mergeBlockingSev])
       );
       expect(comment.includes("## :link: Helpful Links"));
       expect(
