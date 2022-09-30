@@ -14,6 +14,7 @@ export interface JobData {
   htmlUrl?: string;
   logUrl?: string;
   durationS?: number;
+  queueTimeS?: number;
   failureLine?: string;
   failureLineNumber?: number;
   failureCaptures?: string;
