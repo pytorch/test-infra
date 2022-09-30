@@ -33,6 +33,7 @@ function getWorkflowJobSummary(job: JobData) {
 
   return <>
     <JobSummary job={job} />
+    <br/>
     <small>
       &nbsp;&nbsp;&nbsp;&nbsp;
       {queueTimeInfo}{separator}{durationInfo}
@@ -54,8 +55,6 @@ export default function WorkflowBox({
 
   const workflowId = jobs[0].workflowId;
   const anchorName = encodeURIComponent(workflowName.toLowerCase())
-
-
   return (
     <div id={anchorName} className={workflowClass}>
       <h3>{workflowName}</h3>
