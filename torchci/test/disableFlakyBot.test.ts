@@ -145,6 +145,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
+        body: "random"
       },
     ];
 
@@ -179,6 +180,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
+        body: "random"
       },
     ];
 
