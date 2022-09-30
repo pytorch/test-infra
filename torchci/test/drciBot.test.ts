@@ -30,6 +30,7 @@ describe("verify-drci-functionality", () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = some_user;
@@ -74,6 +75,7 @@ describe("verify-drci-functionality", () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
 
     const payload = require("./fixtures/pull_request.opened")["payload"];
     payload["pull_request"]["user"]["login"] = some_user;
