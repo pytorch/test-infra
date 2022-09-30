@@ -39,7 +39,6 @@ ${header}
 ${sevs}
 ${pr_results}
 ${DRCI_COMMENT_END}`;
-  console.log(comment);
   return comment;
 }
 
