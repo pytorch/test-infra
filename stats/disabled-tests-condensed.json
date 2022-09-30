@@ -65,13 +65,6 @@
       "linux"
     ]
   ],
-  "test_MaxUnpool_index_errors_case7_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "81989",
-    "https://github.com/pytorch/pytorch/issues/81989",
-    [
-      "linux"
-    ]
-  ],
   "test_RNN_dropout_state (__main__.TestNN)": [
     "68849",
     "https://github.com/pytorch/pytorch/issues/68849",
