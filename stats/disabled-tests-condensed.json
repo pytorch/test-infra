@@ -1415,6 +1415,13 @@
     "https://github.com/pytorch/pytorch/issues/70516",
     []
   ],
+  "test_readall (test_zipfile.ZipfileTest)": [
+    "75406",
+    "https://github.com/pytorch/pytorch/issues/75406",
+    [
+      "mac"
+    ]
+  ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
     "75168",
     "https://github.com/pytorch/pytorch/issues/75168",
