@@ -698,6 +698,13 @@
       "linux"
     ]
   ],
+  "test_fake_crossref_backward_amp_linalg_lstsq_cuda_float32 (__main__.TestFakeTensorCUDA)": [
+    "86059",
+    "https://github.com/pytorch/pytorch/issues/86059",
+    [
+      "linux"
+    ]
+  ],
   "test_fake_crossref_backward_amp_linalg_lstsq_grad_oriented_cuda_float32 (__main__.TestFakeTensorCUDA)": [
     "85869",
     "https://github.com/pytorch/pytorch/issues/85869",
