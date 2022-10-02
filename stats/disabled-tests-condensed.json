@@ -428,6 +428,13 @@
       "linux"
     ]
   ],
+  "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
+    "85012",
+    "https://github.com/pytorch/pytorch/issues/85012",
+    [
+      "linux"
+    ]
+  ],
   "test_compute_bucket_assignment_by_size_sparse_error_without_logger (__main__.TestDistBackendWithSpawn)": [
     "85339",
     "https://github.com/pytorch/pytorch/issues/85339",
