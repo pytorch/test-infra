@@ -137,6 +137,13 @@
       "linux"
     ]
   ],
+  "test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "80413",
+    "https://github.com/pytorch/pytorch/issues/80413",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_index_put_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "76941",
     "https://github.com/pytorch/pytorch/issues/76941",
