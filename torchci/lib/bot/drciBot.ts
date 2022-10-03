@@ -1,5 +1,5 @@
 import { Probot } from "probot";
-import { OWNER, REPO, formDrciComment, getDrciComment, getActiveSEVs } from "lib/drciUtils";
+import { OWNER, REPO, formDrciComment, getDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 
@@ -36,7 +36,7 @@ export default function drciBot(app: Probot): void {
       const existingDrciID = existingDrciData.id;
       const existingDrciComment = existingDrciData.body;
       const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-      const drciComment = formDrciComment(prNum, "", sev);
+      const drciComment = formDrciComment(prNum, "", formDrciSevBody(sev));
 
       if (existingDrciComment === drciComment) {
         return;

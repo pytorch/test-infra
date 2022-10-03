@@ -1,6 +1,6 @@
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
-import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, getActiveSEVs } from "lib/drciUtils";
+import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
 import { IssueData } from "lib/types";
 
 nock.disableNetConnect();
@@ -165,16 +165,16 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     test("test getActiveSevs function", async () => {
       expect(
-        getActiveSEVs([sev, closedSev]).includes(
+        formDrciSevBody(getActiveSEVs([sev, closedSev])).includes(
           "## :heavy_exclamation_mark: 1 Active SEVs"
         )
       ).toBeTruthy();
       expect(
-        getActiveSEVs([sev, mergeBlockingSev]).includes(
+        formDrciSevBody(getActiveSEVs([sev, mergeBlockingSev])).includes(
           "## :heavy_exclamation_mark: 1 Merge Blocking SEVs"
         )
       ).toBeTruthy();
-      expect(getActiveSEVs([closedSev]) === "").toBeTruthy();
+      expect(formDrciSevBody(getActiveSEVs([closedSev])) === "").toBeTruthy();
     });
 
     test("test form dr ci comment with sevs", async () => {
@@ -197,12 +197,12 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const comment = formDrciComment(
         1001,
         failureInfo,
-        getActiveSEVs([sev, mergeBlockingSev])
+        formDrciSevBody(getActiveSEVs([sev, mergeBlockingSev]))
       );
-      expect(comment.includes("## :link: Helpful Links"));
+      expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(
         comment.includes("## :heavy_exclamation_mark: 1 Merge Blocking SEVs")
-      );
-      expect(comment.includes("## :x: 1 Failures, 1 Pending"));
+      ).toBeTruthy();
+      expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
     });
 });

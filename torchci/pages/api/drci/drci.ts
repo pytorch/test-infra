@@ -9,6 +9,7 @@ import {
   OWNER,
   getDrciComment,
   getActiveSEVs,
+  formDrciSevBody,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
@@ -43,7 +44,7 @@ export async function updateDrciComments() {
         const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
 
         const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
-        const comment = formDrciComment(pr_number, failureInfo, sevs);
+        const comment = formDrciComment(pr_number, failureInfo, formDrciSevBody(sevs));
 
         await updateCommentWithWorkflow(pr_info, comment);
     }
