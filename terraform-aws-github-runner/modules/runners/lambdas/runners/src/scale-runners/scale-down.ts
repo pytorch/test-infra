@@ -14,7 +14,7 @@ import { RunnerInfo, getRepo } from './utils';
 import { Config } from './config';
 import moment from 'moment';
 import { resetSecretCache } from './gh-auth';
-import { ScaleDownMetrics } from './metrics';
+import { ScaleDownMetrics, sendMetricsTimeoutVars, sendMetricsAtTimeout } from './metrics';
 
 function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   const launchTimePlusMinimum = moment(runner.launchTime)
@@ -27,6 +27,13 @@ function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
 export default async function scaleDown(): Promise<void> {
   // list and sort runners, newest first. This ensure we keep the newest runners longer.
   const metrics = new ScaleDownMetrics();
+  const sndMetricsTimout: sendMetricsTimeoutVars = {
+    metrics: metrics,
+  };
+  sndMetricsTimout.setTimeout = setTimeout(
+    sendMetricsAtTimeout(sndMetricsTimout),
+    (Config.Instance.lambdaTimeout - 10) * 1000,
+  );
 
   try {
     // Ensure a clean cache before attempting each scale down event
@@ -88,6 +95,9 @@ export default async function scaleDown(): Promise<void> {
       }
     }
   } finally {
+    clearTimeout(sndMetricsTimout.setTimeout);
+    sndMetricsTimout.metrics = undefined;
+    sndMetricsTimout.setTimeout = undefined;
     metrics.sendMetrics();
   }
 }

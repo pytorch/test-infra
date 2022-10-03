@@ -22,6 +22,7 @@ describe('Config', () => {
     process.env.GITHUB_APP_CLIENT_SECRET = 'GITHUB_APP_CLIENT_SECRET';
     process.env.GITHUB_APP_ID = 'GITHUB_APP_ID';
     process.env.KMS_KEY_ID = 'KMS_KEY_ID';
+    process.env.LAMBDA_TIMEOUT = '113';
     process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'LAUNCH_TEMPLATE_NAME_LINUX';
     process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'LAUNCH_TEMPLATE_NAME_WINDOWS';
     process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
@@ -52,6 +53,7 @@ describe('Config', () => {
     expect(Config.Instance.githubAppClientSecret).toBe('GITHUB_APP_CLIENT_SECRET');
     expect(Config.Instance.githubAppId).toBe('GITHUB_APP_ID');
     expect(Config.Instance.kmsKeyId).toBe('KMS_KEY_ID');
+    expect(Config.Instance.lambdaTimeout).toBe(113);
     expect(Config.Instance.launchTemplateNameLinux).toBe('LAUNCH_TEMPLATE_NAME_LINUX');
     expect(Config.Instance.launchTemplateNameWindows).toBe('LAUNCH_TEMPLATE_NAME_WINDOWS');
     expect(Config.Instance.launchTemplateVersionLinux).toBe('LAUNCH_TEMPLATE_VERSION_LINUX');
@@ -88,6 +90,7 @@ describe('Config', () => {
     delete process.env.GITHUB_APP_CLIENT_SECRET;
     delete process.env.GITHUB_APP_ID;
     delete process.env.KMS_KEY_ID;
+    delete process.env.LAMBDA_TIMEOUT;
     process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'LAUNCH_TEMPLATE_NAME_LINUX';
     process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'LAUNCH_TEMPLATE_NAME_WINDOWS';
     process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
@@ -115,6 +118,7 @@ describe('Config', () => {
     expect(Config.Instance.githubAppClientSecret).toBeUndefined();
     expect(Config.Instance.githubAppId).toBeUndefined();
     expect(Config.Instance.kmsKeyId).toBeUndefined();
+    expect(Config.Instance.lambdaTimeout).toEqual(600);
     expect(Config.Instance.launchTemplateNameLinux).toBe('LAUNCH_TEMPLATE_NAME_LINUX');
     expect(Config.Instance.launchTemplateNameWindows).toBe('LAUNCH_TEMPLATE_NAME_WINDOWS');
     expect(Config.Instance.launchTemplateVersionLinux).toBe('LAUNCH_TEMPLATE_VERSION_LINUX');

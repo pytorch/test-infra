@@ -13,6 +13,7 @@ export class Config {
   readonly githubAppClientSecret: string | undefined;
   readonly githubAppId: string | undefined;
   readonly kmsKeyId: string | undefined;
+  readonly lambdaTimeout: number;
   readonly launchTemplateNameLinux: string | undefined;
   readonly launchTemplateNameWindows: string | undefined;
   readonly launchTemplateVersionLinux: string | undefined;
@@ -43,6 +44,7 @@ export class Config {
     this.githubAppClientSecret = process.env.GITHUB_APP_CLIENT_SECRET;
     this.githubAppId = process.env.GITHUB_APP_ID;
     this.kmsKeyId = process.env.KMS_KEY_ID;
+    this.lambdaTimeout = Number(process.env.LAMBDA_TIMEOUT || '600');
     this.launchTemplateNameLinux = process.env.LAUNCH_TEMPLATE_NAME_LINUX;
     this.launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS;
     this.launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
