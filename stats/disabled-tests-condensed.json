@@ -1,9 +1,4 @@
 {
-  "TestGradientsCUDA.test_forward_mode_AD_native_batch_norm_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "86175",
-    "https://github.com/pytorch/pytorch/issues/86175",
-    []
-  ],
   "testAdd (__main__.TestLazyReuseIr)": [
     "77722",
     "https://github.com/pytorch/pytorch/issues/77722",
@@ -805,6 +800,11 @@
       "linux",
       "win"
     ]
+  ],
+  "test_forward_mode_AD_native_batch_norm_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "86175",
+    "https://github.com/pytorch/pytorch/issues/86175",
+    []
   ],
   "test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA)": [
     "77039",
