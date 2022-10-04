@@ -29,6 +29,7 @@ import {
   useState,
 } from "react";
 import { SWRConfig } from "swr";
+import JobAnnotationToggle from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
@@ -116,6 +117,9 @@ function FailedJob({ job }: { job: JobData }) {
         />
         <label htmlFor="setfilterbox">Set filter | </label>
         <JobLinks job={job} />
+      </div>
+      <div>
+        <JobAnnotationToggle job={job} />
       </div>
       <LogViewer job={job} />
     </div>
@@ -283,7 +287,11 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
         ) {
           let name = cur.name.substring(0, cur.name.indexOf(","));
           if (!(name in prev)) {
-            prev[name] = { duration: 0, availableData: true, htmlUrl: cur.htmlUrl };
+            prev[name] = {
+              duration: 0,
+              availableData: true,
+              htmlUrl: cur.htmlUrl,
+            };
           }
           if (cur.conclusion != "success" || cur.durationS === undefined) {
             prev[name].availableData = false;
@@ -354,7 +362,12 @@ function getTTSChanges(jobs: JobData[], prevJobs: JobData[] | undefined) {
 
   const [concerningTTS, notConcerningTTS] = _.partition(
     _.map(getAggregateTestTimes(jobs), (value, key) => {
-      return getDurationInfo(key, value.htmlUrl, value.duration, value.availableData);
+      return getDurationInfo(
+        key,
+        value.htmlUrl,
+        value.duration,
+        value.availableData
+      );
     }),
     (e) => e.concerningChange
   );
@@ -389,9 +402,7 @@ function DurationInfo({
     return (
       <tr style={{ color }}>
         <td style={{ width: "750px" }}>
-            <a href={htmlUrl}>
-               {name}
-            </a>
+          <a href={htmlUrl}>{name}</a>
         </td>
         <td style={{ width: "150px" }}>{duration}</td>
         <td style={{ width: "100px" }}>{percentChangeString}</td>
