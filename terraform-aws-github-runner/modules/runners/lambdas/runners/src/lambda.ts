@@ -3,6 +3,15 @@ import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import scaleDownR from './scale-runners/scale-down';
 import { scaleUp as scaleUpR } from './scale-runners/scale-up';
 
+/*
+Example of message:
+{
+  "Records": [{
+    "body": "{\"repositoryName\": \"pytorch-canary\", \"id\": 123, \"repositoryOwner\": \"pytorch\", \"runnerLabels\": [\"linux.2xlarge\", \"windows.4xlarge.canary\"]}",
+    "eventSource": "aws:sqs"
+  }]
+}
+*/
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleUp(event: SQSEvent, context: Context, callback: any) {
   console.dir(event, { depth: 5 });
