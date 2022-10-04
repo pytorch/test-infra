@@ -257,15 +257,9 @@ variable "runner_iam_role_managed_policy_arns" {
 }
 
 variable "enable_cloudwatch_agent" {
-  description = "Enabling the cloudwatch agent on the ec2 runner instances, the runner contains default config. Configuration can be overridden via `cloudwatch_config`."
+  description = "Enabling the cloudwatch agent on the ec2 runner instances, the runner contains default config."
   type        = bool
   default     = true
-}
-
-variable "cloudwatch_config" {
-  description = "(optional) Replaces the module default cloudwatch log config. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html for details."
-  type        = string
-  default     = null
 }
 
 variable "ghes_url" {

@@ -61,9 +61,19 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux" {
   count = var.enable_cloudwatch_agent ? 1 : 0
   name  = "${var.environment}-cloudwatch_agent_config_runner_linux"
   type  = "String"
-  value = var.cloudwatch_config != null ? var.cloudwatch_config : templatefile("${path.module}/templates/cloudwatch_config.json", {
-    logfiles = jsonencode(local.logfiles_linux)
-  })
+  value = jsonencode(
+    jsondecode(
+      templatefile(
+        "${path.module}/templates/cloudwatch_config.json",
+        {
+          aws_region = var.aws_region
+          environment = var.environment
+          logfiles = jsonencode(local.logfiles_linux)
+          metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_linux.json", {})
+        }
+      )
+    )
+  )
   tags = local.tags
 }
 
@@ -85,14 +95,23 @@ resource "aws_iam_role_policy" "cloudwatch_linux" {
   )
 }
 
-
 resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_windows" {
   count = var.enable_cloudwatch_agent ? 1 : 0
   name  = "${var.environment}-cloudwatch_agent_config_runner_windows"
   type  = "String"
-  value = var.cloudwatch_config != null ? var.cloudwatch_config : templatefile("${path.module}/templates/cloudwatch_config.json", {
-    logfiles = jsonencode(local.logfiles_windows)
-  })
+  value = jsonencode(
+    jsondecode(
+      templatefile(
+        "${path.module}/templates/cloudwatch_config.json",
+        {
+          aws_region = var.aws_region
+          environment = var.environment
+          metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_windows.json", {})
+          logfiles = jsonencode(local.logfiles_linux)
+        }
+      )
+    )
+  )
   tags = local.tags
 }
 
