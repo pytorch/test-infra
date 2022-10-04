@@ -113,7 +113,7 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
-          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
           echo "######"
           echo ${FFMPEG_ROOT}
 
@@ -123,6 +123,7 @@ jobs:
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
         run: |
+          source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
@@ -159,10 +160,11 @@ jobs:
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+#            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+            export DYLD_LIBRARY_PATH="{DYLD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
 
             echo "#####"
-            echo ${LD_LIBRARY_PATH}
+            echo $DYLD_LIBRARY_PATH
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
