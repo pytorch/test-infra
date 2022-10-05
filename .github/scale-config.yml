@@ -81,7 +81,7 @@ runner_types:
     disk_size: 150
     is_ephemeral: true
   linux.large:
-    disk_size: 10
+    disk_size: 15
     instance_type: c5.large
     is_ephemeral: false
     os: linux
