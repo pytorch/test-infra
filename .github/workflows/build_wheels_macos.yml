@@ -116,7 +116,6 @@ jobs:
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
           echo "###### FFMPEG_ROOT"
           echo "${FFMPEG_ROOT}"
-          ls -la ${FFMPEG_ROOT}
 
           export USE_FFMPEG="1"
 
@@ -163,10 +162,8 @@ jobs:
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="{DYLD_FALLBACK_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
-
-            echo "#####"
-            echo "${DYLD_FALLBACK_LIBRARY_PATH}"
+            export DYLD_FALLBACK_LIBRARY_PATH="{DYLD_FALLBACK_LIBRARY_PATH}:${PWD}/third_party/ffmpeg"
+            export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
