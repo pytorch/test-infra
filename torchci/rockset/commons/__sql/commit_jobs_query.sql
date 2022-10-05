@@ -15,6 +15,11 @@ WITH job as (
         ) as log_url,
         DATE_DIFF(
             'SECOND',
+            job._event_time,
+            PARSE_TIMESTAMP_ISO8601(job.started_at)
+        ) as queue_time_s,
+        DATE_DIFF(
+            'SECOND',
             PARSE_TIMESTAMP_ISO8601(job.started_at),
             PARSE_TIMESTAMP_ISO8601(job.completed_at)
         ) as duration_s,
@@ -60,6 +65,7 @@ WITH job as (
         ) as html_url,
         -- logs aren't downloaded currently, just reuse html_url
         html_url as log_url,
+        null as queue_time_s, -- for circle ci, the event time comes after the end time, so its not reliable for queueing
         DATE_DIFF(
             'SECOND',
             PARSE_TIMESTAMP_ISO8601(job.job.started_at),
@@ -90,6 +96,7 @@ SELECT
     html_url as htmlUrl,
     log_url as logUrl,
     duration_s as durationS,
+    queue_time_s as queueTimeS,
     line as failureLine,
     line_num as failureLineNumber,
     captures as failureCaptures,

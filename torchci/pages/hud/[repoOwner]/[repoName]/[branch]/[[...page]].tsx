@@ -223,15 +223,16 @@ function GroupViewCheckBox({
 }) {
   return (
     <>
-      <input
-        type="checkbox"
-        name="groupView"
-        checked={useGrouping}
-        onChange={() => {
+      <div onClick={() => {
           setUseGrouping(!useGrouping);
-        }}
-      />
-      <label htmlFor="groupView"> Use grouped view</label>
+        }}>
+        <input
+          type="checkbox"
+          name="groupView"
+          checked={useGrouping}
+        />
+        <label htmlFor="groupView"> Use grouped view</label>
+      </div>
       <br />
     </>
   );

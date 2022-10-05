@@ -49,27 +49,6 @@ export default function Kpis() {
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"Avg Time To Signal - Builds only (Weekly)"}
-                queryName={"time_to_signal"}
-                queryCollection={"pytorch_dev_infra_kpis"}
-                queryParams={[
-                    {
-                        name: "buildOrAll",
-                        type: "string",
-                        value: "build",
-                    },
-                    ...timeParams,
-                ]}
-                granularity={"week"}
-                timeFieldName={"week_bucket"}
-                yAxisFieldName={"avg_tts"}
-                yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => `${unit}`}
-                />
-            </Grid>
-
-            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-                <TimeSeriesPanel
                 title={"# of Reverts (Weekly)"}
                 queryName={"num_reverts"}
                 queryCollection={"pytorch_dev_infra_kpis"}
@@ -88,22 +67,6 @@ export default function Kpis() {
                 title={"% of Commits Red on Trunk (Weekly)"}
                 queryName={"master_commit_red_percent"}
                 queryCollection={"metrics"}
-                queryParams={[
-                    ...timeParams,
-                ]}
-                granularity={"week"}
-                timeFieldName={"granularity_bucket"}
-                yAxisFieldName={"red"}
-                yAxisRenderer={(unit) => {
-                    return `${unit * 100} %`;
-                }}
-                />
-            </Grid>
-
-            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-                <TimeSeriesPanel
-                title={"% Jobs Red (Weekly)"}
-                queryName={"master_jobs_red"}
                 queryParams={[
                     ...timeParams,
                 ]}

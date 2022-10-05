@@ -1,0 +1,53 @@
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        description: tag to create release
+        required: true
+
+name: Upload Release for runners lambdas
+
+jobs:
+  release-lambdas:
+    name: Upload Release for runners lambdas
+    runs-on: ubuntu-latest
+    container: node:12
+    env:
+      REF: ${{ inputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Install dependencies
+        run: yarn install
+        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
+      - name: Build distribution
+        run: yarn build
+        working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners
+      - name: Copy js to root
+        run: cp terraform-aws-github-runner/modules/runners/lambdas/runners/dist/index.js .
+      - name: create lambda zip
+        uses: montudor/action-zip@v1
+        with:
+          args: zip runners.zip index.js
+      - name: Create Release
+        uses: actions/create-release@v1
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ inputs.tag }}
+          release_name: Runner lambdas ${{ inputs.tag }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: runners.zip
+          asset_name: runners.zip
+          asset_content_type: application/zip

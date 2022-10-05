@@ -7,6 +7,7 @@ on:
       - .github/workflows/test_build_wheels_windows.yml
       - .github/workflows/build_wheels_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
+  workflow_dispatch:
 
 jobs:
   generate-matrix:
@@ -27,10 +28,16 @@ jobs:
           #   post-script: packaging/post_build_script.sh
           - repository: pytorch/vision
             pre-script: ""
+            env-script: "packaging/windows/internal/vc_env_helper.bat"
             post-script: ""
-          # - repository: pytorch/text
-          #   pre-script: ""
-          #   post-script: ""
+            smoke-test-script: ""
+            package-name: torchvision
+          - repository: pytorch/text
+            pre-script: ""
+            env-script: "packaging/vc_env_helper.bat"
+            post-script: ""
+            smoke-test-script: ""
+            package-name: torchtext
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
@@ -40,5 +47,8 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
+      env-script: ${{ matrix.env-script }}
       post-script: ${{ matrix.post-script }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      package-name: ${{ matrix.package-name }}
       runner-type: windows-2019

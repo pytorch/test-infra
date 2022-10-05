@@ -14,6 +14,11 @@ export default function JobLinks({ job }: { job: JobData }) {
       </span>
     ) : null;
 
+  const queueTimeS =
+    job.queueTimeS != null ? (
+      <span>{` | Queued: ${durationHuman(job.queueTimeS!)}`}</span>
+    ) : null;
+
   const durationS =
     job.durationS != null ? (
       <span>{` | Duration: ${durationHuman(job.durationS!)}`}</span>
@@ -42,6 +47,7 @@ export default function JobLinks({ job }: { job: JobData }) {
     <span>
       {rawLogs}
       {failureCaptures}
+      {queueTimeS}
       {durationS}
       {eventTime}
       <DisableIssue job={job} />

@@ -1,0 +1,48 @@
+on:
+  workflow_dispatch: {}
+
+name: Create Release Tag
+
+jobs:
+  tag:
+    name: Create Release Tag
+    runs-on: ubuntu-latest
+    container: node:12
+    outputs:
+      date: ${{ steps.date.outputs.date }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+      - name: Wait for tflint to succeed
+        uses: lewagon/wait-on-check-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          ref: ${{ github.ref }}
+          check-name: TFLint
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+      - name: Wait for tests to succeed
+        uses: lewagon/wait-on-check-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          ref: ${{ github.ref }}
+          check-name: "Run tests for runners lambda"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y%m%d-%H%M%S')"
+      - name: Tag snapshot
+        uses: tvdias/github-tagger@v0.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          tag: v${{ steps.date.outputs.date }}
+  call-release:
+    needs: tag
+    uses: ./.github/workflows/lambda-do-release-runners.yml
+    with:
+      tag: v${{ needs.tag.outputs.date }}

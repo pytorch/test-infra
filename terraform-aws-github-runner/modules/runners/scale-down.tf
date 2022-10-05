@@ -28,7 +28,6 @@ resource "aws_lambda_function" "scale_down" {
 
   environment {
     variables = {
-      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       ENVIRONMENT                     = var.environment
       GHES_URL                        = var.ghes_url
@@ -37,9 +36,11 @@ resource "aws_lambda_function" "scale_down" {
       GITHUB_APP_ID                   = var.github_app.id
       GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
+      LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
+      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
     }
   }
 

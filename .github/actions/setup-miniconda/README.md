@@ -4,6 +4,7 @@ Sets up miniconda in your `${RUNNER_TEMP}` environment and gives you the `${COND
 
 ## Supported platforms
 
+- Linux-X64
 - macOS-ARM64
 - macOS-X64
 

@@ -1,5 +1,6 @@
 import { Label } from "@octokit/webhooks-types";
 import { Probot } from "probot";
+import { addLabels } from "./botUtils";
 
 function containsLabel(labels: Label[], labelName: string) {
   return labels.filter((label) => label.name === labelName).length > 0;
@@ -29,12 +30,7 @@ function acceptBot(app: Probot): void {
       const hasAcceptToShip = containsLabel(labels, ACCEPT_2_SHIP);
 
       if (hasAcceptToRun) {
-        await ctx.octokit.issues.addLabels({
-          owner,
-          repo,
-          issue_number,
-          labels: [CIFLOW_TRUNK_LABEL],
-        });
+        await addLabels(ctx, [CIFLOW_TRUNK_LABEL]);
         await ctx.octokit.issues.removeLabel({
           owner,
           repo,
@@ -77,12 +73,7 @@ function acceptBot(app: Probot): void {
 
     if (ctx.payload.label.name === ACCEPT_2_RUN) {
       if (await isApproved()) {
-        await ctx.octokit.issues.addLabels({
-          owner,
-          repo,
-          issue_number,
-          labels: [CIFLOW_TRUNK_LABEL],
-        });
+        await addLabels(ctx, [CIFLOW_TRUNK_LABEL]);
         await ctx.octokit.issues.removeLabel({
           owner,
           repo,

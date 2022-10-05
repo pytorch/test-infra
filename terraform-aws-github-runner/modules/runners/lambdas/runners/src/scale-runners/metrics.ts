@@ -493,6 +493,11 @@ export class Metrics {
   getRunnerTypesFailure() {
     this.countEntry(`run.getRunnerTypes.failure`, 1);
   }
+
+  /* istanbul ignore next */
+  lambdaTimeout() {
+    this.countEntry(`run.timeout`, 1);
+  }
 }
 
 export class ScaleUpMetrics extends Metrics {
@@ -708,4 +713,24 @@ export class ScaleDownMetrics extends Metrics {
       this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.failure`);
     }
   }
+}
+
+export interface sendMetricsTimeoutVars {
+  metrics?: Metrics;
+  setTimeout?: ReturnType<typeof setTimeout>;
+}
+
+/* istanbul ignore next */
+export function sendMetricsAtTimeout(metricsTimeouts: sendMetricsTimeoutVars) {
+  return () => {
+    if (metricsTimeouts.setTimeout) {
+      clearTimeout(metricsTimeouts.setTimeout);
+      metricsTimeouts.setTimeout = undefined;
+    }
+    if (metricsTimeouts.metrics) {
+      metricsTimeouts.metrics.lambdaTimeout();
+      metricsTimeouts.metrics.sendMetrics();
+      metricsTimeouts.metrics = undefined;
+    }
+  };
 }

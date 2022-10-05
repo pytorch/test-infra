@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple, Optional
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
-    "nightly": ["10.2", "11.6", "11.7"],
+    "nightly": ["11.6", "11.7"],
     "test": ["10.2", "11.6"],
     "release": ["10.2", "11.3", "11.6"]
 }
@@ -44,6 +44,9 @@ PACKAGES_TO_INSTALL_CONDA = "pytorch torchvision torchaudio"
 CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
+
+CUDA_ENABLE = "enable"
+CUDA_DISABLE = "disable"
 
 def arch_type(arch_version: str) -> str:
     if arch_version in CUDA_ARCHES:
@@ -155,17 +158,21 @@ def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: st
     whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = FULL_PYTHON_VERSIONS
-    if os == "linux":
-        arches += CUDA_ARCHES
-    elif os == "windows":
-        # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-        arches += list_without(CUDA_ARCHES, ["10.2"])
-    elif os == "macos-arm64":
+
+    if with_cuda == CUDA_ENABLE:
+        if os == "linux":
+            arches += CUDA_ARCHES
+        elif os == "windows":
+            # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
+            arches += list_without(CUDA_ARCHES, ["10.2"])
+
+    if os == "macos-arm64":
         python_versions = list_without(python_versions, ["3.7"])
+
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
         for arch_version in arches:
@@ -196,6 +203,7 @@ def generate_conda_matrix(os: str, channel: str) -> List[Dict[str, str]]:
 def generate_libtorch_matrix(
     os: str,
     channel: str,
+    with_cuda: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -208,12 +216,14 @@ def generate_libtorch_matrix(
 
     if arches is None:
         arches = ["cpu"]
-        if os == "linux":
-            arches += CUDA_ARCHES
-            arches += ROCM_ARCHES
-        elif os == "windows":
-            # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-            arches += list_without(CUDA_ARCHES, ["10.2"])
+
+        if with_cuda == CUDA_ENABLE:
+            if os == "linux":
+                arches += CUDA_ARCHES
+                arches += ROCM_ARCHES
+            elif os == "windows":
+                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
+                arches += list_without(CUDA_ARCHES, ["10.2"])
 
     if abi_versions is None:
         if os == "windows":
@@ -270,10 +280,12 @@ def generate_libtorch_matrix(
 def generate_wheels_matrix(
     os: str,
     channel: str,
+    with_cuda: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
+
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
@@ -287,11 +299,13 @@ def generate_wheels_matrix(
     if arches is None:
         # Define default compute archivectures
         arches = ["cpu"]
-        if os == "linux":
-            arches += CUDA_ARCHES + ROCM_ARCHES
-        elif os == "windows":
-            # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-            arches += list_without(CUDA_ARCHES, ["10.2"])
+
+        if with_cuda == CUDA_ENABLE:
+            if os == "linux":
+                arches += CUDA_ARCHES + ROCM_ARCHES
+            elif os == "windows":
+                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
+                arches += list_without(CUDA_ARCHES, ["10.2"])
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
@@ -350,14 +364,27 @@ def main() -> None:
         choices=["nightly", "test", "release", "all"],
         default=os.getenv("CHANNEL", "nightly"),
     )
+    parser.add_argument(
+        "--with-cuda",
+        help="Build with Cuda?",
+        type=str,
+        choices=[CUDA_ENABLE, CUDA_DISABLE],
+        default=os.getenv("WITH_CUDA", CUDA_ENABLE),
+    )
     options = parser.parse_args()
     includes = []
 
     if options.channel == "all":
         for channel in CUDA_ACRHES_DICT:
-            includes.extend(GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, channel))
+            includes.extend(
+                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
+                                                                           channel,
+                                                                           options.with_cuda)
+            )
     else:
-        includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system, options.channel)
+        includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
+                                                                              options.channel,
+                                                                              options.with_cuda)
 
     print(json.dumps({"include": includes}))
 
