@@ -11,8 +11,8 @@
     "recent_pr_workflows_query": "4e03cb13e8372050",
     "reverted_prs_with_reason": "bf2b0607bddcc552",
     "unclassified": "1b31a2d8f4ab7230",
-    "test_insights_overview": "391cf927a9e5e96c",
-    "test_insights_latest_runs": "7cab5b1fbb4aa5bb"
+    "test_insights_overview": "c9be5cbdda1030af",
+    "test_insights_latest_runs": "949f5e49f76bfdd4"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",
