@@ -9,7 +9,7 @@
     {
       "name": "limit",
       "type": "int",
-      "value": 10
+      "value": "10"
     },
     {
       "name": "startTime",
@@ -22,14 +22,14 @@
       "value": "2022-09-06T00:00:00.000Z"
     },
     {
-      "name": "testFile",
-      "type": "string",
-      "value": "test_ops"
-    },
-    {
       "name": "testClass",
       "type": "string",
       "value": "TestCommonCUDA"
+    },
+    {
+      "name": "testFile",
+      "type": "string",
+      "value": "test_ops"
     },
     {
       "name": "workflowName",

@@ -14,7 +14,7 @@
     {
       "name": "thresholdInSecond",
       "type": "int",
-      "value": 1800
+      "value": "1800"
     },
     {
       "name": "workflowName",
