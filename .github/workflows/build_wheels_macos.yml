@@ -118,6 +118,8 @@ jobs:
           echo "${FFMPEG_ROOT}"
 
           export USE_FFMPEG="1"
+          
+          . packaging/ffmpeg/build.sh
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
