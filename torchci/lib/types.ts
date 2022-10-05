@@ -76,6 +76,7 @@ export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
 }
+
 export interface FlakyTestData {
   file: string;
   suite: string;
@@ -106,6 +107,14 @@ export interface TTSChange {
   color: string;
   percentChangeString: string;
   absoluteChangeString: string;
+}
+
+export interface TestInsightsUsageData {
+  timestamp: string[];
+  cpu: number[];
+  mem: number[];
+  gpu: number[];
+  gpu_mem: number[];
 }
 
 export function packHudParams(input: any) {
