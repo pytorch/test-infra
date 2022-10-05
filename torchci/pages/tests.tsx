@@ -183,6 +183,12 @@ export default function GatherTestsInfo() {
 
       <Grid container spacing={4}>
         <GenerateTestInsightsOverviewTable
+          workflowName={"pull"}
+          startTime={startTime}
+          stopTime={stopTime}
+        />
+
+        <GenerateTestInsightsOverviewTable
           workflowName={"trunk"}
           startTime={startTime}
           stopTime={stopTime}
@@ -190,12 +196,6 @@ export default function GatherTestsInfo() {
 
         <GenerateTestInsightsOverviewTable
           workflowName={"periodic"}
-          startTime={startTime}
-          stopTime={stopTime}
-        />
-
-        <GenerateTestInsightsOverviewTable
-          workflowName={"pull"}
           startTime={startTime}
           stopTime={stopTime}
         />
