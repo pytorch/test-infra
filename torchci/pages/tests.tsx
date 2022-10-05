@@ -26,6 +26,9 @@ function GenerateTestInsightsOverviewTable({
   startTime : dayjs.Dayjs,
   stopTime: dayjs.Dayjs,
 }) {
+  // TODO: Because of the size of the result from Rockset, we're only fetching jobs
+  // that take more than 30m at the moment. This can be addressed later if we see
+  // the value of adding the rest of them
   const queryParams: RocksetParam[] = [
     {
       name: "startTime",
