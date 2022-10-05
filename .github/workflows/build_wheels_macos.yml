@@ -125,7 +125,7 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
-          echo "##### DYLD_FALLBACK_LIBRARY_PATH"
+          echo "#####"
           echo "${DYLD_FALLBACK_LIBRARY_PATH}"
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
@@ -162,7 +162,6 @@ jobs:
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-#            export DYLD_FALLBACK_LIBRARY_PATH="{DYLD_FALLBACK_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="{DYLD_FALLBACK_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
 
             echo "#####"
