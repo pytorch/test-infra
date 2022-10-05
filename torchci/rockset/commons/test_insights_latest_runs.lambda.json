@@ -1,0 +1,41 @@
+{
+  "sql_path": "__sql/test_insights_latest_runs.sql",
+  "default_parameters": [
+    {
+      "name": "workflowName",
+      "type": "string",
+      "value": "pull"
+    },
+    {
+      "name": "jobName",
+      "type": "string",
+      "value": "TBD"
+    },
+    {
+      "name": "testFile",
+      "type": "string",
+      "value": "TBD"
+    },
+    {
+      "name": "testClass",
+      "type": "string",
+      "value": "TBD"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-08-30T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-09-06T00:00:00.000Z"
+    },
+    {
+      "name": "limit",
+      "type": "int",
+      "value": 10
+    }
+  ],
+  "description": ""
+}

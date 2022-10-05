@@ -10,7 +10,9 @@
     "failure_samples_query": "ab2b589414b966a8",
     "recent_pr_workflows_query": "4e03cb13e8372050",
     "reverted_prs_with_reason": "f35155a95a233476",
-    "unclassified": "1b31a2d8f4ab7230"
+    "unclassified": "1b31a2d8f4ab7230",
+    "test_insights_overview": "391cf927a9e5e96c",
+    "test_insights_latest_runs": "7cab5b1fbb4aa5bb"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",
