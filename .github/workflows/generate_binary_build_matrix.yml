@@ -23,6 +23,10 @@ on:
         description: "Test infra reference to use"
         default: "main"
         type: string
+      with-cuda:
+        description: "Build with Cuda?"
+        default: "enable"
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -48,6 +52,7 @@ jobs:
           PACKAGE_TYPE: ${{ inputs.package-type }}
           OS: ${{ inputs.os }}
           CHANNEL: ${{ inputs.channel }}
+          WITH_CUDA: ${{ inputs.with-cuda }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"

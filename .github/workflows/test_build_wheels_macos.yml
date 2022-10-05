@@ -43,3 +43,5 @@ jobs:
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       runner-type: macos-12
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"

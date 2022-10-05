@@ -18,6 +18,29 @@ function sortJobsByConclusion( jobA: JobData, jobB: JobData): number {
   return ('' + jobA.jobName).localeCompare('' + jobB.jobName);  // the '' forces the type to be a string
 }
 
+function getWorkflowJobSummary(job: JobData) {
+  var queueTimeInfo = null
+  if (job.queueTimeS != null) {
+    queueTimeInfo = <><i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins</>
+  }
+
+  var durationInfo = null
+  if (job.durationS != null) {
+    durationInfo = <><i>Duration:</i> {Math.round((job.durationS / 60))} mins</>
+  }
+
+  var separator = (queueTimeInfo && durationInfo) ? ", ": ""
+
+  return <>
+    <JobSummary job={job} />
+    <br/>
+    <small>
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      {queueTimeInfo}{separator}{durationInfo}
+    </small>
+  </>
+}
+
 export default function WorkflowBox({
   workflowName,
   jobs,
@@ -39,7 +62,7 @@ export default function WorkflowBox({
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
           <div key={job.id}>
-            <JobSummary job={job} />
+            {getWorkflowJobSummary(job)}
             {isFailedJob(job) && (<LogViewer job={job} />)}
           </div>
         ))}

@@ -35,6 +35,21 @@ on:
         description: "Runner environment specified."
         default: ""
         type: string
+      package-name:
+        description: "Name of the actual python package that is imported"
+        default: ""
+        type: string
+      trigger-event:
+        description: "Trigger Event in caller that determines whether or not to upload"
+        default: ""
+        type: string
+    secrets:
+      AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
+        description: "AWS Access Key passed from caller workflow"
+        required: false
+      AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
+        description: "AWS Secret Access Ket passed from caller workflow"
+        required: false
 
 jobs:
   build:
@@ -116,14 +131,18 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
-        if: ${{ github.event_name == 'push' && (github.event.ref == 'refs/heads/nightly' || startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ inputs.trigger-event == 'push' }}
+        shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
-          pip install --user awscli
-          aws s3 cp "dist/*.whl" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}" --acl public-read
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} pip install awscli
+          for pkg in dist/*; do
+            ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}" --acl public-read
+          done
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

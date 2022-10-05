@@ -57,12 +57,6 @@ variable "runner_extra_labels" {
   default     = ""
 }
 
-variable "runner_group_name" {
-  description = "Name of the runner group."
-  type        = string
-  default     = "Default"
-}
-
 variable "webhook_lambda_zip" {
   description = "File location of the webhook lambda zip file."
   type        = string
@@ -133,12 +127,6 @@ variable "runner_as_root" {
   description = "Run the action runner under the root user."
   type        = bool
   default     = false
-}
-
-variable "runners_maximum_count" {
-  description = "The maximum number of runners that will be created."
-  type        = number
-  default     = 3
 }
 
 variable "encrypt_secrets" {
@@ -241,12 +229,6 @@ variable "lambda_s3_bucket" {
   default     = null
 }
 
-variable "syncer_lambda_s3_key" {
-  description = "S3 key for syncer lambda function. Required if using S3 bucket to specify lambdas."
-  type        = string
-  default     = null
-}
-
 variable "syncer_lambda_s3_object_version" {
   description = "S3 object version for syncer lambda function. Useful if S3 versioning is enabled on source bucket."
   type        = string
@@ -290,45 +272,9 @@ variable "runner_iam_role_managed_policy_arns" {
 }
 
 variable "enable_cloudwatch_agent" {
-  description = "Enabling the cloudwatch agent on the ec2 runner instances, the runner contains default config. Configuration can be overridden via `cloudwatch_config`."
+  description = "Enabling the cloudwatch agent on the ec2 runner instances, the runner contains default config."
   type        = bool
   default     = true
-}
-
-variable "cloudwatch_config" {
-  description = "(optional) Replaces the module default cloudwatch log config. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html for details."
-  type        = string
-  default     = null
-}
-
-variable "runner_log_files" {
-  description = "(optional) Replaces the module default cloudwatch log config. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html for details."
-  type = list(object({
-    log_group_name   = string
-    prefix_log_group = bool
-    file_path        = string
-    log_stream_name  = string
-  }))
-  default = [
-    {
-      "log_group_name" : "messages",
-      "prefix_log_group" : true,
-      "file_path" : "/var/log/messages",
-      "log_stream_name" : "{instance_id}"
-    },
-    {
-      "log_group_name" : "user_data",
-      "prefix_log_group" : true,
-      "file_path" : "/var/log/user-data.log",
-      "log_stream_name" : "{instance_id}"
-    },
-    {
-      "log_group_name" : "runner",
-      "prefix_log_group" : true,
-      "file_path" : "/home/ec2-user/actions-runner/_diag/Runner_**.log",
-      "log_stream_name" : "{instance_id}"
-    }
-  ]
 }
 
 variable "ghes_url" {
@@ -359,12 +305,6 @@ variable "runner_additional_security_group_ids" {
   description = "(optional) List of additional security groups IDs to apply to the runner"
   type        = list(string)
   default     = []
-}
-
-variable "market_options" {
-  description = "Market options for the action runner instances. Setting the value to `null` let the scaler create on-demand instances instead of spot instanes."
-  type        = string
-  default     = "spot"
 }
 
 variable "secretsmanager_secrets_id" {

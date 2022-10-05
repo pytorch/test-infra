@@ -1,0 +1,45 @@
+name: Set up build / test workflow
+
+description: Clean workspace and check out PyTorch
+
+inputs:
+  repository:
+    description: Works as stated in actions/checkout
+    required: false
+    type: string
+    default: ""
+  ref:
+    description: Works as stated in actions/checkout
+    required: false
+    type: string
+    default: nightly
+  submodules:
+    description: Works as stated in actions/checkout
+    required: false
+    type: string
+    default: recursive
+  python-version:
+    description: Python version to setup the environment for
+    required: false
+    type: string
+    default: "3.8"
+
+runs:
+  using: composite
+  steps:
+      - name: Remove repository directory (if exists)
+        shell: bash -l {0}
+        env:
+          REPOSITORY: ${{ inputs.repository || github.repository }}
+        run: |
+          rm -rf "${REPOSITORY}"
+      - uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          submodules: ${{ inputs.submodules }}
+          path: ${{ inputs.repository }}
+      - name: Setup useful environment variables
+        shell: bash -l {0}
+        run: |
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"

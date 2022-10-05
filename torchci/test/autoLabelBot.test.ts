@@ -695,4 +695,30 @@ describe("auto-label-bot", () => {
 
     scope.done();
   });
+
+  test("Review adds ciflow/trunk label", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_review.json");
+    event.payload.review.state = "approved";
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.pull_request.number;
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.review.user.login}/permission`)
+      .reply(200, {'permission': "write" })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {});
+    await probot.receive(event);
+
+    scope.done();
+  });
 });

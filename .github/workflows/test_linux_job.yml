@@ -1,0 +1,37 @@
+name: Test build/test linux workflow
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/linux_job.yml
+      - .github/workflows/test_linux_job.yml
+  workflow_dispatch:
+
+jobs:
+  test-cpu:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        export PATH="/opt/python/cp38-cp38/bin:${PATH}"
+        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        # Can import pytorch
+        python3 -c 'import torch'
+  test-gpu:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.4xlarge.nvidia.gpu
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cuda
+      gpu-arch-version: "11.6"
+      timeout: 60
+      script: |
+        export PATH="/opt/python/cp38-cp38/bin:${PATH}"
+        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
+        # Can import pytorch, cuda is available
+        python3 -c 'import torch;assert(torch.cuda.is_available())'

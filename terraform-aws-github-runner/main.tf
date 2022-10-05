@@ -109,7 +109,6 @@ module "runners" {
   lambda_security_group_ids        = var.lambda_security_group_ids
   logging_retention_in_days        = var.logging_retention_in_days
   enable_cloudwatch_agent          = var.enable_cloudwatch_agent
-  cloudwatch_config                = var.cloudwatch_config
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
 
   instance_profile_path     = var.instance_profile_path

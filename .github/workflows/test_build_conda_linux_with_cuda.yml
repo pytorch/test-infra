@@ -1,4 +1,4 @@
-name: Test Build Linux Conda
+name: Test Build Linux Conda with CUDA
 
 on:
   pull_request:
@@ -31,10 +31,6 @@ jobs:
             pre-script: ""
             post-script: ""
             conda-package-directory: packaging/torchvision
-          - repository: pytorch/text
-            pre-script: ""
-            post-script: ""
-            conda-package-directory: packaging/torchtext
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_linux.yml
     with:
@@ -46,3 +42,5 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"

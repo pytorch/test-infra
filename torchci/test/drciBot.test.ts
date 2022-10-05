@@ -5,6 +5,9 @@ import nock from "nock";
 import myProbotApp from "../lib/bot/drciBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import { handleScope } from "./common";
+
+nock.disableNetConnect();
 
 const comment_id = 10;
 const comment_node_id = "abcd";
@@ -33,6 +36,10 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, { results: [] });
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${OWNER}/${REPO}/issues/31/comments`,
@@ -60,6 +67,8 @@ describe("verify-drci-functionality", () => {
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    handleScope(scope);
+    handleScope(rockset);
   });
 
   test("Dr. CI edits existing comment if a comment is already present", async () => {
@@ -72,6 +81,10 @@ describe("verify-drci-functionality", () => {
     payload["repository"]["owner"]["login"] = OWNER;
     payload["repository"]["name"] = REPO;
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, { results: [] });
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${OWNER}/${REPO}/issues/31/comments`,
@@ -104,6 +117,8 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200);
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+    handleScope(scope);
+    handleScope(rockset);
   });
 
   test("Dr. CI does not comment when the PR is not open", async () => {

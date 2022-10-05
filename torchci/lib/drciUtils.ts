@@ -1,3 +1,7 @@
+import _ from "lodash";
+import { Octokit } from "octokit";
+import { IssueData } from "./types";
+
 export const NUM_MINUTES = 15;
 export const REPO: string = "pytorch";
 export const OWNER: string = "pytorch";
@@ -24,14 +28,82 @@ Note: Links to docs will display an error until the docs builds have been comple
 }
 
 export function formDrciComment(
-    pr_num: number,
-    pr_results: string = "",
+  pr_num: number,
+  pr_results: string = "",
+  sevs: string = ""
 ): string {
-    const header = formDrciHeader(pr_num);
-    const comment =
-        `${DRCI_COMMENT_START}
+  const header = formDrciHeader(pr_num);
+  const comment = `${DRCI_COMMENT_START}
 ${header}
+${sevs}
 ${pr_results}
 ${DRCI_COMMENT_END}`;
-    return comment;
+  return comment;
+}
+
+
+export async function getDrciComment(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNum: number
+): Promise<{ id: number; body: string }> {
+  const commentsRes = await octokit.rest.issues.listComments({
+    owner: owner,
+    repo: repo,
+    issue_number: prNum,
+  });
+  for (const comment of commentsRes.data) {
+    if (comment.body!.includes(DRCI_COMMENT_START)) {
+      return { id: comment.id, body: comment.body! };
+    }
+  }
+  return { id: 0, body: "" };
+}
+
+export function getActiveSEVs(issues: IssueData[]): [IssueData[], IssueData[]] {
+  const activeSEVs = issues.filter(
+    (issue: IssueData) => issue.state === "open"
+  );
+  return _.partition(activeSEVs, (issue: IssueData) =>
+    issue.body.toLowerCase().includes("merge blocking")
+  );
+}
+
+export function formDrciSevBody(sevs: [IssueData[], IssueData[]]): string {
+  const [mergeBlocking, notMergeBlocking] = sevs;
+  if (mergeBlocking.length + notMergeBlocking.length === 0) {
+    return "";
+  }
+  const sev_list = mergeBlocking
+    .concat(notMergeBlocking)
+    .map(
+      (issue: IssueData) =>
+        `* ${
+          issue.body.toLowerCase().includes("merge blocking")
+            ? "(merge blocking) "
+            : ""
+        }[${issue.title}](${issue.html_url.replace(
+          "github.com",
+          "hud.pytorch.org"
+        )})`
+    )
+    .join("\n");
+  if (mergeBlocking.length > 0) {
+    return (
+      `## :heavy_exclamation_mark: ${mergeBlocking.length} Merge Blocking SEVs
+There is ${mergeBlocking.length} active merge blocking SEVs` +
+      (notMergeBlocking.length > 0
+        ? ` and ${notMergeBlocking.length} non merge blocking SEVs`
+        : "") +
+      `.  Please view them below:
+${sev_list}\n
+If you must merge, use \`@pytorchbot merge -f\`.`
+    );
+  } else {
+    return `## :heavy_exclamation_mark: ${notMergeBlocking.length} Active SEVs
+There are ${notMergeBlocking.length} currently active SEVs.   If your PR is affected, please view them below:
+${sev_list}\n
+`;
+  }
 }

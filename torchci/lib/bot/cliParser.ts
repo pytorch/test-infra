@@ -57,11 +57,12 @@ mergeOption.add_argument("-l", "--land-checks", {
     "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
     "that periodic is excluded. (EXPERIMENTAL)",
 });
-mergeOption.add_argument("-r", "--rebase", {
-  help: "Rebase the PR to re run checks before merging.  It will accept a branch name and " +
-  "will default to master if not specified.",
+merge.add_argument("-r", "--rebase", {
+  help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
+  "will default to viable/strict if not specified.",
   nargs: "?",
-  const: true
+  const: "viable/strict",
+  choices: ["viable/strict", "master"],
 });
 
 // Revert
@@ -89,7 +90,7 @@ revert.add_argument("-c", "--classification", {
 const rebase = commands.add_parser("rebase", {
   help: "Rebase a PR",
   description:
-    "Rebase a PR. Rebasing defaults to the default branch of pytorch (master).\n" +
+    "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch.\n" +
     "You, along with any member of the pytorch organization, can rebase your PR.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
@@ -97,7 +98,7 @@ const rebase = commands.add_parser("rebase", {
 const branch_selection = rebase.add_mutually_exclusive_group();
 branch_selection.add_argument("-s", "--stable", {
   action: "store_true",
-  help: "Rebase to viable/strict",
+  help: "[DEPRECATED] Rebase onto viable/strict",
 });
 branch_selection.add_argument("-b", "--branch", {
   help: "Branch you would like to rebase to",

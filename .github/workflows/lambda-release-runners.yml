@@ -1,0 +1,12 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+name: Call 'Upload Release for runners lambdas'
+
+jobs:
+  call-release:
+    uses: ./.github/workflows/lambda-do-release-runners.yml
+    with:
+      tag: ${{ github.ref }}
