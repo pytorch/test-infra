@@ -1224,14 +1224,6 @@
       "linux"
     ]
   ],
-  "test_output_match_split_cpu_float32 (__main__.TestConsistencyCPU)": [
-    "82961",
-    "https://github.com/pytorch/pytorch/issues/82961",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
