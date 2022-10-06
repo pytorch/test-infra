@@ -145,7 +145,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Run Primitive Smoke Tests
-        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -163,7 +163,8 @@ jobs:
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/third_party/ffmpeg"
+            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/third_party/ffmpeg:$DYLD_FALLBACK_LIBRARY_PATH"
+            echo $DYLD_FALLBACK_LIBRARY_PATH
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
