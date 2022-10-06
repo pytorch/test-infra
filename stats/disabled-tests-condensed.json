@@ -30,6 +30,20 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel_SyncBatchNorm_No_Affine (__main__.TestDistBackendWithSpawn)": [
+    "86392",
+    "https://github.com/pytorch/pytorch/issues/86392",
+    [
+      "linux"
+    ]
+  ],
+  "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
+    "86391",
+    "https://github.com/pytorch/pytorch/issues/86391",
+    [
+      "linux"
+    ]
+  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -489,6 +503,27 @@
       "linux"
     ]
   ],
+  "test_ddp_broadcast_buffer (__main__.TestDistBackendWithSpawn)": [
+    "86397",
+    "https://github.com/pytorch/pytorch/issues/86397",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_broadcast_buffer_via_hook (__main__.TestDistBackendWithSpawn)": [
+    "86395",
+    "https://github.com/pytorch/pytorch/issues/86395",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
+    "78641",
+    "https://github.com/pytorch/pytorch/issues/78641",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -497,6 +532,13 @@
   "test_ddp_comparison_uneven_inputs (__main__.TensorPipeDdpComparisonTest)": [
     "72891",
     "https://github.com/pytorch/pytorch/issues/72891",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_control_flow_same_across_ranks (__main__.TestDistBackendWithSpawn)": [
+    "78235",
+    "https://github.com/pytorch/pytorch/issues/78235",
     [
       "linux"
     ]
@@ -511,11 +553,102 @@
     "https://github.com/pytorch/pytorch/issues/60290",
     []
   ],
+  "test_ddp_grad_div_uneven_inputs (__main__.TestDistBackendWithSpawn)": [
+    "78685",
+    "https://github.com/pytorch/pytorch/issues/78685",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_parity_allreduce (__main__.TestDistBackendWithSpawn)": [
+    "77293",
+    "https://github.com/pytorch/pytorch/issues/77293",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_parity_allreduce_process_group (__main__.TestDistBackendWithSpawn)": [
+    "86393",
+    "https://github.com/pytorch/pytorch/issues/86393",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_parity_post_localSGD (__main__.TestDistBackendWithSpawn)": [
+    "86394",
+    "https://github.com/pytorch/pytorch/issues/86394",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_parity_powerSGD (__main__.TestDistBackendWithSpawn)": [
+    "77378",
+    "https://github.com/pytorch/pytorch/issues/77378",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_pickling_powerSGD (__main__.TestDistBackendWithSpawn)": [
+    "86390",
+    "https://github.com/pytorch/pytorch/issues/86390",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_hook_with_optimizer_parity_adam_optimize_subset_False (__main__.TestDistBackendWithSpawn)": [
+    "86398",
+    "https://github.com/pytorch/pytorch/issues/86398",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_ignore_params_arg (__main__.TestDistBackendWithSpawn)": [
+    "77325",
+    "https://github.com/pytorch/pytorch/issues/77325",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_new_tensor_in_fwd (__main__.TestDistBackendWithSpawn)": [
+    "86396",
+    "https://github.com/pytorch/pytorch/issues/86396",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_new_tensor_in_fwd_static_graph (__main__.TestDistBackendWithSpawn)": [
+    "78338",
+    "https://github.com/pytorch/pytorch/issues/78338",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_returns_tensor_with_no_grad (__main__.TestDistBackendWithSpawn)": [
+    "78595",
+    "https://github.com/pytorch/pytorch/issues/78595",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_static_graph_nested_types (__main__.TestDistBackendWithSpawn)": [
+    "77625",
+    "https://github.com/pytorch/pytorch/issues/77625",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_uneven_input_exception (__main__.TestDistBackendWithSpawn)": [
     "84420",
     "https://github.com/pytorch/pytorch/issues/84420",
     [
       "rocm"
+    ]
+  ],
+  "test_ddp_uneven_input_join_disable (__main__.TestDistBackendWithSpawn)": [
+    "78684",
+    "https://github.com/pytorch/pytorch/issues/78684",
+    [
+      "linux"
     ]
   ],
   "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn)": [
@@ -632,6 +765,13 @@
   "test_dist_optim_none_grads (__main__.TensorPipeDistOptimizerTest)": [
     "77075",
     "https://github.com/pytorch/pytorch/issues/77075",
+    [
+      "linux"
+    ]
+  ],
+  "test_dlpack_conversion_with_streams_cuda_bfloat16 (__main__.TestTorchDlPackCUDA)": [
+    "86386",
+    "https://github.com/pytorch/pytorch/issues/86386",
     [
       "linux"
     ]
@@ -811,6 +951,13 @@
     "https://github.com/pytorch/pytorch/issues/77039",
     [
       "rocm"
+    ]
+  ],
+  "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86387",
+    "https://github.com/pytorch/pytorch/issues/86387",
+    [
+      "linux"
     ]
   ],
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)": [
@@ -1434,6 +1581,13 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
+  "test_radam (__main__.TestOptim)": [
+    "86389",
+    "https://github.com/pytorch/pytorch/issues/86389",
+    [
+      "linux"
+    ]
+  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "70516",
     "https://github.com/pytorch/pytorch/issues/70516",
@@ -1628,6 +1782,13 @@
     "https://github.com/pytorch/pytorch/issues/77345",
     [
       "linux"
+    ]
+  ],
+  "test_sparse_add_cuda_complex128 (__main__.TestSparseCSRCUDA)": [
+    "86388",
+    "https://github.com/pytorch/pytorch/issues/86388",
+    [
+      "rocm"
     ]
   ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
