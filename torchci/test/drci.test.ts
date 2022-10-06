@@ -13,6 +13,7 @@ const recentWorkflowA = {
     head_sha: "abcdefg",
     pr_number: 1000,
     owner_login: "swang392",
+    run_attempt: 1,
 }
 
 const recentWorkflowB = {
@@ -23,6 +24,7 @@ const recentWorkflowB = {
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
+    run_attempt: 1,
 }
 
 const recentWorkflowC = {
@@ -33,6 +35,29 @@ const recentWorkflowC = {
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
+    run_attempt: 1,
+}
+
+const recentWorkflowCSuccessfulRetry = {
+    job_name: 'Lint',
+    conclusion: "success",
+    completed_at: '2022-07-14T19:34:03Z',
+    html_url: "a",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    owner_login: "notswang392",
+    run_attempt: 2,
+}
+
+const recentWorkflowCFailedRetry = {
+    job_name: 'Lint',
+    conclusion: "failure",
+    completed_at: '2022-07-15T19:34:03Z',
+    html_url: "a",
+    head_sha: "abcdefg",
+    pr_number: 1001,
+    owner_login: "notswang392",
+    run_attempt: 3,
 }
 
 const recentWorkflowD = {
@@ -43,6 +68,7 @@ const recentWorkflowD = {
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
+    run_attempt: 1,
 }
 
 const recentWorkflowE = {
@@ -53,6 +79,7 @@ const recentWorkflowE = {
     head_sha: "abcdefg",
     pr_number: 1001,
     owner_login: "notswang392",
+    run_attempt: 1,
 }
 
 const sev : IssueData= {
@@ -203,6 +230,63 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       expect(
         comment.includes("## :heavy_exclamation_mark: 1 Merge Blocking SEVs")
       ).toBeTruthy();
+      expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
+    });
+
+    test("test that the result of the latest retry is used (success)", async () => {
+      const originalWorkflows = [
+        recentWorkflowA,
+        recentWorkflowB,
+        recentWorkflowC,
+        recentWorkflowCSuccessfulRetry,
+      ];
+      const workflowsByPR =
+        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const { pending, failedJobs } =
+        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const failureInfo = updateDrciBot.constructResultsComment(
+        pending,
+        failedJobs,
+        pr_1001.head_sha
+      );
+      const comment = formDrciComment(
+        1001,
+        failureInfo,
+      );
+      expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
+      expect(
+        comment.includes("## :white_check_mark: No Failures, 1 Pending")
+      ).toBeTruthy();
+      expect(
+        comment.includes(":green_heart:")
+      ).toBeTruthy();
+    });
+
+    test("test that the result of the latest retry is used (failure)", async () => {
+      const originalWorkflows = [
+        recentWorkflowA,
+        recentWorkflowB,
+        recentWorkflowC,
+        recentWorkflowCSuccessfulRetry,
+        recentWorkflowCFailedRetry,
+      ];
+      const workflowsByPR =
+        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const { pending, failedJobs } =
+        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const failureInfo = updateDrciBot.constructResultsComment(
+        pending,
+        failedJobs,
+        pr_1001.head_sha
+      );
+      const comment = formDrciComment(
+        1001,
+        failureInfo,
+      );
+      console.log(comment);
+      expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
     });
 });
