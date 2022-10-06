@@ -165,16 +165,20 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
           
-          CONDA_NAME=$(ls "${{ inputs.repository }}/dist/")
-          echo "$CONDA_NAME"
-          ${CONDA_RUN} conda install -y "${{ inputs.repository }}/dist/$CONDA_NAME"
+          if [ "${arch_name}" = "arm64" ]; then
+            export ARCH_NAME="osx-arm64"
+          else
+            export ARCH_NAME="osx-64"
+          fi
+          
+          ${CONDA_RUN} conda install -yq "${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            ${CONDA_RUN} conda install -yq 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
 
