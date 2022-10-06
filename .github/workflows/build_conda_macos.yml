@@ -172,7 +172,7 @@ jobs:
             export ARCH_NAME="osx-64"
           fi
           
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
+          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/${ARCH_NAME}")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} conda install -y "${{ inputs.repository }}/dist/$WHEEL_NAME"
 
