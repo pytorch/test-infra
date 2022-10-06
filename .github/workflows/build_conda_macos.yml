@@ -172,9 +172,10 @@ jobs:
             export ARCH_NAME="osx-64"
           fi
           
-          ls -la "${{ inputs.repository }}/dist/${ARCH_NAME}/"
+          CONDA_BINARY=ls "${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2"
+          echo "${CONDA_BINARY}"
           
-          ${CONDA_RUN} conda install -y "${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2"
+          ${CONDA_RUN} conda install -y "${CONDA_BINARY}"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
