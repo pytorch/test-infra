@@ -304,7 +304,9 @@
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
     [
-      "linux"
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
