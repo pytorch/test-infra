@@ -167,7 +167,7 @@ jobs:
           
           CONDA_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$CONDA_NAME"
-          ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$CONDA_NAME"
+          ${CONDA_RUN} conda install -y "${{ inputs.repository }}/dist/$CONDA_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
