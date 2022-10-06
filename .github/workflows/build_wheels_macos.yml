@@ -163,10 +163,11 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
+            export FFMPEG_ROOT="${PWD}/${{ inputs.repository }}/third_party/ffmpeg"
             echo $FFMPEG_ROOT
-            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg:$DYLD_FALLBACK_LIBRARY_PATH"
-            echo $DYLD_FALLBACK_LIBRARY_PATH
+            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg"
+            ls -la $DYLD_FALLBACK_LIBRARY_PATH
+            ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg"
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
