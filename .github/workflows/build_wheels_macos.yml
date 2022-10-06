@@ -146,7 +146,6 @@ jobs:
           fi
       - name: Run Primitive Smoke Tests
         shell: bash -l {0}
-        shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
