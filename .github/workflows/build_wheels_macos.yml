@@ -120,6 +120,13 @@ jobs:
           export USE_FFMPEG="1"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
+      - name: Delocate wheel
+        working-directory: ${{ inputs.repository }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
+          echo "##### FALLBACK LIBRARY PATH"
+          echo "${DYLD_FALLBACK_LIBRARY_PATH}"
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
@@ -138,6 +145,7 @@ jobs:
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
       - name: Run Primitive Smoke Tests
+        working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
