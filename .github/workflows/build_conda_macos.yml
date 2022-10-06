@@ -172,16 +172,16 @@ jobs:
             export ARCH_NAME="osx-64"
           fi
           
-          WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/${ARCH_NAME}")
-          echo "$WHEEL_NAME"
-          ${CONDA_RUN} conda install -y "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
+          echo "${CONDA_BINARY}"
+          ${CONDA_RUN} conda install -y "${CONDA_BINARY}"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            ${CONDA_RUN} conda install -y pytorch 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
 
