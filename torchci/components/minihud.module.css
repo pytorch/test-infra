@@ -26,6 +26,13 @@
   background-color: lightgreen;
 }
 
+.workflowBoxClassified {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: linen;
+}
+
 .workflowBoxHighlight {
   border: 15px solid #5eced4;
   padding: 10px;

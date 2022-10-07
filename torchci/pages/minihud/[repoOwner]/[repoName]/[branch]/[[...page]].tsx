@@ -28,7 +28,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { SWRConfig } from "swr";
+import useSWR, { SWRConfig } from "swr";
 import JobAnnotationToggle from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
@@ -38,13 +38,17 @@ function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
 }
 
-function FailedJob({ job }: { job: JobData }) {
+function FailedJob({
+  job,
+  classification,
+}: {
+  job: JobData;
+  classification?: string | null;
+}) {
   const [jobFilter, setJobFilter] = useContext(JobFilterContext);
   const [jobHoverContext, setJobHoverContext] = useContext(JobHoverContext);
   const [highlighted, setHighlighted] = useState(false);
-
   const router = useRouter();
-
   useEffect(() => {
     const onHashChanged = () => {
       if (window.location.hash === "") {
@@ -73,7 +77,7 @@ function FailedJob({ job }: { job: JobData }) {
       setJobFilter(job.name!);
     }
   }
-
+  const isClassified = classification != null;
   const linkStyle: CSSProperties = { cursor: "pointer", marginRight: "0.5em" };
   if (job.name === jobHoverContext) {
     linkStyle.backgroundColor = "khaki";
@@ -94,7 +98,7 @@ function FailedJob({ job }: { job: JobData }) {
       }}
     >
       <div>
-        <JobConclusion conclusion={job.conclusion} />
+        <JobConclusion conclusion={job.conclusion} classified={isClassified} />
         <a
           target="_blank"
           rel="noreferrer"
@@ -119,24 +123,36 @@ function FailedJob({ job }: { job: JobData }) {
         <JobLinks job={job} />
       </div>
       <div>
-        <JobAnnotationToggle job={job} />
+        <JobAnnotationToggle job={job} annotation={classification ?? "null"} />
       </div>
       <LogViewer job={job} />
     </div>
   );
 }
 
-function FailedJobs({ failedJobs }: { failedJobs: JobData[] }) {
+function FailedJobs({
+  failedJobs,
+  classifiedFailures,
+}: {
+  failedJobs: JobData[];
+  classifiedFailures: any;
+}) {
   if (failedJobs.length === 0) {
     return null;
   }
   return (
     <ul className={styles.failedJobList}>
-      {failedJobs.map((job) => (
-        <li key={job.id}>
-          <FailedJob job={job} />
-        </li>
-      ))}
+      {failedJobs.map((job) => {
+        const classification = classifiedFailures[job?.id ?? ""] ?? {};
+        return (
+          <li key={job.id}>
+            <FailedJob
+              job={job}
+              classification={classification["annotation"] ?? "null"}
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -224,7 +240,6 @@ function CommitSummaryLine({
   showRevert: boolean;
   ttsAlert: boolean;
 }) {
-  const router = useRouter();
   useScrollTo();
 
   return (
@@ -456,12 +471,25 @@ function CommitSummary({
 
   const failedJobs = jobs.filter(isFailedJob);
   const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
+  const router = useRouter();
+  const { repoOwner, repoName } = router.query;
 
+  const { data } = useSWR(
+    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
+      JSON.stringify(failedJobs.map((failedJob) => failedJob.id))
+    )}`
+  );
+
+  console.log("DATA IS", data);
   let className;
   if (jobs.length === 0) {
     className = styles.workflowBoxNone;
   } else if (failedJobs.length !== 0) {
-    className = styles.workflowBoxFail;
+    if (Object.keys(data ?? {}).length == failedJobs.length) {
+      className = styles.workflowBoxClassified;
+    } else {
+      className = styles.workflowBoxFail;
+    }
   } else if (pendingJobs.length === 0) {
     className = styles.workflowBoxSuccess;
   } else {
@@ -499,6 +527,10 @@ function CommitSummary({
     };
   }, [row.sha]);
   useScrollTo();
+
+  if (data == null) {
+    return null;
+  }
   return (
     <div id={row.sha} className={className}>
       <div
@@ -510,7 +542,9 @@ function CommitSummary({
           showRevert={failedJobs.length !== 0}
           ttsAlert={concerningTTS.length > 0}
         />
-        {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
+        {!showDurationInfo && (
+          <FailedJobs failedJobs={failedJobs} classifiedFailures={data ?? {}} />
+        )}
         {showDurationInfo && (
           <DurationInfo
             concerning={concerningTTS}

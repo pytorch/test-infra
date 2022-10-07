@@ -2,19 +2,24 @@ import React from "react";
 import { JobData } from "../lib/types";
 import { ToggleButtonGroup, ToggleButton } from "@mui/material";
 
-type JobAnnotation =
+export type JobAnnotation =
   | "infra_flake"
   | "time_out"
   | "SEV"
   | "broken_trunk"
   | "test_flake"
-  | "null";
+  | "null"
+  | "test_failure";
 
-const testFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
-
-export default function JobAnnotationToggle({ job }: { job: JobData }) {
+export default function JobAnnotationToggle({
+  job,
+  annotation,
+}: {
+  job: JobData;
+  annotation: JobAnnotation;
+}) {
   const [state, setState] = React.useState<JobAnnotation>(
-    (job.failureAnnotation ?? "null") as JobAnnotation
+    (annotation ?? "null") as JobAnnotation
   );
 
   async function handleChange(
@@ -26,14 +31,6 @@ export default function JobAnnotationToggle({ job }: { job: JobData }) {
       method: "POST",
     });
   }
-
-  // Don't show this button if we know this is a test failure, since we do not
-  // consider test failures to be infra failures.
-  const match = job.failureLine != null && job.failureLine.match(testFailureRe);
-  if (match !== null) {
-    return null;
-  }
-
   return (
     <>
       Classify failure:{" "}
@@ -73,6 +70,12 @@ export default function JobAnnotationToggle({ job }: { job: JobData }) {
           style={{ height: "12pt", textTransform: "none" }}
         >
           broken trunk
+        </ToggleButton>
+        <ToggleButton
+          value="test_failure"
+          style={{ height: "12pt", textTransform: "none" }}
+        >
+          test failure
         </ToggleButton>
       </ToggleButtonGroup>
     </>
