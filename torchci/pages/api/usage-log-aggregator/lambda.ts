@@ -12,4 +12,3 @@ export default async function handler(
   const response = await client.create(USAGE_LOG_AGGREGATOR_API, JSON.parse(req.query.params as string));
   res.status(response.statusCode).json(response.result);
 }
-
