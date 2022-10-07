@@ -105,23 +105,9 @@
     "https://github.com/pytorch/pytorch/issues/68849",
     []
   ],
-  "test_adam (__main__.TestOptim)": [
-    "86432",
-    "https://github.com/pytorch/pytorch/issues/86432",
-    [
-      "linux"
-    ]
-  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
-    [
-      "linux"
-    ]
-  ],
-  "test_adamw (__main__.TestOptim)": [
-    "86435",
-    "https://github.com/pytorch/pytorch/issues/86435",
     [
       "linux"
     ]
@@ -1814,13 +1800,6 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
-  "test_radam (__main__.TestOptim)": [
-    "86389",
-    "https://github.com/pytorch/pytorch/issues/86389",
-    [
-      "linux"
-    ]
-  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "70516",
     "https://github.com/pytorch/pytorch/issues/70516",
@@ -1908,13 +1887,6 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_rmsprop (__main__.TestOptim)": [
-    "86433",
-    "https://github.com/pytorch/pytorch/issues/86433",
-    [
-      "linux"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
