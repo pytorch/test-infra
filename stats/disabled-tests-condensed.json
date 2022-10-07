@@ -1474,13 +1474,6 @@
       "linux"
     ]
   ],
-  "test_no_cyclic_references (__main__.TestLRScheduler)": [
-    "82948",
-    "https://github.com/pytorch/pytorch/issues/82948",
-    [
-      "linux"
-    ]
-  ],
   "test_no_segfault (__main__.TestDataLoaderPersistentWorkers)": [
     "70968",
     "https://github.com/pytorch/pytorch/issues/70968",
