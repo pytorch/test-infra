@@ -26,7 +26,7 @@ jobs:
           - repository: pytorch/audio
             pre-script: ""
             env-script: packaging/vc_env_helper.bat
-            build-params: "--plat-name win_amd64"
+            wheel-build-params: "--plat-name win_amd64"
             post-script: ""
             smoke-test-script: ""
             package-name: torchaudio
@@ -52,7 +52,7 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       env-script: ${{ matrix.env-script }}
-      build-params: ${{ matrix.build-params }}
+      wheel-build-params: ${{ matrix.wheel-build-params }}
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
