@@ -178,7 +178,8 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
             set -x
-            ${CONDA_RUN} conda activate python${PYTHON_VERSION}
+            ${CONDA_RUN} conda create -n testenv python${PYTHON_VERSION} -y
+            ${CONDA_RUN} conda activate testenv
             ${CONDA_RUN} conda install -v -y -c pytorch 'ffmpeg<5'
 
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
