@@ -105,6 +105,20 @@
     "https://github.com/pytorch/pytorch/issues/68849",
     []
   ],
+  "test_adam (__main__.TestOptim)": [
+    "86432",
+    "https://github.com/pytorch/pytorch/issues/86432",
+    [
+      "linux"
+    ]
+  ],
+  "test_adamw (__main__.TestOptim)": [
+    "86435",
+    "https://github.com/pytorch/pytorch/issues/86435",
+    [
+      "linux"
+    ]
+  ],
   "test_add_param_group (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "67287",
     "https://github.com/pytorch/pytorch/issues/67287",
@@ -175,6 +189,13 @@
   "test_backward_index_put_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "76941",
     "https://github.com/pytorch/pytorch/issues/76941",
+    [
+      "linux"
+    ]
+  ],
+  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "86434",
+    "https://github.com/pytorch/pytorch/issues/86434",
     [
       "linux"
     ]
@@ -977,6 +998,13 @@
     "https://github.com/pytorch/pytorch/issues/62328",
     []
   ],
+  "test_fn_gradgrad_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86431",
+    "https://github.com/pytorch/pytorch/issues/86431",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "81822",
     "https://github.com/pytorch/pytorch/issues/81822",
@@ -1756,6 +1784,13 @@
       "mac"
     ]
   ],
+  "test_rmsprop (__main__.TestOptim)": [
+    "86433",
+    "https://github.com/pytorch/pytorch/issues/86433",
+    [
+      "linux"
+    ]
+  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
@@ -2041,6 +2076,13 @@
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapvjp_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86436",
+    "https://github.com/pytorch/pytorch/issues/86436",
     [
       "linux"
     ]
