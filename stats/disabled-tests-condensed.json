@@ -423,6 +423,13 @@
       "linux"
     ]
   ],
+  "test_cnn_model_sum_cuda (__main__.TestExpandedWeightFunctionalCUDA)": [
+    "86498",
+    "https://github.com/pytorch/pytorch/issues/86498",
+    [
+      "rocm"
+    ]
+  ],
   "test_collect_callgrind (__main__.TestBenchmarkUtils)": [
     "76932",
     "https://github.com/pytorch/pytorch/issues/76932",
@@ -524,6 +531,13 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
+    [
+      "linux"
+    ]
+  ],
+  "test_cpu_gpu_parity_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86503",
+    "https://github.com/pytorch/pytorch/issues/86503",
     [
       "linux"
     ]
@@ -1062,6 +1076,13 @@
       "win"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "86504",
+    "https://github.com/pytorch/pytorch/issues/86504",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_native_batch_norm_cuda_float64 (__main__.TestGradientsCUDA)": [
     "86175",
     "https://github.com/pytorch/pytorch/issues/86175",
@@ -1072,6 +1093,20 @@
     "https://github.com/pytorch/pytorch/issues/77039",
     [
       "rocm"
+    ]
+  ],
+  "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86500",
+    "https://github.com/pytorch/pytorch/issues/86500",
+    [
+      "linux"
+    ]
+  ],
+  "test_forward_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86505",
+    "https://github.com/pytorch/pytorch/issues/86505",
+    [
+      "linux"
     ]
   ],
   "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
@@ -1360,6 +1395,13 @@
     "https://github.com/pytorch/pytorch/issues/78457",
     []
   ],
+  "test_memory_format_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86499",
+    "https://github.com/pytorch/pytorch/issues/86499",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_profiler (__main__.TestProfiler)": [
     "72280",
     "https://github.com/pytorch/pytorch/issues/72280",
@@ -1551,6 +1593,20 @@
   "test_periodic_model_averager (__main__.TestDistBackendWithSpawn)": [
     "86477",
     "https://github.com/pytorch/pytorch/issues/86477",
+    [
+      "linux"
+    ]
+  ],
+  "test_pickle_nn_GRU_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86501",
+    "https://github.com/pytorch/pytorch/issues/86501",
+    [
+      "linux"
+    ]
+  ],
+  "test_pickle_nn_GRU_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86502",
+    "https://github.com/pytorch/pytorch/issues/86502",
     [
       "linux"
     ]
