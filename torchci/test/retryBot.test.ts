@@ -92,4 +92,15 @@ describe("retry-bot", () => {
     await probot.receive(event);
     handleScope(scope);
   });
+
+  test("dont rerun if has already been rerun", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    event.payload.workflow_run.run_attempt = 2;
+
+    const scope = nock("https://api.github.com")
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
 });
