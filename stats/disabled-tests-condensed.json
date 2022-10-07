@@ -112,6 +112,13 @@
       "linux"
     ]
   ],
+  "test_adamax (__main__.TestOptim)": [
+    "86474",
+    "https://github.com/pytorch/pytorch/issues/86474",
+    [
+      "linux"
+    ]
+  ],
   "test_adamw (__main__.TestOptim)": [
     "86435",
     "https://github.com/pytorch/pytorch/issues/86435",
@@ -568,6 +575,13 @@
       "linux"
     ]
   ],
+  "test_ddp_build_debug_param_to_name_mapping (__main__.TestDistBackendWithSpawn)": [
+    "86475",
+    "https://github.com/pytorch/pytorch/issues/86475",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -667,9 +681,23 @@
       "linux"
     ]
   ],
+  "test_ddp_join_model_equivalence (__main__.TestDistBackendWithSpawn)": [
+    "86472",
+    "https://github.com/pytorch/pytorch/issues/86472",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_logging_data_gpu (__main__.TestDistBackendWithSpawn)": [
     "86418",
     "https://github.com/pytorch/pytorch/issues/86418",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_multiple_nested_unused_params_error (__main__.TestDistBackendWithSpawn)": [
+    "86476",
+    "https://github.com/pytorch/pytorch/issues/86476",
     [
       "linux"
     ]
@@ -823,6 +851,13 @@
   "test_device_map_gpu_default_to_non_default (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "80008",
     "https://github.com/pytorch/pytorch/issues/80008",
+    [
+      "linux"
+    ]
+  ],
+  "test_different_graph_across_ranks (__main__.TestDistBackendWithSpawn)": [
+    "78748",
+    "https://github.com/pytorch/pytorch/issues/78748",
     [
       "linux"
     ]
@@ -1458,6 +1493,13 @@
       "linux"
     ]
   ],
+  "test_noncontiguous_samples_linalg_lu_cuda_complex64 (__main__.TestCommonCUDA)": [
+    "86473",
+    "https://github.com/pytorch/pytorch/issues/86473",
+    [
+      "linux"
+    ]
+  ],
   "test_noncontiguous_samples_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestCommonCUDA)": [
     "86414",
     "https://github.com/pytorch/pytorch/issues/86414",
@@ -1511,6 +1553,13 @@
     "https://github.com/pytorch/pytorch/issues/74154",
     [
       "windows"
+    ]
+  ],
+  "test_periodic_model_averager (__main__.TestDistBackendWithSpawn)": [
+    "86477",
+    "https://github.com/pytorch/pytorch/issues/86477",
+    [
+      "linux"
     ]
   ],
   "test_pointwise_op_fastpath__foreach_addcmul_cuda_int16 (__main__.TestForeachCUDA)": [
