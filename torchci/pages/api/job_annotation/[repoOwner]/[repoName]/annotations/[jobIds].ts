@@ -8,13 +8,13 @@ export default async function handler(
   const client = getDynamoClient();
   const { jobIds, repoOwner, repoName } = req.query;
   const jobIdsArr = JSON.parse(jobIds as string);
-  // console.log("arr", jobIdsArr);
   const queries = jobIdsArr.map((jobId: any) => {
     return client.get({
       TableName: "torchci-job-annotation",
       Key: { dynamoKey: `${repoOwner}/${repoName}/${jobId}` },
     });
   });
+
   if (queries.length > 0) {
     let annotations = await Promise.all(queries);
     annotations = annotations

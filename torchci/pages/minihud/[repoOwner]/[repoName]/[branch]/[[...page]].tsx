@@ -480,7 +480,6 @@ function CommitSummary({
     )}`
   );
 
-  console.log("DATA IS", data);
   let className;
   if (jobs.length === 0) {
     className = styles.workflowBoxNone;
