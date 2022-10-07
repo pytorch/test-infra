@@ -730,6 +730,13 @@
       "linux"
     ]
   ],
+  "test_ddp_uneven_inputs_stop_iteration_sync_bn (__main__.TestDistBackendWithSpawn)": [
+    "78113",
+    "https://github.com/pytorch/pytorch/issues/78113",
+    [
+      "linux"
+    ]
+  ],
   "test_default_store_timeout_gloo (__main__.TimeoutTest)": [
     "74714",
     "https://github.com/pytorch/pytorch/issues/74714",
