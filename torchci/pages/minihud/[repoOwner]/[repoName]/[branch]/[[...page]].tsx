@@ -29,7 +29,9 @@ import {
   useState,
 } from "react";
 import useSWR, { SWRConfig } from "swr";
-import JobAnnotationToggle from "components/JobAnnotationToggle";
+import JobAnnotationToggle, {
+  JobAnnotation,
+} from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
@@ -123,7 +125,10 @@ function FailedJob({
         <JobLinks job={job} />
       </div>
       <div>
-        <JobAnnotationToggle job={job} annotation={classification ?? "null"} />
+        <JobAnnotationToggle
+          job={job}
+          annotation={(classification ?? "null") as JobAnnotation}
+        />
       </div>
       <LogViewer job={job} />
     </div>
