@@ -172,18 +172,29 @@ jobs:
             export ARCH_NAME="osx-64"
           fi
           
-          CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
-          echo "${CONDA_BINARY}"
-          ${CONDA_RUN} conda install -y "${CONDA_BINARY}"
-
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
+            set -x
+            ${CONDA_RUN} conda activate python${PYTHON_VERSION}
+            ${CONDA_RUN} conda install -v -y -c pytorch 'ffmpeg<5'
+
+            CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
+            echo "${CONDA_BINARY}"
+            ${CONDA_RUN} conda install -y "${CONDA_BINARY}"
+
             ${CONDA_RUN} conda install -y pytorch 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{failure()}}
+        timeout-minutes: 60
+        with:
+          limit-access-to-actor: true
+          install-dependencies: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
