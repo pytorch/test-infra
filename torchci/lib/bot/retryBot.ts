@@ -17,7 +17,6 @@ function retryBot(app: Probot): void {
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
-
     const workflowJobs =
       await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
         owner,

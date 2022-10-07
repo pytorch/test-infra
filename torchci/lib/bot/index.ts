@@ -5,6 +5,7 @@ import autoLabelBot from "./autoLabelBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import drciBot from "./drciBot";
 import pytorchBot from "./pytorchBot";
+import retryBot from "./retryBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import webhookToDynamo from "./webhookToDynamo";
@@ -19,4 +20,5 @@ export default function bot(app: Probot) {
   pytorchBot(app);
   drciBot(app);
   acceptBot(app);
+  retryBot(app);
 }
