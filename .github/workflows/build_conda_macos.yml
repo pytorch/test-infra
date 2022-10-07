@@ -177,13 +177,14 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            ${CONDA_RUN} conda install -y pytorch -c pytorch
+            ${CONDA_RUN} conda install -y pytorch -c pytorch cpuonly
 
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
+            echo "####"
             echo "${CONDA_BINARY}"
-            ${CONDA_RUN} conda install -y "${CONDA_BINARY}" -c pytorch
-            ${CONDA_RUN} conda install 'ffmpeg<5'
+            ${CONDA_RUN} conda install -y "${CONDA_BINARY}" -c torchaudio
 
+            ${CONDA_RUN} conda install -y 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Setup tmate session
