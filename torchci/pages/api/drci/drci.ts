@@ -92,15 +92,27 @@ export function getWorkflowJobsStatuses(
 ): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;
     let numPending = 0;
-    const failedJobsInfo: RecentWorkflowsData[] = [];
+    const jobsInfo: Map<string, RecentWorkflowsData> = new Map();
     for (const workflow of jobs) {
+        const jobName = workflow.job_name;
+        const runAttempt = workflow.run_attempt;
+
         if (workflow.conclusion === null && workflow.completed_at === null) {
             numPending++;
         }
-        else if (workflow.conclusion === "failure") {
+        else if (!jobsInfo.has(jobName) || (jobsInfo.get(jobName)!.run_attempt < runAttempt)) {
+            // Only keep the latest job run
+            jobsInfo.set(jobName, workflow);
+        }
+    }
+
+    const failedJobsInfo: RecentWorkflowsData[] = [];
+    for (const [workflowName, workflow] of jobsInfo) {
+        if (workflow.conclusion === "failure") {
             failedJobsInfo.push(workflow);
         }
     }
+
     return { pending: numPending, failedJobs: failedJobsInfo };
 }
 

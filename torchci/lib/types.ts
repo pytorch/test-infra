@@ -97,6 +97,7 @@ export interface RecentWorkflowsData {
   completed_at: string | null;
   html_url: string;
   head_sha?: string;
+  run_attempt: number;
   pr_number?: number;
   owner_login?: string;
 }
