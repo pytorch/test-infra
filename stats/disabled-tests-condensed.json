@@ -561,6 +561,13 @@
       "linux"
     ]
   ],
+  "test_ddp_buffer_hook_allreduce_return_future (__main__.TestDistBackendWithSpawn)": [
+    "77261",
+    "https://github.com/pytorch/pytorch/issues/77261",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -677,6 +684,13 @@
   "test_ddp_new_tensor_in_fwd_static_graph (__main__.TestDistBackendWithSpawn)": [
     "78338",
     "https://github.com/pytorch/pytorch/issues/78338",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_profiling_autograd_profiler (__main__.TestDistBackendWithSpawn)": [
+    "77342",
+    "https://github.com/pytorch/pytorch/issues/77342",
     [
       "linux"
     ]
@@ -1084,6 +1098,13 @@
     "69480",
     "https://github.com/pytorch/pytorch/issues/69480",
     []
+  ],
+  "test_gather_cuda (__main__.TestDistBackendWithSpawn)": [
+    "86440",
+    "https://github.com/pytorch/pytorch/issues/86440",
+    [
+      "linux"
+    ]
   ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
@@ -1537,6 +1558,13 @@
       "linux"
     ]
   ],
+  "test_post_localSGD_optimizer_parity_grad_is_view (__main__.TestDistBackendWithSpawn)": [
+    "77292",
+    "https://github.com/pytorch/pytorch/issues/77292",
+    [
+      "linux"
+    ]
+  ],
   "test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)": [
     "75052",
     "https://github.com/pytorch/pytorch/issues/75052",
@@ -1719,6 +1747,13 @@
     "https://github.com/pytorch/pytorch/issues/75168",
     [
       "mac"
+    ]
+  ],
+  "test_reduce_multigpu (__main__.TestDistBackendWithSpawn)": [
+    "86439",
+    "https://github.com/pytorch/pytorch/issues/86439",
+    [
+      "linux"
     ]
   ],
   "test_ref_small_input__masked_prod_cuda (__main__.TestReductionsCUDA)": [
@@ -1933,6 +1968,13 @@
       "win"
     ]
   ],
+  "test_stateless_api_with_ddp (__main__.TestDistBackendWithSpawn)": [
+    "86442",
+    "https://github.com/pytorch/pytorch/issues/86442",
+    [
+      "linux"
+    ]
+  ],
   "test_success (__main__.ForkTest)": [
     "76061",
     "https://github.com/pytorch/pytorch/issues/76061",
@@ -2058,6 +2100,13 @@
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
     []
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_float32 (__main__.TestJitCUDA)": [
+    "86441",
+    "https://github.com/pytorch/pytorch/issues/86441",
+    [
+      "linux"
+    ]
   ],
   "test_vjp_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86412",
