@@ -23,19 +23,16 @@ export enum GroupedJobStatus {
   Pending = "pending",
   AllNull = "all_null",
   Success = "success",
-  Classified = "classified",
 }
 
 export default function HudGroupedCell({
   sha,
   groupData,
   isExpanded,
-  isClassified,
 }: {
   sha: string;
   groupData: GroupData;
   isExpanded: boolean;
-  isClassified: boolean;
 }) {
   const erroredJobs = [];
   const pendingJobs = [];
@@ -82,11 +79,7 @@ export default function HudGroupedCell({
         >
           <span className={styles.conclusion}>
             <span
-              className={
-                isClassified
-                  ? styles["classified"]
-                  : styles[conclusion ?? "none"]
-              }
+              className={styles[conclusion ?? "none"]}
               style={{ border: "1px solid gainsboro" }}
             >
               {getGroupConclusionChar(conclusion)}
@@ -97,14 +90,7 @@ export default function HudGroupedCell({
       {isExpanded ? (
         <>
           {groupData.jobs.map((job, ind) => {
-            return (
-              <JobCell
-                key={ind}
-                sha={sha}
-                job={job}
-                isClassified={isClassified}
-              />
-            );
+            return <JobCell key={ind} sha={sha} job={job} />;
           })}
         </>
       ) : null}
