@@ -89,3 +89,17 @@ export function getRepo(repoDef: string, repoName?: string): Repo {
     throw e;
   }
 }
+
+export function groupBy<T, V>(lst: T[], keyGetter: (itm: T) => V): Map<V, Array<T>> {
+  const map = new Map<V, Array<T>>();
+  for (const itm of lst) {
+    const key = keyGetter(itm);
+    const collection = map.get(key);
+    if (collection !== undefined) {
+      collection.push(itm);
+    } else {
+      map.set(key, [itm]);
+    }
+  }
+  return map;
+}

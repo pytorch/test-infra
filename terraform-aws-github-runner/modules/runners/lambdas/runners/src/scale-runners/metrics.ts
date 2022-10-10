@@ -579,6 +579,11 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  exception() {
+    this.countEntry('run.exceptions_count');
+  }
+
+  /* istanbul ignore next */
   runnerLessMinimumTime(ec2Runner: RunnerInfo) {
     this.countEntry(`run.ec2runners.notMinTime`);
     this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.notMinTime`);
