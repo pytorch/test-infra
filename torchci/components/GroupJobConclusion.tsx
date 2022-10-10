@@ -56,11 +56,7 @@ export default function HudGroupedCell({
 
   let conclusion = GroupedJobStatus.Success;
   if (!(erroredJobs.length === 0)) {
-    // if (isClassified) {
-    //   conclusion = GroupedJobStatus.Classified;
-    // } else {
     conclusion = GroupedJobStatus.Failure;
-    // }
   } else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
   } else if (noStatusJobs.length === groupData.jobs.length) {

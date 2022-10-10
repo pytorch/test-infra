@@ -1,82 +1,67 @@
 import React from "react";
 import { JobData } from "../lib/types";
 import { ToggleButtonGroup, ToggleButton } from "@mui/material";
+import { useSession } from "next-auth/react";
 
-export type JobAnnotation =
-  | "infra_flake"
-  | "time_out"
-  | "SEV"
-  | "broken_trunk"
-  | "test_flake"
-  | "null"
-  | "test_failure";
+export enum JobAnnotation {
+  NULL = "None",
+  INFRA_FLAKE = "Infra Flake",
+  TIME_OUT = "Time Out",
+  SEV = "Sev",
+  BROKEN_TRUNK = "Broken Trunk",
+  TEST_FLAKE = "Test Flake",
+  TEST_FAILURE = "Test Failure",
+}
 
 export default function JobAnnotationToggle({
   job,
   annotation,
+  repo = null,
 }: {
   job: JobData;
   annotation: JobAnnotation;
+  repo?: string | null;
 }) {
   const [state, setState] = React.useState<JobAnnotation>(
     (annotation ?? "null") as JobAnnotation
   );
-
+  const session = useSession();
   async function handleChange(
     _: React.MouseEvent<HTMLElement>,
     newState: JobAnnotation
   ) {
     setState(newState);
-    await fetch(`/api/job_annotation/${job.repo}/${job.id}/${newState}`, {
-      method: "POST",
-    });
+    await fetch(
+      `/api/job_annotation/${repo ?? job.repo}/${job.id}/${newState}`,
+      {
+        method: "POST",
+      }
+    );
   }
+
   return (
     <>
       Classify failure:{" "}
-      <ToggleButtonGroup value={state} exclusive onChange={handleChange}>
-        <ToggleButton
-          value="null"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          None
-        </ToggleButton>
-        <ToggleButton
-          value="infra_flake"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          infra flake
-        </ToggleButton>
-        <ToggleButton
-          value="test_flake"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          test flake
-        </ToggleButton>
-        <ToggleButton
-          value="timeout"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          timeout
-        </ToggleButton>
-        <ToggleButton
-          value="SEV"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          SEV related
-        </ToggleButton>
-        <ToggleButton
-          value="broken_trunk"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          broken trunk
-        </ToggleButton>
-        <ToggleButton
-          value="test_failure"
-          style={{ height: "12pt", textTransform: "none" }}
-        >
-          test failure
-        </ToggleButton>
+      <ToggleButtonGroup
+        value={state}
+        exclusive
+        onChange={handleChange}
+        disabled={session.status !== "authenticated"}
+      >
+        {Object.keys(JobAnnotation).map((annotation, ind) => {
+          return (
+            <ToggleButton
+              key={ind}
+              value={annotation}
+              style={{ height: "12pt", textTransform: "none" }}
+            >
+              {
+                //@ts-ignore
+                JobAnnotation[annotation]
+              }
+            </ToggleButton>
+          );
+        })}
       </ToggleButtonGroup>
     </>
   );
