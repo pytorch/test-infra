@@ -1544,6 +1544,13 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
+  "test_nested_always_wrap_model_offload_true_no_shard_norm_type_None (__main__.TestParityWithDDP)": [
+    "86584",
+    "https://github.com/pytorch/pytorch/issues/86584",
+    [
+      "rocm"
+    ]
+  ],
   "test_new_empty (__main__.TestSymbolicTracing)": [
     "83408",
     "https://github.com/pytorch/pytorch/issues/83408",
