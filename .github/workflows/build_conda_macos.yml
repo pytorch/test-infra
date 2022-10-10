@@ -182,7 +182,11 @@ jobs:
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
             echo "####"
             echo "${CONDA_BINARY}"
-            ${CONDA_RUN} conda install -y "${CONDA_BINARY}" -c torchaudio
+
+            ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
+            ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
+
+            ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
 
             ${CONDA_RUN} conda install -y 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
