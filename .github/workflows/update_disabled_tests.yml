@@ -6,7 +6,6 @@ on:
     - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
-  push:
 
 jobs:
   update-disabled-tests:
