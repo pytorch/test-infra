@@ -22,8 +22,8 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
         _(jobs)
           .map((job) => getConclusionSeverityForSorting(job.conclusion))
           .max(), // put failing workflows first
-      (jobs) => jobs.length
-    ) // put worflows of similar lenghts together to keep the display more compact
+      (jobs) => jobs.length // put worflows of similar lenghts together to keep the display more compact
+    )
     .reverse()
     .value();
 
