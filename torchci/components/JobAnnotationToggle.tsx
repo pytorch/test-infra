@@ -5,12 +5,12 @@ import { useSession } from "next-auth/react";
 
 export enum JobAnnotation {
   NULL = "None",
-  INFRA_FLAKE = "Infra Flake",
-  TIME_OUT = "Time Out",
-  SEV = "Sev",
   BROKEN_TRUNK = "Broken Trunk",
   TEST_FLAKE = "Test Flake",
-  TEST_FAILURE = "Test Failure",
+  INFRA_BROKEN = "Broken Infra",
+  INFRA_FLAKE = "Infra Flake",
+  NETWORK = "Network Error",
+  OTHER = "Other"
 }
 
 export default function JobAnnotationToggle({
