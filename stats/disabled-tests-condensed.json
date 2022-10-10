@@ -430,6 +430,20 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addcdiv_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86570",
+    "https://github.com/pytorch/pytorch/issues/86570",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_baddbmm_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "86571",
+    "https://github.com/pytorch/pytorch/issues/86571",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "84150",
     "https://github.com/pytorch/pytorch/issues/84150",
