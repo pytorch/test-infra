@@ -22,7 +22,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio@Exclude-Test-for-FFMPEG
+          - repository: pytorch/audio
+            ref: Exclude-Test-for-FFMPEG
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             conda-package-directory: packaging/torchaudio
