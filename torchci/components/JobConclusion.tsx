@@ -1,20 +1,10 @@
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import styles from "./JobConclusion.module.css";
 
-export default function JobConclusion({
-  conclusion,
-  classified = false,
-}: {
-  conclusion?: string;
-  classified?: boolean;
-}) {
+export default function JobConclusion({ conclusion }: { conclusion?: string }) {
   return (
     <span className={styles.conclusion}>
-      <span
-        className={
-          classified ? styles["classified"] : styles[conclusion ?? "none"]
-        }
-      >
+      <span className={styles[conclusion ?? "none"]}>
         {getConclusionChar(conclusion)}
       </span>
     </span>
