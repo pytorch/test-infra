@@ -972,6 +972,14 @@
     "https://github.com/pytorch/pytorch/issues/74868",
     []
   ],
+  "test_embedding_bag_device_cpu_int64_int64_float16 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
+    "86638",
+    "https://github.com/pytorch/pytorch/issues/86638",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_error_workers (__main__.TestDataLoaderPersistentWorkers)": [
     "78017",
     "https://github.com/pytorch/pytorch/issues/78017",
@@ -1094,6 +1102,13 @@
   "test_first_argument_index (__main__.SpawnTest)": [
     "73266",
     "https://github.com/pytorch/pytorch/issues/73266",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_grad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86640",
+    "https://github.com/pytorch/pytorch/issues/86640",
     [
       "linux"
     ]
@@ -1456,6 +1471,27 @@
       "linux"
     ]
   ],
+  "test_memory_format_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86634",
+    "https://github.com/pytorch/pytorch/issues/86634",
+    [
+      "linux"
+    ]
+  ],
+  "test_memory_format_nn_RNN_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86633",
+    "https://github.com/pytorch/pytorch/issues/86633",
+    [
+      "linux"
+    ]
+  ],
+  "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86635",
+    "https://github.com/pytorch/pytorch/issues/86635",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_profiler (__main__.TestProfiler)": [
     "72280",
     "https://github.com/pytorch/pytorch/issues/72280",
@@ -1658,9 +1694,23 @@
       "linux"
     ]
   ],
+  "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86636",
+    "https://github.com/pytorch/pytorch/issues/86636",
+    [
+      "linux"
+    ]
+  ],
   "test_pickle_nn_GRU_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86502",
     "https://github.com/pytorch/pytorch/issues/86502",
+    [
+      "linux"
+    ]
+  ],
+  "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86637",
+    "https://github.com/pytorch/pytorch/issues/86637",
     [
       "linux"
     ]
@@ -1890,6 +1940,13 @@
   "test_reduce_multigpu (__main__.TestDistBackendWithSpawn)": [
     "86439",
     "https://github.com/pytorch/pytorch/issues/86439",
+    [
+      "linux"
+    ]
+  ],
+  "test_reduce_sum_cuda (__main__.TestDistBackendWithSpawn)": [
+    "86639",
+    "https://github.com/pytorch/pytorch/issues/86639",
     [
       "linux"
     ]
