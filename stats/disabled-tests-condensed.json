@@ -267,6 +267,13 @@
       "linux"
     ]
   ],
+  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
+    "83029",
+    "https://github.com/pytorch/pytorch/issues/83029",
+    [
+      "linux"
+    ]
+  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)": [
     "83026",
     "https://github.com/pytorch/pytorch/issues/83026",
@@ -437,6 +444,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addmv_cuda_complex128 (__main__.TestDecompCUDA)": [
+    "86578",
+    "https://github.com/pytorch/pytorch/issues/86578",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_amax_cuda_float64 (__main__.TestDecompCUDA)": [
     "86573",
     "https://github.com/pytorch/pytorch/issues/86573",
@@ -560,6 +574,13 @@
     "66207",
     "https://github.com/pytorch/pytorch/issues/66207",
     []
+  ],
+  "test_cuda_simple (__main__.TestMultiprocessing)": [
+    "86579",
+    "https://github.com/pytorch/pytorch/issues/86579",
+    [
+      "linux"
+    ]
   ],
   "test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "79750",
