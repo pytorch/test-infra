@@ -10,7 +10,7 @@ function retryBot(app: Probot): void {
       ctx.payload.workflow_run.conclusion === "success" ||
       ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
-      !["lint", "pull"].includes(workflowName)
+      !["lint", "pull"].includes(workflowName)  // only do lint and pull for now because they are fast
     ) {
       return;
     }
@@ -58,12 +58,14 @@ function retryBot(app: Probot): void {
       return;
     }
     if (shouldRetry.length === 1) {
+      // if only one should be rerun, just rerun that job
       return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
         owner,
         repo,
         job_id: shouldRetry[0].id,
       });
     }
+    // if multiple jobs need to be rerun, rerun everyting that failed
     return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
       owner,
       repo,
