@@ -2,6 +2,9 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getDynamoClient } from "lib/dynamo";
 import { unstable_getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
+
+export const annotationEditAllowlist = new Set(["4468967", "34172846"]);
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -11,7 +14,9 @@ export default async function handler(
   }
   // @ts-ignore
   const session = await unstable_getServerSession(req, res, authOptions);
-  if (!session) {
+
+  // @ts-ignore
+  if (!session || !annotationEditAllowlist.has(session.user.id)) {
     return res.status(401).end();
   }
   const client = getDynamoClient();
