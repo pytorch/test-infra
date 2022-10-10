@@ -191,7 +191,7 @@ jobs:
           fi
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
-        if: ${{failure()}}
+        if: ${{ failure() && runner.arch == "x86_64" }}
         timeout-minutes: 60
         with:
           limit-access-to-actor: true
