@@ -1538,8 +1538,8 @@
     []
   ],
   "test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)": [
-    "67154",
-    "https://github.com/pytorch/pytorch/issues/67154",
+    "68319",
+    "https://github.com/pytorch/pytorch/issues/68319",
     [
       "rocm"
     ]
