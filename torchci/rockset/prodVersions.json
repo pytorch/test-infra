@@ -2,15 +2,17 @@
   "commons": {
     "hud_query": "f5ebefcdd53b6ff5",
     "commit_jobs_query": "442a6f64bd44f351",
-    "flaky_tests": "59d7546183743626",
+    "flaky_tests": "a54908c6cc6928ce",
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "50cb3694334ed63a",
     "test_time_per_file_periodic_jobs": "39c105542e297c09",
     "issue_query": "5d4dfeb992e2f29b",
     "failure_samples_query": "ab2b589414b966a8",
-    "recent_pr_workflows_query": "4e03cb13e8372050",
+    "recent_pr_workflows_query": "7486549578f7a837",
     "reverted_prs_with_reason": "bf2b0607bddcc552",
-    "unclassified": "1b31a2d8f4ab7230"
+    "unclassified": "1b31a2d8f4ab7230",
+    "test_insights_overview": "c9be5cbdda1030af",
+    "test_insights_latest_runs": "949f5e49f76bfdd4"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",

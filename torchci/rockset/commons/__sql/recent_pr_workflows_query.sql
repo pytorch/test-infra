@@ -1,30 +1,32 @@
-select
-	w.name as job_name,
+SELECT
+    w.name AS job_name,
     w.conclusion,
     w.completed_at,
     w.html_url,
     w.head_sha,
-    p.number as pr_number,
-    p.user.login as owner_login,
-from
-	commons.workflow_job w inner join commons.pull_request p on w.head_sha = p.head.sha
-where
-	w.head_sha in (
-      select
-          w.head_sha
-      from
-      	commons.workflow_job w
-      where 
-      	PARSE_TIMESTAMP_ISO8601(w.completed_at) > (CURRENT_TIMESTAMP() - MINUTES(:numMinutes))
+    w.run_attempt,
+    p.number AS pr_number,
+    p.user.login AS owner_login,
+FROM
+    commons.workflow_job w INNER JOIN commons.pull_request p ON w.head_sha = p.head.sha
+WHERE
+    w.head_sha IN (
+        SELECT
+            w.head_sha
+        FROM
+            commons.workflow_job w
+        WHERE
+            PARSE_TIMESTAMP_ISO8601(w.completed_at) > (CURRENT_TIMESTAMP() - MINUTES(:numMinutes))
     )
-    and w.head_sha = p.head.sha 
-    and p.base.repo.full_name = 'pytorch/pytorch'
-    
-group by
-	job_name,
+    AND w.head_sha = p.head.sha
+    AND p.base.repo.full_name = 'pytorch/pytorch'
+
+GROUP BY
+    job_name,
     conclusion,
     completed_at,
     html_url,
     head_sha,
+    run_attempt,
     pr_number,
     owner_login
