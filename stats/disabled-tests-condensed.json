@@ -267,16 +267,16 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
-    "83029",
-    "https://github.com/pytorch/pytorch/issues/83029",
+  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)": [
+    "83026",
+    "https://github.com/pytorch/pytorch/issues/83026",
     [
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)": [
-    "83026",
-    "https://github.com/pytorch/pytorch/issues/83026",
+  "test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)": [
+    "83027",
+    "https://github.com/pytorch/pytorch/issues/83027",
     [
       "linux"
     ]
