@@ -430,9 +430,30 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addbmm_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86574",
+    "https://github.com/pytorch/pytorch/issues/86574",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addcdiv_cuda_float64 (__main__.TestDecompCUDA)": [
     "86570",
     "https://github.com/pytorch/pytorch/issues/86570",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_amax_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86573",
+    "https://github.com/pytorch/pytorch/issues/86573",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_amin_cuda_float32 (__main__.TestDecompCUDA)": [
+    "86575",
+    "https://github.com/pytorch/pytorch/issues/86575",
     [
       "rocm"
     ]
