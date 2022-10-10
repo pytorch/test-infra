@@ -106,8 +106,8 @@ jobs:
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
-          USE_FFMPEG: true
-          USE_OPENMP: false
+          USE_FFMPEG: 1
+          USE_OPENMP: 0
         run: |
           source "${BUILD_ENV_FILE}"
 
@@ -185,8 +185,6 @@ jobs:
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
             ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
-
-            ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
 
             ${CONDA_RUN} conda install -y 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
