@@ -23,7 +23,6 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            ref: Exclude-Test-for-FFMPEG
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             conda-package-directory: packaging/torchaudio
@@ -40,7 +39,7 @@ jobs:
     with:
       conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
-      ref: ${{ matrix.ref }}
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
