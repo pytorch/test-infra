@@ -1527,13 +1527,6 @@
     "https://github.com/pytorch/pytorch/issues/74498",
     []
   ],
-  "test_nadam (__main__.TestOptim)": [
-    "68171",
-    "https://github.com/pytorch/pytorch/issues/68171",
-    [
-      "rocm"
-    ]
-  ],
   "test_named_params_with_sharded_tensor (__main__.TestShardedOptimizer)": [
     "82023",
     "https://github.com/pytorch/pytorch/issues/82023",
