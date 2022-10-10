@@ -1117,6 +1117,13 @@
       "linux"
     ]
   ],
+  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86617",
+    "https://github.com/pytorch/pytorch/issues/86617",
+    [
+      "all"
+    ]
+  ],
   "test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "81822",
     "https://github.com/pytorch/pytorch/issues/81822",
