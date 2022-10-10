@@ -30,10 +30,12 @@ jobs:
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
           - repository: pytorch/vision
+            ref: "nightly"
             pre-script: ""
             post-script: ""
             package-name: torchvision
           - repository: pytorch/text
+            ref: "nightly"
             pre-script: ""
             post-script: ""
             package-name: torchtext
