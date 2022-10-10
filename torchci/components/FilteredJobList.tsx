@@ -19,9 +19,6 @@ export default function FilteredJobList({
   showClassification?: boolean;
 }) {
   const filteredJobs = jobs.filter(pred);
-  if (filteredJobs.length === 0) {
-    return null;
-  }
 
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
@@ -34,6 +31,10 @@ export default function FilteredJobList({
     fetcher
   );
   if (showClassification && data == null) {
+    return null;
+  }
+
+  if (filteredJobs.length === 0) {
     return null;
   }
   return (
