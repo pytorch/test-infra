@@ -41,7 +41,7 @@ jobs:
     with:
       conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
-      ref: Exclude-Test-for-FFMPEG
+      ref: ${{ matrix.ref }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
