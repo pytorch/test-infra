@@ -631,6 +631,13 @@
       "linux"
     ]
   ],
+  "test_ddp_build_debug_param_to_name_mapping_requires_grad (__main__.TestDistBackendWithSpawn)": [
+    "86588",
+    "https://github.com/pytorch/pytorch/issues/86588",
+    [
+      "linux"
+    ]
+  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -726,6 +733,13 @@
   "test_ddp_ignore_params_arg (__main__.TestDistBackendWithSpawn)": [
     "77325",
     "https://github.com/pytorch/pytorch/issues/77325",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_inference (__main__.TestDistBackendWithSpawn)": [
+    "86587",
+    "https://github.com/pytorch/pytorch/issues/86587",
     [
       "linux"
     ]
