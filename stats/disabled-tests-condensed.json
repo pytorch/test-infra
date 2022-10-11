@@ -1503,16 +1503,16 @@
       "linux"
     ]
   ],
-  "test_memory_format_nn_RNN_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86633",
-    "https://github.com/pytorch/pytorch/issues/86633",
+  "test_memory_format_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86634",
+    "https://github.com/pytorch/pytorch/issues/86634",
     [
       "linux"
     ]
   ],
-  "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86635",
-    "https://github.com/pytorch/pytorch/issues/86635",
+  "test_memory_format_nn_RNN_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86633",
+    "https://github.com/pytorch/pytorch/issues/86633",
     [
       "linux"
     ]
