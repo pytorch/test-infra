@@ -946,6 +946,13 @@
       "linux"
     ]
   ],
+  "test_dlpack_conversion_with_streams_cuda_uint8 (__main__.TestTorchDlPackCUDA)": [
+    "86696",
+    "https://github.com/pytorch/pytorch/issues/86696",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
