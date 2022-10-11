@@ -29,7 +29,7 @@ import {
 } from './scale-down';
 
 jest.mock('./gh-runners', () => ({
-  /* eslint-disable @typescript-eslint/no-explicit-any */
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./gh-runners') as any),
   getRunnerOrg: jest.fn(),
   getRunnerRepo: jest.fn(),
@@ -42,7 +42,7 @@ jest.mock('./gh-runners', () => ({
 }));
 
 jest.mock('./runners', () => ({
-  /* eslint-disable @typescript-eslint/no-explicit-any */
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./runners') as any),
   listRunners: jest.fn(),
   resetRunnersCaches: jest.fn(),
@@ -152,17 +152,29 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0001', name: 'keep-this-not-min-time-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0002', name: 'keep-this-not-min-time-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0003', name: 'keep-this-is-busy-01', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0004', name: 'keep-this-is-busy-02', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0005', name: 'keep-this-not-min-time-03', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0006', name: 'keep-this-is-busy-03', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0007', name: 'remove-ephemeral-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0009', name: 'keep-min-runners-oldest-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0011', name: 'keep-min-runners-oldest-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false } as any as GhRunner,
     ] as GhRunners;
     const listRunnersRet = [
@@ -449,17 +461,29 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0001', name: 'keep-this-not-min-time-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0002', name: 'keep-this-not-min-time-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0003', name: 'keep-this-is-busy-01', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0004', name: 'keep-this-is-busy-02', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0005', name: 'keep-this-not-min-time-03', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0006', name: 'keep-this-is-busy-03', busy: true } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0007', name: 'remove-ephemeral-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0009', name: 'keep-min-runners-oldest-01', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0011', name: 'keep-min-runners-oldest-02', busy: false } as any as GhRunner,
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       { id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false } as any as GhRunner,
     ] as GhRunners;
     const listRunnersRet = [
