@@ -1733,13 +1733,6 @@
       "linux"
     ]
   ],
-  "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86636",
-    "https://github.com/pytorch/pytorch/issues/86636",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_GRU_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86502",
     "https://github.com/pytorch/pytorch/issues/86502",
@@ -1988,6 +1981,14 @@
     "https://github.com/pytorch/pytorch/issues/86639",
     [
       "linux"
+    ]
+  ],
+  "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
+    "86735",
+    "https://github.com/pytorch/pytorch/issues/86735",
+    [
+      "win",
+      "windows"
     ]
   ],
   "test_ref_small_input__masked_prod_cuda (__main__.TestReductionsCUDA)": [
@@ -2349,6 +2350,13 @@
       "linux"
     ]
   ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86732",
+    "https://github.com/pytorch/pytorch/issues/86732",
+    [
+      "linux"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_float32 (__main__.TestJitCUDA)": [
     "86441",
     "https://github.com/pytorch/pytorch/issues/86441",
@@ -2359,6 +2367,13 @@
   "test_vjp_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86412",
     "https://github.com/pytorch/pytorch/issues/86412",
+    [
+      "linux"
+    ]
+  ],
+  "test_vjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86734",
+    "https://github.com/pytorch/pytorch/issues/86734",
     [
       "linux"
     ]
@@ -2380,6 +2395,13 @@
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86733",
+    "https://github.com/pytorch/pytorch/issues/86733",
     [
       "linux"
     ]
