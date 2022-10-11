@@ -165,6 +165,14 @@
       "linux"
     ]
   ],
+  "test_attn_cuda (__main__.TestMin)": [
+    "86712",
+    "https://github.com/pytorch/pytorch/issues/86712",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "80413",
     "https://github.com/pytorch/pytorch/issues/80413",
@@ -1144,6 +1152,13 @@
     "86617",
     "https://github.com/pytorch/pytorch/issues/86617",
     []
+  ],
+  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "86709",
+    "https://github.com/pytorch/pytorch/issues/86709",
+    [
+      "linux"
+    ]
   ],
   "test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "81822",
@@ -2323,6 +2338,13 @@
   "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
     "86655",
     "https://github.com/pytorch/pytorch/issues/86655",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
+    "86711",
+    "https://github.com/pytorch/pytorch/issues/86711",
     [
       "linux"
     ]
