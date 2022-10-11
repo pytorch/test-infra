@@ -16,21 +16,23 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
     return null;
   }
   const byWorkflow = _(jobs)
-    .groupBy(job => job.workflowName)
+    .groupBy((job) => job.workflowName)
     .sortBy(
-      (jobs => _(jobs)
-          .map(job => getConclusionSeverityForSorting(job.conclusion))
-          .max()), // put failing workflows first
-      (jobs => jobs.length)) // put worflows of similar lenghts together to keep the display more compact
+      (jobs) =>
+        _(jobs)
+          .map((job) => getConclusionSeverityForSorting(job.conclusion))
+          .max(), // put failing workflows first
+      (jobs) => jobs.length // put worflows of similar lenghts together to keep the display more compact
+    )
     .reverse()
-    .value()
+    .value();
 
   return (
     <>
       <h1>Workflows</h1>
       <div className={styles.workflowContainer}>
-        {_.map(byWorkflow, jobs => {
-          let workflowName = '' + jobs[0].workflowName
+        {_.map(byWorkflow, (jobs) => {
+          let workflowName = "" + jobs[0].workflowName;
           return (
             <WorkflowBox
               key={workflowName}
@@ -71,6 +73,7 @@ export default function CommitStatus({
         filterName="Failed jobs"
         jobs={jobs}
         pred={isFailedJob}
+        showClassification
       />
       <FilteredJobList
         filterName="Pending jobs"
