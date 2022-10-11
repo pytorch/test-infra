@@ -188,8 +188,10 @@ async def aggregate(body: str, context: Any) -> str:
     # i.e. TestCommonCUDA
     test_class = params.get("testClass")
 
-    if not workflow_name or not job_name or not test_file or not test_class:
-        return json.dumps({"error": "Missing workflowName or jobName or testFile or testClass"})
+    # Other parameters are not needed right now at the current level of granularity. However,
+    # we keep them here for future usage
+    if not job_name:
+        return json.dumps({"error": "Missing jobName"})
 
     prefix = await _get_usage_log_prefix(job_name=job_name)
     if not prefix:
@@ -236,10 +238,7 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "workflowName": "pull",
         "jobName": "win-vs2019-cpu-py3 / test (functorch, 1, 1, windows.4xlarge)",
-        "testFile": "functorch",
-        "testClass": "TestOperatorsCPU",
         "workflowIds": [
             "3190793389",
             "3190721571",
