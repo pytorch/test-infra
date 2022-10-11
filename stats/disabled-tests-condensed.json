@@ -1153,6 +1153,13 @@
       "win"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86680",
+    "https://github.com/pytorch/pytorch/issues/86680",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
     "86504",
     "https://github.com/pytorch/pytorch/issues/86504",
