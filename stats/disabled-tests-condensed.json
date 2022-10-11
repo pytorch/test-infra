@@ -105,13 +105,6 @@
     "https://github.com/pytorch/pytorch/issues/68849",
     []
   ],
-  "test_adamax (__main__.TestOptim)": [
-    "86474",
-    "https://github.com/pytorch/pytorch/issues/86474",
-    [
-      "linux"
-    ]
-  ],
   "test_add_param_group (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "67287",
     "https://github.com/pytorch/pytorch/issues/67287",
