@@ -1253,6 +1253,13 @@
       "linux"
     ]
   ],
+  "test_gather_object (__main__.TestDistBackendWithSpawn)": [
+    "86670",
+    "https://github.com/pytorch/pytorch/issues/86670",
+    [
+      "linux"
+    ]
+  ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
     "https://github.com/pytorch/pytorch/issues/82866",
@@ -1691,6 +1698,13 @@
   "test_periodic_model_averager (__main__.TestDistBackendWithSpawn)": [
     "86477",
     "https://github.com/pytorch/pytorch/issues/86477",
+    [
+      "linux"
+    ]
+  ],
+  "test_periodic_model_averager_param_group (__main__.TestDistBackendWithSpawn)": [
+    "86669",
+    "https://github.com/pytorch/pytorch/issues/86669",
     [
       "linux"
     ]
