@@ -133,6 +133,7 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
       if (
         workflowJobNames.includes(platform) &&
         (platform == "rocm" || !workflowJobNames.includes("rocm")) &&
+        (platform == "dynamo" || !workflowJobNames.includes("dynamo")) &&
         !platformsToSkip.includes(platform)
       ) {
         platformsToSkip.push(platform);
