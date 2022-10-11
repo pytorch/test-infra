@@ -180,8 +180,6 @@ jobs:
             ${CONDA_RUN} conda install -y pytorch -c pytorch cpuonly
 
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
-            echo "####"
-            echo "${CONDA_BINARY}"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
             ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
@@ -189,13 +187,6 @@ jobs:
             ${CONDA_RUN} conda install -y 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() && runner.arch == 'x86_64' }}
-        timeout-minutes: 60
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
