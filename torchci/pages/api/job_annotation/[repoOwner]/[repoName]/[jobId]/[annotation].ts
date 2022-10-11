@@ -1,5 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getDynamoClient } from "lib/dynamo";
+import { unstable_getServerSession } from "next-auth";
+import { authOptions } from "pages/api/auth/[...nextauth]";
+
+export const annotationEditAllowlist = new Set(["4468967", "34172846"]);
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,7 +12,13 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(504).end();
   }
+  // @ts-ignore
+  const session = await unstable_getServerSession(req, res, authOptions);
 
+  // @ts-ignore
+  if (!session || !annotationEditAllowlist.has(session.user.id)) {
+    return res.status(401).end();
+  }
   const client = getDynamoClient();
   const { jobId, repoOwner, repoName, annotation } = req.query;
   const dynamoKey = `${repoOwner}/${repoName}/${jobId}`;

@@ -98,6 +98,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "?";
     case GroupedJobStatus.AllNull:
       return "O";
+    case GroupedJobStatus.Classified:
+      return "X";
     default:
       return "U";
   }
@@ -142,7 +144,7 @@ export function getConclusionChar(conclusion?: string): string {
 }
 
 export function getConclusionSeverityForSorting(conclusion?: string): number {
-  // Returns a severity level for the conclusion. 
+  // Returns a severity level for the conclusion.
   // Used to sort jobs by severity
   switch (conclusion) {
     case JobStatus.Success:
