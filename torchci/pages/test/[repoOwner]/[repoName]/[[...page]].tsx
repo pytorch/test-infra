@@ -32,7 +32,7 @@ function formatSeries(
 }
 
 function DisplayInsights({
-  rocksetData,
+  data,
   // Human-readable title of the panel.
   title,
   // What field name to treat as the time value.
@@ -42,14 +42,14 @@ function DisplayInsights({
   // What label to put on the y axis.
   yAxisLabel,
 }: {
-  rocksetData: any;
+  data: any;
   title: string;
   timeFieldName: string;
   yAxisFieldName: string;
   yAxisLabel?: string;
 }) {
   const chartData = [];
-  for (const e of rocksetData) {
+  for (const e of data) {
     chartData.push([e[timeFieldName], e[yAxisFieldName]]);
   }
   const chartSeries = formatSeries(chartData);
@@ -72,22 +72,16 @@ function GetUsage({
   jobName,
   testFile,
   testClass,
-  rocksetData,
+  workflowIds,
+  jobIds,
 }: {
   workflowName: string;
   jobName: string;
   testFile: string;
   testClass: string;
-  rocksetData: any;
+  workflowIds: string[];
+  jobIds: string[];
 }) {
-  const workflowIds = [];
-  const jobIds = [];
-
-  for (const e of rocksetData) {
-    workflowIds.push(e["workflow_id"]);
-    jobIds.push(e["job_id"]);
-  }
-
   const params = {
     workflowName: workflowName,
     jobName: jobName,
@@ -121,14 +115,14 @@ function GetUsage({
   return (
     <Grid container spacing={2}>
       <DisplayInsights
-        rocksetData={transformedData}
+        data={transformedData}
         title={"CPU usage (%)"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"cpu"}
       />
 
       <DisplayInsights
-        rocksetData={transformedData}
+        data={transformedData}
         title={"Memory usage"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"mem"}
@@ -136,14 +130,14 @@ function GetUsage({
       />
 
       <DisplayInsights
-        rocksetData={transformedData}
+        data={transformedData}
         title={"GPU usage (%)"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"gpu"}
       />
 
       <DisplayInsights
-        rocksetData={transformedData}
+        data={transformedData}
         title={"GPU memory usage"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"gpu_mem"}
@@ -153,84 +147,64 @@ function GetUsage({
   );
 }
 
-function GetLatestRuns({
+function GetJobs({
   workflowName,
   jobName,
   testFile,
   testClass,
   queryParams,
+  workflowId,
+  jobId,
 }: {
   workflowName: string;
   jobName: string;
   testFile: string;
   testClass: string;
   queryParams: RocksetParam[];
+  workflowId?: string;
+  jobId?: string;
 }) {
   const queryCollection = "commons";
   const queryName = "test_insights_latest_runs";
 
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
+  const workflowIds = [];
+  const jobIds = [];
 
-  const { data } = useSWR(url, fetcher);
-  if (data === undefined || data.length == 0) {
-    return (<div></div>);
+  // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
+  if (workflowId == null || jobId == null) {
+    const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+      JSON.stringify(queryParams)
+    )}`;
+
+    const { data } = useSWR(url, fetcher);
+    if (data === undefined || data.length == 0) {
+      return (<div></div>);
+    }
+
+    for (const e of data) {
+      workflowIds.push(e["workflow_id"]);
+      jobIds.push(e["job_id"]);
+    }
+  }
+  else {
+    workflowIds.push(workflowId);
+    jobIds.push(jobId);
   }
 
   return (
     <Stack direction="column" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"2rem"} fontWeight={"bold"}>
-        {jobName}: {testFile}.{testClass}
+        {jobName}
       </Typography>
 
-      <Grid container spacing={2}>
-        <Grid container spacing={2}>
-          <DisplayInsights
-            rocksetData={data}
-            title={"Test Duration"}
-            timeFieldName={"_event_time"}
-            yAxisFieldName={"time"}
-            yAxisLabel={"Seconds"}
-          />
-
-          <DisplayInsights
-            rocksetData={data}
-            title={"# of tests"}
-            timeFieldName={"_event_time"}
-            yAxisFieldName={"tests"}
-          />
-
-          <DisplayInsights
-            rocksetData={data}
-            title={"# of test failures"}
-            timeFieldName={"_event_time"}
-            yAxisFieldName={"failures"}
-          />
-
-          <DisplayInsights
-            rocksetData={data}
-            title={"# of unexpected errors"}
-            timeFieldName={"_event_time"}
-            yAxisFieldName={"errors"}
-          />
-
-          <DisplayInsights
-            rocksetData={data}
-            title={"# of skipped tests"}
-            timeFieldName={"_event_time"}
-            yAxisFieldName={"skipped"}
-          />
-        </Grid>
-
-        <GetUsage
-          workflowName={workflowName}
-          jobName={jobName}
-          testFile={testFile}
-          testClass={testClass}
-          rocksetData={data}
-        />
-      </Grid>
+      <GetUsage
+        workflowName={workflowName}
+        jobName={jobName}
+        testFile={testFile}
+        testClass={testClass}
+        workflowIds={workflowIds}
+        jobIds={jobIds}
+      />
     </Stack>
   );
 }
@@ -245,6 +219,8 @@ export default function Page() {
   const jobName = router.query.jobName as string;
   const testFile = router.query.testFile as string;
   const testClass = router.query.testClass as string;
+  const workflowId = router.query.workflowId as string;
+  const jobId = router.query.jobId as string;
 
   if (workflowName === undefined || jobName === undefined || testFile === undefined || testClass === undefined) {
     return;
@@ -289,12 +265,14 @@ export default function Page() {
   ];
 
   return (
-    <GetLatestRuns
+    <GetJobs
       workflowName={workflowName}
       jobName={jobName}
       testFile={testFile}
       testClass={testClass}
       queryParams={queryParams}
+      workflowId={workflowId}
+      jobId={jobId}
     />
   );
 }

@@ -43,6 +43,29 @@ export default function JobLinks({ job }: { job: JobData }) {
       </span>
     ) : null;
 
+  const workflowId = job.htmlUrl?.match(
+    // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
+    new RegExp("^.+/(.+)/jobs/.+$")
+  )[1];
+  const jobId = job.logUrl?.match(
+    // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
+    new RegExp("^.+/log/(.+)$")
+  )[1];
+
+  const testInsights =
+    job != null ? (
+      <span>
+        {" | "}
+        <a
+          target="_blank"
+          rel="noreferrer"
+          href={`/test/${job.repo}/insights?workflowName=${job.workflowName}&jobName=${encodeURIComponent(job.jobName)}&workflowId=${workflowId}&jobId=${jobId}`}
+        >
+          Test insights
+        </a>
+      </span>
+    ) : null;
+
   return (
     <span>
       {rawLogs}
@@ -51,6 +74,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {durationS}
       {eventTime}
       <DisableIssue job={job} />
+      {testInsights}
     </span>
   );
 }
