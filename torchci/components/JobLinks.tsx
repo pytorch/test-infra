@@ -59,7 +59,7 @@ export default function JobLinks({ job }: { job: JobData }) {
         <a
           target="_blank"
           rel="noreferrer"
-          href={`/test/${job.repo}/insights?workflowName=${job.workflowName}&jobName=${encodeURIComponent(job.jobName)}&workflowId=${workflowId}&jobId=${jobId}`}
+          href={`/test/${job.repo}/insights?workflowName=${job.workflowName}&jobName=${encodeURIComponent(job.jobName)}&workflowId=${workflowId}&jobId=${jobId}&testFile=FOO&testClass=BAR`}
         >
           Test insights
         </a>

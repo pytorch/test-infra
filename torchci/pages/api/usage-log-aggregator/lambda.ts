@@ -10,6 +10,5 @@ export default async function handler(
 ) {
   const client = new restc.RestClient(null);
   const response = await client.create(USAGE_LOG_AGGREGATOR_API, JSON.parse(req.query.params as string));
-  console.log(response.result);
   res.status(response.statusCode).json(response.result);
 }
