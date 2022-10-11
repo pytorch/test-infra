@@ -3,7 +3,15 @@ import { getDynamoClient } from "lib/dynamo";
 import { unstable_getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
 
-export const annotationEditAllowlist = new Set(["4468967", "34172846"]);
+// Get number by going to https://api.github.com/users/<username>
+// and copying the "id" field
+export const annotationEditAllowlist = new Set([
+  "34172846", // ZainRizvi
+  "44682903", // clee2000
+  "475357", // huydhn
+  "420184", // kit1980
+  "2453524", // malfet
+]);
 
 export default async function handler(
   req: NextApiRequest,
