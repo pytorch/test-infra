@@ -196,7 +196,8 @@
     "https://github.com/pytorch/pytorch/issues/86712",
     [
       "win",
-      "windows"
+      "windows",
+      "linux"
     ]
   ],
   "test_backward_T_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
