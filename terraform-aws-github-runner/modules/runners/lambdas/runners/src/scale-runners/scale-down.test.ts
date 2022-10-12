@@ -60,6 +60,11 @@ beforeEach(() => {
   nock.disableNetConnect();
 });
 
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const mockRunner = (runnerDef: any) => {
+  return runnerDef as GhRunner;
+};
+
 const metrics = new MetricsModule.ScaleDownMetrics();
 
 const minimumRunningTimeInMinutes = 10;
@@ -152,30 +157,18 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0001', name: 'keep-this-not-min-time-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0002', name: 'keep-this-not-min-time-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0003', name: 'keep-this-is-busy-01', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0004', name: 'keep-this-is-busy-02', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0005', name: 'keep-this-not-min-time-03', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0006', name: 'keep-this-is-busy-03', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0007', name: 'remove-ephemeral-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0009', name: 'keep-min-runners-oldest-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0011', name: 'keep-min-runners-oldest-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false } as any as GhRunner,
+      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false }),
+      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false }),
+      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true }),
+      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
+      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
+      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01', busy: false }),
+      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
+      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
+      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
+      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false }),
+      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false }),
     ] as GhRunners;
     const listRunnersRet = [
       {
@@ -396,7 +389,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(15);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(2);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(3);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(3);
@@ -461,30 +454,18 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0001', name: 'keep-this-not-min-time-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0002', name: 'keep-this-not-min-time-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0003', name: 'keep-this-is-busy-01', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0004', name: 'keep-this-is-busy-02', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0005', name: 'keep-this-not-min-time-03', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0006', name: 'keep-this-is-busy-03', busy: true } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0007', name: 'remove-ephemeral-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0009', name: 'keep-min-runners-oldest-01', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0011', name: 'keep-min-runners-oldest-02', busy: false } as any as GhRunner,
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      { id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false } as any as GhRunner,
+      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false }),
+      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false }),
+      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true }),
+      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
+      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
+      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01', busy: false }),
+      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
+      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
+      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
+      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false }),
+      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false }),
     ] as GhRunners;
     const listRunnersRet = [
       {
@@ -704,7 +685,7 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(15);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
-      expect(mockedGetRunnerTypes).toBeCalledTimes(2);
+      expect(mockedGetRunnerTypes).toBeCalledTimes(3);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
       expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(3);

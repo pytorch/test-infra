@@ -82,7 +82,7 @@ export async function scaleDown(): Promise<void> {
         // We only limit the number of removed instances here for the reason: while sorting and getting info
         // on getRunner[Org|Repo] we send statistics that are relevant for monitoring
         if (
-          runners.length - removedRunners <= Config.Instance.minAvailableRunners &&
+          ghRunnersRemovable.length - removedRunners <= Config.Instance.minAvailableRunners &&
           ghRunner !== undefined &&
           !(await isEphemeralRunner(ec2runner, metrics))
         ) {
