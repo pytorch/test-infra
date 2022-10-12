@@ -51,7 +51,7 @@ on:
 jobs:
   job:
     env:
-      DOCKER_IMAGE: pytorch/manylinux-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
+      DOCKER_IMAGE: pytorch/conda-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
       SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
