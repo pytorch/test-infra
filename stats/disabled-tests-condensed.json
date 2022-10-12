@@ -350,6 +350,13 @@
       "linux"
     ]
   ],
+  "test_binary_ops (__main__.TestTensorExprFuser)": [
+    "86776",
+    "https://github.com/pytorch/pytorch/issues/86776",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
     "68433",
     "https://github.com/pytorch/pytorch/issues/68433",
@@ -980,6 +987,13 @@
       "linux"
     ]
   ],
+  "test_dlpack_conversion_with_streams_cuda_complex64 (__main__.TestTorchDlPackCUDA)": [
+    "86778",
+    "https://github.com/pytorch/pytorch/issues/86778",
+    [
+      "linux"
+    ]
+  ],
   "test_dlpack_conversion_with_streams_cuda_uint8 (__main__.TestTorchDlPackCUDA)": [
     "86696",
     "https://github.com/pytorch/pytorch/issues/86696",
@@ -1155,6 +1169,13 @@
       "linux"
     ]
   ],
+  "test_fn_grad_linalg_lu_factor_ex_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "86775",
+    "https://github.com/pytorch/pytorch/issues/86775",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64 (__main__.TestGradientsCUDA)": [
     "76429",
     "https://github.com/pytorch/pytorch/issues/76429",
@@ -1208,6 +1229,13 @@
       "linux"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "86774",
+    "https://github.com/pytorch/pytorch/issues/86774",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
     "86504",
     "https://github.com/pytorch/pytorch/issues/86504",
@@ -1229,6 +1257,13 @@
       "rocm"
     ]
   ],
+  "test_forward_nn_LSTM_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86773",
+    "https://github.com/pytorch/pytorch/issues/86773",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86500",
     "https://github.com/pytorch/pytorch/issues/86500",
@@ -1246,6 +1281,13 @@
   "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86387",
     "https://github.com/pytorch/pytorch/issues/86387",
+    [
+      "linux"
+    ]
+  ],
+  "test_forward_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86772",
+    "https://github.com/pytorch/pytorch/issues/86772",
     [
       "linux"
     ]
@@ -1557,6 +1599,13 @@
       "linux"
     ]
   ],
+  "test_memory_format_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86771",
+    "https://github.com/pytorch/pytorch/issues/86771",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86635",
     "https://github.com/pytorch/pytorch/issues/86635",
@@ -1734,6 +1783,13 @@
   "test_operator_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "86761",
     "https://github.com/pytorch/pytorch/issues/86761",
+    [
+      "linux"
+    ]
+  ],
+  "test_out_linalg_lu_cuda_float32 (__main__.TestCommonCUDA)": [
+    "86777",
+    "https://github.com/pytorch/pytorch/issues/86777",
     [
       "linux"
     ]
@@ -2456,6 +2512,13 @@
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86770",
+    "https://github.com/pytorch/pytorch/issues/86770",
     [
       "linux"
     ]
