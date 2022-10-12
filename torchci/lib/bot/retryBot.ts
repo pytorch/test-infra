@@ -20,7 +20,8 @@ function retryBot(app: Probot): void {
 
     let workflowJobs = [];
     let total_count = 1;
-    for (let i = 0; i * 100 < total_count; i++) {
+    const jobs_per_page = 100;
+    for (let i = 0; i * jobs_per_page < total_count; i++) {
       const data = (
         await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
           owner,
@@ -28,7 +29,7 @@ function retryBot(app: Probot): void {
           run_id: runId,
           attempt_number: attemptNumber,
           page: i + 1,
-          per_page: 100,
+          per_page: jobs_per_page,
         })
       ).data;
       total_count = data.total_count;
