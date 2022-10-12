@@ -603,20 +603,6 @@
       "linux"
     ]
   ],
-  "test_ddp_build_debug_param_to_name_mapping (__main__.TestDistBackendWithSpawn)": [
-    "86475",
-    "https://github.com/pytorch/pytorch/issues/86475",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_build_debug_param_to_name_mapping_requires_grad (__main__.TestDistBackendWithSpawn)": [
-    "86588",
-    "https://github.com/pytorch/pytorch/issues/86588",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -677,27 +663,6 @@
   "test_ddp_ignore_params_arg (__main__.TestDistBackendWithSpawn)": [
     "77325",
     "https://github.com/pytorch/pytorch/issues/77325",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_inference (__main__.TestDistBackendWithSpawn)": [
-    "86587",
-    "https://github.com/pytorch/pytorch/issues/86587",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_join_model_equivalence (__main__.TestDistBackendWithSpawn)": [
-    "86472",
-    "https://github.com/pytorch/pytorch/issues/86472",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_multiple_nested_unused_params_error (__main__.TestDistBackendWithSpawn)": [
-    "86476",
-    "https://github.com/pytorch/pytorch/issues/86476",
     [
       "linux"
     ]
@@ -1241,13 +1206,6 @@
     "https://github.com/pytorch/pytorch/issues/69480",
     []
   ],
-  "test_gather_object (__main__.TestDistBackendWithSpawn)": [
-    "86670",
-    "https://github.com/pytorch/pytorch/issues/86670",
-    [
-      "linux"
-    ]
-  ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
     "https://github.com/pytorch/pytorch/issues/82866",
@@ -1697,20 +1655,6 @@
       "windows"
     ]
   ],
-  "test_periodic_model_averager (__main__.TestDistBackendWithSpawn)": [
-    "86477",
-    "https://github.com/pytorch/pytorch/issues/86477",
-    [
-      "linux"
-    ]
-  ],
-  "test_periodic_model_averager_param_group (__main__.TestDistBackendWithSpawn)": [
-    "86669",
-    "https://github.com/pytorch/pytorch/issues/86669",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_GRU_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86501",
     "https://github.com/pytorch/pytorch/issues/86501",
@@ -1959,13 +1903,6 @@
     "https://github.com/pytorch/pytorch/issues/75168",
     [
       "mac"
-    ]
-  ],
-  "test_reduce_sum_cuda (__main__.TestDistBackendWithSpawn)": [
-    "86639",
-    "https://github.com/pytorch/pytorch/issues/86639",
-    [
-      "linux"
     ]
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
