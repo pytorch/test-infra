@@ -10,7 +10,7 @@ function retryBot(app: Probot): void {
       ctx.payload.workflow_run.conclusion === "success" ||
       ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
-      !["Lint", "pull"].includes(workflowName) // only do lint and pull for now because they are fast
+      !["lint", "pull"].includes(workflowName.toLowerCase()) // only do lint and pull for now because they are fast
     ) {
       return;
     }
