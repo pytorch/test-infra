@@ -177,13 +177,6 @@
     "https://github.com/pytorch/pytorch/issues/63933",
     []
   ],
-  "test_asgd (__main__.TestOptim)": [
-    "86763",
-    "https://github.com/pytorch/pytorch/issues/86763",
-    [
-      "linux"
-    ]
-  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
