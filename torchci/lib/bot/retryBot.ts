@@ -10,22 +10,32 @@ function retryBot(app: Probot): void {
       ctx.payload.workflow_run.conclusion === "success" ||
       ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
-      !["lint", "pull"].includes(workflowName)  // only do lint and pull for now because they are fast
+      !["Lint", "pull"].includes(workflowName) // only do lint and pull for now because they are fast
     ) {
       return;
     }
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
-    const workflowJobs =
-      await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
-        owner,
-        repo,
-        run_id: runId,
-        attempt_number: attemptNumber,
-      });
 
-    const failedJobs = workflowJobs.data.jobs.filter((job) =>
+    let workflowJobs = [];
+    let total_count = 1;
+    for (let i = 0; i * 100 < total_count; i++) {
+      const data = (
+        await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
+          owner,
+          repo,
+          run_id: runId,
+          attempt_number: attemptNumber,
+          page: i + 1,
+          per_page: 100,
+        })
+      ).data;
+      total_count = data.total_count;
+      workflowJobs.push(...data.jobs);
+    }
+
+    const failedJobs = workflowJobs.filter((job) =>
       FAILURE_CONCLUSIONS.includes(job.conclusion!)
     );
     if (failedJobs.length > 5) {

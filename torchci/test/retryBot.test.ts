@@ -32,7 +32,7 @@ describe("retry-bot", () => {
 
     const scope = nock("https://api.github.com")
       .get(
-        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs`
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
       .post(
@@ -46,7 +46,7 @@ describe("retry-bot", () => {
 
   test("rerun all if lint", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
-    event.payload.workflow_run.name = "lint";
+    event.payload.workflow_run.name = "Lint";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
     workflow_jobs.jobs[0].conclusion = "failure";
     workflow_jobs.jobs[1].conclusion = "failure";
@@ -58,7 +58,7 @@ describe("retry-bot", () => {
 
     const scope = nock("https://api.github.com")
       .get(
-        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs`
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
@@ -83,7 +83,7 @@ describe("retry-bot", () => {
 
     const scope = nock("https://api.github.com")
       .get(
-        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs`
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`)
@@ -99,6 +99,39 @@ describe("retry-bot", () => {
     event.payload.workflow_run.run_attempt = 2;
 
     const scope = nock("https://api.github.com")
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+
+  test("get more pages of workflow_jobs", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "Lint";
+    const workflow_jobs1 = requireDeepCopy("./fixtures/workflow_jobs.json");
+    const workflow_jobs2 = requireDeepCopy("./fixtures/workflow_jobs.json");
+    workflow_jobs2.jobs[0].conclusion = "failure";
+    workflow_jobs2.jobs[1].conclusion = "failure";
+    workflow_jobs1["total_count"] = 140;
+    workflow_jobs2["total_count"] = 140;
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs1)
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=2&per_page=100`
+      )
+      .reply(200, workflow_jobs2)
+      .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
+      .reply(200);
 
     await probot.receive(event);
     handleScope(scope);
