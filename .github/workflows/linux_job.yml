@@ -98,10 +98,13 @@ jobs:
       - name: Run script in container
         working-directory: ${{ inputs.repository }}
         run: |
-          echo "#!/usr/bin/env bash" > "${RUNNER_TEMP}/exec_script"
-          echo "set -eou pipefail" >> "${RUNNER_TEMP}/exec_script"
-          echo 'eval "$(conda shell.bash hook)"' >> "${RUNNER_TEMP}/exec_script"
-          echo "${SCRIPT}" >> "${RUNNER_TEMP}/exec_script"
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            # shellcheck disable=SC2016
+            echo 'eval "$(conda shell.bash hook)"';
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
