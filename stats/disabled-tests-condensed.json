@@ -44,13 +44,6 @@
       "linux"
     ]
   ],
-  "test_DistributedSampler_padding (__main__.TestDistBackendWithSpawn)": [
-    "86762",
-    "https://github.com/pytorch/pytorch/issues/86762",
-    [
-      "linux"
-    ]
-  ],
   "test_Dropout1d_cpu (__main__.TestNNDeviceTypeCPU)": [
     "84186",
     "https://github.com/pytorch/pytorch/issues/84186",
