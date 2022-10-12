@@ -2075,6 +2075,13 @@
       "macos"
     ]
   ],
+  "test_self_remote_rref_as_rpc_arg_sparse (__main__.TensorPipeTensorPipeAgentRpcTest)": [
+    "86840",
+    "https://github.com/pytorch/pytorch/issues/86840",
+    [
+      "linux"
+    ]
+  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -2338,6 +2345,13 @@
   "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
     "86732",
     "https://github.com/pytorch/pytorch/issues/86732",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_float32 (__main__.TestJitCUDA)": [
+    "86839",
+    "https://github.com/pytorch/pytorch/issues/86839",
     [
       "linux"
     ]
