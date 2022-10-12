@@ -30,34 +30,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel_SyncBatchNorm_Channels_Last (__main__.TestDistBackendWithSpawn)": [
-    "86420",
-    "https://github.com/pytorch/pytorch/issues/86420",
-    [
-      "linux"
-    ]
-  ],
-  "test_DistributedDataParallel_SyncBatchNorm_Diff_Input_Sizes_Running_Value (__main__.TestDistBackendWithSpawn)": [
-    "86416",
-    "https://github.com/pytorch/pytorch/issues/86416",
-    [
-      "linux"
-    ]
-  ],
-  "test_DistributedDataParallel_SyncBatchNorm_No_Affine (__main__.TestDistBackendWithSpawn)": [
-    "86392",
-    "https://github.com/pytorch/pytorch/issues/86392",
-    [
-      "linux"
-    ]
-  ],
-  "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
-    "86391",
-    "https://github.com/pytorch/pytorch/issues/86391",
-    [
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -624,20 +596,6 @@
       "linux"
     ]
   ],
-  "test_ddp_broadcast_buffer (__main__.TestDistBackendWithSpawn)": [
-    "86397",
-    "https://github.com/pytorch/pytorch/issues/86397",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_broadcast_buffer_via_hook (__main__.TestDistBackendWithSpawn)": [
-    "86395",
-    "https://github.com/pytorch/pytorch/issues/86395",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
     "78641",
     "https://github.com/pytorch/pytorch/issues/78641",
@@ -702,13 +660,6 @@
     "https://github.com/pytorch/pytorch/issues/60290",
     []
   ],
-  "test_ddp_forward_backward_hook (__main__.TestDistBackendWithSpawn)": [
-    "86415",
-    "https://github.com/pytorch/pytorch/issues/86415",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_grad_div_uneven_inputs (__main__.TestDistBackendWithSpawn)": [
     "78685",
     "https://github.com/pytorch/pytorch/issues/78685",
@@ -723,37 +674,9 @@
       "linux"
     ]
   ],
-  "test_ddp_hook_parity_allreduce_process_group (__main__.TestDistBackendWithSpawn)": [
-    "86393",
-    "https://github.com/pytorch/pytorch/issues/86393",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_hook_parity_post_localSGD (__main__.TestDistBackendWithSpawn)": [
-    "86394",
-    "https://github.com/pytorch/pytorch/issues/86394",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_hook_parity_powerSGD (__main__.TestDistBackendWithSpawn)": [
     "77378",
     "https://github.com/pytorch/pytorch/issues/77378",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_hook_pickling_powerSGD (__main__.TestDistBackendWithSpawn)": [
-    "86390",
-    "https://github.com/pytorch/pytorch/issues/86390",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_hook_with_optimizer_parity_adam_optimize_subset_False (__main__.TestDistBackendWithSpawn)": [
-    "86398",
-    "https://github.com/pytorch/pytorch/issues/86398",
     [
       "linux"
     ]
@@ -779,23 +702,9 @@
       "linux"
     ]
   ],
-  "test_ddp_logging_data_gpu (__main__.TestDistBackendWithSpawn)": [
-    "86418",
-    "https://github.com/pytorch/pytorch/issues/86418",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_multiple_nested_unused_params_error (__main__.TestDistBackendWithSpawn)": [
     "86476",
     "https://github.com/pytorch/pytorch/issues/86476",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_new_tensor_in_fwd (__main__.TestDistBackendWithSpawn)": [
-    "86396",
-    "https://github.com/pytorch/pytorch/issues/86396",
     [
       "linux"
     ]
@@ -1339,13 +1248,6 @@
     "https://github.com/pytorch/pytorch/issues/69480",
     []
   ],
-  "test_gather_cuda (__main__.TestDistBackendWithSpawn)": [
-    "86440",
-    "https://github.com/pytorch/pytorch/issues/86440",
-    [
-      "linux"
-    ]
-  ],
   "test_gather_object (__main__.TestDistBackendWithSpawn)": [
     "86670",
     "https://github.com/pytorch/pytorch/issues/86670",
@@ -1639,13 +1541,6 @@
     "77026",
     "https://github.com/pytorch/pytorch/issues/77026",
     []
-  ],
-  "test_monitored_barrier_allreduce_hang (__main__.TestDistBackendWithSpawn)": [
-    "86419",
-    "https://github.com/pytorch/pytorch/issues/86419",
-    [
-      "linux"
-    ]
   ],
   "test_multi_drop (__main__.TestDataLoaderUtils)": [
     "82865",
@@ -2073,13 +1968,6 @@
       "mac"
     ]
   ],
-  "test_reduce_multigpu (__main__.TestDistBackendWithSpawn)": [
-    "86439",
-    "https://github.com/pytorch/pytorch/issues/86439",
-    [
-      "linux"
-    ]
-  ],
   "test_reduce_sum_cuda (__main__.TestDistBackendWithSpawn)": [
     "86639",
     "https://github.com/pytorch/pytorch/issues/86639",
@@ -2298,13 +2186,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_stateless_api_with_ddp (__main__.TestDistBackendWithSpawn)": [
-    "86442",
-    "https://github.com/pytorch/pytorch/issues/86442",
-    [
-      "linux"
     ]
   ],
   "test_success (__main__.ForkTest)": [
