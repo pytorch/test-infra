@@ -13,15 +13,18 @@ architectures:
 
 import argparse
 import os
+import sys
 import json
 
 from typing import Dict, List, Tuple, Optional
+
+mod = sys.modules[__name__]
 
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
     "nightly": ["11.6", "11.7"],
-    "test": ["10.2", "11.6"],
+    "test": ["11.6", "11.7"],
     "release": ["10.2", "11.3", "11.6"]
 }
 PRE_CXX11_ABI = "pre-cxx11"
@@ -30,7 +33,7 @@ RELEASE = "release"
 DEBUG = "debug"
 
 # By default use Nightly for CUDA arches
-CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
+mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
 LINUX_GPU_RUNNER = "ubuntu-20.04-m60"
 LINUX_CPU_RUNNER = "ubuntu-20.04"
@@ -49,7 +52,7 @@ CUDA_ENABLE = "enable"
 CUDA_DISABLE = "disable"
 
 def arch_type(arch_version: str) -> str:
-    if arch_version in CUDA_ARCHES:
+    if arch_version in mod.CUDA_ARCHES:
         return "cuda"
     elif arch_version in ROCM_ARCHES:
         return "rocm"
@@ -74,44 +77,43 @@ def validation_runner(arch_type: str, os: str) -> str:
     else: # default to linux cpu runner
         return LINUX_CPU_RUNNER
 
-WHEEL_CONTAINER_IMAGES = {
-    **{
-        gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
-        for gpu_arch in CUDA_ARCHES
-    },
-    **{
-        gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
-        for gpu_arch in ROCM_ARCHES
-    },
-    "cpu": "pytorch/manylinux-builder:cpu",
-}
-
-CONDA_CONTAINER_IMAGES = {
-    **{gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}" for gpu_arch in CUDA_ARCHES},
-    "cpu": "pytorch/conda-builder:cpu",
-}
-
-
-LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str] = {
-    **{
-        (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:cuda{gpu_arch}"
-        for gpu_arch in CUDA_ARCHES
-    },
-    **{
-        (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:cuda{gpu_arch}"
-        for gpu_arch in CUDA_ARCHES
-    },
-    **{
-        (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:rocm{gpu_arch}"
-        for gpu_arch in ROCM_ARCHES
-    },
-    **{
-        (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:rocm{gpu_arch}"
-        for gpu_arch in ROCM_ARCHES
-    },
-    ("cpu", PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu",
-    ("cpu", CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu",
-}
+def initialize_globals(channel: str):
+    mod.CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
+    mod.WHEEL_CONTAINER_IMAGES = {
+        **{
+            gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
+            for gpu_arch in mod.CUDA_ARCHES
+        },
+        **{
+            gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
+            for gpu_arch in ROCM_ARCHES
+        },
+        "cpu": "pytorch/manylinux-builder:cpu",
+    }
+    mod.CONDA_CONTAINER_IMAGES = {
+        **{gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}" for gpu_arch in mod.CUDA_ARCHES},
+        "cpu": "pytorch/conda-builder:cpu",
+    }
+    mod.LIBTORCH_CONTAINER_IMAGES: Dict[Tuple[str, str], str] = {
+        **{
+            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:cuda{gpu_arch}"
+            for gpu_arch in mod.CUDA_ARCHES
+        },
+        **{
+            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:cuda{gpu_arch}"
+            for gpu_arch in mod.CUDA_ARCHES
+        },
+        **{
+            (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:rocm{gpu_arch}"
+            for gpu_arch in ROCM_ARCHES
+        },
+        **{
+            (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:rocm{gpu_arch}"
+            for gpu_arch in ROCM_ARCHES
+        },
+        ("cpu", PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu",
+        ("cpu", CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu",
+    }
 
 
 def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
@@ -165,10 +167,10 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
 
     if with_cuda == CUDA_ENABLE:
         if os == "linux":
-            arches += CUDA_ARCHES
+            arches += mod.CUDA_ARCHES
         elif os == "windows":
             # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-            arches += list_without(CUDA_ARCHES, ["10.2"])
+            arches += list_without(mod.CUDA_ARCHES, ["10.2"])
 
     if os == "macos-arm64":
         python_versions = list_without(python_versions, ["3.7"])
@@ -187,7 +189,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     "desired_cuda": translate_desired_cuda(
                         gpu_arch_type, gpu_arch_version
                     ),
-                    "container_image": CONDA_CONTAINER_IMAGES[arch_version],
+                    "container_image": mod.CONDA_CONTAINER_IMAGES[arch_version],
                     "package_type": "conda",
                     "build_name": f"conda-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
@@ -219,11 +221,11 @@ def generate_libtorch_matrix(
 
         if with_cuda == CUDA_ENABLE:
             if os == "linux":
-                arches += CUDA_ARCHES
+                arches += mod.CUDA_ARCHES
                 arches += ROCM_ARCHES
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(CUDA_ARCHES, ["10.2"])
+                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
 
     if abi_versions is None:
         if os == "windows":
@@ -260,7 +262,7 @@ def generate_libtorch_matrix(
                         "libtorch_variant": libtorch_variant,
                         "libtorch_config": abi_version if os == "windows" else "",
                         "devtoolset": devtoolset,
-                        "container_image": LIBTORCH_CONTAINER_IMAGES[
+                        "container_image": mod.LIBTORCH_CONTAINER_IMAGES[
                             (arch_version, abi_version)
                         ]
                         if os != "windows"
@@ -286,15 +288,15 @@ def generate_wheels_matrix(
 ) -> List[Dict[str, str]]:
     package_type = "wheel"
 
-    if os == "linux":
-        # NOTE: We only build manywheel packages for linux
-        package_type = "manywheel"
-
     if python_versions is None:
         # Define default python version
         python_versions = list(FULL_PYTHON_VERSIONS)
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
+
+    if os == "linux":
+        # NOTE: We only build manywheel packages for linux
+        package_type = "manywheel"
 
     if arches is None:
         # Define default compute archivectures
@@ -302,10 +304,10 @@ def generate_wheels_matrix(
 
         if with_cuda == CUDA_ENABLE:
             if os == "linux":
-                arches += CUDA_ARCHES + ROCM_ARCHES
+                arches += mod.CUDA_ARCHES + ROCM_ARCHES
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(CUDA_ARCHES, ["10.2"])
+                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
@@ -322,7 +324,7 @@ def generate_wheels_matrix(
                     "gpu_arch_type": gpu_arch_type,
                     "gpu_arch_version": gpu_arch_version,
                     "desired_cuda": desired_cuda,
-                    "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
+                    "container_image": mod.WHEEL_CONTAINER_IMAGES[arch_version],
                     "package_type": package_type,
                     "build_name": f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}".replace(
                         ".", "_"
@@ -376,12 +378,14 @@ def main() -> None:
 
     if options.channel == "all":
         for channel in CUDA_ACRHES_DICT:
+            initialize_globals(channel)
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
                                                                            channel,
                                                                            options.with_cuda)
             )
     else:
+        initialize_globals(options.channel)
         includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
                                                                               options.channel,
                                                                               options.with_cuda)
