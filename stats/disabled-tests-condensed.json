@@ -437,6 +437,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_add_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86878",
+    "https://github.com/pytorch/pytorch/issues/86878",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addbmm_cuda_float16 (__main__.TestDecompCUDA)": [
     "86865",
     "https://github.com/pytorch/pytorch/issues/86865",
@@ -1686,6 +1693,13 @@
   "test_out_linalg_lu_cuda_float32 (__main__.TestCommonCUDA)": [
     "86777",
     "https://github.com/pytorch/pytorch/issues/86777",
+    [
+      "linux"
+    ]
+  ],
+  "test_out_linalg_lu_factor_cuda_float32 (__main__.TestCommonCUDA)": [
+    "86879",
+    "https://github.com/pytorch/pytorch/issues/86879",
     [
       "linux"
     ]
