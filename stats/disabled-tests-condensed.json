@@ -253,6 +253,13 @@
       "linux"
     ]
   ],
+  "test_binary_op_scalar_fastpath__foreach_div_cuda_int64 (__main__.TestForeachCUDA)": [
+    "86892",
+    "https://github.com/pytorch/pytorch/issues/86892",
+    [
+      "linux"
+    ]
+  ],
   "test_binary_op_scalar_fastpath__foreach_div_cuda_int8 (__main__.TestForeachCUDA)": [
     "84047",
     "https://github.com/pytorch/pytorch/issues/84047",
@@ -951,6 +958,13 @@
     "https://github.com/pytorch/pytorch/issues/71248",
     [
       "linux"
+    ]
+  ],
+  "test_dtypes__refs_sinh_cuda (__main__.TestCommonCUDA)": [
+    "86894",
+    "https://github.com/pytorch/pytorch/issues/86894",
+    [
+      "rocm"
     ]
   ],
   "test_dynamic_rpc_existing_rank_can_communicate_with_new_rank (__main__.TensorPipeTensorPipeAgentRpcTest)": [
@@ -2478,6 +2492,13 @@
   "test_vmapjvpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86885",
     "https://github.com/pytorch/pytorch/issues/86885",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86893",
+    "https://github.com/pytorch/pytorch/issues/86893",
     [
       "linux"
     ]
