@@ -521,6 +521,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_broadcast_tensors_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "86886",
+    "https://github.com/pytorch/pytorch/issues/86886",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "84150",
     "https://github.com/pytorch/pytorch/issues/84150",
@@ -556,11 +563,32 @@
       "win"
     ]
   ],
+  "test_comprehensive_fft_ihfft2_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86883",
+    "https://github.com/pytorch/pytorch/issues/86883",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_index_reduce_cuda_float32 (__main__.TestDecompCUDA)": [
+    "86882",
+    "https://github.com/pytorch/pytorch/issues/86882",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
     [
       "linux"
+    ]
+  ],
+  "test_comprehensive_linalg_matrix_norm_cuda_complex128 (__main__.TestDecompCUDA)": [
+    "86884",
+    "https://github.com/pytorch/pytorch/issues/86884",
+    [
+      "rocm"
     ]
   ],
   "test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA)": [
@@ -2377,6 +2405,13 @@
       "linux"
     ]
   ],
+  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86887",
+    "https://github.com/pytorch/pytorch/issues/86887",
+    [
+      "linux"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_float32 (__main__.TestJitCUDA)": [
     "86441",
     "https://github.com/pytorch/pytorch/issues/86441",
@@ -2436,6 +2471,13 @@
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86733",
     "https://github.com/pytorch/pytorch/issues/86733",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapjvpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86885",
+    "https://github.com/pytorch/pytorch/issues/86885",
     [
       "linux"
     ]
