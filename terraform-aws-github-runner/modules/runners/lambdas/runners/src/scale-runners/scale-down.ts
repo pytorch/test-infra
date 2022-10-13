@@ -52,28 +52,32 @@ export async function scaleDown(): Promise<void> {
 
       const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> = [];
       for (const ec2runner of runners) {
-        metrics.runnerFound(ec2runner);
-
         // REPO assigned runners
         if (ec2runner.repo !== undefined) {
           const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
           // if configured to repo, don't mess with organization runners
-          if (!Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-            if (ghRunner === undefined) {
-              ghRunnersRemovable.unshift([ec2runner, ghRunner]);
-            } else {
-              ghRunnersRemovable.push([ec2runner, ghRunner]);
+          if (!Config.Instance.enableOrganizationRunners) {
+            metrics.runnerFound(ec2runner);
+            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+              if (ghRunner === undefined) {
+                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+              } else {
+                ghRunnersRemovable.push([ec2runner, ghRunner]);
+              }
             }
           }
           // ORG assigned runners
         } else if (ec2runner.org !== undefined) {
           const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
           // if configured to org, don't mess with repo runners
-          if (Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-            if (ghRunner === undefined) {
-              ghRunnersRemovable.unshift([ec2runner, ghRunner]);
-            } else {
-              ghRunnersRemovable.push([ec2runner, ghRunner]);
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnerFound(ec2runner);
+            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+              if (ghRunner === undefined) {
+                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+              } else {
+                ghRunnersRemovable.push([ec2runner, ghRunner]);
+              }
             }
           }
         }
