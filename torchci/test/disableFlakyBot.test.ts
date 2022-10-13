@@ -413,6 +413,29 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
   });
 
+  test("getPlatformsAffected: should correctly triage dyanmo", async () => {
+    let workflowJobs = ["linux rocm", "dynamo linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "rocm",
+      "dynamo",
+    ]);
+
+    workflowJobs = ["dynamo linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "dynamo",
+    ]);
+
+    workflowJobs = ["linux rocm", "dynamo linux", "linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "linux",
+      "rocm",
+      "dynamo",
+    ]);
+  });
+
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
       "Platforms: "
