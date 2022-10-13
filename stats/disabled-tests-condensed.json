@@ -1698,26 +1698,6 @@
       "linux"
     ]
   ],
-  "test_nvfuser_extremal_values_native_batch_norm_cuda_bfloat16 (__main__.TestCudaFuserOpInfoCUDA)": [
-    "86179",
-    "https://github.com/pytorch/pytorch/issues/86179",
-    []
-  ],
-  "test_nvfuser_extremal_values_native_batch_norm_cuda_float16 (__main__.TestCudaFuserOpInfoCUDA)": [
-    "86178",
-    "https://github.com/pytorch/pytorch/issues/86178",
-    []
-  ],
-  "test_nvfuser_extremal_values_native_batch_norm_cuda_float32 (__main__.TestCudaFuserOpInfoCUDA)": [
-    "86177",
-    "https://github.com/pytorch/pytorch/issues/86177",
-    []
-  ],
-  "test_nvfuser_extremal_values_native_batch_norm_cuda_float64 (__main__.TestCudaFuserOpInfoCUDA)": [
-    "86176",
-    "https://github.com/pytorch/pytorch/issues/86176",
-    []
-  ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
