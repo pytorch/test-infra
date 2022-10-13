@@ -888,32 +888,44 @@ describe('scale-down', () => {
   describe('isRunnerRemovable', () => {
     describe('ghRunner === undefined', () => {
       it('launchTime === undefined', () => {
-        const response = isRunnerRemovable(undefined, {
-          instanceId: 'AGDGADUWG113',
-          launchTime: undefined,
-        });
+        const response = isRunnerRemovable(
+          undefined,
+          {
+            instanceId: 'AGDGADUWG113',
+            launchTime: undefined,
+          },
+          metrics,
+        );
         expect(response).toEqual(false);
       });
 
       it('exceeded minimum time', () => {
-        const response = isRunnerRemovable(undefined, {
-          instanceId: 'AGDGADUWG113',
-          launchTime: moment(new Date())
-            .utc()
-            .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-            .toDate(),
-        });
+        const response = isRunnerRemovable(
+          undefined,
+          {
+            instanceId: 'AGDGADUWG113',
+            launchTime: moment(new Date())
+              .utc()
+              .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+              .toDate(),
+          },
+          metrics,
+        );
         expect(response).toEqual(true);
       });
 
       it('dont exceeded minimum time', () => {
-        const response = isRunnerRemovable(undefined, {
-          instanceId: 'AGDGADUWG113',
-          launchTime: moment(new Date())
-            .utc()
-            .subtract(minimumRunningTimeInMinutes - 5, 'minutes')
-            .toDate(),
-        });
+        const response = isRunnerRemovable(
+          undefined,
+          {
+            instanceId: 'AGDGADUWG113',
+            launchTime: moment(new Date())
+              .utc()
+              .subtract(minimumRunningTimeInMinutes - 5, 'minutes')
+              .toDate(),
+          },
+          metrics,
+        );
         expect(response).toEqual(false);
       });
     });
@@ -928,6 +940,7 @@ describe('scale-down', () => {
             instanceId: 'AGDGADUWG113',
             launchTime: undefined,
           },
+          metrics,
         );
         expect(response).toEqual(false);
       });
@@ -941,6 +954,7 @@ describe('scale-down', () => {
             instanceId: 'AGDGADUWG113',
             launchTime: undefined,
           },
+          metrics,
         );
         expect(response).toEqual(false);
       });
@@ -957,6 +971,7 @@ describe('scale-down', () => {
               .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
               .toDate(),
           },
+          metrics,
         );
         expect(response).toEqual(true);
       });
@@ -973,6 +988,7 @@ describe('scale-down', () => {
               .subtract(minimumRunningTimeInMinutes - 5, 'minutes')
               .toDate(),
           },
+          metrics,
         );
         expect(response).toEqual(false);
       });

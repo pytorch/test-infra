@@ -52,11 +52,13 @@ export async function scaleDown(): Promise<void> {
 
       const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> = [];
       for (const ec2runner of runners) {
+        metrics.runnerFound(ec2runner);
+
         // REPO assigned runners
         if (ec2runner.repo !== undefined) {
           const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
           // if configured to repo, don't mess with organization runners
-          if (!Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner)) {
+          if (!Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner, metrics)) {
             if (ghRunner === undefined) {
               ghRunnersRemovable.unshift([ec2runner, ghRunner]);
             } else {
@@ -67,7 +69,7 @@ export async function scaleDown(): Promise<void> {
         } else if (ec2runner.org !== undefined) {
           const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
           // if configured to org, don't mess with repo runners
-          if (Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner)) {
+          if (Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner, metrics)) {
             if (ghRunner === undefined) {
               ghRunnersRemovable.unshift([ec2runner, ghRunner]);
             } else {
@@ -213,11 +215,20 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
 }
 
-export function isRunnerRemovable(ghRunner: GhRunner | undefined, ec2runner: RunnerInfo): boolean {
+export function isRunnerRemovable(
+  ghRunner: GhRunner | undefined,
+  ec2runner: RunnerInfo,
+  metrics: ScaleDownMetrics,
+): boolean {
   if (ghRunner !== undefined && ghRunner.busy) {
     return false;
   }
-  return runnerMinimumTimeExceeded(ec2runner);
+  if (!runnerMinimumTimeExceeded(ec2runner)) {
+    metrics.runnerLessMinimumTime(ec2runner);
+    return false;
+  }
+  metrics.runnerIsRemovable(ec2runner);
+  return true;
 }
 
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
