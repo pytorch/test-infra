@@ -26,7 +26,7 @@ WITH any_red as (
             WHERE
                 job.name != 'ciflow_should_run'
                 AND job.name != 'generate-test-matrix'
-          		AND (
+          		AND ( -- Limit it to workflows which block viable/strict upgrades
                   workflow.name in ('Lint', 'pull', 'trunk')
                   OR workflow.name like 'linux-binary%'
                   OR workflow.name like 'windows-binary%'
