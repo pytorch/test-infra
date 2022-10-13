@@ -30,6 +30,20 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel_SyncBatchNorm_Diff_Input_Sizes_Running_Value (__main__.TestDistBackendWithSpawn)": [
+    "86416",
+    "https://github.com/pytorch/pytorch/issues/86416",
+    [
+      "linux"
+    ]
+  ],
+  "test_DistributedDataParallel_SyncBatchNorm_Diff_Input_Sizes_gradient (__main__.TestDistBackendWithSpawn)": [
+    "86862",
+    "https://github.com/pytorch/pytorch/issues/86862",
+    [
+      "linux"
+    ]
+  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -423,9 +437,23 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addbmm_cuda_float16 (__main__.TestDecompCUDA)": [
+    "86865",
+    "https://github.com/pytorch/pytorch/issues/86865",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addbmm_cuda_float64 (__main__.TestDecompCUDA)": [
     "86574",
     "https://github.com/pytorch/pytorch/issues/86574",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_addcdiv_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "86866",
+    "https://github.com/pytorch/pytorch/issues/86866",
     [
       "rocm"
     ]
@@ -437,9 +465,30 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addmm_cuda_float32 (__main__.TestDecompCUDA)": [
+    "86868",
+    "https://github.com/pytorch/pytorch/issues/86868",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addmv_cuda_complex128 (__main__.TestDecompCUDA)": [
     "86578",
     "https://github.com/pytorch/pytorch/issues/86578",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_addmv_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86867",
+    "https://github.com/pytorch/pytorch/issues/86867",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_addr_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "86869",
+    "https://github.com/pytorch/pytorch/issues/86869",
     [
       "rocm"
     ]
@@ -1019,6 +1068,13 @@
   "test_first_argument_index (__main__.SpawnTest)": [
     "73266",
     "https://github.com/pytorch/pytorch/issues/73266",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_grad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86864",
+    "https://github.com/pytorch/pytorch/issues/86864",
     [
       "linux"
     ]
@@ -1886,6 +1942,13 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
+  "test_quick_nn_functional_prelu_cuda_float64 (__main__.TestDecompCUDA)": [
+    "86870",
+    "https://github.com/pytorch/pytorch/issues/86870",
+    [
+      "rocm"
+    ]
+  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "70516",
     "https://github.com/pytorch/pytorch/issues/70516",
@@ -1903,6 +1966,13 @@
     "https://github.com/pytorch/pytorch/issues/75168",
     [
       "mac"
+    ]
+  ],
+  "test_reduce_multigpu (__main__.TestDistBackendWithSpawn)": [
+    "86439",
+    "https://github.com/pytorch/pytorch/issues/86439",
+    [
+      "linux"
     ]
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
@@ -2257,6 +2327,13 @@
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
     []
+  ],
+  "test_undefined_grad_parity_unused_parameters (__main__.TestDistBackendWithSpawn)": [
+    "86863",
+    "https://github.com/pytorch/pytorch/issues/86863",
+    [
+      "linux"
+    ]
   ],
   "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
     "86655",
