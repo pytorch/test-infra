@@ -130,13 +130,24 @@ jobs:
         if: ${{ inputs.repository == 'pytorch/audio' }}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
+          GPU_ARCH: ${{ matrix.gpu_arch_type }}
+          DESIRED_CUDA: ${{ matrix.desired_cuda }}
+          GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
         run: |
           source "${BUILD_ENV_FILE}"
           CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"
           echo "$CONDA_OUTPUT_PATH"
           BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
           echo "$BINARY_NAME"
-          ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
+          if [[ ${GPU_ARCH} = "cpu" ]]
+            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} pytorch
+          elif [[ ${GPU_ARCH} = "cuda" && (${DESIRED_CUDA} = "cu116" || ${DESIRED_CUDA} = "cu117") ]]
+            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} -c nvidia pytorch pytorch-cuda=${GPU_ARCH_VERSION}
+          elif [[ ${GPU_ARCH} = "cuda" ]]
+            conda install -v -y -c pytorch-${UPLOAD_CHANNEL} pytorch cudatoolkit=${GPU_ARCH_VERSION}
+          else
+            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} pytorch
+          fi
           ${CONDA_RUN} conda install --offline "$BINARY_NAME"
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
       - name: Upload package to conda
