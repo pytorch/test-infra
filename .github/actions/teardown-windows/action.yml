@@ -37,13 +37,14 @@ runs:
       shell: powershell
       if: always()
       run: |
-        .github\scripts\kill_active_ssh_sessions.ps1
+        function Get-SSH-Sessions {
+            Get-Process sshd -IncludeUserName |
+                Where-Object UserName -notLike "*SYSTEM*" |
+                Select-Object Id
+        }
 
-    - name: Cleanup workspace
-      if: always()
-      shell: bash
-      env:
-        EXTRA_DELETE_DIR: ${{ inputs.extra-delete-dir }}
-      run: |
-        [ ! -z "${EXTRA_DELETE_DIR}" ]  || rm -rf "${EXTRA_DELETE_DIR}"
-        rm -rf ./*
+        $runningSessions = Get-SSH-Sessions
+
+        foreach ($session in $runningSessions) {
+            Stop-Process -id $session.Id
+        }
