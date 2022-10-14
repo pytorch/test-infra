@@ -43,7 +43,7 @@ on:
 # Set default shell to bash
 defaults:
   run:
-    shell: bash -l
+    shell: bash
 
 jobs:
   job:
