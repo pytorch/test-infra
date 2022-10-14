@@ -42,4 +42,4 @@ runs:
       with:
         miniconda-version: "latest"
         python-version: 3.9
-        activate-environment: "base"
+        activate-environment: ${{ env.RUNNER_TEMP }}/base
