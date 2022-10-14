@@ -14,4 +14,4 @@ the moment, so additional steps are needed to get the new deployed version to pr
 4. Deploy the API change to the `default` stage (maybe we should call it `prod`)
 5. Go back to the lambda [monitoring page](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/github-status-test?tab=monitoring) to make sure that:
    1. The number of invocations remain the same
-   2. The new version shows up in the logs stream indicating that it's not in used. Also Looking into the Cloudwatch log to confirm that there is nothing wrong there
+   2. The new version shows up in the logs stream indicating that it's not in used. Also look into the Cloudwatch log to confirm that there is nothing wrong there
