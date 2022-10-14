@@ -65,7 +65,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
-      - name: Setup Linux
+      - name: Setup Windows
         uses: ./test-infra/.github/actions/setup-windows
 
       - name: Setup SSH
@@ -89,7 +89,7 @@ jobs:
       - name: Run script
         working-directory: ${{ inputs.repository }}
         run: |
-          bash -eou pipefail "${SCRIPT}"
+          bash.exe -e -u -o pipefail "${SCRIPT}"
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         working-directory: ${{ inputs.repository }}
