@@ -40,11 +40,6 @@ on:
         default: ""
         type: string
 
-# Set default shell to bash
-defaults:
-  run:
-    shell: bash
-
 jobs:
   job:
     env:
@@ -83,13 +78,12 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Run script
+        shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         run: |
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
-            # Source conda profile to add conda to our main path
-            echo "[[ -e /c/Jenkins/Miniconda3/etc/profile.d/conda.sh ]] && . /c/Jenkins/Miniconda3/etc/profile.d/conda.sh"
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           bash "${RUNNER_TEMP}/exec_script"
