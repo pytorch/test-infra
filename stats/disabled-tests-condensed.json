@@ -30,13 +30,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel_SyncBatchNorm_Diff_Input_Sizes_Running_Value (__main__.TestDistBackendWithSpawn)": [
-    "86416",
-    "https://github.com/pytorch/pytorch/issues/86416",
-    [
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -260,6 +253,27 @@
       "linux"
     ]
   ],
+  "test_binary_op_scalar_fastpath__foreach_div_cuda_uint8 (__main__.TestForeachCUDA)": [
+    "86999",
+    "https://github.com/pytorch/pytorch/issues/86999",
+    [
+      "linux"
+    ]
+  ],
+  "test_binary_op_scalar_fastpath__foreach_mul_cuda_bfloat16 (__main__.TestForeachCUDA)": [
+    "86996",
+    "https://github.com/pytorch/pytorch/issues/86996",
+    [
+      "linux"
+    ]
+  ],
+  "test_binary_op_scalar_fastpath__foreach_sub_cuda_int8 (__main__.TestForeachCUDA)": [
+    "86997",
+    "https://github.com/pytorch/pytorch/issues/86997",
+    [
+      "linux"
+    ]
+  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)": [
     "82168",
     "https://github.com/pytorch/pytorch/issues/82168",
@@ -270,6 +284,13 @@
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
     "83029",
     "https://github.com/pytorch/pytorch/issues/83029",
+    [
+      "linux"
+    ]
+  ],
+  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int8 (__main__.TestForeachCUDA)": [
+    "86998",
+    "https://github.com/pytorch/pytorch/issues/86998",
     [
       "linux"
     ]
@@ -2023,13 +2044,6 @@
       "mac"
     ]
   ],
-  "test_reduce_multigpu (__main__.TestDistBackendWithSpawn)": [
-    "86439",
-    "https://github.com/pytorch/pytorch/issues/86439",
-    [
-      "linux"
-    ]
-  ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
     "86735",
     "https://github.com/pytorch/pytorch/issues/86735",
@@ -2446,6 +2460,13 @@
       "linux"
     ]
   ],
+  "test_vmap_autograd_grad_linalg_lu_factor_cuda_float64 (__main__.TestOperatorsCUDA)": [
+    "87000",
+    "https://github.com/pytorch/pytorch/issues/87000",
+    [
+      "linux"
+    ]
+  ],
   "test_vmap_autograd_grad_linalg_lu_factor_ex_cuda_float64 (__main__.TestOperatorsCUDA)": [
     "86624",
     "https://github.com/pytorch/pytorch/issues/86624",
@@ -2463,6 +2484,13 @@
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86770",
     "https://github.com/pytorch/pytorch/issues/86770",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapjvpall_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "87001",
+    "https://github.com/pytorch/pytorch/issues/87001",
     [
       "linux"
     ]
