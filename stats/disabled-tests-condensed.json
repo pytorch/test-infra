@@ -550,7 +550,9 @@
     "https://github.com/pytorch/pytorch/issues/84213",
     [
       "mac",
-      "macos"
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_comprehensive_column_stack_cpu_bfloat16 (__main__.TestDecompCPU)": [
@@ -1153,7 +1155,9 @@
     "76429",
     "https://github.com/pytorch/pytorch/issues/76429",
     [
-      "linux"
+      "linux",
+      "win",
+      "windows"
     ]
   ],
   "test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA)": [
