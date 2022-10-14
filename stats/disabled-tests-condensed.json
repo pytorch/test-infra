@@ -981,6 +981,14 @@
     "https://github.com/pytorch/pytorch/issues/74868",
     []
   ],
+  "test_embedding_bag_device_cpu_int32_int64_float16 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
+    "86982",
+    "https://github.com/pytorch/pytorch/issues/86982",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_embedding_bag_device_cpu_int64_int64_float16 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
     "86638",
     "https://github.com/pytorch/pytorch/issues/86638",
