@@ -4,7 +4,7 @@
 
 The origin of cert-manager.yaml is `https://github.com/cert-manager/cert-manager/releases/download/v1.9.1/cert-manager.yaml`.
 
-The origin of actions-runner-controller.yaml is `https://github.com/actions-runner-controller/actions-runner-controller/releases/download/v0.22.0/actions-runner-controller.yaml`.
+The origin of actions-runner-controller.yaml is `https://github.com/actions-runner-controller/actions-runner-controller/releases/download/v0.26.0/actions-runner-controller.yaml`.
 
 The origin of daemonset-preloaded-latest.yaml is `https://raw.githubusercontent.com/GoogleCloudPlatform/container-engine-accelerators/master/nvidia-driver-installer/cos/daemonset-preloaded-latest.yaml`. We modified it to install the latest Nvidia driver instead of the stable version.
 
