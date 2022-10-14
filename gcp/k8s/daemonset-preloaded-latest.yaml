@@ -101,7 +101,7 @@ spec:
           mountPath: /root
         - name: cos-tools
           mountPath: /build/cos-tools
-        command: ['/cos-gpu-installer', 'install', '--version=latest']
+        command: ['/cos-gpu-installer', 'install', '--version=510.47.03']
       containers:
       - image: "gcr.io/google-containers/pause:2.0"
         name: pause
