@@ -37,13 +37,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel_SyncBatchNorm_Diff_Input_Sizes_gradient (__main__.TestDistBackendWithSpawn)": [
-    "86862",
-    "https://github.com/pytorch/pytorch/issues/86862",
-    [
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
@@ -2382,13 +2375,6 @@
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
     []
-  ],
-  "test_undefined_grad_parity_unused_parameters (__main__.TestDistBackendWithSpawn)": [
-    "86863",
-    "https://github.com/pytorch/pytorch/issues/86863",
-    [
-      "linux"
-    ]
   ],
   "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
     "86655",
