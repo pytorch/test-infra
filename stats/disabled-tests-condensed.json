@@ -2157,13 +2157,6 @@
       "linux"
     ]
   ],
-  "test_serialization_backwards_compat (__main__.TestOldSerialization)": [
-    "86417",
-    "https://github.com/pytorch/pytorch/issues/86417",
-    [
-      "linux"
-    ]
-  ],
   "test_serialization_map_location (__main__.TestOldSerialization)": [
     "81685",
     "https://github.com/pytorch/pytorch/issues/81685",
