@@ -1,0 +1,119 @@
+name: Run a Windows job
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        description: 'Script to utilize'
+        default: "python setup.py bdist_wheel"
+        type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 30
+        type: number
+      runner:
+        description: 'Runner type to utilize'
+        default: "windows.4xlarge"
+        type: string
+      upload-artifact:
+        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      download-artifact:
+        description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: ""
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+
+# Set default shell to bash
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  job:
+    env:
+      REPOSITORY: ${{ inputs.repository || github.repository }}
+      SCRIPT: ${{ inputs.script }}
+    runs-on: ${{ inputs.runner }}
+    # TODO: Eventually this should run in a container, we need to make a container that matches up
+    #       with the users for our self hosted runner infra since using actions/checkout with a root
+    #       user in a container will make it so that the directories will need to be chowned to the
+    #       ec2-user prior to a checkout being able to be run by ec2-user
+    timeout-minutes: ${{ inputs.timeout }}
+    steps:
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - name: Setup Linux
+        uses: ./test-infra/.github/actions/setup-windows
+
+      - name: Setup SSH
+        uses: ./test-infra/.github/actions/setup-ssh
+
+      - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          path: ${{ inputs.repository || github.repository }}
+
+      - name: Download artifacts (if any)
+        uses: actions/download-artifact@v3
+        if: ${{ inputs.download-artifact != '' }}
+        with:
+          name: ${{ inputs.download-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Run script
+        working-directory: ${{ inputs.repository }}
+        run: |
+          bash -eou pipefail "${SCRIPT}"
+
+      - name: Check if there are potential artifacts and move them to the correct artifact location
+        working-directory: ${{ inputs.repository }}
+        id: check-artifacts
+        if: ${{ inputs.upload-artifact != '' }}
+        env:
+          UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
+        run: |
+          # If the default execution path is followed then we should get a wheel in the dist/ folder
+          # attempt to just grab whatever is in there and scoop it all up
+          if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+            mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+          fi
+          # Set to fail upload step if there are no files for upload and expected files for upload
+          echo '::set-output name=if-no-files-found::error'
+
+      - name: Upload artifacts to GitHub (if any)
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.upload-artifact != '' }}
+        with:
+          name: ${{ inputs.upload-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
+      - name: Teardown Windows
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-windows
