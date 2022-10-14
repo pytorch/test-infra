@@ -63,8 +63,13 @@ spec:
     # # In case the scale target is RunnerSet:
     # kind: RunnerSet
     name: gha-gcp-a100-runner
-  # use webhook-based scaling trigger
+  # use pull-based scaling trigger
   metrics:
     - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
       repositoryNames:
       - benchmark
+  # use webhook based scaling trigger
+  # scaleUpTriggers:
+  #   - githubEvent:
+  #       workflowJob: {}
+  #     duration: "10m"
