@@ -51,10 +51,6 @@ jobs:
       REPOSITORY: ${{ inputs.repository || github.repository }}
       SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
-    # TODO: Eventually this should run in a container, we need to make a container that matches up
-    #       with the users for our self hosted runner infra since using actions/checkout with a root
-    #       user in a container will make it so that the directories will need to be chowned to the
-    #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
@@ -92,6 +88,8 @@ jobs:
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
+            # Source conda profile to add conda to our main path
+            echo "[[ -e /c/Jenkins/Miniconda3/etc/profile.d/conda.sh ]] && . /c/Jenkins/Miniconda3/etc/profile.d/conda.sh"
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           bash "${RUNNER_TEMP}/exec_script"

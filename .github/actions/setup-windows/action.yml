@@ -36,9 +36,3 @@ runs:
       shell: powershell
       run: |
         Add-MpPreference -ExclusionPath $(Get-Location).tostring() -ErrorAction Ignore
-
-    - name: Setup miniconda (for pytorch_pkg_helpers)
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        miniconda-version: "latest"
-        python-version: 3.9
