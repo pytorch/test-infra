@@ -88,9 +88,13 @@ jobs:
 
       - name: Run script
         working-directory: ${{ inputs.repository }}
-        shell: powershell
         run: |
-          'C:\Program Files\Git\usr\bin\bash.EXE' -e -u -o pipefail "${SCRIPT}"
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          bash "${RUNNER_TEMP}/exec_script"
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         working-directory: ${{ inputs.repository }}
