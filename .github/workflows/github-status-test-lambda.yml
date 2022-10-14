@@ -34,7 +34,7 @@ jobs:
             set -eux
             python3 -m pip install awscli
 
-      - name: Deploy the lambda
+      - name: Deploy the lambda (Disclaimer: This only makes the lambda ready. Manual verification steps are still required to get it into prod because of the lack of testing here. Checkout aws/lambda/github-status-test/README.md to see how to get the deployed lambda to prod)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
