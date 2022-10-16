@@ -33,6 +33,9 @@ spec:
           hostPath:
             path: /dev/nvidiactl
             type: CharDevice
+        - name: dshm
+          emptyDir:
+            medium: Memory
       volumeMounts:
         - mountPath: /usr/local/nvidia/lib64
           name: nvidia-lib
@@ -44,6 +47,8 @@ spec:
           name: nvidia-uvm
         - mountPath: /dev/nvidiactl
           name: nvidia-ctl
+        - mountPath: /dev/shm
+          name: dshm
       resources:
         limits:
           nvidia.com/gpu: 1 # requesting 1 GPU
