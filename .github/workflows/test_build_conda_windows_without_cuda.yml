@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_conda_windows.yml
+      - .github/workflows/test_build_conda_windows_without_cuda.yml
       - .github/workflows/build_conda_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
   workflow_dispatch:
@@ -17,22 +17,23 @@ jobs:
       os: windows
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
   test:
     needs: generate-matrix
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Skip torchaudio and torchvision for now.
-          # - repository: pytorch/audio
-          #   pre-script: packaging/pre_build_script_wheel.sh
-          #   post-script: packaging/post_build_script_wheel.sh
-          #   conda-package-directory: packaging/torchaudio
-          # - repository: pytorch/vision
-          #   pre-script: ""
-          #   post-script: ""
-          #   package-name: torchvision
-          #   conda-package-directory: packaging/torchvision
+          - repository: pytorch/audio
+            pre-script: ""
+            post-script: ""
+            package-name: torchaudio
+            conda-package-directory: packaging/torchaudio
+          - repository: pytorch/vision
+            pre-script: ""
+            post-script: ""
+            package-name: torchvision
+            conda-package-directory: packaging/torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
