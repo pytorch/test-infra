@@ -12,7 +12,6 @@ flaky_tests AS (
         commons.issues
     WHERE
         issues.title LIKE '%DISABLED%'
-        AND issues.state = :state
     GROUP BY
         granularity_bucket
 ),
@@ -20,7 +19,7 @@ total_flaky_tests AS (
     SELECT
         granularity_bucket,
         number_of_new_flaky_tests,
-        SUM(number_of_new_flaky_tests) OVER (ORDER BY granularity_bucket) AS number_of_open_flaky_tests
+        SUM(number_of_new_flaky_tests) OVER (ORDER BY granularity_bucket) AS total_number_of_flaky_tests
     FROM
         flaky_tests
 )
