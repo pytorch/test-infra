@@ -56,28 +56,22 @@ export async function scaleDown(): Promise<void> {
         if (ec2runner.repo !== undefined) {
           const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
           // if configured to repo, don't mess with organization runners
-          if (!Config.Instance.enableOrganizationRunners) {
-            metrics.runnerFound(ec2runner);
-            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-              if (ghRunner === undefined) {
-                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
-              } else {
-                ghRunnersRemovable.push([ec2runner, ghRunner]);
-              }
+          if (!Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner)) {
+            if (ghRunner === undefined) {
+              ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+            } else {
+              ghRunnersRemovable.push([ec2runner, ghRunner]);
             }
           }
           // ORG assigned runners
         } else if (ec2runner.org !== undefined) {
           const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
           // if configured to org, don't mess with repo runners
-          if (Config.Instance.enableOrganizationRunners) {
-            metrics.runnerFound(ec2runner);
-            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-              if (ghRunner === undefined) {
-                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
-              } else {
-                ghRunnersRemovable.push([ec2runner, ghRunner]);
-              }
+          if (Config.Instance.enableOrganizationRunners && isRunnerRemovable(ghRunner, ec2runner)) {
+            if (ghRunner === undefined) {
+              ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+            } else {
+              ghRunnersRemovable.push([ec2runner, ghRunner]);
             }
           }
         }
@@ -219,20 +213,11 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
 }
 
-export function isRunnerRemovable(
-  ghRunner: GhRunner | undefined,
-  ec2runner: RunnerInfo,
-  metrics: ScaleDownMetrics,
-): boolean {
+export function isRunnerRemovable(ghRunner: GhRunner | undefined, ec2runner: RunnerInfo): boolean {
   if (ghRunner !== undefined && ghRunner.busy) {
     return false;
   }
-  if (!runnerMinimumTimeExceeded(ec2runner)) {
-    metrics.runnerLessMinimumTime(ec2runner);
-    return false;
-  }
-  metrics.runnerIsRemovable(ec2runner);
-  return true;
+  return runnerMinimumTimeExceeded(ec2runner);
 }
 
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {

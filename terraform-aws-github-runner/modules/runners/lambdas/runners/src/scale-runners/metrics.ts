@@ -590,12 +590,6 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
-  runnerIsRemovable(ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.removable`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.removable`);
-  }
-
-  /* istanbul ignore next */
   runnerFound(ec2Runner: RunnerInfo) {
     this.countEntry(`run.ec2runners.total`);
     if (ec2Runner.runnerType !== undefined) {
