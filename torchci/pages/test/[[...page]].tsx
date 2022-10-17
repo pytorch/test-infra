@@ -13,7 +13,7 @@ import { useState } from "react";
 import fetchS3Links from "lib/fetchS3Links";
 import { TimeSeriesPanelWithData } from "components/metrics/panels/TimeSeriesPanel";
 
-const LASTEST_N_RUNS = 20;
+const LASTEST_N_RUNS = 50;
 const ROW_HEIGHT = 240;
 const TO_GB = 1024 * 1024 * 1024;
 
@@ -148,21 +148,21 @@ function GetUsage({
 }
 
 function GetJobs({
-  workflowName,
   jobName,
+  workflowName,
   testFile,
   testClass,
-  queryParams,
   workflowId,
   jobId,
+  queryParams,
 }: {
-  workflowName: string;
   jobName: string;
-  testFile: string;
-  testClass: string;
-  queryParams: RocksetParam[];
+  workflowName?: string;
+  testFile?: string;
+  testClass?: string;
   workflowId?: string;
   jobId?: string;
+  queryParams: RocksetParam[];
 }) {
   const queryCollection = "commons";
   const queryName = "test_insights_latest_runs";
@@ -222,7 +222,7 @@ export default function Page() {
   const workflowId = router.query.workflowId as string;
   const jobId = router.query.jobId as string;
 
-  if (workflowName === undefined || jobName === undefined || testFile === undefined || testClass === undefined) {
+  if (jobName === undefined) {
     return;
   }
 
@@ -266,13 +266,13 @@ export default function Page() {
 
   return (
     <GetJobs
-      workflowName={workflowName}
       jobName={jobName}
+      workflowName={workflowName}
       testFile={testFile}
       testClass={testClass}
-      queryParams={queryParams}
       workflowId={workflowId}
       jobId={jobId}
+      queryParams={queryParams}
     />
   );
 }

@@ -29,7 +29,7 @@ function getWorkflowJobSummary(job: JobData) {
     durationInfo = <><i>Duration:</i> {Math.round((job.durationS / 60))} mins</>
   }
 
-  var separator = (queueTimeInfo && durationInfo) ? ", ": ""
+  var separator = (queueTimeInfo && durationInfo) ? ", ": "";
 
   return <>
     <JobSummary job={job} />
@@ -38,7 +38,7 @@ function getWorkflowJobSummary(job: JobData) {
       &nbsp;&nbsp;&nbsp;&nbsp;
       {queueTimeInfo}{separator}{durationInfo}
     </small>
-  </>
+  </>;
 }
 
 export default function WorkflowBox({
