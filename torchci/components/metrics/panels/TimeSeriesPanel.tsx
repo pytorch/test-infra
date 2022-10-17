@@ -104,6 +104,80 @@ export function seriesWithInterpolatedTimes(
   });
 }
 
+export function TimeSeriesPanelWithData({
+  // The time series data to be displayed
+  data,
+  // Define how the data is presented https://echarts.apache.org/en/option.html#series-line
+  series,
+  // Human-readable title of the panel.
+  title,
+  // What field name to group by. Each unique value in this field will show up
+  // as its own line.
+  groupByFieldName,
+  // Callback to render the y axis value in some nice way.
+  yAxisRenderer,
+  // What label to put on the y axis.
+  yAxisLabel,
+  // Additional EChartsOption (ex max y value)
+  additionalOptions,
+}: {
+  data: any;
+  series: any;
+  title: string;
+  groupByFieldName?: string;
+  yAxisRenderer: (value: any) => string;
+  yAxisLabel?: string;
+  additionalOptions?: EChartsOption;
+}) {
+  // Add extra padding when the legend is active
+  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
+  const title_padding = yAxisLabel ? 65 : 48;
+  const options: EChartsOption = _.merge(
+    {
+      title: { text: title },
+      grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
+      dataset: { source: data },
+      xAxis: { type: "time" },
+      yAxis: {
+        name: yAxisLabel,
+        type: "value",
+        axisLabel: {
+          formatter: yAxisRenderer,
+        },
+      },
+      // @ts-ignore
+      series,
+      legend: {
+        orient: "vertical",
+        right: 10,
+        top: "center",
+        type: "scroll",
+      },
+      // @ts-ignore
+      tooltip: {
+        trigger: "item",
+        formatter: (params: any) =>
+          `${params.seriesName}` +
+          `<br/>${dayjs(params.value[0])
+            .local()
+            .format("M/D h:mm:ss A")}<br/>` +
+          `${getTooltipMarker(params.color)}` +
+          `<b>${yAxisRenderer(params.value[1])}</b>`,
+      },
+    },
+    additionalOptions
+  );
+
+  return (
+    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+      <ReactECharts
+        style={{ height: "100%", width: "100%" }}
+        option={options}
+      />
+    </Paper>
+  );
+}
+
 export default function TimeSeriesPanel({
   // Human-readable title of the panel.
   title,
@@ -177,51 +251,15 @@ export default function TimeSeriesPanel({
     yAxisFieldName
   );
 
-  // Add extra padding when the legend is active
-  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
-  const title_padding = yAxisLabel ? 65 : 48;
-  const options: EChartsOption = _.merge(
-    {
-      title: { text: title },
-      grid: { top: title_padding, right: legend_padding, bottom: 24, left: 48 },
-      dataset: { source: data },
-      xAxis: { type: "time" },
-      yAxis: {
-        name: yAxisLabel,
-        type: "value",
-        axisLabel: {
-          formatter: yAxisRenderer,
-        },
-      },
-      // @ts-ignore
-      series,
-      legend: {
-        orient: "vertical",
-        right: 10,
-        top: "center",
-        type: "scroll",
-      },
-      // @ts-ignore
-      tooltip: {
-        trigger: "item",
-        formatter: (params: any) =>
-          `${params.seriesName}` +
-          `<br/>${dayjs(params.value[0])
-            .local()
-            .format("M/D h:mm:ss A")}<br/>` +
-          `${getTooltipMarker(params.color)}` +
-          `<b>${yAxisRenderer(params.value[1])}</b>`,
-      },
-    },
-    additionalOptions
-  );
-
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
-        style={{ height: "100%", width: "100%" }}
-        option={options}
-      />
-    </Paper>
+    <TimeSeriesPanelWithData
+      data={data}
+      series={series}
+      title={title}
+      groupByFieldName={groupByFieldName}
+      yAxisRenderer={yAxisRenderer}
+      yAxisLabel={yAxisLabel}
+      additionalOptions={additionalOptions}
+    />
   );
 }
