@@ -84,6 +84,13 @@
     "https://github.com/pytorch/pytorch/issues/68849",
     []
   ],
+  "test_adamw (__main__.TestOptim)": [
+    "86435",
+    "https://github.com/pytorch/pytorch/issues/86435",
+    [
+      "linux"
+    ]
+  ],
   "test_add_param_group (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "67287",
     "https://github.com/pytorch/pytorch/issues/67287",
@@ -1213,6 +1220,13 @@
       "linux"
     ]
   ],
+  "test_forward_ad_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "87051",
+    "https://github.com/pytorch/pytorch/issues/87051",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_ad_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "81822",
     "https://github.com/pytorch/pytorch/issues/81822",
@@ -2099,6 +2113,14 @@
     "https://github.com/pytorch/pytorch/issues/77337",
     [
       "win"
+    ]
+  ],
+  "test_reflection_pad2d (quantization.core.test_quantized_op.TestPadding)": [
+    "87052",
+    "https://github.com/pytorch/pytorch/issues/87052",
+    [
+      "win",
+      "windows"
     ]
   ],
   "test_reload_jit_extension (__main__.TestCppExtensionJIT)": [
