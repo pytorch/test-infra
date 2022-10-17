@@ -81,6 +81,7 @@ jobs:
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         run: |
+          sleep 800
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
