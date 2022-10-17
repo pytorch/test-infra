@@ -102,6 +102,52 @@ resource "aws_launch_template" "linux_runner" {
   tags = local.tags
 }
 
+resource "aws_launch_template" "linux_runner_nvidia" {
+  name = "${var.environment}-action-linux-runner-nvidia"
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.runner.name
+  }
+
+  instance_initiated_shutdown_behavior = "terminate"
+
+  image_id      = data.aws_ami.runner_ami_linux.id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+  user_data = base64encode(templatefile(local.userdata_template, {
+    environment                     = var.environment
+    pre_install                     = var.userdata_pre_install
+    post_install                    = var.userdata_post_install
+    enable_cloudwatch_agent         = var.enable_cloudwatch_agent
+    ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux_nvidia[0].name : ""
+    ghes_url                        = var.ghes_url
+    install_config_runner           = local.install_config_runner_linux
+  }))
+
+  tags = local.tags
+}
+
 resource "aws_launch_template" "windows_runner" {
   name = "${var.environment}-action-windows-runner"
 

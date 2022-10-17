@@ -29,25 +29,27 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
-      CANT_HAVE_ISSUES_LABELS         = join(",", var.cant_have_issues_labels)
-      ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
-      ENVIRONMENT                     = var.environment
-      GITHUB_APP_CLIENT_ID            = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
-      GITHUB_APP_ID                   = var.github_app.id
-      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
-      KMS_KEY_ID                      = var.encryption.kms_key_id
-      LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_up
-      LAUNCH_TEMPLATE_NAME_LINUX      = aws_launch_template.linux_runner.name
-      LAUNCH_TEMPLATE_NAME_WINDOWS    = aws_launch_template.windows_runner.name
-      LAUNCH_TEMPLATE_VERSION_LINUX   = aws_launch_template.linux_runner.latest_version
-      LAUNCH_TEMPLATE_VERSION_WINDOWS = aws_launch_template.windows_runner.latest_version
-      MUST_HAVE_ISSUES_LABELS         = join(",", var.must_have_issues_labels)
-      RUNNER_EXTRA_LABELS             = var.runner_extra_labels
-      SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
-      SECURITY_GROUP_IDS              = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
-      SUBNET_IDS                      = join(",", var.subnet_ids)
+      AWS_REGION_INSTANCES                  = join(",", var.aws_region_instances)
+      CANT_HAVE_ISSUES_LABELS               = join(",", var.cant_have_issues_labels)
+      ENABLE_ORGANIZATION_RUNNERS           = var.enable_organization_runners
+      ENVIRONMENT                           = var.environment
+      GITHUB_APP_CLIENT_ID                  = var.github_app.client_id
+      GITHUB_APP_CLIENT_SECRET              = local.github_app_client_secret
+      GITHUB_APP_ID                         = var.github_app.id
+      GITHUB_APP_KEY_BASE64                 = local.github_app_key_base64
+      KMS_KEY_ID                            = var.encryption.kms_key_id
+      LAMBDA_TIMEOUT                        = var.lambda_timeout_scale_up
+      LAUNCH_TEMPLATE_NAME_LINUX            = aws_launch_template.linux_runner.name
+      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA     = aws_launch_template.linux_runner_nvidia.name
+      LAUNCH_TEMPLATE_NAME_WINDOWS          = aws_launch_template.windows_runner.name
+      LAUNCH_TEMPLATE_VERSION_LINUX         = aws_launch_template.linux_runner.latest_version
+      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA  = aws_launch_template.linux_runner_nvidia.latest_version
+      LAUNCH_TEMPLATE_VERSION_WINDOWS       = aws_launch_template.windows_runner.latest_version
+      MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
+      RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
+      SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
+      SECURITY_GROUP_IDS                    = join(",", concat([aws_security_group.runner_sg.id], var.runner_additional_security_group_ids))
+      SUBNET_IDS                            = join(",", var.subnet_ids)
     }
   }
 
