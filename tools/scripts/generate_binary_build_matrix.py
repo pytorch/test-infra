@@ -45,6 +45,8 @@ MACOS_M1_RUNNER = "macos-m1-12"
 MACOS_RUNNER = "macos-12"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_WHL_PY311 = "torch"
+
 PACKAGES_TO_INSTALL_CONDA = "pytorch torchvision torchaudio"
 CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
 WHL_INSTALL_BASE = "pip3 install"
@@ -163,8 +165,9 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
-def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
-    whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str, python_version: str) -> str:
+    packages_to_install = PACKAGES_TO_INSTALL_WHL_PY311 if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
+    whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
     return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
@@ -304,6 +307,8 @@ def generate_wheels_matrix(
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
+        if channel != "release"
+            python_versions += ["3.11"]
 
     if arches is None:
         # Define default compute archivectures
@@ -337,7 +342,7 @@ def generate_wheels_matrix(
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
-                    "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda),
+                    "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version),
                     "channel": channel,
                 }
             )
