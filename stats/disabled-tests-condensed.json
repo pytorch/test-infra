@@ -535,6 +535,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addr_cuda_float32 (__main__.TestDecompCUDA)": [
+    "87110",
+    "https://github.com/pytorch/pytorch/issues/87110",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_amax_cuda_float64 (__main__.TestDecompCUDA)": [
     "86573",
     "https://github.com/pytorch/pytorch/issues/86573",
@@ -552,6 +559,13 @@
   "test_comprehensive_baddbmm_cuda_complex64 (__main__.TestDecompCUDA)": [
     "86571",
     "https://github.com/pytorch/pytorch/issues/86571",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_baddbmm_cuda_float64 (__main__.TestDecompCUDA)": [
+    "87111",
+    "https://github.com/pytorch/pytorch/issues/87111",
     [
       "rocm"
     ]
@@ -1169,6 +1183,13 @@
   "test_fn_grad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86864",
     "https://github.com/pytorch/pytorch/issues/86864",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_grad_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
+    "87109",
+    "https://github.com/pytorch/pytorch/issues/87109",
     [
       "linux"
     ]
