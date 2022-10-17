@@ -1,5 +1,5 @@
 {
-  "sql_path": "__sql/disabled_test_historical.sql",
+  "sql_path": "__sql/disabled_test_total.sql",
   "default_parameters": [
     {
       "name": "state",
