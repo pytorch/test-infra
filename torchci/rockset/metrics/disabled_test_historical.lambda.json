@@ -1,0 +1,31 @@
+{
+  "sql_path": "__sql/disabled_test_historical.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-10-01T00:00:00.000Z"
+    },
+    {
+      "name": "state",
+      "type": "string",
+      "value": "open"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-10-17T00:00:00.000Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": "Count the number of open disabled tests over time"
+}
