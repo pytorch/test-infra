@@ -2419,6 +2419,13 @@
       "linux"
     ]
   ],
+  "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
+    "87070",
+    "https://github.com/pytorch/pytorch/issues/87070",
+    [
+      "linux"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
     "86711",
     "https://github.com/pytorch/pytorch/issues/86711",
