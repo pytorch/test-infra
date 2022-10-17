@@ -24,8 +24,8 @@
   },
   "metrics": {
     "correlation_matrix": "4960260cbb0c5b48",
-    "flaky_test_historical": "615abc4d4e016c3a",
-    "flaky_test_total": "dc69712438a1e29e",
+    "disabled_test_historical": "03489867dbafd6fa",
+    "disabled_test_total": "a168f284c9ff3c32",
     "job_duration_avg": "10a88ea2ebb80647",
     "job_duration_percentile": "96507ed62db7a3a8",
     "last_branch_push": "3d995ac2143586dc",

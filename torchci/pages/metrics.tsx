@@ -563,9 +563,9 @@ export default function Page() {
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
             />
             <ScalarPanel
-              title={"# flaky tests"}
-              queryName={"flaky_test_total"}
-              metricName={"number_of_open_flaky_tests"}
+              title={"# disabled tests"}
+              queryName={"disabled_test_total"}
+              metricName={"number_of_open_disabled_tests"}
               valueRenderer={(value) => value}
               queryParams={[]}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
@@ -786,12 +786,12 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Number of new flaky tests"}
-            queryName={"flaky_test_historical"}
+            title={"Number of new disabled tests"}
+            queryName={"disabled_test_historical"}
             queryParams={[...timeParams]}
             granularity={"day"}
             timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"number_of_new_flaky_tests"}
+            yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
           />

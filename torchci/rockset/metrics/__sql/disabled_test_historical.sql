@@ -1,5 +1,5 @@
 WITH
-flaky_tests AS (
+disabled_tests AS (
     SELECT
         FORMAT_ISO8601(
             DATE_TRUNC(
@@ -7,7 +7,7 @@ flaky_tests AS (
                 issues._event_time AT TIME ZONE :timezone
             )
         ) AS granularity_bucket,
-        COUNT(issues.title) as number_of_new_flaky_tests,
+        COUNT(issues.title) as number_of_new_disabled_tests,
     FROM
         commons.issues
     WHERE
@@ -15,18 +15,18 @@ flaky_tests AS (
     GROUP BY
         granularity_bucket
 ),
-total_flaky_tests AS (
+total_disabled_tests AS (
     SELECT
         granularity_bucket,
-        number_of_new_flaky_tests,
-        SUM(number_of_new_flaky_tests) OVER (ORDER BY granularity_bucket) AS total_number_of_flaky_tests
+        number_of_new_disabled_tests,
+        SUM(number_of_new_disabled_tests) OVER (ORDER BY granularity_bucket) AS total_number_of_disabled_tests
     FROM
-        flaky_tests
+        disabled_tests
 )
 SELECT
     *
 FROM
-    total_flaky_tests
+    total_disabled_tests
 WHERE
     PARSE_DATETIME_ISO8601(granularity_bucket) >= PARSE_DATETIME_ISO8601(:startTime)
     AND PARSE_DATETIME_ISO8601(granularity_bucket) < PARSE_DATETIME_ISO8601(:stopTime)
