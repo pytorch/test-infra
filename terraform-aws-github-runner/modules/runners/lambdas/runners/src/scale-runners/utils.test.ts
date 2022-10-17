@@ -1,4 +1,4 @@
-import { getBoolean, getRepoKey, expBackOff, getRepo } from './utils';
+import { getBoolean, getRepoKey, expBackOff, getRepo, groupBy } from './utils';
 import nock from 'nock';
 
 beforeEach(() => {
@@ -22,6 +22,19 @@ describe('./utils', () => {
       expect(() => {
         getRepo('owner/repo/invalid');
       }).toThrowError();
+    });
+  });
+
+  describe('groupBy', () => {
+    it('just check grouping', () => {
+      const grouped = groupBy(['asdf', 'qwer', 'as', 'zxcv', 'fg', '123'], (str) => {
+        return str.length;
+      });
+
+      expect(grouped.size).toEqual(3);
+      expect(grouped.get(4)).toEqual(['asdf', 'qwer', 'zxcv']);
+      expect(grouped.get(3)).toEqual(['123']);
+      expect(grouped.get(2)).toEqual(['as', 'fg']);
     });
   });
 

@@ -348,7 +348,7 @@ export async function getRunnerTypes(
 
     const config = YAML.parse(configYml);
     const result: Map<string, RunnerType> = new Map(
-      /* eslint-disable @typescript-eslint/no-explicit-any */
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
         prop,
         {
