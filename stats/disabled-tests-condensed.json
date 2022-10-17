@@ -597,6 +597,13 @@
       "windows"
     ]
   ],
+  "test_comprehensive_cholesky_solve_cuda_float64 (__main__.TestDecompCUDA)": [
+    "87138",
+    "https://github.com/pytorch/pytorch/issues/87138",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_column_stack_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "84191",
     "https://github.com/pytorch/pytorch/issues/84191",
@@ -624,6 +631,13 @@
   "test_comprehensive_index_reduce_cuda_float32 (__main__.TestDecompCUDA)": [
     "86882",
     "https://github.com/pytorch/pytorch/issues/86882",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_lerp_cuda_float32 (__main__.TestDecompCUDA)": [
+    "87139",
+    "https://github.com/pytorch/pytorch/issues/87139",
     [
       "rocm"
     ]
@@ -2065,6 +2079,13 @@
     "https://github.com/pytorch/pytorch/issues/86870",
     [
       "rocm"
+    ]
+  ],
+  "test_radam (__main__.TestOptim)": [
+    "86389",
+    "https://github.com/pytorch/pytorch/issues/86389",
+    [
+      "dynamo"
     ]
   ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
