@@ -1,5 +1,5 @@
 {
-  "sql_path": "__sql/flaky_test_historical.sql",
+  "sql_path": "__sql/disabled_test_historical.sql",
   "default_parameters": [
     {
       "name": "state",
@@ -7,5 +7,5 @@
       "value": "open"
     }
   ],
-  "description": "Return the total number of flaky tests"
+  "description": "Return the total number of disabled tests"
 }
