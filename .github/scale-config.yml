@@ -83,7 +83,7 @@ runner_types:
   linux.g5.4xlarge.nvidia.gpu:
     instance_type: g5.4xlarge
     os: linux
-    max_available: 10
+    max_available: 50
     disk_size: 150
     is_ephemeral: true
   linux.large:
