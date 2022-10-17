@@ -32,6 +32,8 @@ CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
 DEBUG = "debug"
 
+CURRENT_STABLE_VERSION = "1.12.1"
+
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
@@ -152,8 +154,13 @@ def get_base_download_url_for_repo(repo: str, channel: str, gpu_arch_type: str, 
 
     return base_url_for_type
 
-def get_libtorch_install_command(channel: str, gpu_arch_type: str, libtorch_variant: str, devtoolset: str, desired_cuda: str) -> str:
+def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libtorch_variant: str, devtoolset: str, desired_cuda: str) -> str:
     build_name = f"libtorch-{devtoolset}-{libtorch_variant}-latest.zip" if devtoolset ==  "cxx11-abi" else f"libtorch-{libtorch_variant}-latest.zip"
+
+    if channel == 'release':
+        prefix = "libtorch" if os != 'windows' else "libtorch-win"
+        build_name = f"{prefix}-{devtoolset}-{libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
+
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
 def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
@@ -272,7 +279,7 @@ def generate_libtorch_matrix(
                             ".", "_"
                         ),
                         "validation_runner": validation_runner(gpu_arch_type, os),
-                        "installation": get_libtorch_install_command(channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda),
+                        "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda),
                         "channel": channel
                     }
                 )
