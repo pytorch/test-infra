@@ -1,6 +1,6 @@
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 
-import { scaleDown as scaleDownR } from './scale-runners/scale-down';
+import scaleDownR from './scale-runners/scale-down';
 import { scaleUp as scaleUpR } from './scale-runners/scale-up';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
