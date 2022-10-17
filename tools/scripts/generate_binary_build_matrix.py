@@ -307,7 +307,7 @@ def generate_wheels_matrix(
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-        if channel != "release"
+        if channel != "release":
             python_versions += ["3.11"]
 
     if arches is None:
