@@ -14,8 +14,6 @@ jobs:
       runner: macos-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      gpu-arch-type: cpu
-      gpu-arch-version: ""
       script: |
         conda create -y -n test python=3.8
         conda activate test
