@@ -1,7 +1,10 @@
 import { JobData } from "../lib/types";
 import React from "react";
 
-const NOT_SUPPORTED_PLATFORMS = [
+const NOT_SUPPORTED_JOBS = [
+  "android",
+  "bazel",
+  "libtorch",
   "macos",
   "rocm",
 ];
@@ -31,14 +34,11 @@ export default function TestInsightsLink({
     return (<span></span>);
   }
 
-  for (const platform in NOT_SUPPORTED_PLATFORMS) {
-    if (job.jobName?.includes(platform)) {
+  for (const name of NOT_SUPPORTED_JOBS) {
+    if (job.jobName?.includes(name)) {
       return (<span></span>);
     }
   }
-
-  console.log("HERE");
-  return (<span></span>);
 
   // Only show test insight link for test jobs
   if (!job.jobName?.includes("test")) {

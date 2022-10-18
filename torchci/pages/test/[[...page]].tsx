@@ -68,17 +68,17 @@ function DisplayInsights({
 }
 
 function GetUsage({
-  workflowName,
   jobName,
+  workflowName,
   testFile,
   testClass,
   workflowIds,
   jobIds,
 }: {
-  workflowName: string;
   jobName: string;
-  testFile: string;
-  testClass: string;
+  workflowName?: string;
+  testFile?: string;
+  testClass?: string;
   workflowIds: string[];
   jobIds: string[];
 }) {
@@ -198,8 +198,8 @@ function GetJobs({
       </Typography>
 
       <GetUsage
-        workflowName={workflowName}
         jobName={jobName}
+        workflowName={workflowName}
         testFile={testFile}
         testClass={testClass}
         workflowIds={workflowIds}
