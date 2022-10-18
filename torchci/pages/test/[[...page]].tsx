@@ -173,7 +173,7 @@ function GetJobs({
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data } = useSWR(url, fetcher);
+  const { data, error } = useSWR(url, fetcher);
 
   // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
   if (workflowId == null || jobId == null) {
@@ -238,24 +238,24 @@ export default function Page() {
       value: stopTime,
     },
     {
-      name: "workflowName",
-      type: "string",
-      value: workflowName,
-    },
-    {
       name: "jobName",
       type: "string",
       value: jobName,
     },
     {
+      name: "workflowName",
+      type: "string",
+      value: workflowName ?? "",
+    },
+    {
       name: "testFile",
       type: "string",
-      value: testFile,
+      value: testFile ?? "",
     },
     {
       name: "testClass",
       type: "string",
-      value: testClass,
+      value: testClass ?? "",
     },
     {
       name: "limit",
