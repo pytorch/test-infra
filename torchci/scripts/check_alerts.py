@@ -4,6 +4,7 @@ import urllib.parse
 from collections import defaultdict
 from curses.ascii import CAN
 from difflib import SequenceMatcher
+from datetime import datetime, timedelta
 from email.policy import default
 from typing import Any, Dict, List, Tuple
 
@@ -25,26 +26,43 @@ CANCELED = "canceled"
 ISSUES_WITH_LABEL_QUERY = """
 query ($owner: String!, $name: String!, $labels: [String!]) {
   repository(owner: $owner, name: $name, followRenames: false) {
-    issues(first: 10, labels: $labels, states: [OPEN]) {
+    issues(last: 10, labels: $labels, states: [OPEN]) {
       nodes {
         id
         title
         closed
         number
         body
+        createdAt
       }
     }
   }
 }
 """
-REPO_OWNER = "pytorch"
-REPO_NAME = "test-infra"
-failure_label = "pytorch-alert"
-labels = [failure_label]
-headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
 
-CREATE_ISSUE_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues"
-UPDATE_ISSUE_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/issues/"
+NUM_ISSUES_QUERY = """
+query ($query: String!) {
+  search(type: ISSUE, query: $query) {
+    issueCount
+  }
+}
+"""
+
+REPO_OWNER = "pytorch"
+PYTORCH_REPO_NAME = "pytorch"
+TEST_INFRA_REPO_NAME = "test-infra"
+PYTORCH_ALERT_LABEL = "pytorch-alert"
+FLAKY_TESTS_LABEL = "module: flaky-tests"
+NO_FLAKY_TESTS_LABEL = "no-flaky-tests-alert"
+FLAKY_TESTS_SEARCH_PERIOD_DAYS = 14
+
+headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
+CREATE_ISSUE_URL = (
+    f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues"
+)
+UPDATE_ISSUE_URL = (
+    f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/"
+)
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 
@@ -135,9 +153,9 @@ class JobStatus:
         return f"jobName: {self.job_name}"
 
 
-def fetch_alerts() -> List[Any]:
+def fetch_alerts(repo: str, labels: List[str]) -> List[Any]:
     try:
-        variables = {"owner": REPO_OWNER, "name": REPO_NAME, "labels": labels}
+        variables = {"owner": REPO_OWNER, "name": repo, "labels": labels}
         r = requests.post(
             GRAPHQL_URL,
             json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
@@ -147,7 +165,22 @@ def fetch_alerts() -> List[Any]:
         data = json.loads(r.text)
         return data["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
-        raise RuntimeError("Error fetching alerts", e, data)
+        raise RuntimeError("Error fetching alerts", e)
+
+
+def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str) -> int:
+    query = f'repo:{owner}/{repo} label:"{label}" created:>={from_date} is:issue'
+    try:
+        r = requests.post(
+            GRAPHQL_URL,
+            json={"query": NUM_ISSUES_QUERY, "variables": {"query": query}},
+            headers=headers,
+        )
+        r.raise_for_status()
+        data = json.loads(r.text)
+        return data["data"]["search"]["issueCount"]
+    except Exception as e:
+        raise RuntimeError("Error fetching issues count", e)
 
 
 def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
@@ -168,9 +201,26 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
 
     body += "Please review the errors and revert if needed."
     issue["body"] = body
-    issue["labels"] = labels
+    issue["labels"] = [PYTORCH_ALERT_LABEL]
 
     print("Generating alerts for: ", failed_jobs)
+    return issue
+
+
+def generate_no_flaky_tests_issue() -> Any:
+    issue = {}
+    issue[
+        "title"
+    ] = f"[Pytorch][Warning] No flaky test issues has been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
+    issue[
+        "body"
+    ] = f"No issues has been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
+    issue[
+        "body"
+    ] += "This can be an indication that the flaky test bot has stopped filing tests."
+    issue["labels"] = [NO_FLAKY_TESTS_LABEL]
+
+    print("Generating issue for no_flaky_tests!")
     return issue
 
 
@@ -306,15 +356,18 @@ def main():
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
     # Fetch alerts
-    existing_alerts = fetch_alerts()
+    existing_alerts = fetch_alerts(TEST_INFRA_REPO_NAME, PYTORCH_ALERT_LABEL)
+    existing_no_flaky_tests_alerts = fetch_alerts(
+        TEST_INFRA_REPO_NAME, NO_FLAKY_TESTS_LABEL
+    )
 
     # Alerts should also be cleared if the current status of HUD is green
-    if len(jobs_to_alert_on) == 0 :
+    if len(jobs_to_alert_on) == 0:
         print("Didn't find anything to alert on.")
 
         if trunk_is_green(sha_grid):
             clear_alerts(existing_alerts)
-            existing_alerts = [] # all alerts have now been cleared
+            existing_alerts = []  # all alerts have now been cleared
 
         return
 
@@ -336,7 +389,28 @@ def main():
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
-    # TODO: Record flaky jobs in rockset or something re run or analyze
+    if (
+        not existing_no_flaky_tests_alerts
+        or datetime.fromisoformat(
+            existing_no_flaky_tests_alerts[0]["createdAt"].replace("Z", "+00:00")
+        ).date()
+        != datetime.today().date()
+    ):
+        from_date = (
+            datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
+        ).strftime("%Y-%m-%d")
+        num_issues_with_flaky_tests_lables = get_num_issues_with_label(
+            REPO_OWNER, PYTORCH_REPO_NAME, FLAKY_TESTS_LABEL, from_date
+        )
+        print(
+            f"Num issues with `{FLAKY_TESTS_LABEL}` label: ",
+            num_issues_with_flaky_tests_lables,
+        )
+        if num_issues_with_flaky_tests_lables == 0:
+            create_issue(generate_no_flaky_tests_issue())
+    else:
+        print("No new alert for flaky tests bots.")
+
 
 if __name__ == "__main__":
     main()
