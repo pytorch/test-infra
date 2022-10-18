@@ -1104,6 +1104,13 @@
       "linux"
     ]
   ],
+  "test_expanded_reduction_cpu (__main__.CpuTests)": [
+    "87157",
+    "https://github.com/pytorch/pytorch/issues/87157",
+    [
+      "linux"
+    ]
+  ],
   "test_extra_fields (__main__.TestTorchTidyProfiler)": [
     "82719",
     "https://github.com/pytorch/pytorch/issues/82719",
