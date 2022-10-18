@@ -2271,13 +2271,6 @@
       "macos"
     ]
   ],
-  "test_self_remote_rref_as_rpc_arg_sparse (__main__.TensorPipeTensorPipeAgentRpcTest)": [
-    "86840",
-    "https://github.com/pytorch/pytorch/issues/86840",
-    [
-      "linux"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
