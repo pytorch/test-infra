@@ -28,6 +28,7 @@ jobs:
             pre-script: ""
             post-script: ""
             conda-package-directory: packaging/torchtext
+            package-name: torchtext
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_linux.yml
     with:
