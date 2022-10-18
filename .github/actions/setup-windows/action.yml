@@ -36,3 +36,11 @@ runs:
       shell: powershell
       run: |
         Add-MpPreference -ExclusionPath $(Get-Location).tostring() -ErrorAction Ignore
+
+    - name: Setup useful environment variables
+      shell: bash
+      working-directory: ${{ inputs.repository }}
+      run: |
+        RUNNER_ARTIFACT_DIR="$(cygpath ${RUNNER_TEMP})/artifacts"
+        mkdir -p "${RUNNER_ARTIFACT_DIR}"
+        echo "RUNNER_ARTIFACT_DIR=$(cygpath ${RUNNER_TEMP})/artifacts" >> "${GITHUB_ENV}"
