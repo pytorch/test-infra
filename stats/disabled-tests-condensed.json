@@ -514,6 +514,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addcmul_cuda_complex128 (__main__.TestDecompCUDA)": [
+    "87169",
+    "https://github.com/pytorch/pytorch/issues/87169",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addmm_cuda_float32 (__main__.TestDecompCUDA)": [
     "86868",
     "https://github.com/pytorch/pytorch/issues/86868",
@@ -524,6 +531,13 @@
   "test_comprehensive_addmv_cuda_complex128 (__main__.TestDecompCUDA)": [
     "86578",
     "https://github.com/pytorch/pytorch/issues/86578",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_addmv_cuda_float16 (__main__.TestDecompCUDA)": [
+    "87166",
+    "https://github.com/pytorch/pytorch/issues/87166",
     [
       "rocm"
     ]
@@ -604,6 +618,20 @@
       "windows"
     ]
   ],
+  "test_comprehensive_cartesian_prod_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "87167",
+    "https://github.com/pytorch/pytorch/issues/87167",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_cdist_cuda_float64 (__main__.TestDecompCUDA)": [
+    "87165",
+    "https://github.com/pytorch/pytorch/issues/87165",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_cholesky_solve_cuda_float64 (__main__.TestDecompCUDA)": [
     "87138",
     "https://github.com/pytorch/pytorch/issues/87138",
@@ -659,6 +687,13 @@
   "test_comprehensive_linalg_matrix_norm_cuda_complex128 (__main__.TestDecompCUDA)": [
     "86884",
     "https://github.com/pytorch/pytorch/issues/86884",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_linalg_multi_dot_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "87164",
+    "https://github.com/pytorch/pytorch/issues/87164",
     [
       "rocm"
     ]
@@ -2534,6 +2569,13 @@
   "test_vjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86734",
     "https://github.com/pytorch/pytorch/issues/86734",
+    [
+      "linux"
+    ]
+  ],
+  "test_vjpvjp_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "87168",
+    "https://github.com/pytorch/pytorch/issues/87168",
     [
       "linux"
     ]
