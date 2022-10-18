@@ -47,6 +47,10 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN:
+        description: "Access Token needed to upload binaries to anaconda"
+        required: false
 
 jobs:
   build:
