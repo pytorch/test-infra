@@ -14,6 +14,7 @@ export interface JobData {
   htmlUrl?: string;
   logUrl?: string;
   durationS?: number;
+  queueTimeS?: number;
   failureLine?: string;
   failureLineNumber?: number;
   failureCaptures?: string;
@@ -61,6 +62,7 @@ export interface IssueData {
   title: string;
   html_url: string;
   state: "open" | "closed";
+  body: string;
 }
 
 export interface HudParams {
@@ -95,6 +97,7 @@ export interface RecentWorkflowsData {
   completed_at: string | null;
   html_url: string;
   head_sha?: string;
+  run_attempt: number;
   pr_number?: number;
   owner_login?: string;
 }

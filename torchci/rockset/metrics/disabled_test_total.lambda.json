@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/disabled_test_total.sql",
+  "default_parameters": [
+    {
+      "name": "state",
+      "type": "string",
+      "value": "open"
+    }
+  ],
+  "description": "Return the total number of disabled tests"
+}

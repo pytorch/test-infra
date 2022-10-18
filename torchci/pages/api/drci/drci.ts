@@ -1,9 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOctokit } from "lib/github";
-import { Octokit } from "octokit";
 import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
-import { NUM_MINUTES, REPO, DRCI_COMMENT_END, formDrciComment, OWNER } from "lib/drciUtils";
+import {
+  NUM_MINUTES,
+  REPO,
+  formDrciComment,
+  OWNER,
+  getDrciComment,
+  getActiveSEVs,
+  formDrciSevBody,
+} from "lib/drciUtils";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 interface PRandJobs {
     head_sha: string;
@@ -30,12 +38,13 @@ export async function updateDrciComments() {
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+    const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
 
     for (const [pr_number, pr_info] of workflowsByPR) {
         const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
 
         const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
-        const comment = formDrciComment(pr_number, failureInfo);
+        const comment = formDrciComment(pr_number, failureInfo, formDrciSevBody(sevs));
 
         await updateCommentWithWorkflow(pr_info, comment);
     }
@@ -83,15 +92,27 @@ export function getWorkflowJobsStatuses(
 ): { pending: number; failedJobs: RecentWorkflowsData[] } {
     const jobs = prInfo.jobs;
     let numPending = 0;
-    const failedJobsInfo: RecentWorkflowsData[] = [];
+    const jobsInfo: Map<string, RecentWorkflowsData> = new Map();
     for (const workflow of jobs) {
+        const jobName = workflow.job_name;
+        const runAttempt = workflow.run_attempt;
+
         if (workflow.conclusion === null && workflow.completed_at === null) {
             numPending++;
         }
-        else if (workflow.conclusion === "failure") {
+        else if (!jobsInfo.has(jobName) || (jobsInfo.get(jobName)!.run_attempt < runAttempt)) {
+            // Only keep the latest job run
+            jobsInfo.set(jobName, workflow);
+        }
+    }
+
+    const failedJobsInfo: RecentWorkflowsData[] = [];
+    for (const [workflowName, workflow] of jobsInfo) {
+        if (workflow.conclusion === "failure") {
             failedJobsInfo.push(workflow);
         }
     }
+
     return { pending: numPending, failedJobs: failedJobsInfo };
 }
 
@@ -122,14 +143,9 @@ export async function updateCommentWithWorkflow(
     pr_info: PRandJobs,
     comment: string,
 ): Promise<void> {
-    const { pr_number, owner_login } = pr_info;
+    const { pr_number } = pr_info;
     const octokit = await getOctokit(OWNER, REPO);
-    const { id, body } = await getDrciComment(
-        pr_number!,
-        OWNER,
-        REPO,
-        octokit
-    );
+    const { id, body } = await getDrciComment(octokit, OWNER, REPO, pr_number!);
 
     if (id === 0 || body === comment) {
         return;
@@ -141,23 +157,4 @@ export async function updateCommentWithWorkflow(
         repo: REPO,
         comment_id: id,
     });
-}
-
-async function getDrciComment(
-    prNum: number,
-    owner: string,
-    repo: string,
-    octokit: Octokit
-): Promise<{ id: number; body: string }> {
-    const commentsRes = await octokit.rest.issues.listComments({
-        owner,
-        repo,
-        issue_number: prNum,
-    });
-    for (const comment of commentsRes.data) {
-        if (comment.body!.includes(DRCI_COMMENT_END)) {
-            return { id: comment.id, body: comment.body! };
-        }
-    }
-    return { id: 0, body: "" };
 }

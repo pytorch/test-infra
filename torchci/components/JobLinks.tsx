@@ -14,6 +14,11 @@ export default function JobLinks({ job }: { job: JobData }) {
       </span>
     ) : null;
 
+  const queueTimeS =
+    job.queueTimeS != null ? (
+      <span>{` | Queued: ${durationHuman(job.queueTimeS!)}`}</span>
+    ) : null;
+
   const durationS =
     job.durationS != null ? (
       <span>{` | Duration: ${durationHuman(job.durationS!)}`}</span>
@@ -42,6 +47,7 @@ export default function JobLinks({ job }: { job: JobData }) {
     <span>
       {rawLogs}
       {failureCaptures}
+      {queueTimeS}
       {durationS}
       {eventTime}
       <DisableIssue job={job} />
@@ -50,7 +56,20 @@ export default function JobLinks({ job }: { job: JobData }) {
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-const testFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
+
+const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
+const pytestFailureRe = /^FAILED .*.py::(.*)::(test_.*)$/;
+function getTestName(failureCapture: string)  {
+  const unittestMatch = failureCapture.match(unittestFailureRe);
+  if (unittestMatch !== null) {
+    return unittestMatch[1];
+  }
+  const pytestMatch = failureCapture.match(pytestFailureRe);
+  if (pytestMatch !== null) {
+    return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`
+  }
+  return null;
+}
 
 function formatIssueBody(failureCaptures: string) {
   const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
@@ -77,9 +96,10 @@ function DisableIssue({ job }: { job: JobData }) {
   if (!hasFailureClassification) {
     return null;
   }
-  // - The failure classification is not a python unittest failure.
-  const match = job.failureLine!.match(testFailureRe);
-  if (match === null) {
+
+  const testName = getTestName(job.failureLine!);
+  // - The failure classification is not a python unittest or pytest failure.
+  if (testName === null) {
     return null;
   }
   // - If we don't yet have any data, show a loading state.
@@ -89,7 +109,7 @@ function DisableIssue({ job }: { job: JobData }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
-  const issueTitle = `DISABLED ${match[1]}`;
+  const issueTitle = `DISABLED ${testName}`;
   const issues: IssueData[] = data.issues;
   let issueLink;
   let linkText;

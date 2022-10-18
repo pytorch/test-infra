@@ -1,32 +1,30 @@
-import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
+import moment from 'moment';
+import { Config } from './config';
+import { resetSecretCache } from './gh-auth';
 import {
-  GhRunner,
   getRunnerOrg,
   getRunnerRepo,
+  getRunnerTypes,
+  GhRunner,
   listGithubRunnersOrg,
   listGithubRunnersRepo,
   removeGithubRunnerOrg,
   removeGithubRunnerRepo,
   resetGHRunnersCaches,
 } from './gh-runners';
-import { RunnerInfo, getRepo } from './utils';
+import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
+import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
+import { getRepo, groupBy, Repo, RunnerInfo } from './utils';
 
-import { Config } from './config';
-import moment from 'moment';
-import { resetSecretCache } from './gh-auth';
-import { ScaleDownMetrics } from './metrics';
-
-function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
-  const launchTimePlusMinimum = moment(runner.launchTime)
-    .utc()
-    .add(Config.Instance.minimumRunningTimeInMinutes, 'minutes');
-  const now = moment(new Date()).utc();
-  return launchTimePlusMinimum < now;
-}
-
-export default async function scaleDown(): Promise<void> {
-  // list and sort runners, newest first. This ensure we keep the newest runners longer.
+export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
+  const sndMetricsTimout: sendMetricsTimeoutVars = {
+    metrics: metrics,
+  };
+  sndMetricsTimout.setTimeout = setTimeout(
+    sendMetricsAtTimeout(sndMetricsTimout),
+    (Config.Instance.lambdaTimeout - 10) * 1000,
+  );
 
   try {
     // Ensure a clean cache before attempting each scale down event
@@ -34,102 +32,111 @@ export default async function scaleDown(): Promise<void> {
     resetGHRunnersCaches();
     resetSecretCache();
 
-    const runners = (
-      await listRunners(metrics, {
-        environment: Config.Instance.environment,
-      })
-    ).sort((a, b): number => {
-      if (a.launchTime === undefined && b.launchTime === undefined) return 0;
-      if (a.launchTime === undefined) return 1;
-      if (b.launchTime === undefined) return 1;
-      if (a.launchTime < b.launchTime) return 1;
-      if (a.launchTime > b.launchTime) return -1;
-      return 0;
-    });
+    metrics.run();
 
-    if (runners.length === 0) {
+    const runnersDict = groupBy(
+      sortRunnersByLaunchTime(await listRunners(metrics, { environment: Config.Instance.environment })),
+      (itm) => {
+        if (Config.Instance.enableOrganizationRunners) return itm.runnerType;
+        return `${itm.runnerType}#${itm.repo}`;
+      },
+    );
+
+    if (runnersDict.size === 0) {
       console.debug(`No active runners found for environment: '${Config.Instance.environment}'`);
       return;
     }
 
-    metrics.run();
+    for (const [runnerType, runners] of runnersDict.entries()) {
+      if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
 
-    for await (const ec2runner of runners) {
-      metrics.runnerFound(ec2runner);
-
-      let nonOrphan = false;
-      if (ec2runner.repo !== undefined) {
-        nonOrphan = nonOrphan || (await checkNeedRemoveRunnerRepo(ec2runner, metrics));
+      const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> = [];
+      for (const ec2runner of runners) {
+        // REPO assigned runners
+        if (ec2runner.repo !== undefined) {
+          const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
+          // if configured to repo, don't mess with organization runners
+          if (!Config.Instance.enableOrganizationRunners) {
+            metrics.runnerFound(ec2runner);
+            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+              if (ghRunner === undefined) {
+                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+              } else {
+                ghRunnersRemovable.push([ec2runner, ghRunner]);
+              }
+            }
+          }
+          // ORG assigned runners
+        } else if (ec2runner.org !== undefined) {
+          const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
+          // if configured to org, don't mess with repo runners
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnerFound(ec2runner);
+            if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+              if (ghRunner === undefined) {
+                ghRunnersRemovable.unshift([ec2runner, ghRunner]);
+              } else {
+                ghRunnersRemovable.push([ec2runner, ghRunner]);
+              }
+            }
+          }
+        }
       }
-      if (ec2runner.org !== undefined) {
-        nonOrphan = nonOrphan || (await checkNeedRemoveRunnerOrg(ec2runner, metrics));
-      }
 
-      // we only check if minimum time exceeded after other stuff even if the checks are
-      // not relevant to generate metrics
-      if (!runnerMinimumTimeExceeded(ec2runner)) {
-        metrics.runnerLessMinimumTime(ec2runner);
-        console.debug(
-          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] has not been alive long enough, skipping`,
-        );
-        continue;
-      }
+      let removedRunners = 0;
+      for (const [ec2runner, ghRunner] of ghRunnersRemovable) {
+        // We only limit the number of removed instances here for the reason: while sorting and getting info
+        // on getRunner[Org|Repo] we send statistics that are relevant for monitoring
+        if (
+          ghRunnersRemovable.length - removedRunners <= Config.Instance.minAvailableRunners &&
+          ghRunner !== undefined &&
+          !(await isEphemeralRunner(ec2runner, metrics))
+        ) {
+          break;
+        }
 
-      if (!nonOrphan) {
-        // Remove orphan AWS runners.
-        console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] is orphaned, and will be removed.`);
+        removedRunners += 1;
+
+        if (ghRunner !== undefined) {
+          if (Config.Instance.enableOrganizationRunners) {
+            await removeGithubRunnerOrg(ec2runner, ghRunner.id, ec2runner.org as string, metrics);
+          } else {
+            await removeGithubRunnerRepo(ec2runner, ghRunner.id, getRepo(ec2runner.repo as string), metrics);
+          }
+        }
+
+        console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
         try {
           await terminateRunner(ec2runner, metrics);
           metrics.runnerTerminateSuccess(ec2runner);
         } catch (e) {
           metrics.runnerTerminateFailure(ec2runner);
-          console.error(`Orphan runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+          console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
         }
       }
     }
+  } catch (e) {
+    metrics.exception();
+    throw e;
   } finally {
+    clearTimeout(sndMetricsTimout.setTimeout);
+    sndMetricsTimout.metrics = undefined;
+    sndMetricsTimout.setTimeout = undefined;
     metrics.sendMetrics();
   }
 }
 
-async function checkNeedRemoveRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<boolean> {
-  const repo = getRepo(ec2runner.repo as string);
-  const ghRunners = await listGithubRunnersRepo(repo, metrics);
-  let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
-  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
-    console.warn(
-      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
-        `listGithubRunnersRepo call, attempting to grab directly`,
-    );
-    try {
-      ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
-    } catch (e) {
-      console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when ` + `getRunnerRepo call: ${e}`,
-      );
-      return false;
-    }
-  }
-  // ec2Runner matches a runner that's registered to github
-  if (ghRunner) {
-    if (ghRunner.busy) {
-      metrics.runnerGhFoundBusyRepo(repo, ec2runner);
-      console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) is busy, skipping`);
-    } else {
-      metrics.runnerGhFoundNonBusyRepo(repo, ec2runner);
-      await removeGithubRunnerRepo(ec2runner, ghRunner.id, repo, metrics);
-    }
-    return true;
-  } else {
-    metrics.runnerGhNotFoundRepo(repo, ec2runner);
-    return false;
-  }
-}
-
-async function checkNeedRemoveRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<boolean> {
+export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
   const org = ec2runner.org as string;
-  const ghRunners = await listGithubRunnersOrg(org as string, metrics);
-  let ghRunner: GhRunner | undefined = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+  let ghRunner: GhRunner | undefined = undefined;
+
+  try {
+    const ghRunners = await listGithubRunnersOrg(org as string, metrics);
+    ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+  } catch (e) {
+    console.warn('Failed to list active gh runners', e);
+  }
+
   if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
     console.warn(
       `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
@@ -142,21 +149,109 @@ async function checkNeedRemoveRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDow
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
           `listGithubRunnersOrg call: ${e}`,
       );
-      return false;
     }
   }
-  // ec2Runner matches a runner that's registered to github
   if (ghRunner) {
     if (ghRunner.busy) {
       metrics.runnerGhFoundBusyOrg(org, ec2runner);
-      console.debug(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) is busy, skipping`);
     } else {
       metrics.runnerGhFoundNonBusyOrg(org, ec2runner);
-      await removeGithubRunnerOrg(ec2runner, ghRunner.id, org, metrics);
     }
-    return true;
   } else {
     metrics.runnerGhNotFoundOrg(org, ec2runner);
+  }
+  return ghRunner;
+}
+
+export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
+  const repo = getRepo(ec2runner.repo as string);
+  let ghRunner: GhRunner | undefined = undefined;
+
+  try {
+    const ghRunners = await listGithubRunnersRepo(repo, metrics);
+    ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
+  } catch (e) {
+    console.warn('Failed to list active gh runners', e);
+  }
+
+  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
+    console.warn(
+      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
+        `listGithubRunnersRepo call, attempting to grab directly`,
+    );
+    try {
+      ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
+    } catch (e) {
+      console.warn(
+        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
+      );
+    }
+  }
+  if (ghRunner !== undefined) {
+    if (ghRunner.busy) {
+      metrics.runnerGhFoundBusyRepo(repo, ec2runner);
+    } else {
+      metrics.runnerGhFoundNonBusyRepo(repo, ec2runner);
+    }
+  } else {
+    metrics.runnerGhNotFoundRepo(repo, ec2runner);
+  }
+  return ghRunner;
+}
+
+export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<boolean> {
+  if (ec2runner.runnerType === undefined) {
     return false;
   }
+
+  const repo: Repo = (() => {
+    if (Config.Instance.enableOrganizationRunners) {
+      return {
+        owner: ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
+        repo: Config.Instance.scaleConfigRepo,
+      };
+    }
+    return getRepo(ec2runner.repo as string);
+  })();
+
+  const runnerTypes = await getRunnerTypes(repo, metrics);
+
+  return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
+}
+
+export function isRunnerRemovable(
+  ghRunner: GhRunner | undefined,
+  ec2runner: RunnerInfo,
+  metrics: ScaleDownMetrics,
+): boolean {
+  if (ghRunner !== undefined && ghRunner.busy) {
+    return false;
+  }
+  if (!runnerMinimumTimeExceeded(ec2runner)) {
+    metrics.runnerLessMinimumTime(ec2runner);
+    return false;
+  }
+  metrics.runnerIsRemovable(ec2runner);
+  return true;
+}
+
+export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
+  if (runner.launchTime === undefined) {
+    // runner did not start yet, so it does not timeout
+    return false;
+  }
+  const launchTime = moment(runner.launchTime).utc();
+  const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
+  return launchTime < maxTime;
+}
+
+export function sortRunnersByLaunchTime(runners: RunnerInfo[]): RunnerInfo[] {
+  return runners.sort((a, b): number => {
+    if (a.launchTime === undefined && b.launchTime === undefined) return 0;
+    if (a.launchTime === undefined) return 1;
+    if (b.launchTime === undefined) return -1;
+    if (a.launchTime < b.launchTime) return -1;
+    if (a.launchTime > b.launchTime) return 1;
+    return 0;
+  });
 }

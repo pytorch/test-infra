@@ -51,6 +51,12 @@ runner_types:
     is_ephemeral: false
     max_available: 1000
     os: linux
+  linux.c5.4xlarge.ephemeral:
+    disk_size: 150
+    instance_type: c5.4xlarge
+    is_ephemeral: true
+    max_available: 1000
+    os: linux
   linux.4xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g3.4xlarge
@@ -77,11 +83,11 @@ runner_types:
   linux.g5.4xlarge.nvidia.gpu:
     instance_type: g5.4xlarge
     os: linux
-    max_available: 10
+    max_available: 30
     disk_size: 150
-    is_ephemeral: true
+    is_ephemeral: false
   linux.large:
-    disk_size: 10
+    disk_size: 15
     instance_type: c5.large
     is_ephemeral: false
     os: linux

@@ -1,0 +1,27 @@
+{
+  "sql_path": "__sql/test_insights_overview.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-08-30T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-09-06T00:00:00.000Z"
+    },
+    {
+      "name": "thresholdInSecond",
+      "type": "int",
+      "value": "1800"
+    },
+    {
+      "name": "workflowName",
+      "type": "string",
+      "value": "pull"
+    }
+  ],
+  "description": ""
+}
+

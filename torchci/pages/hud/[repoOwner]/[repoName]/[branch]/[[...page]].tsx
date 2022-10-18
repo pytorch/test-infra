@@ -26,8 +26,19 @@ import { useRouter } from "next/router";
 import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
+import useSWR from "swr";
+import { isFailedJob } from "lib/jobUtils";
+import { fetcher } from "lib/GeneralUtils";
 
-export function JobCell({ sha, job }: { sha: string; job: JobData }) {
+export function JobCell({
+  sha,
+  job,
+  isClassified,
+}: {
+  sha: string;
+  job: JobData;
+  isClassified: boolean;
+}) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
@@ -37,7 +48,7 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
         setPinnedId={setPinnedId}
         tooltipContent={<JobTooltip job={job} />}
       >
-        <JobConclusion conclusion={job.conclusion} />
+        <JobConclusion conclusion={job.conclusion} classified={isClassified} />
       </TooltipTarget>
     </td>
   );
@@ -55,6 +66,20 @@ function HudRow({
   const router = useRouter();
   const params = packHudParams(router.query);
   const sha = rowData.sha;
+
+  const failedJobs = rowData.jobs.filter(isFailedJob);
+  const { repoOwner, repoName } = router.query;
+
+  const { data } = useSWR(
+    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
+      JSON.stringify(failedJobs.map((failedJob) => failedJob.id))
+    )}`,
+    fetcher
+  );
+  if (data == null) {
+    return null;
+  }
+
   return (
     <tr>
       <td className={styles.jobMetadata}>
@@ -91,6 +116,7 @@ function HudRow({
         </div>
       </td>
       <HudJobCells
+        classifiedJobs={data}
         rowData={rowData}
         expandedGroups={expandedGroups}
         useGrouping={useGrouping}
@@ -103,29 +129,49 @@ function HudJobCells({
   rowData,
   expandedGroups,
   useGrouping,
+  classifiedJobs,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
   useGrouping: boolean;
+  classifiedJobs: any;
 }) {
   if (!useGrouping) {
     return (
       <>
-        {rowData.jobs.map((job: JobData) => (
-          <JobCell sha={rowData.sha} key={job.name} job={job} />
-        ))}
+        {rowData.jobs.map((job: JobData) => {
+          const isClassified = (job.id ?? "") in classifiedJobs;
+          return (
+            <JobCell
+              sha={rowData.sha}
+              key={job.name}
+              job={job}
+              isClassified={isClassified}
+            />
+          );
+        })}
       </>
     );
   } else {
     return (
       <>
         {(rowData?.groupedJobs ?? []).map((group, ind) => {
+          let numClassified = 0;
+          for (const job of group.jobs) {
+            if ((job.id ?? "") in classifiedJobs) {
+              numClassified++;
+            }
+          }
+          const failedJobs = group.jobs.filter(isFailedJob);
           return (
             <HudGroupedCell
               sha={rowData.sha}
               key={ind}
               groupData={group}
               isExpanded={expandedGroups.has(group.groupName)}
+              isClassified={
+                numClassified != 0 && numClassified == failedJobs.length
+              }
             />
           );
         })}
@@ -223,15 +269,14 @@ function GroupViewCheckBox({
 }) {
   return (
     <>
-      <input
-        type="checkbox"
-        name="groupView"
-        checked={useGrouping}
-        onChange={() => {
+      <div
+        onClick={() => {
           setUseGrouping(!useGrouping);
         }}
-      />
-      <label htmlFor="groupView"> Use grouped view</label>
+      >
+        <input type="checkbox" name="groupView" checked={useGrouping} />
+        <label htmlFor="groupView"> Use grouped view</label>
+      </div>
       <br />
     </>
   );

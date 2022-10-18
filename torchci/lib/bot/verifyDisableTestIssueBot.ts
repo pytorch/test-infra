@@ -11,6 +11,7 @@ export const supportedPlatforms = new Set([
   "rocm",
   "win",
   "windows",
+  "dynamo",
 ]);
 
 async function getValidationComment(

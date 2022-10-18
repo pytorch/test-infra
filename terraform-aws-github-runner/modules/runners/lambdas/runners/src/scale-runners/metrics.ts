@@ -493,6 +493,11 @@ export class Metrics {
   getRunnerTypesFailure() {
     this.countEntry(`run.getRunnerTypes.failure`, 1);
   }
+
+  /* istanbul ignore next */
+  lambdaTimeout() {
+    this.countEntry(`run.timeout`, 1);
+  }
 }
 
 export class ScaleUpMetrics extends Metrics {
@@ -574,9 +579,20 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  exception() {
+    this.countEntry('run.exceptions_count');
+  }
+
+  /* istanbul ignore next */
   runnerLessMinimumTime(ec2Runner: RunnerInfo) {
     this.countEntry(`run.ec2runners.notMinTime`);
     this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.notMinTime`);
+  }
+
+  /* istanbul ignore next */
+  runnerIsRemovable(ec2Runner: RunnerInfo) {
+    this.countEntry(`run.ec2runners.removable`);
+    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.removable`);
   }
 
   /* istanbul ignore next */
@@ -708,4 +724,24 @@ export class ScaleDownMetrics extends Metrics {
       this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.failure`);
     }
   }
+}
+
+export interface sendMetricsTimeoutVars {
+  metrics?: Metrics;
+  setTimeout?: ReturnType<typeof setTimeout>;
+}
+
+/* istanbul ignore next */
+export function sendMetricsAtTimeout(metricsTimeouts: sendMetricsTimeoutVars) {
+  return () => {
+    if (metricsTimeouts.setTimeout) {
+      clearTimeout(metricsTimeouts.setTimeout);
+      metricsTimeouts.setTimeout = undefined;
+    }
+    if (metricsTimeouts.metrics) {
+      metricsTimeouts.metrics.lambdaTimeout();
+      metricsTimeouts.metrics.sendMetrics();
+      metricsTimeouts.metrics = undefined;
+    }
+  };
 }

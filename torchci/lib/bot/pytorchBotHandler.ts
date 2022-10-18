@@ -3,7 +3,6 @@ import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
-import { isInLandCheckAllowlist } from "./rolloutUtils";
 
 export interface PytorchbotParams {
   owner: string;
@@ -142,14 +141,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     forceMessage: string,
     mergeOnGreen: boolean,
     landChecks: boolean,
-    landChecksEnrolled: boolean,
     rebase: string | boolean
   ) {
     const extra_data = {
       forceMessage,
       mergeOnGreen,
       landChecks,
-      landChecksEnrolled,
       rebase,
     };
     const forceRequested = forceMessage != undefined;
@@ -175,7 +172,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       await this.dispatchEvent("try-merge", {
         force: forceRequested,
         on_green: mergeOnGreen,
-        land_checks: landChecks || landChecksEnrolled,
+        land_checks: landChecks,
         rebase: rebase,
       });
       await this.ackComment();
@@ -287,7 +284,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           args.force,
           args.green,
           args.land_checks,
-          this.login != null && isInLandCheckAllowlist(this.login),
           args.rebase
         );
       case "rebase": {

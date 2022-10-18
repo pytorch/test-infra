@@ -1,0 +1,167 @@
+name: Build / Test on Linux
+
+on:
+  workflow_call:
+    inputs:
+      script:
+        description: 'Script to utilize'
+        default: "python setup.py bdist_wheel"
+        type: string
+      timeout:
+        description: 'Timeout for the job (in minutes)'
+        default: 30
+        type: number
+      runner:
+        description: 'Runner type to utilize'
+        default: "linux.2xlarge"
+        type: string
+      upload-artifact:
+        description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      download-artifact:
+        description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
+        default: ''
+        type: string
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ""
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: ""
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      gpu-arch-type:
+        description: "GPU arch type to use"
+        default: "cpu"
+        type: string
+      gpu-arch-version:
+        description: "GPU arch version to use"
+        default: ""
+        type: string
+
+jobs:
+  job:
+    env:
+      DOCKER_IMAGE: pytorch/conda-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
+      REPOSITORY: ${{ inputs.repository || github.repository }}
+      SCRIPT: ${{ inputs.script }}
+    runs-on: ${{ inputs.runner }}
+    # TODO: Eventually this should run in a container, we need to make a container that matches up
+    #       with the users for our self hosted runner infra since using actions/checkout with a root
+    #       user in a container will make it so that the directories will need to be chowned to the
+    #       ec2-user prior to a checkout being able to be run by ec2-user
+    timeout-minutes: ${{ inputs.timeout }}
+    steps:
+      - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - name: Setup Linux
+        uses: ./test-infra/.github/actions/setup-linux
+
+      - name: Setup SSH
+        uses: ./test-infra/.github/actions/setup-ssh
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ env.DOCKER_IMAGE }}
+
+      - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
+        uses: actions/checkout@v3
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: ${{ inputs.repository || github.repository }}
+          ref: ${{ inputs.ref || github.ref }}
+          path: ${{ inputs.repository || github.repository }}
+
+      - name: Download artifacts (if any)
+        uses: actions/download-artifact@v3
+        if: ${{ inputs.download-artifact != '' }}
+        with:
+          name: ${{ inputs.download-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+
+      - name: Run script in container
+        working-directory: ${{ inputs.repository }}
+        run: |
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            # shellcheck disable=SC2016
+            echo 'eval "$(conda shell.bash hook)"';
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          chmod +x "${RUNNER_TEMP}/exec_script"
+          # detached container should get cleaned up by teardown_ec2_linux
+          # shellcheck disable=SC2086,SC2090
+          container_name=$(docker run \
+            -e RUNNER_ARTIFACT_DIR=/artifacts \
+            --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
+            --cap-add=SYS_PTRACE \
+            --detach \
+            --ipc=host \
+            --security-opt seccomp=unconfined \
+            --shm-size=2g \
+            --tty \
+            --ulimit stack=10485760:83886080 \
+            ${GPU_FLAG:-} \
+            -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
+            -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
+            -v "${RUNNER_TEMP}/exec_script:/exec" \
+            -w /work \
+            "${DOCKER_IMAGE}"
+          )
+          docker exec -t "${container_name}" bash -x /exec
+
+      - name: Chown repository directory
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/chown-directory
+        with:
+          directory: ${{ github.workspace }}/${{ env.repository }}
+
+      - name: Chown artifacts
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/chown-directory
+        with:
+          directory: ${{ env.RUNNER_ARTIFACT_DIR }}
+
+      - name: Check if there are potential artifacts and move them to the correct artifact location
+        working-directory: ${{ inputs.repository }}
+        id: check-artifacts
+        if: ${{ inputs.upload-artifact != '' }}
+        env:
+          UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
+        run: |
+          # If the default execution path is followed then we should get a wheel in the dist/ folder
+          # attempt to just grab whatever is in there and scoop it all up
+          if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+            mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+          fi
+          # Set to fail upload step if there are no files for upload and expected files for upload
+          echo '::set-output name=if-no-files-found::error'
+
+      - name: Upload artifacts to GitHub (if any)
+        uses: actions/upload-artifact@v3
+        if: ${{ inputs.upload-artifact != '' }}
+        with:
+          name: ${{ inputs.upload-artifact }}
+          path: ${{ runner.temp }}/artifacts/
+          if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
+      - name: Teardown Linux
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-linux

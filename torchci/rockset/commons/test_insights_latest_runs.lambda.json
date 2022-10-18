@@ -1,0 +1,41 @@
+{
+  "sql_path": "__sql/test_insights_latest_runs.sql",
+  "default_parameters": [
+    {
+      "name": "jobName",
+      "type": "string",
+      "value": "linux-bionic-cuda11.6-py3.10-gcc7 / test (default, 1, 4, linux.4xlarge.nvidia.gpu)"
+    },
+    {
+      "name": "limit",
+      "type": "int",
+      "value": "10"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-08-30T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-09-06T00:00:00.000Z"
+    },
+    {
+      "name": "testClass",
+      "type": "string",
+      "value": "TestCommonCUDA"
+    },
+    {
+      "name": "testFile",
+      "type": "string",
+      "value": "test_ops"
+    },
+    {
+      "name": "workflowName",
+      "type": "string",
+      "value": "pull"
+    }
+  ],
+  "description": ""
+}

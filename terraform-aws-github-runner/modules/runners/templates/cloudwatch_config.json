@@ -1,6 +1,21 @@
 {
     "agent": {
-        "metrics_collection_interval": 5
+        "metrics_collection_interval": 10,
+        "region": "${aws_region}"
+    },
+    "metrics": {
+      "namespace": "GHARunners/${environment}",
+      "append_dimensions": {
+        "ImageID":"$${aws:ImageId}",
+        "InstanceId":"$${aws:InstanceId}",
+        "InstanceType":"$${aws:InstanceType}"
+      },
+      "aggregation_dimensions": [
+        ["ImageID"],
+        ["InstanceType"],
+        ["ImageID", "InstanceType"]
+      ],
+      "metrics_collected": ${metrics_collected}
     },
     "logs": {
         "logs_collected": {

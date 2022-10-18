@@ -139,6 +139,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/periodic",
     "ciflow/android",
     "ciflow/binaries",
+    "ciflow/inductor",
     "ciflow/mps",
     "ciflow/nightly",
     "ciflow/binaries_conda",

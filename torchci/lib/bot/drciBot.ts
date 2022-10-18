@@ -1,24 +1,7 @@
-import { Context, Probot } from "probot";
-import { DRCI_COMMENT_START, OWNER, REPO, formDrciComment } from "lib/drciUtils";
+import { Probot } from "probot";
+import { OWNER, REPO, formDrciComment, getDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
-async function getDrciComment(
-  context: Context,
-  owner: string,
-  repo: string,
-  prNum: number,
-): Promise<{ id: number; body: string }> {
-  const commentsRes = await context.octokit.issues.listComments({
-    owner: owner,
-    repo: repo,
-    issue_number: prNum,
-  });
-  for (const comment of commentsRes.data) {
-    if (comment.body!.includes(DRCI_COMMENT_START)) {
-      return { id: comment.id, body: comment.body! };
-    }
-  }
-  return { id: 0, body: "" };
-}
 
 export default function drciBot(app: Probot): void {
   app.on(
@@ -45,14 +28,15 @@ export default function drciBot(app: Probot): void {
       context.log(prOwner);
 
       const existingDrciData = await getDrciComment(
-        context,
+        context.octokit,
         owner,
         repo,
-        prNum,
+        prNum
       );
       const existingDrciID = existingDrciData.id;
       const existingDrciComment = existingDrciData.body;
-      const drciComment = formDrciComment(prNum);
+      const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+      const drciComment = formDrciComment(prNum, "", formDrciSevBody(sev));
 
       if (existingDrciComment === drciComment) {
         return;

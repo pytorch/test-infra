@@ -145,6 +145,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
+        body: "random"
       },
     ];
 
@@ -179,6 +180,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
+        body: "random"
       },
     ];
 
@@ -408,6 +410,29 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const workflowJobs = ["pull / whatever-rocm-linux / build"];
     expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
       "rocm"
+    ]);
+  });
+
+  test("getPlatformsAffected: should correctly triage dyanmo", async () => {
+    let workflowJobs = ["linux rocm", "dynamo linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "rocm",
+      "dynamo",
+    ]);
+
+    workflowJobs = ["dynamo linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "dynamo",
+    ]);
+
+    workflowJobs = ["linux rocm", "dynamo linux", "linux"];
+    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
+    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
+      "linux",
+      "rocm",
+      "dynamo",
     ]);
   });
 
