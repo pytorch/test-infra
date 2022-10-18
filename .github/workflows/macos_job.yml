@@ -117,7 +117,3 @@ jobs:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
-
-      - name: Teardown Windows
-        if: ${{ always() }}
-        uses: ./test-infra/.github/actions/teardown-windows
