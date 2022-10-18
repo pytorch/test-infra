@@ -1,5 +1,5 @@
-import { Repo, RunnerInfo, getRepoKey } from './utils';
-import { RunnerType, terminateRunner } from './runners';
+import { Repo, getRepoKey } from './utils';
+import { RunnerType } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 
 import { Config } from './config';
@@ -127,60 +127,46 @@ type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
-export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo, metrics: Metrics) {
-  try {
-    const githubAppClient = await createGitHubClientForRunnerRepo(repo, metrics);
-    const result = await metrics.trackRequest(
-      metrics.deleteSelfHostedRunnerFromRepoGHCallSuccess,
-      metrics.deleteSelfHostedRunnerFromRepoGHCallFailure,
-      () => {
-        return githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
-          ...repo,
-          runner_id: ghRunnerId,
-        });
-      },
-    );
+export async function removeGithubRunnerRepo(ghRunnerId: number, repo: Repo, metrics: Metrics) {
+  const githubAppClient = await createGitHubClientForRunnerRepo(repo, metrics);
+  const result = await metrics.trackRequest(
+    metrics.deleteSelfHostedRunnerFromRepoGHCallSuccess,
+    metrics.deleteSelfHostedRunnerFromRepoGHCallFailure,
+    () => {
+      return githubAppClient.actions.deleteSelfHostedRunnerFromRepo({
+        ...repo,
+        runner_id: ghRunnerId,
+      });
+    },
+  );
 
-    /* istanbul ignore next */
-    if (result?.status == 204) {
-      await terminateRunner(ec2runner, metrics);
-      console.info(
-        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
-          `and GitHub runner is de-registered. (removeGithubRunnerRepo)`,
-      );
-    }
-  } catch (e) {
-    console.warn(
-      `Error scaling down (removeGithubRunnerRepo) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+  /* istanbul ignore next */
+  if ((result?.status ?? 0) != 204) {
+    throw (
+      `Request deleteSelfHostedRunnerFromRepoGHCallSuccess returned status code different than 204: ` +
+      `${result?.status ?? 0} for ${repo} ${ghRunnerId}`
     );
   }
 }
 
-export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: number, org: string, metrics: Metrics) {
-  try {
-    const githubAppClient = await createGitHubClientForRunnerOrg(org, metrics);
-    const result = await metrics.trackRequest(
-      metrics.deleteSelfHostedRunnerFromOrgGHCallSuccess,
-      metrics.deleteSelfHostedRunnerFromOrgGHCallFailure,
-      () => {
-        return githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
-          org: org,
-          runner_id: ghRunnerId,
-        });
-      },
-    );
+export async function removeGithubRunnerOrg(ghRunnerId: number, org: string, metrics: Metrics) {
+  const githubAppClient = await createGitHubClientForRunnerOrg(org, metrics);
+  const result = await metrics.trackRequest(
+    metrics.deleteSelfHostedRunnerFromOrgGHCallSuccess,
+    metrics.deleteSelfHostedRunnerFromOrgGHCallFailure,
+    () => {
+      return githubAppClient.actions.deleteSelfHostedRunnerFromOrg({
+        org: org,
+        runner_id: ghRunnerId,
+      });
+    },
+  );
 
-    /* istanbul ignore next */
-    if (result?.status == 204) {
-      await terminateRunner(ec2runner, metrics);
-      console.info(
-        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
-          `and GitHub runner is de-registered. (removeGithubRunnerOrg)`,
-      );
-    }
-  } catch (e) {
-    console.warn(
-      `Error scaling down (removeGithubRunnerOrg) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+  /* istanbul ignore next */
+  if ((result?.status ?? 0) != 204) {
+    throw (
+      `Request deleteSelfHostedRunnerFromRepoGHCallSuccess returned status code different than 204: ` +
+      `${result?.status ?? 0} for ${org} ${ghRunnerId}`
     );
   }
 }
