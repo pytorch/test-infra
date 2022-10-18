@@ -157,7 +157,7 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            export DYLD_FALLBACK_LIBRARY_PATH="${DYLD_FALLBACK_LIBRARY_PATH}:${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
+            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
             echo $DYLD_FALLBACK_LIBRARY_PATH
             ls -la $DYLD_FALLBACK_LIBRARY_PATH
 
@@ -165,7 +165,7 @@ jobs:
           fi
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() && runner.arch == 'x86_64' }}
+        if: ${{ failure() && inputs.runner-type == 'macos-12' }}
         timeout-minutes: 60
         with:
           limit-access-to-actor: true
