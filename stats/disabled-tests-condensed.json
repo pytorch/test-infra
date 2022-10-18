@@ -84,6 +84,13 @@
     "https://github.com/pytorch/pytorch/issues/68849",
     []
   ],
+  "test_acquire_release (__main__.LocalTimerServerTest)": [
+    "87154",
+    "https://github.com/pytorch/pytorch/issues/87154",
+    [
+      "linux"
+    ]
+  ],
   "test_adamw (__main__.TestOptim)": [
     "86435",
     "https://github.com/pytorch/pytorch/issues/86435",
