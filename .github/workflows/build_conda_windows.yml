@@ -111,6 +111,8 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
