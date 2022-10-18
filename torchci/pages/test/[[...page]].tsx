@@ -170,13 +170,13 @@ function GetJobs({
   const workflowIds = [];
   const jobIds = [];
 
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+  const { data } = useSWR(url, fetcher);
+
   // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
   if (workflowId == null || jobId == null) {
-    const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-      JSON.stringify(queryParams)
-    )}`;
-
-    const { data } = useSWR(url, fetcher);
     if (data === undefined || data.length == 0) {
       return (<div></div>);
     }
