@@ -103,13 +103,6 @@
     "https://github.com/pytorch/pytorch/issues/67287",
     []
   ],
-  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
-    "81029",
-    "https://github.com/pytorch/pytorch/issues/81029",
-    [
-      "linux"
-    ]
-  ],
   "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
     "81023",
     "https://github.com/pytorch/pytorch/issues/81023",
@@ -1867,6 +1860,13 @@
   "test_out_linalg_lu_factor_ex_cuda_float32 (__main__.TestCommonCUDA)": [
     "86952",
     "https://github.com/pytorch/pytorch/issues/86952",
+    [
+      "linux"
+    ]
+  ],
+  "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
+    "87190",
+    "https://github.com/pytorch/pytorch/issues/87190",
     [
       "linux"
     ]
