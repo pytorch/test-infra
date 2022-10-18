@@ -59,13 +59,12 @@ jobs:
       - name: Setup miniconda
         uses: ./test-infra/.github/actions/setup-miniconda
 
-    - name: Setup useful environment variables
-      shell: bash
-      working-directory: ${{ inputs.repository }}
-      run: |
-        RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
-        mkdir -p "${RUNNER_ARTIFACT_DIR}"
-        echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+      - name: Setup useful environment variables
+        working-directory: ${{ inputs.repository }}
+        run: |
+          RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
+          mkdir -p "${RUNNER_ARTIFACT_DIR}"
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
