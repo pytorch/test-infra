@@ -94,6 +94,7 @@ jobs:
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
+        shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         id: check-artifacts
         if: ${{ inputs.upload-artifact != '' }}
