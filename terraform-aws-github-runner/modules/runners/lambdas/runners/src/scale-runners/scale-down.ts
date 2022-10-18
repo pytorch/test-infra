@@ -97,21 +97,22 @@ export async function scaleDown(): Promise<void> {
 
         removedRunners += 1;
 
+        // removeGithubRunner[Org || Repo] already call terminateRunner if successful
         if (ghRunner !== undefined) {
           if (Config.Instance.enableOrganizationRunners) {
             await removeGithubRunnerOrg(ec2runner, ghRunner.id, ec2runner.org as string, metrics);
           } else {
             await removeGithubRunnerRepo(ec2runner, ghRunner.id, getRepo(ec2runner.repo as string), metrics);
           }
-        }
-
-        console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
-        try {
-          await terminateRunner(ec2runner, metrics);
-          metrics.runnerTerminateSuccess(ec2runner);
-        } catch (e) {
-          metrics.runnerTerminateFailure(ec2runner);
-          console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+        } else {
+          console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
+          try {
+            await terminateRunner(ec2runner, metrics);
+            metrics.runnerTerminateSuccess(ec2runner);
+          } catch (e) {
+            metrics.runnerTerminateFailure(ec2runner);
+            console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+          }
         }
       }
     }
