@@ -17,11 +17,11 @@ on:
         type: string
       upload-artifact:
         description: 'Name to give artifacts uploaded from ${RUNNER_ARTIFACT_DIR}'
-        default: ''
+        default: ""
         type: string
       download-artifact:
         description: 'Name to download artifacts to ${RUNNER_ARTIFACT_DIR}'
-        default: ''
+        default: ""
         type: string
       repository:
         description: 'Repository to checkout, defaults to ""'
