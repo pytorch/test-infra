@@ -1,0 +1,82 @@
+name: Verify Parity Between Nova/Circle Binaries
+
+description: Check out both binaries and do some verification on both
+
+inputs:
+  artifact-name:
+    description: "Name of the Nova artifact uploaded to GitHub"
+    default: ""
+    type: string
+  repository:
+    description: "Name of domain repo"
+    default: ""
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # - uses: actions/download-artifact@v3
+    #   with:
+    #     name: ${{ inputs.artifact-name }}
+    #     path: nova
+    - name: Unpack Nova Binary
+      shell: bash -l {0}
+      run: |
+        set -ex
+        mkdir nova
+        mv "${{ inputs.repository }}/dist/"*.whl nova/
+        pushd nova
+        mkdir extracted
+        WHEEL_NAME=$(ls ./*.whl)
+        python3 -m zipfile --extract "$WHEEL_NAME" extracted/
+        popd
+    - name: Fetch CircleCI Binary
+      shell: bash -l {0}
+      run: |
+        set -ex
+        mkdir circle
+        curl https://download.pytorch.org/whl/nightly/cpu/torchaudio-0.13.0.dev20220930%2Bcpu-cp38-cp38-linux_x86_64.whl --output circle/wheel.whl
+    - name: Unpack CircleCI Binary
+      shell: bash -l {0}
+      run: |
+        set -ex
+        pushd circle
+        mkdir extracted
+        python3 -m zipfile --extract wheel.whl extracted/
+        popd
+    - name: Run Verification
+      shell: bash -l {0}
+      run: |
+        set -x
+        pushd circle/extracted
+        find . -name "*.so" > "$HOME"/circle_so_names.txt
+        find . -name "*.so" | xargs du -sc > "$HOME"/circle_so_sizes.txt
+        CIRCLE_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so | wc -l)
+        chmod +x ./torchaudio/_torchaudio.so
+        ldd ./torchaudio/_torchaudio.so > "$HOME"/circle_ldd_dump.txt
+        popd
+        
+        pushd nova/extracted
+        find . -name "*.so" > "$HOME"/nova_so_names.txt
+        find . -name "*.so" | xargs du -sc > "$HOME"/nova_so_sizes.txt
+        NOVA_NUM_SYMBOLS=$(nm ./torchaudio/_torchaudio.so | wc -l)
+        chmod +x ./torchaudio/_torchaudio.so
+        ldd ./torchaudio/_torchaudio.so > "$HOME"/nova_ldd_dump.txt
+        popd
+        
+        echo "CIRCLE_NUM_SYMBOLS:"
+        echo "$CIRCLE_NUM_SYMBOLS"
+        echo "NOVA_NUM_SYMBOLS"
+        echo "$NOVA_NUM_SYMBOLS"
+        # cat "$HOME"/circle_so_names.txt
+        # cat "$HOME"/nova_so_names.txt
+        echo "Diffing so names"
+        diff "$HOME"/circle_so_names.txt "$HOME"/nova_so_names.txt
+        # cat "$HOME"/circle_so_sizes.txt
+        # cat "$HOME"/nova_so_sizes.txt
+        echo "Diffing so sizes"
+        diff "$HOME"/circle_so_sizes.txt "$HOME"/nova_so_sizes.txt
+        # cat "$HOME"/circle_ldd_dump.txt
+        # cat "$HOME"/nova_ldd_dump.txt
+        echo "Diffing ldd dumps"
+        diff "$HOME"/circle_ldd_dump.txt "$HOME"/nova_ldd_dump.txt
