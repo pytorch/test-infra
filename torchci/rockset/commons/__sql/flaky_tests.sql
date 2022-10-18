@@ -79,4 +79,4 @@ SELECT
 FROM
     flaky_tests
 where
-    numGreen > 2
+    numGreen > 1
