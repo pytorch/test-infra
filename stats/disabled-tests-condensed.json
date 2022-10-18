@@ -386,13 +386,6 @@
       "windows"
     ]
   ],
-  "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
-    "81028",
-    "https://github.com/pytorch/pytorch/issues/81028",
-    [
-      "linux"
-    ]
-  ],
   "test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)": [
     "77237",
     "https://github.com/pytorch/pytorch/issues/77237",
