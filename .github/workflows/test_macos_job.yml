@@ -32,11 +32,11 @@ jobs:
         conda activate test
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch, cuda is available
-        python3 -c 'import torch;assert(torch.cuda.is_available())'
+        python3 -c 'import torch'
   test-upload-artifact:
     uses: ./.github/workflows/macos_job.yml
     with:
-      runner: macos-12
+      runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       upload-artifact: my-cool-artifact
@@ -46,7 +46,7 @@ jobs:
     needs: test-upload-artifact
     uses: ./.github/workflows/macos_job.yml
     with:
-      runner: macos-12
+      runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       download-artifact: my-cool-artifact
