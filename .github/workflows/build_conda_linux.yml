@@ -140,13 +140,13 @@ jobs:
           BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
           echo "$BINARY_NAME"
           if [[ "${GPU_ARCH}" = "cpu" ]]; then
-            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} pytorch
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
           elif [[ "${GPU_ARCH}" = "cuda" && ("${DESIRED_CUDA}" = "cu116" || "${DESIRED_CUDA}" = "cu117") ]]; then
-            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} -c nvidia pytorch pytorch-cuda=${GPU_ARCH_VERSION}
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia pytorch pytorch-cuda="${GPU_ARCH_VERSION}"
           elif [[ "${GPU_ARCH}" = "cuda" ]]; then
-            conda install -v -y -c pytorch-${CHANNEL} pytorch cudatoolkit=${GPU_ARCH_VERSION}
+            conda install -v -y -c pytorch-"${CHANNEL}" pytorch cudatoolkit="${GPU_ARCH_VERSION}"
           else
-            ${CONDA_RUN} conda install -v -y -c pytorch-${CHANNEL} pytorch
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
           fi
           ${CONDA_RUN} conda install --offline "$BINARY_NAME"
           ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
