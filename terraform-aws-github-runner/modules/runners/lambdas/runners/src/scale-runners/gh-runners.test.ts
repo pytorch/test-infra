@@ -14,7 +14,6 @@ import {
   removeGithubRunnerRepo,
   resetGHRunnersCaches,
 } from './gh-runners';
-import { RunnerInfo } from './utils';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 import { ScaleUpMetrics } from './metrics';
 
@@ -390,12 +389,6 @@ describe('listGithubRunners', () => {
 });
 
 describe('removeGithubRunnerRepo', () => {
-  const repo = { owner: 'owner', repo: 'repo' };
-  const irrelevantRunnerInfo: RunnerInfo = {
-    ...repo,
-    instanceId: '113',
-  };
-
   it('succeeds', async () => {
     const runnerId = 33;
     const repo = { owner: 'owner', repo: 'repo' };
@@ -419,16 +412,13 @@ describe('removeGithubRunnerRepo', () => {
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     resetGHRunnersCaches();
-    await removeGithubRunnerRepo(irrelevantRunnerInfo, runnerId, repo, metrics);
+    await removeGithubRunnerRepo(runnerId, repo, metrics);
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
       ...repo,
       runner_id: runnerId,
     });
     expect(getRepoInstallation).toBeCalled();
-    expect(mockEC2.terminateInstances).toBeCalledWith({
-      InstanceIds: [irrelevantRunnerInfo.instanceId],
-    });
   });
 
   it('fails', async () => {
@@ -454,23 +444,18 @@ describe('removeGithubRunnerRepo', () => {
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     resetGHRunnersCaches();
-    await removeGithubRunnerRepo(irrelevantRunnerInfo, runnerId, repo, metrics);
+    await expect(removeGithubRunnerRepo(runnerId, repo, metrics)).rejects.toThrow();
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
       ...repo,
       runner_id: runnerId,
     });
     expect(getRepoInstallation).toBeCalled();
-    expect(mockEC2.terminateInstances).not.toBeCalled();
   });
 });
 
 describe('removeGithubRunnerOrg', () => {
   const org = 'mockedOrg';
-  const irrelevantRunnerInfo: RunnerInfo = {
-    org: org,
-    instanceId: '113',
-  };
 
   it('succeeds', async () => {
     const runnerId = 33;
@@ -494,16 +479,13 @@ describe('removeGithubRunnerOrg', () => {
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     resetGHRunnersCaches();
-    await removeGithubRunnerOrg(irrelevantRunnerInfo, runnerId, org, metrics);
+    await removeGithubRunnerOrg(runnerId, org, metrics);
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
       org: org,
       runner_id: runnerId,
     });
     expect(getOrgInstallation).toBeCalled();
-    expect(mockEC2.terminateInstances).toBeCalledWith({
-      InstanceIds: [irrelevantRunnerInfo.instanceId],
-    });
   });
 
   it('fails', async () => {
@@ -528,14 +510,13 @@ describe('removeGithubRunnerOrg', () => {
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
     resetGHRunnersCaches();
-    await removeGithubRunnerOrg(irrelevantRunnerInfo, runnerId, org, metrics);
+    await expect(removeGithubRunnerOrg(runnerId, org, metrics)).rejects.toThrow();
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
       org: org,
       runner_id: runnerId,
     });
     expect(getOrgInstallation).toBeCalled();
-    expect(mockEC2.terminateInstances).not.toBeCalled();
   });
 });
 
