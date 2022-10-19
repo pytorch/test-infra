@@ -161,6 +161,7 @@ jobs:
             echo $DYLD_FALLBACK_LIBRARY_PATH
             ls -la $DYLD_FALLBACK_LIBRARY_PATH
 
+            ${CONDA_RUN} conda install ffmpeg
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Setup tmate session
