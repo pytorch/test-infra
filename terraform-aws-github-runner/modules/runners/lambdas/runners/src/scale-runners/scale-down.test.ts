@@ -163,7 +163,7 @@ describe('scale-down', () => {
       mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
       mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
       mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01', busy: false }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false }),
       mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
       mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
       mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
@@ -264,7 +264,7 @@ describe('scale-down', () => {
       },
       {
         runnerType: 'a-ephemeral-runner',
-        instanceId: 'remove-ephemeral-01', // X
+        instanceId: 'remove-ephemeral-01-fail-ghr', // X
         org: theOrg,
         launchTime: dateRef
           .clone()
@@ -380,6 +380,14 @@ describe('scale-down', () => {
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
+      mockedRemoveGithubRunnerOrg.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (runnerId: number, org: string, metrics: MetricsModule.Metrics) => {
+          if (runnerId == 7) {
+            throw 'Failure';
+          }
+        },
+      );
 
       await scaleDown();
 
@@ -395,46 +403,36 @@ describe('scale-down', () => {
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(3);
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
-        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(awsR, ghR.id, awsR.org as string, metrics);
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
       }
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(awsR, ghR.id, awsR.org as string, metrics);
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
       }
       {
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01');
-        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(awsR, ghR.id, awsR.org as string, metrics);
+        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
       }
 
-      expect(mockedTerminateRunner).toBeCalledTimes(6);
+      expect(mockedTerminateRunner).toBeCalledTimes(5);
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
+        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
+        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
+        const { awsR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-01');
+        const { awsR } = getRunnerPair('keep-min-runners-oldest-01');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01');
+        const { awsR } = getRunnerPair('remove-ephemeral-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
     });
@@ -460,7 +458,7 @@ describe('scale-down', () => {
       mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
       mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
       mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01', busy: false }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false }),
       mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
       mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
       mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
@@ -561,7 +559,7 @@ describe('scale-down', () => {
       },
       {
         runnerType: 'a-ephemeral-runner',
-        instanceId: 'remove-ephemeral-01', // X
+        instanceId: 'remove-ephemeral-01-fail-ghr', // X
         repo: theRepo,
         launchTime: dateRef
           .clone()
@@ -676,6 +674,14 @@ describe('scale-down', () => {
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
+      mockedRemoveGithubRunnerRepo.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (runnerId: number, repo: Repo, metrics: MetricsModule.Metrics) => {
+          if (runnerId == 7) {
+            throw 'Failure';
+          }
+        },
+      );
 
       await scaleDown();
 
@@ -690,47 +696,37 @@ describe('scale-down', () => {
 
       expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(3);
       {
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
-        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(awsR, ghR.id, repo, metrics);
+        const { ghR } = getRunnerPair('keep-min-runners-oldest-02');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
       {
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(awsR, ghR.id, repo, metrics);
+        const { ghR } = getRunnerPair('keep-min-runners-oldest-01');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
       {
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01');
-        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(awsR, ghR.id, repo, metrics);
+        const { ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
 
-      expect(mockedTerminateRunner).toBeCalledTimes(6);
+      expect(mockedTerminateRunner).toBeCalledTimes(5);
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
+        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
+        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
+        const { awsR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-01');
+        const { awsR } = getRunnerPair('keep-min-runners-oldest-01');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
       {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        const { awsR, ghR } = getRunnerPair('remove-ephemeral-01');
+        const { awsR } = getRunnerPair('remove-ephemeral-02');
         expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
       }
     });

@@ -2884,6 +2884,11 @@
   resolved "https://registry.yarnpkg.com/@octokit/webhooks-types/-/webhooks-types-5.8.0.tgz#b76d1a3e3ad82cec5680d3c6c3443a620047a6ef"
   integrity sha512-8adktjIb76A7viIdayQSFuBEwOzwhDC+9yxZpKNHjfzrlostHCw0/N7JWpWMObfElwvJMk2fY2l1noENCk9wmw==
 
+"@octokit/webhooks-types@^6.5.0":
+  version "6.5.0"
+  resolved "https://registry.yarnpkg.com/@octokit/webhooks-types/-/webhooks-types-6.5.0.tgz#536a22edc816d307de0d2fc1e6303022453a50eb"
+  integrity sha512-SNx1YKBvi9IQvXo/SQ0p+9OKO2HMdzpCWcKsYxpGW1tlkE9TojYiGnFfxcXddyrsK4mC1UiyXY8+NYjWjtkVmA==
+
 "@octokit/webhooks@^9.0.1", "@octokit/webhooks@^9.23.0", "@octokit/webhooks@^9.8.4":
   version "9.26.0"
   resolved "https://registry.yarnpkg.com/@octokit/webhooks/-/webhooks-9.26.0.tgz#cf453bb313da3b66f1a90c84464d978e1c625cce"

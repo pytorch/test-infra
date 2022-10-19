@@ -115,9 +115,8 @@ Some header text
     payload["pull_request"]["body"] = "Arf arf";
 
     const scope = nock("https://api.github.com")
-      .patch("/repos/seemethere/test-repo/pulls/", (body: any) => {
+      .patch("/repos/seemethere/test-repo/pulls/20", (body: any) => {
         expect(body).toMatchObject({
-          issue_number: 20,
           body: "Arf arf\n\ncc @ezyang",
         });
         return true;
