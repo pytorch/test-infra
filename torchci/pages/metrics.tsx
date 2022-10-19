@@ -105,8 +105,11 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { text: "Commits red on master, by day" },
-    grid: { top: 48, right: 8, bottom: 24, left: 36 },
+    title: { 
+      text: "Commits red on master, by day", 
+      subtext: "Based on workflows which block viable/strict upgrade"
+    },
+    grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "category" },
     yAxis: {
