@@ -130,6 +130,7 @@ jobs:
         if: ${{ inputs.repository == 'pytorch/audio' }}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
           GPU_ARCH: ${{ matrix.gpu_arch_type }}
           DESIRED_CUDA: ${{ matrix.desired_cuda }}
           GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
@@ -149,7 +150,16 @@ jobs:
             ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
           fi
           ${CONDA_RUN} conda install --offline "$BINARY_NAME"
-          ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+
+          if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
+            ${CONDA_RUN} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          else
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
+            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+            conda install 'ffmpeg<5'
+            ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+          fi
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
