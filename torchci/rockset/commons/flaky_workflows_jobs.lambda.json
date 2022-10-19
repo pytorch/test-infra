@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/flaky_workflows_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "master"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-10-15T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2022-10-19T00:06:32.839Z"
+    }
+  ],
+  "description": ""
+}
