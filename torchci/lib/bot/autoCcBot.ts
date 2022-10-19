@@ -17,10 +17,17 @@ function myBot(app: Probot): void {
     context: Context,
     payloadType: string
   ): Promise<void> {
+    const payload = context.payload;
+    context.log(
+      {
+        repo_slug: `${payload.repository.owner.login}/${payload.repository.name}`,
+        payload_type: payloadType,
+      },
+      "Started processing"
+    );
     const subscriptions = await loadSubscriptions(context);
-    context.log("payload_type=", payloadType);
     // @ts-ignore
-    const labels = context.payload[payloadType].labels.map((e) => e.name);
+    const labels = payload[payloadType].labels.map((e) => e.name);
     context.log({ labels });
     const cc = new Set();
     labels.forEach((l: string) => {
@@ -32,13 +39,13 @@ function myBot(app: Probot): void {
     context.log({ cc: Array.from(cc) }, "from subscriptions");
     // Remove self from subscription
     // @ts-ignore
-    const author = context.payload[payloadType].user.login;
+    const author = payload[payloadType].user.login;
     if (cc.delete(author)) {
       context.log({ author: author }, "Removed self from subscriptions");
     }
     if (cc.size) {
       // @ts-ignore
-      const body = context.payload[payloadType]["body"];
+      const body = payload[payloadType]["body"];
       const reCC = /cc( +@[a-zA-Z0-9-/]+)+/;
       const oldCCMatch = body ? body.match(reCC) : null;
       const prevCC = new Set();
