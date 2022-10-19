@@ -57,3 +57,4 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       runner-type: windows-2019
+      trigger-event: "${{ github.event_name }}"
