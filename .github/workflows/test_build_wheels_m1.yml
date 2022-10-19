@@ -31,10 +31,12 @@ jobs:
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
             package-name: torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
             package-name: torchtext
     uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}
