@@ -26,6 +26,12 @@ with commit_overall_conclusion as (
             WHERE
                 job.name != 'ciflow_should_run'
                 AND job.name != 'generate-test-matrix'
+                AND (
+                    -- Limit it to workflows which block viable/strict upgrades
+                    workflow.name in ('Lint', 'pull', 'trunk')
+                    OR workflow.name like 'linux-binary%'
+                    OR workflow.name like 'windows-binary%'
+                )
                 AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
                 AND push.ref IN ('refs/heads/master', 'refs/heads/main')
                 AND push.repository.owner.name = 'pytorch'
