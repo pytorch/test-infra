@@ -98,7 +98,7 @@ export async function scaleDown(): Promise<void> {
         let shouldRemoveEC2 = true;
         if (ghRunner !== undefined) {
           if (Config.Instance.enableOrganizationRunners) {
-            console.info(
+            console.debug(
               `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
                 `[${ec2runner.runnerType}] will be removed.`,
             );
@@ -112,14 +112,14 @@ export async function scaleDown(): Promise<void> {
             } catch (e) {
               console.warn(
                 `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] failed to be removed.`,
+                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
               );
               metrics.runnerGhTerminateFailureOrg(ec2runner.org as string, ec2runner);
               shouldRemoveEC2 = false;
             }
           } else {
             const repo = getRepo(ec2runner.repo as string);
-            console.info(
+            console.debug(
               `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
                 `[${ec2runner.runnerType}] will be removed.`,
             );
@@ -133,7 +133,7 @@ export async function scaleDown(): Promise<void> {
             } catch (e) {
               console.warn(
                 `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] failed to be removed.`,
+                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
               );
               metrics.runnerGhTerminateFailureRepo(repo, ec2runner);
               shouldRemoveEC2 = false;
