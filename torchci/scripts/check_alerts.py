@@ -224,18 +224,20 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def update_issue(issue: Any, issue_number: int) -> None:
+def update_issue(issue: Dict, issue_number: int) -> Dict:
     print("Updating issue", issue)
     r = requests.patch(
         UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
     )
     r.raise_for_status()
+    return issue
 
 
-def create_issue(issue: Any) -> None:
+def create_issue(issue: Dict) -> Dict:
     print("Creating issue", issue)
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
+    return issue
 
 
 def fetch_hud_data() -> Any:
@@ -351,6 +353,32 @@ def classify_jobs(job_names: List[str], sha_grid: Any) -> Tuple[List[Any], List[
     return (jobs_to_alert_on, flaky_jobs)
 
 
+def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
+    if (
+        not existing_alerts
+        or datetime.fromisoformat(
+            existing_alerts[0]["createdAt"].replace("Z", "+00:00")
+        ).date()
+        != datetime.today().date()
+    ):
+        from_date = (
+            datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
+        ).strftime("%Y-%m-%d")
+        num_issues_with_flaky_tests_lables = get_num_issues_with_label(
+            REPO_OWNER, PYTORCH_REPO_NAME, FLAKY_TESTS_LABEL, from_date
+        )
+        print(
+            f"Num issues with `{FLAKY_TESTS_LABEL}` label: ",
+            num_issues_with_flaky_tests_lables,
+        )
+        if num_issues_with_flaky_tests_lables == 0:
+            return create_issue(generate_no_flaky_tests_issue())
+    
+    print("No new alert for flaky tests bots.")
+    return None
+
+
+
 def main():
     job_names, sha_grid = fetch_hud_data()
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
@@ -368,8 +396,6 @@ def main():
         if trunk_is_green(sha_grid):
             clear_alerts(existing_alerts)
             existing_alerts = []  # all alerts have now been cleared
-
-        return
 
     # Find the existing alert for recurrently failing jobs (if any).
     # We're going to update the existing alert if possible instead of filing a new one.
@@ -389,28 +415,7 @@ def main():
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
-    if (
-        not existing_no_flaky_tests_alerts
-        or datetime.fromisoformat(
-            existing_no_flaky_tests_alerts[0]["createdAt"].replace("Z", "+00:00")
-        ).date()
-        != datetime.today().date()
-    ):
-        from_date = (
-            datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
-        ).strftime("%Y-%m-%d")
-        num_issues_with_flaky_tests_lables = get_num_issues_with_label(
-            REPO_OWNER, PYTORCH_REPO_NAME, FLAKY_TESTS_LABEL, from_date
-        )
-        print(
-            f"Num issues with `{FLAKY_TESTS_LABEL}` label: ",
-            num_issues_with_flaky_tests_lables,
-        )
-        if num_issues_with_flaky_tests_lables == 0:
-            create_issue(generate_no_flaky_tests_issue())
-    else:
-        print("No new alert for flaky tests bots.")
-
+    handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
 
 if __name__ == "__main__":
     main()
