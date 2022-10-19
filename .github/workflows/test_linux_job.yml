@@ -56,3 +56,21 @@ jobs:
       download-artifact: my-cool-artifact
       script: |
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+
+  test-with-matrix:
+    uses: ./.github/workflows/linux_job.yml
+    strategy:
+      matrix:
+        python_version: [3.7, 3.8, 3.9, 3.10]
+    env:
+      PYTHON_VERSION: ${{ matrix.python_version }}
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      download-artifact: my-cool-artifact
+      script: |
+        set -x
+        conda create -y -n test python="${PYTHON_VERSION}"
+        conda activate test
+        python --version | grep "${PYTHON_VERSION}"
