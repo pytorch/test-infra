@@ -159,18 +159,10 @@ jobs:
 
             export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
             echo $DYLD_FALLBACK_LIBRARY_PATH
-            ls -la $DYLD_FALLBACK_LIBRARY_PATH
 
             ${CONDA_RUN} conda install ffmpeg
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() && inputs.runner-type == 'macos-12' }}
-        timeout-minutes: 60
-        with:
-          limit-access-to-actor: true
-          install-dependencies: true
       - name: Upload package to pytorch.org
         if: ${{ inputs.trigger-event == 'push' }}
         shell: bash -l {0}
