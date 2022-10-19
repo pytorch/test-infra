@@ -1,6 +1,7 @@
 import { parseSubscriptions } from "./subscriptions";
 import { CachedIssueTracker } from "./utils";
 import { Probot, Context } from "probot";
+import { PullRequestLabeledEvent, IssuesLabeledEvent } from "@octokit/webhooks-types";
 
 function myBot(app: Probot): void {
   const tracker = new CachedIssueTracker(
@@ -17,7 +18,7 @@ function myBot(app: Probot): void {
     context: Context,
     payloadType: string
   ): Promise<void> {
-    const payload = context.payload;
+    const payload = context.payload as PullRequestLabeledEvent | IssuesLabeledEvent;
     context.log(
       {
         repo_slug: `${payload.repository.owner.login}/${payload.repository.name}`,
