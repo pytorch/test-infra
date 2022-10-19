@@ -105,6 +105,8 @@ jobs:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
           source "${BUILD_ENV_FILE}"
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
           ${CONDA_RUN} conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
