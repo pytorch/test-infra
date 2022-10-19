@@ -521,6 +521,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addmm_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "87323",
+    "https://github.com/pytorch/pytorch/issues/87323",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addmm_cuda_float32 (__main__.TestDecompCUDA)": [
     "86868",
     "https://github.com/pytorch/pytorch/issues/86868",
