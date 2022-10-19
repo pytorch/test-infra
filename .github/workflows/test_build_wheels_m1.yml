@@ -26,12 +26,18 @@ jobs:
           - repository: pytorch/audio
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
+            package-name: torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
+            package-name: torchtext
     uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}
     with:
@@ -42,6 +48,7 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
       runner-type: macos-m1-12
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
