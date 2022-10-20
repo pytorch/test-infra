@@ -180,7 +180,7 @@ export default async function handler(
         priority: 200,
       },
       {
-        name: "SIG Code",
+        name: "Python Test SIG Code",
         pattern: r`^.*Received Signal: SIG.*`,
         priority: 150,
       },
@@ -243,6 +243,11 @@ export default async function handler(
         name: "GHA error",
         pattern: r`^##\[error\](.*)`,
         priority: 94,
+      },
+      {
+        name: "pytest test failure from summary",
+        pattern: r`^FAILED .*`,
+        priority: 93,
       },
     ]);
 }
