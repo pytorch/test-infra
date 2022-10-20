@@ -212,15 +212,12 @@ def generate_no_flaky_tests_issue() -> Any:
     issue[
         "title"
     ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
-    issue[
-        "body"
-    ] = (
-    f"No issues has been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
-    "This can be an indication that the flaky test bot has stopped filing tests."
- )
+    issue["body"] = (
+        f"No issues has been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
+        "This can be an indication that the flaky test bot has stopped filing tests."
+    )
     issue["labels"] = [NO_FLAKY_TESTS_LABEL]
 
-    print("Generating issue for no_flaky_tests!")
     return issue
 
 
@@ -373,10 +370,9 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
         )
         if num_issues_with_flaky_tests_lables == 0:
             return create_issue(generate_no_flaky_tests_issue())
-    
+
     print("No new alert for flaky tests bots.")
     return None
-
 
 
 def main():
@@ -385,9 +381,6 @@ def main():
 
     # Fetch alerts
     existing_alerts = fetch_alerts(TEST_INFRA_REPO_NAME, PYTORCH_ALERT_LABEL)
-    existing_no_flaky_tests_alerts = fetch_alerts(
-        TEST_INFRA_REPO_NAME, NO_FLAKY_TESTS_LABEL
-    )
 
     # Alerts should also be cleared if the current status of HUD is green
     if len(jobs_to_alert_on) == 0:
@@ -415,7 +408,11 @@ def main():
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
+    existing_no_flaky_tests_alerts = fetch_alerts(
+        TEST_INFRA_REPO_NAME, NO_FLAKY_TESTS_LABEL
+    )
     handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
+
 
 if __name__ == "__main__":
     main()
