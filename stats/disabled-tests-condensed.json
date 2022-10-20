@@ -528,6 +528,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_addcmul_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "87347",
+    "https://github.com/pytorch/pytorch/issues/87347",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_addmm_cuda_complex64 (__main__.TestDecompCUDA)": [
     "87323",
     "https://github.com/pytorch/pytorch/issues/87323",
@@ -642,6 +649,13 @@
   "test_comprehensive_cdist_cuda_float64 (__main__.TestDecompCUDA)": [
     "87165",
     "https://github.com/pytorch/pytorch/issues/87165",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_cholesky_solve_cuda_complex128 (__main__.TestDecompCUDA)": [
+    "87346",
+    "https://github.com/pytorch/pytorch/issues/87346",
     [
       "rocm"
     ]
