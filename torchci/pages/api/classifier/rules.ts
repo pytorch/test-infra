@@ -180,6 +180,16 @@ export default async function handler(
         priority: 200,
       },
       {
+        name: "SIG Code",
+        pattern: r`^.*Received Signal: SIG.*`,
+        priority: 150,
+      },
+      {
+        name: "SIGKILL",
+        pattern: r`^.*SIGKILL.*`,
+        priority: 150,
+      },
+      {
         name: "Python AttributeError",
         pattern: r`^AttributeError: .*`,
         priority: 100,
