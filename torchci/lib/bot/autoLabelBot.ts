@@ -260,8 +260,8 @@ function myBot(app: Probot): void {
 
     // OpInfo related
     if (filesChanged.length === 1 &&
-        (filesChanged.at(0)?.includes("torch/testing/_internal/common_methods_invocations.py") ||
-        filesChanged.at(0)?.includes("torch/_torch_docs.py"))) {
+        (filesChanged[0].includes("torch/testing/_internal/common_methods_invocations.py") ||
+        filesChanged[0].includes("torch/_torch_docs.py"))) {
           return ["release notes: python_frontend", topic];
     }
 
