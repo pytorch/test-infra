@@ -9,7 +9,7 @@ spec:
       image: xzhao9/gcp-a100-runner-dind
       dockerdWithinRunnerContainer: true
       env: []
-      repository: xuzhao9/benchmark
+      organization: pytorch
       labels:
         - a100-runner
       volumes:
@@ -73,6 +73,7 @@ spec:
     - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
       repositoryNames:
       - benchmark
+  #     - pytorch
   # use webhook based scaling trigger
   # scaleUpTriggers:
   #   - githubEvent:
