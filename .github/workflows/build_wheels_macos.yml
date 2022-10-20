@@ -141,7 +141,7 @@ jobs:
       - name: Run Primitive Smoke Tests
         shell: bash -l {0}
         env:
-          PACKAGE_NAME: ${{ inputs.package-name }}
+          PACKAGE_NAME: pytorch-test
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           source "${BUILD_ENV_FILE}"
