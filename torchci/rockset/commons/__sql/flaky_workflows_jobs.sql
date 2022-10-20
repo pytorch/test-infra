@@ -6,7 +6,8 @@ with repeats as (
     from
         workflow_job j
     where
-        j._event_time > CURRENT_TIMESTAMP() - DAYS(7)
+        j._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+        and j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
         and j.run_attempt > 1
         and j.conclusion = 'success'
 ) -- When a first time contributor submits a PR, their workflow starts at "attempt 2" so we look for workflows that were repeated above and actually have a first attempt
@@ -32,7 +33,8 @@ select
 from
     workflow_job job
     inner join workflow_run w on w.id = job.run_id
-    inner join repeats on repeats.run_id = job.run_id and repeats.name = job.name
+    inner join repeats on repeats.run_id = job.run_id
+    and repeats.name = job.name
 where
     w.repository.full_name = :repo
     and job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
