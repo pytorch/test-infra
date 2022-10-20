@@ -95,7 +95,9 @@ if __name__ == "__main__":
             os.remove(file["path"])
             updated = True
 
-    if updated:
-        print("::set-output name=UPDATED_DASHBOARDS::yes")
-    else:
-        print("::set-output name=UPDATED_DASHBOARDS::no")
+    # Open GITHUB_OUTPUT if available through CI, otherwise just write to stdout
+    with open(os.getenv("GITHUB_OUTPUT", "/dev/stdout"), "ab") as fp:
+        if updated:
+            print("UPDATED_DASHBOARDS=yes", file=fp)
+        else:
+            print("UPDATED_DASHBOARDS=no", file=fp)

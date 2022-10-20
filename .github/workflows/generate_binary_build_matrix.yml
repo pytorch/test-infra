@@ -62,7 +62,7 @@ jobs:
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"
           echo "${MATRIX_BLOB}"
-          echo "::set-output name=matrix::${MATRIX_BLOB}"
+          echo "matrix=${MATRIX_BLOB}" >> "${GITHUB_OUTPUT}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.package-type }}-${{ inputs.os }}-${{ inputs.test-infra-repository }}-${{ inputs.test-infra-ref }}
