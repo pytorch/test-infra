@@ -22,8 +22,8 @@ export default function TestInsightsLink({
 
   const workflowId = job.htmlUrl?.match(
     // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
-    new RegExp("^.+/(.+)/jobs/.+$")
-  )?.[1];
+    new RegExp("^.+/(?P<workflowId>\d+)/jobs/.+$")
+  )?.group("workflowId");
 
   const jobId = job.logUrl?.match(
     // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
