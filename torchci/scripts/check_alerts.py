@@ -211,7 +211,7 @@ def generate_no_flaky_tests_issue() -> Any:
     issue = {}
     issue[
         "title"
-    ] = f"[Pytorch][Warning] No flaky test issues has been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
+    ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
     issue[
         "body"
     ] = f"No issues has been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
