@@ -74,6 +74,8 @@ jobs:
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
+        with:
+          github-token: ${{ github.token }}
 
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
