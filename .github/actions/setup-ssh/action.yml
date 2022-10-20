@@ -3,7 +3,7 @@ name: Setup SSH
 description: Adds ssh keys for current user to machine
 
 inputs:
-  github-token:
+  github-secret:
     description: GitHub token
     required: true
 
@@ -13,5 +13,5 @@ runs:
     - name: "Enable SSH (Click me for login details)"
       uses: seemethere/add-github-ssh-key@v1
       with:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_TOKEN: ${{ inputs.github-secret }}
         activate-with-label: false
