@@ -315,7 +315,7 @@ def clear_alerts(alerts: List[Any]) -> bool:
     return cleared_alerts > 0
 
 
-# We need to clear alerts is there is a commit that's all green is before a commit that has a red
+# We need to clear alerts if there is a commit that's all green is before a commit that has a red
 # If there's pending things after the all green commit, that's fine, as long as it's all green/pending
 def trunk_is_green(sha_grid: Any):
     categorized_shas = categorize_shas(sha_grid)
@@ -374,21 +374,18 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
     print("No new alert for flaky tests bots.")
     return None
 
-
-def main():
+def check_for_recurrently_failing_jobs_alert():
     job_names, sha_grid = fetch_hud_data()
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
     # Fetch alerts
     existing_alerts = fetch_alerts(TEST_INFRA_REPO_NAME, PYTORCH_ALERT_LABEL)
 
-    # Alerts should also be cleared if the current status of HUD is green
-    if len(jobs_to_alert_on) == 0:
-        print("Didn't find anything to alert on.")
-
-        if trunk_is_green(sha_grid):
-            clear_alerts(existing_alerts)
-            existing_alerts = []  # all alerts have now been cleared
+    # Auto-clear any existing alerts if the current status is green
+    if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
+        print("Didn't find anything to alert on.")        
+        clear_alerts(existing_alerts)
+        return
 
     # Find the existing alert for recurrently failing jobs (if any).
     # We're going to update the existing alert if possible instead of filing a new one.
@@ -398,7 +395,7 @@ def main():
             existing_recurrent_job_failure_alert = alert
             break
 
-    # Create a new alert if no alerts active or edit the original one if there's a new update
+    # Create a new alert if no alerts are active or edit the original one if there's a new update
     if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
         if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
@@ -408,11 +405,15 @@ def main():
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
+def check_for_no_flaky_tests_alert():
     existing_no_flaky_tests_alerts = fetch_alerts(
         TEST_INFRA_REPO_NAME, NO_FLAKY_TESTS_LABEL
     )
     handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
 
+def main():
+    check_for_recurrently_failing_jobs_alert()
+    check_for_no_flaky_tests_alert()
 
 if __name__ == "__main__":
     main()
