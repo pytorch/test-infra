@@ -37,17 +37,21 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
                             .map((x: any) => x.split(";"))
                             .filter((subarray: any[]) => subarray.length == 3);
         let result: UserbenchmarkRow[] = [];
+        const HEADER_COL: number = 0;
+        const METRIC_ROW: number = 0;
+        const BASE_VALUE_ROW: number = 0;
+        const PR_VALUE_ROW: number = 0;
         result.push({
-            metric_name: as_array[0][0],
-            base_value: as_array[0][1],
-            pr_value: as_array[0][2],
+            metric_name: as_array[HEADER_COL][METRIC_ROW],
+            base_value: as_array[HEADER_COL][BASE_VALUE_ROW],
+            pr_value: as_array[HEADER_COL][PR_VALUE_ROW],
             speedup: "Speedup",
         });
         for (let i=1; i<as_array.length; ++i) {
-            const base_value: number = parseFloat(as_array[i][1]);
-            const pr_value: number = parseFloat(as_array[i][2]);
+            const base_value: number = parseFloat(as_array[i][BASE_VALUE_ROW]);
+            const pr_value: number = parseFloat(as_array[i][PR_VALUE_ROW]);
             result.push({
-                metric_name: as_array[i][0],
+                metric_name: as_array[i][METRIC_ROW],
                 base_value: base_value,
                 pr_value: pr_value,
                 speedup: (base_value / pr_value - 1),
