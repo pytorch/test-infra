@@ -191,7 +191,3 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 [[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
-
-[[rule]]
-name = 'Pytest Failure from summary'
-pattern = '^[-:\.\d+Z\s]* (FAILED .*)'
