@@ -141,6 +141,14 @@ name = 'undefined reference linker error'
 pattern = 'undefined reference to .*'
 
 [[rule]]
+name = "Python Test SIG Code"
+pattern = '^.*(Received Signal: SIG.*)'
+
+[[rule]]
+name = "Any SIGKILL"
+pattern = 'SIGKILL'
+
+[[rule]]
 name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
 
@@ -183,3 +191,7 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 [[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
+
+[[rule]]
+name = 'Pytest Failure from summary'
+pattern = '^[-:\.\d+Z\s]* (FAILED .*)'
