@@ -46,12 +46,12 @@ class UserbenchmarkResults extends React.Component {
         return (
             <thead>
                 <tr className={styles.userbenchmarkTable}>
-                    {headers.map((val, idx) => {
-                        return <th className={styles.userbenchmarkTable}>{val}</th>;
-                    })}
+                    {headers.map((val, idx) => (
+                        <th className={styles.userbenchmarkTable} key={idx}>{val}</th>
+                    ))}
                 </tr>
             </thead>
-        )
+        );
     }
 
     getRow(row, minSpeedup, maxSpeedup) {
@@ -78,13 +78,13 @@ class UserbenchmarkResults extends React.Component {
         return (
             <tbody>
                 <tr className={styles.userbenchmarkTable}>
-                    {row.slice(0, 3).map((val, idx) => {
-                        return <td className={styles.userbenchmarkTable}>{val}</td>;
-                    })}
+                    {row.slice(0, 3).map((val, idx) => (
+                        <td className={styles.userbenchmarkTable} key={idx}>{val}</td>
+                    ))}
                     {convertSpeedup(row[3])}
                 </tr>
             </tbody>
-        )
+        );
     }
 
     csvToTable(csvString) {
@@ -134,9 +134,9 @@ class UserbenchmarkResults extends React.Component {
                 <h1> Userbenchmark results from <span>{this.state.url}</span> </h1>
                 <p>
                     Userbenchmarks can be optionally run in the CI by adding
-                    "RUN_TORCHBENCH: [userbenchmark]" in the body of PRs in the
-                    pytorch repo, where [userbenchmark] should be replaced by
-                    one of the userbenchmark options, e.g. nvfuser. The CI job
+                    &quot;RUN_TORCHBENCH: [userbenchmark]&quot; in the body of PRs
+                    in the pytorch repo, where [userbenchmark] should be replaced
+                    by one of the userbenchmark options, e.g. nvfuser. The CI job
                     will generate a CSV of the results, showing result times
                     from the base revision as well as the PR revision. This
                     page displays the speedup/slowdown by comparing the base
