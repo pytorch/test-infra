@@ -166,6 +166,21 @@ function GetUsage({
     });
   }
 
+  if (transformedData.length !== 0) {
+    const lastTimestamp = new Date(transformedData[transformedData.length-1]["timestamp"]);
+    // Add one more 1-minute data point so that we can clearly show the stop time. This is
+    // purely for presentation purpose
+    const extra = new Date(lastTimestamp.getTime() + 60 * 1000);
+
+    transformedData.push({
+      timestamp: extra,
+      cpu: 0,
+      mem: 0,
+      gpu: 0,
+      gpu_mem: 0,
+    });
+  }
+
   const startTimes = [];
   const stopTimes = [];
   for (const jobName in data["jobs"]) {
