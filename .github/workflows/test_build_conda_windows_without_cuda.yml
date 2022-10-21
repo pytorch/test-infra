@@ -39,6 +39,7 @@ jobs:
             post-script: ""
             package-name: torchtext
             conda-package-directory: packaging/torchtext
+            smoke-test-script: test/smoke_tests/smoke_tests.py
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_windows.yml
     with:
