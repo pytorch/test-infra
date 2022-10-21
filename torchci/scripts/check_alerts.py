@@ -383,7 +383,7 @@ def check_for_recurrently_failing_jobs_alert():
 
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
-        print("Nothing to alert on")        
+        print("Didn't find anything to alert on.")        
         clear_alerts(existing_alerts)
         return
 
