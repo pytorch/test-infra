@@ -74,6 +74,8 @@ jobs:
 
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
+        with:
+          github-secret: ${{ github.token }}
 
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
@@ -125,7 +127,7 @@ jobs:
             -w /work \
             "${DOCKER_IMAGE}"
           )
-          docker exec -t "${container_name}" bash -x /exec
+          docker exec -t "${container_name}" bash /exec
 
       - name: Chown repository directory
         if: ${{ always() }}
@@ -152,7 +154,7 @@ jobs:
             mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
           fi
           # Set to fail upload step if there are no files for upload and expected files for upload
-          echo '::set-output name=if-no-files-found::error'
+          echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3

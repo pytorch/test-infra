@@ -1,0 +1,42 @@
+name: github-status-test-lambda.yml
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/github-status-test-lambda.yml
+      - aws/lambda/github-status-test/**
+
+defaults:
+  run:
+    working-directory: aws/lambda/github-status-test/
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Check out test infra
+        uses: actions/checkout@v2
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+
+      - uses: nick-fields/retry@71062288b76e2b6214ebde0e673ce0de1755740a
+        name: Setup dependencies
+        with:
+          shell: bash
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            set -eux
+            python3 -m pip install awscli
+
+      - name: Deploy the lambda. (This only makes the lambda ready. Manual verification steps are still required to get it into prod because of the lack of automated testing here. Checkout aws/lambda/github-status-test/github-status-test/README.md to see how to get the deployed lambda to prod)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          make deploy

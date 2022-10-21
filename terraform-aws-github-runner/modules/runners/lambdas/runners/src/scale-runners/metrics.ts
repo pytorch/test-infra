@@ -692,6 +692,48 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  runnerGhTerminateSuccessOrg(org: string, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.success`);
+    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.success`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.success`);
+  }
+
+  /* istanbul ignore next */
+  runnerGhTerminateSuccessRepo(repo: Repo, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.success`);
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.success`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.success`);
+  }
+
+  /* istanbul ignore next */
+  runnerGhTerminateFailureOrg(org: string, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.failure`);
+    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.failure`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.failure`);
+  }
+
+  /* istanbul ignore next */
+  runnerGhTerminateFailureRepo(repo: Repo, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.failure`);
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.failure`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.failure`);
+  }
+
+  /* istanbul ignore next */
+  runnerGhTerminateNotFoundOrg(org: string, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.notfound`);
+    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.notfound`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.notfound`);
+  }
+
+  /* istanbul ignore next */
+  runnerGhTerminateNotFoundRepo(repo: Repo, ec2runner: RunnerInfo) {
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.notfound`);
+    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.notfound`);
+    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.notfound`);
+  }
+
+  /* istanbul ignore next */
   runnerTerminateSuccess(ec2Runner: RunnerInfo) {
     this.countEntry('run.ec2Runners.terminate.success');
     this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.terminate.success`);
@@ -722,6 +764,23 @@ export class ScaleDownMetrics extends Metrics {
       const repo = getRepo(ec2Runner.repo as string);
       this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.terminate.failure`);
       this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.failure`);
+    }
+  }
+
+  /* istanbul ignore next */
+  runnerTerminateSkipped(ec2Runner: RunnerInfo) {
+    this.countEntry('run.ec2Runners.terminate.skipped');
+    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.terminate.skipped`);
+
+    if (ec2Runner.org !== undefined) {
+      this.countEntry(`run.ec2runners.${ec2Runner.org}.${ec2Runner.runnerType}.terminate.skipped`);
+      this.countEntry(`run.ec2runners.${ec2Runner.org}.terminate.skipped`);
+    }
+
+    if (ec2Runner.repo !== undefined) {
+      const repo = getRepo(ec2Runner.repo as string);
+      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.terminate.skipped`);
+      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.skipped`);
     }
   }
 }

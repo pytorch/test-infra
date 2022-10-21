@@ -26,11 +26,15 @@ jobs:
           - repository: pytorch/audio
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
+            smoke-test-script: test/smoke_test/smoke_test.py
             conda-package-directory: packaging/torchaudio
+            package-name: torchaudio
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
+            smoke-test-script: ""
             conda-package-directory: packaging/torchvision
+            package-name: torchvision
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_linux.yml
     with:
@@ -42,5 +46,6 @@ jobs:
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
