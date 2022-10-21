@@ -381,14 +381,8 @@ def check_for_recurrently_failing_jobs_alert():
     # Fetch alerts
     existing_alerts = fetch_alerts(TEST_INFRA_REPO_NAME, PYTORCH_ALERT_LABEL)
 
-    # Alerts should also be cleared if the current status of HUD is green
-    if len(jobs_to_alert_on) == 0:
-        print("Didn't find anything to alert on.")
-        clear_alerts(existing_alerts)
-        return
-
-    if trunk_is_green(sha_grid):
-        print("Trunk is now green, so we don't need to alert")
+    if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
+        print("Nothing to alert on")        
         clear_alerts(existing_alerts)
         return
 
