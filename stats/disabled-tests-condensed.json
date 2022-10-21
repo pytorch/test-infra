@@ -7,14 +7,6 @@
       "linux"
     ]
   ],
-  "testAddSub (__main__.TestLazyReuseIr)": [
-    "77721",
-    "https://github.com/pytorch/pytorch/issues/77721",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "testAddSubFallback (__main__.TestLazyReuseIr)": [
     "77723",
     "https://github.com/pytorch/pytorch/issues/77723",
@@ -1804,7 +1796,7 @@
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
     [
-      "rocm"
+      "dynamo"
     ]
   ],
   "test_named_params_with_sharded_tensor (__main__.TestShardedOptimizer)": [
