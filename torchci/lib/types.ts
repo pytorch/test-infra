@@ -112,14 +112,6 @@ export interface TTSChange {
   absoluteChangeString: string;
 }
 
-export interface TestInsightsUsageData {
-  timestamp: string[];
-  cpu: number[];
-  mem: number[];
-  gpu: number[];
-  gpu_mem: number[];
-}
-
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
