@@ -78,6 +78,7 @@ export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
 }
+
 export interface FlakyTestData {
   file: string;
   suite: string;

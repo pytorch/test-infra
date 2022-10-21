@@ -94,7 +94,7 @@ SHAs that have the same failing job. If it does, it will either create a new Git
 Github Issue.
 
 Once the issue is created, internal webhooks create a task out of the issue. Then a [butterfly bot
-rule](https://www.internalfb.com/butterfly/rule/2024866984357962) will trigger to assign the task to 
+rule](https://www.internalfb.com/butterfly/rule/5455687371213466) will trigger to assign the task to 
 the oncall and update it to a UBN so that it alerts the current oncall.
 
 ### Modifying Deployment Settings

@@ -1,0 +1,54 @@
+name: Test build/test windows workflow
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/windows_job.yml
+      - .github/workflows/test_windows_job.yml
+  workflow_dispatch:
+
+jobs:
+  test-cpu:
+    uses: ./.github/workflows/windows_job.yml
+    with:
+      runner: windows.4xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        conda create -y -n test python=3.8
+        conda activate test
+        python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        # Can import pytorch
+        python -c 'import torch'
+  test-gpu:
+    uses: ./.github/workflows/windows_job.yml
+    with:
+      runner: windows.8xlarge.nvidia.gpu
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      timeout: 60
+      script: |
+        conda create -y -n test python=3.8
+        conda activate test
+        python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
+        # Can import pytorch, cuda is available
+        python -c 'import torch;assert(torch.cuda.is_available())'
+  test-upload-artifact:
+    uses: ./.github/workflows/windows_job.yml
+    with:
+      runner: windows.4xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      upload-artifact: my-cool-artifact
+      script: |
+        echo "hello" > "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-download-artifact:
+    needs: test-upload-artifact
+    uses: ./.github/workflows/windows_job.yml
+    with:
+      runner: windows.4xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      download-artifact: my-cool-artifact
+      script: |
+        grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
