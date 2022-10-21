@@ -15,6 +15,7 @@ import {
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo } from './utils';
+import { RequestError } from '@octokit/request-error';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -174,6 +175,18 @@ export async function scaleDown(): Promise<void> {
   }
 }
 
+/**
+ * Returns true if the argument `e` is an octokit RequestError
+ * from the 'API rate limit exceeded' exception.
+ * @param e any error type
+ * @return true if the argument is 'API rate limit exceeded' exception, false otherwise.
+ */
+function isRateLimitError(e: unknown) {
+  const requestErr = e as RequestError | null;
+  const headers = requestErr?.headers || requestErr?.response?.headers;
+  return requestErr?.status === 403 && headers?.['x-ratelimit-remaining'] === '0';
+}
+
 export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
   const org = ec2runner.org as string;
   let ghRunner: GhRunner | undefined = undefined;
@@ -183,6 +196,9 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
     ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
   } catch (e) {
     console.warn('Failed to list active gh runners', e);
+    if (isRateLimitError(e)) {
+      throw e;
+    }
   }
 
   if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
@@ -197,6 +213,9 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
           `listGithubRunnersOrg call: ${e}`,
       );
+      if (isRateLimitError(e)) {
+        throw e;
+      }
     }
   }
   if (ghRunner) {
@@ -220,6 +239,9 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
     ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
   } catch (e) {
     console.warn('Failed to list active gh runners', e);
+    if (isRateLimitError(e)) {
+      throw e;
+    }
   }
 
   if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
@@ -233,6 +255,9 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
       console.warn(
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
       );
+      if (isRateLimitError(e)) {
+        throw e;
+      }
     }
   }
   if (ghRunner !== undefined) {
