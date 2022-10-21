@@ -5,7 +5,15 @@ import { RocksetParam } from "lib/rockset";
 import React, { useState } from "react";
 import styles from "components/hud.module.css";
 
-const ROW_HEIGHT = 240;
+const MAX_BRIGHTNESS: number = 255;
+
+type UserbenchmarkRow = {
+    metric_name: string;
+    base_value: string | number;
+    pr_value: string | number;
+    speedup: string | number | null;
+};
+
 type UserbenchmarkProps = {};
 type UserbenchmarkState = {url: string | null, content: any};
 class UserbenchmarkResults extends React.Component<UserbenchmarkProps, UserbenchmarkState> {
@@ -18,34 +26,43 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
         };
     }
 
-    // returns a list[list[data]]
-    // outer list: first a row of headers; and then rows of data.
-    // data order in the inner list:
-    //   0. Metric name
-    //   1. Base revision latency
-    //   2. PR revision latency
-    //   3. Speedup from the PR revision
+    // returns a list[UserbenchmarkRow]
+    // The first element is headers, remaining elements are rows.
+    // Expected csv format is:
+    //   metric_name;base_revision_value;pr_revision_value
+    // 1 header row is expected, followed by data rows.
     parseCsv(msg: string) {
-        let as_array = msg.split("\n").map((x: any) => x.split(";"));
-        as_array = as_array.filter((subarray: any[]) => subarray.length == 3);
-        as_array[0].push("Speedup");
+        // split semicolon-separated csv
+        const as_array = msg.split("\n")
+                            .map((x: any) => x.split(";"))
+                            .filter((subarray: any[]) => subarray.length == 3);
+        let result: UserbenchmarkRow[] = [];
+        result.push({
+            metric_name: as_array[0][0],
+            base_value: as_array[0][1],
+            pr_value: as_array[0][2],
+            speedup: "Speedup",
+        });
         for (let i=1; i<as_array.length; ++i) {
-            for (let j=1; j<=2; ++j) {
-                as_array[i][j] = parseFloat(as_array[i][j]);
-            }
-            const base_value = as_array[i][1] as number;
-            const pr_value = as_array[i][2] as number;
-            as_array[i].push(base_value / pr_value - 1);
+            const base_value: number = parseFloat(as_array[i][1]);
+            const pr_value: number = parseFloat(as_array[i][2]);
+            result.push({
+                metric_name: as_array[i][0],
+                base_value: base_value,
+                pr_value: pr_value,
+                speedup: (base_value / pr_value - 1),
+            });
         }
-        return as_array;
+        return result;
     }
 
-    getHeader(row: any[]) {
-        const metric_header = row[0] as string;
-        const base_revision = row[1] + " (base)" as string;
-        const change_revision = row[2] + " (change)" as string;
-        const speedup_header = row[3] as string;
-        const headers = [metric_header, base_revision, change_revision, speedup_header]
+    getHeader(row: UserbenchmarkRow) {
+        const headers = [
+            row.metric_name as string,
+            row.base_value as string,
+            row.pr_value as string,
+            row.speedup as string,
+        ];
         return (
             <thead>
                 <tr className={styles.userbenchmarkTable}>
@@ -57,34 +74,33 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
         );
     }
 
-    getRow(row: any[], minSpeedup: number, maxSpeedup: number) {
+    getRow(row: UserbenchmarkRow, minSpeedup: number, maxSpeedup: number) {
         const convertSpeedup = (speedupRaw: number) => {
             if (typeof speedupRaw === 'number') {
                 const text = (speedupRaw * 100).toFixed(2) + '%';
                 // assign a color
-                let color = "rgb(255, 255, 255)";
+                let color = `rgb(${MAX_BRIGHTNESS}, ${MAX_BRIGHTNESS}, ${MAX_BRIGHTNESS})`;
                 if (speedupRaw >= 0) {
                     const ratio = speedupRaw / maxSpeedup;
-                    const otherColor = Math.floor(255 * (1 - ratio)).toString();
-                    color = "rgb(" + otherColor + ", 255, " + otherColor + ")";
+                    const otherColor = Math.floor(MAX_BRIGHTNESS * (1 - ratio)).toString();
+                    color = `rgb(${otherColor}, ${MAX_BRIGHTNESS}, ${otherColor})`;
                 } else {
                     const ratio = speedupRaw / minSpeedup;
-                    const otherColor = Math.floor(255 * (1 - ratio)).toString();
-                    color = "rgb(255, " + otherColor + ", " + otherColor + ")";
+                    const otherColor = Math.floor(MAX_BRIGHTNESS * (1 - ratio)).toString();
+                    color = `rgb(${MAX_BRIGHTNESS}, ${otherColor}, ${otherColor})`;
                 }
                 return <td style={{backgroundColor: color}} className={styles.userbenchmarkTable}>{text}</td>;
             } else {
-                console.log("error out");
                 return <td className={styles.userbenchmarkTable}>{speedupRaw}</td>;
             }
         };
         return (
             <tbody>
                 <tr className={styles.userbenchmarkTable}>
-                    {row.slice(0, 3).map((val: any, idx: number) => (
+                    {[row.metric_name, row.base_value, row.pr_value].map((val: any, idx: number) => (
                         <td className={styles.userbenchmarkTable} key={idx}>{val}</td>
                     ))}
-                    {convertSpeedup(parseFloat(row[3]))}
+                    {convertSpeedup(row.speedup as number)}
                 </tr>
             </tbody>
         );
@@ -93,8 +109,16 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
     csvToTable(csvString: string) {
         const data = this.parseCsv(csvString);
 
-        const minSpeedup = Math.min(...data.slice(1).map((subarr: any[]) => subarr[3]), 0.0)
-        const maxSpeedup = Math.max(...data.slice(1).map((subarr: any[]) => subarr[3]), 0.0)
+        const minSpeedup = Math.min(
+            0.0,
+            ...data.slice(1)
+                   .map((subarr: UserbenchmarkRow) => (subarr.speedup as number))
+        )
+        const maxSpeedup = Math.max(
+            0.0,
+            ...data.slice(1)
+                   .map((subarr: UserbenchmarkRow) => (subarr.speedup as number))
+        )
         return (
             <table className={styles.userbenchmarkTable}>
                 {this.getHeader(data[0])}
@@ -107,12 +131,9 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
         let url: string | null = null;
         if (typeof document !== 'undefined') {
             const searchParams = (new URL(document.location.toString())).searchParams;
-            if (!searchParams.has("url")) {
-                console.log("!has_url");
-                // setDataMessage("No URL provided (e.g. ?url=[...])")
-                return;
+            if (searchParams.has("url")) {
+                url = searchParams.get("url");
             }
-            url = searchParams.get("url");
         }
 
 
@@ -138,9 +159,9 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
                 <p>
                     Userbenchmarks can be optionally run in the CI by adding
                     &quot;RUN_TORCHBENCH: [userbenchmark]&quot; in the body of PRs
-                    in the pytorch repo, where [userbenchmark] should be replaced
-                    by one of the userbenchmark options, e.g. nvfuser. The CI job
-                    will generate a CSV of the results, showing result times
+                    in the pytorch/pytorch repo, where [userbenchmark] should be
+                    replaced by one of the userbenchmark options, e.g. nvfuser. The
+                    CI job will generate a CSV of the results, showing result times
                     from the base revision as well as the PR revision. This
                     page displays the speedup/slowdown by comparing the base
                     and PR revision results.
