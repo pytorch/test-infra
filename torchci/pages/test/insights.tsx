@@ -17,9 +17,47 @@ const LASTEST_N_RUNS = 50;
 const ROW_HEIGHT = 240;
 const TO_GB = 1024 * 1024 * 1024;
 
+function formatDate(
+  timestamp: string
+) {
+  // TODO: This is a weird hack, see how to get rid of this later
+  return new Date(timestamp).toISOString().replace('T', ' ').substring(0, 19);
+}
+
 function formatSeries(
   data: any,
+  // An optional list of markers to mark the start time of the jobs
+  startTimes: string[],
+  // An optional list of markers to mark the stop time of the jobs
+  stopTimes: string[],
 ) {
+  const markers = [];
+
+  // TODO: only show the start and stop markers for individual job for now. When
+  // there are too many jobs aggregated together, it's too hard to see them all
+  if (startTimes.length == 1 && stopTimes.length == 1) {
+    for (const startTime of startTimes) {
+      markers.push({
+        name: "Start testing",
+        xAxis: formatDate(startTime),
+        lineStyle: {
+          color: "blue",
+        },
+      });
+    }
+
+    for (const stopTime of stopTimes) {
+      markers.push({
+        name: "Stop testing",
+        xAxis: formatDate(stopTime),
+        lineStyle: {
+          color: "red",
+        },
+      });
+    }
+  }
+
+  // Bookmark this link https://echarts.apache.org/en/option.html
   return {
     type: "line",
     symbol: "circle",
@@ -27,6 +65,16 @@ function formatSeries(
     data,
     emphasis: {
       focus: "series",
+    },
+    markLine: {
+      symbol: ["none", "none"],
+      label: {
+        position: "middle",
+        formatter: (param: any) => {
+          return param.name;
+        },
+      },
+      data: markers,
     },
   };
 }
@@ -41,18 +89,24 @@ function DisplayInsights({
   yAxisFieldName,
   // What label to put on the y axis.
   yAxisLabel,
+  // An optional list of markers to mark the start time of the jobs
+  startTimes,
+  // An optional list of markers to mark the stop time of the jobs
+  stopTimes,
 }: {
   data: any;
   title: string;
   timeFieldName: string;
   yAxisFieldName: string;
   yAxisLabel?: string;
+  startTimes: string[];
+  stopTimes: string[];
 }) {
   const chartData = [];
   for (const e of data) {
     chartData.push([e[timeFieldName], e[yAxisFieldName]]);
   }
-  const chartSeries = formatSeries(chartData);
+  const chartSeries = formatSeries(chartData, startTimes, stopTimes);
 
   return (
     <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -97,12 +151,12 @@ function GetUsage({
   const { data } = useSWR(url, fetcher);
 
   if (data === undefined || data.length == 0) {
-    return (<div></div>);
+    return (<></>);
   }
 
   const transformedData = [];
   // Transform the data a bit to fit into the same rockset schema
-  for (var idx in data["timestamp"]) {
+  for (const idx in data["timestamp"]) {
     transformedData.push({
       timestamp: data["timestamp"][idx],
       cpu: data["cpu"][idx],
@@ -112,6 +166,14 @@ function GetUsage({
     });
   }
 
+  const startTimes = [];
+  const stopTimes = [];
+  for (const jobName in data["jobs"]) {
+    const job = data["jobs"][jobName];
+    startTimes.push(job["start_time"]);
+    stopTimes.push(job["stop_time"]);
+  }
+
   return (
     <Grid container spacing={2}>
       <DisplayInsights
@@ -119,6 +181,8 @@ function GetUsage({
         title={"CPU usage (%)"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"cpu"}
+        startTimes={startTimes}
+        stopTimes={stopTimes}
       />
 
       <DisplayInsights
@@ -127,6 +191,8 @@ function GetUsage({
         timeFieldName={"timestamp"}
         yAxisFieldName={"mem"}
         yAxisLabel={"GB"}
+        startTimes={startTimes}
+        stopTimes={stopTimes}
       />
 
       <DisplayInsights
@@ -134,6 +200,8 @@ function GetUsage({
         title={"GPU usage (%)"}
         timeFieldName={"timestamp"}
         yAxisFieldName={"gpu"}
+        startTimes={startTimes}
+        stopTimes={stopTimes}
       />
 
       <DisplayInsights
@@ -142,6 +210,8 @@ function GetUsage({
         timeFieldName={"timestamp"}
         yAxisFieldName={"gpu_mem"}
         yAxisLabel={"GB"}
+        startTimes={startTimes}
+        stopTimes={stopTimes}
       />
     </Grid>
   );
@@ -223,7 +293,13 @@ export default function Page() {
   const jobId = router.query.jobId as string;
 
   if (jobName === undefined) {
-    return;
+    return (
+      <Stack direction="column" spacing={2} sx={{ mb: 2 }}>
+        <Typography fontSize={"2rem"} fontWeight={"bold"}>
+          Missing job name
+        </Typography>
+      </Stack>
+    );
   }
 
   const queryParams: RocksetParam[] = [

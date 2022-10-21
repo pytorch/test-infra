@@ -34,8 +34,9 @@ function getWorkflowJobSummary(job: JobData) {
 
   return <>
     <JobSummary job={job} />
+    <br/>
     <small>
-      |&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;
       {queueTimeInfo}{separator}{durationInfo}<TestInsightsLink job={job} separator={", "} />
     </small>
   </>;

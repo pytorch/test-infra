@@ -1,6 +1,10 @@
 import { JobData } from "../lib/types";
 import React from "react";
 
+// The following jobs are not supported at the moment because neither the monitoring
+// script is running there at the moment (libtorch, bazel, android) nor the CI job
+// uploads to S3 due to connectivity issues (macos, rocm). TODO: Add support for macos
+// and rocm is on the way
 const NOT_SUPPORTED_JOBS = [
   "android",
   "bazel",
@@ -17,32 +21,37 @@ export default function TestInsightsLink({
   separator: string;
 }) {
   if (job === null) {
-    return (<span></span>);
+    return (<></>);
+  }
+
+  if (job.conclusion === "pending") {
+    // If the job is pending, there is no test insights available yet
+    return (<></>);
   }
 
   const workflowId = job.htmlUrl?.match(
     // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
-    new RegExp("^.+/(?P<workflowId>\d+)/jobs/.+$")
-  )?.group("workflowId");
+    new RegExp("^.+\/(?<workflowId>\\d+)\/jobs\/.+$")
+  )?.groups?.workflowId;
 
   const jobId = job.logUrl?.match(
-    // https://github.com/pytorch/pytorch/actions/runs/3228501114/jobs/5284857665
-    new RegExp("^.+/log/(?P<jobId>\d+)$")
-  )?.group("jobId");
+    // https://ossci-raw-job-status.s3.amazonaws.com/log/9018026324
+    new RegExp("^.+\/log\/(?<jobId>\\d+)$")
+  )?.groups?.jobId;
 
   if (workflowId === null || jobId === null) {
-    return (<span></span>);
+    return (<></>);
   }
 
   for (const name of NOT_SUPPORTED_JOBS) {
     if (job.jobName?.includes(name)) {
-      return (<span></span>);
+      return (<></>);
     }
   }
 
   // Only show test insight link for test jobs
   if (!job.jobName?.includes("test")) {
-    return (<span></span>);
+    return (<></>);
   }
 
   return (
