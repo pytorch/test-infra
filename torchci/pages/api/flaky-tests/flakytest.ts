@@ -6,7 +6,7 @@ import fetchFailureSamples from "lib/fetchFailureSamples";
 interface Data {}
 
 // The captures are based on the regex in the Python flaky unittest
-// classifications in torchci/pages/api/classifier/rules.ts
+// classifications in aws/lambda/log-classifier/ruleset.toml
 export function getFlakyTestCapture(flakyTest: FlakyTestData): string {
   return `${flakyTest.name}`;
 }
