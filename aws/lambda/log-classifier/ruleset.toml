@@ -141,6 +141,14 @@ name = 'undefined reference linker error'
 pattern = 'undefined reference to .*'
 
 [[rule]]
+name = "Python Test SIG Code"
+pattern = '^.*(Received Signal: SIG.*)'
+
+[[rule]]
+name = "Any SIGKILL"
+pattern = 'SIGKILL'
+
+[[rule]]
 name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
 
