@@ -18,6 +18,11 @@ inputs:
     required: false
     type: string
     default: ""
+  pip-requirements-file:
+    description: An optional list of pip requirements to be installed
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: composite
@@ -30,12 +35,14 @@ runs:
         run: |
 
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
+
       - name: Setup miniconda cache
         id: miniconda-cache
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/miniconda
           key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+
       - name: Install miniconda (${{ inputs.miniconda-version }})
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
         env:
@@ -63,11 +70,13 @@ runs:
           curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH}/miniconda.sh"
           bash "${MINICONDA_INSTALL_PATH}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH}"
           rm -rf "${MINICONDA_INSTALL_PATH}/miniconda.sh"
+
       - name: Update GitHub path to include miniconda install
         shell: bash
         run: |
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
+
       - name: Setup miniconda env cache (with env file)
         id: miniconda-env-cache-env-file
         if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} != ''
@@ -75,6 +84,7 @@ runs:
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}
+
       - name: Setup miniconda env cache (without env file)
         id: miniconda-env-cache
         if: ${{ runner.os }} == 'macOS' && ${{ inputs.environment-file }} == ''
@@ -82,12 +92,14 @@ runs:
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+
       - name: Setup conda environment with python (v${{ inputs.python-version }})
         if: steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
           ENV_FILE: ${{ inputs.environment-file }}
+          PIP_REQUIREMENTS_FILE: ${{ inputs.pip-requirements-file }}
         run: |
           CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
           ENV_FILE_FLAG=""
@@ -96,6 +108,7 @@ runs:
           elif [[ -n "${ENV_FILE}" ]]; then
             echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
           fi
+
           conda create \
             --yes \
             --prefix "${CONDA_BASE_ENV}" \
@@ -106,6 +119,13 @@ runs:
             ninja=1.10 \
             pkg-config=0.29 \
             wheel=0.37
+
+          if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
+            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install "${PIP_REQUIREMENTS_FILE}"
+          elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
+            echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
+          fi
+
       - name: Clone the base conda environment and update GitHub env
         shell: bash
         env:
@@ -126,6 +146,7 @@ runs:
           echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
           echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
           echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+
       - name: Get disk space usage and throw an error for low disk space
         shell: bash
         run: |
