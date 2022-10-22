@@ -68,20 +68,23 @@ runs:
         run: |
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
+
       - name: Setup miniconda env cache (with env file)
         id: miniconda-env-cache-env-file
-        if: ${{ inputs.environment-file }} != ''
+        if: inputs.environment-file != ''
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}
+
       - name: Setup miniconda env cache (without env file)
         id: miniconda-env-cache
-        if: ${{ inputs.environment-file }} == ''
+        if: inputs.environment-file == ''
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+
       - name: DEBUG
         shell: bash
         env:
