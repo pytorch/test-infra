@@ -19,7 +19,7 @@ inputs:
     type: string
     default: ""
   pip-requirements-file:
-    description: An optional list of pip requirements to be installed
+    description: An optional pip requirements file to be installed in the conda environment
     required: false
     type: string
     default: ""
