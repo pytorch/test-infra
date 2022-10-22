@@ -7,6 +7,7 @@ import JobArtifact from "./JobArtifact";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import TestInsightsLink from "./TestInsights"
 
 function sortJobsByConclusion( jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -21,12 +22,12 @@ function sortJobsByConclusion( jobA: JobData, jobB: JobData): number {
 function getWorkflowJobSummary(job: JobData) {
   var queueTimeInfo = null
   if (job.queueTimeS != null) {
-    queueTimeInfo = <><i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins</>
+    queueTimeInfo = <><i>Queued:</i> {Math.max(Math.round(job.queueTimeS / 60), 0)} mins</>;
   }
 
   var durationInfo = null
   if (job.durationS != null) {
-    durationInfo = <><i>Duration:</i> {Math.round((job.durationS / 60))} mins</>
+    durationInfo = <><i>Duration:</i> {Math.round((job.durationS / 60))} mins</>;
   }
 
   var separator = (queueTimeInfo && durationInfo) ? ", ": ""
@@ -36,9 +37,9 @@ function getWorkflowJobSummary(job: JobData) {
     <br/>
     <small>
       &nbsp;&nbsp;&nbsp;&nbsp;
-      {queueTimeInfo}{separator}{durationInfo}
+      {queueTimeInfo}{separator}{durationInfo}<TestInsightsLink job={job} separator={", "} />
     </small>
-  </>
+  </>;
 }
 
 export default function WorkflowBox({

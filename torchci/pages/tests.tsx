@@ -123,7 +123,7 @@ function GenerateTestInsightsOverviewTable({
               const detailParams = `workflowName=${workflowName}&jobName=${jobName}&testFile=${testFile}&testClass=${testClass}`;
 
               return (
-                <a href={`/test/pytorch/pytorch/insights?${detailParams}`}>
+                <a href={`/test/insights?${detailParams}`}>
                   {testClass}
                 </a>
               );
