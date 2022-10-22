@@ -122,7 +122,7 @@ runs:
             wheel=0.37
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
-            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install "${PIP_REQUIREMENTS_FILE}"
+            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
           elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
             echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
           fi

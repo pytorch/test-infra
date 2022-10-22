@@ -33,7 +33,7 @@ jobs:
         pip-requirements-file:
           - ""
           - "./.github/workflows/test-setup-miniconda-pip-requirements-file"
-    name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
+    name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}-${{ matrix.env-file }}-${{ matrix.pip-requirements-file }}
     runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
