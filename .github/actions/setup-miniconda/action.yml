@@ -76,6 +76,15 @@ runs:
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
 
+      # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
+      # function will return an empty string without failing the step. This works out nicely and we can have a various
+      # combination of cache key such as:
+      # - Both are missing or invalid: miniconda-env-macOS-ARM64-20221022d--
+      # - Both are set: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-HASH(pip-requirements-file)
+      # - The first one is missing or invalid: miniconda-env-macOS-ARM64-20221022d--HASH(pip-requirements-file)
+      # - The second one is missing or invalid: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-
+      #
+      # There is no need to skip or run actions/cache with complicated logic
       - name: Setup miniconda env cache
         id: miniconda-env-cache
         uses: actions/cache@v3
