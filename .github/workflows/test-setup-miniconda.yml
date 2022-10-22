@@ -30,6 +30,9 @@ jobs:
         env-file:
           - ""
           - "./.github/workflows/test-setup-miniconda-env-file"
+        pip-requirements-file:
+          - ""
+          - "./.github/workflows/test-setup-miniconda-pip-requirements-file"
     name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
     runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
@@ -45,6 +48,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           environment-file: ${{ matrix.env-file }}
+          pip-requirements-file: ${{ matrix.pip-requirements-file }}
 
       - name: Can use ${CONDA_RUN}, outputs correct python version
         run: |
