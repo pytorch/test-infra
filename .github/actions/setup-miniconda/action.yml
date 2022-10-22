@@ -82,6 +82,18 @@ runs:
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+      - name: DEBUG
+        shell: bash
+        env:
+          A: ${{ steps.miniconda-env-cache-env-file.outcome }}
+          B: ${{ steps.miniconda-env-cache-env-file.outputs.cache-hit }}
+          C: ${{ steps.miniconda-env-cache.output }}
+          D: ${{ steps.miniconda-env-cache.outputs.cache-hit }}
+        run: |
+          echo "${A}"
+          echo "${B}"
+          echo "${C}"
+          echo "${D}"
       - name: Setup conda environment with python (v${{ inputs.python-version }})
         if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.output == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
         shell: bash
