@@ -101,6 +101,8 @@ runs:
           ENV_FILE: ${{ inputs.environment-file }}
           PIP_REQUIREMENTS_FILE: ${{ inputs.pip-requirements-file }}
         run: |
+          set -x
+
           CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
           ENV_FILE_FLAG=""
           if [[ -f "${ENV_FILE}" ]]; then
