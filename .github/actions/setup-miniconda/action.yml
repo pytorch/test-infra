@@ -95,7 +95,7 @@ runs:
           echo "${C}"
           echo "${D}"
       - name: Setup conda environment with python (v${{ inputs.python-version }})
-        if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.output == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
+        if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
