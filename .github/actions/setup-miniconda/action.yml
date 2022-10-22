@@ -87,7 +87,7 @@ runs:
         env:
           A: ${{ steps.miniconda-env-cache-env-file.outcome }}
           B: ${{ steps.miniconda-env-cache-env-file.outputs.cache-hit }}
-          C: ${{ steps.miniconda-env-cache.output }}
+          C: ${{ steps.miniconda-env-cache.outcome }}
           D: ${{ steps.miniconda-env-cache.outputs.cache-hit }}
         run: |
           echo "${A}"
