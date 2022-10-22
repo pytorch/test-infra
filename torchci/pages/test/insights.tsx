@@ -57,7 +57,7 @@ function formatSeries(
     }
   }
 
-  // Bookmark this link https://echarts.apache.org/en/option.html
+  // Docs for formatting these apache echarts https://echarts.apache.org/en/option.html
   return {
     type: "line",
     symbol: "circle",
