@@ -37,7 +37,7 @@ runs:
 
       - name: Setup miniconda cache
         id: miniconda-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/miniconda
           key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
@@ -76,24 +76,15 @@ runs:
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
 
-      - name: Setup miniconda env cache (with env file)
-        id: miniconda-env-cache-env-file
-        if: inputs.environment-file != ''
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}
-
-      - name: Setup miniconda env cache (without env file)
+      - name: Setup miniconda env cache
         id: miniconda-env-cache
-        if: inputs.environment-file == ''
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
 
       - name: Setup conda environment with python (v${{ inputs.python-version }})
-        if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
+        if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
