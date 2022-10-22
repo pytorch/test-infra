@@ -33,7 +33,6 @@ runs:
         id: get-date
         shell: bash
         run: |
-
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
 
       - name: Setup miniconda cache
@@ -79,7 +78,7 @@ runs:
 
       - name: Setup miniconda env cache (with env file)
         id: miniconda-env-cache-env-file
-        if: ${{ inputs.environment-file }} != ''
+        if: inputs.environment-file != ''
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
@@ -87,14 +86,14 @@ runs:
 
       - name: Setup miniconda env cache (without env file)
         id: miniconda-env-cache
-        if: ${{ inputs.environment-file }} == ''
+        if: inputs.environment-file == ''
         uses: actions/cache@v2
         with:
           path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
           key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
 
       - name: Setup conda environment with python (v${{ inputs.python-version }})
-        if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.output == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
+        if: (steps.miniconda-env-cache-env-file.outcome == 'success' && steps.miniconda-env-cache-env-file.outputs.cache-hit != 'true') || (steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true')
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
