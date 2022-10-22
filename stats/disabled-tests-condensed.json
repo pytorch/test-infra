@@ -1,4 +1,12 @@
 {
+  "testAdd (__main__.TestLazyReuseIr)": [
+    "77722",
+    "https://github.com/pytorch/pytorch/issues/77722",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "testAddSub (__main__.TestLazyReuseIr)": [
     "77721",
     "https://github.com/pytorch/pytorch/issues/77721",
@@ -1861,6 +1869,13 @@
     "https://github.com/pytorch/pytorch/issues/86414",
     [
       "linux"
+    ]
+  ],
+  "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
+    "87542",
+    "https://github.com/pytorch/pytorch/issues/87542",
+    [
+      "macos"
     ]
   ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
