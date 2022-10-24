@@ -15,14 +15,6 @@
       "linux"
     ]
   ],
-  "testAddSubFallback (__main__.TestLazyReuseIr)": [
-    "77723",
-    "https://github.com/pytorch/pytorch/issues/77723",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
     "77317",
     "https://github.com/pytorch/pytorch/issues/77317",
