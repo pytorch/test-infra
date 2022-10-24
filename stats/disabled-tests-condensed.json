@@ -7,14 +7,6 @@
       "linux"
     ]
   ],
-  "testAddSub (__main__.TestLazyReuseIr)": [
-    "77721",
-    "https://github.com/pytorch/pytorch/issues/77721",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "testAddSubFallback (__main__.TestLazyReuseIr)": [
     "77723",
     "https://github.com/pytorch/pytorch/issues/77723",
@@ -1551,13 +1543,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_init_rpc_without_world_size (__main__.TensorPipeRpcTest)": [
-    "76511",
-    "https://github.com/pytorch/pytorch/issues/76511",
-    [
-      "linux"
     ]
   ],
   "test_iterable_style_dataset (__main__.TestDataLoader)": [
