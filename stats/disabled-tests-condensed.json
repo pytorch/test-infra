@@ -1764,6 +1764,13 @@
     "https://github.com/pytorch/pytorch/issues/77026",
     []
   ],
+  "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
+    "87581",
+    "https://github.com/pytorch/pytorch/issues/87581",
+    [
+      "linux"
+    ]
+  ],
   "test_multi_drop (__main__.TestDataLoaderUtils)": [
     "82865",
     "https://github.com/pytorch/pytorch/issues/82865",
