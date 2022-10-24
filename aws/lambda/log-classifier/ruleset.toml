@@ -81,8 +81,8 @@ name = 'Python unittest error'
 pattern = 'ERROR \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
-name = 'Python pytest failure'
-pattern = '=== FAILURES ==='
+name = 'pytest test error'
+pattern = '^ERROR .*.py::.*::test_.*$'
 
 [[rule]]
 name = 'failed to download github artifacts'

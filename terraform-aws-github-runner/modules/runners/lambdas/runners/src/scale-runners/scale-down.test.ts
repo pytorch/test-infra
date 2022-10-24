@@ -27,6 +27,7 @@ import {
   scaleDown,
   sortRunnersByLaunchTime,
 } from './scale-down';
+import { RequestError } from '@octokit/request-error';
 
 jest.mock('./gh-runners', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -1245,6 +1246,40 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
       expect(mockedGetRunnerOrg).toBeCalledTimes(1);
       expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
+    });
+
+    it('getRunner throws when api rate limit is hit', async () => {
+      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+
+      mockedListGithubRunnersOrg.mockRejectedValueOnce(
+        new RequestError('API rate limit exceeded for installation ID 13954108.', 403, {
+          headers: {
+            'access-control-allow-origin': '*',
+            'x-ratelimit-limit': '20000',
+            'x-ratelimit-remaining': '0',
+            'x-ratelimit-reset': '1666378232',
+            'x-ratelimit-resource': 'core',
+            'x-ratelimit-used': '20006',
+            'x-xss-protection': '0',
+          },
+          request: {
+            method: 'GET',
+            url: 'https://api.github.com/orgs/pytorch/actions/runners?per_page=100',
+            headers: {
+              accept: 'application/vnd.github.v3+json',
+            },
+          },
+        }),
+      );
+
+      const ec2runner: RunnerInfo = {
+        org: org,
+        instanceId: 'instance-id-03',
+        runnerType: 'runnerType-01',
+        ghRunnerId: 'ghRunnerId-01',
+      };
+
+      await expect(getGHRunnerOrg(ec2runner, metrics)).rejects.toThrow(RequestError);
     });
   });
 });

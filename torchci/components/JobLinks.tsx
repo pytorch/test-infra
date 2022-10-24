@@ -3,6 +3,7 @@ import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
 import styles from "./JobLinks.module.css";
+import TestInsightsLink from "./TestInsights"
 
 export default function JobLinks({ job }: { job: JobData }) {
   const rawLogs =
@@ -50,6 +51,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {queueTimeS}
       {durationS}
       {eventTime}
+      <TestInsightsLink job={job} separator={" | "} />
       <DisableIssue job={job} />
     </span>
   );
