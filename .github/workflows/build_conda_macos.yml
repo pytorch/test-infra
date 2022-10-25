@@ -108,10 +108,15 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
+          echo "${{ inputs.package-name }}"
+
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
             export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
+
+          echo "####"
+          echo $USE_FFMPEG
 
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
