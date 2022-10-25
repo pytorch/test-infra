@@ -83,7 +83,8 @@ module "runners" {
   block_device_mappings = var.block_device_mappings
 
   runner_architecture = local.runner_architecture
-  ami_owners          = var.ami_owners
+  ami_owners_linux    = var.ami_owners_linux
+  ami_owners_windows  = var.ami_owners_windows
   ami_filter_linux    = var.ami_filter_linux
   ami_filter_windows  = var.ami_filter_windows
 
