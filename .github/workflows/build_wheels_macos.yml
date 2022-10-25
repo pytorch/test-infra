@@ -174,7 +174,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
-            ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch-test/whl/${CHANNEL}/${{ matrix.desired_cuda }}"
+            ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch-test/whl/${CHANNEL}/${{ matrix.desired_cuda }}" --acl bucket-owner-full-control
           done
 
 concurrency:
