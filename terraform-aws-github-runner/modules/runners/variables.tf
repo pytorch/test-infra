@@ -92,8 +92,14 @@ variable "ami_filter_windows" {
   }
 }
 
-variable "ami_owners" {
-  description = "The list of owners used to select the AMI of action runner instances."
+variable "ami_owners_linux" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
+}
+
+variable "ami_owners_windows" {
+  description = "The list of owners used to select the AMI of windows action runner instances."
   type        = list(string)
   default     = ["amazon"]
 }
