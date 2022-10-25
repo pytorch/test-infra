@@ -108,7 +108,7 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
 
-          if [[ "{{ inputs.package-name }}" = "torchaudio" ]]; then
+          if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
             export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
