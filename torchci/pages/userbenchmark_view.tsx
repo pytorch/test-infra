@@ -112,7 +112,6 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
 
     csvToTable(csvString: string) {
         const data = this.parseCsv(csvString);
-        console.log(data);
 
         const minSpeedup = Math.min(
             0.0,
@@ -143,7 +142,6 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
 
 
         if (typeof url === 'string') {
-            console.log(url)
             fetch(url)
                 .then((response) => {
                     const text = response.text();
