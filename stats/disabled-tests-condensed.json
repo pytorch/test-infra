@@ -91,6 +91,13 @@
       "linux"
     ]
   ],
+  "test_adamax (__main__.TestOptim)": [
+    "86474",
+    "https://github.com/pytorch/pytorch/issues/86474",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adamw (__main__.TestOptim)": [
     "86435",
     "https://github.com/pytorch/pytorch/issues/86435",
@@ -2300,6 +2307,13 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_rmsprop (__main__.TestOptim)": [
+    "86433",
+    "https://github.com/pytorch/pytorch/issues/86433",
+    [
+      "dynamo"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
