@@ -692,6 +692,14 @@
       "macos"
     ]
   ],
+  "test_comprehensive_diagflat_cpu_float16 (__main__.TestDecompCPU)": [
+    "87671",
+    "https://github.com/pytorch/pytorch/issues/87671",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_comprehensive_fft_ihfft2_cuda_float64 (__main__.TestDecompCUDA)": [
     "86883",
     "https://github.com/pytorch/pytorch/issues/86883",
