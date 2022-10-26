@@ -115,6 +115,7 @@ jobs:
 
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
           export USE_FFMPEG="1"
+          export USE_OPENMP="0"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
