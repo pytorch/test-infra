@@ -5,6 +5,7 @@ import autoLabelBot from "./autoLabelBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
 import drciBot from "./drciBot";
 import pytorchBot from "./pytorchBot";
+import removeLabelComment from "./removeLabelCommentBot";
 import retryBot from "./retryBot";
 import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
@@ -21,4 +22,5 @@ export default function bot(app: Probot) {
   drciBot(app);
   acceptBot(app);
   retryBot(app);
+  removeLabelComment(app);
 }
