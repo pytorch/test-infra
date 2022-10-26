@@ -25,14 +25,14 @@ ROCM_ARCHES = ["5.1.1", "5.2"]
 CUDA_ACRHES_DICT = {
     "nightly": ["11.6", "11.7"],
     "test": ["11.6", "11.7"],
-    "release": ["10.2", "11.3", "11.6"]
+    "release": ["11.6", "11.7"],
 }
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
 DEBUG = "debug"
 
-CURRENT_STABLE_VERSION = "1.12.1"
+CURRENT_STABLE_VERSION = "1.13.0"
 
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
@@ -135,13 +135,8 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     conda_channels = "-c pytorch" if channel == "release" else f"-c pytorch-{channel}"
 
     if gpu_arch_type == "cuda":
-        if float(arch_version) <= 11.3 or channel == "release":
-            conda_package_type = f"cudatoolkit={arch_version}"
-            if float(arch_version) == 11.6:
-                conda_channels = f"{conda_channels} -c conda-forge"
-        else:
-            conda_package_type = f"pytorch-cuda={arch_version}"
-            conda_channels = f"{conda_channels} -c nvidia"
+        conda_package_type = f"pytorch-cuda={arch_version}"
+        conda_channels = f"{conda_channels} -c nvidia"
     else:
         conda_package_type = "cpuonly"
 
