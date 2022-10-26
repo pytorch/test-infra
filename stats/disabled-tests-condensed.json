@@ -200,6 +200,13 @@
       "linux"
     ]
   ],
+  "test_backward_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "87749",
+    "https://github.com/pytorch/pytorch/issues/87749",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "86434",
     "https://github.com/pytorch/pytorch/issues/86434",
@@ -822,6 +829,13 @@
     "https://github.com/pytorch/pytorch/issues/79750",
     [
       "linux"
+    ]
+  ],
+  "test_cycle_lr_removed_after_out_of_scope (__main__.TestLRScheduler)": [
+    "87748",
+    "https://github.com/pytorch/pytorch/issues/87748",
+    [
+      "dynamo"
     ]
   ],
   "test_dcgan_models (jit.test_models.TestModels)": [
