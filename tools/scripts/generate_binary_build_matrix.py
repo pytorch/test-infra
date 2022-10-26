@@ -135,8 +135,10 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     conda_channels = "-c pytorch" if channel == "release" else f"-c pytorch-{channel}"
 
     if gpu_arch_type == "cuda":
-        if float(arch_version) <= 11.3:
+        if float(arch_version) <= 11.3 or channel == "release":
             conda_package_type = f"cudatoolkit={arch_version}"
+            if float(arch_version) == 11.6:
+                conda_channels = f"{conda_channels} -c conda-forge"
         else:
             conda_package_type = f"pytorch-cuda={arch_version}"
             conda_channels = f"{conda_channels} -c nvidia"
