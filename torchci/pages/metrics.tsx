@@ -782,7 +782,7 @@ export default function Page() {
             groupByFieldName={"workflow_name"}
             timeFieldName={"push_event_time"}
             yAxisFieldName={"avg_num_tests"}
-            yAxisRenderer={(value) => value}
+            yAxisRenderer={(value) => (parseInt(value) / 1000000) + "M"}
             additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
