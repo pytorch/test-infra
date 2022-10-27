@@ -472,6 +472,11 @@ export default function Page() {
     value: ttsPercentile,
   };
 
+  var numberFormat = Intl.NumberFormat('en-US', {
+    notation: "compact",
+    maximumFractionDigits: 1
+  });
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -782,7 +787,7 @@ export default function Page() {
             groupByFieldName={"workflow_name"}
             timeFieldName={"push_event_time"}
             yAxisFieldName={"avg_num_tests"}
-            yAxisRenderer={(value) => (parseInt(value) / 1000000) + "M"}
+            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
             additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
