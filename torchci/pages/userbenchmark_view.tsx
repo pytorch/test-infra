@@ -39,8 +39,8 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
         let result: UserbenchmarkRow[] = [];
         const HEADER_COL: number = 0;
         const METRIC_ROW: number = 0;
-        const BASE_VALUE_ROW: number = 0;
-        const PR_VALUE_ROW: number = 0;
+        const BASE_VALUE_ROW: number = 1;
+        const PR_VALUE_ROW: number = 2;
         result.push({
             metric_name: as_array[HEADER_COL][METRIC_ROW],
             base_value: as_array[HEADER_COL][BASE_VALUE_ROW],
@@ -142,7 +142,6 @@ class UserbenchmarkResults extends React.Component<UserbenchmarkProps, Userbench
 
 
         if (typeof url === 'string') {
-            console.log(url)
             fetch(url)
                 .then((response) => {
                     const text = response.text();
