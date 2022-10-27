@@ -1,7 +1,7 @@
 SELECT 
     ic._event_time revert_time,
 	ic.user.login as reverter,
-    REGEXP_EXTRACT(ic.body, '(-c|--classification)[\s =]+"?(\w+)"?', 2) as code,
+    REGEXP_EXTRACT(ic.body, '(-c|--classification)[\s =]+["'']?(\w+)["'']?', 2) as code,
     REGEXP_EXTRACT(ic.body, '(-m|--message)[\s =]+["'']?([^"'']+)["'']?', 2) as message,
     ic.html_url as comment_url
 FROM commons.issue_comment AS ic
