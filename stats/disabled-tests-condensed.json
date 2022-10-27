@@ -1433,13 +1433,6 @@
       "linux"
     ]
   ],
-  "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86500",
-    "https://github.com/pytorch/pytorch/issues/86500",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86505",
     "https://github.com/pytorch/pytorch/issues/86505",
@@ -1978,6 +1971,13 @@
     "https://github.com/pytorch/pytorch/issues/74154",
     [
       "windows"
+    ]
+  ],
+  "test_pickle_nn_GRU_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86501",
+    "https://github.com/pytorch/pytorch/issues/86501",
+    [
+      "linux"
     ]
   ],
   "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
