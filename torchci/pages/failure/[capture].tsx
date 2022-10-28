@@ -184,7 +184,7 @@ function FailureInfo({
       <ul>
         {samples.map((sample) => (
           <li key={sample.id}>
-            <JobSummary job={sample} />
+            <JobSummary job={sample} highlight={sample.branch ? highlighted.has(sample.branch) : false} />
             <div>
               <JobLinks job={sample} />
             </div>
