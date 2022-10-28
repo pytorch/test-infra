@@ -7,14 +7,6 @@
       "linux"
     ]
   ],
-  "testAddSub (__main__.TestLazyReuseIr)": [
-    "77721",
-    "https://github.com/pytorch/pytorch/issues/77721",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "testAddSubFallback (__main__.TestLazyReuseIr)": [
     "77723",
     "https://github.com/pytorch/pytorch/issues/77723",
@@ -1440,13 +1432,6 @@
       "linux"
     ]
   ],
-  "test_forward_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86505",
-    "https://github.com/pytorch/pytorch/issues/86505",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86387",
     "https://github.com/pytorch/pytorch/issues/86387",
@@ -1920,6 +1905,13 @@
   "test_operator_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "86761",
     "https://github.com/pytorch/pytorch/issues/86761",
+    [
+      "linux"
+    ]
+  ],
+  "test_operator_nn_functional__scaled_dot_product_attention_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "88013",
+    "https://github.com/pytorch/pytorch/issues/88013",
     [
       "linux"
     ]
