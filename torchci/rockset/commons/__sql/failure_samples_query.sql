@@ -23,6 +23,7 @@ SELECT
     CONCAT(w.name, ' / ', job.name) AS name,
     w.head_sha AS sha,
     job.id AS id,
+    w.head_branch as branch,
     CASE
         WHEN job.conclusion IS NULL THEN 'pending'
         ELSE job.conclusion
