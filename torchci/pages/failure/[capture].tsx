@@ -12,6 +12,7 @@ import LogViewer from "components/LogViewer";
 import JobLinks from "components/JobLinks";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { CSSProperties } from "react";
 
 function FailureInfo({
   totalCount,
@@ -23,38 +24,145 @@ function FailureInfo({
   samples: JobData[];
 }) {
   // Populate the last 14 days
-  const dayBuckets: Map<string, number> = new Map();
+  const dayBuckets: Map<
+    string,
+    { highlighted: number; other: number; total: number }
+  > = new Map();
+  const branchHistogramByDay: Map<string, Map<string, number>> = new Map();
   for (let i = 13; i >= 0; i--) {
     const time = dayjs().local().subtract(i, "day").format("MM/D");
-    dayBuckets.set(time, 0);
+    dayBuckets.set(time, { highlighted: 0, other: 0, total: 0 });
+    branchHistogramByDay.set(time, new Map());
   }
 
-  samples.forEach((job) => {
+  // we highlight master branch
+  const highlighted = new Set<string>();
+  highlighted.add("master");
+
+  const branchNames = new Set<string>(highlighted);
+  samples.forEach((job, i) => {
     const time = dayjs(job.time!).local().format("MM/D");
     if (!dayBuckets.has(time)) {
       return;
     }
-    dayBuckets.set(time, dayBuckets.get(time)! + 1);
+    const jobBranch = job.branch!;
+    branchNames.add(jobBranch);
+    const countInfo = dayBuckets.get(time);
+    if (highlighted.has(jobBranch)) {
+      countInfo!.highlighted += 1;
+    } else {
+      countInfo!.other += 1;
+    }
+    countInfo!.total += 1;
+
+    const branchHistogramPerSample = branchHistogramByDay.get(time)!;
+    if (!branchHistogramPerSample.has(jobBranch)) {
+      branchHistogramPerSample.set(jobBranch, 0);
+    }
+    branchHistogramPerSample.set(
+      jobBranch,
+      branchHistogramPerSample.get(jobBranch)! + 1
+    );
   });
 
   const data: any = [];
-  dayBuckets.forEach((count, date) => {
-    data.push({ date, count });
+  dayBuckets.forEach((countInfo, date) => {
+    data.push({ date: date, ...countInfo });
   });
+
+  const barColor = (highlight: boolean) => {
+    if (highlight) {
+      return "#e41a1c";
+    } else {
+      return "#8884d8";
+    }
+  };
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    const finalStyle: CSSProperties = {
+      margin: 0,
+      padding: 10,
+      backgroundColor: "#fff",
+      border: "1px solid #ccc",
+      whiteSpace: "nowrap",
+    };
+    const finalLabelStyle: CSSProperties = {
+      margin: 0,
+    };
+    const finalItemStyle = {
+      display: "block",
+      paddingTop: 4,
+      paddingBottom: 4,
+    };
+    const listStyle = { padding: 0, margin: 0 };
+    if (active && payload && payload.length) {
+      return (
+        <div className="recharts-default-tooltip" style={finalStyle}>
+          <div className="recharts-tooltip-label"> {label} </div>
+          <div>
+            <ul className="recharts-tooltip-item-list" style={listStyle}>
+              {Array.from(branchNames)
+                .filter((bn: string) => {
+                  return branchHistogramByDay
+                    .get(payload[0].payload.date)!
+                    .has(bn);
+                })
+                .map((bn: any, i: any) => {
+                  return (
+                    <li
+                      className="recharts-tooltip-item"
+                      key={`tooltip-item-${i}`}
+                      style={{
+                        color: barColor(highlighted.has(bn)),
+                        ...finalItemStyle,
+                      }}
+                    >
+                      <span className="recharts-tooltip-item-name">{bn}</span>
+                      <span className="recharts-tooltip-item-separator">
+                        {" "}
+                        :{" "}
+                      </span>
+                      <span className="recharts-tooltip-item-value">
+                        {branchHistogramByDay
+                          .get(payload[0].payload.date)!
+                          .get(bn)}
+                      </span>
+                    </li>
+                  );
+                })}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div>
       <div>
         <h3>Failure count </h3>
         <BarChart width={800} height={150} data={data}>
-          <Tooltip />
+          <Tooltip content={<CustomTooltip />} />
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <Bar yAxisId="left" dataKey="count" fill="#8884d8" />
+          <Bar
+            yAxisId="left"
+            dataKey="other"
+            stackId="a"
+            fill={barColor(false)}
+          />
+          <Bar
+            yAxisId="left"
+            dataKey="highlighted"
+            stackId="a"
+            fill={barColor(true)}
+          />
           <XAxis dataKey="date" interval={0} />
-          <YAxis yAxisId="left" dataKey="count" allowDecimals={false} />
+          <YAxis yAxisId="left" dataKey="total" allowDecimals={false} />
           <YAxis
             yAxisId="right"
-            dataKey="count"
+            dataKey="total"
             orientation="right"
             allowDecimals={false}
           />
