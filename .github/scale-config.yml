@@ -92,6 +92,11 @@ runner_types:
     max_available: 20
     disk_size: 150
     is_ephemeral: false
+  linux.large.ephemeral:
+    disk_size: 15
+    instance_type: c5.large
+    is_ephemeral: true
+    os: linux
   linux.large:
     disk_size: 15
     instance_type: c5.large
