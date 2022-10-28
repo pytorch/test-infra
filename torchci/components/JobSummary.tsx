@@ -6,7 +6,7 @@ export default function JobSummary({ job, highlight }: { job: JobData; highlight
     <>
       <JobConclusion conclusion={job.conclusion} />
       <a href={job.htmlUrl}> {job.jobName} </a>
-      {highlight ? <b> [{job.branch}] </b> : <span>[{job.branch}]</span> }
+      {!job.branch? <></> : (highlight ? <b> [{job.branch}] </b> : <span>[{job.branch}]</span>) }
     </>
   );
 }
