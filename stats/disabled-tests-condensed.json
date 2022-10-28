@@ -7,6 +7,14 @@
       "linux"
     ]
   ],
+  "testAddSub (__main__.TestLazyReuseIr)": [
+    "77721",
+    "https://github.com/pytorch/pytorch/issues/77721",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "testAddSubFallback (__main__.TestLazyReuseIr)": [
     "77723",
     "https://github.com/pytorch/pytorch/issues/77723",
@@ -1421,6 +1429,13 @@
   "test_forward_nn_LSTM_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86773",
     "https://github.com/pytorch/pytorch/issues/86773",
+    [
+      "linux"
+    ]
+  ],
+  "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86500",
+    "https://github.com/pytorch/pytorch/issues/86500",
     [
       "linux"
     ]
