@@ -6,6 +6,7 @@ export default function JobSummary({ job }: { job: JobData }) {
     <>
       <JobConclusion conclusion={job.conclusion} />
       <a href={job.htmlUrl}> {job.jobName} </a>
+      <b> [{job.branch}] </b>
     </>
   );
 }
