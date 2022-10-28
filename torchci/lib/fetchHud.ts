@@ -3,6 +3,7 @@ import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
+import { isFailure } from "./JobClassifierUtil";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -69,6 +70,7 @@ export default async function fetchHud(params: HudParams): Promise<{
       // cases, we want the most recent job to be shown.
       if (job.id! > existingJob.id!) {
         jobsBySha[job.sha!][job.name!] = job;
+        jobsBySha[job.sha!][job.name!].failedPreviousRun = existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
       }
     } else {
       jobsBySha[job.sha!][job.name!] = job;

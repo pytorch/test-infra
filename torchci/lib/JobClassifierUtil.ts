@@ -120,9 +120,12 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
-export function getConclusionChar(conclusion?: string): string {
+export function getConclusionChar(conclusion?: string, failedPreviousRun?: boolean): string {
   switch (conclusion) {
     case JobStatus.Success:
+      if (failedPreviousRun) {
+        return "F"
+      }
       return "O";
     case JobStatus.Failure:
       return "X";

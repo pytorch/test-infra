@@ -4,9 +4,11 @@ import styles from "./JobConclusion.module.css";
 export default function JobConclusion({
   conclusion,
   classified = false,
+  failedPreviousRun = false,
 }: {
   conclusion?: string;
   classified?: boolean;
+  failedPreviousRun?: boolean;
 }) {
   return (
     <span className={styles.conclusion}>
@@ -15,7 +17,7 @@ export default function JobConclusion({
           classified ? styles["classified"] : styles[conclusion ?? "none"]
         }
       >
-        {getConclusionChar(conclusion)}
+        {getConclusionChar(conclusion, failedPreviousRun)}
       </span>
     </span>
   );

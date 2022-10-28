@@ -48,7 +48,11 @@ export function JobCell({
         setPinnedId={setPinnedId}
         tooltipContent={<JobTooltip job={job} />}
       >
-        <JobConclusion conclusion={job.conclusion} classified={isClassified} />
+        <JobConclusion
+          conclusion={job.conclusion}
+          classified={isClassified}
+          failedPreviousRun={job.failedPreviousRun}
+        />
       </TooltipTarget>
     </td>
   );
