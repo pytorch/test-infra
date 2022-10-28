@@ -102,7 +102,8 @@ function HudRow({
           <a
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
           >
-            #{rowData.prNum}
+            {rowData.isForcedMerge && (<mark>#{rowData.prNum}</mark>)}
+            {!rowData.isForcedMerge && (<div>#{rowData.prNum}</div>)}
           </a>
         )}
       </td>
