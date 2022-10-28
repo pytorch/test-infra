@@ -40,6 +40,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       repository: pytorch/vision
+      ref: main
       script: |
         conda create -y -n test python=3.8
         conda activate test
@@ -53,6 +54,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       repository: pytorch/vision
+      ref: main
       timeout: 60
       script: |
         conda create -y -n test python=3.8
