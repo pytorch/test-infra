@@ -1440,6 +1440,13 @@
       "linux"
     ]
   ],
+  "test_forward_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86505",
+    "https://github.com/pytorch/pytorch/issues/86505",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86387",
     "https://github.com/pytorch/pytorch/issues/86387",
