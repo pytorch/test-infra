@@ -10,3 +10,7 @@ export default function JobSummary({ job, highlight }: { job: JobData; highlight
     </>
   );
 }
+
+JobSummary.defaultProps = {
+  highlight: false
+}
