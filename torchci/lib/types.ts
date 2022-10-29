@@ -50,6 +50,7 @@ export interface CommitData {
 export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs?: GroupData[];
+  isForcedMerge: boolean | false;
 }
 
 export interface HudData {
