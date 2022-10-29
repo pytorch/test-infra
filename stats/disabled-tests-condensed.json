@@ -1,12 +1,4 @@
 {
-  "testAdd (__main__.TestLazyReuseIr)": [
-    "77722",
-    "https://github.com/pytorch/pytorch/issues/77722",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "testAddSub (__main__.TestLazyReuseIr)": [
     "77721",
     "https://github.com/pytorch/pytorch/issues/77721",
