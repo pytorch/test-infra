@@ -805,13 +805,6 @@
       "linux"
     ]
   ],
-  "test_cpu_gpu_parity_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86503",
-    "https://github.com/pytorch/pytorch/issues/86503",
-    [
-      "linux"
-    ]
-  ],
   "test_create_store_single_server (__main__.DistributedUtilTest)": [
     "66207",
     "https://github.com/pytorch/pytorch/issues/66207",
