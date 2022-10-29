@@ -1,4 +1,12 @@
 {
+  "testAdd (__main__.TestLazyReuseIr)": [
+    "77722",
+    "https://github.com/pytorch/pytorch/issues/77722",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "testAddSub (__main__.TestLazyReuseIr)": [
     "77721",
     "https://github.com/pytorch/pytorch/issues/77721",
@@ -793,13 +801,6 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
-    [
-      "linux"
-    ]
-  ],
-  "test_cpu_gpu_parity_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86503",
-    "https://github.com/pytorch/pytorch/issues/86503",
     [
       "linux"
     ]
