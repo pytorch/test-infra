@@ -951,13 +951,6 @@
       "linux"
     ]
   ],
-  "test_ddp_uneven_input_exception (__main__.TestDistBackendWithSpawn)": [
-    "84420",
-    "https://github.com/pytorch/pytorch/issues/84420",
-    [
-      "rocm"
-    ]
-  ],
   "test_ddp_uneven_input_join_disable (__main__.TestDistBackendWithSpawn)": [
     "78684",
     "https://github.com/pytorch/pytorch/issues/78684",
@@ -2340,13 +2333,6 @@
   "test_scalar_ins (__main__.TestTorchTidyProfiler)": [
     "83247",
     "https://github.com/pytorch/pytorch/issues/83247",
-    [
-      "linux"
-    ]
-  ],
-  "test_scatter_full_optim_state_dict_nested_use_multiple_param_groups_True_wrap_alt_False_use_diff_optim_inputs_True (__main__.TestFSDPOptimState)": [
-    "85092",
-    "https://github.com/pytorch/pytorch/issues/85092",
     [
       "linux"
     ]
