@@ -160,9 +160,6 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-
-            ${CONDA_RUN} conda install -y pytorch -c pytorch cpuonly
-
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
