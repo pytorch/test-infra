@@ -314,7 +314,7 @@ variable "scale_up_lambda_concurrency" {
 variable "scale_up_provisioned_concurrent_executions" {
   description = "Number of provisioned concurrent instances to run for the scale up lambda"
   type        = number
-  default     = 5
+  default     = 0
 }
 
 variable "must_have_issues_labels" {
