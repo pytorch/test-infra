@@ -34,7 +34,7 @@ jobs:
             pre-script: ""
             env-script: packaging/windows/internal/vc_env_helper.bat
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text
             pre-script: ""

@@ -32,7 +32,7 @@ jobs:
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test.py
             conda-package-directory: packaging/torchvision
             package-name: torchvision
     name: ${{ matrix.repository }}

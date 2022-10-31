@@ -31,7 +31,7 @@ jobs:
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text
             pre-script: ""
