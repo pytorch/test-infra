@@ -228,7 +228,8 @@ def update_issue(issue: Dict, issue_number: int) -> Dict:
         UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
     )
     r.raise_for_status()
-    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue_number}/comments", data=json.dumps({"body": "updating alert"}), headers=headers)
+    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue_number}/comments",
+                      data=json.dumps({"body": "Updating alert"}), headers=headers)
     r.raise_for_status()
     return issue
 
