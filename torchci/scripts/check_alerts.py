@@ -64,6 +64,7 @@ UPDATE_ISSUE_URL = (
     f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/"
 )
 
+
 GRAPHQL_URL = "https://api.github.com/graphql"
 
 
@@ -227,6 +228,8 @@ def update_issue(issue: Dict, issue_number: int) -> Dict:
         UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
     )
     r.raise_for_status()
+    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue_number}/comments", data=json.dumps({"body": "updating alert"}), headers=headers)
+    r.raise_for_status()
     return issue
 
 
@@ -383,7 +386,7 @@ def check_for_recurrently_failing_jobs_alert():
 
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
-        print("Didn't find anything to alert on.")        
+        print("Didn't find anything to alert on.")
         clear_alerts(existing_alerts)
         return
 
