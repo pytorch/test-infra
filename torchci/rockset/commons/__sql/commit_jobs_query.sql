@@ -37,6 +37,7 @@ WITH job as (
         AND workflow.head_sha = :sha
         AND job.head_sha = :sha
         AND workflow.repository.full_name = :repo
+        AND workflow.event = :event
     UNION
         -- Handle CircleCI
         -- IMPORTANT: this needs to have the same order as the query above
