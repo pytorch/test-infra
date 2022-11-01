@@ -111,6 +111,7 @@ module "runners" {
   logging_retention_in_days        = var.logging_retention_in_days
   enable_cloudwatch_agent          = var.enable_cloudwatch_agent
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
+  scale_up_provisioned_concurrent_executions = var.scale_up_provisioned_concurrent_executions
 
   instance_profile_path     = var.instance_profile_path
   role_path                 = var.role_path
