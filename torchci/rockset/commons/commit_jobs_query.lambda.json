@@ -10,6 +10,11 @@
       "name": "sha",
       "type": "string",
       "value": "ae93a4dc43a7103b1856b83456b247dd3395fe47"
+    },
+    {
+      "name": "event",
+      "type": "string",
+      "value": "push"
     }
   ],
   "description": ""

@@ -30,6 +30,7 @@ WITH job AS (
         AND ARRAY_CONTAINS(SPLIT(:shas, ','), job.head_sha)
         AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_sha)
         AND workflow.repository.full_name = :repo
+        AND workflow.event = :event
     UNION
         -- Handle CircleCI
         -- IMPORTANT: this needs to have the same order as the query above
