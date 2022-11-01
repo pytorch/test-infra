@@ -31,7 +31,7 @@ jobs:
             conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
             pre-script: ""
-            post-script: test/smoke_test.py
+            post-script: ""
             package-name: torchvision
             conda-package-directory: packaging/torchvision
           - repository: pytorch/text
