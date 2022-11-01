@@ -165,7 +165,10 @@ jobs:
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
             ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
 
-            ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
+              ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            fi
+
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to conda
