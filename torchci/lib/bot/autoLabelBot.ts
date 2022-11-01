@@ -358,7 +358,8 @@ function myBot(app: Probot): void {
     if (!await hasWritePermissions(context, reviewer)) {
       return;
     }
-    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
+    // TEMP disable for 24 hours to see if it affects number of reverts / queueing
+    // await addLabels(context, [CIFLOW_TRUNK_LABEL]);
   });
 }
 
