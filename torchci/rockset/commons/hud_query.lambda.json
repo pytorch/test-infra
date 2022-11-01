@@ -2,11 +2,6 @@
   "sql_path": "__sql/hud_query.sql",
   "default_parameters": [
     {
-      "name": "event",
-      "type": "string",
-      "value": "push"
-    },
-    {
       "name": "repo",
       "type": "string",
       "value": "pytorch/pytorch"

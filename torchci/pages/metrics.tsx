@@ -509,14 +509,6 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(value) => value > 0.5}
             />
-            <ScalarPanel
-              title={"% red jobs red on master, aggregate"}
-              queryName={"master_jobs_red_avg"}
-              metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-              queryParams={timeParams}
-              badThreshold={(value) => value > 0.01}
-            />
           </Stack>
         </Grid>
 

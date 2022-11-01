@@ -64,7 +64,7 @@ resource "aws_lambda_provisioned_concurrency_config" "scale_up_provisioned_concu
   count                             = var.scale_up_provisioned_concurrent_executions > 0 ? 1 : 0
   function_name                     = aws_lambda_function.scale_up.function_name
   provisioned_concurrent_executions = var.scale_up_provisioned_concurrent_executions
-  qualifier                         = aws_lambda_function.scale_up.name
+  qualifier                         = aws_lambda_function.scale_up.version
 }
 
 resource "aws_cloudwatch_log_group" "scale_up" {

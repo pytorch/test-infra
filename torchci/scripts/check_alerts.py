@@ -15,6 +15,7 @@ SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
+UPDATING_ALERT_COMMENT = "Updating alert"
 
 PENDING = "pending"
 NEUTRAL = "neutral"
@@ -34,6 +35,12 @@ query ($owner: String!, $name: String!, $labels: [String!]) {
         number
         body
         createdAt
+        comments(first: 100) {
+          nodes {
+            bodyText
+            databaseId
+          }
+        }
       }
     }
   }
@@ -221,11 +228,14 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def update_issue(issue: Dict, issue_number: int) -> Dict:
+def update_issue(issue: Dict, old_issue: Any) -> Dict:
     print("Updating issue", issue)
     r = requests.patch(
-        UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
+        UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
     )
+    r.raise_for_status()
+    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{old_issue['number']}/comments",
+                      data=json.dumps({"body": UPDATING_ALERT_COMMENT}), headers=headers)
     r.raise_for_status()
     return issue
 
@@ -383,7 +393,7 @@ def check_for_recurrently_failing_jobs_alert():
 
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
-        print("Didn't find anything to alert on.")        
+        print("Didn't find anything to alert on.")
         clear_alerts(existing_alerts)
         return
 
@@ -399,7 +409,7 @@ def check_for_recurrently_failing_jobs_alert():
     if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
         if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
-            update_issue(new_issue, existing_recurrent_job_failure_alert["number"])
+            update_issue(new_issue, existing_recurrent_job_failure_alert)
         else:
             print("No new updates. Not updating any alerts.")
     else:
