@@ -419,7 +419,7 @@ def check_for_recurrently_failing_jobs_alert():
     if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
         if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
-            update_issue(new_issue, existing_recurrent_job_failure_alert["number"])
+            update_issue(new_issue, existing_recurrent_job_failure_alert)
         else:
             print("No new updates. Not updating any alerts.")
     else:
