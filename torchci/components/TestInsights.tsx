@@ -2,15 +2,11 @@ import { JobData } from "../lib/types";
 import React from "react";
 
 // The following jobs are not supported at the moment because neither the monitoring
-// script is running there at the moment (libtorch, bazel, android) nor the CI job
-// uploads to S3 due to connectivity issues (macos, rocm). TODO: Add support for macos
-// and rocm is on the way
+// script is running there at the moment (libtorch, bazel, android)
 const NOT_SUPPORTED_JOBS = [
   "android",
   "bazel",
   "libtorch",
-  "macos",
-  "rocm",
 ];
 
 export default function TestInsightsLink({
