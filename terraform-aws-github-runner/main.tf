@@ -24,11 +24,11 @@ resource "random_string" "random" {
 
 resource "aws_sqs_queue" "queued_builds" {
   name                        = "${var.environment}-queued-builds.fifo"
-  visibility_timeout_seconds  = 180
+  visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
-  message_retention_seconds   = 1800
+  message_retention_seconds   = 5800
 
   tags = var.tags
 }
