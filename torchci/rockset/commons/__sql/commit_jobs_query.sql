@@ -37,7 +37,6 @@ WITH job as (
         AND workflow.head_sha = :sha
         AND job.head_sha = :sha
         AND workflow.repository.full_name = :repo
-        AND workflow.event = :event
         AND workflow.head_branch = :branch
     UNION
         -- Handle CircleCI
