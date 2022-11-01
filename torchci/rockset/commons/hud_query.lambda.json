@@ -2,6 +2,11 @@
   "sql_path": "__sql/hud_query.sql",
   "default_parameters": [
     {
+      "name": "branch",
+      "type": "string",
+      "value": "master"
+    },
+    {
       "name": "event",
       "type": "string",
       "value": "push"
