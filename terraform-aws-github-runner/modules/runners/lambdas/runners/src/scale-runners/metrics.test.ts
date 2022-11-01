@@ -44,19 +44,48 @@ describe('./metrics', () => {
       m.runRepo({ owner: 'o', repo: 'r' });
       m.runRepo({ owner: 'o', repo: 'r' });
       m.runRepo({ owner: 'o', repo: 'r' });
+      m.runRepo({ owner: 'o', repo: 'r1' });
+      m.runRepo({ owner: 'o', repo: 'r1' });
       await m.sendMetrics();
 
       expect(mockCloudWatch.putMetricData).toBeCalledWith({
         MetricData: [
           {
             Counts: [1],
-            MetricName: 'run.o.r.process',
+            Dimensions: [
+              {
+                Name: 'Owner',
+                Value: 'o',
+              },
+              {
+                Name: 'Repo',
+                Value: 'r',
+              },
+            ],
+            MetricName: 'run.process',
             Timestamp: spyDate.mock.instances[0],
             Unit: 'Count',
             Values: [3],
           },
+          {
+            Counts: [1],
+            Dimensions: [
+              {
+                Name: 'Owner',
+                Value: 'o',
+              },
+              {
+                Name: 'Repo',
+                Value: 'r1',
+              },
+            ],
+            MetricName: 'run.process',
+            Timestamp: spyDate.mock.instances[0],
+            Unit: 'Count',
+            Values: [2],
+          },
         ],
-        Namespace: 'environ-scaleUp',
+        Namespace: 'environ-scaleUp-dim',
       });
     });
 
@@ -107,7 +136,7 @@ describe('./metrics', () => {
             Values: [1],
           },
         ],
-        Namespace: 'environ-scaleUp',
+        Namespace: 'environ-scaleUp-dim',
       });
     });
 
