@@ -15,6 +15,7 @@ SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
+UPDATING_ALERT_COMMENT = "Updating alert"
 
 PENDING = "pending"
 NEUTRAL = "neutral"
@@ -34,6 +35,12 @@ query ($owner: String!, $name: String!, $labels: [String!]) {
         number
         body
         createdAt
+        comments(first: 100) {
+          nodes {
+            bodyText
+            databaseId
+          }
+        }
       }
     }
   }
@@ -63,7 +70,6 @@ CREATE_ISSUE_URL = (
 UPDATE_ISSUE_URL = (
     f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/"
 )
-
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 
@@ -222,14 +228,24 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def update_issue(issue: Dict, issue_number: int) -> Dict:
+def delete_old_comments(old_issue: Any) -> None:
+    # delete old comments from github bot
+    comments = old_issue["comments"]["nodes"]
+    for comment in comments:
+        if comment["bodyText"] == UPDATING_ALERT_COMMENT:
+            requests.delete(
+                f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/comments/{comment['databaseId']}")
+
+
+def update_issue(issue: Dict, old_issue: Any) -> Dict:
     print("Updating issue", issue)
+    delete_old_comments(old_issue)
     r = requests.patch(
-        UPDATE_ISSUE_URL + str(issue_number), json=issue, headers=headers
+        UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
     )
     r.raise_for_status()
-    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{issue_number}/comments",
-                      data=json.dumps({"body": "Updating alert"}), headers=headers)
+    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{old_issue['number']}/comments",
+                      data=json.dumps({"body": UPDATING_ALERT_COMMENT}), headers=headers)
     r.raise_for_status()
     return issue
 
@@ -402,7 +418,10 @@ def check_for_recurrently_failing_jobs_alert():
     # Create a new alert if no alerts are active or edit the original one if there's a new update
     if existing_recurrent_job_failure_alert:
         new_issue = generate_failed_job_issue(jobs_to_alert_on)
-        update_issue(new_issue, existing_recurrent_job_failure_alert["number"])
+        if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
+            update_issue(new_issue, existing_recurrent_job_failure_alert["number"])
+        else:
+            print("No new updates. Not updating any alerts.")
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 

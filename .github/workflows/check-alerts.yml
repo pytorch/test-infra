@@ -5,11 +5,10 @@ on:
     - cron: "*/5 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
-  pull_request:
 
 
 jobs:
-  update-disabled-tests:
+  update-alerts:
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
