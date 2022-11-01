@@ -85,6 +85,13 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -296,6 +303,13 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -661,6 +675,13 @@ describe("merge-bot", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.pull_request.number;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain('{"body":"+1"}');
         return true;
@@ -717,6 +738,13 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -747,6 +775,13 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -777,6 +812,13 @@ describe("merge-bot", () => {
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -811,6 +853,13 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -876,6 +925,13 @@ some other text lol
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "write" })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -910,6 +966,13 @@ some other text lol
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "write" })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -944,6 +1007,13 @@ some other text lol
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
