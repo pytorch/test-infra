@@ -228,18 +228,8 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def delete_old_comments(old_issue: Any) -> None:
-    # delete old comments from github bot
-    comments = old_issue["comments"]["nodes"]
-    for comment in comments:
-        if comment["bodyText"] == UPDATING_ALERT_COMMENT:
-            requests.delete(
-                f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/comments/{comment['databaseId']}")
-
-
 def update_issue(issue: Dict, old_issue: Any) -> Dict:
     print("Updating issue", issue)
-    delete_old_comments(old_issue)
     r = requests.patch(
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
     )
