@@ -163,7 +163,8 @@ jobs:
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
-            ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
+            # ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
+            ${CONDA RUN} conda install -v -y "$CONDA_BINARY"
 
             if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
               ${CONDA_RUN} conda install -y 'ffmpeg<5'
