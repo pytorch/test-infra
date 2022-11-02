@@ -49,8 +49,9 @@ export interface CommitData {
 
 export interface RowData extends CommitData {
   jobs: JobData[];
-  groupedJobs?: GroupData[];
+  groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
+  nameToJobs?: Map<string, JobData>
 }
 
 export interface HudData {
