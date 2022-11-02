@@ -1614,6 +1614,13 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
+  "test_kineto (__main__.TestProfiler)": [
+    "88377",
+    "https://github.com/pytorch/pytorch/issues/88377",
+    [
+      "linux"
+    ]
+  ],
   "test_kineto_profiler_api (__main__.TestProfiler)": [
     "68846",
     "https://github.com/pytorch/pytorch/issues/68846",
