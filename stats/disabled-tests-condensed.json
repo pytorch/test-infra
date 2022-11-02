@@ -674,6 +674,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_cholesky_solve_cuda_complex64 (__main__.TestDecompCUDA)": [
+    "88296",
+    "https://github.com/pytorch/pytorch/issues/88296",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_cholesky_solve_cuda_float64 (__main__.TestDecompCUDA)": [
     "87138",
     "https://github.com/pytorch/pytorch/issues/87138",
