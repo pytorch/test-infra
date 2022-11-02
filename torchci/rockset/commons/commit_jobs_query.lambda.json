@@ -4,7 +4,7 @@
     {
       "name": "events",
       "type": "string",
-      "value": "push,schedule"
+      "value": "pull_request,pull_request_target,push,schedule"
     },
     {
       "name": "repo",

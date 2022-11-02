@@ -35,7 +35,6 @@ export default async function fetchCommit(
       value: events,
     });
   }
-  console.log(rocksetParams);
 
   const [githubResponse, commitJobsQuery] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
