@@ -217,8 +217,14 @@ variable "ami_filter_windows" {
   }
 }
 
-variable "ami_owners" {
-  description = "The list of owners used to select the AMI of action runner instances."
+variable "ami_owners_linux" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
+}
+
+variable "ami_owners_windows" {
+  description = "The list of owners used to select the AMI of windows action runner instances."
   type        = list(string)
   default     = ["amazon"]
 }
@@ -317,6 +323,12 @@ variable "scale_up_lambda_concurrency" {
   description = "Number of concurrent instances to run for the scale up lambda"
   type        = number
   default     = 10
+}
+
+variable "scale_up_provisioned_concurrent_executions" {
+  description = "Number of provisioned concurrent instances to run for the scale up lambda"
+  type        = number
+  default     = 0
 }
 
 variable "must_have_issues_labels" {

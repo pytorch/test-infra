@@ -105,8 +105,11 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { text: "Commits red on master, by day" },
-    grid: { top: 48, right: 8, bottom: 24, left: 36 },
+    title: { 
+      text: "Commits red on master, by day", 
+      subtext: "Based on workflows which block viable/strict upgrade"
+    },
+    grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "category" },
     yAxis: {
@@ -469,6 +472,11 @@ export default function Page() {
     value: ttsPercentile,
   };
 
+  var numberFormat = Intl.NumberFormat('en-US', {
+    notation: "compact",
+    maximumFractionDigits: 1
+  });
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -491,15 +499,17 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <MasterJobsRedPanel params={timeParams} />
         </Grid>
-        <Grid item xs={2}>
-          <ScalarPanel
-            title={"% red jobs red on master, aggregate"}
-            queryName={"master_jobs_red_avg"}
-            metricName={"red"}
-            valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-            queryParams={timeParams}
-            badThreshold={(value) => value > 0.01}
-          />
+        <Grid container item xs={2} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1}>
+            <ScalarPanel
+              title={"% commits red on master, aggregate"}
+              queryName={"master_commit_red_avg"}
+              metricName={"red"}
+              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 0.5}
+            />
+          </Stack>
         </Grid>
 
         <Grid container item xs={2} justifyContent={"stretch"}>
@@ -545,20 +555,20 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"% commits red on master, aggregate"}
-              queryName={"master_commit_red_avg"}
-              metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-              queryParams={timeParams}
-              badThreshold={(value) => value > 0.5}
-            />
-            <ScalarPanel
               title={"viable/strict lag"}
               queryName={"strict_lag_sec"}
               metricName={"strict_lag_sec"}
               valueRenderer={(value) => durationDisplay(value)}
               queryParams={[]}
               badThreshold={(value) => value > 60 * 60 * 6} // 6 hours
+            />
+            <ScalarPanel
+              title={"# disabled tests"}
+              queryName={"disabled_test_total"}
+              metricName={"number_of_open_disabled_tests"}
+              valueRenderer={(value) => value}
+              queryParams={[]}
+              badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
           </Stack>
         </Grid>
@@ -622,7 +632,7 @@ export default function Page() {
                   name: "jobNames",
                   type: "string",
                   value:
-                    "docs push / build-docs (python, 30);docs push / build-docs (cpp, 180)",
+                    "docs push / build-docs (python, linux.2xlarge, 30);docs push / build-docs (cpp, linux.12xlarge, 180);docs push / build-docs (functorch, linux.2xlarge, 15)",
                 },
               ]}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
@@ -769,6 +779,19 @@ export default function Page() {
             groupByFieldName={"workflow_name"}
             timeFieldName={"push_event_time"}
             yAxisFieldName={"avg_num_tests"}
+            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
+            additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Number of new disabled tests"}
+            queryName={"disabled_test_historical"}
+            queryParams={[...timeParams]}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
           />

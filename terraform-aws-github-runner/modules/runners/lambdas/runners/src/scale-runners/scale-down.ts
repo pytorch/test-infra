@@ -15,6 +15,7 @@ import {
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo } from './utils';
+import { RequestError } from '@octokit/request-error';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -95,23 +96,71 @@ export async function scaleDown(): Promise<void> {
           break;
         }
 
-        removedRunners += 1;
-
+        let shouldRemoveEC2 = true;
         if (ghRunner !== undefined) {
           if (Config.Instance.enableOrganizationRunners) {
-            await removeGithubRunnerOrg(ec2runner, ghRunner.id, ec2runner.org as string, metrics);
+            console.debug(
+              `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+                `[${ec2runner.runnerType}] will be removed.`,
+            );
+            try {
+              await removeGithubRunnerOrg(ghRunner.id, ec2runner.org as string, metrics);
+              metrics.runnerGhTerminateSuccessOrg(ec2runner.org as string, ec2runner);
+              console.info(
+                `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+                  `[${ec2runner.runnerType}] successfuly removed.`,
+              );
+            } catch (e) {
+              console.warn(
+                `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
+              );
+              metrics.runnerGhTerminateFailureOrg(ec2runner.org as string, ec2runner);
+              shouldRemoveEC2 = false;
+            }
           } else {
-            await removeGithubRunnerRepo(ec2runner, ghRunner.id, getRepo(ec2runner.repo as string), metrics);
+            const repo = getRepo(ec2runner.repo as string);
+            console.debug(
+              `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+                `[${ec2runner.runnerType}] will be removed.`,
+            );
+            try {
+              await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
+              metrics.runnerGhTerminateSuccessRepo(repo, ec2runner);
+              console.info(
+                `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+                  `[${ec2runner.runnerType}] successfuly removed.`,
+              );
+            } catch (e) {
+              console.warn(
+                `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
+              );
+              metrics.runnerGhTerminateFailureRepo(repo, ec2runner);
+              shouldRemoveEC2 = false;
+            }
+          }
+        } else {
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnerGhTerminateNotFoundOrg(ec2runner.org as string, ec2runner);
+          } else {
+            metrics.runnerGhTerminateFailureRepo(getRepo(ec2runner.repo as string), ec2runner);
           }
         }
 
-        console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
-        try {
-          await terminateRunner(ec2runner, metrics);
-          metrics.runnerTerminateSuccess(ec2runner);
-        } catch (e) {
-          metrics.runnerTerminateFailure(ec2runner);
-          console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+        if (shouldRemoveEC2) {
+          removedRunners += 1;
+
+          console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
+          try {
+            await terminateRunner(ec2runner, metrics);
+            metrics.runnerTerminateSuccess(ec2runner);
+          } catch (e) {
+            metrics.runnerTerminateFailure(ec2runner);
+            console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+          }
+        } else {
+          metrics.runnerTerminateSkipped(ec2runner);
         }
       }
     }
@@ -126,6 +175,18 @@ export async function scaleDown(): Promise<void> {
   }
 }
 
+/**
+ * Returns true if the argument `e` is an octokit RequestError
+ * from the 'API rate limit exceeded' exception.
+ * @param e any error type
+ * @return true if the argument is 'API rate limit exceeded' exception, false otherwise.
+ */
+function isRateLimitError(e: unknown) {
+  const requestErr = e as RequestError | null;
+  const headers = requestErr?.headers || requestErr?.response?.headers;
+  return requestErr?.status === 403 && headers?.['x-ratelimit-remaining'] === '0';
+}
+
 export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<GhRunner | undefined> {
   const org = ec2runner.org as string;
   let ghRunner: GhRunner | undefined = undefined;
@@ -135,6 +196,9 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
     ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
   } catch (e) {
     console.warn('Failed to list active gh runners', e);
+    if (isRateLimitError(e)) {
+      throw e;
+    }
   }
 
   if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
@@ -149,6 +213,9 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
           `listGithubRunnersOrg call: ${e}`,
       );
+      if (isRateLimitError(e)) {
+        throw e;
+      }
     }
   }
   if (ghRunner) {
@@ -172,6 +239,9 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
     ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
   } catch (e) {
     console.warn('Failed to list active gh runners', e);
+    if (isRateLimitError(e)) {
+      throw e;
+    }
   }
 
   if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
@@ -185,6 +255,9 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
       console.warn(
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
       );
+      if (isRateLimitError(e)) {
+        throw e;
+      }
     }
   }
   if (ghRunner !== undefined) {

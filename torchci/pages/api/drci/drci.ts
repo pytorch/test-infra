@@ -57,17 +57,29 @@ export function constructResultsComment(
 ): string {
     let output = `\n`;
     const failing = failedJobs.length;
-    const noneFailing = `## :white_check_mark: No Failures`;
+    const headerPrefix = `## `
+    const pendingIcon = `:hourglass_flowing_sand:`
+    const successIcon = `:white_check_mark:`
+    const noneFailing = ` No Failures`;
     const someFailing = `## :x: ${failing} Failures`;
     const somePending = `, ${pending} Pending`;
 
     const hasFailing = failing > 0;
     const hasPending = pending > 0;
     if (!hasFailing) {
+        output += headerPrefix
+        if (hasPending) {
+            output += pendingIcon
+        } else {
+            output += successIcon
+        }
+
         output += noneFailing;
+
         if (hasPending) {
             output += somePending;
         }
+
         output += `\nAs of commit ${sha}:`;
         output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
     }

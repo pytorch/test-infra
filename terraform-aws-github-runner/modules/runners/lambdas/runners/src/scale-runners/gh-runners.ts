@@ -1,5 +1,5 @@
-import { Repo, RunnerInfo, getRepoKey } from './utils';
-import { RunnerType, terminateRunner } from './runners';
+import { Repo, getRepoKey, expBackOff } from './utils';
+import { RunnerType } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
 
 import { Config } from './config';
@@ -127,10 +127,10 @@ type UnboxPromise<T> = T extends Promise<infer U> ? U : T;
 
 export type GhRunners = UnboxPromise<ReturnType<Octokit['actions']['listSelfHostedRunnersForRepo']>>['data']['runners'];
 
-export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: number, repo: Repo, metrics: Metrics) {
-  try {
-    const githubAppClient = await createGitHubClientForRunnerRepo(repo, metrics);
-    const result = await metrics.trackRequest(
+export async function removeGithubRunnerRepo(ghRunnerId: number, repo: Repo, metrics: Metrics) {
+  const githubAppClient = await createGitHubClientForRunnerRepo(repo, metrics);
+  const result = await expBackOff(() => {
+    return metrics.trackRequest(
       metrics.deleteSelfHostedRunnerFromRepoGHCallSuccess,
       metrics.deleteSelfHostedRunnerFromRepoGHCallFailure,
       () => {
@@ -140,26 +140,21 @@ export async function removeGithubRunnerRepo(ec2runner: RunnerInfo, ghRunnerId: 
         });
       },
     );
+  });
 
-    /* istanbul ignore next */
-    if (result?.status == 204) {
-      await terminateRunner(ec2runner, metrics);
-      console.info(
-        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
-          `and GitHub runner is de-registered. (removeGithubRunnerRepo)`,
-      );
-    }
-  } catch (e) {
-    console.warn(
-      `Error scaling down (removeGithubRunnerRepo) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+  /* istanbul ignore next */
+  if ((result?.status ?? 0) != 204) {
+    throw (
+      `Request deleteSelfHostedRunnerFromRepoGHCallSuccess returned status code different than 204: ` +
+      `${result?.status ?? 0} for ${repo} ${ghRunnerId}`
     );
   }
 }
 
-export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: number, org: string, metrics: Metrics) {
-  try {
-    const githubAppClient = await createGitHubClientForRunnerOrg(org, metrics);
-    const result = await metrics.trackRequest(
+export async function removeGithubRunnerOrg(ghRunnerId: number, org: string, metrics: Metrics) {
+  const githubAppClient = await createGitHubClientForRunnerOrg(org, metrics);
+  const result = await expBackOff(() => {
+    return metrics.trackRequest(
       metrics.deleteSelfHostedRunnerFromOrgGHCallSuccess,
       metrics.deleteSelfHostedRunnerFromOrgGHCallFailure,
       () => {
@@ -169,18 +164,13 @@ export async function removeGithubRunnerOrg(ec2runner: RunnerInfo, ghRunnerId: n
         });
       },
     );
+  });
 
-    /* istanbul ignore next */
-    if (result?.status == 204) {
-      await terminateRunner(ec2runner, metrics);
-      console.info(
-        `AWS runner instance '${ec2runner.instanceId}' [${ec2runner.runnerType}] is terminated ` +
-          `and GitHub runner is de-registered. (removeGithubRunnerOrg)`,
-      );
-    }
-  } catch (e) {
-    console.warn(
-      `Error scaling down (removeGithubRunnerOrg) '${ec2runner.instanceId}' [${ec2runner.runnerType}]: ${e}`,
+  /* istanbul ignore next */
+  if ((result?.status ?? 0) != 204) {
+    throw (
+      `Request deleteSelfHostedRunnerFromRepoGHCallSuccess returned status code different than 204: ` +
+      `${result?.status ?? 0} for ${org} ${ghRunnerId}`
     );
   }
 }
@@ -245,7 +235,7 @@ async function listGithubRunners(key: string, listCallback: () => Promise<GhRunn
     }
 
     console.debug(`[listGithubRunners] Cache miss for ${key}`);
-    const runners = await listCallback();
+    const runners = await expBackOff(listCallback);
     ghRunnersCache.set(key, runners);
     return runners;
   } catch (e) {
@@ -261,16 +251,18 @@ export async function getRunnerRepo(repo: Repo, runnerID: string, metrics: Metri
 
   try {
     return (
-      await metrics.trackRequest(
-        metrics.getSelfHostedRunnerForRepoGHCallSuccess,
-        metrics.getSelfHostedRunnerForRepoGHCallFailure,
-        () => {
-          return client.actions.getSelfHostedRunnerForRepo({
-            ...repo,
-            runner_id: runnerID as unknown as number,
-          });
-        },
-      )
+      await expBackOff(() => {
+        return metrics.trackRequest(
+          metrics.getSelfHostedRunnerForRepoGHCallSuccess,
+          metrics.getSelfHostedRunnerForRepoGHCallFailure,
+          () => {
+            return client.actions.getSelfHostedRunnerForRepo({
+              ...repo,
+              runner_id: runnerID as unknown as number,
+            });
+          },
+        );
+      })
     ).data;
   } catch (e) {
     console.warn(`[getRunnerRepo <inner try>]: ${e}`);
@@ -283,16 +275,18 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
 
   try {
     return (
-      await metrics.trackRequest(
-        metrics.getSelfHostedRunnerForOrgGHCallSuccess,
-        metrics.getSelfHostedRunnerForOrgGHCallFailure,
-        () => {
-          return client.actions.getSelfHostedRunnerForOrg({
-            org: org,
-            runner_id: runnerID as unknown as number,
-          });
-        },
-      )
+      await expBackOff(() => {
+        return metrics.trackRequest(
+          metrics.getSelfHostedRunnerForOrgGHCallSuccess,
+          metrics.getSelfHostedRunnerForOrgGHCallFailure,
+          () => {
+            return client.actions.getSelfHostedRunnerForOrg({
+              org: org,
+              runner_id: runnerID as unknown as number,
+            });
+          },
+        );
+      })
     ).data;
   } catch (e) {
     console.warn(`[getRunnerOrg <inner try>]: ${e}`);
@@ -309,8 +303,9 @@ export async function getRunnerTypes(
   try {
     const runnerTypeKey = getRepoKey(repo);
 
-    if (runnerTypeCache.get(runnerTypeKey) !== undefined) {
-      return runnerTypeCache.get(runnerTypeKey) as Map<string, RunnerType>;
+    const runnerTypeCacheActualContent = runnerTypeCache.get(runnerTypeKey);
+    if (runnerTypeCacheActualContent !== undefined) {
+      return runnerTypeCacheActualContent as Map<string, RunnerType>;
     }
     console.debug(`[getRunnerTypes] cache miss for ${runnerTypeKey}`);
 
@@ -320,16 +315,14 @@ export async function getRunnerTypes(
       ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
       : await createGitHubClientForRunnerRepo(repo, metrics);
 
-    const response = await metrics.trackRequest(
-      metrics.reposGetContentGHCallSuccess,
-      metrics.reposGetContentGHCallFailure,
-      () => {
+    const response = await expBackOff(() => {
+      return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
         return githubAppClient.repos.getContent({
           ...repo,
           path: filepath,
         });
-      },
-    );
+      });
+    });
 
     /* istanbul ignore next */
     const { content } = { ...(response?.data || {}) };

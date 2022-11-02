@@ -81,8 +81,8 @@ name = 'Python unittest error'
 pattern = 'ERROR \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
-name = 'Python pytest failure'
-pattern = '=== FAILURES ==='
+name = 'pytest test error'
+pattern = '^ERROR .*.py::.*::test_.*$'
 
 [[rule]]
 name = 'failed to download github artifacts'
@@ -139,6 +139,14 @@ pattern = '^ERROR: AddressSanitizer'
 [[rule]]
 name = 'undefined reference linker error'
 pattern = 'undefined reference to .*'
+
+[[rule]]
+name = "Python Test SIG Code"
+pattern = '^.*(Received Signal: SIG.*)'
+
+[[rule]]
+name = "Any SIGKILL"
+pattern = 'SIGKILL'
 
 [[rule]]
 name = 'Python AttributeError'

@@ -8,7 +8,7 @@ on:
 
 
 jobs:
-  update-disabled-tests:
+  update-alerts:
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout

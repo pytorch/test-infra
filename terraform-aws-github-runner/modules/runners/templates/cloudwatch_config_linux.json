@@ -19,7 +19,7 @@
     ],
     "metrics_collection_interval": 10,
     "resources": [
-      "*"
+      "/"
     ]
   },
   "diskio": {
@@ -28,7 +28,7 @@
     ],
     "metrics_collection_interval": 10,
     "resources": [
-      "*"
+      "/"
     ]
   },
   "mem": {

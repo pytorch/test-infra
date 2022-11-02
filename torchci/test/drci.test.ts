@@ -256,7 +256,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       );
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(
-        comment.includes("## :white_check_mark: No Failures, 1 Pending")
+        comment.includes("## :hourglass_flowing_sand: No Failures, 1 Pending")
       ).toBeTruthy();
       expect(
         comment.includes(":green_heart:")

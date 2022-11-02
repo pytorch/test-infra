@@ -24,11 +24,11 @@ resource "random_string" "random" {
 
 resource "aws_sqs_queue" "queued_builds" {
   name                        = "${var.environment}-queued-builds.fifo"
-  visibility_timeout_seconds  = 180
+  visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
-  message_retention_seconds   = 1800
+  message_retention_seconds   = 5800
 
   tags = var.tags
 }
@@ -83,7 +83,8 @@ module "runners" {
   block_device_mappings = var.block_device_mappings
 
   runner_architecture = local.runner_architecture
-  ami_owners          = var.ami_owners
+  ami_owners_linux    = var.ami_owners_linux
+  ami_owners_windows  = var.ami_owners_windows
   ami_filter_linux    = var.ami_filter_linux
   ami_filter_windows  = var.ami_filter_windows
 
@@ -110,6 +111,7 @@ module "runners" {
   logging_retention_in_days        = var.logging_retention_in_days
   enable_cloudwatch_agent          = var.enable_cloudwatch_agent
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
+  scale_up_provisioned_concurrent_executions = var.scale_up_provisioned_concurrent_executions
 
   instance_profile_path     = var.instance_profile_path
   role_path                 = var.role_path

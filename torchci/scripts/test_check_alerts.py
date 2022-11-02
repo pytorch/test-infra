@@ -1,5 +1,12 @@
 from unittest import TestCase, main
-from check_alerts import JobStatus
+from datetime import datetime
+from check_alerts import (
+    JobStatus,
+    handle_flaky_tests_alert,
+    generate_no_flaky_tests_issue,
+)
+from unittest.mock import patch
+
 
 job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
 test_data = [
@@ -49,6 +56,45 @@ class TestGitHubPR(TestCase):
             job_name, [test_data[0]] + [{"conclusion": "success"}] + [test_data[1]]
         )
         self.assertFalse(status.should_alert())
+
+    def test_generate_no_flaky_tests_issue(self):
+        issue = generate_no_flaky_tests_issue()
+        self.assertListEqual(issue["labels"], ["no-flaky-tests-alert"])
+
+    @patch("check_alerts.create_issue")
+    @patch("check_alerts.datetime")
+    @patch("check_alerts.get_num_issues_with_label")
+    def test_handle_flaky_tests_alert(
+        self, mock_get_num_issues_with_label, mock_date, mock_create_issue
+    ):
+        mock_issue = {
+            "title": "dummy-title",
+            "labels": ["dummy-label"],
+        }
+        mock_create_issue.return_value = mock_issue
+        mock_date.today.return_value = datetime(2022, 10, 10)
+        mock_get_num_issues_with_label.return_value = 5
+
+        res = handle_flaky_tests_alert([])
+        self.assertIsNone(res)
+
+        existing_alerts = [
+            {"createdAt": "2022-10-10T13:41:09Z"},
+            {"createdAt": "2022-10-08T14:41:09Z"},
+        ]
+        res = handle_flaky_tests_alert(existing_alerts)
+        self.assertIsNone(res)
+
+        existing_alerts = [
+            {"createdAt": "2022-10-09T13:41:09Z"},
+            {"createdAt": "2022-10-08T14:41:09Z"},
+        ]
+        res = handle_flaky_tests_alert(existing_alerts)
+        self.assertIsNone(res)
+
+        mock_get_num_issues_with_label.return_value = 0
+        res = handle_flaky_tests_alert(existing_alerts)
+        self.assertDictEqual(res, mock_issue)
 
 
 if __name__ == "__main__":

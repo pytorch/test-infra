@@ -39,7 +39,7 @@ data "aws_ami" "runner_ami_linux" {
     }
   }
 
-  owners = var.ami_owners
+  owners = var.ami_owners_linux
 }
 
 data "aws_ami" "runner_ami_windows" {
@@ -53,7 +53,7 @@ data "aws_ami" "runner_ami_windows" {
     }
   }
 
-  owners = var.ami_owners
+  owners = var.ami_owners_windows
 }
 
 resource "aws_launch_template" "linux_runner" {

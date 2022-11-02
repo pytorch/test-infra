@@ -27,7 +27,13 @@ jobs:
             python-version: "3.8"
           - runner-type: linux.2xlarge
             python-version: "3.8"
-    name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}
+        env-file:
+          - ""
+          - "./.github/workflows/test-setup-miniconda-env-file"
+        pip-requirements-file:
+          - ""
+          - "./.github/workflows/test-setup-miniconda-pip-requirements-file"
+    name: ${{ matrix.runner-type }}-py${{ matrix.python-version }}-${{ matrix.env-file }}-${{ matrix.pip-requirements-file }}
     runs-on: ${{ matrix.runner-type }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
@@ -36,17 +42,23 @@ jobs:
       PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v3
+
       - name: Test that setup-miniconda works
         uses: ./.github/actions/setup-miniconda
         with:
           python-version: ${{ matrix.python-version }}
+          environment-file: ${{ matrix.env-file }}
+          pip-requirements-file: ${{ matrix.pip-requirements-file }}
+
       - name: Can use ${CONDA_RUN}, outputs correct python version
         run: |
           ${CONDA_RUN} python --version
           ${CONDA_RUN} python --version | grep "${PYTHON_VERSION}"
+
       - name: Can use ${CONDA_INSTALL}, installs some conda packages
         run: |
           ${CONDA_INSTALL} numpy cmake cffi ninja typing_extensions dataclasses pip
+
       - name: Can use ${CONDA_BUILD}, outputs correct version
         run: |
           ${CONDA_BUILD} --version

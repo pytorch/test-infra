@@ -50,6 +50,7 @@ export interface CommitData {
 export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs?: GroupData[];
+  isForcedMerge: boolean | false;
 }
 
 export interface HudData {
@@ -78,6 +79,7 @@ export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
 }
+
 export interface FlakyTestData {
   file: string;
   suite: string;
