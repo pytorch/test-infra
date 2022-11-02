@@ -2572,13 +2572,6 @@
       "linux"
     ]
   ],
-  "test_transformer_offload_true_no_shard_norm_type_None (__main__.TestParityWithDDP)": [
-    "86675",
-    "https://github.com/pytorch/pytorch/issues/86675",
-    [
-      "rocm"
-    ]
-  ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
