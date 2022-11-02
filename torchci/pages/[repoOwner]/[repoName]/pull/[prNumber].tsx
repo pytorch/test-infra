@@ -11,12 +11,10 @@ function CommitInfo({
   repoOwner,
   repoName,
   sha,
-  branch,
 }: {
   repoOwner: string;
   repoName: string;
   sha: string;
-  branch: string;
 }) {
   const { data, error } = useSWR(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}?events=pull_request,pull_request_target,push` : null,
@@ -36,7 +34,6 @@ function CommitInfo({
     return <div>Loading...</div>;
   }
   const { commit, jobs } = data;
-  console.log(jobs);
 
   return <CommitStatus commit={commit} jobs={jobs} />;
 }

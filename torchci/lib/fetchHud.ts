@@ -21,7 +21,6 @@ export default async function fetchHud(params: HudParams): Promise<{
 
   // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);
-
   const rocksetClient = getRocksetClient();
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
