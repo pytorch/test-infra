@@ -221,6 +221,18 @@ async function addSSMParameterRunnerConfig(
   console.debug(`Created SSM Parameters(s): ${createdSSMParams.join(',')}`);
 }
 
+function getLaunchTemplateName(runnerParameters: RunnerInputParameters): Array<string | undefined> {
+  if (runnerParameters.runnerType.os === 'linux') {
+    if (runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')) {
+      return [Config.Instance.launchTemplateNameLinuxNvidia, Config.Instance.launchTemplateVersionLinuxNvidia];
+    } else {
+      return [Config.Instance.launchTemplateNameLinux, Config.Instance.launchTemplateVersionLinux];
+    }
+  } else {
+    return [Config.Instance.launchTemplateNameWindows, Config.Instance.launchTemplateVersionWindows];
+  }
+}
+
 export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<void> {
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
@@ -256,6 +268,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           });
         }
 
+        const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
+
         const runInstancesResponse = await expBackOff(() => {
           return metrics.trackRequest(
             metrics.ec2RunInstancesAWSCallSuccess,
@@ -266,14 +280,8 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                   MaxCount: 1,
                   MinCount: 1,
                   LaunchTemplate: {
-                    LaunchTemplateName:
-                      runnerParameters.runnerType.os === 'linux'
-                        ? Config.Instance.launchTemplateNameLinux
-                        : Config.Instance.launchTemplateNameWindows,
-                    Version:
-                      runnerParameters.runnerType.os === 'linux'
-                        ? Config.Instance.launchTemplateVersionLinux
-                        : Config.Instance.launchTemplateVersionWindows,
+                    LaunchTemplateName: launchTemplateName,
+                    Version: launchTemplateVersion,
                   },
                   InstanceType: runnerParameters.runnerType.instance_type,
                   BlockDeviceMappings: [

@@ -2,7 +2,6 @@ import { Context, Probot } from "probot";
 import { addLabels, hasWritePermissions } from "./botUtils";
 import { isPyTorchPyTorch } from "./utils";
 
-export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
@@ -347,18 +346,8 @@ function myBot(app: Probot): void {
     if (!isPyTorchPyTorch(owner, repo)) {
       return;
     }
-    const labels: string[] = context.payload.pull_request.labels.map(
-      (e) => e["name"]
-    );
-    if (labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
-      return;
-    }
-    const reviewer = context.payload.review.user.login;
-    // Ignore reviews from users without write permissions
-    if (!await hasWritePermissions(context, reviewer)) {
-      return;
-    }
-    await addLabels(context, [CIFLOW_TRUNK_LABEL]);
+    // TEMP disable for 24 hours to see if it affects number of reverts / queueing
+    // await addLabels(context, [CIFLOW_TRUNK_LABEL]);
   });
 }
 

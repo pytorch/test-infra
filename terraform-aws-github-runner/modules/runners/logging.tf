@@ -77,6 +77,26 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux" {
   tags = local.tags
 }
 
+resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux_nvidia" {
+  count = var.enable_cloudwatch_agent ? 1 : 0
+  name  = "${var.environment}-cloudwatch_agent_config_runner_linux_nvidia"
+  type  = "String"
+  value = jsonencode(
+    jsondecode(
+      templatefile(
+        "${path.module}/templates/cloudwatch_config.json",
+        {
+          aws_region = var.aws_region
+          environment = var.environment
+          logfiles = jsonencode(local.logfiles_linux)
+          metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_linux_nvidia.json", {})
+        }
+      )
+    )
+  )
+  tags = local.tags
+}
+
 resource "aws_cloudwatch_log_group" "gh_runners_linux" {
   count             = length(local.loggroups_names_linux)
   name              = local.loggroups_names_linux[count.index]
@@ -91,6 +111,17 @@ resource "aws_iam_role_policy" "cloudwatch_linux" {
   policy = templatefile("${path.module}/policies/instance-cloudwatch-policy.json",
     {
       ssm_parameter_arn = aws_ssm_parameter.cloudwatch_agent_config_runner_linux[0].arn
+    }
+  )
+}
+
+resource "aws_iam_role_policy" "cloudwatch_linux_nvidia" {
+  count = var.enable_ssm_on_runners ? 1 : 0
+  name  = "CloudWatchLogginAndMetricsLinuxNvidia"
+  role  = aws_iam_role.runner.name
+  policy = templatefile("${path.module}/policies/instance-cloudwatch-policy.json",
+    {
+      ssm_parameter_arn = aws_ssm_parameter.cloudwatch_agent_config_runner_linux_nvidia[0].arn
     }
   )
 }

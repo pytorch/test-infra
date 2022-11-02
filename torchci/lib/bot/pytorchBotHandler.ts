@@ -4,6 +4,8 @@ import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botU
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
 
+export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+
 export interface PytorchbotParams {
   owner: string;
   repo: string;
@@ -169,6 +171,20 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         rebase = false;
       }
       await this.logger.log("merge", extra_data);
+      if (!forceRequested) {
+        let labels: string[] = this.ctx.payload?.issue?.labels.map(
+          (e: any) => e["name"]
+        );
+        if (labels === undefined) {
+          labels = this.ctx.payload?.pull_request?.labels.map(
+          (e: any) => e["name"]
+          );
+        }
+
+        if (labels !== undefined && ! labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
+          await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL])
+        }
+      }
       await this.dispatchEvent("try-merge", {
         force: forceRequested,
         on_green: mergeOnGreen,

@@ -24,8 +24,10 @@ describe('Config', () => {
     process.env.KMS_KEY_ID = 'KMS_KEY_ID';
     process.env.LAMBDA_TIMEOUT = '113';
     process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'LAUNCH_TEMPLATE_NAME_LINUX';
+    process.env.LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA = 'LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA';
     process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'LAUNCH_TEMPLATE_NAME_WINDOWS';
     process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
+    process.env.LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = 'LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA';
     process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = 'LAUNCH_TEMPLATE_VERSION_WINDOWS';
     process.env.MINIMUM_RUNNING_TIME_IN_MINUTES = '33';
     process.env.MIN_AVAILABLE_RUNNERS = '113';
@@ -55,8 +57,10 @@ describe('Config', () => {
     expect(Config.Instance.kmsKeyId).toBe('KMS_KEY_ID');
     expect(Config.Instance.lambdaTimeout).toBe(113);
     expect(Config.Instance.launchTemplateNameLinux).toBe('LAUNCH_TEMPLATE_NAME_LINUX');
+    expect(Config.Instance.launchTemplateNameLinuxNvidia).toBe('LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA');
     expect(Config.Instance.launchTemplateNameWindows).toBe('LAUNCH_TEMPLATE_NAME_WINDOWS');
     expect(Config.Instance.launchTemplateVersionLinux).toBe('LAUNCH_TEMPLATE_VERSION_LINUX');
+    expect(Config.Instance.launchTemplateVersionLinuxNvidia).toBe('LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA');
     expect(Config.Instance.launchTemplateVersionWindows).toBe('LAUNCH_TEMPLATE_VERSION_WINDOWS');
     expect(Config.Instance.minAvailableRunners).toBe(113);
     expect(Config.Instance.minimumRunningTimeInMinutes).toBe(33);
@@ -92,8 +96,10 @@ describe('Config', () => {
     delete process.env.KMS_KEY_ID;
     delete process.env.LAMBDA_TIMEOUT;
     process.env.LAUNCH_TEMPLATE_NAME_LINUX = 'LAUNCH_TEMPLATE_NAME_LINUX';
+    process.env.LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA = 'LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA';
     process.env.LAUNCH_TEMPLATE_NAME_WINDOWS = 'LAUNCH_TEMPLATE_NAME_WINDOWS';
     process.env.LAUNCH_TEMPLATE_VERSION_LINUX = 'LAUNCH_TEMPLATE_VERSION_LINUX';
+    process.env.LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = 'LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA';
     process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS = 'LAUNCH_TEMPLATE_VERSION_WINDOWS';
     delete process.env.MIN_AVAILABLE_RUNNERS;
     delete process.env.MUST_HAVE_ISSUES_LABELS;
@@ -120,8 +126,10 @@ describe('Config', () => {
     expect(Config.Instance.kmsKeyId).toBeUndefined();
     expect(Config.Instance.lambdaTimeout).toEqual(600);
     expect(Config.Instance.launchTemplateNameLinux).toBe('LAUNCH_TEMPLATE_NAME_LINUX');
+    expect(Config.Instance.launchTemplateNameLinuxNvidia).toBe('LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA');
     expect(Config.Instance.launchTemplateNameWindows).toBe('LAUNCH_TEMPLATE_NAME_WINDOWS');
     expect(Config.Instance.launchTemplateVersionLinux).toBe('LAUNCH_TEMPLATE_VERSION_LINUX');
+    expect(Config.Instance.launchTemplateVersionLinuxNvidia).toBe('LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA');
     expect(Config.Instance.launchTemplateVersionWindows).toBe('LAUNCH_TEMPLATE_VERSION_WINDOWS');
     expect(Config.Instance.minAvailableRunners).toBe(10);
     expect(Config.Instance.minimumRunningTimeInMinutes).toBe(10);
