@@ -2,7 +2,7 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
 
-export const NUM_MINUTES = 15;
+export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
 export const OWNER: string = "pytorch";
 export const DRCI_COMMENT_START = "<!-- drci-comment-start -->\n";
