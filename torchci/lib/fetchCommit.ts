@@ -10,7 +10,6 @@ export default async function fetchCommit(
   repo: string,
   sha: string,
   events?: string,
-  branch?: string,
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
@@ -36,14 +35,7 @@ export default async function fetchCommit(
       value: events,
     });
   }
-
-  if (branch !== undefined) {
-    rocksetParams.push({
-      name: "branch",
-      type: "string",
-      value: branch,
-    });
-  }
+  console.log(rocksetParams);
 
   const [githubResponse, commitJobsQuery] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),

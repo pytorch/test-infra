@@ -19,7 +19,7 @@ function CommitInfo({
   branch: string;
 }) {
   const { data, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}?events=pull_request&branch=${branch}` : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}?events=pull_request,pull_request_target,push` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -36,6 +36,7 @@ function CommitInfo({
     return <div>Loading...</div>;
   }
   const { commit, jobs } = data;
+  console.log(jobs);
 
   return <CommitStatus commit={commit} jobs={jobs} />;
 }
@@ -129,7 +130,6 @@ function Page() {
           repoOwner={repoOwner as string}
           repoName={repoName as string}
           sha={selectedSha}
-          branch={prData.branch}
         />
       </ErrorBoundary>
     </div>

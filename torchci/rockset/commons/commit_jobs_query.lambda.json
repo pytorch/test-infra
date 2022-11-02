@@ -2,11 +2,6 @@
   "sql_path": "__sql/commit_jobs_query.sql",
   "default_parameters": [
     {
-      "name": "branch",
-      "type": "string",
-      "value": "master"
-    },
-    {
       "name": "events",
       "type": "string",
       "value": "push,schedule"

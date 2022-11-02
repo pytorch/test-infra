@@ -1,8 +1,8 @@
 {
   "commons": {
     "annotated_flaky_jobs": "1e7bd01a839ae4d1",
-    "hud_query": "16f7f60b7be16a5e",
-    "commit_jobs_query": "dd537f79b3ca400b",
+    "hud_query": "6be7df5542a58735",
+    "commit_jobs_query": "dc195ae962fa6ab3",
     "filter_forced_merge_pr": "b92dcaa7d28e5db5",
     "flaky_tests": "86bd9b8156c33dca",
     "flaky_workflows_jobs": "8b16d1b8d733291d",

@@ -22,14 +22,9 @@ export default async function fetchPR(
     }),
   ]);
   const title = pull.data.title;
-  const branch = pull.data.head.ref;
   const shas = commits.map((commit) => {
-    return {
-      sha: commit.sha,
-      title: commit.commit.message.split("\n")[0],
-      branch: branch,
-    };
+    return { sha: commit.sha, title: commit.commit.message.split("\n")[0] };
   });
 
-  return { title, shas, branch };
+  return { title, shas };
 }

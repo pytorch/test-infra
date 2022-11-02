@@ -21,23 +21,6 @@ export default async function fetchHud(params: HudParams): Promise<{
 
   // Retrieve job data from rockset
   const shas = commits.map((commit) => commit.sha);
-  const rocksetParams = [
-    {
-      name: "shas",
-      type: "string",
-      value: shas.join(","),
-    },
-    {
-      name: "repo",
-      type: "string",
-      value: `${params.repoOwner}/${params.repoName}`,
-    },
-    {
-      name: "branch",
-      type: "string",
-      value: params.branch,
-    },
-  ];
 
   const rocksetClient = getRocksetClient();
   const hudQuery = await rocksetClient.queryLambdas.executeQueryLambda(
@@ -45,7 +28,18 @@ export default async function fetchHud(params: HudParams): Promise<{
     "hud_query",
     rocksetVersions.commons.hud_query,
     {
-      parameters: rocksetParams,
+      parameters: [
+        {
+          name: "shas",
+          type: "string",
+          value: shas.join(","),
+        },
+        {
+          name: "repo",
+          type: "string",
+          value: `${params.repoOwner}/${params.repoName}`,
+        },
+      ],
     }
   );
 
