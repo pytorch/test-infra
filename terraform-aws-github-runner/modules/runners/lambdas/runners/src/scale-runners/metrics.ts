@@ -7,18 +7,37 @@ interface CloudWatchMetricReq {
   Namespace: string;
 }
 
+interface CloudWatchMetricDim {
+  Name: string;
+  Value: string;
+}
+
 interface CloudWatchMetric {
   Counts: Array<number>;
   MetricName: string;
+  Dimensions?: Array<CloudWatchMetricDim>;
   Timestamp: Date;
   Unit: string;
   Values: Array<number>;
 }
 
+// Makes easier to understand the data structure defining this way...
+type CWMetricsEntryValues = number;
+type CWMetricsEntryCount = number;
+type CWMetricsDimensonName = string;
+type CWMetricsDimensionStoredValues = string;
+type CWMetricsDimensionValues = Map<string, string>;
+type CWMetricsKeyName = string;
+type CWMetricEntries = Map<CWMetricsEntryValues, CWMetricsEntryCount>;
+type CWMetricsDimensionNames = Array<CWMetricsDimensonName>;
+type CWMetricsDimensionsEntries = Map<CWMetricsDimensionStoredValues, CWMetricEntries>;
+type CWMetrics = Map<CWMetricsKeyName, CWMetricsDimensionsEntries>;
+
 export class Metrics {
   protected cloudwatch: CloudWatch;
-  protected lambda: string;
-  protected metrics: Map<string, Map<number, number>>;
+  protected lambdaName: string;
+  protected metrics: CWMetrics;
+  protected metricsDimensions: Map<CWMetricsKeyName, CWMetricsDimensionNames>;
 
   protected static baseMetricTypes = new Map<string, string>();
 
@@ -30,20 +49,52 @@ export class Metrics {
     return 'Count';
   }
 
-  protected countEntry(key: string, inc = 1) {
-    if (this.metrics.has(key)) {
-      const mx = Math.max(...(this.metrics.get(key) as Map<number, number>).keys());
-      this.metrics.set(key, new Map([[mx + inc, 1]]));
+  protected dimensonValues2storedValues(
+    dimension: CWMetricsDimensionValues,
+    key: CWMetricsKeyName,
+  ): CWMetricsDimensionStoredValues {
+    const dimKeys = Array.from(dimension.keys()).sort();
+    const keysJson = JSON.stringify(dimKeys);
+    if (this.metricsDimensions.has(key)) {
+      const currentVal = this.metricsDimensions.get(key);
+      /* istanbul ignore next */
+      if (JSON.stringify(currentVal) !== keysJson) {
+        throw new Error(
+          `Dimension definition for ${key} don't match with previous used dimension [${dimKeys} - ${currentVal}]`,
+        );
+      }
     } else {
-      this.metrics.set(key, new Map([[inc, 1]]));
+      this.metricsDimensions.set(key, dimKeys);
     }
+    return JSON.stringify(
+      dimKeys.map((val) => {
+        return dimension.get(val);
+      }),
+    );
   }
 
-  protected addEntry(key: string, value: number) {
-    const entry = (this.metrics.has(key) ? this.metrics : this.metrics.set(key, new Map())).get(key) as Map<
-      number,
-      number
-    >;
+  protected getCreateEntry(key: string, dimension: CWMetricsDimensionValues): CWMetricEntries {
+    const dimStoredVal = this.dimensonValues2storedValues(dimension, key);
+    if (!this.metrics.has(key)) {
+      this.metrics.set(key, new Map());
+    }
+    const dimEntries = this.metrics.get(key) as CWMetricsDimensionsEntries;
+    if (!dimEntries.has(dimStoredVal)) {
+      dimEntries.set(dimStoredVal, new Map());
+    }
+    return dimEntries.get(dimStoredVal) as CWMetricEntries;
+  }
+
+  protected countEntry(key: string, inc = 1, dimension: CWMetricsDimensionValues = new Map()) {
+    const valEntries = this.getCreateEntry(key, dimension);
+
+    const mx = valEntries.size > 0 ? Math.max(...valEntries.keys()) : 0;
+    valEntries.clear();
+    valEntries.set(mx + inc, 1);
+  }
+
+  protected addEntry(key: string, value: number, dimension: CWMetricsDimensionValues = new Map()) {
+    const entry = this.getCreateEntry(key, dimension);
 
     if (entry.has(value)) {
       entry.set(value, (entry.get(value) as number) + 1);
@@ -52,10 +103,18 @@ export class Metrics {
     }
   }
 
-  protected constructor(lambda: string) {
+  protected getRepoDim(repo: Repo): CWMetricsDimensionValues {
+    return new Map([
+      ['Repo', repo.repo],
+      ['Owner', repo.owner],
+    ]);
+  }
+
+  protected constructor(lambdaName: string) {
     this.cloudwatch = new CloudWatch({ region: Config.Instance.awsRegion });
-    this.lambda = lambda;
+    this.lambdaName = lambdaName;
     this.metrics = new Map();
+    this.metricsDimensions = new Map();
   }
 
   msTimer() {
@@ -90,35 +149,50 @@ export class Metrics {
     let metricsReqCounts = 25;
     const awsMetrics = new Array<CloudWatchMetricReq>();
 
-    this.metrics.forEach((vals, name) => {
-      let metricUnitCounts = 100;
+    this.metrics.forEach((dimsVals, name) => {
+      dimsVals.forEach((vals, dimDef) => {
+        let metricUnitCounts = 100;
 
-      vals.forEach((count, val) => {
-        if (metricsReqCounts >= 25) {
-          metricsReqCounts = 0;
-          metricUnitCounts = 100;
-          awsMetrics.push({
-            MetricData: new Array<CloudWatchMetric>(),
-            Namespace: `${Config.Instance.environment}-${this.lambda}`,
-          });
-        }
-        metricsReqCounts += 1;
+        vals.forEach((count, val) => {
+          if (metricsReqCounts >= 25) {
+            metricsReqCounts = 0;
+            metricUnitCounts = 100;
+            awsMetrics.push({
+              MetricData: new Array<CloudWatchMetric>(),
+              Namespace: `${Config.Instance.environment}-${this.lambdaName}-dim`,
+            });
+          }
+          metricsReqCounts += 1;
 
-        if (metricUnitCounts >= 100) {
-          metricUnitCounts = 0;
-          awsMetrics[awsMetrics.length - 1].MetricData.push({
-            Counts: [],
-            MetricName: name,
-            Timestamp: timestamp,
-            Unit: this.getMetricType(name),
-            Values: [],
-          });
-        }
-        metricUnitCounts += 1;
+          if (metricUnitCounts >= 100) {
+            metricUnitCounts = 0;
+            const newRequestMetricEntry: CloudWatchMetric = {
+              Counts: [],
+              MetricName: name,
+              Timestamp: timestamp,
+              Unit: this.getMetricType(name),
+              Values: [],
+            };
 
-        const md = awsMetrics[awsMetrics.length - 1].MetricData;
-        md[md.length - 1].Counts.push(count);
-        md[md.length - 1].Values.push(val);
+            if ((this.metricsDimensions.get(name)?.length ?? 0) > 0) {
+              const dimVals = JSON.parse(dimDef) as CWMetricsDimensionNames;
+              newRequestMetricEntry.Dimensions =
+                this.metricsDimensions.get(name)?.map((dimName, idx) => {
+                  return {
+                    Name: dimName,
+                    Value: dimVals[idx],
+                  } as CloudWatchMetricDim;
+                }) ?? [];
+            }
+
+            awsMetrics[awsMetrics.length - 1].MetricData.push(newRequestMetricEntry);
+          }
+          metricUnitCounts += 1;
+
+          const md = awsMetrics[awsMetrics.length - 1].MetricData;
+          md[md.length - 1].Counts.push(count);
+          md[md.length - 1].Values.push(val);
+        });
       });
     });
 
@@ -507,64 +581,100 @@ export class ScaleUpMetrics extends Metrics {
 
   /* istanbul ignore next */
   runRepo(repo: Repo) {
-    this.countEntry(`run.${repo.owner}.${repo.repo}.process`);
+    this.countEntry('run.process', 1, this.getRepoDim(repo));
   }
 
   /* istanbul ignore next */
   skipRepo(repo: Repo) {
-    this.countEntry(`run.${repo.owner}.${repo.repo}.skip`);
+    this.countEntry('run.skip', 1, this.getRepoDim(repo));
   }
 
   /* istanbul ignore next */
   ghRunnersRepoStats(repo: Repo, runnerType: string, total: number, labeled: number, busy: number) {
-    this.addEntry(`run.${repo.owner}.${repo.repo}.ghrunners.total`, total);
-    this.addEntry(`run.${repo.owner}.${repo.repo}.ghrunners.${runnerType}.total`, labeled);
-    this.addEntry(`run.${repo.owner}.${repo.repo}.ghrunners.${runnerType}.busy`, busy);
-    this.addEntry(`run.${repo.owner}.${repo.repo}.ghrunners.${runnerType}.available`, labeled - busy);
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.ghrunners.perRepo.total', total, dimensions);
+    this.countEntry('run.ghrunners.perRepo.busy', busy, dimensions);
+    this.countEntry('run.ghrunners.perRepo.available', labeled - busy, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.addEntry('run.ghrunners.perRepo.perRunnerType.total', labeled, dimensions);
+    this.addEntry('run.ghrunners.perRepo.perRunnerType.busy', busy, dimensions);
+    this.addEntry('run.ghrunners.perRepo.perRunnerType.available', labeled - busy, dimensions);
   }
 
   /* istanbul ignore next */
   ghRunnersOrgStats(org: string, runnerType: string, total: number, labeled: number, busy: number) {
-    this.addEntry(`run.${org}.ghrunners.total`, total);
-    this.addEntry(`run.${org}.ghrunners.${runnerType}.total`, labeled);
-    this.addEntry(`run.${org}.ghrunners.${runnerType}.busy`, busy);
-    this.addEntry(`run.${org}.ghrunners.${runnerType}.available`, labeled - busy);
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.ghrunners.perOrg.total', total, dimensions);
+    this.countEntry('run.ghrunners.perOrg.busy', busy, dimensions);
+    this.countEntry('run.ghrunners.perOrg.available', labeled - busy, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.addEntry('run.ghrunners.perOrg.perRunnerType.total', labeled, dimensions);
+    this.addEntry('run.ghrunners.perOrg.perRunnerType.busy', busy, dimensions);
+    this.addEntry('run.ghrunners.perOrg.perRunnerType.available', labeled - busy, dimensions);
   }
 
   /* istanbul ignore next */
   ghRunnersRepoMaxHit(repo: Repo, runnerType: string) {
-    this.countEntry(`run.${repo.owner}.${repo.repo}.ghrunners.maxHit`);
-    this.countEntry(`run.${repo.owner}.${repo.repo}.ghrunners.${runnerType}.maxHit`);
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.ghrunners.perRepo.maxHit', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.ghrunners.perRepo.perRunnerType.maxHit', 1, dimensions);
   }
 
   /* istanbul ignore next */
   ghRunnersOrgMaxHit(org: string, runnerType: string) {
-    this.countEntry(`run.${org}.ghrunners.maxHit`);
-    this.countEntry(`run.${org}.ghrunners.${runnerType}.maxHit`);
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.ghrunners.perOrg.maxHit', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.ghrunners.perOrg.perRunnerType.maxHit', 1, dimensions);
   }
 
   /* istanbul ignore next */
   runnersRepoCreate(repo: Repo, runnerType: string) {
-    this.countEntry(`run.${repo.owner}.${repo.repo}.create.success.total`);
-    this.countEntry(`run.${repo.owner}.${repo.repo}.create.success.${runnerType}`);
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.create.total', 1, dimensions);
+    this.countEntry('run.runners.perRepo.create.success', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.create.total', 1, dimensions);
+    this.countEntry('run.runners.perRepo.perRunnerType.create.success', 1, dimensions);
   }
 
   /* istanbul ignore next */
   runnersOrgCreate(org: string, runnerType: string) {
-    this.countEntry(`run.${org}.create.success.total`);
-    this.countEntry(`run.${org}.create.success.${runnerType}`);
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.create.total', 1, dimensions);
+    this.countEntry('run.runners.perOrg.create.success', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.create.total', 1, dimensions);
+    this.countEntry('run.runners.perOrg.perRunnerType.create.success', 1, dimensions);
   }
 
   /* istanbul ignore next */
   runnersRepoCreateFail(repo: Repo, runnerType: string) {
-    this.countEntry(`run.${repo.owner}.${repo.repo}.create.fail.total`);
-    this.countEntry(`run.${repo.owner}.${repo.repo}.create.fail.${runnerType}`);
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.runners.perRepo.create.total', 1, dimensions);
+    this.countEntry('run.runners.perRepo.create.fail', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perRepo.perRunnerType.create.total', 1, dimensions);
+    this.countEntry('run.runners.perRepo.perRunnerType.create.fail', 1, dimensions);
   }
 
   /* istanbul ignore next */
   runnersOrgCreateFail(org: string, runnerType: string) {
-    this.countEntry(`run.${org}.create.fail.total`);
-    this.countEntry(`run.${org}.create.fail.${runnerType}`);
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.runners.perOrg.create.total', 1, dimensions);
+    this.countEntry('run.runners.perOrg.create.fail', 1, dimensions);
+
+    dimensions.set('RunnerType', runnerType);
+    this.countEntry('run.runners.perOrg.perRunnerType.create.total', 1, dimensions);
+    this.countEntry('run.runners.perOrg.perRunnerType.create.fail', 1, dimensions);
   }
 }
 
@@ -586,201 +696,391 @@ export class ScaleDownMetrics extends Metrics {
   /* istanbul ignore next */
   runnerLessMinimumTime(ec2Runner: RunnerInfo) {
     this.countEntry(`run.ec2runners.notMinTime`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.notMinTime`);
+    if (ec2Runner.runnerType !== undefined) {
+      const dimensions = new Map([['RunnerType', ec2Runner.runnerType]]);
+      this.countEntry('run.ec2runners.perRunnerType.notMinTime', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerIsRemovable(ec2Runner: RunnerInfo) {
     this.countEntry(`run.ec2runners.removable`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.removable`);
+    if (ec2Runner.runnerType !== undefined) {
+      const dimensions = new Map([['RunnerType', ec2Runner.runnerType]]);
+      this.countEntry('run.ec2runners.perRunnerType.removable', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerFound(ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.total`);
-    if (ec2Runner.runnerType !== undefined) {
-      this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.total`);
+    this.countEntry('run.ec2runners.total');
+
+    const dimensions = ec2Runner.runnerType !== undefined ? new Map([['RunnerType', ec2Runner.runnerType]]) : undefined;
+
+    if (dimensions !== undefined) {
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
     }
 
     if (ec2Runner.launchTime !== undefined) {
       const tm = (Date.now() - ec2Runner.launchTime.getTime()) / 1000;
-      this.addEntry(`run.ec2runners.runningWallclock`, tm);
-      if (ec2Runner.runnerType !== undefined) {
-        this.addEntry(`run.ec2runners.${ec2Runner.runnerType}.runningWallclock`, tm);
+      this.addEntry('run.ec2runners.runningWallclock', tm);
+      if (dimensions !== undefined) {
+        this.addEntry('run.ec2runners.perRunnerType.runningWallclock', tm, dimensions);
       }
     }
   }
 
   /* istanbul ignore next */
   runnerGhFoundBusyRepo(repo: Repo, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.total`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.total`);
+    const dimensions = this.getRepoDim(repo);
 
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.found`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.busy`);
+    this.countEntry('run.ec2runners.perRepo.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perRepo.found', 1, dimensions);
+    this.countEntry('run.ec2runners.perRepo.busy', 1, dimensions);
 
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.busy`);
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
 
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.busy`);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.busy', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.busy', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhFoundNonBusyRepo(repo: Repo, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.total`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.total`);
+    const dimensions = this.getRepoDim(repo);
 
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.found`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.free`);
+    this.countEntry('run.ec2runners.perRepo.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perRepo.found', 1, dimensions);
+    this.countEntry('run.ec2runners.perRepo.free', 1, dimensions);
 
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.free`);
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
 
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.free`);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.free', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.free', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhNotFoundRepo(repo: Repo, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.total`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.total`);
+    const dimensions = this.getRepoDim(repo);
 
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.notFound`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.notFound`);
-    this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.notFound`);
+    this.countEntry('run.ec2runners.perRepo.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perRepo.notFound', 1, dimensions);
+
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRepo.perRunnerType.notFound', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.notFound', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhFoundBusyOrg(org: string, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${org}.total`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.total`);
+    const dimensions = new Map([['Org', org]]);
 
-    this.countEntry(`run.ec2runners.${org}.found`);
-    this.countEntry(`run.ec2runners.${org}.busy`);
+    this.countEntry('run.ec2runners.perOrg.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perOrg.found', 1, dimensions);
+    this.countEntry('run.ec2runners.perOrg.busy', 1, dimensions);
 
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.busy`);
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
 
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.busy`);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.busy', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.busy', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhFoundNonBusyOrg(org: string, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${org}.total`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.total`);
+    const dimensions = new Map([['Org', org]]);
 
-    this.countEntry(`run.ec2runners.${org}.found`);
-    this.countEntry(`run.ec2runners.${org}.free`);
+    this.countEntry('run.ec2runners.perOrg.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perOrg.found', 1, dimensions);
+    this.countEntry('run.ec2runners.perOrg.free', 1, dimensions);
 
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.free`);
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
 
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.found`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.free`);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.free', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.free', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhNotFoundOrg(org: string, ec2Runner: RunnerInfo) {
-    this.countEntry(`run.ec2runners.${org}.total`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.total`);
+    const dimensions = new Map([['Org', org]]);
 
-    this.countEntry(`run.ec2runners.${org}.notFound`);
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.notFound`);
-    this.countEntry(`run.ec2runners.${org}.${ec2Runner.runnerType}.notFound`);
+    this.countEntry('run.ec2runners.perOrg.total', 1, dimensions);
+    this.countEntry('run.ec2runners.perOrg.notFound', 1, dimensions);
+
+    if (ec2Runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perOrg.perRunnerType.notFound', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2Runner.runnerType);
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ec2runners.perRunnerType.notFound', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateSuccessOrg(org: string, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.success`);
-    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.success`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.success`);
+    const dimensions = new Map([['Org', org]]);
+
+    this.countEntry('run.ghRunner.perOrg.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perOrg.terminate.success', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.terminate.success', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.success', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateSuccessRepo(repo: Repo, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.success`);
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.success`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.success`);
+    const dimensions = this.getRepoDim(repo);
+
+    this.countEntry('run.ghRunner.perRepo.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perRepo.terminate.success', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.terminate.success', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.success', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateFailureOrg(org: string, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.failure`);
-    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.failure`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.failure`);
+    const dimensions = new Map([['Org', org]]);
+
+    this.countEntry('run.ghRunner.perOrg.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perOrg.terminate.failure', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.terminate.failure', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.failure', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateFailureRepo(repo: Repo, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.failure`);
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.failure`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.failure`);
+    const dimensions = this.getRepoDim(repo);
+
+    this.countEntry('run.ghRunner.perRepo.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perRepo.terminate.failure', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.terminate.failure', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.failure', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateNotFoundOrg(org: string, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byOrg.${org}.terminate.notfound`);
-    this.countEntry(`run.ghRunner.byOrg.${org}.byType.${ec2runner.runnerType}.terminate.notfound`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.notfound`);
+    const dimensions = new Map([['Org', org]]);
+
+    this.countEntry('run.ghRunner.perOrg.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perOrg.terminate.notfound', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perOrg.perRunnerType.terminate.notfound', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.notfound', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerGhTerminateNotFoundRepo(repo: Repo, ec2runner: RunnerInfo) {
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.terminate.notfound`);
-    this.countEntry(`run.ghRunner.byRepo.${repo.owner}.${repo.repo}.byType.${ec2runner.runnerType}.terminate.notfound`);
-    this.countEntry(`run.ghRunner.byType.${ec2runner.runnerType}.terminate.notfound`);
+    const dimensions = this.getRepoDim(repo);
+
+    this.countEntry('run.ghRunner.perRepo.total', 1, dimensions);
+    this.countEntry('run.ghRunner.perRepo.terminate.notfound', 1, dimensions);
+
+    if (ec2runner.runnerType !== undefined) {
+      dimensions.set('RunnerType', ec2runner.runnerType);
+
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRepo.perRunnerType.terminate.notfound', 1, dimensions);
+
+      dimensions.clear();
+      dimensions.set('RunnerType', ec2runner.runnerType);
+      this.countEntry('run.ghRunner.perRunnerType.total', 1, dimensions);
+      this.countEntry('run.ghRunner.perRunnerType.terminate.notfound', 1, dimensions);
+    }
   }
 
   /* istanbul ignore next */
   runnerTerminateSuccess(ec2Runner: RunnerInfo) {
+    this.countEntry('run.ec2Runners.terminate.total');
     this.countEntry('run.ec2Runners.terminate.success');
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.terminate.success`);
+
+    if (ec2Runner.runnerType !== undefined) {
+      const runnerTypeDim = new Map([['RunnerType', ec2Runner.runnerType]]);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.total', 1, runnerTypeDim);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.success', 1, runnerTypeDim);
+    }
 
     if (ec2Runner.org !== undefined) {
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.${ec2Runner.runnerType}.terminate.success`);
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.terminate.success`);
+      const orgDim = new Map([['Org', ec2Runner.org]]);
+      this.countEntry('run.ec2runners.perOrg.terminate.total', 1, orgDim);
+      this.countEntry('run.ec2runners.perOrg.terminate.success', 1, orgDim);
+      if (ec2Runner.runnerType !== undefined) {
+        orgDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.total', 1, orgDim);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.success', 1, orgDim);
+      }
     }
 
     if (ec2Runner.repo !== undefined) {
-      const repo = getRepo(ec2Runner.repo as string);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.terminate.success`);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.success`);
+      const repoDim = this.getRepoDim(getRepo(ec2Runner.repo as string));
+      this.countEntry('run.ec2runners.perRepo.terminate.total', 1, repoDim);
+      this.countEntry('run.ec2runners.perRepo.terminate.success', 1, repoDim);
+      if (ec2Runner.runnerType !== undefined) {
+        repoDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.total', 1, repoDim);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.success', 1, repoDim);
+      }
     }
   }
 
   /* istanbul ignore next */
   runnerTerminateFailure(ec2Runner: RunnerInfo) {
+    this.countEntry('run.ec2Runners.terminate.total');
     this.countEntry('run.ec2Runners.terminate.failure');
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.terminate.failure`);
+
+    if (ec2Runner.runnerType !== undefined) {
+      const runnerTypeDim = new Map([['RunnerType', ec2Runner.runnerType]]);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.total', 1, runnerTypeDim);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.failure', 1, runnerTypeDim);
+    }
 
     if (ec2Runner.org !== undefined) {
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.${ec2Runner.runnerType}.terminate.failure`);
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.terminate.failure`);
+      const orgDim = new Map([['Org', ec2Runner.org]]);
+      this.countEntry('run.ec2runners.perOrg.terminate.total', 1, orgDim);
+      this.countEntry('run.ec2runners.perOrg.terminate.failure', 1, orgDim);
+      if (ec2Runner.runnerType !== undefined) {
+        orgDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.total', 1, orgDim);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.failure', 1, orgDim);
+      }
     }
 
     if (ec2Runner.repo !== undefined) {
-      const repo = getRepo(ec2Runner.repo as string);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.terminate.failure`);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.failure`);
+      const repoDim = this.getRepoDim(getRepo(ec2Runner.repo as string));
+      this.countEntry('run.ec2runners.perRepo.terminate.total', 1, repoDim);
+      this.countEntry('run.ec2runners.perRepo.terminate.failure', 1, repoDim);
+      if (ec2Runner.runnerType !== undefined) {
+        repoDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.total', 1, repoDim);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.failure', 1, repoDim);
+      }
     }
   }
 
   /* istanbul ignore next */
   runnerTerminateSkipped(ec2Runner: RunnerInfo) {
+    this.countEntry('run.ec2Runners.terminate.total');
     this.countEntry('run.ec2Runners.terminate.skipped');
-    this.countEntry(`run.ec2runners.${ec2Runner.runnerType}.terminate.skipped`);
+
+    if (ec2Runner.runnerType !== undefined) {
+      const runnerTypeDim = new Map([['RunnerType', ec2Runner.runnerType]]);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.total', 1, runnerTypeDim);
+      this.countEntry('run.ec2runners.perRunnerType.terminate.skipped', 1, runnerTypeDim);
+    }
 
     if (ec2Runner.org !== undefined) {
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.${ec2Runner.runnerType}.terminate.skipped`);
-      this.countEntry(`run.ec2runners.${ec2Runner.org}.terminate.skipped`);
+      const orgDim = new Map([['Org', ec2Runner.org]]);
+      this.countEntry('run.ec2runners.perOrg.terminate.total', 1, orgDim);
+      this.countEntry('run.ec2runners.perOrg.terminate.skipped', 1, orgDim);
+      if (ec2Runner.runnerType !== undefined) {
+        orgDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.total', 1, orgDim);
+        this.countEntry('run.ec2runners.perOrg.perRunnerType.terminate.skipped', 1, orgDim);
+      }
     }
 
     if (ec2Runner.repo !== undefined) {
-      const repo = getRepo(ec2Runner.repo as string);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.${ec2Runner.runnerType}.terminate.skipped`);
-      this.countEntry(`run.ec2runners.${repo.owner}.${repo.repo}.terminate.skipped`);
+      const repoDim = this.getRepoDim(getRepo(ec2Runner.repo as string));
+      this.countEntry('run.ec2runners.perRepo.terminate.total', 1, repoDim);
+      this.countEntry('run.ec2runners.perRepo.terminate.skipped', 1, repoDim);
+      if (ec2Runner.runnerType !== undefined) {
+        repoDim.set('RunnerType', ec2Runner.runnerType);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.total', 1, repoDim);
+        this.countEntry('run.ec2runners.perRepo.perRunnerType.terminate.skipped', 1, repoDim);
+      }
     }
   }
 }
