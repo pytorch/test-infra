@@ -4,8 +4,8 @@ import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
 
-const BRANCH_ACTIONS_MAPPING = {
-  "master": [
+const BRANCH_ACTIONS_MAPPING: {[name: string]: string[]} = {
+  master: [
     "push",
     "schedule",
   ],
