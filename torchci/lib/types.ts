@@ -78,6 +78,7 @@ export interface HudParams {
 export interface PRData {
   title: string;
   shas: { sha: string; title: string }[];
+  branch: string;
 }
 
 export interface FlakyTestData {

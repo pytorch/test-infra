@@ -7,6 +7,11 @@
       "value": "master"
     },
     {
+      "name": "events",
+      "type": "string",
+      "value": "push,schedule"
+    },
+    {
       "name": "repo",
       "type": "string",
       "value": "pytorch/pytorch"

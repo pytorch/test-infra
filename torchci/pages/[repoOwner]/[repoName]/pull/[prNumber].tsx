@@ -11,13 +11,15 @@ function CommitInfo({
   repoOwner,
   repoName,
   sha,
+  branch,
 }: {
   repoOwner: string;
   repoName: string;
   sha: string;
+  branch: string;
 }) {
   const { data, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}?events=pull_request&branch=${branch}` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
@@ -127,6 +129,7 @@ function Page() {
           repoOwner={repoOwner as string}
           repoName={repoName as string}
           sha={selectedSha}
+          branch={prData.branch}
         />
       </ErrorBoundary>
     </div>

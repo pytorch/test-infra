@@ -12,7 +12,9 @@ export default async function handler(
       await fetchCommit(
         req.query.repoOwner as string,
         req.query.repoName as string,
-        req.query.sha as string
+        req.query.sha as string,
+        req.query.events as string,
+        req.query.branch as string,
       )
     );
 }

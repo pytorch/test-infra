@@ -8,11 +8,42 @@ import { CommitData, JobData } from "./types";
 export default async function fetchCommit(
   owner: string,
   repo: string,
-  sha: string
+  sha: string,
+  events?: string,
+  branch?: string,
 ): Promise<{ commit: CommitData; jobs: JobData[] }> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
   const rocksetClient = getRocksetClient();
+
+  const rocksetParams = [
+    {
+      name: "sha",
+      type: "string",
+      value: sha,
+    },
+    {
+      name: "repo",
+      type: "string",
+      value: `${owner}/${repo}`,
+    },
+  ];
+
+  if (events !== undefined) {
+    rocksetParams.push({
+      name: "events",
+      type: "string",
+      value: events,
+    });
+  }
+
+  if (branch !== undefined) {
+    rocksetParams.push({
+      name: "branch",
+      type: "string",
+      value: branch,
+    });
+  }
 
   const [githubResponse, commitJobsQuery] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
@@ -21,18 +52,7 @@ export default async function fetchCommit(
       "commit_jobs_query",
       rocksetVersions.commons.commit_jobs_query as string,
       {
-        parameters: [
-          {
-            name: "sha",
-            type: "string",
-            value: sha,
-          },
-          {
-            name: "repo",
-            type: "string",
-            value: `${owner}/${repo}`,
-          },
-        ],
+        parameters: rocksetParams,
       }
     ),
   ]);

@@ -31,6 +31,7 @@ WITH job AS (
         AND ARRAY_CONTAINS(SPLIT(:shas, ','), workflow.head_sha)
         AND workflow.repository.full_name = :repo
         AND workflow.head_branch = :branch
+        AND ARRAY_CONTAINS(SPLIT(:events, ','), workflow.event)
     UNION
         -- Handle CircleCI
         -- IMPORTANT: this needs to have the same order as the query above
