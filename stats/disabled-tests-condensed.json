@@ -2668,6 +2668,13 @@
       "linux"
     ]
   ],
+  "test_vmap_autograd_grad_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "88368",
+    "https://github.com/pytorch/pytorch/issues/88368",
+    [
+      "linux"
+    ]
+  ],
   "test_vmap_autograd_grad_linalg_lu_factor_cuda_float64 (__main__.TestOperatorsCUDA)": [
     "87000",
     "https://github.com/pytorch/pytorch/issues/87000",
