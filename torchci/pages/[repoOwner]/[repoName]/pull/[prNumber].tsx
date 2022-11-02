@@ -17,7 +17,7 @@ function CommitInfo({
   sha: string;
 }) {
   const { data, error } = useSWR(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}?events=pull_request,pull_request_target,push` : null,
+    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
       refreshInterval: 60 * 1000, // refresh every minute
