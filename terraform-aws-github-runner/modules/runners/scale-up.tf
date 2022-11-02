@@ -64,7 +64,6 @@ resource "aws_lambda_function" "scale_up" {
 }
 
 resource "aws_lambda_alias" "scale_up_lambda_alias" {
-  count              = var.scale_up_provisioned_concurrent_executions > 0 ? 1 : 0
   name               = "provisioned-${aws_lambda_function.scale_up.function_name}"
   description        = "Alias for provisioned instances of ${aws_lambda_function.scale_up.function_name}"
   function_name      = aws_lambda_function.scale_up.function_name
@@ -75,7 +74,7 @@ resource "aws_lambda_provisioned_concurrency_config" "scale_up_provisioned_concu
   count                             = var.scale_up_provisioned_concurrent_executions > 0 ? 1 : 0
   function_name                     = aws_lambda_alias.scale_up_lambda_alias.function_name
   provisioned_concurrent_executions = var.scale_up_provisioned_concurrent_executions
-  qualifier                         = aws_lambda_alias.scale_up_lambda_alias.version
+  qualifier                         = aws_lambda_alias.scale_up_lambda_alias.name
 }
 
 resource "aws_cloudwatch_log_group" "scale_up" {
