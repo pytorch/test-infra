@@ -15,8 +15,10 @@ export class Config {
   readonly kmsKeyId: string | undefined;
   readonly lambdaTimeout: number;
   readonly launchTemplateNameLinux: string | undefined;
+  readonly launchTemplateNameLinuxNvidia: string | undefined;
   readonly launchTemplateNameWindows: string | undefined;
   readonly launchTemplateVersionLinux: string | undefined;
+  readonly launchTemplateVersionLinuxNvidia: string | undefined;
   readonly launchTemplateVersionWindows: string | undefined;
   readonly minAvailableRunners: number;
   readonly minimumRunningTimeInMinutes: number;
@@ -46,8 +48,10 @@ export class Config {
     this.kmsKeyId = process.env.KMS_KEY_ID;
     this.lambdaTimeout = Number(process.env.LAMBDA_TIMEOUT || '600');
     this.launchTemplateNameLinux = process.env.LAUNCH_TEMPLATE_NAME_LINUX;
+    this.launchTemplateNameLinuxNvidia = process.env.LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA;
     this.launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS;
     this.launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
+    this.launchTemplateVersionLinuxNvidia = process.env.LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA;
     this.launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS;
 
     /* istanbul ignore next */

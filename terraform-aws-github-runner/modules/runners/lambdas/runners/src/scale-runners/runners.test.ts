@@ -52,8 +52,12 @@ function createExpectedRunInstancesLinux(runnerParameters: RunnerInputParameters
     MaxCount: 1,
     MinCount: 1,
     LaunchTemplate: {
-      LaunchTemplateName: Config.Instance.launchTemplateNameLinux,
-      Version: Config.Instance.launchTemplateVersionLinux,
+      LaunchTemplateName: runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')
+        ? Config.Instance.launchTemplateNameLinuxNvidia
+        : Config.Instance.launchTemplateNameLinux,
+      Version: runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')
+        ? Config.Instance.launchTemplateVersionLinuxNvidia
+        : Config.Instance.launchTemplateVersionLinux,
     },
     InstanceType: runnerParameters.runnerType.instance_type,
     BlockDeviceMappings: [
@@ -345,7 +349,7 @@ describe('create runner', () => {
         os: 'linux',
         max_available: 200,
         disk_size: 100,
-        runnerTypeName: 'linuxCpu',
+        runnerTypeName: 'linuxCpu.nvidia.gpu',
         is_ephemeral: true,
       },
     };
