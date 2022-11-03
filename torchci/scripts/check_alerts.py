@@ -202,7 +202,7 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
         hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
             job.job_name
         )
-        body += f"- [{job.job_name}]({hud_link}) failed {len(job.failure_chain)} times consecutively starting with "
+        body += f"- [{job.job_name}]({hud_link}) failed consecutively starting with "
         body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{REPO_OWNER}/{REPO_OWNER}/{failing_sha})"
         body += "\n\n"
 
