@@ -316,13 +316,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
-    "83029",
-    "https://github.com/pytorch/pytorch/issues/83029",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int8 (__main__.TestForeachCUDA)": [
     "86998",
     "https://github.com/pytorch/pytorch/issues/86998",
