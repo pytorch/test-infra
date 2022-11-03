@@ -40,7 +40,7 @@ jobs:
             pre-script: ""
             env-script: packaging/vc_env_helper.bat
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_tests/smoke_tests.py
             package-name: torchtext
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
