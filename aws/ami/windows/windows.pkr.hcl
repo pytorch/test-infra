@@ -8,10 +8,7 @@ data "amazon-ami" "windows_root_ami" {
   }
   most_recent = true
   owners      = ["amazon"]
-
-  # Use us-east-2 to avoid the vCPU limit trying to create new instances on us-east-1, PyTorch infra is
-  # pretty much max out in one region
-  region      = "us-east-2"
+  region      = "us-east-1"
 }
 
 locals {
@@ -29,7 +26,7 @@ source "amazon-ebs" "windows_ebs_builder" {
     volume_size           = 64
   }
   source_ami      = "${data.amazon-ami.windows_root_ami.id}"
-  region          = "us-east-2"
+  region          = "us-east-1"
   ami_regions     = ["us-east-1", "us-east-2"]
   user_data_file  = "user-data-scripts/bootstrap-winrm.ps1"
   winrm_insecure  = true
@@ -53,7 +50,7 @@ source "amazon-ebs" "windows_ebs_builder_g5" {
     volume_size           = 64
   }
   source_ami      = "${data.amazon-ami.windows_root_ami.id}"
-  region          = "us-east-2"
+  region          = "us-east-1"
   ami_regions     = ["us-east-1", "us-east-2"]
   user_data_file  = "user-data-scripts/bootstrap-winrm.ps1"
   winrm_insecure  = true
