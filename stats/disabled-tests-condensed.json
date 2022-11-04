@@ -1567,6 +1567,13 @@
       "win"
     ]
   ],
+  "test_index_put_accumulate_large_tensor_cpu (__main__.TestIndexingCPU)": [
+    "88472",
+    "https://github.com/pytorch/pytorch/issues/88472",
+    [
+      "dynamo"
+    ]
+  ],
   "test_inherit_tensor (__main__.TestMultiprocessing)": [
     "79776",
     "https://github.com/pytorch/pytorch/issues/79776",
