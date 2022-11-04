@@ -28,6 +28,14 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
 
+const SUPPORTED_WORKFLOWS = [
+  "pull",
+  "trunk",
+  "nightly",
+  "periodic",
+  "inductor",
+];
+
 function Panel({
   series,
   title,
@@ -260,11 +268,36 @@ export default function Page() {
       type: "string",
       value: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
-    { name: "startTime", type: "string", value: startTime },
-    { name: "stopTime", type: "string", value: stopTime },
-    { name: "granularity", type: "string", value: granularity },
-    { name: "percentile", type: "float", value: ttsPercentile },
-    { name: "branch", type: "string", value: branch },
+    {
+      name: "startTime",
+      type: "string",
+      value: startTime,
+    },
+    {
+      name: "stopTime",
+      type: "string",
+      value: stopTime,
+    },
+    {
+      name: "granularity",
+      type: "string",
+      value: granularity,
+    },
+    {
+      name: "percentile",
+      type: "float",
+      value: ttsPercentile,
+    },
+    {
+      name: "branch",
+      type: "string",
+      value: branch,
+    },
+    {
+      name: "workflowNames",
+      type: "string",
+      value: SUPPORTED_WORKFLOWS.join(","),
+    },
   ];
 
   const checkboxRef = useCallback(() => {
