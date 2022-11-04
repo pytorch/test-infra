@@ -39,6 +39,8 @@ source "amazon-ebs" "windows_ebs_builder" {
   }
 }
 
+# TODO: consolidate windows_ebs_builder and windows_ebs_builder_g5 into one if the AMI
+# can be shared
 source "amazon-ebs" "windows_ebs_builder_g5" {
   ami_name                    = "Windows 2019 GHA CI (G5) - ${local.timestamp}"
   associate_public_ip_address = true
