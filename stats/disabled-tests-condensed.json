@@ -1308,6 +1308,13 @@
       "linux"
     ]
   ],
+  "test_fn_grad_linalg_lu_factor_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "88485",
+    "https://github.com/pytorch/pytorch/issues/88485",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86864",
     "https://github.com/pytorch/pytorch/issues/86864",
