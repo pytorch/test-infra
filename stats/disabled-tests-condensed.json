@@ -1357,6 +1357,13 @@
       "linux"
     ]
   ],
+  "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "88469",
+    "https://github.com/pytorch/pytorch/issues/88469",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86759",
     "https://github.com/pytorch/pytorch/issues/86759",
@@ -1808,6 +1815,29 @@
       "linux",
       "win",
       "windows"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
+    "88468",
+    "https://github.com/pytorch/pytorch/issues/88468",
+    [
+      "linux"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
+    "88466",
+    "https://github.com/pytorch/pytorch/issues/88466",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
+    "88467",
+    "https://github.com/pytorch/pytorch/issues/88467",
+    [
+      "linux"
     ]
   ],
   "test_multi_drop (__main__.TestDataLoaderUtils)": [
