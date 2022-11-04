@@ -100,6 +100,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Classified:
       return "X";
+    case GroupedJobStatus.Flaky:
+      return "F";
     default:
       return "U";
   }
@@ -120,9 +122,12 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
-export function getConclusionChar(conclusion?: string): string {
+export function getConclusionChar(conclusion?: string, failedPreviousRun?: boolean): string {
   switch (conclusion) {
     case JobStatus.Success:
+      if (failedPreviousRun) {
+        return "F"
+      }
       return "O";
     case JobStatus.Failure:
       return "X";

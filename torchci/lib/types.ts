@@ -20,6 +20,7 @@ export interface JobData {
   failureCaptures?: string;
   repo?: string;
   failureAnnotation?: string;
+  failedPreviousRun?: boolean;
 }
 
 export interface Artifact {
