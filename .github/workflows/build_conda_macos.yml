@@ -160,15 +160,18 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-
-            ${CONDA_RUN} conda install -y pytorch -c pytorch cpuonly
-
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
             ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
 
-            ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
+              ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            fi
+            if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
+              ${CONDA_RUN} conda install -y 'numpy>=1.11'
+            fi
+
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to conda
