@@ -43,3 +43,7 @@
 .all_null {
   color: grey;
 }
+
+.flaky {
+  color: lightgreen;
+}
