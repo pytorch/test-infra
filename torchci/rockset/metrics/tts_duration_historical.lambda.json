@@ -20,6 +20,11 @@
       "name": "timezone",
       "type": "string",
       "value": "America/Los_Angeles"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk,nightly,periodic,inductor"
     }
   ],
   "description": ""
