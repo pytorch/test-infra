@@ -1412,6 +1412,13 @@
       "linux"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestFwdGradientsCUDA)": [
+    "88476",
+    "https://github.com/pytorch/pytorch/issues/88476",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
     "86504",
     "https://github.com/pytorch/pytorch/issues/86504",
@@ -1829,6 +1836,15 @@
     "https://github.com/pytorch/pytorch/issues/88468",
     [
       "linux"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
+    "88475",
+    "https://github.com/pytorch/pytorch/issues/88475",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
