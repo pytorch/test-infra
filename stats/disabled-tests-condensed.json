@@ -2686,6 +2686,13 @@
       "linux"
     ]
   ],
+  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_float32 (__main__.TestJitCUDA)": [
+    "86441",
+    "https://github.com/pytorch/pytorch/issues/86441",
+    [
+      "linux"
+    ]
+  ],
   "test_vjp_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86412",
     "https://github.com/pytorch/pytorch/issues/86412",
