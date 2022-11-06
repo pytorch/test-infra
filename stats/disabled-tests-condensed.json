@@ -7,9 +7,9 @@
       "linux"
     ]
   ],
-  "testAddSubFallback (__main__.TestLazyReuseIr)": [
-    "77723",
-    "https://github.com/pytorch/pytorch/issues/77723",
+  "testAddSub (__main__.TestLazyReuseIr)": [
+    "77721",
+    "https://github.com/pytorch/pytorch/issues/77721",
     [
       "asan",
       "linux"
