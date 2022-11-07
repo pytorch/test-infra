@@ -32,11 +32,9 @@ import { fetcher } from "lib/GeneralUtils";
 export function JobCell({
   sha,
   job,
-  isClassified,
 }: {
   sha: string;
   job: JobData;
-  isClassified: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
@@ -49,8 +47,8 @@ export function JobCell({
       >
         <JobConclusion
           conclusion={job.conclusion}
-          classified={isClassified}
           failedPreviousRun={job.failedPreviousRun}
+          classified={job.failureAnnotation != null}
         />
       </TooltipTarget>
     </td>
@@ -72,16 +70,6 @@ function HudRow({
 
   const failedJobs = rowData.jobs.filter(isFailedJob);
   const { repoOwner, repoName } = router.query;
-
-  const { data } = useSWR(
-    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
-      JSON.stringify(failedJobs.map((failedJob) => failedJob.id))
-    )}`,
-    fetcher
-  );
-  if (data == null) {
-    return null;
-  }
 
   return (
     <tr>
@@ -125,7 +113,6 @@ function HudRow({
         </div>
       </td>
       <HudJobCells
-        classifiedJobs={data}
         rowData={rowData}
         expandedGroups={expandedGroups}
         names={names}
@@ -137,12 +124,10 @@ function HudRow({
 function HudJobCells({
   rowData,
   expandedGroups,
-  classifiedJobs,
   names,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
-  classifiedJobs: any;
   names: string[];
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
@@ -153,7 +138,7 @@ function HudJobCells({
         if (groupNames.includes(name)) {
           let numClassified = 0;
           for (const job of rowData.groupedJobs?.get(name)?.jobs ?? []) {
-            if ((job.id ?? "") in classifiedJobs) {
+            if (job.failureAnnotation != null) {
               numClassified++;
             }
           }
@@ -171,13 +156,11 @@ function HudJobCells({
           );
         } else {
           const job = rowData.nameToJobs?.get(name);
-          const isClassified = (job?.id ?? "") in classifiedJobs;
           return (
             <JobCell
               sha={rowData.sha}
               key={name}
               job={job!}
-              isClassified={isClassified}
             />
           );
         }
