@@ -1,7 +1,12 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
-const groups = [
+export const groups = [
+  {
+    regex: /^(?!periodic).*mem_leak_check/,
+    name: "Memory Leak Check",
+    persistant: true,
+  },
   {
     regex: /Lint/,
     name: "Lint Jobs",
@@ -194,11 +199,7 @@ export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
       const groupName = jobToGroupName.get(job.name!)!;
       groupedJobs.get(groupName)!.jobs.push(job);
     }
-    const groupDataRow: GroupData[] = [];
-    for (const groupName of groupNamesArray) {
-      groupDataRow.push(groupedJobs.get(groupName)!);
-    }
-    row.groupedJobs = groupDataRow;
+    row.groupedJobs = groupedJobs;
   }
   return { shaGrid, groupNameMapping };
 }

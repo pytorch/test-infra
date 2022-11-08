@@ -101,20 +101,6 @@ export default function HudGroupedCell({
           </span>
         </TooltipTarget>
       </td>
-      {isExpanded ? (
-        <>
-          {groupData.jobs.map((job, ind) => {
-            return (
-              <JobCell
-                key={ind}
-                sha={sha}
-                job={job}
-                isClassified={isClassified}
-              />
-            );
-          })}
-        </>
-      ) : null}
     </>
   );
 }
