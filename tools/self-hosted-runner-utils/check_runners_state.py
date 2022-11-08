@@ -23,7 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "repo",
         help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
-        type=str
+        type=str,
     )
     parser.add_argument(
         "--include",
