@@ -22,7 +22,7 @@ jobs:
           architecture: 'x64'
       - name: Install dependencies
         run: |
-          pip install mypy==0.812
+          pip install --requirement=.mypy_requirements.txt
           pip install -r aws/lambda/github-status-sync/requirements.txt
       - name: Run mypy
         env:
