@@ -11,6 +11,7 @@ export const annotationEditAllowlist = new Set([
   "475357", // huydhn
   "420184", // kit1980
   "2453524", // malfet
+  "1617424", // suo
 ]);
 
 export default async function handler(
