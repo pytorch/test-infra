@@ -27,5 +27,5 @@ jobs:
           pip install --requirement=aws/lambda/github-status-sync/requirements.txt
       - name: Run pytest
         run: |
-	  # Note that tools/pkg-helpers/ doesn't work out of the box with pytest.
+          # Note that tools/pkg-helpers/ doesn't work out of the box with pytest.
           pytest --ignore=tools/pkg-helpers/
