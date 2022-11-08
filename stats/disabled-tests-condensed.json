@@ -1976,6 +1976,13 @@
       "macos"
     ]
   ],
+  "test_nvfuser_correctness_masked_amin (__main__.TestCudaFuserOpInfoCUDA)": [
+    "88710",
+    "https://github.com/pytorch/pytorch/issues/88710",
+    [
+      "rocm"
+    ]
+  ],
   "test_nvfuser_correctness_masked_sum (__main__.TestCudaFuserOpInfoCUDA)": [
     "88687",
     "https://github.com/pytorch/pytorch/issues/88687",
