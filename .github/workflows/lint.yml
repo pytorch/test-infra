@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - '**.py'
+      - '**requirements.txt'
   push:
     branches:
       - main
     paths:
       - '**.py'
+      - '**requirements.txt'
 
 jobs:
   mypy:
