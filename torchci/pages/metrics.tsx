@@ -632,7 +632,7 @@ export default function Page() {
                   name: "jobNames",
                   type: "string",
                   value:
-                    "linux-docs / build-docs-python-true;linux-docs / build-docs-cpp-true;linux-docs / build-docs-functorch-true",
+                    "docs push / build-docs-python-true;docs push / build-docs-cpp-true;docs push / build-docs-functorch-true",
                 },
               ]}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
