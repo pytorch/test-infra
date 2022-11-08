@@ -85,5 +85,5 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # Records this function.
-        name = ".".join(list(self._context) + [node.name])
+        name = '.'.join(list(self._context) + [node.name])
         self._out[name] = node
