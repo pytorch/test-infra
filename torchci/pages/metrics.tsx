@@ -632,6 +632,8 @@ export default function Page() {
                   name: "jobNames",
                   type: "string",
                   value:
+                    // The new names are fixed at build-docs-${{ DOC_TYPE }}-${{ PUSHED }}. The PUSHED parameter will always be
+                    // true here because docs are pushed to GitHub, for example, nightly
                     "docs push / build-docs-python-true;docs push / build-docs-cpp-true;docs push / build-docs-functorch-true",
                 },
               ]}
