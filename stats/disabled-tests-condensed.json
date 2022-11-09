@@ -1224,11 +1224,11 @@
     ]
   ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
-    "88721",
-    "https://github.com/pytorch/pytorch/issues/88721",
+    "88720",
+    "https://github.com/pytorch/pytorch/issues/88720",
     [
-      "mac",
-      "macos"
+      "win",
+      "windows"
     ]
   ],
   "test_fake_crossref_backward_amp_linalg_lstsq_cuda_float32 (__main__.TestFakeTensorCUDA)": [
