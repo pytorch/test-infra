@@ -1223,6 +1223,14 @@
       "linux"
     ]
   ],
+  "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
+    "88721",
+    "https://github.com/pytorch/pytorch/issues/88721",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_fake_crossref_backward_amp_linalg_lstsq_cuda_float32 (__main__.TestFakeTensorCUDA)": [
     "86059",
     "https://github.com/pytorch/pytorch/issues/86059",
@@ -1978,6 +1986,13 @@
       "macos"
     ]
   ],
+  "test_nvfuser_correctness_masked_amax (__main__.TestCudaFuserOpInfoCUDA)": [
+    "88723",
+    "https://github.com/pytorch/pytorch/issues/88723",
+    [
+      "rocm"
+    ]
+  ],
   "test_nvfuser_correctness_masked_amin (__main__.TestCudaFuserOpInfoCUDA)": [
     "88710",
     "https://github.com/pytorch/pytorch/issues/88710",
@@ -2713,6 +2728,13 @@
     "https://github.com/pytorch/pytorch/issues/86441",
     [
       "linux"
+    ]
+  ],
+  "test_versioned_div_tensor_inplace (jit.test_save_load_for_op_version.TestSaveLoadForOpVersion)": [
+    "88719",
+    "https://github.com/pytorch/pytorch/issues/88719",
+    [
+      "dynamo"
     ]
   ],
   "test_vjp_nn_functional_conv_transpose2d_cuda_float32 (__main__.TestOperatorsCUDA)": [
