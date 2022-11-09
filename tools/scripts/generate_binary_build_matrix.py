@@ -39,8 +39,8 @@ mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
 LINUX_GPU_RUNNER = "ubuntu-20.04-m60"
 LINUX_CPU_RUNNER = "ubuntu-20.04"
-WIN_GPU_RUNNER = "windows-2019-m60"
-WIN_CPU_RUNNER = "windows-2019"
+WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
+WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-12"
 MACOS_RUNNER = "macos-12"
 
