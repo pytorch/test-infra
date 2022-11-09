@@ -1,4 +1,4 @@
-name: Setup Linux
+name: Setup NVIDIA
 
 description: Set up NVIDIA driver and NVIDIA-docker runtime on Linux runner
 
@@ -98,7 +98,6 @@ runs:
                               RESET_GPU=1
                           fi
                       fi
-
 
                       if [ "$RESET_GPU" -eq 1 ]; then
                           NVIDIA_DEVICES=$(lspci -D | grep -i NVIDIA | cut -d' ' -f1)
