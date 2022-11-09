@@ -2,3 +2,6 @@ self-hosted-runner:
   labels:
     - macos-m1-12
     - linux.2xlarge
+    - linux.4xlarge.nvidia.gpu
+    - linux.g5.4xlarge.nvidia.gpu
+    - linux.g5.12xlarge.nvidia.gpu
