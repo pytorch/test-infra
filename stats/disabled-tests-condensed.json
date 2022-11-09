@@ -1847,7 +1847,9 @@
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
     [
-      "linux"
+      "linux",
+      "macos",
+      "mac"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
