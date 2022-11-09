@@ -66,5 +66,5 @@ runs:
         echo "::set-output name=does::${needs}"
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      uses: pytorch/test-infra/.github/actions/setup-nvidia@main
+      uses: ./test-infra/.github/actions/setup-nvidia
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
