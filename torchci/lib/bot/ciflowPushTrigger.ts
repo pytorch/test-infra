@@ -214,13 +214,13 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
   if (valid_test_config_labels.includes(label)) {
     return;
   }
-  
+
   const prNum = context.payload.pull_request.number;
   const owner = context.payload.repository.owner.login;
   const repo = context.payload.repository.name;
   // https://github.com/pytorch/pytorch/pull/26921 is a special PR that should
   // never get ciflow tags
-  if (prNum == 26921 && isPytorchPytorch(owner, repo)) {
+  if (prNum == 26921 && isPyTorchPyTorch(owner, repo)) {
   }
   const tag = labelToTag(context.payload.label.name, prNum);
   await syncTag(context, tag, context.payload.pull_request.head.sha);
