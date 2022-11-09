@@ -39,9 +39,14 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
+      job-name:
+        description: "Name for the job, which is displayed in the GitHub UI"
+        default: "windows-job"
+        type: string
 
 jobs:
   job:
+    name: ${{ inputs.job-name }}
     env:
       REPOSITORY: ${{ inputs.repository || github.repository }}
       SCRIPT: ${{ inputs.script }}
