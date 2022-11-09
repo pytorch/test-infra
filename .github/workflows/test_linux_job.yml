@@ -12,6 +12,7 @@ jobs:
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
+      name: "linux-py3.8-cpu"
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -26,6 +27,7 @@ jobs:
   test-gpu:
     uses: ./.github/workflows/linux_job.yml
     with:
+      name: "linux-py3.8-cu116"
       runner: linux.4xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
