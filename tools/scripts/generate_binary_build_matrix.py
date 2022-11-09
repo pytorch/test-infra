@@ -27,6 +27,7 @@ CUDA_ACRHES_DICT = {
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
+PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
@@ -367,14 +368,13 @@ GENERATING_FUNCTIONS_BY_PACKAGE_TYPE = {
     "libtorch": generate_libtorch_matrix,
 }
 
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--package-type",
         help="Package type to lookup for",
         type=str,
-        choices=["wheel", "conda", "libtorch"],
+        choices=["wheel", "conda", "libtorch", "all"],
         default=os.getenv("PACKAGE_TYPE", "wheel"),
     )
     parser.add_argument(
@@ -408,21 +408,19 @@ def main() -> None:
     options = parser.parse_args()
     includes = []
 
-    if options.channel == "all":
-        for channel in CUDA_ACRHES_DICT:
+    package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
+    channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
+
+    for channel in channels:
+        for package in package_types:
             initialize_globals(channel)
             includes.extend(
-                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
-                                                                           channel,
-                                                                           options.with_cuda,
-                                                                           options.with_py311)
-            )
-    else:
-        initialize_globals(options.channel)
-        includes = GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[options.package_type](options.operating_system,
-                                                                              options.channel,
-                                                                              options.with_cuda,
-                                                                              options.with_py311)
+                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
+                                                              channel,
+                                                              options.with_cuda,
+                                                              options.with_py311)
+                )
+
 
     print(json.dumps({"include": includes}))
 
