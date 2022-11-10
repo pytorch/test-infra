@@ -13,6 +13,16 @@ on:
       - tools/stronghold/**
 
 jobs:
+  black:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        cd tools/stronghold/
+        python -m venv .venv/
+        source .venv/bin/activate
+        pip install --requirement=requirements.txt
+        black --check --diff .
+
   pytest:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:

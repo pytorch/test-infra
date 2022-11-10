@@ -1,3 +1,7 @@
+[tool.black]
+color = true  # welcome to the future
+skip-string-normalization = true  # we use single-quotes like the Python standard library
+
 [tool.pytest.ini_options]
 addopts = [
     "--import-mode=importlib",  # https://docs.pytest.org/en/7.1.x/explanation/goodpractices.html#which-import-mode
