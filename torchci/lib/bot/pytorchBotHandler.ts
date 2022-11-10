@@ -322,7 +322,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         return await this.handleLabel(args.labels);
       }
       case "drci": {
-        return await this.handleDrCI(args.labels);
+        return await this.handleDrCI();
       }
       default:
         return await this.handleConfused(false);
