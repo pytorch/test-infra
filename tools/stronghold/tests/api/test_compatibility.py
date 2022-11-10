@@ -20,6 +20,23 @@ def test_deleted_function(tmp_path: pathlib.Path) -> None:
     ]
 
 
+def test_renamed_function(tmp_path: pathlib.Path) -> None:
+    """Tests that a renamed function is just flagged as a deleted function."""
+    def rose(a: int, /, b: int = 2, *args, c: int, **kwwargs) -> None:
+        pass  # pragma: no cover
+
+    before = _to_source_file(tmp_path, rose)
+
+    def rose_by_any_other_name(a: int, /, b: int = 2, *args, c: int, **kwwargs) -> None:
+        pass  # pragma: no cover
+
+    after = _to_source_file(tmp_path, rose_by_any_other_name)
+
+    assert api.compatibility.check(before, after) == [
+        api.compatibility.Violation('rose', 'function deleted')
+    ]
+
+
 def test_deleted_method(tmp_path: pathlib.Path) -> None:
     class Class:
         def func(self, /) -> None:
