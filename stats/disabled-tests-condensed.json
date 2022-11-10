@@ -1228,7 +1228,9 @@
     "https://github.com/pytorch/pytorch/issues/88721",
     [
       "mac",
-      "macos"
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_fake_crossref_backward_amp_linalg_lstsq_cuda_float32 (__main__.TestFakeTensorCUDA)": [
