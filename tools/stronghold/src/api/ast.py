@@ -41,17 +41,21 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     num_required = len(args.posonlyargs) + len(args.args) - len(args.defaults)
     assert num_required >= 0
 
+    # Collect the position-only parameters.
     params = [
         api.Parameter(
             name=arg.arg, position=i, keyword=False, required=i < num_required
         )
         for i, arg in enumerate(args.posonlyargs)
     ]
+    # Collect the parameters that may be provided positionally or by
+    # keyword.
     params += [
         api.Parameter(name=arg.arg, position=i, keyword=True, required=i < num_required)
         for i, arg in enumerate(args.args, start=len(args.posonlyargs))
     ]
 
+    # Collect the keyword-only parameters.
     assert len(args.kwonlyargs) == len(args.kw_defaults)
     params += [
         api.Parameter(
