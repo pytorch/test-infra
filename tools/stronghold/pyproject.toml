@@ -1,4 +1,8 @@
 [tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",  # https://docs.pytest.org/en/7.1.x/explanation/goodpractices.html#which-import-mode
+]
+
 pythonpath = [
     "src",  # allow importing from the src/ directory by default
 ]
