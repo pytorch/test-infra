@@ -101,7 +101,7 @@ jobs:
             ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
       - name: Install Requirements
-        if: ${{ inputs.package-name == "torchrec" }}
+        if: ${{ inputs.package-name == 'torchrec' }}
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
