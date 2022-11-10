@@ -3,6 +3,7 @@ import { Probot } from "probot";
 import * as utils from "./utils";
 import nock from "nock";
 import myProbotApp from "../lib/bot/drciBot";
+import pytorchBot from "../lib/bot/pytorchBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
 import { handleScope } from "./common";
@@ -154,5 +155,58 @@ describe("verify-drci-functionality", () => {
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
     expect(mock).not.toHaveBeenCalled();
+  });
+
+  test("Dr. CI edits existing comment if an explicit update request is made", async () => {
+    probot = utils.testProbot();
+    probot.load(pytorchBot);
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const event = require("./fixtures/pull_request_comment");
+    event["payload"]["repository"]["owner"]["login"] = OWNER;
+    event["payload"]["repository"]["name"] = REPO;
+    event["payload"]["comment"]["body"] = "@pytorchmergebot drci";
+
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, { results: [] });
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${OWNER}/${REPO}/issues/31/comments`,
+        (body) => {
+          return true;
+        }
+      )
+      .reply(200, [
+        {
+          id: comment_id,
+          node_id: comment_node_id,
+          body: "<!-- drci-comment-start -->\nhello\n<!-- drci-comment-end -->\n",
+        },
+      ])
+      .patch(
+        `/repos/${OWNER}/${REPO}/issues/comments/${comment_id}`,
+        (body) => {
+          const comment = body.body;
+          expect(comment.includes(drciUtils.DRCI_COMMENT_START)).toBeTruthy();
+          expect(
+            comment.includes("See artifacts and rendered test results")
+          ).toBeTruthy();
+          expect(
+            comment.includes("Need help or want to give feedback on the CI?")
+          ).toBeTruthy();
+          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
+          expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
+          return true;
+        }
+      )
+      .reply(200);
+    await probot.receive(event);
+    handleScope(scope);
+    handleScope(rockset);
   });
 });
