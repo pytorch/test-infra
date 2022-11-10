@@ -280,9 +280,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     const { owner, repo, ctx, prNum } = this;
     const prUrl = ctx.payload.issue.html_url
 
-    this.logger.log("Zain HERE!")
-    console.log("I'm really here")
-    
+    await this.ackComment();
     await upsertDrCiComment(owner, repo, prNum, ctx, prUrl);
   }
 
