@@ -2,10 +2,12 @@ name: stronghold
 
 on:
   pull_request:
+    paths: .github/workflows/stronghold.yml
     paths: 'tools/stronghold/**'
   push:
     branches:
       - main
+    paths: .github/workflows/stronghold.yml
     paths: 'tools/stronghold/**'
 
 jobs:
