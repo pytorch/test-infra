@@ -6,7 +6,7 @@
 *.zip
 *.swp
 *.txt
-!.*requirements.txt
+!**/*requirements.txt
 
 __pycache__
 
