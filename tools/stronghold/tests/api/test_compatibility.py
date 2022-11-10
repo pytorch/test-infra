@@ -22,6 +22,7 @@ def test_deleted_function(tmp_path: pathlib.Path) -> None:
 
 def test_renamed_function(tmp_path: pathlib.Path) -> None:
     """Tests that a renamed function is just flagged as a deleted function."""
+
     def rose(a: int, /, b: int = 2, *args, c: int, **kwwargs) -> None:
         pass  # pragma: no cover
 
