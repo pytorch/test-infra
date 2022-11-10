@@ -169,12 +169,22 @@ describe("verify-drci-functionality", () => {
     event["payload"]["repository"]["owner"]["login"] = OWNER;
     event["payload"]["repository"]["name"] = REPO;
     event["payload"]["comment"]["body"] = "@pytorchmergebot drci";
+    const pytorchbot_comment_number = event["payload"]["comment"]["id"]
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, { results: [] });
+
     const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${OWNER}/${REPO}/issues/comments/${pytorchbot_comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
       .get(
         `/repos/${OWNER}/${REPO}/issues/31/comments`,
         (body) => {

@@ -274,8 +274,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
   }
 
-
-  async handleDrCI(labels: string[]) {
+  async handleDrCI() {
     await this.logger.log("Dr. CI");
     const { owner, repo, ctx, prNum } = this;
     const prUrl = ctx.payload.issue.html_url

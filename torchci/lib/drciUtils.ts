@@ -2,6 +2,7 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { isPyTorchPyTorch } from "./bot/utils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -113,8 +114,7 @@ ${sev_list}\n
 // Today we only use probot for upserts, but this could later be split into logger
 export async function upsertDrCiComment(owner: string, repo: string, prNum: number, context: any, prUrl: string) {
   // Dr.CI only supports pytorch/pytorch at the moment
-  context.log("It's me!")
-  if (owner != OWNER || repo != REPO) {
+  if (!isPyTorchPyTorch(owner,repo)) {
     context.log(`Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`);
     return;
   }
