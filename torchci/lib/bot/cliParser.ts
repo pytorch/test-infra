@@ -117,6 +117,16 @@ label.add_argument("labels", {
   help: "Labels to add to given Pull Request",
 });
 
+// Dr. CI
+const drCi = commands.add_parser("drci", {
+  help: "Update Dr. CI",
+  description:
+    "Update Dr. CI. Updates the Dr. CI comment on the PR in case it's gotten out of sync " + 
+    "with actual CI results.",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
@@ -156,5 +166,8 @@ ${rebase.format_help()}\`\`\`
 ## Label
 \`\`\`
 ${label.format_help()}\`\`\`
+## Dr CI
+\`\`\`
+${drCi.format_help()}\`\`\`
 `;
 }

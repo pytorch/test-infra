@@ -1,6 +1,8 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { isPyTorchPyTorch } from "./bot/utils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -105,5 +107,59 @@ If you must merge, use \`@pytorchbot merge -f\`.`
 There are ${notMergeBlocking.length} currently active SEVs.   If your PR is affected, please view them below:
 ${sev_list}\n
 `;
+  }
+}
+
+// The context here is the context from probot.
+// Today we only use probot for upserts, but this could later be split into logger
+export async function upsertDrCiComment(owner: string, repo: string, prNum: number, context: any, prUrl: string) {
+  // Dr.CI only supports pytorch/pytorch at the moment
+  if (!isPyTorchPyTorch(owner,repo)) {
+    context.log(`Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`);
+    return;
+  }
+
+  const existingDrciData = await getDrciComment(
+    context.octokit,
+    owner,
+    repo,
+    prNum
+  );
+  context.log("Got existing ID: " + existingDrciData.id + " with body " + existingDrciData.body)
+  const existingDrciID = existingDrciData.id;
+  const existingDrciComment = existingDrciData.body;
+  const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+  const drciComment = formDrciComment(prNum, "", formDrciSevBody(sev));
+
+  if (existingDrciComment === drciComment) {
+    return;
+  }
+
+  if (existingDrciID === 0) {
+    await context.octokit.issues.createComment({
+      body: drciComment,
+      owner: owner,
+      repo: repo,
+      issue_number: prNum,
+    });
+    context.log(
+      `Commenting with "${drciComment}" for pull request ${prUrl}`
+    );
+  } else {
+    context.log({
+      body: drciComment,
+      owner: owner,
+      repo: repo,
+      comment_id: existingDrciID,
+    });
+    await context.octokit.issues.updateComment({
+      body: drciComment,
+      owner: owner,
+      repo: repo,
+      comment_id: existingDrciID,
+    });
+    context.log(
+      `Updated comment with "${drciComment}" for pull request ${prUrl}`
+    );
   }
 }

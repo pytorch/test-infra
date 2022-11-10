@@ -1,3 +1,4 @@
+import { upsertDrCiComment } from "lib/drciUtils";
 import _ from "lodash";
 import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
@@ -273,6 +274,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
   }
 
+  async handleDrCI() {
+    await this.logger.log("Dr. CI");
+    const { owner, repo, ctx, prNum } = this;
+    const prUrl = ctx.payload.issue.html_url
+
+    await this.ackComment();
+    await upsertDrCiComment(owner, repo, prNum, ctx, prUrl);
+  }
+
   async handlePytorchCommands(inputArgs: string) {
     let args;
     try {
@@ -310,6 +320,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }
       case "label": {
         return await this.handleLabel(args.labels);
+      }
+      case "drci": {
+        return await this.handleDrCI();
       }
       default:
         return await this.handleConfused(false);
