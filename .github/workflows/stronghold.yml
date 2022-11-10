@@ -33,6 +33,16 @@ jobs:
         pip install --requirement=requirements.txt
         flake8 .
 
+  mypy:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        cd tools/stronghold/
+        python -m venv .venv/
+        source .venv/bin/activate
+        pip install --requirement=requirements.txt
+        mypy .
+
   pytest:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:
