@@ -28,7 +28,9 @@ def test_renamed_function(tmp_path: pathlib.Path) -> None:
 
     before = _to_source_file(tmp_path, rose)
 
-    def rose_by_any_other_name(a: int, /, b: int = 2, *args: int, c: int, **kwargs: int) -> None:
+    def rose_by_any_other_name(
+        a: int, /, b: int = 2, *args: int, c: int, **kwargs: int
+    ) -> None:
         pass  # pragma: no cover
 
     after = _to_source_file(tmp_path, rose_by_any_other_name)
