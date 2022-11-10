@@ -2602,13 +2602,6 @@
       "linux"
     ]
   ],
-  "test_tensor_properties (__main__.TestTorchTidyProfiler)": [
-    "83113",
-    "https://github.com/pytorch/pytorch/issues/83113",
-    [
-      "linux"
-    ]
-  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
