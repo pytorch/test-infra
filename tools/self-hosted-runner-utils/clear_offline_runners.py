@@ -1,8 +1,10 @@
 import os
+import sys
 import argparse
 import re
 
 from github import Github
+from tqdm import tqdm
 
 
 def parse_args() -> argparse.Namespace:
@@ -10,7 +12,7 @@ def parse_args() -> argparse.Namespace:
         description="Clear offline self hosted runners for Github repositories"
     )
     parser.add_argument(
-        "repo",
+        "entity",
         help="Repository to remove offline self hosted runners for, (ex. pytorch/pytorch)",
         type=str,
     )
@@ -41,21 +43,22 @@ def main() -> None:
     if options.token == "":
         raise Exception("GITHUB_TOKEN or --token must be set")
     gh = Github(options.token)
-    repo = gh.get_repo(options.repo)
-    runners = repo.get_self_hosted_runners()
+    entity_get = gh.get_organization
+    if "/" in options.entity:
+        entity_get = gh.get_repo
+    entity = entity_get(options.entity)
+    runners = entity.get_self_hosted_runners()
     include_pattern = re.compile(options.include)
     num_removed = 0
     num_total = 0
+    to_delete = list()
     for runner in runners:
         num_total += 1
-        if runner.status != "offline" or not include_pattern.match(runner.name):
-            continue
-        print(f"- {runner.name} ", end="")
-        if options.dry_run:
-            print("skipped (dry run)")
-        else:
-            repo.remove_self_hosted_runner(runner)
-            print("removed")
+        if runner.status == "offline" and include_pattern.match(runner.name):
+            to_delete.append(runner)
+    for runner in tqdm(to_delete):
+        if not options.dry_run:
+            entity.remove_self_hosted_runner(runner.id)
         num_removed += 1
     print(f"Removed {num_removed}/{num_total}")
 
