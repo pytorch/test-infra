@@ -44,9 +44,7 @@ jobs:
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      # TODO: undo this change, just making this main since some branches don't
-      # have nightlies
-      ref: main
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
