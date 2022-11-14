@@ -97,6 +97,7 @@ jobs:
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
+            source "${BUILD_ENV_FILE}"
             ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
       - name: Build clean
