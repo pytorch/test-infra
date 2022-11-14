@@ -171,7 +171,7 @@ runs:
                 if [ "${RUNNER_OS}" = "macOS" ]; then
                   # We can clean up /System/Library/Caches/com.apple.coresymbolicationd on MacOS to free up the space and this should free up enough space
                   # https://github.com/pytorch/pytorch/issues/85440
-                  sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data"
+                  sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data" || true
                   # Stop the daemon and launchctl will automatically start it again, thus accomplish a restart and free up the above file
                   sudo launchctl stop com.apple.coresymbolicationd
 
