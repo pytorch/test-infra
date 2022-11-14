@@ -223,9 +223,6 @@ def generate_libtorch_matrix(
 
     ret: List[Dict[str, str]] = []
 
-    if os == "macos-arm64" or os == "macos":
-        return ret
-
     if arches is None:
         arches = ["cpu"]
 
@@ -339,8 +336,34 @@ def generate_wheels_matrix(
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
 
             installation_pypi = ""
-            if os == "linux" and gpu_arch_version == "11.7" and channel != "release":
+            # special 11.7 wheels package without dependencies
+            # dependency downloaded via pip install
+            if arch_version == "11.7" and os == "linux":
                 installation_pypi = get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version, True)
+                ret.append(
+                    {
+                        "python_version": python_version,
+                        "gpu_arch_type": gpu_arch_type,
+                        "gpu_arch_version": gpu_arch_version,
+                        "desired_cuda": translate_desired_cuda(
+                            gpu_arch_type, gpu_arch_version
+                        ),
+                        "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
+                        "package_type": package_type,
+                        "pytorch_extra_install_requirements":
+                        "nvidia-cuda-runtime-cu11;"
+                        "nvidia-cudnn-cu11==8.5.0.96;"
+                        "nvidia-cublas-cu11==11.10.3.66",
+                        "installation_pypi": installation_pypi,
+                        "build_name":
+                        f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-with-pypi-cudnn"
+                        .replace(
+                            ".", "_"
+                        ),
+                        "validation_runner": validation_runner(gpu_arch_type, os),
+                        "channel": channel,
+                    }
+                )
 
             ret.append(
                 {
@@ -355,7 +378,6 @@ def generate_wheels_matrix(
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version),
-                    "installation_pypi": installation_pypi,
                     "channel": channel,
                 }
             )
