@@ -93,6 +93,7 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         shell: bash -l {0}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
@@ -125,6 +126,7 @@ jobs:
         if: ${{ inputs.post-script != '' }}
         shell: bash -l {0}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
