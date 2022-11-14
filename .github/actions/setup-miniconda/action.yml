@@ -196,9 +196,8 @@ runs:
           fi
 
           if [[ "${RESULT}" == *Failure* ]]; then
+            df -h
+
             echo "Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
             exit 1
           fi
-
-          echo "Print the available disk space for manual inspection after cleaning up"
-          df -h
