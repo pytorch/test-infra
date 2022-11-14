@@ -297,6 +297,7 @@ def generate_wheels_matrix(
     channel: str,
     with_cuda: str,
     with_py311: str,
+    with_pypi_cudnn: str = DISABLE,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -338,7 +339,7 @@ def generate_wheels_matrix(
             installation_pypi = ""
             # special 11.7 wheels package without dependencies
             # dependency downloaded via pip install
-            if arch_version == "11.7" and os == "linux":
+            if arch_version == "11.7" and os == "linux" and with_pypi_cudnn == ENABLE:
                 installation_pypi = get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version, True)
                 ret.append(
                     {
