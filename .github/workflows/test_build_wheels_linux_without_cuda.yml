@@ -25,16 +25,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/text
+          - repository: pytorch/data
             pre-script: ""
             post-script: ""
-            smoke-test-script: test/smoke_tests/smoke_tests.py
-            package-name: torchtext
+            smoke-test-script: ""
+            package-name: torchdata
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: main
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}

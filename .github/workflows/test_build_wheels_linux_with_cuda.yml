@@ -24,16 +24,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/data
+          - repository: pytorch/audio
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
+          - repository: pytorch/vision
             pre-script: ""
             post-script: ""
-            smoke-test-script: ""
-            package-name: torchdata
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: main
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
