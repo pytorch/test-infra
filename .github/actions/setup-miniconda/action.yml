@@ -164,12 +164,24 @@ runs:
             AVAIL=$(echo $LINE | cut -f1 -d' ')
             MOUNT=$(echo $LINE | cut -f2 -d' ')
 
-            if [ "$MOUNT" = "/" ]; then
-              if [ "$AVAIL" -lt "$MINIMUM_AVAILABLE_SPACE_IN_KB" ]; then
-                echo "There is only ${AVAIL}KB free space left in $MOUNT, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_KB}KB. Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
-                exit 1;
+            if [ "${MOUNT}" = "/" ]; then
+              if [ "${AVAIL}" -lt "${MINIMUM_AVAILABLE_SPACE_IN_KB}" ]; then
+                echo "There is only ${AVAIL}KB free space left in ${MOUNT}, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_KB}KB for ${RUNNER_OS}"
+
+                if [ "${RUNNER_OS}" = "macOS" ]; then
+                  # We can clean up /System/Library/Caches/com.apple.coresymbolicationd on MacOS to free up the space and this should free up enough space
+                  # https://github.com/pytorch/pytorch/issues/85440
+                  sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data"
+                  # Stop the daemon and launchctl will automatically start it again, thus accomplish a restart and free up the above file
+                  sudo launchctl stop com.apple.coresymbolicationd
+
+                  df -h
+                else
+                  echo "Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
+                  exit 1;
+                fi
               else
-                echo "There is ${AVAIL}KB free space left in $MOUNT, continue"
+                echo "There is ${AVAIL}KB free space left in ${MOUNT} for ${RUNNER_OS}, continue"
               fi
             fi
           done
