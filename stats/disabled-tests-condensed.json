@@ -1504,13 +1504,6 @@
       "linux"
     ]
   ],
-  "test_forward_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86772",
-    "https://github.com/pytorch/pytorch/issues/86772",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)": [
     "79017",
     "https://github.com/pytorch/pytorch/issues/79017",
