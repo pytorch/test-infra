@@ -655,7 +655,8 @@ export class Metrics {
     this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
     this.countEntry(`aws.ec2.perRegion.runInstances.count`, 1, dimensions);
     this.countEntry(`aws.ec2.perRegion.runInstances.failure`, 1, dimensions);
-    this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);  }
+    this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);
+  }
 
   // RUN
   /* istanbul ignore next */

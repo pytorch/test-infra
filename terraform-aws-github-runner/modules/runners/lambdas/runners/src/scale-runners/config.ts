@@ -80,9 +80,15 @@ export class Config {
   protected getSubnetIdsFromEnv(): Map<string, Array<string>> {
     const map: Map<string, Array<string>> = new Map();
 
-    (process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0)?? [])
-      .map((e) => { return e.split('|').filter((e) => { return e.length > 0; }); })
-      .filter((e) => { return e.length == 2; })
+    (process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0) ?? [])
+      .map((e) => {
+        return e.split('|').filter((e) => {
+          return e.length > 0;
+        });
+      })
+      .filter((e) => {
+        return e.length == 2;
+      })
       .forEach((keyVal) => {
         const [awsRegion, subnetId] = keyVal;
         if (!map.has(awsRegion)) {
@@ -103,7 +109,7 @@ export class Config {
   }
 
   shuffledSubnetIdsForAwsRegion(awsRegion: string): Array<string> {
-    const arr = [...this.subnetIds.get(awsRegion) ?? []];
+    const arr = [...(this.subnetIds.get(awsRegion) ?? [])];
     return this.shuffleInPlace(arr);
   }
 

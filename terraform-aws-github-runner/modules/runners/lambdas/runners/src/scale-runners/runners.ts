@@ -58,20 +58,22 @@ export async function listRunners(
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
-    const runningInstances = (await Promise.all(
-      Config.Instance.awsRegionInstances.map((awsRegion) => {
-        return expBackOff(() => {
-          return metrics.trackRequestRegion(
-            awsRegion,
-            metrics.ec2DescribeInstancesAWSCallSuccess,
-            metrics.ec2DescribeInstancesAWSCallFailure,
-            () => {
-              return new EC2({region: awsRegion}).describeInstances({ Filters: ec2Filters }).promise();
-            },
-          );
-        });
-      })
-    )).flat();
+    const runningInstances = (
+      await Promise.all(
+        Config.Instance.awsRegionInstances.map((awsRegion) => {
+          return expBackOff(() => {
+            return metrics.trackRequestRegion(
+              awsRegion,
+              metrics.ec2DescribeInstancesAWSCallSuccess,
+              metrics.ec2DescribeInstancesAWSCallFailure,
+              () => {
+                return new EC2({ region: awsRegion }).describeInstances({ Filters: ec2Filters }).promise();
+              },
+            );
+          });
+        }),
+      )
+    ).flat();
     /* istanbul ignore next */
     return (
       runningInstances?.Reservations?.flatMap((reservation) => {
@@ -104,7 +106,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
 
   if (parametersSet === undefined) {
     parametersSet = new Set();
-    const ssm = new SSM({region: awsRegion});
+    const ssm = new SSM({ region: awsRegion });
     let nextToken: string | undefined = undefined;
 
     do {
@@ -140,7 +142,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
 
 async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<void> {
   try {
-    const ssm = new SSM({region: awsRegion});
+    const ssm = new SSM({ region: awsRegion });
     await expBackOff(() => {
       return metrics.trackRequestRegion(
         awsRegion,
@@ -153,15 +155,14 @@ async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegi
     });
   } catch (e) {
     console.error(
-      `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` +
-      `deleting parameter ${paramName}: ${e}`
+      `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` + `deleting parameter ${paramName}: ${e}`,
     );
   }
 }
 
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics, awsRegion: string): Promise<void> {
   try {
-    const ec2 = new EC2({region: awsRegion});
+    const ec2 = new EC2({ region: awsRegion });
 
     await expBackOff(() => {
       return metrics.trackRequestRegion(
@@ -195,7 +196,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics, awsR
         ssmParametersCache.set(cacheName, 1, 60 * 1000);
         console.error(
           `[terminateRunner - listSSMParameters] [${awsRegion}] ` +
-          `Failed to list parameters or check if available: ${e}`
+            `Failed to list parameters or check if available: ${e}`,
         );
       }
     }
@@ -274,10 +275,9 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
 
-    loopAwsRegions:
-    for (const awsRegion of Config.Instance.shuffledAwsRegionInstances) {
-      const ec2 = new EC2({region: awsRegion});
-      const ssm = new SSM({region: awsRegion});
+    loopAwsRegions: for (const awsRegion of Config.Instance.shuffledAwsRegionInstances) {
+      const ec2 = new EC2({ region: awsRegion });
+      const ssm = new SSM({ region: awsRegion });
       const subnets = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion);
       for (const [i, subnet] of subnets.entries()) {
         try {
