@@ -8,7 +8,7 @@ export const groups = [
     persistent: true,
   },
   {
-    regex: /^(?!periodic).*rerun_disabled_tests/,
+    regex: /^(?!periodic)(?!inductor).*rerun_disabled_tests/,
     name: "Rerun Disabled Tests",
     persistent: true,
   },
