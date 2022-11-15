@@ -124,6 +124,23 @@ export class Metrics {
     };
   }
 
+  async trackRequestRegion<T>(
+    awsRegion: string,
+    regSuccess: (awsRegion: string, tm: number) => void,
+    regFail: (awsRegion: string, tm: number) => void,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const timer = this.msTimer();
+    try {
+      const r = await fn();
+      regSuccess.call(this, awsRegion, timer());
+      return r;
+    } catch (e) {
+      regFail.call(this, awsRegion, timer());
+      throw e;
+    }
+  }
+
   async trackRequest<T>(
     regSuccess: (tm: number) => void,
     regFail: (rm: number) => void,
@@ -450,112 +467,195 @@ export class Metrics {
   }
 
   /* istanbul ignore next */
-  ssmDescribeParametersAWSCallSuccess(ms: number) {
+  ssmDescribeParametersAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.describeParameters.count`, 1);
     this.countEntry(`aws.ssm.describeParameters.success`, 1);
     this.addEntry(`aws.ssm.describeParameters.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.describeParameters.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.describeParameters.success`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.describeParameters.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ssmDescribeParametersAWSCallFailure(ms: number) {
+  ssmDescribeParametersAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.describeParameters.count`, 1);
     this.countEntry(`aws.ssm.describeParameters.failure`, 1);
     this.addEntry(`aws.ssm.describeParameters.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.describeParameters.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.describeParameters.failure`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.describeParameters.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ssmPutParameterAWSCallSuccess(ms: number) {
+  ssmPutParameterAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.putParameter.count`, 1);
     this.countEntry(`aws.ssm.putParameter.success`, 1);
     this.addEntry(`aws.ssm.putParameter.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.putParameter.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.putParameter.success`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.putParameter.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ssmPutParameterAWSCallFailure(ms: number) {
+  ssmPutParameterAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.putParameter.count`, 1);
     this.countEntry(`aws.ssm.putParameter.failure`, 1);
     this.addEntry(`aws.ssm.putParameter.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.putParameter.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.putParameter.failure`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.putParameter.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ssmdeleteParameterAWSCallSuccess(ms: number) {
+  ssmdeleteParameterAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.deleteParameter.count`, 1);
     this.countEntry(`aws.ssm.deleteParameter.success`, 1);
     this.addEntry(`aws.ssm.deleteParameter.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.deleteParameter.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.deleteParameter.success`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.deleteParameter.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ssmdeleteParameterAWSCallFailure(ms: number) {
+  ssmdeleteParameterAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ssm.calls.total`, 1);
     this.countEntry(`aws.ssm.deleteParameter.count`, 1);
     this.countEntry(`aws.ssm.deleteParameter.failure`, 1);
     this.addEntry(`aws.ssm.deleteParameter.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.deleteParameter.count`, 1, dimensions);
+    this.countEntry(`aws.ssm.perRegion.deleteParameter.failure`, 1, dimensions);
+    this.addEntry(`aws.ssm.perRegion.deleteParameter.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2DescribeInstancesAWSCallSuccess(ms: number) {
+  ec2DescribeInstancesAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.describeInstances.count`, 1);
     this.countEntry(`aws.ec2.describeInstances.success`, 1);
     this.addEntry(`aws.ec2.describeInstances.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstances.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeInstances.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2DescribeInstancesAWSCallFailure(ms: number) {
+  ec2DescribeInstancesAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.describeInstances.count`, 1);
     this.countEntry(`aws.ec2.describeInstances.failure`, 1);
     this.addEntry(`aws.ec2.describeInstances.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.describeInstances.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.describeInstances.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2TerminateInstancesAWSCallSuccess(ms: number) {
+  ec2TerminateInstancesAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.terminateInstances.count`, 1);
     this.countEntry(`aws.ec2.terminateInstances.success`, 1);
     this.addEntry(`aws.ec2.terminateInstances.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.terminateInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.terminateInstances.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.terminateInstances.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2TerminateInstancesAWSCallFailure(ms: number) {
+  ec2TerminateInstancesAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.terminateInstances.count`, 1);
     this.countEntry(`aws.ec2.terminateInstances.failure`, 1);
     this.addEntry(`aws.ec2.terminateInstances.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.terminateInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.terminateInstances.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.terminateInstances.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2RunInstancesAWSCallSuccess(ms: number) {
+  ec2RunInstancesAWSCallSuccess(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.runInstances.count`, 1);
     this.countEntry(`aws.ec2.runInstances.success`, 1);
     this.addEntry(`aws.ec2.runInstances.wallclock`, ms);
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.runInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.runInstances.success`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);
   }
 
   /* istanbul ignore next */
-  ec2RunInstancesAWSCallFailure(ms: number) {
+  ec2RunInstancesAWSCallFailure(awsRegion: string, ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.ec2.calls.total`, 1);
     this.countEntry(`aws.ec2.runInstances.count`, 1);
     this.countEntry(`aws.ec2.runInstances.failure`, 1);
     this.addEntry(`aws.ec2.runInstances.wallclock`, ms);
-  }
+
+    const dimensions = new Map([['Region', awsRegion]]);
+    this.countEntry(`aws.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.calls.perRegion.total`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.runInstances.count`, 1, dimensions);
+    this.countEntry(`aws.ec2.perRegion.runInstances.failure`, 1, dimensions);
+    this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);  }
 
   // RUN
   /* istanbul ignore next */

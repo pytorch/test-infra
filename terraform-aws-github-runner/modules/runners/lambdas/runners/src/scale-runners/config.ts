@@ -29,7 +29,7 @@ export class Config {
   readonly scaleConfigRepoPath: string;
   readonly secretsManagerSecretsId: string | undefined;
   readonly securityGroupIds: string[];
-  readonly subnetIds: string[];
+  readonly subnetIds: Map<string, Array<string>>;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
@@ -73,9 +73,25 @@ export class Config {
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     /* istanbul ignore next */
     this.securityGroupIds = process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0) ?? [];
-    /* istanbul ignore next */
-    this.subnetIds = process.env.SUBNET_IDS?.split(',').filter((w) => w.length > 0) ?? [];
+    this.subnetIds = this.getSubnetIdsFromEnv();
     this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
+  }
+
+  protected getSubnetIdsFromEnv(): Map<string, Array<string>> {
+    const map: Map<string, Array<string>> = new Map();
+
+    (process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0)?? [])
+      .map((e) => { return e.split('|').filter((e) => { return e.length > 0; }); })
+      .filter((e) => { return e.length == 2; })
+      .forEach((keyVal) => {
+        const [awsRegion, subnetId] = keyVal;
+        if (!map.has(awsRegion)) {
+          map.set(awsRegion, new Array<string>(subnetId));
+        }
+        map.get(awsRegion)?.push(subnetId);
+      });
+
+    return map;
   }
 
   static get Instance(): Config {
@@ -86,13 +102,14 @@ export class Config {
     this._instance = undefined;
   }
 
-  get shuffledSubnetIds(): string[] {
-    const shuffled = [...this.subnetIds];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+  shuffledSubnetIdsForAwsRegion(awsRegion: string): Array<string> {
+    const arr = [...this.subnetIds.get(awsRegion) ?? []];
+    return this.shuffleInPlace(arr);
+  }
+
+  get shuffledAwsRegionInstances(): string[] {
+    const arr = [...this.awsRegionInstances];
+    return this.shuffleInPlace(arr);
   }
 
   get ghesUrlApi(): undefined | string {
@@ -103,5 +120,13 @@ export class Config {
   get ghesUrlHost(): string {
     /* istanbul ignore next */
     return this.ghesUrl ?? 'https://github.com';
+  }
+
+  protected shuffleInPlace<T>(arr: T[]): T[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
   }
 }

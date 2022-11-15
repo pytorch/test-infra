@@ -31,5 +31,5 @@ output "iam_profile_name_runner" {
 }
 
 output "runner_sg_id" {
-  value = aws_security_group.runner_sg.id
+  value = [ for runner_sg in aws_security_group.runner_sg : runner_sg.id ]
 }

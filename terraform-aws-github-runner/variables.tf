@@ -3,13 +3,19 @@ variable "aws_region" {
   type        = string
 }
 
-variable "vpc_id" {
+variable "aws_region_instances" {
+  description = "AWS region to run EC2 runners."
+  default     = []
+  type        = list(string)
+}
+
+variable "vpc_ids" {
   description = "The VPC for security groups of the action runners."
-  type        = string
+  type        = list(string)
 }
 
 variable "subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
 }
 
@@ -290,13 +296,13 @@ variable "ghes_url" {
 }
 
 variable "lambda_subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
 
 variable "lambda_security_group_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
