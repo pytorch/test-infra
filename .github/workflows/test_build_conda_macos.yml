@@ -22,30 +22,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio
-            pre-script: packaging/pre_build_script.sh
-            post-script: packaging/post_build_script.sh
-            conda-package-directory: packaging/torchaudio
-            smoke-test-script: test/smoke_test/smoke_test.py
-            package-name: torchaudio
-          - repository: pytorch/vision
+          - repository: pytorch/data
             pre-script: ""
             post-script: ""
-            conda-package-directory: packaging/torchvision
-            smoke-test-script: test/smoke_test.py
-            package-name: torchvision
-          - repository: pytorch/text
-            pre-script: ""
-            post-script: ""
-            conda-package-directory: packaging/torchtext
-            smoke-test-script: test/smoke_tests/smoke_tests.py
-            package-name: torchtext
+            conda-package-directory: packaging/torchdata
+            smoke-test-script: ""
+            package-name: torchdata
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_macos.yml
     with:
       conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: main
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
