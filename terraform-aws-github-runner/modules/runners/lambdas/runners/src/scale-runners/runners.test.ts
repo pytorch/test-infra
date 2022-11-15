@@ -74,7 +74,7 @@ function createExpectedRunInstancesLinux(runnerParameters: RunnerInputParameters
     NetworkInterfaces: [
       {
         AssociatePublicIpAddress: true,
-        SubnetId: Config.Instance.shuffledSubnetIds[subnetId],
+        SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(Config.Instance.awsRegion)[subnetId],
         Groups: Config.Instance.securityGroupIds,
         DeviceIndex: 0,
       },
@@ -145,12 +145,14 @@ describe('list instances', () => {
     const resp = await listRunners(metrics);
     expect(resp.length).toBe(2);
     expect(resp).toContainEqual({
+      awsRegion: Config.Instance.awsRegion,
       instanceId: 'i-1234',
       launchTime: new Date('2020-10-10T14:48:00.000+09:00'),
       repo: 'CoderToCat/hello-world',
       org: 'CoderToCat',
     });
     expect(resp).toContainEqual({
+      awsRegion: Config.Instance.awsRegion,
       instanceId: 'i-5678',
       launchTime: new Date('2020-10-11T14:48:00.000+09:00'),
       repo: 'SomeAwesomeCoder/some-amazing-library',
@@ -240,10 +242,10 @@ describe('listSSMParameters', () => {
       }),
     });
 
-    await expect(listSSMParameters(metrics)).resolves.toEqual(ret1);
-    await expect(listSSMParameters(metrics)).resolves.toEqual(ret1);
+    await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret1);
+    await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret1);
     resetRunnersCaches();
-    await expect(listSSMParameters(metrics)).resolves.toEqual(ret2);
+    await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret2);
 
     expect(mockSSMdescribeParametersRet).toBeCalledTimes(3);
     expect(mockSSM.describeParameters).toBeCalledWith();
@@ -261,6 +263,7 @@ describe('terminateRunner', () => {
 
   it('calls terminateInstances', async () => {
     const runner: RunnerInfo = {
+      awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
       environment: 'environ',
     };
@@ -269,7 +272,7 @@ describe('terminateRunner', () => {
         return { Name: s };
       }),
     });
-    await terminateRunner(runner, metrics);
+    await terminateRunner(runner, metrics, Config.Instance.awsRegion);
 
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: [runner.instanceId],
@@ -279,12 +282,13 @@ describe('terminateRunner', () => {
   it('fails to terminate', async () => {
     const errMsg = 'Error message';
     const runner: RunnerInfo = {
+      awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
     };
     mockEC2.terminateInstances.mockClear().mockReturnValue({
       promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
     });
-    expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
+    expect(terminateRunner(runner, metrics, Config.Instance.awsRegion)).rejects.toThrowError(errMsg);
   });
 });
 
@@ -298,7 +302,11 @@ describe('create runner', () => {
     launchTemplateNameWindows: 'launch-template-name-windows',
     launchTemplateVersionWindows: '1-windows',
     subnetIds: subnetIds,
-    shuffledSubnetIds: subnetIds,
+    awsRegion: 'us-east-1',
+    shuffledAwsRegionInstances: ['us-east-1'],
+    shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation(() => {
+      return subnetIds;
+    }),
     securityGroupIds: ['123', '321', '456'],
   };
 
@@ -401,7 +409,7 @@ describe('create runner', () => {
       NetworkInterfaces: [
         {
           AssociatePublicIpAddress: true,
-          SubnetId: Config.Instance.shuffledSubnetIds[0],
+          SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(Config.Instance.awsRegion)[0],
           Groups: Config.Instance.securityGroupIds,
           DeviceIndex: 0,
         },

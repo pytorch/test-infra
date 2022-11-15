@@ -1,4 +1,5 @@
 import { EC2, SSM } from 'aws-sdk';
+import { PromiseResult } from 'aws-sdk/lib/request';
 import { RunnerInfo, expBackOff } from './utils';
 
 import { Config } from './config';
@@ -26,6 +27,11 @@ export interface RunnerType {
   disk_size: number;
   runnerTypeName: string;
   is_ephemeral: boolean;
+}
+
+export interface DescribeInstancesResultRegion {
+  awsRegion: string;
+  describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
 }
 
 const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
@@ -67,7 +73,12 @@ export async function listRunners(
               metrics.ec2DescribeInstancesAWSCallSuccess,
               metrics.ec2DescribeInstancesAWSCallFailure,
               () => {
-                return new EC2({ region: awsRegion }).describeInstances({ Filters: ec2Filters }).promise();
+                return new EC2({ region: awsRegion })
+                  .describeInstances({ Filters: ec2Filters })
+                  .promise()
+                  .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                    return { describeInstanceResult, awsRegion };
+                  });
               },
             );
           });
@@ -75,22 +86,25 @@ export async function listRunners(
       )
     ).flat();
     /* istanbul ignore next */
-    return (
-      runningInstances?.Reservations?.flatMap((reservation) => {
-        /* istanbul ignore next */
-        return (
-          reservation.Instances?.map((instance) => ({
-            instanceId: instance.InstanceId as string,
-            launchTime: instance.LaunchTime,
-            repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
-            org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
-            runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
-            ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
-            environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
-          })) ?? []
-        );
-      }) ?? []
-    );
+    return runningInstances.flatMap((itm) => {
+      return (
+        itm.describeInstanceResult?.Reservations?.flatMap((reservation) => {
+          /* istanbul ignore next */
+          return (
+            reservation.Instances?.map((instance) => ({
+              awsRegion: itm.awsRegion,
+              instanceId: instance.InstanceId as string,
+              launchTime: instance.LaunchTime,
+              repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
+              org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
+              runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
+              ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
+              environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
+            })) ?? []
+          );
+        }) ?? []
+      );
+    });
   } catch (e) {
     console.error(`[listRunners]: ${e}`);
     throw e;
@@ -252,7 +266,7 @@ function getLaunchTemplateName(runnerParameters: RunnerInputParameters): Array<s
   }
 }
 
-export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<void> {
+export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<string> {
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
@@ -275,7 +289,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
 
-    loopAwsRegions: for (const awsRegion of Config.Instance.shuffledAwsRegionInstances) {
+    for (const awsRegion of Config.Instance.shuffledAwsRegionInstances) {
       const ec2 = new EC2({ region: awsRegion });
       const ssm = new SSM({ region: awsRegion });
       const subnets = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion);
@@ -337,7 +351,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
           }
 
           // breaks
-          break loopAwsRegions;
+          return awsRegion;
         } catch (e) {
           if (i == subnets.length - 1) {
             console.error(
@@ -355,6 +369,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         }
       }
     }
+    throw Error('Should never get here, but this should silence false linting errors');
   } catch (e) {
     console.error(`[createRunner]: ${e}`);
     throw e;
