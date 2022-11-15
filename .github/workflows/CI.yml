@@ -36,12 +36,12 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o dist
+        args: --release -o target/dist
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: dist
+        path: target/dist
 
   windows:
     runs-on: windows-latest
