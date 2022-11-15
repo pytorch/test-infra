@@ -86,7 +86,7 @@ pub struct LintConfig {
     /// # Examples
     /// - Calling a Python script:
     /// ```toml
-    /// command = ['python3', 'my_linter.py', -- '@{{PATHSFILE}}']
+    /// command = ['python3', 'my_linter.py', '--', '@{{PATHSFILE}}']
     /// ```
     pub command: Vec<String>,
 
@@ -105,7 +105,8 @@ pub struct LintConfig {
     /// # Examples
     /// - Calling a Python script:
     /// ```toml
-    /// command = ['python3', 'my_linter_init.py', '--dry-run={{DRYRUN}}']
+    /// init_command = ['python3', 'my_linter_init.py', '--dry-run={{DRYRUN}}']
+    /// ```
     pub init_command: Option<Vec<String>>,
 
     /// If true, this linter will be considered a formatter, and will invoked by
