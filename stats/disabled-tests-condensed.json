@@ -1476,6 +1476,13 @@
       "rocm"
     ]
   ],
+  "test_forward_nn_LSTM_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
+    "86773",
+    "https://github.com/pytorch/pytorch/issues/86773",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86500",
     "https://github.com/pytorch/pytorch/issues/86500",
