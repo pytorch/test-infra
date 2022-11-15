@@ -73,6 +73,10 @@ name = 'Python unittest failure'
 pattern = 'FAIL \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
+name = 'Python unittest unexpected success'
+pattern = 'XPASS \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
 name = 'pytest failure'
 pattern = '^FAILED .*.py::.*::test_.*$'
 
