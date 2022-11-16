@@ -35,7 +35,7 @@ WITH flaky_tests AS (
         AND test_run.name LIKE :name
         AND test_run.classname LIKE :suite
         AND test_run.file LIKE :file
-        AND job.name not like '%rerun_disabled_tests%'
+        AND job.name NOT LIKE '%rerun_disabled_tests%'
     GROUP BY
         name,
         suite,
@@ -70,7 +70,7 @@ WITH flaky_tests AS (
         AND test_run.name LIKE :name
         AND test_run.classname LIKE :suite
         AND test_run.file LIKE :file
-        AND job.name not like '%rerun_disabled_tests%'
+        AND job.name NOT LIKE '%rerun_disabled_tests%'
     GROUP BY
         name,
         suite,
