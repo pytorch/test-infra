@@ -693,7 +693,9 @@
     "https://github.com/pytorch/pytorch/issues/84191",
     [
       "mac",
-      "macos"
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_comprehensive_column_stack_cpu_float16 (__main__.TestDecompCPU)": [
