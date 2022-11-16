@@ -30,7 +30,7 @@ pattern = '^##\[error\]The action has timed out.'
 
 [[rule]]
 name = 'Faulty ROCM runner'
-pattern = '[^"]Error: .*[dD]etect.*GPUs on the runner'
+pattern = '^Error: .*[dD]etect.*GPUs on the runner'
 
 [[rule]]
 name = 'GHA cancellation'
