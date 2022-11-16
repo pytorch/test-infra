@@ -30,11 +30,12 @@ WITH flaky_tests AS (
         INNER JOIN commons.test_run_s3 test_run ON test_run.job_id = job.id HINT(join_strategy = lookup)
         INNER JOIN commons.workflow_run workflow ON job.run_id = workflow.id
     WHERE
-        test_run.skipped.message LIKE '{"flaky": True%'
+        test_run.skipped.message LIKE '{%"flaky": _rue%'
         AND test_run._event_time > (CURRENT_TIMESTAMP() - HOURs(:numHours))
         AND test_run.name LIKE :name
         AND test_run.classname LIKE :suite
         AND test_run.file LIKE :file
+        AND job.name not like '%rerun_disabled_tests%'
     GROUP BY
         name,
         suite,
@@ -69,6 +70,7 @@ WITH flaky_tests AS (
         AND test_run.name LIKE :name
         AND test_run.classname LIKE :suite
         AND test_run.file LIKE :file
+        AND job.name not like '%rerun_disabled_tests%'
     GROUP BY
         name,
         suite,
