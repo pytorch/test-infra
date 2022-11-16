@@ -29,6 +29,10 @@ name = 'GHA timeout'
 pattern = '^##\[error\]The action has timed out.'
 
 [[rule]]
+name = 'Faulty ROCM runner'
+pattern = 'Error: .*[dD]etect.*GPUs on the runner'
+
+[[rule]]
 name = 'GHA cancellation'
 pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
 
