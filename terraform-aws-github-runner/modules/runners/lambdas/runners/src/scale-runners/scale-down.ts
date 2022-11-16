@@ -213,6 +213,7 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
           `listGithubRunnersOrg call: ${e}`,
       );
+      /* istanbul ignore next */
       if (isRateLimitError(e)) {
         throw e;
       }
@@ -239,6 +240,7 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
     ghRunner = ghRunners.find((runner) => runner.name === ec2runner.instanceId);
   } catch (e) {
     console.warn('Failed to list active gh runners', e);
+    /* istanbul ignore next */
     if (isRateLimitError(e)) {
       throw e;
     }
@@ -255,6 +257,7 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
       console.warn(
         `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
       );
+      /* istanbul ignore next */
       if (isRateLimitError(e)) {
         throw e;
       }
