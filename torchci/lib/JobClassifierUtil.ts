@@ -5,7 +5,12 @@ export const groups = [
   {
     regex: /^(?!periodic)(?!inductor).*mem_leak_check/,
     name: "Memory Leak Check",
-    persistant: true,
+    persistent: true,
+  },
+  {
+    regex: /^(?!periodic)(?!inductor).*rerun_disabled_tests/,
+    name: "Rerun Disabled Tests",
+    persistent: true,
   },
   {
     regex: /Lint/,
