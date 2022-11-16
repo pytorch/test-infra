@@ -735,22 +735,32 @@ export class ScaleUpMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
-  runnersRepoCreate(repo: Repo, runnerType: string) {
-    const dimensions = this.getRepoDim(repo);
+  runnersRepoCreate(repo: Repo, runnerType: string, awsRegion: string) {
+    let dimensions = this.getRepoDim(repo);
     this.countEntry('run.runners.perRepo.create.total', 1, dimensions);
     this.countEntry('run.runners.perRepo.create.success', 1, dimensions);
 
+    dimensions.set('Region', awsRegion);
+    this.countEntry('run.runners.perRepo.perRegion.create.total', 1, dimensions);
+    this.countEntry('run.runners.perRepo.perRegion.create.success', 1, dimensions);
+
+    dimensions = this.getRepoDim(repo);
     dimensions.set('RunnerType', runnerType);
     this.countEntry('run.runners.perRepo.perRunnerType.create.total', 1, dimensions);
     this.countEntry('run.runners.perRepo.perRunnerType.create.success', 1, dimensions);
   }
 
   /* istanbul ignore next */
-  runnersOrgCreate(org: string, runnerType: string) {
-    const dimensions = new Map([['Org', org]]);
+  runnersOrgCreate(org: string, runnerType: string, awsRegion: string) {
+    let dimensions = new Map([['Org', org]]);
     this.countEntry('run.runners.perOrg.create.total', 1, dimensions);
     this.countEntry('run.runners.perOrg.create.success', 1, dimensions);
 
+    dimensions.set('Region', awsRegion);
+    this.countEntry('run.runners.perOrg.perRegion.create.total', 1, dimensions);
+    this.countEntry('run.runners.perOrg.perRegion.create.success', 1, dimensions);
+
+    dimensions = new Map([['Org', org]]);
     dimensions.set('RunnerType', runnerType);
     this.countEntry('run.runners.perOrg.perRunnerType.create.total', 1, dimensions);
     this.countEntry('run.runners.perOrg.perRunnerType.create.success', 1, dimensions);

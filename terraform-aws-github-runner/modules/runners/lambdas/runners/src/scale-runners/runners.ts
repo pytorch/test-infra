@@ -13,7 +13,7 @@ export interface ListRunnerFilters {
 }
 
 export interface RunnerInputParameters {
-  runnerConfig: string;
+  runnerConfig: (awsRegion: string) => Promise<string>;
   environment: string;
   repoName?: string;
   orgName?: string;
@@ -167,20 +167,22 @@ async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegi
         },
       );
     });
+    console.info(`[${awsRegion}] Parameter deleted: ${paramName}`);
   } catch (e) {
+    /* istanbul ignore next */
     console.error(
       `[terminateRunner - SSM.deleteParameter] [${awsRegion}] Failed ` + `deleting parameter ${paramName}: ${e}`,
     );
   }
 }
 
-export async function terminateRunner(runner: RunnerInfo, metrics: Metrics, awsRegion: string): Promise<void> {
+export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
-    const ec2 = new EC2({ region: awsRegion });
+    const ec2 = new EC2({ region: runner.awsRegion });
 
     await expBackOff(() => {
       return metrics.trackRequestRegion(
-        awsRegion,
+        runner.awsRegion,
         metrics.ec2TerminateInstancesAWSCallSuccess,
         metrics.ec2TerminateInstancesAWSCallFailure,
         () => {
@@ -191,31 +193,31 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics, awsR
     console.info(`Runner terminated: ${runner.instanceId} ${runner.runnerType}`);
 
     const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
-    const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${awsRegion}`;
+    const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${runner.awsRegion}`;
 
     if (ssmParametersCache.has(cacheName)) {
-      doDeleteSSMParameter(paramName, metrics, awsRegion);
+      doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
     } else {
       try {
-        const params = await listSSMParameters(metrics, awsRegion);
+        const params = await listSSMParameters(metrics, runner.awsRegion);
 
         if (params.has(paramName)) {
-          doDeleteSSMParameter(paramName, metrics, awsRegion);
-          console.info(`[${awsRegion}] Parameter deleted: ${paramName}`);
+          doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
         } else {
           /* istanbul ignore next */
-          console.info(`[${awsRegion}] Parameter "${paramName}" not found in SSM, no need to delete it`);
+          console.info(`[${runner.awsRegion}] Parameter "${paramName}" not found in SSM, no need to delete it`);
         }
       } catch (e) {
         ssmParametersCache.set(cacheName, 1, 60 * 1000);
         console.error(
-          `[terminateRunner - listSSMParameters] [${awsRegion}] ` +
+          `[terminateRunner - listSSMParameters] [${runner.awsRegion}] ` +
             `Failed to list parameters or check if available: ${e}`,
         );
+        doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
       }
     }
   } catch (e) {
-    console.error(`[${awsRegion}] [terminateRunner]: ${e}`);
+    console.error(`[${runner.awsRegion}] [terminateRunner]: ${e}`);
     throw e;
   }
 }
@@ -227,10 +229,15 @@ async function addSSMParameterRunnerConfig(
   metrics: Metrics,
   awsRegion: string,
 ): Promise<void> {
+  /* istanbul ignore next */
+  if (instances.length == 0) {
+    console.debug(`[${awsRegion}] No SSM parameter to be created, empty list of instances`);
+    return;
+  }
+  const runnerConfig = await runnerParameters.runnerConfig(awsRegion);
   const createdSSMParams = await Promise.all(
     /* istanbul ignore next */
     instances.map(async (i: EC2.Instance) => {
-      // i.
       const parameterName = getParameterNameForRunner(runnerParameters.environment, i.InstanceId as string);
       return await expBackOff(() => {
         return metrics.trackRequestRegion(
@@ -241,7 +248,7 @@ async function addSSMParameterRunnerConfig(
             await ssm
               .putParameter({
                 Name: parameterName,
-                Value: runnerParameters.runnerConfig,
+                Value: runnerConfig,
                 Type: 'SecureString',
               })
               .promise();
@@ -288,12 +295,14 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       });
     }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
+    const errors: Array<[string, unknown]> = [];
 
-    for (const awsRegion of Config.Instance.shuffledAwsRegionInstances) {
+    const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
+    for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
       const ec2 = new EC2({ region: awsRegion });
       const ssm = new SSM({ region: awsRegion });
       const subnets = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion);
-      for (const [i, subnet] of subnets.entries()) {
+      for (const [subnetIdx, subnet] of subnets.entries()) {
         try {
           console.debug(`[${awsRegion}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
           const runInstancesResponse = await expBackOff(() => {
@@ -342,34 +351,65 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
             );
           });
 
-          if (runInstancesResponse.Instances) {
+          if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
             console.info(
               `Created instance(s) [${awsRegion}] [${runnerParameters.runnerType.runnerTypeName}]: `,
               runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
             );
             addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
-          }
 
-          // breaks
-          return awsRegion;
-        } catch (e) {
-          if (i == subnets.length - 1) {
-            console.error(
-              `[${subnets.length}] [${awsRegion}] Max retries exceeded creating instance ` +
-                `${runnerParameters.runnerType.instance_type}: ${e}`,
-            );
-            throw e;
+            // breaks
+            return awsRegion;
           } else {
-            console.warn(
-              `[${i}/${subnets.length}] [${awsRegion}] Issue creating instance ` +
-                `${runnerParameters.runnerType.instance_type}, ` +
-                `going to retry :${e}`,
-            );
+            const msg =
+              `[${awsRegion}] [${runnerParameters.runnerType.instance_type}] ` +
+              `[${runnerParameters.runnerType.runnerTypeName}] ec2.runInstances returned empty list of instaces ` +
+              `created, but exit without throwing any exception (?!?!?!)`;
+            errors.push([msg, undefined]);
+            console.warn(msg);
           }
+        } catch (e) {
+          const msg =
+            `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
+            `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
+            `${runnerParameters.runnerType.instance_type}: ${e}`;
+          errors.push([msg, e]);
+          console.warn(msg);
         }
       }
     }
-    throw Error('Should never get here, but this should silence false linting errors');
+    if (errors.length) {
+      const errsCount: Map<string, number> = new Map();
+      /* istanbul ignore next */
+      errors.forEach((err) => {
+        let key = 'undefined';
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          key = (err[1] as any).constructor.name;
+        } catch (e) {
+          try {
+            key = typeof err[1];
+          } catch (e) {
+            console.debug(`could not get a type for ${err[1]}`);
+          }
+        }
+        errsCount.set(key, (errsCount.get(key) ?? 0) + 1);
+      });
+      let excSumm = '';
+      errsCount.forEach((count, excep) => {
+        excSumm += ` "${excep}": ${count},`;
+      });
+      throw new Error(
+        `[${runnerParameters.runnerType.instance_type}] Giving up creating instance, all regions, ` +
+          `availability zones and subnets failed. Total exceptions: ${errors.length}; Exceptions count:${excSumm}`,
+      );
+    } else {
+      /* istanbul ignore next */
+      throw new Error(
+        `[${runnerParameters.runnerType.instance_type}] Failed to runInstances without any exception captured! ` +
+          `Check AWS_REGION_INSTANCES and SUBNET_IDS environment variables!`,
+      );
+    }
   } catch (e) {
     console.error(`[createRunner]: ${e}`);
     throw e;

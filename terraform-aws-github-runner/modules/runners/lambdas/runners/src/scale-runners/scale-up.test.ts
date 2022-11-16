@@ -27,8 +27,9 @@ beforeEach(() => {
 });
 
 const baseCfg = {
-  mustHaveIssuesLabels: [],
+  awsRegion: 'us-east-1',
   cantHaveIssuesLabels: [],
+  mustHaveIssuesLabels: [],
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpMetrics();
@@ -263,23 +264,26 @@ describe('scaleUp', () => {
     await scaleUp('aws:sqs', payload);
 
     expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner, metrics);
-    expect(mockedCreateRegistrationTokenForOrg).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForOrg).toBeCalledWith(repo.owner, metrics, 2);
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        runnerConfig:
-          `--url ${config.ghesUrlHost}/owner --token ${token} ` +
-          `--labels linux.2xlarge,extra-label  --runnergroup group_one`,
+        runnerConfig: expect.any(Function),
         orgName: repo.owner,
         runnerType: runnerType1,
       },
       metrics,
     );
+
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+      `--url ${config.ghesUrlHost}/owner --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `extra-label  --runnergroup group_one`,
+    );
+    expect(mockedCreateRegistrationTokenForOrg).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForOrg).toBeCalledWith(repo.owner, metrics, 2);
   });
 
-  it('don`t have sufficient runners', async () => {
+  it('don`t have sufficient runners', async (): Promise<void> => {
     const config = {
       ...baseCfg,
       environment: 'config.environ',
@@ -342,18 +346,23 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload);
 
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
       },
       metrics,
     );
+
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `extra-label `,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 2);
   });
 
   it('runners are offline', async () => {
@@ -419,18 +428,23 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload);
 
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 0);
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
       },
       metrics,
     );
+
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `extra-label `,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, 0);
   });
 
   it('runners are busy', async () => {
@@ -496,18 +510,23 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload);
 
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
-    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, undefined);
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge,extra-label `,
+        runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
       },
       metrics,
     );
+
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge,` +
+        `extra-label `,
+    );
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledTimes(1);
+    expect(mockedCreateRegistrationTokenForRepo).toBeCalledWith(repo, metrics, undefined);
   });
 
   it('max runners reached', async () => {
@@ -610,65 +629,17 @@ describe('scaleUp', () => {
       {
         environment: config.environment,
         // eslint-disable-next-line max-len
-        runnerConfig: `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels linux.2xlarge --ephemeral`,
+        runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
       },
       metrics,
     );
-  });
 
-  it('fails to createRegistrationTokenRepo', async () => {
-    const config = {
-      ...baseCfg,
-      mustHaveIssuesLabels: ['label_01', 'label_02'],
-      environment: 'config.environ',
-      ghesUrlHost: 'https://github.com',
-      minAvailableRunners: 10,
-    };
-    const payload = {
-      id: 10,
-      eventType: 'event',
-      repositoryName: 'repo',
-      repositoryOwner: 'owner',
-      installationId: 2,
-    };
-    const runnerType1 = {
-      instance_type: 'instance_type',
-      os: 'os',
-      max_available: 10,
-      disk_size: 113,
-      runnerTypeName: 'linux.2xlarge',
-      is_ephemeral: false,
-    };
-
-    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
-      {
-        id: 3,
-        name: 'name-01',
-        os: 'linux',
-        status: 'busy',
-        busy: true,
-        labels: [
-          {
-            id: 113,
-            name: 'linux.2xlarge',
-            type: 'read-only',
-          },
-        ],
-      },
-    ]);
-    mocked(createRegistrationTokenRepo).mockRejectedValue(Error('Does not work'));
-    const mockedCreateRunner = mocked(createRunner);
-    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
-    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
-    mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 2 }] as unknown as GhIssues);
-
-    await scaleUp('aws:sqs', payload);
-
-    expect(mockedCreateRunner).not.toBeCalled();
+    expect(await mockedCreateRunner.mock.calls[0][0].runnerConfig(config.awsRegion)).toEqual(
+      `--url ${config.ghesUrlHost}/owner/repo --token ${token} --labels AWS:${config.awsRegion},linux.2xlarge` +
+        ` --ephemeral`,
+    );
   });
 
   it('dont have mustHaveIssuesLabels', async () => {

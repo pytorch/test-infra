@@ -77,6 +77,17 @@ describe('Config', () => {
       'SECURITY_GROUP_IDS2',
       'SECURITY_GROUP_IDS3',
     ]);
+    expect(Config.Instance.subnetIds.size).toEqual(3);
+    expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION');
+    expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION_INSTANCES_1');
+    expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION_INSTANCES_2');
+    expect(Config.Instance.subnetIds.get('AWS_REGION')?.size).toEqual(2);
+    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS1');
+    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS2');
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')?.size).toEqual(1);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')).toContain('SUBNET_IDS3');
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')?.size).toEqual(1);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')).toContain('SUBNET_IDS4');
     expect(Config.Instance.shuffledAwsRegionInstances.length).toEqual(3);
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION');
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION_INSTANCES_2');
@@ -88,17 +99,6 @@ describe('Config', () => {
     expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_1')).toContain('SUBNET_IDS3');
     expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_2').length).toEqual(1);
     expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_2')).toContain('SUBNET_IDS4');
-    expect(Config.Instance.subnetIds.size).toEqual(3);
-    expect(Config.Instance.subnetIds.keys).toContain('AWS_REGION');
-    expect(Config.Instance.subnetIds.keys).toContain('AWS_REGION_INSTANCES_1');
-    expect(Config.Instance.subnetIds.keys).toContain('AWS_REGION_INSTANCES_2');
-    expect(Config.Instance.subnetIds.get('AWS_REGION')?.length).toEqual(2);
-    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS1');
-    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS2');
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')?.length).toEqual(1);
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')).toContain('SUBNET_IDS3');
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')?.length).toEqual(1);
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')).toContain('SUBNET_IDS4');
     expect(Config.Instance.enableOrganizationRunners).toBeTruthy();
   });
 
