@@ -169,7 +169,7 @@ def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: st
     desired_cuda_pkg = f"{desired_cuda}_pypi_cudnn" if with_pypi else desired_cuda
     return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda_pkg)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str, with_py311: str) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = FULL_PYTHON_VERSIONS
@@ -215,7 +215,6 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
-    with_py311: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -238,6 +237,8 @@ def generate_libtorch_matrix(
         if os == "windows":
             abi_versions = [RELEASE, DEBUG]
         elif os == "linux":
+            abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
+        elif os == "macos":
             abi_versions = [PRE_CXX11_ABI, CXX11_ABI]
 
     if libtorch_variants is None:
@@ -349,7 +350,7 @@ def generate_wheels_matrix(
                         "desired_cuda": translate_desired_cuda(
                             gpu_arch_type, gpu_arch_version
                         ),
-                        "container_image": WHEEL_CONTAINER_IMAGES[arch_version],
+                        "container_image": mod.WHEEL_CONTAINER_IMAGES[arch_version],
                         "package_type": package_type,
                         "pytorch_extra_install_requirements":
                         "nvidia-cuda-runtime-cu11;"
@@ -391,7 +392,7 @@ GENERATING_FUNCTIONS_BY_PACKAGE_TYPE = {
     "libtorch": generate_libtorch_matrix,
 }
 
-def main() -> None:
+def main(args) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--package-type",
@@ -427,8 +428,15 @@ def main() -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_PY311", DISABLE),
     )
+    parser.add_argument(
+        "--with-pypi-cudnn",
+        help="Include PyPI cudnn builds",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("WITH_PYPI_CUDNN", DISABLE),
+    )
 
-    options = parser.parse_args()
+    options = parser.parse_args(args)
     includes = []
 
     package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
@@ -437,15 +445,23 @@ def main() -> None:
     for channel in channels:
         for package in package_types:
             initialize_globals(channel)
-            includes.extend(
-                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
-                                                              channel,
-                                                              options.with_cuda,
-                                                              options.with_py311)
-                )
+            if package == "wheel":
+                includes.extend(
+                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
+                                                                channel,
+                                                                options.with_cuda,
+                                                                options.with_py311,
+                                                                options.with_pypi_cudnn)
+                    )
+            else:
+                includes.extend(
+                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
+                                                                channel,
+                                                                options.with_cuda)
+                    )
 
 
     print(json.dumps({"include": includes}))
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
