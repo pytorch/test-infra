@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/flaky_tests_across_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "96"
+    }
+  ],
+  "description": ""
+}

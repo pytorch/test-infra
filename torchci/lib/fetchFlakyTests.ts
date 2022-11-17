@@ -41,3 +41,25 @@ export default async function fetchFlakyTests(
   );
   return flakyTestQuery.results ?? [];
 }
+
+
+export async function fetchFlakyTestsAcrossJobs(
+  numHours: string = "3",
+): Promise<FlakyTestData[]> {
+  const rocksetClient = getRocksetClient();
+  const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "flaky_tests_across_jobs",
+    rocksetVersions.commons.flaky_tests_across_jobs,
+    {
+      parameters: [
+        {
+          name: "numHours",
+          type: "int",
+          value: numHours,
+        },
+      ],
+    }
+  );
+  return flakyTestQuery.results ?? [];
+}

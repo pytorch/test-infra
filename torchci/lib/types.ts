@@ -86,13 +86,14 @@ export interface FlakyTestData {
   file: string;
   suite: string;
   name: string;
-  numGreen: number;
-  numRed: number;
+  numGreen?: number;
+  numRed?: number;
   workflowIds: string[];
   workflowNames: string[];
   jobIds: number[];
   jobNames: string[];
   branches: string[];
+  eventTimes?: string[];
 }
 
 export interface RecentWorkflowsData {

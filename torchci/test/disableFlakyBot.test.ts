@@ -1,6 +1,8 @@
 import nock from "nock";
 import * as utils from "./utils";
 import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
+import dayjs from "dayjs";
+import { handleScope } from "./common";
 
 nock.disableNetConnect();
 
@@ -59,6 +61,162 @@ const flakyTestE = {
   ],
   branches: ["pr-fix", "master", "master", "another-pr-fx"],
 };
+
+const flakyTestAcrossJobA = {
+  name: "test_conv1d_vs_scipy_mode_same_cuda_complex64",
+  suite: "TestConvolutionNNDeviceTypeCUDA",
+  file: "nn/test_convolution.py",
+  jobNames: [
+    "linux-focal-rocm5.2-py3.8 / test (default, 1, 2, linux.rocm.gpu)",
+    "linux-focal-rocm5.2-py3.8 / test (default, 1, 2, linux.rocm.gpu)",
+  ],
+  jobIds: [9489898216, 9486287115],
+  workflowIds: ["3466924095", "3465587581"],
+  workflowNames: ["trunk", "trunk"],
+  runAttempts: [1, 1],
+  eventTimes: ["2022-11-15T02:52:20.311000Z", "2022-11-14T22:30:34.492000Z"],
+  branches: ["master", "master"],
+};
+
+describe("Disable Flaky Test Bot Across Jobs", () => {
+  const octokit = utils.testOctokit();
+
+  beforeEach(() => {});
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test("Create new issue", async () => {
+    const scope = nock("https://raw.githubusercontent.com")
+      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .reply(
+        200,
+        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
+      );
+    const scope2 = nock("https://api.github.com")
+      .post("/repos/pytorch/pytorch/issues", (body) => {
+        expect(body.title).toEqual(
+          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)"
+        );
+        expect(body.labels).toEqual([
+          "skipped",
+          "module: flaky-tests",
+          "module: fft",
+          "triaged",
+        ]);
+        expect(JSON.stringify(body.body)).toContain("Platforms: ");
+        return true;
+      })
+      .reply(200, {});
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTestAcrossJobA, [], octokit);
+
+    handleScope(scope);
+    handleScope(scope2);
+  });
+
+  test("flaky test associated with an open issue should comment if recent", async () => {
+    let flakyTest = { ...flakyTestAcrossJobA };
+    flakyTest.eventTimes = [dayjs().subtract(1, "hour").toString()];
+    const scope = nock("https://api.github.com")
+      .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+        const comment = JSON.stringify(body.body);
+        expect(comment).toContain(
+          "Another case of trunk flakiness has been found"
+        );
+        expect(comment).toContain("Please verify");
+        return true;
+      })
+      .reply(200, {});
+
+    const issues = [
+      {
+        number: 1,
+        title:
+          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "open" as "open" | "closed",
+        body: "random",
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTest, issues, octokit);
+
+    handleScope(scope);
+  });
+
+  test("flaky test associated with an open issue should NOT comment if NOT recent", async () => {
+    let flakyTest = { ...flakyTestAcrossJobA };
+    flakyTest.eventTimes = [dayjs().subtract(5, "hour").toString()];
+
+    const issues = [
+      {
+        number: 1,
+        title:
+          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "open" as "open" | "closed",
+        body: "random",
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTest, issues, octokit);
+  });
+
+  test("flaky test associated with a closed issue should reopen issue and comment if recent", async () => {
+    let flakyTest = { ...flakyTestAcrossJobA };
+    flakyTest.eventTimes = [dayjs().subtract(1, "hour").toString()];
+    const scope = nock("https://api.github.com")
+      .patch("/repos/pytorch/pytorch/issues/1", (body) => {
+        expect(body).toMatchObject({ state: "open" });
+        return true;
+      })
+      .reply(200, {})
+      .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+        const comment = JSON.stringify(body.body);
+        expect(comment).toContain(
+          "Another case of trunk flakiness has been found"
+        );
+        expect(comment).toContain("Reopening");
+        return true;
+      })
+      .reply(200, {});
+
+    const issues = [
+      {
+        number: 1,
+        title:
+          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "closed" as "open" | "closed",
+        body: "random",
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTest, issues, octokit);
+
+    handleScope(scope);
+  });
+
+  test("flaky test associated with a closed issue should NOT reopen issue and comment if NOT recent", async () => {
+    let flakyTest = { ...flakyTestAcrossJobA };
+    flakyTest.eventTimes = [dayjs().subtract(5, "hour").toString()];
+
+    const issues = [
+      {
+        number: 1,
+        title:
+          "DISABLED test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "closed" as "open" | "closed",
+        body: "random",
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTest, issues, octokit);
+  });
+});
 
 describe("Disable Flaky Test Bot Integration Tests", () => {
   const octokit = utils.testOctokit();
@@ -145,7 +303,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
-        body: "random"
+        body: "random",
       },
     ];
 
@@ -180,7 +338,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         title: "DISABLED test_a (__main__.suite_a)",
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
-        body: "random"
+        body: "random",
       },
     ];
 
@@ -409,7 +567,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
   test("getPlatformsAffected: should correctly triage rocm without linux", async () => {
     const workflowJobs = ["pull / whatever-rocm-linux / build"];
     expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "rocm"
+      "rocm",
     ]);
   });
 
