@@ -197,5 +197,9 @@ name = 'conda failure'
 pattern = 'An unexpected error has occurred. Conda has prepared the above report.'
 
 [[rule]]
+name = 'Docker error'
+pattern = '^docker: Error.*'
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
