@@ -1,8 +1,6 @@
 import pathlib
 import re
 
-import pytest
-
 import api.git
 
 from testing import git
@@ -65,14 +63,3 @@ def test_custom_commit_id(git_repo: api.git.Repository) -> None:
     commit_info = git_repo.get_commit_info(commit_id='HEAD~')
 
     assert git_repo.get_contents(file, commit_id=commit_info.hash) == 'contents\n'
-
-
-@pytest.fixture
-def git_repo(tmp_path: pathlib.Path) -> api.git.Repository:
-    """pytest fixture providing an empty initialized git repository."""
-    repo = api.git.Repository(tmp_path)
-    repo.run(['init'], check=True)
-    # Set the user for this repository only.
-    repo.run(['config', 'user.email', 'user@mcuserface.test'], check=True)
-    repo.run(['config', 'user.name', 'User McUserface'], check=True)
-    return repo
