@@ -1,8 +1,12 @@
 import pathlib
+import textwrap
 from typing import Any
+
+import pytest
 
 import api.compatibility
 
+from testing import git
 from testing import source
 
 
@@ -328,3 +332,52 @@ def test_ignores_internal_class(tmp_path: pathlib.Path) -> None:
     # _Class was deleted but it's not a violation because it's
     # internal.
     assert api.compatibility.check(before, after) == []
+
+
+@pytest.mark.parametrize(
+    'path',
+    [
+        'python.cpp',
+        '_internal/module.py',
+        '_module.py',
+        'test/module.py',
+        'test_module.py',
+        'module_test.py',
+    ],
+)
+def test_check_commit_skips(path: str, git_repo: api.git.Repository) -> None:
+    git.commit_file(
+        git_repo,
+        pathlib.Path(path),
+        textwrap.dedent(
+            '''
+            def will_be_deleted():
+              pass
+            '''
+        ),
+    )
+    git.commit_file(git_repo, pathlib.Path(path), '')
+    violations, _ = api.compatibility.check_commit(git_repo, 'HEAD')
+    assert violations == {}
+
+
+def test_check_commit(git_repo: api.git.Repository) -> None:
+    git.commit_file(
+        git_repo,
+        pathlib.Path('module.py'),
+        textwrap.dedent(
+            '''
+            def will_be_deleted():
+              pass
+            '''
+        ),
+    )
+    git.commit_file(git_repo, pathlib.Path('module.py'), '')
+
+    violations, _ = api.compatibility.check_commit(git_repo, 'HEAD')
+
+    assert violations == {
+        pathlib.Path('module.py'): [
+            api.compatibility.Violation('will_be_deleted', 'function deleted')
+        ],
+    }
