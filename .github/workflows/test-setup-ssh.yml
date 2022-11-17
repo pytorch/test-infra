@@ -1,0 +1,62 @@
+name: Test setup ssh
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-setup-ssh.yml
+      - .github/actions/setup-ssh/action.yml
+      - .github/actions/setup-ssh/index.js
+      - setup-ssh/
+  workflow_dispatch:
+
+jobs:
+  build: # make sure build/ci work properly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          cd setup-ssh
+          yarn install
+      - run: |
+          cd setup-ssh
+          yarn run all
+  test-linux: # make sure the action works on a clean machine without building
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup-ssh
+        name: Check if can write keys
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+      - uses: ./.github/actions/setup-ssh
+        name: Check if can overwrite keys
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+      - name: Check SSH key is there
+        if: (github.event_name == 'pull_request')
+        run: |
+          test -e ~/.ssh/authorized_keys
+          # Check that file contents match, strip trailing newline from curl call
+          diff \
+            <(curl -fsSL "https://github.com/${{ github.actor}}.keys" | sed -z '$ s/\n$//') \
+            ~/.ssh/authorized_keys
+      - name: Check SSH key is not there
+        if: (github.event_name == 'push')
+        run: |
+          # Check that file does not exist for push
+          test -e ~/.ssh/authorized_keys || exit 0
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/setup-ssh
+        name: Check if can write keys
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+      - uses: ./.github/actions/setup-ssh
+        name: Check if can overwrite keys
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
