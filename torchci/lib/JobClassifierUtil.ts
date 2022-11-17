@@ -8,7 +8,7 @@ export const groups = [
     persistent: true,
   },
   {
-    regex: /^(?!periodic)(?!inductor).*rerun_disabled_tests/,
+    regex: /rerun_disabled_tests/,
     name: "Rerun Disabled Tests",
     persistent: true,
   },
@@ -17,11 +17,23 @@ export const groups = [
     name: "Lint Jobs",
   },
   {
+    regex: /inductor/,
+    name: "Inductor",
+  },
+  {
     regex: /android/,
     name: "Android",
   },
   {
-    regex: /\slinux-/,
+    regex: /rocm/,
+    name: "ROCm",
+  },
+  {
+    regex: /-xla/,
+    name: "XLA",
+  },
+  {
+    regex: /(\slinux-|sm86)/,
     name: "Linux",
   },
   {
@@ -31,10 +43,6 @@ export const groups = [
   {
     regex: /windows-binary/,
     name: "Binary Windows",
-  },
-  {
-    regex: /pytorch-xla/,
-    name: "XLA",
   },
   {
     regex:
@@ -63,7 +71,7 @@ export const groups = [
     name: "ci/circleci: pytorch_ios",
   },
   {
-    regex: /\sios-/,
+    regex: /ios-/,
     name: "iOS",
   },
   {
@@ -78,10 +86,6 @@ export const groups = [
   {
     regex: /(docs push)|(docs build)/,
     name: "Docs",
-  },
-  {
-    regex: /(pytorch-linux-bionic-rocm)|(pytorch_linux_bionic_rocm)/,
-    name: "ROCm",
   },
   {
     regex: /libtorch/,
