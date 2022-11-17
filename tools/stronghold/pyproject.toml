@@ -11,5 +11,6 @@ addopts = [
 ]
 
 pythonpath = [
-    "src",  # allow importing from the src/ directory by default
+    "src",         # allow importing from the src/ directory by default
+    "tests/lib/",  # allow imports from tests/lib/ directory by default
 ]

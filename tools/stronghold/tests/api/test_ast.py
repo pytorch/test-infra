@@ -1,20 +1,18 @@
 """Tests the api.ast module."""
 
-import inspect
 import pathlib
-import tempfile
-import textwrap
-from typing import Any
 
 import api
 import api.ast
+
+from testing import source
 
 
 def test_extract_empty(tmp_path: pathlib.Path) -> None:
     def func() -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[], variadic_args=False, variadic_kwargs=False
@@ -26,7 +24,7 @@ def test_extract_positional(tmp_path: pathlib.Path) -> None:
     def func(x: int, /) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -42,7 +40,7 @@ def test_extract_positional_with_default(tmp_path: pathlib.Path) -> None:
     def func(x: int = 0, /) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -58,7 +56,7 @@ def test_extract_flexible(tmp_path: pathlib.Path) -> None:
     def func(x: int) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -74,7 +72,7 @@ def test_extract_flexible_with_default(tmp_path: pathlib.Path) -> None:
     def func(x: int = 0) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -90,7 +88,7 @@ def test_extract_keyword(tmp_path: pathlib.Path) -> None:
     def func(*, x: int) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -106,7 +104,7 @@ def test_extract_keyword_with_default(tmp_path: pathlib.Path) -> None:
     def func(*, x: int = 0) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
             parameters=[
@@ -122,7 +120,7 @@ def test_extract_variadic_args(tmp_path: pathlib.Path) -> None:
     def func(*args: int) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(parameters=[], variadic_args=True, variadic_kwargs=False)
     }
@@ -132,7 +130,7 @@ def test_extract_variadic_kwargs(tmp_path: pathlib.Path) -> None:
     def func(**kwargs: int) -> None:
         pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, func))
+    funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(parameters=[], variadic_args=False, variadic_kwargs=True)
     }
@@ -143,7 +141,7 @@ def test_extract_class_method(tmp_path: pathlib.Path) -> None:
         def func(self, /) -> None:
             pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, Class))
+    funcs = api.ast.extract(source.make_file(tmp_path, Class))
     assert funcs == {
         'Class.func': api.Parameters(
             parameters=[
@@ -167,7 +165,7 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
         ) -> None:
             pass  # pragma: no cover
 
-    funcs = api.ast.extract(_to_source_file(tmp_path, Class))
+    funcs = api.ast.extract(source.make_file(tmp_path, Class))
     assert funcs == {
         'Class.func': api.Parameters(
             parameters=[
@@ -200,10 +198,3 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
             variadic_kwargs=True,
         )
     }
-
-
-def _to_source_file(tmp_path: pathlib.Path, object: Any) -> pathlib.Path:
-    """Takes source and writes it into a temporary file, returning the path."""
-    path = pathlib.Path(tempfile.mkstemp(dir=tmp_path)[1])
-    path.write_text(textwrap.dedent(inspect.getsource(object)))
-    return path
