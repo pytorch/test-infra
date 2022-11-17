@@ -19,7 +19,7 @@ function retryBot(app: Probot): void {
       ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
-        allwedWorkflow => !workflowName.toLowerCase().includes(allwedWorkflow)
+        allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
       )
     ) {
       return;
