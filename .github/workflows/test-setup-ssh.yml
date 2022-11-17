@@ -26,12 +26,12 @@ jobs:
       - uses: ./.github/actions/setup-ssh
         name: Check if can write keys
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
       - uses: ./.github/actions/setup-ssh
         name: Check if can overwrite keys
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
       - name: Check SSH key is there
         if: (github.event_name == 'pull_request')
@@ -53,10 +53,10 @@ jobs:
       - uses: ./.github/actions/setup-ssh
         name: Check if can write keys
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
       - uses: ./.github/actions/setup-ssh
         name: Check if can overwrite keys
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false

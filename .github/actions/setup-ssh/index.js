@@ -12716,24 +12716,21 @@ var source_map_support = __nccwpck_require__(9249);
 (0,source_map_support.install)();
 async function getGithubKeys(octokit, actor) {
     const keys = await octokit.users.listPublicKeysForUser({
-        username: actor,
+        username: actor
     });
     if (keys.data.length === 0) {
-        return "";
+        return '';
     }
-    return keys.data.map((e) => e.key).join("\n");
+    return keys.data.map(e => e.key).join('\n');
 }
 async function writeAuthorizedKeys(homedir, keys, removeExistingKeys) {
-    const authorizedKeysPath = external_path_default().resolve(external_path_default().join(homedir, ".ssh", "authorized_keys"));
+    const authorizedKeysPath = external_path_default().resolve(external_path_default().join(homedir, '.ssh', 'authorized_keys'));
     if (external_fs_default().existsSync(authorizedKeysPath) && removeExistingKeys) {
-        core.info("~/.ssh/authorized_keys file found on node, removing ~/.ssh and starting fresh");
+        core.info('~/.ssh/authorized_keys file found on node, removing ~/.ssh and starting fresh');
         external_fs_default().rmdirSync(external_path_default().dirname(authorizedKeysPath), { recursive: true });
     }
-    external_fs_default().mkdirSync(external_path_default().dirname(authorizedKeysPath), {
-        recursive: true,
-        mode: 0o700,
-    });
-    external_fs_default().writeFileSync(authorizedKeysPath, keys, { mode: 0o400, flag: "w" });
+    external_fs_default().mkdirSync(external_path_default().dirname(authorizedKeysPath), { recursive: true, mode: 0o700 });
+    external_fs_default().writeFileSync(authorizedKeysPath, keys, { mode: 0o400, flag: 'w' });
     return authorizedKeysPath;
 }
 
@@ -12744,18 +12741,18 @@ var http_client = __nccwpck_require__(9925);
 async function getIPs() {
     var _a, _b;
     const maxRetries = 10;
-    const http = new http_client.HttpClient("seemethere/add-github-ssh-key", undefined, {
+    const http = new http_client.HttpClient('seemethere/add-github-ssh-key', undefined, {
         allowRetries: true,
-        maxRetries,
+        maxRetries
     });
-    const ipv4 = await http.getJson("https://api.ipify.org?format=json");
-    const ipv6 = await http.getJson("https://api64.ipify.org?format=json");
+    const ipv4 = await http.getJson('https://api.ipify.org?format=json');
+    const ipv6 = await http.getJson('https://api64.ipify.org?format=json');
     if (ipv4.result === undefined || ipv6.result === undefined) {
         throw Error(`Unable to grab ip addresses for runner see, ipv4 status: "${ipv4.statusCode}", ipv6 status: "${ipv6.statusCode}"`);
     }
     return {
         ipv4: (_a = ipv4.result) === null || _a === void 0 ? void 0 : _a.ip,
-        ipv6: (_b = ipv6.result) === null || _b === void 0 ? void 0 : _b.ip,
+        ipv6: (_b = ipv6.result) === null || _b === void 0 ? void 0 : _b.ip
     };
 }
 
@@ -12769,14 +12766,14 @@ async function getPRAuthor(octokit, prNumber) {
     const prInfo = await octokit.pulls.get({
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
-        pull_number: prNumber,
+        pull_number: prNumber
     });
     return (_a = prInfo.data.user) === null || _a === void 0 ? void 0 : _a.login;
 }
 function extractCiFlowPrNumber(reference) {
-    if (reference.includes("ciflow")) {
-        core.info("ciflow reference detected, attempting to extract PR number");
-        return Number(reference.split("/").pop());
+    if (reference.includes('ciflow')) {
+        core.info('ciflow reference detected, attempting to extract PR number');
+        return Number(reference.split('/').pop());
     }
     return NaN;
 }
@@ -12785,13 +12782,13 @@ function extractCiFlowPrNumber(reference) {
 
 async function getEC2Metadata(category) {
     const maxRetries = 10;
-    const http = new http_client.HttpClient("seemethere/add-github-ssh-key", undefined, {
+    const http = new http_client.HttpClient('seemethere/add-github-ssh-key', undefined, {
         allowRetries: true,
-        maxRetries,
+        maxRetries
     });
     const resp = await http.get(`http://169.254.169.254/latest/meta-data/${category}`);
     if (resp.message.statusCode !== 200) {
-        return "";
+        return '';
     }
     return resp.readBody();
 }
@@ -12812,17 +12809,17 @@ var dist_node = __nccwpck_require__(5375);
 async function run() {
     var _a;
     try {
-        const activateWithLabel = core.getBooleanInput("activate-with-label");
-        const sshLabel = core.getInput("label");
-        const github_token = core.getInput("GITHUB_TOKEN");
-        const removeExistingKeys = core.getBooleanInput("remove-existing-keys");
+        const activateWithLabel = core.getBooleanInput('activate-with-label');
+        const sshLabel = core.getInput('label');
+        const github_token = core.getInput('github-secret');
+        const removeExistingKeys = core.getBooleanInput('remove-existing-keys');
         let prNumber = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number;
-        if (github.context.eventName !== "pull_request") {
+        if (github.context.eventName !== 'pull_request') {
             prNumber = extractCiFlowPrNumber(github.context.ref);
             // Only bump out on pull request events if no pull request number could be derived
             if (isNaN(prNumber)) {
                 // Attempt to derive prNumber from ciflow
-                core.info("Not on pull request and ciflow reference could not be extracted, skipping adding ssh keys");
+                core.info('Not on pull request and ciflow reference could not be extracted, skipping adding ssh keys');
                 return;
             }
         }
@@ -12831,7 +12828,7 @@ async function run() {
             const labels = await octokit.issues.listLabelsOnIssue({
                 owner: github.context.repo.owner,
                 repo: github.context.repo.repo,
-                issue_number: prNumber,
+                issue_number: prNumber
             });
             let sshLabelSet = false;
             for (const label of labels.data) {
@@ -12848,18 +12845,18 @@ async function run() {
         // attempt the pull request author afterwards
         for (const actor of [
             github.context.actor,
-            await getPRAuthor(octokit, prNumber),
+            await getPRAuthor(octokit, prNumber)
         ]) {
             core.info(`Grabbing public ssh keys from https://github.com/${actor}.keys`);
             const keys = await getGithubKeys(octokit, actor);
-            if (keys === "") {
+            if (keys === '') {
                 core.info(`No SSH keys found for user ${actor}`);
                 continue;
             }
             const authorizedKeysPath = await writeAuthorizedKeys(external_os_default().homedir(), keys, removeExistingKeys);
             core.info(`Public keys pulled and installed to ${authorizedKeysPath}`);
-            let hostname = await getEC2Metadata("public-hostname");
-            if (hostname === "") {
+            let hostname = await getEC2Metadata('public-hostname');
+            if (hostname === '') {
                 hostname = (await getIPs()).ipv4;
             }
             core.info(`Login using: ssh ${external_os_default().userInfo().username}@${hostname}`);

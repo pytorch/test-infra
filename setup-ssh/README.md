@@ -9,7 +9,7 @@ Github Actions runners without having to go through the work of adding the keys 
 - name: Enable SSH (Click me for details)
   uses: seemethere/add-github-ssh-key@v1.0.0
   with:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    github-secret: ${{ secrets.GITHUB_TOKEN }}
     activate-with-label: true
     label: with-ssh
 - name: Hold runner for 30 minutes or until ssh sessions have drained

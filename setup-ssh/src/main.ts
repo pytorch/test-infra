@@ -18,7 +18,7 @@ async function run(): Promise<void> {
       'activate-with-label'
     )
     const sshLabel: string = core.getInput('label')
-    const github_token: string = core.getInput('GITHUB_TOKEN')
+    const github_token: string = core.getInput('github-secret')
     const removeExistingKeys: boolean = core.getBooleanInput(
       'remove-existing-keys'
     )
