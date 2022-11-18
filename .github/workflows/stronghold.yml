@@ -16,7 +16,6 @@ jobs:
   api-compatibility-check:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:
-      ref: ${{ github.event.pull_request.head.sha }}
       script: |
         cd tools/stronghold/
         bin/build-check-api-compatibility
