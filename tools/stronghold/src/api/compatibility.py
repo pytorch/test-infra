@@ -13,8 +13,54 @@ import api.ast
 import api.git
 
 
+def check_range(
+    repo: api.git.Repository, *, head: str, base: str
+) -> Mapping[pathlib.Path, Sequence[Violation]]:
+    result = {}
+    for file in repo.get_files_in_range(f'{base}..{head}'):
+        # Someday, we'll want to customize the filters we use to
+        # ignore files.
+        if file.suffix != '.py':
+            # Only consider Python files.
+            continue
+        if any(dir.name.startswith('_') for dir in file.parents):
+            # Ignore any internal packages.
+            continue
+        if file.name.startswith('_'):
+            # Ignore internal modules.
+            continue
+        if any(dir.name.startswith('test') for dir in file.parents):
+            # Ignore test packages.
+            continue
+        if file.name.startswith('test_') or file.stem.endswith('_test'):
+            # Ignore test files.
+            continue
+
+        # Get the contents before and after the diff.
+        #
+        # Note that if the file doesn't exist, it is equivalent to it
+        # being empty.
+        after = repo.get_contents(file, commit_id=head) or ''
+        before = repo.get_contents(file, commit_id=base) or ''
+
+        with (
+            tempfile.NamedTemporaryFile() as before_file,
+            tempfile.NamedTemporaryFile() as after_file,
+        ):
+            before_path = pathlib.Path(before_file.name)
+            after_path = pathlib.Path(after_file.name)
+            before_path.write_text(before)
+            after_path.write_text(after)
+
+            violations = api.compatibility.check(before_path, after_path)
+            if len(violations) > 0:
+                result[file] = violations
+
+    return result
+
+
 def check_commit(
-    repo: api.git.Repository, commit_id: str
+    repo: api.git.Repository, commit_id: str, bleh: int
 ) -> tuple[Mapping[pathlib.Path, Sequence[Violation]], str]:
     """Runs the check on the given commit."""
     commit_info = repo.get_commit_info(commit_id=commit_id)
