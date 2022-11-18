@@ -14,7 +14,7 @@ on:
 
 jobs:
   api-compatibility-check:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@${{ github.event.pull_request.head.sha }}
+    uses: ./linux_job.yml
     with:
       ref: ${{ github.event.pull_request.head.sha }}
       script: |
