@@ -779,13 +779,6 @@
       "linux"
     ]
   ],
-  "test_conv1d_vs_scipy_mode_same_cuda_complex64 (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "89087",
-    "https://github.com/pytorch/pytorch/issues/89087",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
