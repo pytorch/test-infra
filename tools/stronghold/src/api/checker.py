@@ -1,6 +1,7 @@
 """Runs the API backward compatibility on the head commit."""
 
 import argparse
+import os
 import pathlib
 import sys
 
@@ -13,4 +14,9 @@ def run() -> None:
     parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
-    api.compatibility.check_commit(repo, commit_id='HEAD')
+    import pprint
+
+    pprint.pp(os.environ)
+    api.compatibility.check_range(
+        repo, head=os.environ['GITHUB_HEAD_REF'], base=os.environ['GITHUB_BASE_REF']
+    )
