@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+
+import pathlib
+import zipapp
+
+
+def main() -> None:
+    bin_dir = pathlib.Path(__file__).parent
+    root_dir = bin_dir.parent
+    zipapp.create_archive(
+        root_dir / 'src/',
+        target=bin_dir / 'check-api-compatibility',
+        interpreter='/usr/bin/env python3',
+        main='api.checker:run',
+        filter=filter_pycache,
+    )
+
+
+def filter_pycache(path: pathlib.Path) -> bool:
+    """Filters out files from the __pycache__ directories."""
+    return path.name != '__pycache__' and path.parent.name != '__pycache__'
+
+
+if __name__ == '__main__':
+    main()
