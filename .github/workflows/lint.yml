@@ -3,12 +3,14 @@ name: Lint
 on:
   pull_request:
     paths:
+      - mypy.ini
       - '**.py'
       - '**requirements.txt'
   push:
     branches:
       - main
     paths:
+      - mypy.ini
       - '**.py'
       - '**requirements.txt'
 
