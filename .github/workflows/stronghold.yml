@@ -13,6 +13,21 @@ on:
       - tools/stronghold/**
 
 jobs:
+  api-compatibility-check:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        cd tools/stronghold/
+        git status
+	echo end git status
+        git show --stat
+	echo end git show
+        git branch
+        echo end git branch
+        # git log --oneline --max-count=5
+        bin/build-check-api-compatibility
+        bin/check-api-compatibility
+
   black:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:
