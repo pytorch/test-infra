@@ -34,8 +34,8 @@ with failed_jobs as (
     where
         job._event_time >= CURRENT_DATE() - HOURS(:numHours)
         and w.head_branch = 'master'
-        and w.name in ('trunk', 'periodic', 'pull')
-        and (w.name = 'periodic' or job.name not like '%mem_leak_check%')
+        and w.name in ('trunk', 'pull')
+        and job.name not like '%mem_leak_check%'
         and job.name not like '%rerun_disabled_tests%'
     order by
         job._event_time
