@@ -22,6 +22,7 @@ jobs:
         bin/build-check-api-compatibility
         env
         git log --oneline
+        git show --stat
         git diff-tree --name-only -r ${GITHUB_BASE_REF}..HEAD
         bin/check-api-compatibility
 
