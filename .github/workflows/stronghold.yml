@@ -20,6 +20,7 @@ jobs:
         cd tools/stronghold/
         bin/build-check-api-compatibility
         env
+        git diff-tree --name-only -r ${GITHUB_BASE_REF}..${GITHUB_HEAD_REF}
         bin/check-api-compatibility
 
   black:
