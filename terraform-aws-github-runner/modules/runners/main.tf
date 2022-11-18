@@ -232,7 +232,7 @@ locals {
 resource "aws_security_group" "runner_sg" {
   name_prefix = "${var.environment}-github-actions-runner-sg"
   description = "Github Actions Runner security group"
-  vpc_id      = var.vpc_ids[0]
+  vpc_id      = var.vpc_id
 
   egress {
     from_port   = 0
