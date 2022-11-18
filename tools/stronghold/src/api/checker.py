@@ -17,4 +17,4 @@ def run() -> None:
     import pprint
 
     pprint.pp(os.environ)
-    api.compatibility.check_commit(repo, commit_id='HEAD')
+    api.compatibility.check_range(repo, head='HEAD', base=os.environ['GITHUB_BASE_REF'])
