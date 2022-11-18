@@ -64,6 +64,8 @@ module "runners" {
 
   aws_region           = var.aws_region
   aws_region_instances = var.aws_region_instances
+  // TODO remove-me
+  vpc_id               = var.vpc_id
   vpc_ids              = var.vpc_ids
   subnet_ids           = var.subnet_ids
   environment          = var.environment

@@ -9,6 +9,12 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
+// TODO remove-me
+variable "vpc_id" {
+  description = "The old VPC id."
+  type        = string
+}
+
 variable "vpc_ids" {
   description = "The VPC for the security groups."
   type        = list(string)
