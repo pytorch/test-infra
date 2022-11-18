@@ -28,6 +28,7 @@ jobs:
         with:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
+          instructions: "First install, username is %%username%%"
       - uses: ./.github/actions/setup-ssh
         name: Check if can overwrite keys
         with:
@@ -55,6 +56,7 @@ jobs:
         with:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
       - uses: ./.github/actions/setup-ssh
         name: Check if can overwrite keys
         with:

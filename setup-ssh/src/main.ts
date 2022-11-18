@@ -19,6 +19,7 @@ async function run(): Promise<void> {
     )
     const sshLabel: string = core.getInput('label')
     const github_token: string = core.getInput('github-secret')
+    const instructions: string = core.getInput('instructions')
     const removeExistingKeys: boolean = core.getBooleanInput(
       'remove-existing-keys'
     )
@@ -76,7 +77,11 @@ async function run(): Promise<void> {
       if (hostname === '') {
         hostname = (await getIPs()).ipv4
       }
-      core.info(`Login using: ssh ${os.userInfo().username}@${hostname}`)
+      const username = os.userInfo().username
+      core.info(`Login using: ssh ${username}@${hostname}`)
+      if (instructions) {
+        core.info(instructions.replace('%%hostname%%', hostname).replace('%%username%%', username))
+      }
       // Return early if we can get the right keys on the first try
       return
     }
