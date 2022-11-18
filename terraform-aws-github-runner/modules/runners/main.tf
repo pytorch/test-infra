@@ -225,11 +225,34 @@ locals {
   })
 }
 
+// TODO runner_sg is here to allow apply only module.canary_runners, once changes are rolled out
+// this module will be removed as it have no use. The problem comes as the target determinator
+// on terraform mistenkely assumes this target as being a dependency on module.canary_runners
+// because both have a common root
 resource "aws_security_group" "runner_sg" {
   name_prefix = "${var.environment}-github-actions-runner-sg"
   description = "Github Actions Runner security group"
+  vpc_id      = var.vpc_ids[0]
 
-  vpc_id = var.vpc_id
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = merge(
+    local.tags,
+    {
+      "Name" = format("%s", local.name_sg)
+    },
+  )
+}
+
+resource "aws_security_group" "runners_sg" {
+  count       = length(var.vpc_ids)
+  name_prefix = "${var.environment}-github-actions-runner-sg-${count.index}"
+  description = "Github Actions Runner security group"
+  vpc_id      = element(var.vpc_ids, count.index)
 
   egress {
     from_port   = 0

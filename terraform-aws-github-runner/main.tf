@@ -62,11 +62,13 @@ module "webhook" {
 module "runners" {
   source = "./modules/runners"
 
-  aws_region  = var.aws_region
-  vpc_id      = var.vpc_id
-  subnet_ids  = var.subnet_ids
-  environment = var.environment
-  tags        = local.tags
+  aws_region           = var.aws_region
+  aws_region_instances = var.aws_region_instances
+  vpc_ids              = var.vpc_ids
+  subnet_ids           = var.subnet_ids
+  environment          = var.environment
+  tags                 = local.tags
+
   encryption = {
     kms_key_id = local.kms_key_id
     encrypt    = var.encrypt_secrets
