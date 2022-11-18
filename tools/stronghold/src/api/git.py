@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 import dataclasses
 import pathlib
 import subprocess
@@ -20,6 +20,14 @@ class Repository:
     def dir(self, /) -> pathlib.Path:
         """Gets the repository's local directory."""
         return self._dir
+
+    def get_files_in_range(self, /, range: str) -> Iterable[pathlib.Path]:
+        pinfo = self.run(
+            ['diff-tree', '--name-only', '-r', range],
+            check=True,
+            stdout=subprocess.PIPE,
+        )
+        return [pathlib.Path(p) for p in pinfo.stdout.splitlines()]
 
     def get_commit_info(self, *, commit_id: str = 'HEAD') -> CommitInfo:
         """Gets information about a particular commit.
