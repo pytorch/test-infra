@@ -59,6 +59,7 @@ fn temp_config_returning_msg(lint_message: LintMessage) -> Result<tempfile::Name
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
 fn unknown_config_fails() -> Result<()> {
     let mut cmd = Command::cargo_bin("lintrunner")?;
     cmd.arg("--config=asdfasdfasdf");
@@ -124,6 +125,7 @@ fn empty_command_fails() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
 fn simple_linter() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
@@ -154,6 +156,7 @@ fn simple_linter() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // path is rendered differently
 fn simple_linter_oneline() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
@@ -185,6 +188,7 @@ fn simple_linter_oneline() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
 fn simple_linter_fails_on_nonexistent_file() -> Result<()> {
     let config = temp_config(
         "\
@@ -229,6 +233,7 @@ fn duplicate_code_fails() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDOUT string is different
 fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
@@ -263,6 +268,7 @@ fn linter_providing_nonexistent_path_degrades_gracefully() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
 fn linter_hard_failure_is_caught() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let config = temp_config(
@@ -315,6 +321,7 @@ fn linter_nonexistent_command() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // path is rendered differently
 fn simple_linter_replacement_message() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {
@@ -419,6 +426,7 @@ fn skip_nonexistent_linter() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // Usage string is different
 fn invalid_paths_cmd_and_from() -> Result<()> {
     let config = temp_config(
         "\
@@ -439,6 +447,7 @@ fn invalid_paths_cmd_and_from() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // Usage string is different
 fn invalid_paths_cmd_and_specified_paths() -> Result<()> {
     let config = temp_config(
         "\
@@ -705,6 +714,7 @@ fn tee_json() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDOUT string is different
 fn linter_replacement_trailing_newlines() -> Result<()> {
     let data_path = tempfile::tempdir()?;
     let lint_message = LintMessage {

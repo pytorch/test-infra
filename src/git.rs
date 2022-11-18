@@ -138,7 +138,7 @@ pub fn get_changed_files(git_root: &AbsPath, relative_to: Option<&str>) -> Resul
         .difference(&deleted_working_tree_files)
         // Git reports files relative to the root of git root directory, so retrieve
         // that and prepend it to the file paths.
-        .map(|f| format!("{}/{}", git_root.display(), f))
+        .map(|f| format!("{}", git_root.join(f).display()))
         .map(|f| {
             AbsPath::try_from(&f).with_context(|| {
                 format!("Failed to find file while gathering files to lint: {}", f)
