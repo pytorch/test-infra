@@ -19,6 +19,7 @@ jobs:
       script: |
         cd tools/stronghold/
         bin/build-check-api-compatibility
+        env
         bin/check-api-compatibility
 
   black:
