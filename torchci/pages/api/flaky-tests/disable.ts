@@ -62,42 +62,43 @@ export async function handleFlakyTest(
   if (matchingIssues.length !== 0) {
     // There is a matching issue
     const matchingIssue = matchingIssues[0];
-    if (wasRecent(test)) {
-      if (matchingIssue.state === "open") {
-        const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-          test
-        )}).
+    if (!wasRecent(test)) {
+      return;
+    }
+    if (matchingIssue.state === "open") {
+      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
+        test
+      )}).
             Please verify the issue was opened after this instance, that the platforms list includes all of
             [${getPlatformsAffected(workflowJobNames).join(
               ", "
             )}], or disable bot might not be working as expected.`;
-        await octokit.rest.issues.createComment({
-          owner,
-          repo,
-          issue_number: matchingIssue.number,
-          body,
-        });
-      } else {
-        // Re-open the issue
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: matchingIssue.number,
-          state: "open",
-        });
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: matchingIssue.number,
+        body,
+      });
+    } else {
+      // Re-open the issue
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: matchingIssue.number,
+        state: "open",
+      });
 
-        const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
-          test
-        )}).
+      const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
+        test
+      )}).
             Reopening the issue to disable. Please verify that the platforms list includes all of
             [${getPlatformsAffected(workflowJobNames).join(", ")}].`;
-        await octokit.rest.issues.createComment({
-          owner,
-          repo,
-          issue_number: matchingIssue.number,
-          body,
-        });
-      }
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: matchingIssue.number,
+        body,
+      });
     }
   } else {
     await createIssueFromFlakyTest(test, octokit);
@@ -162,6 +163,7 @@ To find relevant log snippets:
 4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
 `;
   if (test.numRed === undefined) {
+    // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
     numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
     examplesURL = `https://hud.pytorch.org/failure/${test.name}`;
     debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
@@ -224,7 +226,7 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
 export function wasRecent(test: FlakyTestData) {
   if (test.eventTimes) {
     return test.eventTimes.some(
-      (value) => dayjs().diff(dayjs(value), "minutes") < 3 * 60
+      (value) => dayjs().diff(dayjs(value), "minutes") < NUM_HOURS * 60
     );
   }
   return true;

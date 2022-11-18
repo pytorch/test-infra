@@ -34,7 +34,9 @@ with failed_jobs as (
     where
         job._event_time >= CURRENT_DATE() - HOURS(:numHours)
         and w.head_branch = 'master'
-  and w.name != 'inductor'
+        and w.name in ('trunk', 'periodic', 'pull')
+        and job.name not like '%rerun_disabled_tests%'
+        and job.name not like '%mem_leak_check%'
     order by
         job._event_time
 ),
@@ -47,12 +49,9 @@ flaky_jobs as (
     where
         (
             failed_jobs.flaky
-            or annotation.annotation = 'TEST_FLAKE'
+            and annotation.annotation is NULL
         )
-        and (
-            annotation.annotation is NULL
-            or annotation.annotation != 'BROKEN_TRUNK'
-        )
+        or annotation.annotation = 'TEST_FLAKE'
 ),
 flaky_tests as (
     select
@@ -92,12 +91,12 @@ select
 from
     flaky_tests
 where
-    failure_or_err_message not like '%No CUDA GPUs are available%'
+    not REGEXP_LIKE(failure_or_err_message, :ignoreMessages)
 group by
     name,
     file,
     classname
 having
-    count(*) > 1
+    count(*) > :threshold
 order by
     name
