@@ -58,6 +58,7 @@ function createExpectedRunInstancesLinux(
       Value: runnerParameters.repoName as string,
     });
   }
+  const [secGroup, snetId] = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion)[subnetId];
   return {
     MaxCount: 1,
     MinCount: 1,
@@ -84,8 +85,8 @@ function createExpectedRunInstancesLinux(
     NetworkInterfaces: [
       {
         AssociatePublicIpAddress: true,
-        SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion)[subnetId],
-        Groups: Config.Instance.securityGroupIds,
+        SubnetId: snetId,
+        Groups: Config.Instance.securityGroupIds.concat([secGroup]),
         DeviceIndex: 0,
       },
     ],
@@ -340,7 +341,10 @@ describe('createRunner', () => {
   describe('single region', () => {
     const mockRunInstances = { promise: jest.fn() };
     const mockPutParameter = { promise: jest.fn() };
-    const subnetIds = new Set(['sub-1234', 'sub-4321']);
+    const subnetIds = new Set([
+      ['sg3', 'sub-1234'],
+      ['sg4', 'sub-4321'],
+    ]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
       launchTemplateVersionLinux: '1-linux',
@@ -348,11 +352,11 @@ describe('createRunner', () => {
       launchTemplateVersionWindows: '1-windows',
       subnetIds: new Map([['us-east-1', subnetIds]]),
       awsRegion: 'us-east-1',
+      securityGroupIds: ['sg1', 'sg2'],
       shuffledAwsRegionInstances: ['us-east-1'],
       shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation(() => {
         return Array.from(subnetIds).sort();
       }),
-      securityGroupIds: ['123', '321', '456'],
     };
 
     beforeEach(() => {
@@ -438,6 +442,7 @@ describe('createRunner', () => {
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      const [secGroup, snetId] = Config.Instance.shuffledSubnetIdsForAwsRegion(Config.Instance.awsRegion)[0];
       expect(mockEC2.runInstances).toBeCalledWith({
         MaxCount: 1,
         MinCount: 1,
@@ -460,8 +465,8 @@ describe('createRunner', () => {
         NetworkInterfaces: [
           {
             AssociatePublicIpAddress: true,
-            SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(Config.Instance.awsRegion)[0],
-            Groups: Config.Instance.securityGroupIds,
+            SubnetId: snetId,
+            Groups: Config.Instance.securityGroupIds.concat([secGroup]),
             DeviceIndex: 0,
           },
         ],
@@ -569,8 +574,20 @@ describe('createRunner', () => {
     const mockRunInstances = { promise: jest.fn() };
     const mockPutParameter = { promise: jest.fn() };
     const subnetIds = new Map([
-      ['us-east-1', new Set(['sub-0987', 'sub-7890'])],
-      ['us-west-1', new Set(['sub-1234', 'sub-4321'])],
+      [
+        'us-east-1',
+        new Set([
+          ['sg3', 'sub-0987'],
+          ['sg4', 'sub-7890'],
+        ]),
+      ],
+      [
+        'us-west-1',
+        new Set([
+          ['sg5', 'sub-1234'],
+          ['sg6', 'sub-4321'],
+        ]),
+      ],
     ]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
@@ -580,10 +597,10 @@ describe('createRunner', () => {
       subnetIds: subnetIds,
       awsRegion: 'us-east-1',
       shuffledAwsRegionInstances: ['us-east-1', 'us-west-1'],
+      securityGroupIds: ['sg1', 'sg2'],
       shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation((awsRegion: string) => {
         return Array.from(subnetIds.get(awsRegion) ?? []).sort();
       }),
-      securityGroupIds: ['123', '321', '456'],
     };
     const runInstanceSuccess = {
       Instances: [

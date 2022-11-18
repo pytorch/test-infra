@@ -50,7 +50,7 @@ resource "aws_lambda_function" "scale_up" {
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
       SECURITY_GROUP_IDS                    = join(",", concat([for runners_sg in aws_security_group.runners_sg : runners_sg.id], var.runner_additional_security_group_ids))
-      SUBNET_IDS                            = join(",", var.subnet_ids)
+      SUBNET_IDS                            = join(",", [for subnet_id in var.subnet_ids: format("%s|%s", var.aws_region, subnet_id) ])
     }
   }
 

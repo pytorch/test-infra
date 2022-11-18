@@ -37,10 +37,11 @@ describe('Config', () => {
     process.env.SCALE_CONFIG_REPO = 'SCALE_CONFIG_REPO';
     process.env.SCALE_CONFIG_REPO_PATH = '.gh/the.yaml';
     process.env.SECRETSMANAGER_SECRETS_ID = 'SECRETSMANAGER_SECRETS_ID';
-    process.env.SECURITY_GROUP_IDS = 'SECURITY_GROUP_IDS1,SECURITY_GROUP_IDS2,SECURITY_GROUP_IDS3';
+    process.env.SECURITY_GROUP_IDS = 'ADD_SECURITY_GROUP_IDS1,ADD_SECURITY_GROUP_IDS2';
     process.env.SUBNET_IDS =
-      'AWS_REGION|SUBNET_IDS1,AWS_REGION|SUBNET_IDS2,AWS_REGION_INSTANCES_1|SUBNET_IDS3' +
-      ',AWS_REGION_INSTANCES_2|SUBNET_IDS4';
+      'AWS_REGION|SECURITY_GROUP_IDS1|SUBNET_IDS1,AWS_REGION|SECURITY_GROUP_IDS2|SUBNET_IDS2,' +
+      'AWS_REGION|SECURITY_GROUP_IDS2|SUBNET_IDS5,AWS_REGION_INSTANCES_1|SECURITY_GROUP_IDS1|SUBNET_IDS3,' +
+      'AWS_REGION_INSTANCES_2|SECURITY_GROUP_IDS3|SUBNET_IDS4';
 
     expect(Config.Instance.awsRegion).toBe('AWS_REGION');
     expect(Config.Instance.awsRegionInstances).toEqual([
@@ -72,33 +73,52 @@ describe('Config', () => {
     expect(Config.Instance.scaleConfigRepo).toEqual('SCALE_CONFIG_REPO');
     expect(Config.Instance.scaleConfigRepoPath).toEqual('.gh/the.yaml');
     expect(Config.Instance.secretsManagerSecretsId).toBe('SECRETSMANAGER_SECRETS_ID');
-    expect(Config.Instance.securityGroupIds).toEqual([
-      'SECURITY_GROUP_IDS1',
-      'SECURITY_GROUP_IDS2',
-      'SECURITY_GROUP_IDS3',
-    ]);
     expect(Config.Instance.subnetIds.size).toEqual(3);
+    expect(Config.Instance.securityGroupIds).toEqual(['ADD_SECURITY_GROUP_IDS1', 'ADD_SECURITY_GROUP_IDS2']);
     expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION');
     expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION_INSTANCES_1');
     expect(Config.Instance.subnetIds.keys()).toContain('AWS_REGION_INSTANCES_2');
-    expect(Config.Instance.subnetIds.get('AWS_REGION')?.size).toEqual(2);
-    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS1');
-    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContain('SUBNET_IDS2');
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')?.size).toEqual(1);
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')).toContain('SUBNET_IDS3');
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')?.size).toEqual(1);
-    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')).toContain('SUBNET_IDS4');
+    expect(Config.Instance.subnetIds.get('AWS_REGION')?.length).toEqual(3);
+    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContainEqual(['SECURITY_GROUP_IDS1', 'SUBNET_IDS1']);
+    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContainEqual(['SECURITY_GROUP_IDS2', 'SUBNET_IDS2']);
+    expect(Config.Instance.subnetIds.get('AWS_REGION')).toContainEqual(['SECURITY_GROUP_IDS2', 'SUBNET_IDS5']);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')?.length).toEqual(1);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_1')).toContainEqual([
+      'SECURITY_GROUP_IDS1',
+      'SUBNET_IDS3',
+    ]);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')?.length).toEqual(1);
+    expect(Config.Instance.subnetIds.get('AWS_REGION_INSTANCES_2')).toContainEqual([
+      'SECURITY_GROUP_IDS3',
+      'SUBNET_IDS4',
+    ]);
     expect(Config.Instance.shuffledAwsRegionInstances.length).toEqual(3);
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION');
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION_INSTANCES_2');
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION_INSTANCES_1');
-    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION').length).toEqual(2);
-    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION')).toContain('SUBNET_IDS1');
-    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION')).toContain('SUBNET_IDS2');
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION').length).toEqual(3);
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION')).toContainEqual([
+      'SECURITY_GROUP_IDS1',
+      'SUBNET_IDS1',
+    ]);
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION')).toContainEqual([
+      'SECURITY_GROUP_IDS2',
+      'SUBNET_IDS2',
+    ]);
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION')).toContainEqual([
+      'SECURITY_GROUP_IDS2',
+      'SUBNET_IDS5',
+    ]);
     expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_1').length).toEqual(1);
-    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_1')).toContain('SUBNET_IDS3');
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_1')).toContainEqual([
+      'SECURITY_GROUP_IDS1',
+      'SUBNET_IDS3',
+    ]);
     expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_2').length).toEqual(1);
-    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_2')).toContain('SUBNET_IDS4');
+    expect(Config.Instance.shuffledSubnetIdsForAwsRegion('AWS_REGION_INSTANCES_2')).toContainEqual([
+      'SECURITY_GROUP_IDS3',
+      'SUBNET_IDS4',
+    ]);
     expect(Config.Instance.enableOrganizationRunners).toBeTruthy();
   });
 
@@ -159,7 +179,6 @@ describe('Config', () => {
     expect(Config.Instance.scaleConfigRepo).toEqual('test-infra');
     expect(Config.Instance.scaleConfigRepoPath).toEqual('.github/scale-config.yml');
     expect(Config.Instance.secretsManagerSecretsId).toBeUndefined();
-    expect(Config.Instance.securityGroupIds.length).toEqual(0);
     expect(Config.Instance.shuffledAwsRegionInstances).toEqual(['us-east-1']);
     expect(Config.Instance.enableOrganizationRunners).toBeFalsy();
   });

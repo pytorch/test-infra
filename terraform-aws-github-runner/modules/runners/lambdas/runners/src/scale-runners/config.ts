@@ -29,7 +29,7 @@ export class Config {
   readonly scaleConfigRepoPath: string;
   readonly secretsManagerSecretsId: string | undefined;
   readonly securityGroupIds: string[];
-  readonly subnetIds: Map<string, Set<string>>;
+  readonly subnetIds: Map<string, Array<[string, string]>>;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
@@ -77,8 +77,8 @@ export class Config {
     this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
   }
 
-  protected getSubnetIdsFromEnv(): Map<string, Set<string>> {
-    const mapSet: Map<string, Set<string>> = new Map();
+  protected getSubnetIdsFromEnv(): Map<string, Array<[string, string]>> {
+    const mapSet: Map<string, Map<string, Set<string>>> = new Map();
 
     (process.env.SUBNET_IDS?.split(',').filter((w) => w.length > 0) ?? [])
       .map((e) => {
@@ -87,18 +87,33 @@ export class Config {
         });
       })
       .filter((e) => {
-        return e.length == 2;
+        return e.length == 3;
       })
       .forEach((keyVal) => {
-        const [awsRegion, subnetId] = keyVal;
+        const [awsRegion, securityGroupId, subnetId] = keyVal;
         if (!mapSet.has(awsRegion)) {
-          mapSet.set(awsRegion, new Set<string>([subnetId]));
+          mapSet.set(awsRegion, new Map([[securityGroupId, new Set([subnetId])]]));
         } else {
-          mapSet.get(awsRegion)?.add(subnetId);
+          if (!mapSet.get(awsRegion)?.has(securityGroupId)) {
+            mapSet.get(awsRegion)?.set(securityGroupId, new Set([subnetId]));
+          } else {
+            mapSet.get(awsRegion)?.get(securityGroupId)?.add(subnetId);
+          }
         }
       });
 
-    return mapSet;
+    const retMap: Map<string, Array<[string, string]>> = new Map();
+    mapSet.forEach((sgSubnetMap, awsRegion) => {
+      const subnetSg: Array<[string, string]> = [];
+      sgSubnetMap.forEach((subnetIds, sg) => {
+        subnetIds.forEach((subnetId) => {
+          subnetSg.push([sg, subnetId]);
+        });
+      });
+      retMap.set(awsRegion, subnetSg);
+    });
+
+    return retMap;
   }
 
   static get Instance(): Config {
@@ -109,7 +124,7 @@ export class Config {
     this._instance = undefined;
   }
 
-  shuffledSubnetIdsForAwsRegion(awsRegion: string): Array<string> {
+  shuffledSubnetIdsForAwsRegion(awsRegion: string): Array<[string, string]> {
     const arr = Array.from(this.subnetIds.get(awsRegion) ?? []);
     return this.shuffleInPlace(arr);
   }

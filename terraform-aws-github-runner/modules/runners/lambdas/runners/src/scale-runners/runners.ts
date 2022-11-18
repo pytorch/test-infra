@@ -302,7 +302,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       const ec2 = new EC2({ region: awsRegion });
       const ssm = new SSM({ region: awsRegion });
       const subnets = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion);
-      for (const [subnetIdx, subnet] of subnets.entries()) {
+      for (const [subnetIdx, [secGroup, subnet]] of subnets.entries()) {
         try {
           console.debug(`[${awsRegion}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
           const runInstancesResponse = await expBackOff(() => {
@@ -335,7 +335,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                       {
                         AssociatePublicIpAddress: true,
                         SubnetId: subnet,
-                        Groups: Config.Instance.securityGroupIds,
+                        Groups: Config.Instance.securityGroupIds.concat([secGroup]),
                         DeviceIndex: 0,
                       },
                     ],
