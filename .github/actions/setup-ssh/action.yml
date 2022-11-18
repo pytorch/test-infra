@@ -18,6 +18,9 @@ inputs:
     required: true
     description: 'Removes existing keys at ~/.ssh/authorized_keys before adding new ones'
     default: true
+  instructions:
+    required: false
+    description: 'Additional instructions on what to do next'
 
 runs:
   using: 'node16'

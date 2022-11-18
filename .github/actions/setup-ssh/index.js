@@ -12812,6 +12812,7 @@ async function run() {
         const activateWithLabel = core.getBooleanInput('activate-with-label');
         const sshLabel = core.getInput('label');
         const github_token = core.getInput('github-secret');
+        const instructions = core.getInput('instructions');
         const removeExistingKeys = core.getBooleanInput('remove-existing-keys');
         let prNumber = (_a = github.context.payload.pull_request) === null || _a === void 0 ? void 0 : _a.number;
         if (github.context.eventName !== 'pull_request') {
@@ -12859,7 +12860,11 @@ async function run() {
             if (hostname === '') {
                 hostname = (await getIPs()).ipv4;
             }
-            core.info(`Login using: ssh ${external_os_default().userInfo().username}@${hostname}`);
+            const username = external_os_default().userInfo().username;
+            core.info(`Login using: ssh ${username}@${hostname}`);
+            if (instructions) {
+                core.info(instructions.replace('%%hostname%%', hostname).replace('%%username%%', username));
+            }
             // Return early if we can get the right keys on the first try
             return;
         }
