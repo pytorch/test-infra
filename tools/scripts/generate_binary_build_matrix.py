@@ -154,12 +154,13 @@ def get_base_download_url_for_repo(repo: str, channel: str, gpu_arch_type: str, 
 
     return base_url_for_type
 
-def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libtorch_variant: str, devtoolset: str, desired_cuda: str) -> str:
+def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libtorch_variant: str, devtoolset: str, desired_cuda: str, libtorch_config: str) -> str:
     prefix = "libtorch" if os != 'windows' else "libtorch-win"
-    build_name = f"{prefix}-{devtoolset}-{libtorch_variant}-latest.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{libtorch_variant}-latest.zip"
+    _libtorch_variant = f"{libtorch_variant}-{libtorch_config}" if libtorch_config == 'debug' else libtorch_variant
+    build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if channel == 'release':
-        build_name = f"{prefix}-{devtoolset}-{libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
+        build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
@@ -268,13 +269,14 @@ def generate_libtorch_matrix(
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
                 devtoolset = abi_version if os != "windows" else ""
+                libtorch_config = abi_version if os == "windows" else ""
                 ret.append(
                     {
                         "gpu_arch_type": gpu_arch_type,
                         "gpu_arch_version": gpu_arch_version,
                         "desired_cuda": desired_cuda,
                         "libtorch_variant": libtorch_variant,
-                        "libtorch_config": abi_version if os == "windows" else "",
+                        "libtorch_config": libtorch_config,
                         "devtoolset": devtoolset,
                         "container_image": mod.LIBTORCH_CONTAINER_IMAGES[
                             (arch_version, abi_version)
@@ -286,7 +288,7 @@ def generate_libtorch_matrix(
                             ".", "_"
                         ),
                         "validation_runner": validation_runner(gpu_arch_type, os),
-                        "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda),
+                        "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
                         "channel": channel
                     }
                 )
