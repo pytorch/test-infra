@@ -13,6 +13,20 @@ on:
       - tools/stronghold/**
 
 jobs:
+  api-compatibility-check:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      # Fetch the commit, rather than the merge.
+      ref: ${{ github.event.pull_request.head.sha }}
+      script: |
+        cd tools/stronghold/
+        bin/build-check-api-compatibility
+        # We need to fetch the base otherwise, we can't diff against it.
+        git fetch origin ${{ github.event.pull_request.base.sha }}
+        bin/check-api-compatibility                              \
+            --base_sha=${{ github.event.pull_request.base.sha }} \
+            --head_sha=${{ github.event.pull_request.head.sha }}
+
   black:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
     with:
