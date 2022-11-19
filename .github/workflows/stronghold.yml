@@ -16,12 +16,12 @@ jobs:
   api-compatibility-check:
     uses: ./.github/workflows/linux_job.yml
     with:
-      # ref: ${{ github.event.pull_request.head.sha }}
+      ref: ${{ github.event.pull_request.head.ref }}
       script: |
         cd tools/stronghold/
         bin/build-check-api-compatibility
         env
-        git log --oneline | head
+        git log --oneline
         git diff-tree --name-only -r ${{ github.event.pull_request.base.sha }}..HEAD
         bin/check-api-compatibility
 
