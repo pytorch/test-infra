@@ -60,7 +60,7 @@ def check_range(
 
 
 def check_commit(
-    repo: api.git.Repository, commit_id: str, *args: int
+    repo: api.git.Repository, commit_id: str, meh: int,
 ) -> tuple[Mapping[pathlib.Path, Sequence[Violation]], str]:
     """Runs the check on the given commit."""
     commit_info = repo.get_commit_info(commit_id=commit_id)
