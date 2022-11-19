@@ -59,14 +59,6 @@ def check_range(
     return result
 
 
-# TODO migrate everything to check_range.
-def check_commit(
-    repo: api.git.Repository, commit_id: str
-) -> tuple[Mapping[pathlib.Path, Sequence[Violation]], str]:
-    """Runs the check on the given commit."""
-    return check_range(repo, head=commit_id, base=f'{commit_id}~'), ''
-
-
 def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
     """Identifies API compatibility issues between two files."""
     before_api = api.ast.extract(before)
