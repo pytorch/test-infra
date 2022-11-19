@@ -2,6 +2,7 @@
 
 import argparse
 import pathlib
+import pprint
 import sys
 
 import api.compatibility
@@ -15,4 +16,10 @@ def run() -> None:
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
-    api.compatibility.check_range(repo, head=args.head_sha, base=args.base_sha)
+    violations = api.compatibility.check_range(repo, head=args.head_sha, base=args.base_sha)
+    if len(violations) == 0:
+        return
+    for file, file_violations in violations.items():
+        print(file)
+        pprint.pp(file_violations)
+    sys.exit(1)
