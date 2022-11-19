@@ -94,7 +94,7 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
-          fetch-depth: 50
+          fetch-depth: 1
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
