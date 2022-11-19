@@ -15,7 +15,4 @@ def run() -> None:
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
-    import pprint
-
-    pprint.pp(os.environ)
     api.compatibility.check_range(repo, head=args.head_sha, base=args.base_sha)
