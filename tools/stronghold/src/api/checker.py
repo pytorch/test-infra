@@ -2,6 +2,7 @@
 
 import argparse
 import pathlib
+import pprint
 import sys
 
 import api.compatibility
