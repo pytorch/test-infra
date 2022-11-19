@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 import dataclasses
 import pathlib
 import subprocess
@@ -29,17 +29,6 @@ class Repository:
             stdout=subprocess.PIPE,
         )
         return [pathlib.Path(p) for p in pinfo.stdout.splitlines()]
-
-    # TODO migrate all users to get_files_in_range and delete this and
-    # CommitInfo.
-    def get_commit_info(self, *, commit_id: str = 'HEAD') -> CommitInfo:
-        """Gets information about a particular commit.
-
-        Defaults to the most recent commit.
-        """
-        return CommitInfo(
-            hash='', files=list(self.get_files_in_range(f'{commit_id}~..{commit_id}'))
-        )
 
     def get_contents(
         self, path: pathlib.Path, *, commit_id: str = 'HEAD'
@@ -73,13 +62,3 @@ class Repository:
             # unicode.
             text=True,
         )
-
-
-@dataclasses.dataclass
-class CommitInfo:
-    """Represents basic info about a git commit."""
-
-    # The full hash identifying the commit.
-    hash: str
-    # The files modified in the commit.
-    files: Sequence[pathlib.Path]
