@@ -1,5 +1,4 @@
 import pathlib
-import re
 
 import api.git
 
@@ -16,7 +15,6 @@ def test_get_commit_info(git_repo: api.git.Repository) -> None:
 
     commit_info = git_repo.get_commit_info()
 
-    assert re.fullmatch('^[0-9a-f]{40}$', commit_info.hash), commit_info.hash
     assert commit_info.files == [file]
 
 
@@ -59,7 +57,4 @@ def test_custom_commit_id(git_repo: api.git.Repository) -> None:
     # Add third commit to have multiple valid commit ids.
     git.commit_file(git_repo, file, 'new contents\n')
 
-    # Get second commit.
-    commit_info = git_repo.get_commit_info(commit_id='HEAD~')
-
-    assert git_repo.get_contents(file, commit_id=commit_info.hash) == 'contents\n'
+    assert git_repo.get_contents(file, commit_id='HEAD~') == 'contents\n'
