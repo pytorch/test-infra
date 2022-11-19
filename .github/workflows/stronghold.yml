@@ -22,7 +22,7 @@ jobs:
         bin/build-check-api-compatibility
         env
         git log --oneline | head
-        git diff-tree --name-only -r $${github.event.pull_request.base.sha }}..HEAD
+        git diff-tree --name-only -r ${{ github.event.pull_request.base.sha }}..HEAD
         bin/check-api-compatibility
 
   black:
