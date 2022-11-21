@@ -14,7 +14,7 @@ on:
 
 jobs:
   api-compatibility-check:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       # Fetch the commit, rather than the merge.
       ref: ${{ github.event.pull_request.head.sha }}
