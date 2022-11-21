@@ -9,6 +9,10 @@ import api.compatibility
 import api.git
 
 
+def to_be_deleted() -> None:
+    pass
+
+
 def run() -> None:
     parser = argparse.ArgumentParser(prog=sys.argv[0], description=__doc__)
     parser.add_argument('--base-commit', type=str, required=True)
