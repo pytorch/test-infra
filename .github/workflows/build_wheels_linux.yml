@@ -100,12 +100,12 @@ jobs:
           else
             ${CONDA_RUN} bash "${PRE_SCRIPT}"
           fi
-      - name: Install Requirements
-        if: ${{ inputs.package-name == 'torchrec' }}
-        working-directory: ${{ inputs.repository }}
-        shell: bash -l {0}
-        run: |
-            ${CONDA_RUN} pip install -r requirements.txt
+      # - name: Install Requirements
+      #   if: ${{ inputs.package-name == 'torchrec' }}
+      #   working-directory: ${{ inputs.repository }}
+      #   shell: bash -l {0}
+      #   run: |
+      #       ${CONDA_RUN} pip install -r requirements.txt
       - name: Build clean
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
@@ -149,7 +149,6 @@ jobs:
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
-          pip uninstall fbgemm-gpu
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
             ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
