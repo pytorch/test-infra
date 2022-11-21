@@ -5,7 +5,7 @@ import api.git
 from testing import git
 
 
-def test_get_commit_info(git_repo: api.git.Repository) -> None:
+def test_get_files_in_range(git_repo: api.git.Repository) -> None:
     file = pathlib.Path('meh.txt')
 
     # Check-in the file initially.
@@ -13,9 +13,7 @@ def test_get_commit_info(git_repo: api.git.Repository) -> None:
     # The diff-tree command only works if there is a second commit.
     git.commit_file(git_repo, file, 'contents\n')
 
-    commit_info = git_repo.get_commit_info()
-
-    assert commit_info.files == [file]
+    assert git_repo.get_files_in_range('HEAD~..HEAD') == [file]
 
 
 def test_get_contents(git_repo: api.git.Repository) -> None:
