@@ -164,8 +164,8 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
-def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str, python_version: str) -> str:
-    if channel == RELEASE and ((arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos"))):
+def get_wheel_install_command(channel: str, gpu_arch_type: str, gpu_arch_version: str, desired_cuda: str, python_version: str) -> str:
+    if channel == RELEASE and ((gpu_arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos"))):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
         packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
@@ -351,7 +351,7 @@ def generate_wheels_matrix(
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
-                    "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version),
+                    "installation": get_wheel_install_command(channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
                 }
             )
