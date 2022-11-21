@@ -14,7 +14,7 @@ on:
 
 jobs:
   api-compatibility-check:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       # Fetch the commit, rather than the merge.
       ref: ${{ github.event.pull_request.head.sha }}
@@ -27,8 +27,10 @@ jobs:
             --base-commit=${{ github.event.pull_request.base.sha }} \
             --head-commit=${{ github.event.pull_request.head.sha }}
 
+      docker-image: ubuntu:latest
+
   black:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -40,8 +42,10 @@ jobs:
 
         black --check --diff .
 
+      docker-image: python:3.11.0-slim-bullseye
+
   flake8:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -53,8 +57,10 @@ jobs:
 
         flake8 .
 
+      docker-image: python:3.11.0-slim-bullseye
+
   mypy:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -66,8 +72,10 @@ jobs:
 
         mypy .
 
+      docker-image: python:3.11.0-slim-bullseye
+
   pytest:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -78,3 +86,5 @@ jobs:
         echo ::endgroup::
 
         pytest
+
+      docker-image: ubuntu:latest
