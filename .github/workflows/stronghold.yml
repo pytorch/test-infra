@@ -28,7 +28,7 @@ jobs:
             --head-commit=${{ github.event.pull_request.head.sha }}
 
   black:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: .github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -39,6 +39,8 @@ jobs:
         echo ::endgroup::
 
         black --check --diff . > $GITHUB_STEP_SUMMARY
+
+      docker-image: python:3.11.0-slim-bullseye
 
   flake8:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
