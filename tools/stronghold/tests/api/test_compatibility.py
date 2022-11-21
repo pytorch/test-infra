@@ -345,7 +345,7 @@ def test_ignores_internal_class(tmp_path: pathlib.Path) -> None:
         'module_test.py',
     ],
 )
-def test_check_commit_skips(path: str, git_repo: api.git.Repository) -> None:
+def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
     git.commit_file(
         git_repo,
         pathlib.Path(path),
@@ -357,11 +357,11 @@ def test_check_commit_skips(path: str, git_repo: api.git.Repository) -> None:
         ),
     )
     git.commit_file(git_repo, pathlib.Path(path), '')
-    violations, _ = api.compatibility.check_commit(git_repo, 'HEAD')
+    violations = api.compatibility.check_range(git_repo, head='HEAD', base='HEAD~')
     assert violations == {}
 
 
-def test_check_commit(git_repo: api.git.Repository) -> None:
+def test_check_range(git_repo: api.git.Repository) -> None:
     git.commit_file(
         git_repo,
         pathlib.Path('module.py'),
@@ -374,7 +374,7 @@ def test_check_commit(git_repo: api.git.Repository) -> None:
     )
     git.commit_file(git_repo, pathlib.Path('module.py'), '')
 
-    violations, _ = api.compatibility.check_commit(git_repo, 'HEAD')
+    violations = api.compatibility.check_range(git_repo, head='HEAD', base='HEAD~')
 
     assert violations == {
         pathlib.Path('module.py'): [
