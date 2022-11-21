@@ -351,7 +351,7 @@ def generate_wheels_matrix(
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
-                    "installation": get_wheel_install_command(channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
+                    "installation": get_wheel_install_command(os, channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
                 }
             )
