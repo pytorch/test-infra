@@ -7,6 +7,7 @@ export interface JobData {
   jobName?: string;
   sha?: string;
   id?: string;
+  branch?: string;
   workflowId?: string;
   githubArtifactUrl?: string;
   time?: string;
