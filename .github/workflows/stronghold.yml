@@ -38,7 +38,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        black --check --diff .
+        black --check --diff . > $GITHUB_STEP_SUMMARY
 
   flake8:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -51,7 +51,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        flake8 .
+        flake8 . > $GITHUB_STEP_SUMMARY
 
   mypy:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -64,7 +64,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        mypy .
+        mypy . > $GITHUB_STEP_SUMMARY
 
   pytest:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -77,4 +77,4 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        pytest
+        pytest > $GITHUB_STEP_SUMMARY
