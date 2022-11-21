@@ -173,7 +173,7 @@ def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: st
         return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
-    ret: List[Dict[str, str] = []
+    ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = FULL_PYTHON_VERSIONS
 
