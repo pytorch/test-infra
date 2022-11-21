@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 import dataclasses
 import pathlib
 import subprocess
@@ -21,20 +21,24 @@ class Repository:
         """Gets the repository's local directory."""
         return self._dir
 
+    def get_files_in_range(self, /, range: str) -> Iterable[pathlib.Path]:
+        """Gets files modified in a range of commits."""
+        pinfo = self.run(
+            ['diff-tree', '--name-only', '-r', range],
+            check=True,
+            stdout=subprocess.PIPE,
+        )
+        return [pathlib.Path(p) for p in pinfo.stdout.splitlines()]
+
+    # TODO migrate all users to get_files_in_range and delete this and
+    # CommitInfo.
     def get_commit_info(self, *, commit_id: str = 'HEAD') -> CommitInfo:
         """Gets information about a particular commit.
 
         Defaults to the most recent commit.
         """
-        pinfo = self.run(
-            ['diff-tree', '--name-only', '-r', commit_id],
-            check=True,
-            stdout=subprocess.PIPE,
-        )
-        lines = pinfo.stdout.splitlines()
         return CommitInfo(
-            hash=lines[0],
-            files=[pathlib.Path(p) for p in lines[1:]],
+            hash='', files=list(self.get_files_in_range(f'{commit_id}~..{commit_id}'))
         )
 
     def get_contents(
