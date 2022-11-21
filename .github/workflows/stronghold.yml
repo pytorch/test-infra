@@ -73,7 +73,7 @@ jobs:
       docker-image: python:3.11.0-slim-bullseye
 
   pytest:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml@main
     with:
       script: |
         echo ::group::setup Python environment
