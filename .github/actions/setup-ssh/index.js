@@ -12727,7 +12727,7 @@ async function writeAuthorizedKeys(homedir, keys, removeExistingKeys) {
     const authorizedKeysPath = external_path_default().resolve(external_path_default().join(homedir, '.ssh', 'authorized_keys'));
     if (external_fs_default().existsSync(authorizedKeysPath) && removeExistingKeys) {
         core.info('~/.ssh/authorized_keys file found on node, removing ~/.ssh and starting fresh');
-        external_fs_default().rmdirSync(external_path_default().dirname(authorizedKeysPath), { recursive: true });
+        external_fs_default().rmSync(external_path_default().dirname(authorizedKeysPath), { recursive: true, force: true });
     }
     external_fs_default().mkdirSync(external_path_default().dirname(authorizedKeysPath), { recursive: true, mode: 0o700 });
     external_fs_default().writeFileSync(authorizedKeysPath, keys, { mode: 0o400, flag: 'w' });

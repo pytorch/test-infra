@@ -32,7 +32,7 @@ export async function writeAuthorizedKeys(
     core.info(
       '~/.ssh/authorized_keys file found on node, removing ~/.ssh and starting fresh'
     )
-    fs.rmdirSync(path.dirname(authorizedKeysPath), {recursive: true})
+    fs.rmSync(path.dirname(authorizedKeysPath), {recursive: true, force: true})
   }
   fs.mkdirSync(path.dirname(authorizedKeysPath), {recursive: true, mode: 0o700})
   fs.writeFileSync(authorizedKeysPath, keys, {mode: 0o400, flag: 'w'})
