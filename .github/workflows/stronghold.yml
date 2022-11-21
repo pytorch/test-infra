@@ -39,6 +39,10 @@ jobs:
         echo ::endgroup::
 
         black --check --diff .
+        echo ${GITHUB_STEP_SUMMARY}
+        ls -l ${GITHUB_STEP_SUMMARY}
+        echo success | tee $GITHUB_STEP_SUMMARY
+        ls -l ${GITHUB_STEP_SUMMARY}
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -53,7 +57,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        flake8 .
+        flake8 . > $GITHUB_STEP_SUMMARY
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -68,7 +72,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        mypy .
+        mypy . > $GITHUB_STEP_SUMMARY
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -83,4 +87,4 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        pytest
+        pytest > $GITHUB_STEP_SUMMARY
