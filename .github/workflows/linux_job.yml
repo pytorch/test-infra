@@ -47,9 +47,14 @@ on:
         description: "GPU arch version to use"
         default: ""
         type: string
+      job-name:
+        description: "Name for the job, which is displayed in the GitHub UI"
+        default: "linux-job"
+        type: string
 
 jobs:
   job:
+    name: ${{ inputs.job-name }}
     env:
       DOCKER_IMAGE: pytorch/conda-builder:${{ inputs.gpu-arch-type }}${{ inputs.gpu-arch-version }}
       REPOSITORY: ${{ inputs.repository || github.repository }}

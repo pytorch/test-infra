@@ -6,8 +6,7 @@
 *.zip
 *.swp
 *.txt
-!requirements.txt
-!cli-requirements.txt
+!**/*requirements.txt
 
 __pycache__
 
@@ -40,3 +39,8 @@ aws/lambda/github-status-sync/python/*
 torchci/api/log/classify/target/
 torchci/api/log/classify/Cargo.lock
 **/*.rs.bk
+
+setup-ssh/node_modules
+setup-ssh/yarn-error.log*
+setup-ssh/lib/**/*
+setup-ssh/__tests__/runner/*

@@ -1,6 +1,6 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey } from './utils';
-import { RunnerType, createRunner } from './runners';
+import { RunnerType, RunnerInputParameters, createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -67,27 +67,32 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
         )
       ) {
         try {
-          await createRunner(
-            {
-              environment: Config.Instance.environment,
-              runnerConfig: await createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics),
-              orgName: Config.Instance.enableOrganizationRunners ? repo.owner : undefined,
-              repoName: Config.Instance.enableOrganizationRunners ? undefined : getRepoKey(repo),
-              runnerType: runnerType,
+          const createRunnerParams: RunnerInputParameters = {
+            environment: Config.Instance.environment,
+            runnerConfig: (awsRegion: string) => {
+              return createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics, awsRegion);
             },
-            metrics,
-          );
+            runnerType: runnerType,
+          };
           if (Config.Instance.enableOrganizationRunners) {
-            metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName);
+            createRunnerParams.orgName = repo.owner;
           } else {
-            metrics.runnersRepoCreate(repo, runnerType.runnerTypeName);
+            createRunnerParams.repoName = getRepoKey(repo);
+          }
+          const awsRegion = await createRunner(createRunnerParams, metrics);
+          if (Config.Instance.enableOrganizationRunners) {
+            metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName, awsRegion);
+          } else {
+            metrics.runnersRepoCreate(repo, runnerType.runnerTypeName, awsRegion);
           }
         } catch (e) {
+          /* istanbul ignore next */
           if (Config.Instance.enableOrganizationRunners) {
             metrics.runnersOrgCreateFail(repo.owner, runnerType.runnerTypeName);
           } else {
             metrics.runnersRepoCreateFail(repo, runnerType.runnerTypeName);
           }
+          /* istanbul ignore next */
           console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
         }
       } else {
@@ -104,12 +109,13 @@ async function createRunnerConfigArgument(
   repo: Repo,
   installationId: number | undefined,
   metrics: Metrics,
+  awsRegion: string,
 ): Promise<string> {
   const ephemeralArgument = runnerType.is_ephemeral ? '--ephemeral' : '';
   const labelsArgument =
     Config.Instance.runnersExtraLabels !== undefined
-      ? `${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
-      : `${runnerType.runnerTypeName}`;
+      ? `AWS:${awsRegion},${runnerType.runnerTypeName},${Config.Instance.runnersExtraLabels}`
+      : `AWS:${awsRegion},${runnerType.runnerTypeName}`;
 
   if (Config.Instance.enableOrganizationRunners) {
     /* istanbul ignore next */
@@ -185,6 +191,7 @@ async function allRunnersBusy(
 
   // If a runner isn't ephemeral then maxAvailable should be applied
   if (!isEphemeral && runnersWithLabel.length >= maxAvailable) {
+    /* istanbul ignore next */
     if (Config.Instance.enableOrganizationRunners) {
       metrics.ghRunnersOrgMaxHit(repo.owner, runnerType);
     } else {

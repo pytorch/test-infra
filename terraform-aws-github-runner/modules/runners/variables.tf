@@ -2,20 +2,26 @@ variable "aws_region" {
   description = "AWS region."
   type        = string
 }
-# AWS_REGION_INSTANCES
+
 variable "aws_region_instances" {
   description = "AWS region to run EC2 runners."
   default     = []
   type        = list(string)
 }
 
+// TODO remove-me
 variable "vpc_id" {
-  description = "The VPC for the security groups."
+  description = "The old VPC id."
   type        = string
 }
 
+variable "vpc_ids" {
+  description = "The VPC for the security groups."
+  type        = list(string)
+}
+
 variable "subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
 }
 
@@ -275,13 +281,13 @@ variable "ghes_url" {
 }
 
 variable "lambda_subnet_ids" {
-  description = "List of subnets in which the lambda will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the lambda will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
 
 variable "lambda_security_group_ids" {
-  description = "List of subnets in which the lambda will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the lambda will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
@@ -309,6 +315,12 @@ variable "scale_up_lambda_concurrency" {
   description = "Number of concurrent instances to run for the scale up lambda"
   type        = number
   default     = 10
+}
+
+variable "scale_up_provisioned_concurrent_executions" {
+  description = "Number of provisioned concurrent instances to run for the scale up lambda"
+  type        = number
+  default     = 0
 }
 
 variable "must_have_issues_labels" {

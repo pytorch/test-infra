@@ -3,6 +3,7 @@ import { commitDataFromResponse, getOctokit } from "./github";
 import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
+import { isFailure } from "./JobClassifierUtil";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -42,6 +43,28 @@ export default async function fetchHud(params: HudParams): Promise<{
     }
   );
 
+  // Check if any of these commits are forced merge
+  const filterForcedMergePr = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "filter_forced_merge_pr",
+    rocksetVersions.commons.filter_forced_merge_pr,
+    {
+      parameters: [
+        {
+          name: "issueUrls",
+          type: "string",
+          value: _.map(commits, (commit) => {
+            // Get the PR number to figure out if this is forced merged
+            return `https://api.github.com/repos/${params.repoOwner}/${params.repoName}/issues/${commit.prNum}`;
+          }).join(","),
+        }
+      ],
+    }
+  );
+  const forcedMergePrNums = new Set(_.map(filterForcedMergePr.results, (result) => {
+    return result.issue_url.split("/").pop();
+  }));
+
   const commitsBySha = _.keyBy(commits, "sha");
   const results = hudQuery.results;
 
@@ -69,6 +92,7 @@ export default async function fetchHud(params: HudParams): Promise<{
       // cases, we want the most recent job to be shown.
       if (job.id! > existingJob.id!) {
         jobsBySha[job.sha!][job.name!] = job;
+        jobsBySha[job.sha!][job.name!].failedPreviousRun = existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
       }
     } else {
       jobsBySha[job.sha!][job.name!] = job;
@@ -98,6 +122,8 @@ export default async function fetchHud(params: HudParams): Promise<{
     const row: RowData = {
       ...commit,
       jobs: jobs,
+      // Revert commits won't have any associated PR number
+      isForcedMerge: forcedMergePrNums.has(commit.prNum !== null ? commit.prNum.toString() : ""),
     };
     shaGrid.push(row);
   });

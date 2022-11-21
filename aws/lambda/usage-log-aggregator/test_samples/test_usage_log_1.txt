@@ -1,0 +1,2 @@
+{"time": "2022-09-27T23:05:31.560282Z", "total_cpu_percent": 8.7, "per_process_cpu_info": [{"pid": 117576, "cmd": "python3 -m tools.stats.monitor", "cpu_percent": 0.0, "rss_memory": 31277056, "uss_memory": 26177536}], "per_process_gpu_info": [], "total_gpu_utilization": 96}
+{"time": "2022-09-27T23:05:32.586222Z", "total_cpu_percent": 5.4, "per_process_cpu_info": [{"pid": 117576, "cmd": "python3 -m tools.stats.monitor", "cpu_percent": 1.9, "rss_memory": 31277056, "uss_memory": 26427392}], "per_process_gpu_info": [], "total_gpu_utilization": 0}

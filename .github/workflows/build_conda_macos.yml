@@ -94,6 +94,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
@@ -135,6 +136,7 @@ jobs:
           POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
@@ -160,15 +162,18 @@ jobs:
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-
-            ${CONDA_RUN} conda install -y pytorch -c pytorch cpuonly
-
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
             ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
 
-            ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
+              ${CONDA_RUN} conda install -y 'ffmpeg<5'
+            fi
+            if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
+              ${CONDA_RUN} conda install -y 'numpy>=1.11'
+            fi
+
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to conda

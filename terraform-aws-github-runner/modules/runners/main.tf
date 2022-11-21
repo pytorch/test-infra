@@ -102,6 +102,52 @@ resource "aws_launch_template" "linux_runner" {
   tags = local.tags
 }
 
+resource "aws_launch_template" "linux_runner_nvidia" {
+  name = "${var.environment}-action-linux-runner-nvidia"
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.runner.name
+  }
+
+  instance_initiated_shutdown_behavior = "terminate"
+
+  image_id      = data.aws_ami.runner_ami_linux.id
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = merge(
+      local.tags,
+      {
+        "Name" = format("%s", local.name_runner)
+      },
+    )
+  }
+
+  user_data = base64encode(templatefile(local.userdata_template, {
+    environment                     = var.environment
+    pre_install                     = var.userdata_pre_install
+    post_install                    = var.userdata_post_install
+    enable_cloudwatch_agent         = var.enable_cloudwatch_agent
+    ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux_nvidia[0].name : ""
+    ghes_url                        = var.ghes_url
+    install_config_runner           = local.install_config_runner_linux
+  }))
+
+  tags = local.tags
+}
+
 resource "aws_launch_template" "windows_runner" {
   name = "${var.environment}-action-windows-runner"
 
@@ -179,11 +225,34 @@ locals {
   })
 }
 
+// TODO runner_sg is here to allow apply only module.canary_runners, once changes are rolled out
+// this module will be removed as it have no use. The problem comes as the target determinator
+// on terraform mistenkely assumes this target as being a dependency on module.canary_runners
+// because both have a common root
 resource "aws_security_group" "runner_sg" {
   name_prefix = "${var.environment}-github-actions-runner-sg"
   description = "Github Actions Runner security group"
+  vpc_id      = var.vpc_id
 
-  vpc_id = var.vpc_id
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = merge(
+    local.tags,
+    {
+      "Name" = format("%s", local.name_sg)
+    },
+  )
+}
+
+resource "aws_security_group" "runners_sg" {
+  count       = length(var.vpc_ids)
+  name_prefix = "${var.environment}-github-actions-runner-sg-${count.index}"
+  description = "Github Actions Runner security group"
+  vpc_id      = element(var.vpc_ids, count.index)
 
   egress {
     from_port   = 0

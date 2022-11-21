@@ -13,9 +13,11 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
   useEffect(() => {
     const time = dayjs(timestamp).local();
     if (dayjs().isSame(time, "day")) {
-      setTime(time.format("h:mm A"));
+      setTime(time.format("h:mm a"));
+    } else if (dayjs().subtract(7, 'days').isBefore(time, 'day')) {
+      setTime(time.format("ddd h:mm a"));
     } else {
-      setTime(time.format("ddd, MMM D"));
+      setTime(time.format("M/D h:mm a"));
     }
   }, [timestamp]);
   return <span>{time}</span>;

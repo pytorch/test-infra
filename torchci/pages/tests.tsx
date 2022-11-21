@@ -16,6 +16,7 @@ import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
 
 const ROW_HEIGHT = 500;
+const THRESHOLD_IN_SECOND = 60;
 
 function GenerateTestInsightsOverviewTable({
   workflowName,
@@ -26,9 +27,6 @@ function GenerateTestInsightsOverviewTable({
   startTime : dayjs.Dayjs,
   stopTime: dayjs.Dayjs,
 }) {
-  // TODO: Because of the size of the result from Rockset, we're only fetching jobs
-  // that take more than 30m at the moment. This can be addressed later if we see
-  // the value of adding the rest of them
   const queryParams: RocksetParam[] = [
     {
       name: "startTime",
@@ -44,6 +42,11 @@ function GenerateTestInsightsOverviewTable({
       name: "workflowName",
       type: "string",
       value: workflowName,
+    },
+    {
+      name: "thresholdInSecond",
+      type: "int",
+      value: THRESHOLD_IN_SECOND,
     }
   ];
 
@@ -196,6 +199,12 @@ export default function GatherTestsInfo() {
 
         <GenerateTestInsightsOverviewTable
           workflowName={"periodic"}
+          startTime={startTime}
+          stopTime={stopTime}
+        />
+
+        <GenerateTestInsightsOverviewTable
+          workflowName={"inductor"}
           startTime={startTime}
           stopTime={stopTime}
         />

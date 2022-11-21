@@ -1,0 +1,12 @@
+{
+  "sql_path": "__sql/filter_forced_merge_pr.sql",
+  "default_parameters": [
+    {
+      "name": "issueUrls",
+      "type": "string",
+      "value": "https://api.github.com/repos/pytorch/pytorch/issues/87809,https://api.github.com/repos/pytorch/pytorch/issues/87797,https://api.github.com/repos/pytorch/pytorch/issues/12345"
+    }
+  ],
+  "description": "Check if these PRs are forced merge"
+}
+

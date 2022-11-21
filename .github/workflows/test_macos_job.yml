@@ -11,6 +11,7 @@ jobs:
   test-x86:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-x86-64-py3.8"
       runner: macos-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -23,9 +24,41 @@ jobs:
   test-m1:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-arm64-py3.8"
       runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      timeout: 60
+      script: |
+        conda create -y -n test python=3.8
+        conda activate test
+        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        # Can import pytorch, cuda is available
+        python3 -c 'import torch'
+  test-x86-with-repo:
+    uses: ./.github/workflows/macos_job.yml
+    with:
+      job-name: "macos-x86-64-py3.8"
+      runner: macos-12
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      repository: pytorch/vision
+      ref: main
+      script: |
+        conda create -y -n test python=3.8
+        conda activate test
+        python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
+        # Can import pytorch
+        python3 -c 'import torch'
+  test-m1-with-repo:
+    uses: ./.github/workflows/macos_job.yml
+    with:
+      job-name: "macos-arm64-py3.8"
+      runner: macos-m1-12
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      repository: pytorch/vision
+      ref: main
       timeout: 60
       script: |
         conda create -y -n test python=3.8

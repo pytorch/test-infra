@@ -4,6 +4,7 @@ export interface Repo {
 }
 
 export interface RunnerInfo {
+  awsRegion: string;
   instanceId: string;
   launchTime?: Date;
   repo?: string;

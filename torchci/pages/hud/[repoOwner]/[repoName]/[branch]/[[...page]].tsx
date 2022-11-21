@@ -9,7 +9,7 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupingData } from "lib/JobClassifierUtil";
+import { getGroupingData, groups } from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
   HudData,
@@ -21,7 +21,6 @@ import {
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -33,11 +32,9 @@ import { fetcher } from "lib/GeneralUtils";
 export function JobCell({
   sha,
   job,
-  isClassified,
 }: {
   sha: string;
   job: JobData;
-  isClassified: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
@@ -48,7 +45,11 @@ export function JobCell({
         setPinnedId={setPinnedId}
         tooltipContent={<JobTooltip job={job} />}
       >
-        <JobConclusion conclusion={job.conclusion} classified={isClassified} />
+        <JobConclusion
+          conclusion={job.conclusion}
+          failedPreviousRun={job.failedPreviousRun}
+          classified={job.failureAnnotation != null}
+        />
       </TooltipTarget>
     </td>
   );
@@ -57,11 +58,11 @@ export function JobCell({
 function HudRow({
   rowData,
   expandedGroups,
-  useGrouping,
+  names,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
-  useGrouping: boolean;
+  names: string[];
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
@@ -69,16 +70,6 @@ function HudRow({
 
   const failedJobs = rowData.jobs.filter(isFailedJob);
   const { repoOwner, repoName } = router.query;
-
-  const { data } = useSWR(
-    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
-      JSON.stringify(failedJobs.map((failedJob) => failedJob.id))
-    )}`,
-    fetcher
-  );
-  if (data == null) {
-    return null;
-  }
 
   return (
     <tr>
@@ -102,7 +93,13 @@ function HudRow({
           <a
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
           >
-            #{rowData.prNum}
+            {rowData.isForcedMerge ? (
+              <mark className={styles.forcedMergeWarning}>
+                #{rowData.prNum}
+              </mark>
+            ) : (
+              <div>#{rowData.prNum}</div>
+            )}
           </a>
         )}
       </td>
@@ -116,10 +113,9 @@ function HudRow({
         </div>
       </td>
       <HudJobCells
-        classifiedJobs={data}
         rowData={rowData}
         expandedGroups={expandedGroups}
-        useGrouping={useGrouping}
+        names={names}
       />
     </tr>
   );
@@ -128,66 +124,59 @@ function HudRow({
 function HudJobCells({
   rowData,
   expandedGroups,
-  useGrouping,
-  classifiedJobs,
+  names,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
-  useGrouping: boolean;
-  classifiedJobs: any;
+  names: string[];
 }) {
-  if (!useGrouping) {
-    return (
-      <>
-        {rowData.jobs.map((job: JobData) => {
-          const isClassified = (job.id ?? "") in classifiedJobs;
-          return (
-            <JobCell
-              sha={rowData.sha}
-              key={job.name}
-              job={job}
-              isClassified={isClassified}
-            />
-          );
-        })}
-      </>
-    );
-  } else {
-    return (
-      <>
-        {(rowData?.groupedJobs ?? []).map((group, ind) => {
+  let groupNames = groups.map((group) => group.name).concat("other");
+
+  return (
+    <>
+      {names.map((name) => {
+        if (groupNames.includes(name)) {
           let numClassified = 0;
-          for (const job of group.jobs) {
-            if ((job.id ?? "") in classifiedJobs) {
+          for (const job of rowData.groupedJobs?.get(name)?.jobs ?? []) {
+            if (job.failureAnnotation != null) {
               numClassified++;
             }
           }
-          const failedJobs = group.jobs.filter(isFailedJob);
+          const failedJobs = rowData.groupedJobs?.get(name)?.jobs.filter(isFailedJob);
           return (
             <HudGroupedCell
               sha={rowData.sha}
-              key={ind}
-              groupData={group}
-              isExpanded={expandedGroups.has(group.groupName)}
+              key={name}
+              groupData={rowData.groupedJobs?.get(name)!}
+              isExpanded={expandedGroups.has(name)}
               isClassified={
-                numClassified != 0 && numClassified == failedJobs.length
+                numClassified != 0 && numClassified == failedJobs?.length
               }
             />
           );
-        })}
-      </>
-    );
-  }
+        } else {
+          const job = rowData.nameToJobs?.get(name);
+          return (
+            <JobCell
+              sha={rowData.sha}
+              key={name}
+              job={job!}
+            />
+          );
+        }
+      })}
+    </>
+  );
 }
 
 function HudTableBody({
   shaGrid,
   expandedGroups = new Set(),
-  useGrouping,
+  names,
 }: {
   shaGrid: RowData[];
   expandedGroups?: Set<string>;
-  useGrouping: boolean;
+  names: string[];
 }) {
   return (
     <tbody>
@@ -196,7 +185,7 @@ function HudTableBody({
           key={row.sha}
           rowData={row}
           expandedGroups={expandedGroups}
-          useGrouping={useGrouping}
+          names={names}
         />
       ))}
     </tbody>
@@ -207,7 +196,6 @@ function GroupFilterableHudTable({
   params,
   groupNameMapping,
   children,
-  names,
   groupNames,
   expandedGroups,
   setExpandedGroups,
@@ -217,7 +205,6 @@ function GroupFilterableHudTable({
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
   children: React.ReactNode;
-  names: string[];
   groupNames: string[];
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -226,7 +213,7 @@ function GroupFilterableHudTable({
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
     useTableFilter(params);
-  const headerNames = useGrouping ? groupNames : names;
+  const headerNames = groupNames;
   return (
     <>
       <JobFilterInput
@@ -426,20 +413,34 @@ function GroupedHudTable({
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
 
-  expandedGroups.forEach((group) => {
-    const nameInd = names.indexOf(group);
-    names = [
-      ...names.slice(0, nameInd + 1),
-      ...(groupNameMapping.get(group) ?? []),
-      ...names.slice(nameInd + 1),
-    ];
-  });
+  if (useGrouping) {
+    expandedGroups.forEach((group) => {
+      const nameInd = names.indexOf(group);
+      names = [
+        ...names.slice(0, nameInd + 1),
+        ...(groupNameMapping.get(group) ?? []),
+        ...names.slice(nameInd + 1),
+      ];
+    });
+  } else {
+    names = [...data.jobNames];
+    groups.forEach((group) => {
+      if (groupNames.includes(group.name) && group.persistent) {
+        names.push(group.name);
+        names = names.filter(
+          (name) => !groupNameMapping.get(group.name)?.includes(name)
+        );
+        if (expandedGroups.has(group.name)) {
+          names = names.concat(groupNameMapping.get(group.name) ?? []);
+        }
+      }
+    });
+  }
 
   return (
     <GroupFilterableHudTable
       params={params}
       groupNameMapping={groupNameMapping}
-      names={data.jobNames}
       groupNames={names}
       expandedGroups={expandedGroups}
       setExpandedGroups={setExpandedGroups}
@@ -449,7 +450,7 @@ function GroupedHudTable({
       <HudTableBody
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
-        useGrouping={useGrouping}
+        names={names}
       />
     </GroupFilterableHudTable>
   );

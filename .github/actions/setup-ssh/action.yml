@@ -6,12 +6,22 @@ inputs:
   github-secret:
     description: GitHub token
     required: true
+  activate-with-label:
+    required: true
+    description: 'Tells the action only to add keys when specific label is applied, set false if you want the key to always be added'
+    default: false
+  label:
+    required: true
+    description: 'Label to activate action with'
+    default: 'with-ssh'
+  remove-existing-keys:
+    required: true
+    description: 'Removes existing keys at ~/.ssh/authorized_keys before adding new ones'
+    default: true
+  instructions:
+    required: false
+    description: 'Additional instructions on what to do next'
 
 runs:
-  using: composite
-  steps:
-    - name: "Enable SSH (Click me for login details)"
-      uses: seemethere/add-github-ssh-key@v1
-      with:
-        GITHUB_TOKEN: ${{ inputs.github-secret }}
-        activate-with-label: false
+  using: 'node16'
+  main: 'index.js'

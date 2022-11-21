@@ -19,9 +19,11 @@ WITH job AS (
         job.torchci_classification.line,
         job.torchci_classification.captures,
         job.torchci_classification.line_num,
+        annotation.annotation,
     FROM
         workflow_job job
         INNER JOIN workflow_run workflow on workflow.id = job.run_id
+        LEFT JOIN job_annotation annotation ON job.id = annotation.jobID
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
@@ -61,6 +63,7 @@ WITH job AS (
         null,
         null,
         null,
+        null,
     FROM
         circleci.job job
     WHERE
@@ -82,5 +85,6 @@ SELECT
     line as failureLine,
     line_num as failureLineNumber,
     captures as failureCaptures,
+    annotation as failureAnnotation,
 FROM
     job

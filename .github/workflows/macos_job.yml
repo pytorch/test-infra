@@ -39,9 +39,14 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
+      job-name:
+        description: "Name for the job, which is displayed in the GitHub UI"
+        default: "macos-job"
+        type: string
 
 jobs:
   job:
+    name: ${{ inputs.job-name }}
     env:
       REPOSITORY: ${{ inputs.repository || github.repository }}
       SCRIPT: ${{ inputs.script }}
@@ -59,13 +64,6 @@ jobs:
       - name: Setup miniconda
         uses: ./test-infra/.github/actions/setup-miniconda
 
-      - name: Setup useful environment variables
-        working-directory: ${{ inputs.repository }}
-        run: |
-          RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
-          mkdir -p "${RUNNER_ARTIFACT_DIR}"
-          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
-
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
@@ -73,6 +71,13 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
+
+      - name: Setup useful environment variables
+        working-directory: ${{ inputs.repository }}
+        run: |
+          RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
+          mkdir -p "${RUNNER_ARTIFACT_DIR}"
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3

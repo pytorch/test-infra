@@ -24,11 +24,11 @@ resource "random_string" "random" {
 
 resource "aws_sqs_queue" "queued_builds" {
   name                        = "${var.environment}-queued-builds.fifo"
-  visibility_timeout_seconds  = 180
+  visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
-  message_retention_seconds   = 1800
+  message_retention_seconds   = 5800
 
   tags = var.tags
 }
@@ -62,11 +62,15 @@ module "webhook" {
 module "runners" {
   source = "./modules/runners"
 
-  aws_region  = var.aws_region
-  vpc_id      = var.vpc_id
-  subnet_ids  = var.subnet_ids
-  environment = var.environment
-  tags        = local.tags
+  aws_region           = var.aws_region
+  aws_region_instances = var.aws_region_instances
+  // TODO remove-me
+  vpc_id               = var.vpc_id
+  vpc_ids              = var.vpc_ids
+  subnet_ids           = var.subnet_ids
+  environment          = var.environment
+  tags                 = local.tags
+
   encryption = {
     kms_key_id = local.kms_key_id
     encrypt    = var.encrypt_secrets
@@ -111,6 +115,7 @@ module "runners" {
   logging_retention_in_days        = var.logging_retention_in_days
   enable_cloudwatch_agent          = var.enable_cloudwatch_agent
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
+  scale_up_provisioned_concurrent_executions = var.scale_up_provisioned_concurrent_executions
 
   instance_profile_path     = var.instance_profile_path
   role_path                 = var.role_path

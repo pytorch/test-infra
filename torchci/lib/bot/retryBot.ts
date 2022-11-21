@@ -6,11 +6,21 @@ function retryBot(app: Probot): void {
   app.on("workflow_run.completed", async (ctx) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
+    const allowedWorkflowPrefixes = [
+      "lint",
+      "pull",
+      "trunk",
+      "linux-binary",
+      "windows-binary"
+    ]
+
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
       ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
-      !["lint", "pull"].includes(workflowName.toLowerCase()) // only do lint and pull for now because they are fast
+      allowedWorkflowPrefixes.every(
+        allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
+      )
     ) {
       return;
     }

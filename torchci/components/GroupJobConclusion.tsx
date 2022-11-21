@@ -24,6 +24,7 @@ export enum GroupedJobStatus {
   AllNull = "all_null",
   Success = "success",
   Classified = "classified",
+  Flaky = "flaky",
 }
 
 export default function HudGroupedCell({
@@ -40,6 +41,7 @@ export default function HudGroupedCell({
   const erroredJobs = [];
   const pendingJobs = [];
   const noStatusJobs = [];
+  const failedPreviousRunJobs = [];
   for (const job of groupData.jobs) {
     if (
       job.conclusion === JobStatus.Failure ||
@@ -51,6 +53,8 @@ export default function HudGroupedCell({
       pendingJobs.push(job);
     } else if (job.conclusion === undefined) {
       noStatusJobs.push(job);
+    } else if (job.conclusion === JobStatus.Success && job.failedPreviousRun) {
+      failedPreviousRunJobs.push(job)
     }
   }
 
@@ -59,6 +63,8 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.Failure;
   } else if (!(pendingJobs.length === 0)) {
     conclusion = GroupedJobStatus.Pending;
+  } else if (failedPreviousRunJobs.length !== 0) {
+    conclusion = GroupedJobStatus.Flaky;
   } else if (noStatusJobs.length === groupData.jobs.length) {
     conclusion = GroupedJobStatus.AllNull;
   }
@@ -77,6 +83,7 @@ export default function HudGroupedCell({
               groupName={groupData.groupName}
               erroredJobs={erroredJobs}
               pendingJobs={pendingJobs}
+              failedPreviousRunJobs={failedPreviousRunJobs}
             />
           }
         >
@@ -94,20 +101,6 @@ export default function HudGroupedCell({
           </span>
         </TooltipTarget>
       </td>
-      {isExpanded ? (
-        <>
-          {groupData.jobs.map((job, ind) => {
-            return (
-              <JobCell
-                key={ind}
-                sha={sha}
-                job={job}
-                isClassified={isClassified}
-              />
-            );
-          })}
-        </>
-      ) : null}
     </>
   );
 }
@@ -117,11 +110,13 @@ function GroupTooltip({
   groupName,
   erroredJobs,
   pendingJobs,
+  failedPreviousRunJobs,
 }: {
   conclusion: GroupedJobStatus;
   groupName: string;
   erroredJobs: JobData[];
   pendingJobs: JobData[];
+  failedPreviousRunJobs: JobData[];
 }) {
   if (conclusion === GroupedJobStatus.Failure) {
     return (
@@ -139,6 +134,15 @@ function GroupTooltip({
         groupName={groupName}
         jobs={pendingJobs}
         message={"The following jobs are still pending:"}
+      />
+    );
+  } else if (conclusion === GroupedJobStatus.Flaky) {
+    return (
+      <ToolTip
+        conclusion={conclusion}
+        groupName={groupName}
+        jobs={failedPreviousRunJobs}
+        message={"The following jobs were flaky:"}
       />
     );
   } else if (conclusion === GroupedJobStatus.AllNull) {

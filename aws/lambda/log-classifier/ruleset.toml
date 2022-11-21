@@ -29,8 +29,16 @@ name = 'GHA timeout'
 pattern = '^##\[error\]The action has timed out.'
 
 [[rule]]
+name = 'Faulty ROCM runner'
+pattern = '^Error: .*[dD]etect.*GPUs on the runner'
+
+[[rule]]
 name = 'GHA cancellation'
 pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
+
+[[rule]]
+name = 'make build failure'
+pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 
 [[rule]]
 name = 'bazel build failure'
@@ -71,6 +79,10 @@ pattern = '^FAILED: Build did NOT complete successfully'
 [[rule]]
 name = 'Python unittest failure'
 pattern = 'FAIL \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
+name = 'Python unittest unexpected success'
+pattern = 'XPASS \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
@@ -187,6 +199,10 @@ pattern = '''Docker login for '.*' failed.*'''
 [[rule]]
 name = 'conda failure'
 pattern = 'An unexpected error has occurred. Conda has prepared the above report.'
+
+[[rule]]
+name = 'Docker error'
+pattern = '^docker: Error.*'
 
 [[rule]]
 name = 'GHA error'

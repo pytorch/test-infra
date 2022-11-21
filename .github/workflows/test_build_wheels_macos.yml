@@ -7,6 +7,7 @@ on:
       - .github/workflows/test_build_wheels_macos.yml
       - .github/workflows/build_wheels_macos.yml
       - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
 jobs:
@@ -31,12 +32,12 @@ jobs:
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text
             pre-script: ""
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_tests/smoke_tests.py
             package-name: torchtext
     uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}

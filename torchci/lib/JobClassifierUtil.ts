@@ -1,17 +1,39 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
-const groups = [
+export const groups = [
+  {
+    regex: /^(?!periodic)(?!inductor).*mem_leak_check/,
+    name: "Memory Leak Check",
+    persistent: true,
+  },
+  {
+    regex: /rerun_disabled_tests/,
+    name: "Rerun Disabled Tests",
+    persistent: true,
+  },
   {
     regex: /Lint/,
     name: "Lint Jobs",
+  },
+  {
+    regex: /inductor/,
+    name: "Inductor",
   },
   {
     regex: /android/,
     name: "Android",
   },
   {
-    regex: /\slinux-/,
+    regex: /rocm/,
+    name: "ROCm",
+  },
+  {
+    regex: /-xla/,
+    name: "XLA",
+  },
+  {
+    regex: /(\slinux-|sm86)/,
     name: "Linux",
   },
   {
@@ -21,10 +43,6 @@ const groups = [
   {
     regex: /windows-binary/,
     name: "Binary Windows",
-  },
-  {
-    regex: /pytorch-xla/,
-    name: "XLA",
   },
   {
     regex:
@@ -53,7 +71,7 @@ const groups = [
     name: "ci/circleci: pytorch_ios",
   },
   {
-    regex: /\sios-/,
+    regex: /ios-/,
     name: "iOS",
   },
   {
@@ -68,10 +86,6 @@ const groups = [
   {
     regex: /(docs push)|(docs build)/,
     name: "Docs",
-  },
-  {
-    regex: /(pytorch-linux-bionic-rocm)|(pytorch_linux_bionic_rocm)/,
-    name: "ROCm",
   },
   {
     regex: /libtorch/,
@@ -100,6 +114,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "O";
     case GroupedJobStatus.Classified:
       return "X";
+    case GroupedJobStatus.Flaky:
+      return "F";
     default:
       return "U";
   }
@@ -120,9 +136,12 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
-export function getConclusionChar(conclusion?: string): string {
+export function getConclusionChar(conclusion?: string, failedPreviousRun?: boolean): string {
   switch (conclusion) {
     case JobStatus.Success:
+      if (failedPreviousRun) {
+        return "F"
+      }
       return "O";
     case JobStatus.Failure:
       return "X";
@@ -189,11 +208,7 @@ export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
       const groupName = jobToGroupName.get(job.name!)!;
       groupedJobs.get(groupName)!.jobs.push(job);
     }
-    const groupDataRow: GroupData[] = [];
-    for (const groupName of groupNamesArray) {
-      groupDataRow.push(groupedJobs.get(groupName)!);
-    }
-    row.groupedJobs = groupDataRow;
+    row.groupedJobs = groupedJobs;
   }
   return { shaGrid, groupNameMapping };
 }

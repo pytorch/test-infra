@@ -90,6 +90,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
@@ -126,6 +127,7 @@ jobs:
           POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
+          source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
@@ -177,7 +179,7 @@ jobs:
           set -x
           ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
           export ANACONDA_PATH
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

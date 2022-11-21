@@ -27,5 +27,11 @@ export default function useHudData(params: HudParams): HudData | undefined {
     });
   });
 
+  data.shaGrid.forEach((row: RowData) => {
+    row.nameToJobs =
+      row.jobs.reduce((map, obj) => (map.set(obj.name, obj), map), new Map()) ??
+      new Map();
+  });
+
   return data;
 }
