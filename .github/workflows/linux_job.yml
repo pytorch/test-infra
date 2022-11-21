@@ -127,6 +127,7 @@ jobs:
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
+            --env=GITHUB_STEP_SUMMARY \
             --cap-add=SYS_PTRACE \
             --detach \
             --ipc=host \
