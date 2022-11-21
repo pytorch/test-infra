@@ -159,7 +159,11 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
     _libtorch_variant = f"{libtorch_variant}-{libtorch_config}" if libtorch_config == 'debug' else libtorch_variant
     build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-latest.zip"
 
-    if channel == 'release':
+    if os == 'macos':
+        build_name = "libtorch-macos-latest.zip"
+        if channel == RELEASE:
+            build_name = f"libtorch-macos-{CURRENT_STABLE_VERSION}.zip"
+    elif os == 'linux' or os == 'windows' and channel == RELEASE:
         build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
@@ -266,7 +270,7 @@ def generate_libtorch_matrix(
 
                 # For windows release we support only shared-with-deps variant
                 # see: https://github.com/pytorch/pytorch/issues/87782
-                if os == 'windows' and channel == 'release' and libtorch_variant != "shared-with-deps":
+                if os == 'windows' and channel == RELEASE and libtorch_variant != "shared-with-deps":
                     continue
 
                 desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
