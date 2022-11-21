@@ -133,7 +133,7 @@ def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
 def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str) -> str:
-    conda_channels = "-c pytorch" if channel == "release" else f"-c pytorch-{channel}"
+    conda_channels = "-c pytorch" if channel == RELEASE else f"-c pytorch-{channel}"
 
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
@@ -145,7 +145,7 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
 
 def get_base_download_url_for_repo(repo: str, channel: str, gpu_arch_type: str, desired_cuda: str) -> str:
     base_url_for_type = f"{DOWNLOAD_URL_BASE}/{repo}"
-    base_url_for_type = base_url_for_type if channel == "release" else f"{base_url_for_type}/{channel}"
+    base_url_for_type = base_url_for_type if channel == RELEASE else f"{base_url_for_type}/{channel}"
 
     if gpu_arch_type != "cpu":
         base_url_for_type= f"{base_url_for_type}/{desired_cuda}"
@@ -164,11 +164,13 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
-def get_wheel_install_command(channel: str, gpu_arch_type: str, desired_cuda: str, python_version: str, with_pypi: bool = False) -> str:
-    packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" or with_pypi else PACKAGES_TO_INSTALL_WHL
-    whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
-    desired_cuda_pkg = f"{desired_cuda}_pypi_cudnn" if with_pypi else desired_cuda
-    return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda_pkg)}"
+def get_wheel_install_command(channel: str, gpu_arch_type: str, gpu_arch_version: str, desired_cuda: str, python_version: str) -> str:
+    if channel == RELEASE and ((gpu_arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos"))):
+        return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+    else:
+        packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
+        whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
+        return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
@@ -300,7 +302,6 @@ def generate_wheels_matrix(
     channel: str,
     with_cuda: str,
     with_py311: str,
-    with_pypi_cudnn: str = DISABLE,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -338,37 +339,6 @@ def generate_wheels_matrix(
             if python_version == "3.11" and gpu_arch_type == "rocm":
                 continue
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
-
-            installation_pypi = ""
-            # special 11.7 wheels package without dependencies
-            # dependency downloaded via pip install
-            if arch_version == "11.7" and os == "linux" and with_pypi_cudnn == ENABLE:
-                installation_pypi = get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version, True)
-                ret.append(
-                    {
-                        "python_version": python_version,
-                        "gpu_arch_type": gpu_arch_type,
-                        "gpu_arch_version": gpu_arch_version,
-                        "desired_cuda": translate_desired_cuda(
-                            gpu_arch_type, gpu_arch_version
-                        ),
-                        "container_image": mod.WHEEL_CONTAINER_IMAGES[arch_version],
-                        "package_type": package_type,
-                        "pytorch_extra_install_requirements":
-                        "nvidia-cuda-runtime-cu11;"
-                        "nvidia-cudnn-cu11==8.5.0.96;"
-                        "nvidia-cublas-cu11==11.10.3.66",
-                        "installation_pypi": installation_pypi,
-                        "build_name":
-                        f"{package_type}-py{python_version}-{gpu_arch_type}{gpu_arch_version}-with-pypi-cudnn"
-                        .replace(
-                            ".", "_"
-                        ),
-                        "validation_runner": validation_runner(gpu_arch_type, os),
-                        "channel": channel,
-                    }
-                )
-
             ret.append(
                 {
                     "python_version": python_version,
@@ -381,7 +351,7 @@ def generate_wheels_matrix(
                         ".", "_"
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
-                    "installation": get_wheel_install_command(channel, gpu_arch_type, desired_cuda, python_version),
+                    "installation": get_wheel_install_command(channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
                 }
             )
@@ -430,13 +400,6 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_PY311", DISABLE),
     )
-    parser.add_argument(
-        "--with-pypi-cudnn",
-        help="Include PyPI cudnn builds",
-        type=str,
-        choices=[ENABLE, DISABLE],
-        default=os.getenv("WITH_PYPI_CUDNN", DISABLE),
-    )
 
     options = parser.parse_args(args)
     includes = []
@@ -452,8 +415,7 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.with_py311,
-                                                                options.with_pypi_cudnn)
+                                                                options.with_py311)
                     )
             else:
                 includes.extend(

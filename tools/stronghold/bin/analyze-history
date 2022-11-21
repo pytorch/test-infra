@@ -9,10 +9,11 @@ to the commit before integrated into trunk.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 import os
 import pathlib
 import pprint
+import subprocess
 import sys
 
 import api.compatibility
@@ -48,19 +49,33 @@ def main(argv: Sequence[str]) -> None:
     args = parser.parse_args(argv[1:])
 
     repo = api.git.Repository(args.repo)
-    commit_id = args.commit_id
 
-    for i in range(args.limit):
-        violations_by_file, commit_id = api.compatibility.check_commit(repo, commit_id)
-        if len(violations_by_file) != 0:
-            print('Commit:', commit_id)
-            for file, violations in violations_by_file.items():
-                print('File:', os.fspath(file))
-                pprint.pp(violations)
-                print()
+    for commit in list_commits(
+        args.repo, starting_commit_id=args.commit_id, limit=args.limit
+    ):
+        violations_by_file = api.compatibility.check_range(
+            repo, head=commit, base=f'{commit}~'
+        )
+        if len(violations_by_file) == 0:
+            continue
+        print('Commit:', commit)
+        for file, violations in violations_by_file.items():
+            print('File:', os.fspath(file))
+            pprint.pp(violations)
+            print()
 
-        # Recurse with parent.
-        commit_id += '~'
+
+def list_commits(
+    repo: pathlib.Path, *, starting_commit_id: str, limit: int
+) -> Iterable[str]:
+    """Lists the commits going back from the starting commit."""
+    pinfo = subprocess.run(
+        ['git', 'log', '--pretty=%H', f'--max-count={limit}', starting_commit_id],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    return pinfo.stdout.splitlines()
 
 
 if __name__ == "__main__":

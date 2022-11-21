@@ -13,17 +13,11 @@ import api.ast
 import api.git
 
 
-def check_commit(
-    repo: api.git.Repository, commit_id: str
-) -> tuple[Mapping[pathlib.Path, Sequence[Violation]], str]:
-    """Runs the check on the given commit."""
-    commit_info = repo.get_commit_info(commit_id=commit_id)
-    # Canonicalize the commit ID, since it is often provided as
-    # a1b2c3~.
-    commit_id = commit_info.hash
-
+def check_range(
+    repo: api.git.Repository, *, head: str, base: str
+) -> Mapping[pathlib.Path, Sequence[Violation]]:
     result = {}
-    for file in commit_info.files:
+    for file in repo.get_files_in_range(f'{base}..{head}'):
         # Someday, we'll want to customize the filters we use to
         # ignore files.
         if file.suffix != '.py':
@@ -46,8 +40,8 @@ def check_commit(
         #
         # Note that if the file doesn't exist, it is equivalent to it
         # being empty.
-        after = repo.get_contents(file, commit_id=commit_id) or ''
-        before = repo.get_contents(file, commit_id=commit_id + '~') or ''
+        after = repo.get_contents(file, commit_id=head) or ''
+        before = repo.get_contents(file, commit_id=base) or ''
 
         with (
             tempfile.NamedTemporaryFile() as before_file,
@@ -62,7 +56,7 @@ def check_commit(
             if len(violations) > 0:
                 result[file] = violations
 
-    return result, commit_info.hash
+    return result
 
 
 def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:

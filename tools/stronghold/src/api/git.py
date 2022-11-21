@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-import dataclasses
+from collections.abc import Iterable
 import pathlib
 import subprocess
 from typing import Any, Optional, Union
@@ -21,21 +20,14 @@ class Repository:
         """Gets the repository's local directory."""
         return self._dir
 
-    def get_commit_info(self, *, commit_id: str = 'HEAD') -> CommitInfo:
-        """Gets information about a particular commit.
-
-        Defaults to the most recent commit.
-        """
+    def get_files_in_range(self, /, range: str) -> Iterable[pathlib.Path]:
+        """Gets files modified in a range of commits."""
         pinfo = self.run(
-            ['diff-tree', '--name-only', '-r', commit_id],
+            ['diff-tree', '--name-only', '-r', range],
             check=True,
             stdout=subprocess.PIPE,
         )
-        lines = pinfo.stdout.splitlines()
-        return CommitInfo(
-            hash=lines[0],
-            files=[pathlib.Path(p) for p in lines[1:]],
-        )
+        return [pathlib.Path(p) for p in pinfo.stdout.splitlines()]
 
     def get_contents(
         self, path: pathlib.Path, *, commit_id: str = 'HEAD'
@@ -69,13 +61,3 @@ class Repository:
             # unicode.
             text=True,
         )
-
-
-@dataclasses.dataclass
-class CommitInfo:
-    """Represents basic info about a git commit."""
-
-    # The full hash identifying the commit.
-    hash: str
-    # The files modified in the commit.
-    files: Sequence[pathlib.Path]

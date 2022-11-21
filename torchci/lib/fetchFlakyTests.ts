@@ -41,3 +41,37 @@ export default async function fetchFlakyTests(
   );
   return flakyTestQuery.results ?? [];
 }
+
+
+export async function fetchFlakyTestsAcrossJobs(
+  numHours: string = "3",
+  threshold: number = 1,
+  ignoreMessages: string = "No CUDA GPUs are available"
+): Promise<FlakyTestData[]> {
+  const rocksetClient = getRocksetClient();
+  const flakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
+    "commons",
+    "flaky_tests_across_jobs",
+    rocksetVersions.commons.flaky_tests_across_jobs,
+    {
+      parameters: [
+        {
+          name: "numHours",
+          type: "int",
+          value: numHours,
+        },
+        {
+          name: "threshold",
+          type: "int",
+          value: threshold.toString(),
+        },
+        {
+          name: "ignoreMessages",
+          type: "string",
+          value: ignoreMessages,
+        },
+      ],
+    }
+  );
+  return flakyTestQuery.results ?? [];
+}
