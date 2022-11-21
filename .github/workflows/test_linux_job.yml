@@ -40,6 +40,15 @@ jobs:
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
         # Can import pytorch, cuda is available
         python3 -c 'import torch;assert(torch.cuda.is_available())'
+  test-docker-image:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      docker-image: fedora:37@sha256:f2c083c0b7d2367a375f15e002c2dc7baaca2b3181ace61f9d5113a8fe2f6b44
+      script: |
+        source /etc/os-release && [[ "${ID}" = "fedora" ]] || exit 1
   test-upload-artifact:
     uses: ./.github/workflows/linux_job.yml
     with:
