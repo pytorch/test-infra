@@ -13,4 +13,4 @@ def run() -> None:
     parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
-    api.compatibility.check_commit(repo, commit_id='HEAD')
+    api.compatibility.check_range(repo, head='HEAD', base='HEAD~')
