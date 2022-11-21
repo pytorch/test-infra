@@ -123,6 +123,7 @@ jobs:
           chmod +x "${RUNNER_TEMP}/exec_script"
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
+          ls -l ${GITHUB_STEP_SUMMARY}
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
@@ -137,10 +138,13 @@ jobs:
             -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
             -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
             -v "${RUNNER_TEMP}/exec_script:/exec" \
+            -v "$(dirname ${GITHUB_STEP_SUMMARY})":"$(dirname ${GITHUB_STEP_SUMMARY})" \
             -w /work \
             "${DOCKER_IMAGE}"
           )
           docker exec -t "${container_name}" bash /exec
+          ls -l ${GITHUB_STEP_SUMMARY}
+          cat ${GITHUB_STEP_SUMMARY}
 
       - name: Chown repository directory
         if: ${{ always() }}
