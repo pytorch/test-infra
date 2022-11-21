@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/flaky_tests_across_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "ignoreMessages",
+      "type": "string",
+      "value": "No CUDA GPUs are available"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "96"
+    },
+    {
+      "name": "threshold",
+      "type": "int",
+      "value": "1"
+    }
+  ],
+  "description": ""
+}
