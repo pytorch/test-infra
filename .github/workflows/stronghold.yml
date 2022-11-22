@@ -28,6 +28,7 @@ jobs:
             --head-commit=${{ github.event.pull_request.head.sha }}
 
       docker-image: buildpack-deps:scm
+      runner: linux.large
 
   black:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
