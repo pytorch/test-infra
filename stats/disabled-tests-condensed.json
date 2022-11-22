@@ -2384,34 +2384,6 @@
       "windows"
     ]
   ],
-  "test_ref_small_input__masked_prod_cuda (__main__.TestReductionsCUDA)": [
-    "77320",
-    "https://github.com/pytorch/pytorch/issues/77320",
-    [
-      "win"
-    ]
-  ],
-  "test_ref_small_input__masked_prod_cuda_int16 (__main__.TestReductionsCUDA)": [
-    "77336",
-    "https://github.com/pytorch/pytorch/issues/77336",
-    [
-      "win"
-    ]
-  ],
-  "test_ref_small_input__masked_prod_cuda_int32 (__main__.TestReductionsCUDA)": [
-    "77334",
-    "https://github.com/pytorch/pytorch/issues/77334",
-    [
-      "win"
-    ]
-  ],
-  "test_ref_small_input__masked_prod_cuda_int8 (__main__.TestReductionsCUDA)": [
-    "77335",
-    "https://github.com/pytorch/pytorch/issues/77335",
-    [
-      "win"
-    ]
-  ],
   "test_ref_small_input_prod_cuda_int16 (__main__.TestReductionsCUDA)": [
     "77338",
     "https://github.com/pytorch/pytorch/issues/77338",
@@ -2422,13 +2394,6 @@
   "test_ref_small_input_prod_cuda_int32 (__main__.TestReductionsCUDA)": [
     "77333",
     "https://github.com/pytorch/pytorch/issues/77333",
-    [
-      "win"
-    ]
-  ],
-  "test_ref_small_input_prod_cuda_int8 (__main__.TestReductionsCUDA)": [
-    "77337",
-    "https://github.com/pytorch/pytorch/issues/77337",
     [
       "win"
     ]
