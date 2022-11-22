@@ -144,7 +144,7 @@ def query_non_flaky_disabled_tests() -> Dict[str, Dict[str, Any]]:
         api_server="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
     qlambda = rs.QueryLambda.retrieve(
-        "disabled_non_flaky_tests", version="36fca61be69270fa", workspace="commons"
+        "disabled_non_flaky_tests", version="8c6281756c969663", workspace="commons"
     )
 
     try:
