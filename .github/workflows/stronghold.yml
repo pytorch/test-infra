@@ -28,6 +28,7 @@ jobs:
             --head-commit=${{ github.event.pull_request.head.sha }}
 
       docker-image: buildpack-deps:scm
+      runner: linux.large
 
   black:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -43,6 +44,7 @@ jobs:
         black --check --diff .
 
       docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
 
   flake8:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -58,6 +60,7 @@ jobs:
         flake8 .
 
       docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
 
   mypy:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -73,6 +76,7 @@ jobs:
         mypy .
 
       docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
 
   pytest:
     uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
@@ -86,3 +90,5 @@ jobs:
         echo ::endgroup::
 
         pytest
+
+      runner: linux.large
