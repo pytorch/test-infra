@@ -28,7 +28,7 @@ jobs:
             --head-commit=${{ github.event.pull_request.head.sha }}
 
   black:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -38,12 +38,12 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        black --check --diff .
+        black --check --diff . | tee "${GITHUB_STEP_SUMMARY}"
 
       docker-image: python:3.11.0-slim-bullseye
 
   flake8:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -53,12 +53,12 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        flake8 .
+        flake8 . | tee "${GITHUB_STEP_SUMMARY}"
 
       docker-image: python:3.11.0-slim-bullseye
 
   mypy:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -68,12 +68,12 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        mypy .
+        mypy . | tee "${GITHUB_STEP_SUMMARY}"
 
       docker-image: python:3.11.0-slim-bullseye
 
   pytest:
-    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    uses: ./.github/workflows/linux_job.yml
     with:
       script: |
         echo ::group::setup Python environment
@@ -83,4 +83,4 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        pytest
+        pytest | tee "${GITHUB_STEP_SUMMARY}"
