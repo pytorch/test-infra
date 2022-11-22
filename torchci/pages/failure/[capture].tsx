@@ -171,12 +171,19 @@ function FailureInfo({
         <h3>Failures by job</h3>
         <table>
           <tbody>
-            {Object.entries(jobCount).map(([job, count]) => (
-              <tr key={job}>
-                <td>{job}</td>
-                <td>{count as number}</td>
-              </tr>
-            ))}
+            {Object.entries(jobCount)
+              .sort(function([jobAName, jobACount], [jobBName, jobBCount]) {
+                if (jobACount != jobBCount) {
+                  return jobBCount-jobACount
+                }
+                return jobAName.localeCompare(jobBName)
+              })
+              .map(([job, count]) => (
+                <tr key={job}>
+                  <td>{job}</td>
+                  <td>{count as number}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
