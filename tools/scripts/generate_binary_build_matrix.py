@@ -38,8 +38,8 @@ CURRENT_STABLE_VERSION = "1.13.0"
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
-LINUX_GPU_RUNNER = "ubuntu-20.04-m60"
-LINUX_CPU_RUNNER = "ubuntu-20.04"
+LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
+LINUX_CPU_RUNNER = "linux.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-12"
