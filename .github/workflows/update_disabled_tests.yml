@@ -15,7 +15,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Generate new disabled test json
         run: |
-          .github/scripts/update_disabled_tests.py
+          # TODO: Run this in dry-run mode until we can automatically close non flaky disabled tests
+          .github/scripts/update_disabled_tests.py --dry-run
       - name: Print file
         run: |
           cat disabled-tests-condensed.json
