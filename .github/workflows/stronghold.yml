@@ -38,7 +38,9 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        black --check --diff .
+        # black writes its output to stderr, so we redirect stderr to
+        # tee, and then return tee's output back to stderr.
+        black --check --diff . 2> >(tee "${GITHUB_STEP_SUMMARY}" >&2)
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -53,7 +55,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        flake8 .
+        flake8 --output-file="${GITHUB_STEP_SUMMARY}" --tee .
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -68,7 +70,7 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        mypy .
+        mypy . | tee "${GITHUB_STEP_SUMMARY}"
 
       docker-image: python:3.11.0-slim-bullseye
 
@@ -83,4 +85,4 @@ jobs:
         pip install --requirement=requirements.txt
         echo ::endgroup::
 
-        pytest
+        pytest | tee "${GITHUB_STEP_SUMMARY}"
