@@ -212,6 +212,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
+                    "stable_version": CURRENT_STABLE_VERSION,
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
             )
@@ -295,7 +296,8 @@ def generate_libtorch_matrix(
                         ),
                         "validation_runner": validation_runner(gpu_arch_type, os),
                         "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
-                        "channel": channel
+                        "channel": channel,
+                        "stable_version": CURRENT_STABLE_VERSION
                     }
                 )
     return ret
@@ -357,6 +359,7 @@ def generate_wheels_matrix(
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "installation": get_wheel_install_command(os, channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
+                    "stable_version": CURRENT_STABLE_VERSION
                 }
             )
     return ret
