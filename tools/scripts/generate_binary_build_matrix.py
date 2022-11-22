@@ -230,6 +230,10 @@ def generate_libtorch_matrix(
 
     ret: List[Dict[str, str]] = []
 
+    # macos-arm64 does not have any libtorch builds
+    if os == "macos-arm64":
+        return ret
+
     if arches is None:
         arches = ["cpu"]
 
