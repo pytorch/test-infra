@@ -191,7 +191,7 @@ jobs:
           else
             export ARCH_NAME="osx-64"
           fi
-          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} "${CONDA_PREFIX}/bin/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
