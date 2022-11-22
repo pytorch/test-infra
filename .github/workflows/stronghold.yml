@@ -80,7 +80,7 @@ jobs:
       script: |
         echo ::group::setup Python environment
         cd tools/stronghold/
-        python -m venv .venv/
+        python3 -m venv .venv/
         source .venv/bin/activate
         pip install --requirement=requirements.txt
         echo ::endgroup::
