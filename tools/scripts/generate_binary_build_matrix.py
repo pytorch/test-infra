@@ -32,11 +32,12 @@ PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
 DEBUG = "debug"
+NIGHTLY = "nightly"
 
 CURRENT_STABLE_VERSION = "1.13.0"
 
 # By default use Nightly for CUDA arches
-mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
+mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
@@ -165,6 +166,8 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
             build_name = f"libtorch-macos-{CURRENT_STABLE_VERSION}.zip"
     elif (os == 'linux' or os == 'windows') and channel == RELEASE:
         build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
+    elif os == "windows" and channel == NIGHTLY:
+        build_name = f"{prefix}_shared-with-deps-debug-latest.zip" if libtorch_config == 'debug' else f"{prefix}_shared-with-deps-latest.zip"
 
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
