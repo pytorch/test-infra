@@ -38,8 +38,8 @@ CURRENT_STABLE_VERSION = "1.13.0"
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT["nightly"]
 
-LINUX_GPU_RUNNER = "ubuntu-20.04-m60"
-LINUX_CPU_RUNNER = "ubuntu-20.04"
+LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
+LINUX_CPU_RUNNER = "linux.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-12"
@@ -212,6 +212,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
+                    "stable_version": CURRENT_STABLE_VERSION,
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
                 }
             )
@@ -228,6 +229,10 @@ def generate_libtorch_matrix(
 ) -> List[Dict[str, str]]:
 
     ret: List[Dict[str, str]] = []
+
+    # macos-arm64 does not have any libtorch builds
+    if os == "macos-arm64":
+        return ret
 
     if arches is None:
         arches = ["cpu"]
@@ -295,7 +300,8 @@ def generate_libtorch_matrix(
                         ),
                         "validation_runner": validation_runner(gpu_arch_type, os),
                         "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
-                        "channel": channel
+                        "channel": channel,
+                        "stable_version": CURRENT_STABLE_VERSION
                     }
                 )
     return ret
@@ -357,6 +363,7 @@ def generate_wheels_matrix(
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "installation": get_wheel_install_command(os, channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
+                    "stable_version": CURRENT_STABLE_VERSION
                 }
             )
     return ret
