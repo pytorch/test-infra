@@ -4,6 +4,7 @@ export class Config {
   private static _instance: Config | undefined;
 
   readonly awsRegion: string;
+  readonly awsRegionInstances: string[];
   readonly awsRegionsToVpcIds: Map<string, Array<string>>;
   readonly cantHaveIssuesLabels: string[];
   readonly enableOrganizationRunners: boolean;
@@ -33,6 +34,8 @@ export class Config {
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
+    /* istanbul ignore next */
+    this.awsRegionInstances = process.env.AWS_REGION_INSTANCES?.split(',').filter((w) => w.length > 0) || [];
     this.awsRegionsToVpcIds = this.getMapFromFlatEnv(process.env.AWS_REGIONS_TO_VPC_IDS);
     /* istanbul ignore next */
     this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
@@ -90,7 +93,12 @@ export class Config {
   }
 
   get shuffledAwsRegionInstances(): string[] {
-    const arr = Array.from(this.awsRegionsToVpcIds.keys());
+    let arr: string[];
+    if (this.awsRegionsToVpcIds.size > 0) {
+      arr = Array.from(this.awsRegionsToVpcIds.keys());
+    } else {
+      arr = [...this.awsRegionInstances];
+    }
     return this.shuffleInPlace(arr);
   }
 

@@ -64,9 +64,11 @@ export async function listRunners(
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
+    console.debug(`[listRunners]: REGIONS ${Config.Instance.shuffledAwsRegionInstances}`);
     const runningInstances = (
       await Promise.all(
         Config.Instance.shuffledAwsRegionInstances.map((awsRegion) => {
+          console.debug(`[listRunners]: Running for region ${awsRegion}`);
           return expBackOff(() => {
             return metrics.trackRequestRegion(
               awsRegion,
@@ -77,6 +79,11 @@ export async function listRunners(
                   .describeInstances({ Filters: ec2Filters })
                   .promise()
                   .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                    console.debug(
+                      `[listRunners]: Result for EC2({ region: ${awsRegion} })` +
+                        `.describeInstances({ Filters: ${ec2Filters} }) = ` +
+                        `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
+                    );
                     return { describeInstanceResult, awsRegion };
                   });
               },
@@ -85,6 +92,7 @@ export async function listRunners(
         }),
       )
     ).flat();
+    console.debug(`[listRunners]: runningInstances = ${runningInstances.length}`);
     /* istanbul ignore next */
     return runningInstances.flatMap((itm) => {
       return (
