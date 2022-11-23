@@ -16,13 +16,14 @@ variable "vpc_id" {
 }
 
 variable "vpc_ids" {
-  description = "The VPC for security groups of the action runners."
+  description = "The VPC ids that resides in subnet_vpc_ids"
   type        = list(string)
 }
 
-variable "subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
-  type        = list(string)
+variable "subnet_vpc_ids" {
+  description = "The relation between subnet and vpcs. keys; 'vpc' 'subnet'"
+  type        = list(map(string))
+  default     = []
 }
 
 variable "tags" {

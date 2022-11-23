@@ -49,8 +49,19 @@ resource "aws_lambda_function" "scale_up" {
       MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
-      SECURITY_GROUP_IDS                    = join(",", concat([for runners_sg in aws_security_group.runners_sg : runners_sg.id], var.runner_additional_security_group_ids))
-      SUBNET_IDS                            = join(",", [for subnet_id in var.subnet_ids: format("%s|%s", var.aws_region, subnet_id) ])
+      SECURITY_GROUP_IDS                    = join(",", var.runner_additional_security_group_ids)
+      SUBNET_IDS                            = join(
+                                                  ",",
+                                                  [
+                                                    for subnet_vpc_id in var.subnet_vpc_ids:
+                                                    format(
+                                                      "%s|%s|%s",
+                                                      var.aws_region,
+                                                      resource.aws_security_group.runners_sg[local.vpc_id_to_idx[subnet_vpc_id.vpc]].id,
+                                                      subnet_vpc_id.subnet
+                                                    )
+                                                  ]
+                                              )
     }
   }
 

@@ -26,6 +26,7 @@ locals {
   userdata_arm_patch                     = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner_linux   = "${path.module}/templates/install-config-runner.sh"
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
+  vpc_id_to_idx                          = {for idx, vpc_id in var.vpc_ids: vpc_id => idx}
 }
 
 data "aws_ami" "runner_ami_linux" {
