@@ -16,8 +16,13 @@ variable "vpc_id" {
 }
 
 variable "vpc_ids" {
-  description = "The VPC ids that resides in subnet_vpc_ids"
-  type        = list(string)
+  description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
+  type        = list(map(string))
+}
+
+variable "vpc_sgs" {
+  description = "The list of security group ids for vpc ids. keys: 'vpc', 'sg'"
+  type        = list(map(string))
 }
 
 variable "subnet_vpc_ids" {

@@ -48,18 +48,38 @@ resource "aws_lambda_function" "scale_up" {
       MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
-      # SUBNET_IDS                            = join(
-      #                                             ",",
-      #                                             [
-      #                                               for subnet_vpc_id in var.subnet_vpc_ids:
-      #                                               format(
-      #                                                 "%s|%s|%s",
-      #                                                 var.aws_region,
-      #                                                 resource.aws_security_group.runners_sg[local.vpc_id_to_idx[subnet_vpc_id.vpc]].id,
-      #                                                 subnet_vpc_id.subnet
-      #                                               )
-      #                                             ]
-      #                                         )
+
+      AWS_REGIONS_TO_VPC_IDS                = join(
+        ",",
+        [
+          for region_vpc in var.vpc_ids:
+          format("%s|%s", region_vpc.region, region_vpc.vpc)
+        ]
+      )
+      VPC_ID_TO_SECURITY_GROUP_IDS          = join(
+        ",",
+        concat(
+          [
+            for vpc in var.vpc_ids:
+              format(
+                "%s|%s",
+                vpc.vpc,
+                resource.aws_security_group.runners_sg[local.vpc_id_to_idx[vpc.vpc]].id
+              )
+          ],
+          [
+            for vpc_subnet in var.vpc_sgs:
+              format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
+          ]
+        )
+      )
+      VPC_ID_TO_SUBNET_IDS                  = join(
+        ",",
+        [
+          for vpc_subnet in var.subnet_vpc_ids:
+          format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
+        ]
+      )
     }
   }
 

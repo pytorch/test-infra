@@ -67,6 +67,7 @@ module "runners" {
   // TODO remove-me
   vpc_id               = var.vpc_id
   vpc_ids              = var.vpc_ids
+  vpc_sgs              = var.vpc_sgs
   subnet_vpc_ids       = var.subnet_vpc_ids
   environment          = var.environment
   tags                 = local.tags
