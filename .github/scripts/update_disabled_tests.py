@@ -70,8 +70,8 @@ def get_disable_issues() -> Dict[Any, Any]:
 
 def validate_and_sort(issues_json: Dict[str, Any]) -> None:
     assert issues_json["total_count"] == len(issues_json["items"]), (
-        f"# issues {len(issues_json['items'])} does not"
-        f" equal total count {issues_json['total_count']}."
+        f"The number of issues does not equal the total count. Received {len(issues_json['items'])}, "
+        f"while the total count is {issues_json['total_count']}."
     )
     assert not issues_json[
         "incomplete_results"
@@ -108,7 +108,9 @@ def condense_disable_issues(
 
                 num_green = non_flaky_disabled_tests[test_name].get("num_green", 0)
                 # Only report the result in dry-run mode
-                print(f"{test_name} is not flaky after {num_green} reruns, {issue_url} can be closed")
+                print(
+                    f"{test_name} is not flaky after {num_green} reruns, {issue_url} can be closed"
+                )
 
             body = item["body"]
             platforms_to_skip = []
