@@ -69,6 +69,7 @@ function FlakyJobs({
 
   const { data: rerunJobs } = useSWR(url, fetcher, {
     refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
+    revalidateOnFocus: false,
   });
 
   const { data: annotatedJobs } = useSWR(
@@ -78,6 +79,7 @@ function FlakyJobs({
     fetcher,
     {
       refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
+      revalidateOnFocus: false,
     }
   );
 
@@ -97,6 +99,7 @@ function FlakyJobs({
     fetcher,
     {
       refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
+      revalidateOnFocus: false,
     }
   );
 
@@ -180,9 +183,7 @@ export default function Page() {
           setStartTime={setStartTime}
           setStopTime={setStopTime}
         />
-
       </Stack>
-
 
       <FlakyJobs
         queryParams={queryParams}
