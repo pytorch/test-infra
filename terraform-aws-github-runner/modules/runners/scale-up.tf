@@ -31,6 +31,7 @@ resource "aws_lambda_function" "scale_up" {
   environment {
     variables = {
       CANT_HAVE_ISSUES_LABELS               = join(",", var.cant_have_issues_labels)
+      DATETIME_DEPLOY                       = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS           = var.enable_organization_runners
       ENVIRONMENT                           = var.environment
       GITHUB_APP_CLIENT_ID                  = var.github_app.client_id

@@ -17,6 +17,7 @@ describe('Config', () => {
       'AWS_REGION|VPC_1,AWS_REGION|VPC_2,AWS_REGION_INSTANCES_1|VPC_3,' +
       'AWS_REGION_INSTANCES_2|VPC_4,AWS_REGION_INSTANCES_2|VPC_5';
     process.env.CANT_HAVE_ISSUES_LABELS = 'label 1,label 2';
+    process.env.DATETIME_DEPLOY = '19050202000000';
     process.env.ENABLE_ORGANIZATION_RUNNERS = 'YES';
     process.env.ENVIRONMENT = 'ENVIRONMENT';
     process.env.GHES_URL = 'GHES_URL';
@@ -52,6 +53,7 @@ describe('Config', () => {
       ]),
     );
     expect(Config.Instance.cantHaveIssuesLabels).toEqual(['label 1', 'label 2']);
+    expect(Config.Instance.datetimeDeploy).toBe('19050202000000');
     expect(Config.Instance.environment).toBe('ENVIRONMENT');
     expect(Config.Instance.ghesUrl).toBe('GHES_URL');
     expect(Config.Instance.ghesUrlApi).toBe('GHES_URL/api/v3');
@@ -124,6 +126,7 @@ describe('Config', () => {
     delete process.env.AWS_REGION;
     delete process.env.AWS_REGIONS_TO_VPC_IDS;
     delete process.env.CANT_HAVE_ISSUES_LABELS;
+    delete process.env.DATETIME_DEPLOY;
     delete process.env.ENVIRONMENT;
     delete process.env.GHES_URL;
     delete process.env.GITHUB_APP_CLIENT_ID;
@@ -150,6 +153,7 @@ describe('Config', () => {
 
     expect(Config.Instance.awsRegion).toBe('us-east-1');
     expect(Config.Instance.cantHaveIssuesLabels).toEqual([]);
+    expect(Config.Instance.datetimeDeploy).toBeUndefined();
     expect(Config.Instance.environment).toBe('gh-ci');
     expect(Config.Instance.ghesUrl).toBeUndefined();
     expect(Config.Instance.ghesUrlApi).toBeUndefined();

@@ -7,6 +7,7 @@ export class Config {
   readonly awsRegionInstances: string[];
   readonly awsRegionsToVpcIds: Map<string, Array<string>>;
   readonly cantHaveIssuesLabels: string[];
+  readonly datetimeDeploy: string | undefined;
   readonly enableOrganizationRunners: boolean;
   readonly environment: string;
   readonly ghesUrl: undefined | string;
@@ -39,6 +40,8 @@ export class Config {
     this.awsRegionsToVpcIds = this.getMapFromFlatEnv(process.env.AWS_REGIONS_TO_VPC_IDS);
     /* istanbul ignore next */
     this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
+    /* istanbul ignore next */
+    this.datetimeDeploy = process.env.DATETIME_DEPLOY ? process.env.DATETIME_DEPLOY : undefined;
     this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
     this.environment = process.env.ENVIRONMENT || 'gh-ci';
     /* istanbul ignore next */

@@ -28,6 +28,8 @@ resource "aws_lambda_function" "scale_down" {
 
   environment {
     variables = {
+      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
+      DATETIME_DEPLOY                 = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
       ENVIRONMENT                     = var.environment
       GHES_URL                        = var.ghes_url
@@ -40,7 +42,6 @@ resource "aws_lambda_function" "scale_down" {
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
-      AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
     }
   }
 

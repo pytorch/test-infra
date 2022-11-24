@@ -16,16 +16,17 @@ locals {
     var.tags,
   )
 
-  name_sg                                = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
-  name_runner                            = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
-  role_path                              = var.role_path == null ? "/${var.environment}/" : var.role_path
+  datetime_deploy                        = formatdate("YYYYMMDDhhmmss", timestamp())
   instance_profile_path                  = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
   lambda_zip                             = var.lambda_zip == null ? "${path.module}/lambdas/runners/runners.zip" : var.lambda_zip
-  userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
-  userdata_template_windows              = "${path.module}/templates/user-data.ps1"
+  name_runner                            = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
+  name_sg                                = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
+  role_path                              = var.role_path == null ? "/${var.environment}/" : var.role_path
   userdata_arm_patch                     = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner_linux   = "${path.module}/templates/install-config-runner.sh"
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
+  userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
+  userdata_template_windows              = "${path.module}/templates/user-data.ps1"
   vpc_id_to_idx                          = {for idx, vpc in var.vpc_ids: vpc.vpc => idx}
 }
 

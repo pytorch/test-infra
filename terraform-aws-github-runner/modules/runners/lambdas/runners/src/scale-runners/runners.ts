@@ -100,14 +100,15 @@ export async function listRunners(
           /* istanbul ignore next */
           return (
             reservation.Instances?.map((instance) => ({
+              applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
               awsRegion: itm.awsRegion,
+              environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
+              ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
               instanceId: instance.InstanceId as string,
               launchTime: instance.LaunchTime,
-              repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
               org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
+              repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
               runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
-              ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
-              environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
             })) ?? []
           );
         }) ?? []
@@ -290,6 +291,9 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
     ];
+    if (Config.Instance.datetimeDeploy) {
+      tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
+    }
     if (runnerParameters.repoName !== undefined) {
       tags.push({
         Key: 'Repo',
