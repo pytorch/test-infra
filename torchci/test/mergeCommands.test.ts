@@ -768,7 +768,7 @@ describe("merge-bot", () => {
   test("merge with land checks using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchmergebot merge -l";
+    event.payload.comment.body = "@pytorchmergebot merge";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -792,7 +792,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"land_checks":true}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
         );
         return true;
       })

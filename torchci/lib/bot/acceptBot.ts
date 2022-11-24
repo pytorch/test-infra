@@ -15,7 +15,7 @@ export const ACCEPT_MESSAGE_PREFIX =
 
 export const ACCEPT_MESSAGE = `${ACCEPT_MESSAGE_PREFIX}
 
-@pytorchbot merge -l
+@pytorchbot merge
 `;
 
 function acceptBot(app: Probot): void {
