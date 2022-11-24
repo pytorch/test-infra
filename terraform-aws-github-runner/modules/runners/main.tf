@@ -26,6 +26,7 @@ locals {
   userdata_arm_patch                     = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner_linux   = "${path.module}/templates/install-config-runner.sh"
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
+  vpc_id_to_idx                          = {for idx, vpc in var.vpc_ids: vpc.vpc => idx}
 }
 
 data "aws_ami" "runner_ami_linux" {
@@ -252,7 +253,7 @@ resource "aws_security_group" "runners_sg" {
   count       = length(var.vpc_ids)
   name_prefix = "${var.environment}-github-actions-runner-sg-${count.index}"
   description = "Github Actions Runner security group"
-  vpc_id      = element(var.vpc_ids, count.index)
+  vpc_id      = element(var.vpc_ids, count.index).vpc
 
   egress {
     from_port   = 0

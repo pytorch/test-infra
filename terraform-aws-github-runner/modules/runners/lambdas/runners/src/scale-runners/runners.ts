@@ -64,9 +64,11 @@ export async function listRunners(
           ec2Filters.push({ Name: tags[attr as keyof typeof tags], Values: [filters[attr] as string] }),
         );
     }
+    console.debug(`[listRunners]: REGIONS ${Config.Instance.shuffledAwsRegionInstances}`);
     const runningInstances = (
       await Promise.all(
-        Config.Instance.awsRegionInstances.map((awsRegion) => {
+        Config.Instance.shuffledAwsRegionInstances.map((awsRegion) => {
+          console.debug(`[listRunners]: Running for region ${awsRegion}`);
           return expBackOff(() => {
             return metrics.trackRequestRegion(
               awsRegion,
@@ -77,6 +79,11 @@ export async function listRunners(
                   .describeInstances({ Filters: ec2Filters })
                   .promise()
                   .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                    console.debug(
+                      `[listRunners]: Result for EC2({ region: ${awsRegion} })` +
+                        `.describeInstances({ Filters: ${ec2Filters} }) = ` +
+                        `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
+                    );
                     return { describeInstanceResult, awsRegion };
                   });
               },
@@ -85,6 +92,7 @@ export async function listRunners(
         }),
       )
     ).flat();
+    console.debug(`[listRunners]: runningInstances = ${runningInstances.length}`);
     /* istanbul ignore next */
     return runningInstances.flatMap((itm) => {
       return (
@@ -301,80 +309,87 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
       const ec2 = new EC2({ region: awsRegion });
       const ssm = new SSM({ region: awsRegion });
-      const subnets = Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion);
-      for (const [subnetIdx, subnet] of subnets.entries()) {
-        try {
-          console.debug(`[${awsRegion}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`);
-          const runInstancesResponse = await expBackOff(() => {
-            return metrics.trackRequestRegion(
-              awsRegion,
-              metrics.ec2RunInstancesAWSCallSuccess,
-              metrics.ec2RunInstancesAWSCallFailure,
-              () => {
-                return ec2
-                  .runInstances({
-                    MaxCount: 1,
-                    MinCount: 1,
-                    LaunchTemplate: {
-                      LaunchTemplateName: launchTemplateName,
-                      Version: launchTemplateVersion,
-                    },
-                    InstanceType: runnerParameters.runnerType.instance_type,
-                    BlockDeviceMappings: [
-                      {
-                        DeviceName: storageDeviceName,
-                        Ebs: {
-                          VolumeSize: runnerParameters.runnerType.disk_size,
-                          VolumeType: 'gp3',
-                          Encrypted: true,
-                          DeleteOnTermination: true,
+      const shuffledVPCsForAwsRegion = Config.Instance.shuffledVPCsForAwsRegion(awsRegion);
+      for (const [vpcIdIdx, vpcId] of shuffledVPCsForAwsRegion.entries()) {
+        const securityGroupIds = Config.Instance.vpcIdToSecurityGroupIds.get(vpcId) ?? [];
+        const subnets = Config.Instance.shuffledSubnetsForVpcId(vpcId);
+        for (const [subnetIdx, subnet] of subnets.entries()) {
+          try {
+            console.debug(
+              `[${awsRegion}] [${vpcId}] Attempting to create instance ${runnerParameters.runnerType.instance_type}`,
+            );
+            const runInstancesResponse = await expBackOff(() => {
+              return metrics.trackRequestRegion(
+                awsRegion,
+                metrics.ec2RunInstancesAWSCallSuccess,
+                metrics.ec2RunInstancesAWSCallFailure,
+                () => {
+                  return ec2
+                    .runInstances({
+                      MaxCount: 1,
+                      MinCount: 1,
+                      LaunchTemplate: {
+                        LaunchTemplateName: launchTemplateName,
+                        Version: launchTemplateVersion,
+                      },
+                      InstanceType: runnerParameters.runnerType.instance_type,
+                      BlockDeviceMappings: [
+                        {
+                          DeviceName: storageDeviceName,
+                          Ebs: {
+                            VolumeSize: runnerParameters.runnerType.disk_size,
+                            VolumeType: 'gp3',
+                            Encrypted: true,
+                            DeleteOnTermination: true,
+                          },
                         },
-                      },
-                    ],
-                    NetworkInterfaces: [
-                      {
-                        AssociatePublicIpAddress: true,
-                        SubnetId: subnet,
-                        Groups: Config.Instance.securityGroupIds,
-                        DeviceIndex: 0,
-                      },
-                    ],
-                    TagSpecifications: [
-                      {
-                        ResourceType: 'instance',
-                        Tags: tags,
-                      },
-                    ],
-                  })
-                  .promise();
-              },
-            );
-          });
+                      ],
+                      NetworkInterfaces: [
+                        {
+                          AssociatePublicIpAddress: true,
+                          SubnetId: subnet,
+                          Groups: securityGroupIds,
+                          DeviceIndex: 0,
+                        },
+                      ],
+                      TagSpecifications: [
+                        {
+                          ResourceType: 'instance',
+                          Tags: tags,
+                        },
+                      ],
+                    })
+                    .promise();
+                },
+              );
+            });
 
-          if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
-            console.info(
-              `Created instance(s) [${awsRegion}] [${runnerParameters.runnerType.runnerTypeName}]: `,
-              runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
-            );
-            addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
+            if (runInstancesResponse.Instances && runInstancesResponse.Instances.length > 0) {
+              console.info(
+                `Created instance(s) [${awsRegion}] [${vpcId}] [${runnerParameters.runnerType.runnerTypeName}]: `,
+                runInstancesResponse.Instances.map((i) => i.InstanceId).join(','),
+              );
+              addSSMParameterRunnerConfig(runInstancesResponse.Instances, runnerParameters, ssm, metrics, awsRegion);
 
-            // breaks
-            return awsRegion;
-          } else {
+              // breaks
+              return awsRegion;
+            } else {
+              const msg =
+                `[${awsRegion}] [${vpcId}] [${runnerParameters.runnerType.instance_type}] ` +
+                `[${runnerParameters.runnerType.runnerTypeName}] ec2.runInstances returned empty list of instaces ` +
+                `created, but exit without throwing any exception (?!?!?!)`;
+              errors.push([msg, undefined]);
+              console.warn(msg);
+            }
+          } catch (e) {
             const msg =
-              `[${awsRegion}] [${runnerParameters.runnerType.instance_type}] ` +
-              `[${runnerParameters.runnerType.runnerTypeName}] ec2.runInstances returned empty list of instaces ` +
-              `created, but exit without throwing any exception (?!?!?!)`;
-            errors.push([msg, undefined]);
+              `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
+              `[${vpcIdIdx}/${shuffledVPCsForAwsRegion.length} - ${vpcId}] ` +
+              `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
+              `${runnerParameters.runnerType.instance_type}: ${e}`;
+            errors.push([msg, e]);
             console.warn(msg);
           }
-        } catch (e) {
-          const msg =
-            `[${subnetIdx}/${subnets.length} - ${subnet}] ` +
-            `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
-            `${runnerParameters.runnerType.instance_type}: ${e}`;
-          errors.push([msg, e]);
-          console.warn(msg);
         }
       }
     }
@@ -407,7 +422,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       /* istanbul ignore next */
       throw new Error(
         `[${runnerParameters.runnerType.instance_type}] Failed to runInstances without any exception captured! ` +
-          `Check AWS_REGION_INSTANCES and SUBNET_IDS environment variables!`,
+          `Check AWS_REGIONS_TO_VPC_IDS, VPC_ID_TO_SECURITY_GROUP_IDS and VPC_ID_TO_SUBNET_IDS environment variables!`,
       );
     }
   } catch (e) {
