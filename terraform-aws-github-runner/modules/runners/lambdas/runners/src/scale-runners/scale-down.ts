@@ -91,9 +91,10 @@ export async function scaleDown(): Promise<void> {
         if (
           ghRunnersRemovable.length - removedRunners <= Config.Instance.minAvailableRunners &&
           ghRunner !== undefined &&
+          ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy &&
           !(await isEphemeralRunner(ec2runner, metrics))
         ) {
-          break;
+          continue;
         }
 
         let shouldRemoveEC2 = true;

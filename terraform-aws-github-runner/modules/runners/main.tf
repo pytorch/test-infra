@@ -16,16 +16,17 @@ locals {
     var.tags,
   )
 
-  name_sg                                = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
-  name_runner                            = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
-  role_path                              = var.role_path == null ? "/${var.environment}/" : var.role_path
+  datetime_deploy                        = formatdate("YYYYMMDDhhmmss", timestamp())
   instance_profile_path                  = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
   lambda_zip                             = var.lambda_zip == null ? "${path.module}/lambdas/runners/runners.zip" : var.lambda_zip
-  userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
-  userdata_template_windows              = "${path.module}/templates/user-data.ps1"
+  name_runner                            = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
+  name_sg                                = var.overrides["name_sg"] == "" ? local.tags["Name"] : var.overrides["name_sg"]
+  role_path                              = var.role_path == null ? "/${var.environment}/" : var.role_path
   userdata_arm_patch                     = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner_linux   = "${path.module}/templates/install-config-runner.sh"
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
+  userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
+  userdata_template_windows              = "${path.module}/templates/user-data.ps1"
   vpc_id_to_idx                          = {for idx, vpc in var.vpc_ids: vpc.vpc => idx}
 }
 
@@ -224,29 +225,6 @@ locals {
     run_as_root_user                = var.runner_as_root ? "root" : ""
     arm_patch                       = local.arm_patch
   })
-}
-
-// TODO runner_sg is here to allow apply only module.canary_runners, once changes are rolled out
-// this module will be removed as it have no use. The problem comes as the target determinator
-// on terraform mistenkely assumes this target as being a dependency on module.canary_runners
-// because both have a common root
-resource "aws_security_group" "runner_sg" {
-  name_prefix = "${var.environment}-github-actions-runner-sg"
-  description = "Github Actions Runner security group"
-  vpc_id      = var.vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = merge(
-    local.tags,
-    {
-      "Name" = format("%s", local.name_sg)
-    },
-  )
 }
 
 resource "aws_security_group" "runners_sg" {

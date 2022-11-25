@@ -9,12 +9,6 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
-// TODO remove-me
-variable "vpc_id" {
-  description = "The old VPC id."
-  type        = string
-}
-
 variable "vpc_ids" {
   description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
   type        = list(map(string))
