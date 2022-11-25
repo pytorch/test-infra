@@ -55,6 +55,10 @@ on:
         description: "Name for the job, which is displayed in the GitHub UI"
         default: "linux-job"
         type: string
+      continue-on-error:
+        description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
 
 jobs:
   job:
@@ -111,6 +115,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Run script in container
+        continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
           {
