@@ -113,9 +113,10 @@ def main():
 
     filename = f"{start_time.split('T')[0]}.md"
     with open(filename, "w") as f:
-        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}\n")
+        num_reverts = sum([len(reverts) for reverts in classification_dict.values()])
+        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n")
         for classification, reverts in classification_dict.items():
-            f.write(f"\n### {CLASSIFICATIONS[classification]}\n\n")
+            f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
                 f.write(format_string_for_markdown_long(commit, rockset_result))
     print(filename)
