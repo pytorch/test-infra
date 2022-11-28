@@ -125,7 +125,7 @@ jobs:
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
         run: |
-          ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
+          ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib:$DYLD_FALLBACK_LIBRARY_PATH" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
         uses: actions/upload-artifact@v3
         with:
