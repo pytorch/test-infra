@@ -53,8 +53,8 @@ pub fn render_lint_messages_oneline(
 
         writeln!(
             stdout,
-            "{}:{}:{}:{} {} [{}]",
-            display_path, line_number, column, severity, description, lint_message.code
+            "{}:{}:{}:{} {} [{}/{}]",
+            display_path, line_number, column, severity, description, lint_message.code, lint_message.name
         )?;
     }
 
