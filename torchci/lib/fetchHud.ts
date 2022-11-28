@@ -93,6 +93,9 @@ export default async function fetchHud(params: HudParams): Promise<{
       if (job.id! > existingJob.id!) {
         jobsBySha[job.sha!][job.name!] = job;
         jobsBySha[job.sha!][job.name!].failedPreviousRun = existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
+      } else {
+        existingJob.failedPreviousRun =
+          existingJob.failedPreviousRun || isFailure(job.conclusion);
       }
     } else {
       jobsBySha[job.sha!][job.name!] = job;
