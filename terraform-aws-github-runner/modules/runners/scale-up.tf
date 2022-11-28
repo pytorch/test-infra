@@ -30,8 +30,8 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      AWS_REGION_INSTANCES                  = join(",", var.aws_region_instances)
       CANT_HAVE_ISSUES_LABELS               = join(",", var.cant_have_issues_labels)
+      DATETIME_DEPLOY                       = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS           = var.enable_organization_runners
       ENVIRONMENT                           = var.environment
       GITHUB_APP_CLIENT_ID                  = var.github_app.client_id
@@ -49,8 +49,38 @@ resource "aws_lambda_function" "scale_up" {
       MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
-      SECURITY_GROUP_IDS                    = join(",", concat([for runners_sg in aws_security_group.runners_sg : runners_sg.id], var.runner_additional_security_group_ids))
-      SUBNET_IDS                            = join(",", var.subnet_ids)
+
+      AWS_REGIONS_TO_VPC_IDS                = join(
+        ",",
+        [
+          for region_vpc in var.vpc_ids:
+          format("%s|%s", region_vpc.region, region_vpc.vpc)
+        ]
+      )
+      VPC_ID_TO_SECURITY_GROUP_IDS          = join(
+        ",",
+        concat(
+          [
+            for vpc in var.vpc_ids:
+              format(
+                "%s|%s",
+                vpc.vpc,
+                resource.aws_security_group.runners_sg[local.vpc_id_to_idx[vpc.vpc]].id
+              )
+          ],
+          [
+            for vpc_subnet in var.vpc_sgs:
+              format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
+          ]
+        )
+      )
+      VPC_ID_TO_SUBNET_IDS                  = join(
+        ",",
+        [
+          for vpc_subnet in var.subnet_vpc_ids:
+          format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
+        ]
+      )
     }
   }
 

@@ -64,10 +64,9 @@ module "runners" {
 
   aws_region           = var.aws_region
   aws_region_instances = var.aws_region_instances
-  // TODO remove-me
-  vpc_id               = var.vpc_id
   vpc_ids              = var.vpc_ids
-  subnet_ids           = var.subnet_ids
+  vpc_sgs              = var.vpc_sgs
+  subnet_vpc_ids       = var.subnet_vpc_ids
   environment          = var.environment
   tags                 = local.tags
 
@@ -101,7 +100,6 @@ module "runners" {
   runner_as_root                       = var.runner_as_root
   idle_config                          = var.idle_config
   enable_ssm_on_runners                = var.enable_ssm_on_runners
-  runner_additional_security_group_ids = var.runner_additional_security_group_ids
   secretsmanager_secrets_id            = var.secretsmanager_secrets_id
 
   lambda_s3_bucket                 = var.lambda_s3_bucket
