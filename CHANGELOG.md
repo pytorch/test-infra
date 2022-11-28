@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0] - 2022-11-28
+
+### Bug Fixes
+
+- Typo in init_command doc ([#17](https://github.com/suo/lintrunner/issues/17)) ([fa8d7b3](https://github.com/suo/lintrunner/commit/fa8d7b32641e58c041e9f3bf15a4b26e1afff915))
+- Path construction errors on Windows ([#19](https://github.com/suo/lintrunner/issues/19)) ([032bea6](https://github.com/suo/lintrunner/commit/032bea69f31f6ccfab5cb6670edfb5adb22f1840))
+
+### Features
+
+- A tool to convert json output to SARIF format ([#16](https://github.com/suo/lintrunner/issues/16)) ([1c991af](https://github.com/suo/lintrunner/commit/1c991affb15edac2bb67080e49bf0e5037b47e92))
+- Add lint_message.name to oneline output ([#21](https://github.com/suo/lintrunner/issues/21)) ([84f3d34](https://github.com/suo/lintrunner/commit/84f3d34c6db340bdbbe63a4d192004f17769758b))
+
+### Testing
+
+- Fix linux ci ([c443387](https://github.com/suo/lintrunner/commit/c443387ff9a42a6f8c9b0e8add04220d2fea46a1))
+
 ## [0.9.3] - 2022-09-23
 
 ### Bug Fixes
