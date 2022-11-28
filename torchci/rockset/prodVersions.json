@@ -12,6 +12,7 @@
     "test_time_per_file_periodic_jobs": "39c105542e297c09",
     "issue_query": "5d4dfeb992e2f29b",
     "failure_samples_query": "cf0c2266b396b6e0",
+    "num_commits_master": "08d299a1b7386dbb",
     "recent_pr_workflows_query": "e34d3838c3b3eb2d",
     "reverted_prs_with_reason": "65117d657817418b",
     "unclassified": "1b31a2d8f4ab7230",
