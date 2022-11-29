@@ -36,7 +36,7 @@ jobs:
             package-name: torchvision
             conda-package-directory: packaging/torchvision
           - repository: pytorch/text
-            pre-script: ""
+            pre-script: packaging/install_torchdata.sh
             post-script: ""
             package-name: torchtext
             conda-package-directory: packaging/torchtext
