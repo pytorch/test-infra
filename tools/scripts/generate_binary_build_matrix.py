@@ -141,6 +141,8 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
         conda_channels = f"{conda_channels} -c nvidia"
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
+    else:
+        return f"{CONDA_INSTALL_BASE} {conda_channels}"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
