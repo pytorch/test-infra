@@ -113,7 +113,7 @@ jobs:
           jpeg_packages=$(brew list | grep jpeg)
           echo $jpeg_packages
           for pkg in $jpeg_packages; do
-            brew uninstall --ignore-dependencies --force $pkg
+            brew uninstall --ignore-dependencies --force $pkg || true
           done
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
