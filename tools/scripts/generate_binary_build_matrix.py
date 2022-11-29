@@ -133,13 +133,13 @@ def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
 def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
-def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str) -> str:
+def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str, os: str) -> str:
     conda_channels = "-c pytorch" if channel == RELEASE else f"-c pytorch-{channel}"
-
+    conda_package_type = ""
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
         conda_channels = f"{conda_channels} -c nvidia"
-    else:
+    elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
@@ -216,7 +216,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
                     "stable_version": CURRENT_STABLE_VERSION,
-                    "installation": get_conda_install_command(channel, gpu_arch_type, arch_version)
+                    "installation": get_conda_install_command(channel, gpu_arch_type, arch_version, os)
                 }
             )
     return ret
