@@ -157,6 +157,9 @@ runs:
               amzn*)
                   install_nvidia_docker2_amzn2
                   ;;
+              ubuntu20.04)
+                  install_nvidia_docker2_amzn2
+                  ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
                   exit 1
