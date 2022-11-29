@@ -110,6 +110,11 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py clean
           ${CONDA_RUN} brew list
+          jpeg_packages = $(brew list | grep jpeg)
+          echo $jpeg_packages
+          for pkg in $jpeg_packages; do
+            brew uninstall --force $pkg
+          done
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
