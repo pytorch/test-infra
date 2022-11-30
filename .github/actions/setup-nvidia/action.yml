@@ -200,7 +200,7 @@ runs:
                   install_nvidia_docker2_amzn2
                   ;;
               ubuntu20.04)
-                  # why do we need to install nvidia container toolkit ?
+                  install_nvidia_docker2_ubuntu20
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
