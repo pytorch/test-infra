@@ -59,7 +59,8 @@ jobs:
     steps:
       - name: Clean workspace
         run: |
-          rm -rfv "${GITHUB_WORKSPACE}/*"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
