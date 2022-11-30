@@ -58,6 +58,7 @@ jobs:
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
+        shell: bash -l {0}
         run: |
           echo "::group::Cleanup debug output"
           rm -rfv "${GITHUB_WORKSPACE}"
