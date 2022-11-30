@@ -88,6 +88,9 @@ jobs:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
 
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
+
       - name: Run script
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
