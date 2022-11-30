@@ -32,9 +32,9 @@ jobs:
             smoke-test-script: ""
             package-name: torchaudio
           - repository: pytorch/vision
-            pre-script: ""
+            pre-script: packaging/pre_build_script.sh
             env-script: packaging/windows/internal/vc_env_helper.bat
-            post-script: ""
+            post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text

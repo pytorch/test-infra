@@ -31,8 +31,8 @@ jobs:
             package-name: torchaudio
             conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
-            pre-script: ""
-            post-script: ""
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
             package-name: torchvision
             conda-package-directory: packaging/torchvision
           - repository: pytorch/text
