@@ -1,0 +1,17 @@
+name: Export Matrix variables (if any)
+
+description: Export matrix variables so that users can reference them directly in their workflows
+
+runs:
+  using: composite
+  steps:
+    - name: Export variables
+      shell: bash
+      if: ${{ toJSON(matrix) != 'null' }}
+      env:
+        MATRIX_TO_EXPORT: ${{ toJSON(matrix) }}
+      run: |
+        echo "${MATRIX_TO_EXPORT}" > "${RUNNER_TEMP}"/matrix_to_export.json
+        python3 \
+          test-infra/.github/scripts/export_matrix_variables.py \
+          "${RUNNER_TEMP}"/matrix_to_export.json >> "${GITHUB_ENV}"

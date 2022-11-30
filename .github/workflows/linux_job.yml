@@ -78,6 +78,11 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Clean workspace
+        run: |
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
@@ -114,6 +119,9 @@ jobs:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
 
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
+
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
@@ -131,6 +139,7 @@ jobs:
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
+            --env-file="${GITHUB_ENV}" \
             `# It is unknown why the container sees a different value for this.` \
             --env=GITHUB_STEP_SUMMARY \
             --cap-add=SYS_PTRACE \

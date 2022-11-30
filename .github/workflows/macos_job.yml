@@ -57,6 +57,11 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Clean workspace
+        run: |
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
@@ -89,6 +94,9 @@ jobs:
         with:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
+
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
 
       - name: Run script
         shell: bash -l {0}
