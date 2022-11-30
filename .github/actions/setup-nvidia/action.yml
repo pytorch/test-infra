@@ -169,9 +169,7 @@ runs:
           install_nvidia_driver_ubuntu20() {
               (
                   set -x
-
                   install_nvidia_driver_common
-
                   post_install_nvidia_driver_common
               )
           }
