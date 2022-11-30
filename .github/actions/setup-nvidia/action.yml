@@ -160,11 +160,8 @@ runs:
           install_nvidia_driver_amzn2() {
               (
                   set -x
-
                   pre_install_nvidia_driver_amzn2
-
                   install_nvidia_driver_common
-
                   post_install_nvidia_driver_common
               )
           }
