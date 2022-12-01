@@ -18,6 +18,8 @@ class Parameters:
     variadic_args: bool
     # Whether or not the function takes variadic keyword arguments.
     variadic_kwargs: bool
+    # The line where the function is defined.
+    line: int
 
 
 @dataclasses.dataclass

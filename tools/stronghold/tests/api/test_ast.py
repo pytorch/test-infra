@@ -15,7 +15,7 @@ def test_extract_empty(tmp_path: pathlib.Path) -> None:
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
-            parameters=[], variadic_args=False, variadic_kwargs=False
+            parameters=[], variadic_args=False, variadic_kwargs=False, line=1
         )
     }
 
@@ -32,6 +32,7 @@ def test_extract_positional(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -48,6 +49,7 @@ def test_extract_positional_with_default(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -64,6 +66,7 @@ def test_extract_flexible(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -80,6 +83,7 @@ def test_extract_flexible_with_default(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -96,6 +100,7 @@ def test_extract_keyword(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -112,6 +117,7 @@ def test_extract_keyword_with_default(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=1,
         )
     }
 
@@ -122,7 +128,9 @@ def test_extract_variadic_args(tmp_path: pathlib.Path) -> None:
 
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
-        'func': api.Parameters(parameters=[], variadic_args=True, variadic_kwargs=False)
+        'func': api.Parameters(
+            parameters=[], variadic_args=True, variadic_kwargs=False, line=1
+        )
     }
 
 
@@ -132,7 +140,9 @@ def test_extract_variadic_kwargs(tmp_path: pathlib.Path) -> None:
 
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
-        'func': api.Parameters(parameters=[], variadic_args=False, variadic_kwargs=True)
+        'func': api.Parameters(
+            parameters=[], variadic_args=False, variadic_kwargs=True, line=1
+        )
     }
 
 
@@ -154,6 +164,7 @@ def test_extract_class_method(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=False,
             variadic_kwargs=False,
+            line=2,
         )
     }
 
@@ -196,5 +207,6 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
             ],
             variadic_args=True,
             variadic_kwargs=True,
+            line=2,
         )
     }
