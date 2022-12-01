@@ -1,6 +1,7 @@
 name: Update disabled tests
 
 on:
+  push:
   schedule:
     # Every 15 minutes
     - cron: "*/15 * * * *"
@@ -19,6 +20,8 @@ jobs:
           python3 -mpip install rockset==0.8.3
 
       - name: Generate new disabled test json
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
         run: |
           # TODO: Run this in dry-run mode until we can automatically close non flaky disabled tests
           python3 .github/scripts/update_disabled_tests.py --dry-run
