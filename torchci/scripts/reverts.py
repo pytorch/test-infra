@@ -6,8 +6,6 @@ import json
 import os
 from typing import Dict, List, Optional
 from rockset import Client, ParamDict
-import sys
-
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
@@ -27,20 +25,6 @@ def find_corresponding_gitlog_commit(
         if revert.title.endswith(f'(#{pr_num})"'):
             return list_of_commits.pop(i)
     return None
-
-
-def format_string_for_markdown_short(
-    commit: Optional[GitCommit], rockset_result: Optional[Dict[str, str]] = None
-) -> str:
-    s = ""
-    if commit is None:
-        s += "- cannot find commit corresponding to @pytorchbot revert comment"
-    else:
-        s += f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
-    if rockset_result is not None:
-        s += f' by [comment]({rockset_result["comment_url"]})'
-    s += "\n"
-    return s
 
 
 def format_string_for_markdown_long(
@@ -127,14 +111,10 @@ def main():
 
     filename = f"{start_time.split('T')[0]}.md"
     with open(filename, "w") as f:
-        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}\n")
+        num_reverts = sum([len(reverts) for reverts in classification_dict.values()])
+        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n")
         for classification, reverts in classification_dict.items():
-            f.write(f"\n### {CLASSIFICATIONS[classification]}\n\n")
-            for commit, rockset_result in reverts:
-                f.write(format_string_for_markdown_short(commit, rockset_result))
-        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]}\n")
-        for classification, reverts in classification_dict.items():
-            f.write(f"\n### {CLASSIFICATIONS[classification]}\n\n")
+            f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
                 f.write(format_string_for_markdown_long(commit, rockset_result))
     print(filename)
