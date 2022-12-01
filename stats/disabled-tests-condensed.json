@@ -1855,6 +1855,13 @@
     "https://github.com/pytorch/pytorch/issues/70968",
     []
   ],
+  "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "81732",
+    "https://github.com/pytorch/pytorch/issues/81732",
+    [
+      "linux"
+    ]
+  ],
   "test_noncontiguous_samples_linalg_lu_cuda_complex64 (__main__.TestCommonCUDA)": [
     "86473",
     "https://github.com/pytorch/pytorch/issues/86473",
