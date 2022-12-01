@@ -7,7 +7,7 @@ with repeats as (
     where
         j._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         and j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-        and w.repository.full_name = :repo
+        and w.head_repository.full_name = :repo
         and w.head_branch = :branch
         AND w.event != 'workflow_run'
         AND w.event != 'repository_dispatch'
