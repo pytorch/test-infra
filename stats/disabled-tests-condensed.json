@@ -105,11 +105,6 @@
       "dynamo"
     ]
   ],
-  "test_add_param_group (__main__.TestZeroRedundancyOptimizerDistributed)": [
-    "67287",
-    "https://github.com/pytorch/pytorch/issues/67287",
-    []
-  ],
   "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
     "81029",
     "https://github.com/pytorch/pytorch/issues/81029",
@@ -507,13 +502,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_add_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86878",
-    "https://github.com/pytorch/pytorch/issues/86878",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addbmm_cuda_float16 (__main__.TestDecompCUDA)": [
     "86865",
     "https://github.com/pytorch/pytorch/issues/86865",
@@ -521,44 +509,9 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addbmm_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86574",
-    "https://github.com/pytorch/pytorch/issues/86574",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addcdiv_cuda_complex64 (__main__.TestDecompCUDA)": [
     "86866",
     "https://github.com/pytorch/pytorch/issues/86866",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_addcdiv_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86570",
-    "https://github.com/pytorch/pytorch/issues/86570",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_addcmul_cuda_complex128 (__main__.TestDecompCUDA)": [
-    "87169",
-    "https://github.com/pytorch/pytorch/issues/87169",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_addcmul_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "87347",
-    "https://github.com/pytorch/pytorch/issues/87347",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_addmm_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "87323",
-    "https://github.com/pytorch/pytorch/issues/87323",
     [
       "rocm"
     ]
@@ -591,48 +544,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addr_cuda_float32 (__main__.TestDecompCUDA)": [
-    "87110",
-    "https://github.com/pytorch/pytorch/issues/87110",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_amax_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86573",
-    "https://github.com/pytorch/pytorch/issues/86573",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_amin_cuda_float32 (__main__.TestDecompCUDA)": [
-    "86575",
-    "https://github.com/pytorch/pytorch/issues/86575",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_baddbmm_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "86571",
-    "https://github.com/pytorch/pytorch/issues/86571",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_baddbmm_cuda_float64 (__main__.TestDecompCUDA)": [
-    "87111",
-    "https://github.com/pytorch/pytorch/issues/87111",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_broadcast_tensors_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "86886",
-    "https://github.com/pytorch/pytorch/issues/86886",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "84150",
     "https://github.com/pytorch/pytorch/issues/84150",
@@ -653,30 +564,9 @@
       "windows"
     ]
   ],
-  "test_comprehensive_cartesian_prod_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "87167",
-    "https://github.com/pytorch/pytorch/issues/87167",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_cdist_cuda_float64 (__main__.TestDecompCUDA)": [
     "87165",
     "https://github.com/pytorch/pytorch/issues/87165",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_cholesky_solve_cuda_complex128 (__main__.TestDecompCUDA)": [
-    "87346",
-    "https://github.com/pytorch/pytorch/issues/87346",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_cholesky_solve_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "88296",
-    "https://github.com/pytorch/pytorch/issues/88296",
     [
       "rocm"
     ]
@@ -723,20 +613,6 @@
       "macos"
     ]
   ],
-  "test_comprehensive_fft_ihfft2_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86883",
-    "https://github.com/pytorch/pytorch/issues/86883",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_index_reduce_cuda_float32 (__main__.TestDecompCUDA)": [
-    "86882",
-    "https://github.com/pytorch/pytorch/issues/86882",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_lerp_cuda_float32 (__main__.TestDecompCUDA)": [
     "87139",
     "https://github.com/pytorch/pytorch/issues/87139",
@@ -749,20 +625,6 @@
     "https://github.com/pytorch/pytorch/issues/76962",
     [
       "linux"
-    ]
-  ],
-  "test_comprehensive_linalg_matrix_norm_cuda_complex128 (__main__.TestDecompCUDA)": [
-    "86884",
-    "https://github.com/pytorch/pytorch/issues/86884",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_linalg_multi_dot_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "87164",
-    "https://github.com/pytorch/pytorch/issues/87164",
-    [
-      "rocm"
     ]
   ],
   "test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA)": [
@@ -782,6 +644,13 @@
   "test_compute_bucket_assignment_by_size_sparse_error_without_logger (__main__.TestDistBackendWithSpawn)": [
     "85339",
     "https://github.com/pytorch/pytorch/issues/85339",
+    [
+      "linux"
+    ]
+  ],
+  "test_cond_nested_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "89676",
+    "https://github.com/pytorch/pytorch/issues/89676",
     [
       "linux"
     ]
@@ -1252,13 +1121,6 @@
       "windows"
     ]
   ],
-  "test_fake_crossref_backward_amp_linalg_lstsq_cuda_float32 (__main__.TestFakeTensorCUDA)": [
-    "86059",
-    "https://github.com/pytorch/pytorch/issues/86059",
-    [
-      "linux"
-    ]
-  ],
   "test_fake_crossref_backward_amp_linalg_lstsq_grad_oriented_cuda_float32 (__main__.TestFakeTensorCUDA)": [
     "85869",
     "https://github.com/pytorch/pytorch/issues/85869",
@@ -1611,6 +1473,13 @@
     [
       "win",
       "windows"
+    ]
+  ],
+  "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
+    "89763",
+    "https://github.com/pytorch/pytorch/issues/89763",
+    [
+      "linux"
     ]
   ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
@@ -1992,13 +1861,6 @@
     "70968",
     "https://github.com/pytorch/pytorch/issues/70968",
     []
-  ],
-  "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "81732",
-    "https://github.com/pytorch/pytorch/issues/81732",
-    [
-      "linux"
-    ]
   ],
   "test_noncontiguous_samples_linalg_lu_cuda_complex64 (__main__.TestCommonCUDA)": [
     "86473",
@@ -2389,13 +2251,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_ref_small_input_prod_cuda_int16 (__main__.TestReductionsCUDA)": [
-    "77338",
-    "https://github.com/pytorch/pytorch/issues/77338",
-    [
-      "win"
     ]
   ],
   "test_ref_small_input_prod_cuda_int32 (__main__.TestReductionsCUDA)": [
