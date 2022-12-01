@@ -105,8 +105,8 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { 
-      text: "Commits red on master, by day", 
+    title: {
+      text: "Commits red on master, by day",
       subtext: "Based on workflows which block viable/strict upgrade"
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -508,6 +508,15 @@ export default function Page() {
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
               queryParams={timeParams}
               badThreshold={(value) => value > 0.5}
+            />
+            <ScalarPanel
+              title={"# commits"}
+              queryName={"num_commits_master"}
+              queryCollection={"commons"}
+              metricName={"num"}
+              valueRenderer={(value) => value}
+              queryParams={timeParams}
+              badThreshold={(_) => false}
             />
           </Stack>
         </Grid>
