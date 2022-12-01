@@ -2,11 +2,11 @@
 
 import argparse
 import pathlib
-import pprint
 import sys
 
 import api.compatibility
 import api.git
+import api.github
 
 
 def run() -> None:
@@ -22,6 +22,6 @@ def run() -> None:
     if len(violations) == 0:
         return
     for file, file_violations in violations.items():
-        print(file)
-        pprint.pp(file_violations)
+        for violation in file_violations:
+            print(api.github.render_violation(file, violation), file=sys.stderr)
     sys.exit(1)
