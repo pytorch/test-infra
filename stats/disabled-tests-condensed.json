@@ -495,13 +495,6 @@
       "rocm"
     ]
   ],
-  "test_complex_half_reference_testing_nn_functional_conv_transpose2d_cuda_complex32 (__main__.TestCommonCUDA)": [
-    "87332",
-    "https://github.com/pytorch/pytorch/issues/87332",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addbmm_cuda_float16 (__main__.TestDecompCUDA)": [
     "86865",
     "https://github.com/pytorch/pytorch/issues/86865",
