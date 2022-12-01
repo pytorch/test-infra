@@ -6,8 +6,6 @@ import json
 import os
 from typing import Dict, List, Optional
 from rockset import Client, ParamDict
-import sys
-
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
