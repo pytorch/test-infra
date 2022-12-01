@@ -74,6 +74,12 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
+      - name: Clean workspace
+        run: |
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
       - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
