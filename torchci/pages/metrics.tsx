@@ -105,8 +105,8 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { 
-      text: "Commits red on master, by day", 
+    title: {
+      text: "Commits red on master, by day",
       subtext: "Based on workflows which block viable/strict upgrade"
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -796,6 +796,34 @@ export default function Page() {
             yAxisFieldName={"number_of_new_disabled_tests"}
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TablePanel
+            title={"Failed Jobs Log Classifications"}
+            queryName={"log_captures_count"}
+            queryCollection={"commons"}
+            queryParams={[...timeParams]}
+            columns={[
+              { field: "num", headerName: "Count", flex: 1 },
+              { field: "example", headerName: "Example", flex: 4 },
+              {
+                field: "search_string",
+                headerName: "Captures",
+                flex: 4,
+                renderCell: (params: GridRenderCellParams<string>) => {
+                  const url = params.value
+                    ? `failure/${encodeURIComponent(params.row.search_string)}`
+                    : "failure/";
+                  return <a href={url}>{params.value}</a>;
+                },
+              },
+            ]}
+            dataGridProps={{
+              getRowId: (el: any) =>
+                el.search_string ? el.search_string : "null",
+            }}
           />
         </Grid>
       </Grid>
