@@ -97,6 +97,10 @@ name = 'pytest test error'
 pattern = '^ERROR .*.py::.*::test_.*$'
 
 [[rule]]
+name = 'inductor model failure'
+pattern = '^(\S*) *(fail_accuracy|fail_to_run)$'
+
+[[rule]]
 name = 'failed to download github artifacts'
 pattern = 'List Artifacts failed:.*'
 

@@ -115,6 +115,7 @@ jobs:
           export USE_FFMPEG="1"
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
+        continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -143,9 +144,16 @@ jobs:
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
-          if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
+          if [[ (! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT}) ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
-            ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+            if [[ "${PACKAGE_NAME}" = "torchrec" ]]; then
+              # Special case for torchrec temporarily since __version__ does not
+              # work correctly on main in torchrec. This block will be
+              # removed once we fix it.
+              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}"
+            else
+              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+            fi
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"

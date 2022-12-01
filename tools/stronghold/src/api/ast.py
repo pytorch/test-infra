@@ -70,6 +70,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
         parameters=params,
         variadic_args=args.vararg is not None,
         variadic_kwargs=args.kwarg is not None,
+        line=node.lineno,
     )
 
 
