@@ -243,6 +243,13 @@
     "https://github.com/pytorch/pytorch/issues/59794",
     []
   ],
+  "test_backward_symeig_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "90073",
+    "https://github.com/pytorch/pytorch/issues/90073",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_unused_tensors (__main__.TensorPipeDistAutogradTest)": [
     "77556",
     "https://github.com/pytorch/pytorch/issues/77556",
@@ -2219,6 +2226,13 @@
     "https://github.com/pytorch/pytorch/issues/73473",
     [
       "macos",
+      "linux"
+    ]
+  ],
+  "test_python_ref_executor__refs_permute_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
+    "90074",
+    "https://github.com/pytorch/pytorch/issues/90074",
+    [
       "linux"
     ]
   ],
