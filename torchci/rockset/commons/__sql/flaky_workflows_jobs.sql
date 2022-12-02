@@ -1,16 +1,33 @@
--- Find workflows that succeeded once they were retried
 with repeats as (
     select
-        j.run_id,
-        j.name
+        array_agg(j.id) as ids
     from
         workflow_job j
+        join workflow_run w on w.id = j.run_id
     where
         j._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         and j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-        and j.run_attempt > 1
-        and j.conclusion = 'success'
-) -- When a first time contributor submits a PR, their workflow starts at "attempt 2" so we look for workflows that were repeated above and actually have a first attempt
+        and w.head_repository.full_name = :repo
+        and w.head_branch = :branch
+        AND w.event != 'workflow_run'
+        AND w.event != 'repository_dispatch'
+    group by
+        j.head_sha,
+        j.name,
+        w.name
+    having
+        count(*) > 1
+        and bool_or(
+            j.conclusion in ('failure', 'cancelled', 'time_out')
+        )
+),
+ids as (
+    select
+        ids.id
+    from
+        repeats,
+        unnest(repeats.ids as id) as ids
+)
 select
     job.head_sha as sha,
     CONCAT(w.name, ' / ', job.name) as jobName,
@@ -31,18 +48,8 @@ select
     job.torchci_classification.captures as failureCaptures,
     job.torchci_classification.line_num as failureLineNumber,
 from
-    workflow_job job
+    ids
+    join workflow_job job on job.id = ids.id
     inner join workflow_run w on w.id = job.run_id
-    inner join repeats on repeats.run_id = job.run_id
-    and repeats.name = job.name
 where
-    w.repository.full_name = :repo
-    and job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    and job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-    and job.run_attempt = 1
-    and w.head_branch = :branch
-    and (
-        job.conclusion like 'fail%'
-        or job.conclusion = 'cancelled'
-        or job.conclusion = 'time_out'
-    )
+    job.conclusion in ('failure', 'cancelled', 'time_out')
