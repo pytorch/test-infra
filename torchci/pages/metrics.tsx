@@ -803,7 +803,7 @@ export default function Page() {
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
-            queryCollection={"commons"}
+            queryCollection={"metrics"}
             queryParams={[...timeParams]}
             columns={[
               { field: "num", headerName: "Count", flex: 1 },

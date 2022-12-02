@@ -10,7 +10,7 @@ where
     j._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
     and j._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
     and w.head_branch = 'master'
-    and w.repository.full_name = 'pytorch/pytorch'
+    and w.head_repository.full_name = 'pytorch/pytorch'
     and j.conclusion in ('cancelled', 'failure', 'time_out')
     AND w.event != 'workflow_run'
     AND w.event != 'repository_dispatch'
