@@ -21,7 +21,7 @@ from typing import Dict, List, Tuple, Optional
 mod = sys.modules[__name__]
 
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
-ROCM_ARCHES = ["5.1.1", "5.2"]
+ROCM_ARCHES = ["5.2", "5.3"]
 CUDA_ACRHES_DICT = {
     "nightly": ["11.6", "11.7"],
     "test": ["11.6", "11.7"],
