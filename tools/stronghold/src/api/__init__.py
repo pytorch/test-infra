@@ -14,10 +14,12 @@ class Parameters:
     # The function's parameters in the order in which they are
     # defined.
     parameters: Sequence[Parameter]
-    # Whether or not the function takes variadic positional arguments.
-    variadic_args: bool
-    # Whether or not the function takes variadic keyword arguments.
-    variadic_kwargs: bool
+    # If variadic positional arguments are allowed, the line it is
+    # defined on.
+    variadic_args: Optional[int]
+    # If variadic keyword arguments are allowed, the line it is
+    # defined on.
+    variadic_kwargs: Optional[int]
     # The line where the function is defined.
     line: int
 
