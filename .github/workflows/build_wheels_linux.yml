@@ -134,7 +134,7 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Run Primitive Smoke Tests
+      - name: Smoke Test
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
