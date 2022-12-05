@@ -10,7 +10,7 @@ def remove_positional_parameter(
     *args: int,
     c: int,
     **kwds: int,
-) -> None:
+) -> int:
     pass
 
 
