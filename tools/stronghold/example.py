@@ -58,6 +58,7 @@ def remove_kwds(
 
 def add_positional_parameter(
     a: int,
+    new_param: int,
     /,
     b: int,
     c: int = 0,
