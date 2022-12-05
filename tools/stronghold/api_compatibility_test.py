@@ -6,13 +6,11 @@ def removed_function() -> None:
 
 
 def remove_positional_parameter(
-    a: int,
-    /,
     b: int,
     *args: int,
     c: int,
     **kwds: int,
-) -> None:
+) -> int:
     pass
 
 
