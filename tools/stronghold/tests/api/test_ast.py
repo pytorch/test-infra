@@ -15,7 +15,7 @@ def test_extract_empty(tmp_path: pathlib.Path) -> None:
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
-            parameters=[], variadic_args=False, variadic_kwargs=False, line=1
+            parameters=[], variadic_args=None, variadic_kwargs=None, line=1
         )
     }
 
@@ -30,8 +30,8 @@ def test_extract_positional(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=0, keyword=False, required=True)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -47,8 +47,8 @@ def test_extract_positional_with_default(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=0, keyword=False, required=False)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -64,8 +64,8 @@ def test_extract_flexible(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=0, keyword=True, required=True)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -81,8 +81,8 @@ def test_extract_flexible_with_default(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=0, keyword=True, required=False)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -98,8 +98,8 @@ def test_extract_keyword(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=None, keyword=True, required=True)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -115,8 +115,8 @@ def test_extract_keyword_with_default(tmp_path: pathlib.Path) -> None:
             parameters=[
                 api.Parameter(name='x', position=None, keyword=True, required=False)
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=1,
         )
     }
@@ -129,7 +129,7 @@ def test_extract_variadic_args(tmp_path: pathlib.Path) -> None:
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
-            parameters=[], variadic_args=True, variadic_kwargs=False, line=1
+            parameters=[], variadic_args=1, variadic_kwargs=None, line=1
         )
     }
 
@@ -141,7 +141,7 @@ def test_extract_variadic_kwargs(tmp_path: pathlib.Path) -> None:
     funcs = api.ast.extract(source.make_file(tmp_path, func))
     assert funcs == {
         'func': api.Parameters(
-            parameters=[], variadic_args=False, variadic_kwargs=True, line=1
+            parameters=[], variadic_args=None, variadic_kwargs=1, line=1
         )
     }
 
@@ -162,8 +162,8 @@ def test_extract_class_method(tmp_path: pathlib.Path) -> None:
                     required=True,
                 ),
             ],
-            variadic_args=False,
-            variadic_kwargs=False,
+            variadic_args=None,
+            variadic_kwargs=None,
             line=2,
         )
     }
@@ -205,8 +205,8 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     required=True,
                 ),
             ],
-            variadic_args=True,
-            variadic_kwargs=True,
+            variadic_args=3,
+            variadic_kwargs=3,
             line=2,
         )
     }
