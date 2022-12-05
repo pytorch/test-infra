@@ -61,6 +61,7 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      GPU_ARCH_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
