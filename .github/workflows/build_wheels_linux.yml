@@ -61,7 +61,7 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
-      GPU_ARCH_VERSION: ${{ matrix.desired_cuda }}
+      CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -85,8 +85,8 @@ jobs:
       - name: Install torch dependency
         run: |
           source "${BUILD_ENV_FILE}"
+          set -ex
           # shellcheck disable=SC2086
-          echo ${PIP_INSTALL_TORCH}
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
