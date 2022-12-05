@@ -1,85 +1,78 @@
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
 import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
-import { IssueData } from "lib/types";
+import { IssueData, RecentWorkflowsData } from "lib/types";
 
 nock.disableNetConnect();
 
-const recentWorkflowA = {
-    job_name: 'linux-docs / build-docs (cpp)',
+export const recentWorkflowA = {
+    name: 'linux-docs / build-docs (cpp)',
     conclusion: "success",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "abcdefg",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
     pr_number: 1000,
-    owner_login: "swang392",
-    run_attempt: 1,
+    id: "1",
 }
 
 const recentWorkflowB = {
-    job_name: 'linux-docs / build-docs (cpp)',
+    name: 'linux-docs / build-docs (cpp)',
     conclusion: null,
     completed_at: null,
     html_url: "abcdefg",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
 }
 
 const recentWorkflowC = {
-    job_name: 'Lint',
+    name: 'Lint',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
 }
 
 const recentWorkflowCSuccessfulRetry = {
-    job_name: 'Lint',
+    name: 'Lint',
     conclusion: "success",
     completed_at: '2022-07-14T19:34:03Z',
     html_url: "a",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "2",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 2,
 }
 
 const recentWorkflowCFailedRetry = {
-    job_name: 'Lint',
+    name: 'Lint',
     conclusion: "failure",
     completed_at: '2022-07-15T19:34:03Z',
     html_url: "a",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "3",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 3,
 }
 
 const recentWorkflowD = {
-    job_name: 'something',
+    name: 'something',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
 }
 
 const recentWorkflowE = {
-    job_name: 'z-docs / build-docs (cpp)',
+    name: 'z-docs / build-docs (cpp)',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    head_sha: "abcdefg",
+    sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
 }
 
 const sev : IssueData= {
@@ -119,8 +112,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const pr_1001 = workflowsByPR.get(1001)!;
         const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(pr_1001);
-        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.head_sha);
-        const failedJobName = recentWorkflowC.job_name;
+        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.sha);
+        const failedJobName = recentWorkflowC.name;
 
         expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
         expect(failureInfo.includes(failedJobName)).toBeTruthy();
@@ -138,8 +131,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const pr_1000 = workflowsByPR.get(1000)!;
 
         expect(workflowsByPR.size).toBe(2);
-        expect(pr_1000.jobs.length).toBe(1);
-        expect(pr_1001.jobs.length).toBe(2);
+        expect(pr_1000.jobs.size).toBe(1);
+        expect(pr_1001.jobs.size).toBe(2);
     });
 
     test("Check that getWorkflowAnalysis works correctly", async () => {
@@ -180,7 +173,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        pr_1001.sha
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -219,7 +212,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        pr_1001.sha
       );
       const comment = formDrciComment(
         1001,
@@ -248,7 +241,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        pr_1001.sha
       );
       const comment = formDrciComment(
         1001,
@@ -279,7 +272,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        pr_1001.sha
       );
       const comment = formDrciComment(
         1001,

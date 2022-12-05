@@ -98,14 +98,13 @@ export interface FlakyTestData {
 }
 
 export interface RecentWorkflowsData {
-  job_name: string;
+  id: string;
+  name: string;
   conclusion: string | null;
   completed_at: string | null;
   html_url: string;
-  head_sha?: string;
-  run_attempt: number;
+  sha: string;
   pr_number?: number;
-  owner_login?: string;
 }
 
 export interface TTSChange {
