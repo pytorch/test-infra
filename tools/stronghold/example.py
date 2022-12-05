@@ -1,10 +1,6 @@
 """Contains functions to test API compatibility changes."""
 
 
-def removed_function() -> None:
-    pass
-
-
 def remove_positional_parameter(
     b: int,
     c = 0: int
