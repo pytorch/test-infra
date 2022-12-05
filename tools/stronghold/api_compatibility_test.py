@@ -8,7 +8,6 @@ def removed_function() -> None:
 def complex(
     a: int,
     /,
-    b: int,
     *args: int,
     c: int,
     **kwds: int,
