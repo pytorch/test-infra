@@ -143,6 +143,7 @@ jobs:
           DESIRED_CUDA: ${{ matrix.desired_cuda }}
           GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
         run: |
+          set -ex
           source "${BUILD_ENV_FILE}"
           CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/linux-64/"
           echo "$CONDA_OUTPUT_PATH"
@@ -159,6 +160,7 @@ jobs:
           fi
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
               ${CONDA_RUN} conda install -y 'numpy>=1.11'
+              ${CONDA_RUN} conda install pillow
           fi
           ${CONDA_RUN} conda install "$BINARY_NAME"
 
