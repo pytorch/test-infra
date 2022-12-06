@@ -157,10 +157,10 @@ jobs:
           else
             ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
           fi
-          ${CONDA_RUN} conda install --offline "$BINARY_NAME"
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
               ${CONDA_RUN} conda install -y 'numpy>=1.11'
           fi
+          ${CONDA_RUN} conda install --offline "$BINARY_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
