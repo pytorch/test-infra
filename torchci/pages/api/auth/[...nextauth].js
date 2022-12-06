@@ -16,6 +16,7 @@ export const authOptions = {
   },
   theme: {
     colorScheme: "light",
+    logo: "/favicon.ico",
   },
   callbacks: {
     async session({ session, token, user }) {
