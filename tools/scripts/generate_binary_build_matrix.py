@@ -21,12 +21,18 @@ from typing import Dict, List, Tuple, Optional
 mod = sys.modules[__name__]
 
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
-ROCM_ARCHES = ["5.2", "5.3"]
+
 CUDA_ACRHES_DICT = {
     "nightly": ["11.6", "11.7"],
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
+ROCM_ACRHES_DICT = {
+    "nightly": ["5.2", "5.3"],
+    "test": ["5.1.1", "5.2"],
+    "release": ["5.1.1", "5.2"],
+}
+
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
@@ -38,6 +44,7 @@ CURRENT_STABLE_VERSION = "1.13.0"
 
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
+mod.ROCM_ARCHES = ROCM_ACRHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
@@ -60,7 +67,7 @@ DISABLE = "disable"
 def arch_type(arch_version: str) -> str:
     if arch_version in mod.CUDA_ARCHES:
         return "cuda"
-    elif arch_version in ROCM_ARCHES:
+    elif arch_version in mod.ROCM_ARCHES:
         return "rocm"
     else:  # arch_version should always be "cpu" in this case
         return "cpu"
@@ -85,6 +92,7 @@ def validation_runner(arch_type: str, os: str) -> str:
 
 def initialize_globals(channel: str):
     mod.CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
+    mod.ROCM_ARCHES = ROCM_ACRHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
@@ -92,7 +100,7 @@ def initialize_globals(channel: str):
         },
         **{
             gpu_arch: f"pytorch/manylinux-builder:rocm{gpu_arch}"
-            for gpu_arch in ROCM_ARCHES
+            for gpu_arch in mod.ROCM_ARCHES
         },
         "cpu": "pytorch/manylinux-builder:cpu",
     }
@@ -111,11 +119,11 @@ def initialize_globals(channel: str):
         },
         **{
             (gpu_arch, PRE_CXX11_ABI): f"pytorch/manylinux-builder:rocm{gpu_arch}"
-            for gpu_arch in ROCM_ARCHES
+            for gpu_arch in mod.ROCM_ARCHES
         },
         **{
             (gpu_arch, CXX11_ABI): f"pytorch/libtorch-cxx11-builder:rocm{gpu_arch}"
-            for gpu_arch in ROCM_ARCHES
+            for gpu_arch in mod.ROCM_ARCHES
         },
         ("cpu", PRE_CXX11_ABI): "pytorch/manylinux-builder:cpu",
         ("cpu", CXX11_ABI): "pytorch/libtorch-cxx11-builder:cpu",
@@ -245,7 +253,7 @@ def generate_libtorch_matrix(
         if with_cuda == ENABLE:
             if os == "linux":
                 arches += mod.CUDA_ARCHES
-                arches += ROCM_ARCHES
+                arches += mod.ROCM_ARCHES
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
                 arches += list_without(mod.CUDA_ARCHES, ["10.2"])
@@ -340,7 +348,7 @@ def generate_wheels_matrix(
 
         if with_cuda == ENABLE:
             if os == "linux":
-                arches += mod.CUDA_ARCHES + ROCM_ARCHES
+                arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
                 arches += list_without(mod.CUDA_ARCHES, ["10.2"])
