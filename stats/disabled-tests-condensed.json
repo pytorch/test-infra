@@ -2699,13 +2699,6 @@
       "linux"
     ]
   ],
-  "test_vmap_autograd_grad_linalg_lu_factor_ex_cuda_float64 (__main__.TestOperatorsCUDA)": [
-    "86624",
-    "https://github.com/pytorch/pytorch/issues/86624",
-    [
-      "linux"
-    ]
-  ],
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
