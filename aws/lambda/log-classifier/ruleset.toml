@@ -161,8 +161,12 @@ name = "Python Test SIG Code"
 pattern = '^.*(Received Signal: SIG.*)'
 
 [[rule]]
-name = "Any SIGKILL"
-pattern = 'SIGKILL'
+name = 'Library not loaded'
+pattern = 'Library not loaded: .*$'
+
+[[rule]]
+name = 'Bad response status code'
+pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
 name = 'Python AttributeError'
@@ -178,7 +182,7 @@ pattern = '^RuntimeError: CUDA out of memory.'
 
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: test.* failed'
+pattern = '^RuntimeError: .*test.* failed'
 
 [[rule]]
 name = 'Python flaky unittest - failed'
