@@ -39,7 +39,8 @@ jobs:
         conda activate test
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
         # Can import pytorch, cuda is available
-        python3 -c 'import torch;assert(torch.cuda.is_available())'
+        python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
+        python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print("tensor device:" + str(t.device))'
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:
