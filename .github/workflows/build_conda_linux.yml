@@ -183,8 +183,8 @@ jobs:
           # Create fresh conda env here?
           set -x
           conda create --yes -n upload_env python="${PYTHON_VERSION}"
-          conda run -p upload_env conda install -yq anaconda-client
-          conda run -p upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          conda run -n upload_env conda install -yq anaconda-client
+          conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
           # ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
           # export ANACONDA_PATH
           # ${CONDA_RUN} "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
