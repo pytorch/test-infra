@@ -1435,11 +1435,6 @@
       "linux"
     ]
   ],
-  "test_fs_pool (__main__.TestMultiprocessing)": [
-    "69659",
-    "https://github.com/pytorch/pytorch/issues/69659",
-    []
-  ],
   "test_fs_sharing (__main__.TestMultiprocessing)": [
     "67002",
     "https://github.com/pytorch/pytorch/issues/67002",
