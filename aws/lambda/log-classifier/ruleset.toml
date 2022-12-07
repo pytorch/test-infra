@@ -169,6 +169,10 @@ name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
 
 [[rule]]
+name = 'Scribe upload failure'
+pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
+
+[[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
 
