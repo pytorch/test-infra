@@ -44,3 +44,5 @@ jobs:
       post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}

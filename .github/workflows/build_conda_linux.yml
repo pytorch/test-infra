@@ -180,11 +180,10 @@ jobs:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
           set -x
-          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
-          export ANACONDA_PATH
-          ${CONDA_RUN} "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          conda create --yes -n upload_env python="${PYTHON_VERSION}"
+          conda run -n upload_env conda install -yq anaconda-client
+          conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
