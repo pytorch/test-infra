@@ -663,6 +663,14 @@
       "linux"
     ]
   ],
+  "test_cond_export_single_arg (__main__.MiscTests)": [
+    "90343",
+    "https://github.com/pytorch/pytorch/issues/90343",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_cond_nested_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "89676",
     "https://github.com/pytorch/pytorch/issues/89676",
