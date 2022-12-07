@@ -57,3 +57,5 @@ jobs:
       runner-type: macos-m1-12
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
