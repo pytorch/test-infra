@@ -29,6 +29,7 @@ Switch ($cudaVersion) {
   "11.8" {
     $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion"
   }
 }
 
