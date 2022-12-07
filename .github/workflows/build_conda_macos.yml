@@ -177,7 +177,7 @@ jobs:
               ${CONDA_RUN} conda install -y 'ffmpeg<5'
             fi
             if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
-              ${CONDA_RUN} conda install -y 'numpy>=1.11'
+              ${CONDA_RUN} conda install -y pillow 'numpy>=1.11'
             fi
             ${CONDA_RUN} conda install "$CONDA_BINARY"
 
