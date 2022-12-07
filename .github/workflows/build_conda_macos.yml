@@ -184,7 +184,7 @@ jobs:
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to conda
-        # if: ${{ inputs.trigger-event == 'push' }}
+        if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
         env:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
