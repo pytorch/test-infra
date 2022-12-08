@@ -2,6 +2,7 @@
 
 import argparse
 import pathlib
+import subprocess
 import sys
 
 import api.compatibility
@@ -31,7 +32,21 @@ def run() -> None:
     )
     if len(violations) == 0:
         return
+
+    pinfo = repo.run(
+        [
+            'show',
+            # Don't show the file contents.
+            '--no-patch',
+            # Show the title and the full commit message.
+            '--pretty=format:%B',
+        ],
+        check=True,
+        stdout=subprocess.PIPE,
+    )
+    suppressed = '#suppress-api-compatibility-check' in pinfo.stdout
+
     for file, file_violations in violations.items():
         for violation in file_violations:
             print(api.github.render_violation(file, violation), file=sys.stderr)
-    sys.exit(1)
+    sys.exit(not suppressed)
