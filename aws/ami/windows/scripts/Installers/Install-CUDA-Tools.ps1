@@ -10,59 +10,46 @@ $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
 # installerArgs
-Switch -Wildcard ($cudaVersion) {
-  "10*" {
-    $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion nvgraph_$cudaVersion nvgraph_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
-  }
-  "11*" {
-    $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
-  }
-}
+$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
 $cudnn_lib_folder="lib\x64"
+$cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
+$toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
 
 Switch ($cudaVersion) {
-  "10.2" {
-    $toolkitInstaller = "cuda_10.2.89_441.22_win10.exe"
-    $cudnnZip = "cudnn-10.2-windows10-x64-v7.6.5.32.zip"
+  "11.6" {
+    $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
   }
-  {($_ -eq "11.3") -or ($_ -eq "11.6") -or ($_ -eq "11.7")} {
-
-    $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
-    Switch ($cudaVersion) {
-      "11.3" {
-        $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
-      }
-      "11.6" {
-        $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
-      }
-      "11.7" {
-        $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
-        $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
-      }
-    }
-
-
-    $cudnnZip = "$cudnn_subfolder.zip"
-    $installerArgs = "$installerArgs thrust_$cudaVersion"
-    $cudnn_lib_folder="lib"
-
-    Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
-    $tmpZlibDll = New-TemporaryFile
-    Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
-    $tmpExtractedZlibDll = New-TemporaryDirectory
-    7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
-    Get-ChildItem -Path $tmpExtractedZlibDll
-    if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
-     Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
-       exit 1
-    }
-    Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
+  "11.7" {
+    $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
   }
-
+  "11.8" {
+    $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion"
+  }
 }
+
+
+$cudnnZip = "$cudnn_subfolder.zip"
+$installerArgs = "$installerArgs thrust_$cudaVersion"
+$cudnn_lib_folder="lib"
+
+Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
+$tmpZlibDll = New-TemporaryFile
+Invoke-WebRequest -Uri "$windowsS3BaseUrl/zlib123dllx64.zip" -OutFile "$tmpZlibDll"
+$tmpExtractedZlibDll = New-TemporaryDirectory
+7z x "$tmpZlibDll" -o"$tmpExtractedZlibDll"
+Get-ChildItem -Path $tmpExtractedZlibDll
+if (-Not (Test-Path -Path "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" -PathType Leaf)) {
+  Write-Error "zlib installation failed $tmpExtractedZlibDll\dll_x64\zlibwapi.dll"
+  exit 1
+}
+Copy-Item -Force -Verbose -Recurse "$tmpExtractedZlibDll\dll_x64\zlibwapi.dll" "c:\windows\system32\"
+
 
 function Install-CudaToolkit() {
   $expectedInstallLocation = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v$cudaVersion"
