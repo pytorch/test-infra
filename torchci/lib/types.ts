@@ -103,7 +103,7 @@ export interface RecentWorkflowsData {
   conclusion: string | null;
   completed_at: string | null;
   html_url: string;
-  sha: string;
+  head_sha: string;
   pr_number?: number;
 }
 

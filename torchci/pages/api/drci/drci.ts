@@ -15,10 +15,9 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 
 interface PRandJobs {
-    sha: string;
+    head_sha: string;
     pr_number: number;
     jobs: Map<string, RecentWorkflowsData>;
-    workflows: Map<string, RecentWorkflowsData>
 }
 
 export default async function handler(
@@ -47,7 +46,7 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     for (const [pr_number, pr_info] of workflowsByPR) {
         const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
 
-        const failureInfo = constructResultsComment(pending, failedJobs, pr_info.sha);
+        const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
         const comment = formDrciComment(pr_number, failureInfo, formDrciSevBody(sevs));
 
         await updateCommentWithWorkflow(octokit, pr_info, comment);
@@ -112,11 +111,10 @@ export function getWorkflowJobsStatuses(prInfo: PRandJobs): {
   for (const [_, job] of prInfo.jobs) {
     if (job.conclusion === null && job.completed_at === null) {
       numPending++;
-    } else if (job.conclusion === "failure") {
+    } else if (job.conclusion === "failure" || job.conclusion === 'cancelled') {
       failedJobsInfo.push(job);
     }
   }
-
   return { pending: numPending, failedJobs: failedJobsInfo };
 }
 
@@ -130,9 +128,8 @@ export function reorganizeWorkflows(
     if (!workflowsByPR.has(pr_number)) {
       workflowsByPR.set(pr_number, {
         pr_number: pr_number,
-        sha: workflow.sha,
+        head_sha: workflow.head_sha,
         jobs: new Map(),
-        workflows: new Map(),
       });
     }
     const name = workflow.name!;
