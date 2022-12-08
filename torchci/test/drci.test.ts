@@ -10,7 +10,7 @@ export const recentWorkflowA = {
     conclusion: "success",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "abcdefg",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     pr_number: 1000,
     id: "1",
 }
@@ -20,7 +20,7 @@ const recentWorkflowB = {
     conclusion: null,
     completed_at: null,
     html_url: "abcdefg",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "1",
     pr_number: 1001,
 }
@@ -30,7 +30,7 @@ const recentWorkflowC = {
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "1",
     pr_number: 1001,
 }
@@ -40,7 +40,7 @@ const recentWorkflowCSuccessfulRetry = {
     conclusion: "success",
     completed_at: '2022-07-14T19:34:03Z',
     html_url: "a",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "2",
     pr_number: 1001,
 }
@@ -50,7 +50,7 @@ const recentWorkflowCFailedRetry = {
     conclusion: "failure",
     completed_at: '2022-07-15T19:34:03Z',
     html_url: "a",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "3",
     pr_number: 1001,
 }
@@ -60,7 +60,7 @@ const recentWorkflowD = {
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "1",
     pr_number: 1001,
 }
@@ -70,7 +70,7 @@ const recentWorkflowE = {
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
-    sha: "abcdefg",
+    head_sha: "abcdefg",
     id: "1",
     pr_number: 1001,
 }
@@ -112,7 +112,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
         const pr_1001 = workflowsByPR.get(1001)!;
         const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(pr_1001);
-        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.sha);
+        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.head_sha);
         const failedJobName = recentWorkflowC.name;
 
         expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
@@ -173,7 +173,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.sha
+        pr_1001.head_sha
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -212,7 +212,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.sha
+        pr_1001.head_sha
       );
       const comment = formDrciComment(
         1001,
@@ -241,7 +241,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.sha
+        pr_1001.head_sha
       );
       const comment = formDrciComment(
         1001,
@@ -272,7 +272,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.sha
+        pr_1001.head_sha
       );
       const comment = formDrciComment(
         1001,
