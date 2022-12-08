@@ -20,7 +20,11 @@ def run() -> None:
     # By default, our GitHub jobs only fetch to a depth of one. This
     # means that the base commit will not be known to our local
     # clone. We must fetch it in order to compare head and base.
+    #
+    # The fetch is a smidge noisy, hide it by default.
+    print('::group::fetch github.event.pull_request.base.sha')
     repo.run(['fetch', 'origin', args.base_commit], check=True)
+    print('::endgroup::')
 
     violations = api.compatibility.check_range(
         repo, head=args.head_commit, base=args.base_commit
