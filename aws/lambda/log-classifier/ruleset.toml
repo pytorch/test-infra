@@ -169,16 +169,20 @@ name = 'Bad response status code'
 pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
-name = 'Python AttributeError'
-pattern = '^AttributeError: .*'
+name = 'Python Test File RuntimeError'
+pattern = '^RuntimeError: .*test.* failed'
 
 [[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
 
 [[rule]]
-name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: .*test.* failed'
+name = 'Python AttributeError'
+pattern = '^AttributeError: .*'
+
+[[rule]]
+name = 'Scribe upload failure'
+pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
 
 [[rule]]
 name = 'Python flaky unittest - failed'
