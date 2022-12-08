@@ -83,3 +83,17 @@ jobs:
         conda create -y -n test python="${PYTHON_VERSION}"
         conda activate test
         python --version | grep "${PYTHON_VERSION}"
+  test-with-repo:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      job-name: "Checkout Repo"
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      repository: pytorch/torchrec
+      ref: main
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        ls
+        echo "Checked out pytorch/torchrec"
