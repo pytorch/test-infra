@@ -106,10 +106,6 @@ jobs:
         with:
           docker-image: ${{ env.DOCKER_IMAGE }}
 
-      - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-        uses: pytorch/test-infra/.github/actions/setup-nvidia@main
-        if: contains(inputs.gpu-arch-type, 'cuda')
-
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
