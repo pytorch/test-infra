@@ -157,14 +157,14 @@ jobs:
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
           source "${BUILD_ENV_FILE}"
-          
+
           arch_name="$(uname -m)"
           if [ "${arch_name}" = "arm64" ]; then
             export ARCH_NAME="osx-arm64"
           else
             export ARCH_NAME="osx-64"
           fi
-          
+
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
           else
@@ -172,14 +172,14 @@ jobs:
             CONDA_BINARY="$(ls ${{ inputs.repository }}/dist/${ARCH_NAME}/*.tar.bz2)"
 
             ${CONDA_RUN} conda install -v -y -c pytorch-nightly pytorch
-            ${CONDA_RUN} conda install --offline "$CONDA_BINARY"
 
             if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
               ${CONDA_RUN} conda install -y 'ffmpeg<5'
             fi
             if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
-              ${CONDA_RUN} conda install -y 'numpy>=1.11'
+              ${CONDA_RUN} conda install -y pillow 'numpy>=1.11'
             fi
+            ${CONDA_RUN} conda install "$CONDA_BINARY"
 
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
@@ -190,15 +190,16 @@ jobs:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
           set -x
+          conda create --yes -n upload_env python="${PYTHON_VERSION}"
+          conda run -n upload_env conda install -yq anaconda-client
           arch_name="$(uname -m)"
           if [ "${arch_name}" = "arm64" ]; then
             export ARCH_NAME="osx-arm64"
           else
             export ARCH_NAME="osx-64"
           fi
-          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

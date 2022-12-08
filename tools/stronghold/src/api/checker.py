@@ -16,6 +16,12 @@ def run() -> None:
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
+
+    # By default, our GitHub jobs only fetch to a depth of one. This
+    # means that the base commit will not be known to our local
+    # clone. We must fetch it in order to compare head and base.
+    repo.run(['fetch', args.base_commit], check=True)
+
     violations = api.compatibility.check_range(
         repo, head=args.head_commit, base=args.base_commit
     )
