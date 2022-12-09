@@ -34,7 +34,7 @@ def get_pytorch_s3_bucket_path(
 ) -> List[str]:
     path = f"s3://pytorch/whl/{channel}/{gpu_arch_version}'"
     if upload_to_base_bucket:
-        path = f"s3://pytorch/whl/{channel}/'"
+        path = f"s3://pytorch/whl/{channel}/"
     return [f"export PYTORCH_S3_BUCKET_PATH='{path}'"]
 
 
