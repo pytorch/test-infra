@@ -73,6 +73,7 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
     defaults:
