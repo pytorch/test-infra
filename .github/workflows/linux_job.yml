@@ -80,7 +80,7 @@ jobs:
     steps:
       - name: Chown workspace prior to clean
         if: ${{ always() }}
-        uses: ./test-infra/.github/actions/chown-directory
+        uses: pytorch/test-infra/.github/actions/chown-directory@main
         with:
           directory: ${{ github.workspace }}
 
