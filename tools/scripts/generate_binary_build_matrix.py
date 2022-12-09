@@ -39,6 +39,7 @@ CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
 DEBUG = "debug"
 NIGHTLY = "nightly"
+TEST = "test"
 
 CURRENT_STABLE_VERSION = "1.13.1"
 
