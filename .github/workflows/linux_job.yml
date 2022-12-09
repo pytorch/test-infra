@@ -81,7 +81,7 @@ jobs:
       - name: Clean workspace
         run: |
           echo "::group::Cleanup debug output"
-          rm -rfv "${GITHUB_WORKSPACE}"
+          sudo rm -rfv "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
 
