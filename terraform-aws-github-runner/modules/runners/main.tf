@@ -8,10 +8,8 @@ terraform {
 locals {
   tags = merge(
     {
-      "Name" = format("%s-action-runner", var.environment)
-    },
-    {
-      "Environment" = format("%s", var.environment)
+      "Environment" = var.environment,
+      "Name"        = format("%s-action-runner", var.environment),
     },
     var.tags,
   )
@@ -76,7 +74,8 @@ resource "aws_launch_template" "linux_runner" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner),
+        "InstanceManagement" = "dynamic"
       },
     )
   }
@@ -86,7 +85,8 @@ resource "aws_launch_template" "linux_runner" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner)
+        "InstanceManagement" = "dynamic"
       },
     )
   }
@@ -122,7 +122,8 @@ resource "aws_launch_template" "linux_runner_nvidia" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner)
+        "InstanceManagement" = "dynamic"
       },
     )
   }
@@ -132,7 +133,8 @@ resource "aws_launch_template" "linux_runner_nvidia" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner)
+        "InstanceManagement" = "dynamic"
       },
     )
   }
@@ -183,7 +185,8 @@ resource "aws_launch_template" "windows_runner" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner)
+        "InstanceManagement" = "dynamic"
       },
     )
   }
@@ -193,7 +196,9 @@ resource "aws_launch_template" "windows_runner" {
     tags = merge(
       local.tags,
       {
-        "Name" = format("%s", local.name_runner)
+        "Name"               = format("%s", local.name_runner)
+        "InstanceManagement" = "dynamic"
+
       },
     )
   }
