@@ -25,6 +25,14 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("PACKAGE_TYPE", os.getenv("BUILD_TYPE", "wheel")),
     )
     parser.add_argument(
+        "--upload-to-base-bucket",
+        help="Determines whether or not to upload to the base bucket",
+        type=str,
+        choices=["yes", "no"],
+        # BUILD_TYPE for legacy scripts
+        default=os.getenv("UPLOAD_TO_BASE_BUCKET", "no"),
+    )
+    parser.add_argument(
         "--channel",
         help="Channel to look in",
         choices=["nightly", "test"],
@@ -105,6 +113,7 @@ def main():
                 python_version=options.python_version,
                 pytorch_version=options.pytorch_version,
                 channel=options.channel,
+                upload_to_base_bucket=options.upload_to_base_bucket == "yes",
             )
         )
 
