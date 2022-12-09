@@ -78,6 +78,12 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Chown workspace prior to clean
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/chown-directory
+        with:
+          directory: ${{ github.workspace }}
+
       - name: Clean workspace
         run: |
           echo "::group::Cleanup debug output"
