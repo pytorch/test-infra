@@ -188,6 +188,9 @@ jobs:
           for pkg in dist/*; do
             ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}/" --acl public-read
           done
+      - uses: ./test-infra/.github/actions/teardown-windows
+        if: always()
+        name: Teardown Windows
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
