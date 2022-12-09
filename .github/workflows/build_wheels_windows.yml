@@ -93,6 +93,7 @@ jobs:
         with:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
