@@ -40,7 +40,7 @@ RELEASE = "release"
 DEBUG = "debug"
 NIGHTLY = "nightly"
 
-CURRENT_STABLE_VERSION = "1.13.0"
+CURRENT_STABLE_VERSION = "1.13.1"
 
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
