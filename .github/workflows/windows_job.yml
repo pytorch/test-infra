@@ -47,6 +47,10 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      artefact-type:
+        description: 'Extension of files to look for when uploading artefacts, defaults to "whl"'
+        default: "whl"
+        type: string
 
 jobs:
   job:
@@ -123,8 +127,8 @@ jobs:
         run: |
           # If the default execution path is followed then we should get a wheel in the dist/ folder
           # attempt to just grab whatever is in there and scoop it all up
-          if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
-            mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+          if find "dist/" -name "*.${{ artefact-type }}" >/dev/null 2>/dev/null; then
+            mv -v dist/*.${{ artefact-type }} "${RUNNER_ARTIFACT_DIR}/"
           fi
           # Set to fail upload step if there are no files for upload and expected files for upload
           echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
