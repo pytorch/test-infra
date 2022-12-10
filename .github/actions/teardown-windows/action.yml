@@ -38,9 +38,11 @@ runs:
       if: always()
       run: |
         function Get-SSH-Sessions {
-            Get-Process sshd -IncludeUserName |
-                Where-Object UserName -notLike "*SYSTEM*" |
-                Select-Object Id
+            try {
+                Get-Process sshd -IncludeUserName -ErrorAction 'Stop' |
+                    Where-Object UserName -notLike "*SYSTEM*" |
+                    Select-Object Id
+            } catch { @() }
         }
 
         $runningSessions = Get-SSH-Sessions
