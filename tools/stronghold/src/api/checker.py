@@ -45,8 +45,9 @@ def run() -> None:
         stdout=subprocess.PIPE,
     )
     suppressed = '#suppress-api-compatibility-check' in pinfo.stdout
+    level = 'notice' if suppressed else 'warning'
 
     for file, file_violations in violations.items():
         for violation in file_violations:
-            print(api.github.render_violation(file, violation), file=sys.stderr)
+            print(api.github.render_violation(level, file, violation), file=sys.stderr)
     sys.exit(not suppressed)
