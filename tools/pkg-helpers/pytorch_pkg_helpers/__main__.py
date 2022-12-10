@@ -29,7 +29,6 @@ def parse_args() -> argparse.Namespace:
         help="Determines whether or not to upload to the base bucket",
         type=str,
         choices=["yes", "no"],
-        # BUILD_TYPE for legacy scripts
         default=os.getenv("UPLOAD_TO_BASE_BUCKET", "no"),
     )
     parser.add_argument(
