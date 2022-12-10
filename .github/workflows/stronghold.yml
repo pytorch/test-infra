@@ -21,9 +21,7 @@ jobs:
       script: |
         cd tools/stronghold/
         bin/build-check-api-compatibility
-        # We need to fetch the base otherwise, we can't diff against it.
-        git fetch origin ${{ github.event.pull_request.base.sha }}
-        bin/check-api-compatibility                              \
+        bin/check-api-compatibility                                 \
             --base-commit=${{ github.event.pull_request.base.sha }} \
             --head-commit=${{ github.event.pull_request.head.sha }}
 
