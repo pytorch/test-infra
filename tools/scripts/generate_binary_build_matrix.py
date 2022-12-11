@@ -345,11 +345,13 @@ def generate_wheels_matrix(
         if with_py311 == ENABLE and channel != "release":
             python_versions += ["3.11"]
 
+    upload_to_base_bucket = "yes"
     if arches is None:
         # Define default compute archivectures
         arches = ["cpu"]
 
         if with_cuda == ENABLE:
+            upload_to_base_bucket = "no"
             if os == "linux":
                 arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
             elif os == "windows":
@@ -379,6 +381,7 @@ def generate_wheels_matrix(
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "installation": get_wheel_install_command(os, channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
+                    "upload_to_base_bucket": upload_to_base_bucket,
                     "stable_version": CURRENT_STABLE_VERSION
                 }
             )

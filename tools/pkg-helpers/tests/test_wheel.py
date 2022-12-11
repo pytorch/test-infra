@@ -2,6 +2,7 @@ import pytest
 
 from pytorch_pkg_helpers.wheel import (
     get_pytorch_pip_install_command,
+    get_pytorch_s3_bucket_path,
     get_wheel_variables,
 )
 
@@ -23,6 +24,30 @@ def test_get_wheel_variables_linux_includes_path(python_version, expected_path):
                 python_version=python_version,
                 pytorch_version="",
                 channel="nightly",
+                upload_to_base_bucket=False,
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "upload_to_base_bucket",
+    [True, False],
+)
+def test_s3_bucket_path(upload_to_base_bucket):
+    def pass_test(variable: str) -> bool:
+        if upload_to_base_bucket:
+            return "cpu" not in variable
+        else:
+            return "cpu" in variable
+
+    assert any(
+        [
+            pass_test(variable)
+            for variable in get_pytorch_s3_bucket_path(
+                gpu_arch_version="cpu",
+                channel="nightly",
+                upload_to_base_bucket=upload_to_base_bucket,
             )
         ]
     )
