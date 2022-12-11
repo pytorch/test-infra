@@ -2025,6 +2025,13 @@
       "linux"
     ]
   ],
+  "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86636",
+    "https://github.com/pytorch/pytorch/issues/86636",
+    [
+      "linux"
+    ]
+  ],
   "test_pickle_nn_GRU_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86502",
     "https://github.com/pytorch/pytorch/issues/86502",
