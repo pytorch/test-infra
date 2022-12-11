@@ -2039,6 +2039,13 @@
       "linux"
     ]
   ],
+  "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86637",
+    "https://github.com/pytorch/pytorch/issues/86637",
+    [
+      "linux"
+    ]
+  ],
   "test_pointwise_op_fastpath__foreach_addcmul_cuda_int16 (__main__.TestForeachCUDA)": [
     "71478",
     "https://github.com/pytorch/pytorch/issues/71478",
