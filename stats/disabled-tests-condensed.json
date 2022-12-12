@@ -1596,13 +1596,6 @@
       "win"
     ]
   ],
-  "test_large_cumprod_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "75731",
-    "https://github.com/pytorch/pytorch/issues/75731",
-    [
-      "win"
-    ]
-  ],
   "test_large_cumsum_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "75726",
     "https://github.com/pytorch/pytorch/issues/75726",
@@ -2021,6 +2014,13 @@
   "test_pickle_nn_GRU_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86501",
     "https://github.com/pytorch/pytorch/issues/86501",
+    [
+      "linux"
+    ]
+  ],
+  "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86636",
+    "https://github.com/pytorch/pytorch/issues/86636",
     [
       "linux"
     ]
