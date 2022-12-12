@@ -28,7 +28,7 @@ FROM
     commons.workflow_job job
     JOIN commons.workflow_run w HINT(access_path = column_scan) ON w.id = job.run_id
 WHERE
-    w.head_branch LIKE 'master'
+    w.head_branch LIKE :branch
     AND w.head_repository.full_name = :repo
     AND job.torchci_classification.line LIKE FORMAT('%{}%', REGEXP_REPLACE(:captures, ',', '%'))
 ORDER BY
