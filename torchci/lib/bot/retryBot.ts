@@ -16,7 +16,6 @@ function retryBot(app: Probot): void {
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
-      ctx.payload.workflow_run.head_branch !== "master" ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
@@ -55,9 +54,18 @@ function retryBot(app: Probot): void {
       return;
     }
     const shouldRetry = failedJobs.filter((job) => {
-      // always rerun lint
+      // rerun if the linter didn't fail on the actual linting steps
       if (workflowName === "lint") {
-        return true;
+        if (
+          job.steps?.filter(
+            (step) =>
+              step.conclusion !== null &&
+              step.name.toLowerCase().startsWith("run lint - ") &&
+              FAILURE_CONCLUSIONS.includes(step.conclusion)
+          ).length === 0
+        ) {
+          return true
+        }
       }
       // if the job was cancelled, it was probably an infra error, so rerun
       if (job.conclusion === "cancelled") {
