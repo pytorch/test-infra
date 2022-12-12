@@ -54,7 +54,7 @@ function retryBot(app: Probot): void {
       return;
     }
 
-    // @ts-expect-error
+    // @ts-expect-error - we don't have types for these
     let jobsDoesntFailStepsLike = (job, predicate: (step: any) => boolean) => {
       return job.steps?.filter(
         // @ts-expect-error
