@@ -53,52 +53,42 @@ function retryBot(app: Probot): void {
       // or a widespread outage that wouldn't be helped by retries
       return;
     }
+
+    // @ts-expect-error
+    let jobsDoesntFailStepsLike = (job, predicate: (step: any) => boolean) => {
+      return job.steps?.filter(
+        // @ts-expect-error
+        (step) =>
+          step.conclusion !== null &&
+          predicate(step) &&
+          FAILURE_CONCLUSIONS.includes(step.conclusion)
+      ).length === 0
+    }
+
     const shouldRetry = failedJobs.filter((job) => {
       // if the job was cancelled, it was probably an infra error, so rerun
       if (job.conclusion === "cancelled") {
         return true;
       }
 
-      // for builds, rerun if it didn't fail on the actual build step
-      if (job.name.toLocaleLowerCase().startsWith("build")) {
-        if (
-          job.steps?.filter(
-            (step) =>
-              step.conclusion !== null &&
-              step.name.toLowerCase().startsWith("build") &&
-              FAILURE_CONCLUSIONS.includes(step.conclusion)
-          ).length === 0
-        ) {
+      // rerun if the linter didn't fail on the actual linting steps
+      if (workflowName === "lint" &&
+        jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().startsWith("run lint - "))){
           return true
-        }
       }
 
-      // rerun if the linter didn't fail on the actual linting steps
-      if (workflowName === "lint") {
-        if (
-          job.steps?.filter(
-            (step) =>
-              step.conclusion !== null &&
-              step.name.toLowerCase().startsWith("run lint - ") &&
-              FAILURE_CONCLUSIONS.includes(step.conclusion)
-          ).length === 0
-        ) {
+      // for builds, rerun if it didn't fail on the actual build step
+      if (job.name.toLocaleLowerCase().startsWith("build") &&
+        jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().startsWith("build"))){
           return true
-        }
       }
 
       // if no test steps failed, can rerun
-      if (
-        job.steps?.filter(
-          (step) =>
-            step.conclusion !== null &&
-            step.name.toLowerCase().includes("test") &&
-            FAILURE_CONCLUSIONS.includes(step.conclusion)
-        ).length === 0
-      ) {
+      if (jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().includes("test"))){
         return true;
       }
     });
+    
     if (shouldRetry.length === 0) {
       return;
     }
