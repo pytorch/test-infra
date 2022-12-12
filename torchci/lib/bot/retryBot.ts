@@ -55,13 +55,14 @@ function retryBot(app: Probot): void {
     }
 
     // @ts-expect-error - we don't have types for these
-    let jobsDoesntFailStepsLike = (job, predicate: (step: any) => boolean) => {
+    let doesLookLikeInfraFailure = (job, isInfraStep: (step: any) => boolean) => {
+      // Ensure that the steps that failed are only infra related steps (e.g. they're not lint, build, test steps)
       return job.steps?.filter(
         // @ts-expect-error
         (step) =>
           step.conclusion !== null &&
-          predicate(step) &&
-          FAILURE_CONCLUSIONS.includes(step.conclusion)
+          FAILURE_CONCLUSIONS.includes(step.conclusion) &&
+          !isInfraStep(step) 
       ).length === 0
     }
 
@@ -73,18 +74,18 @@ function retryBot(app: Probot): void {
 
       // rerun if the linter didn't fail on the actual linting steps
       if (workflowName === "lint" &&
-        jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().startsWith("run lint - "))){
+        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("run lint - "))){
           return true
       }
 
       // for builds, rerun if it didn't fail on the actual build step
       if (job.name.toLocaleLowerCase().startsWith("build") &&
-        jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().startsWith("build"))){
+        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("build"))){
           return true
       }
 
       // if no test steps failed, can rerun
-      if (jobsDoesntFailStepsLike(job, step => step.name.toLowerCase().includes("test"))){
+      if (doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().includes("test"))){
         return true;
       }
     });
