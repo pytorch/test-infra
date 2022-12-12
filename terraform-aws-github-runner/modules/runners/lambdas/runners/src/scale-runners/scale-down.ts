@@ -81,6 +81,10 @@ export async function scaleDown(): Promise<void> {
               }
             }
           }
+        } else {
+          // This is mostly designed to send metrics and statistics for pet instances that don't have clear
+          // ownership.
+          metrics.runnerFound(ec2runner);
         }
       }
 
@@ -301,6 +305,9 @@ export function isRunnerRemovable(
   ec2runner: RunnerInfo,
   metrics: ScaleDownMetrics,
 ): boolean {
+  if (ec2runner.instanceManagement?.toLowerCase() === 'pet') {
+    return false;
+  }
   if (ghRunner !== undefined && ghRunner.busy) {
     return false;
   }
