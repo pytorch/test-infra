@@ -7,6 +7,7 @@ import pytorchBot from "../lib/bot/pytorchBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
 import { handleScope } from "./common";
+import { recentWorkflowA } from "./drci.test"
 
 nock.disableNetConnect();
 
@@ -173,7 +174,9 @@ describe("verify-drci-functionality", () => {
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
-      .post((uri) => true)
+      .post((uri) => uri.includes("recent_pr_workflows_query"))
+      .reply(200, { results: [recentWorkflowA] })
+      .post((uri) => uri.includes("issue_query"))
       .reply(200, { results: [] });
 
     const scope = nock("https://api.github.com")
@@ -186,7 +189,7 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200, {})
       .get(
-        `/repos/${OWNER}/${REPO}/issues/31/comments`,
+        `/repos/${OWNER}/${REPO}/issues/1000/comments`,
         (body) => {
           return true;
         }
