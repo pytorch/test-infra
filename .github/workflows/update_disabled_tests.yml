@@ -22,8 +22,7 @@ jobs:
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
         run: |
-          # TODO: Run this in dry-run mode until we can automatically close non flaky disabled tests
-          python3 .github/scripts/update_disabled_tests.py --dry-run
+          python3 .github/scripts/update_disabled_tests.py
 
       - name: Print file
         run: |

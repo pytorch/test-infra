@@ -102,8 +102,6 @@ def condense_disable_issues(
             if test_name in non_flaky_disabled_tests:
                 # Not running under dry-run mode, the script is allowed to skip non flaky tests
                 if not dry_run:
-                    # TODO: see if we can close the issue right here or if it needs to be done
-                    # elsewhere with sufficient permission
                     continue
 
                 num_green = non_flaky_disabled_tests[test_name].get("num_green", 0)
