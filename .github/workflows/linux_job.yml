@@ -55,6 +55,10 @@ on:
         description: "Name for the job, which is displayed in the GitHub UI"
         default: "linux-job"
         type: string
+      continue-on-error:
+        description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
 
 jobs:
   job:
@@ -74,6 +78,13 @@ jobs:
     #       ec2-user prior to a checkout being able to be run by ec2-user
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Clean workspace
+        run: |
+          echo "::group::Cleanup debug output"
+          sudo rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
@@ -111,6 +122,7 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
 
       - name: Run script in container
+        continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
           {

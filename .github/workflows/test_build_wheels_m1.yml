@@ -30,12 +30,12 @@ jobs:
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
           - repository: pytorch/vision
-            pre-script: ""
-            post-script: ""
+            pre-script: packaging/pre_build_script.sh
+            post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text
-            pre-script: ""
+            pre-script: packaging/install_torchdata.sh
             post-script: ""
             smoke-test-script: test/smoke_tests/smoke_tests.py
             package-name: torchtext

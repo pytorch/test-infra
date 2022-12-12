@@ -73,6 +73,7 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
     defaults:
@@ -135,6 +136,7 @@ jobs:
             fi
           fi
       - name: Upload wheel to GitHub
+        continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -152,7 +154,7 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Run Primitive Smoke Tests
+      - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
@@ -180,7 +182,8 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
-            ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}/" --acl public-read
+            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
+            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:

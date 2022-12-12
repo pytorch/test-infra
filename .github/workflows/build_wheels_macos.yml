@@ -71,6 +71,12 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
+      - name: Clean workspace
+        run: |
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
       - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
@@ -127,6 +133,7 @@ jobs:
         run: |
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
+        continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
@@ -144,7 +151,7 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Run Primitive Smoke Tests
+      - name: Smoke Test
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -180,7 +187,8 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
-            ${CONDA_RUN} aws s3 cp "$pkg" "s3://pytorch/whl/${CHANNEL}/${{ matrix.desired_cuda }}/" --acl public-read
+            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
+            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
           done
 
 concurrency:

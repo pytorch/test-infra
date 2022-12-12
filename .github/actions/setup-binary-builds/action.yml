@@ -85,6 +85,7 @@ runs:
           ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
           BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
           ${CONDA_RUN} python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
+          cat "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
         shell: bash -l {0}

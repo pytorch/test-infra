@@ -51,7 +51,9 @@ def get_conda_cuda_variables(platform: str, gpu_arch_version: str) -> List[str]:
         conda_build_variant = "cuda"
         cmake_use_cuda = "1"
         if float(sanitized_version) >= 11.6:
-            conda_cuda_toolkit_constraint = f"- pytorch-cuda={sanitized_version} # [not osx]"
+            conda_cuda_toolkit_constraint = (
+                f"- pytorch-cuda={sanitized_version} # [not osx]"
+            )
         elif float(sanitized_version) == 11.3:
             conda_cuda_toolkit_constraint = "- cudatoolkit >=11.3,<11.4 # [not osx]"
         elif float(sanitized_version) == 10.2:

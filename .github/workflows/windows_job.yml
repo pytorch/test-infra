@@ -43,6 +43,10 @@ on:
         description: "Name for the job, which is displayed in the GitHub UI"
         default: "windows-job"
         type: string
+      continue-on-error:
+        description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
+        default: false
+        type: boolean
 
 jobs:
   job:
@@ -53,6 +57,14 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
+      - name: Clean workspace
+        shell: bash -l {0}
+        run: |
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
@@ -86,6 +98,7 @@ jobs:
 
       - name: Run script
         shell: bash -l {0}
+        continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
           {

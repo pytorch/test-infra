@@ -71,7 +71,7 @@ def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
 
         after_def = after_api.get(name)
         if after_def is None:
-            violations.append(Violation(name, 'function deleted'))
+            violations.append(Violation(name, 'function deleted', line=1))
             continue
 
         # Let's refine some terminology. Parameters come in three flavors:
@@ -106,6 +106,8 @@ class Violation:
     func: str
     # A description of the violation.
     message: str
+    # Where the violation occurred.
+    line: int
 
 
 def _check_by_name(
@@ -116,7 +118,7 @@ def _check_by_name(
         assert before_param.name == name
         after_param = _named_parameters(after).get(name)
         if after_param is None:
-            yield Violation(func, f'{name} was removed')
+            yield Violation(func, f'{name} was removed', line=after.line)
             continue
         assert after_param.name == name
         if before_param.position != after_param.position:
@@ -124,14 +126,15 @@ def _check_by_name(
                 func,
                 f'the position of {name} moved from {before_param.position} to '
                 f'{after_param.position}',
+                line=after.line,
             )
         if not before_param.required and after_param.required:
-            yield Violation(func, f'{name} became required')
+            yield Violation(func, f'{name} became required', line=after.line)
 
     for name, after_param in _named_parameters(after).items():
         assert after_param.name == name
         if after_param.required and name not in _named_parameters(before):
-            yield Violation(func, f'{name} was added and is required')
+            yield Violation(func, f'{name} was added and is required', line=after.line)
 
 
 def _named_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
@@ -162,20 +165,28 @@ def _check_by_position(
         if before_param is None:
             assert after_param is not None
             if after_param.required:
-                yield Violation(func, f'{after_param.name} was added and is required')
+                yield Violation(
+                    func,
+                    f'{after_param.name} was added and is required',
+                    line=after.line,
+                )
         elif after_param is None:
             assert before_param is not None
-            yield Violation(func, f'{before_param.name} was removed')
+            yield Violation(func, f'{before_param.name} was removed', line=after.line)
         else:
             assert before_param is not None
             assert after_param is not None
             if before_param.name != after_param.name:
                 yield Violation(
-                    func, f'{before_param.name} was renamed to {after_param.name}'
+                    func,
+                    f'{before_param.name} was renamed to {after_param.name}',
+                    line=after.line,
                 )
                 continue
             if not before_param.required and after_param.required:
-                yield Violation(func, f'{before_param.name} became required')
+                yield Violation(
+                    func, f'{before_param.name} became required', line=after.line
+                )
 
     # TODO support renaming parameters.
     # Positional parameters may be renamed, but may not be
@@ -191,6 +202,6 @@ def _check_variadic_parameters(
 ) -> Iterable[Violation]:
     """Checks that support for variadic parameters is not removed."""
     if before.variadic_args and not after.variadic_args:
-        yield Violation(func, 'removed *varargs')
+        yield Violation(func, 'removed *varargs', line=after.line)
     if before.variadic_kwargs and not after.variadic_kwargs:
-        yield Violation(func, 'removed **kwargs')
+        yield Violation(func, 'removed **kwargs', line=after.line)

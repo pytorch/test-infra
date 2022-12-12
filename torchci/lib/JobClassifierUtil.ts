@@ -3,7 +3,7 @@ import { GroupData, RowData } from "./types";
 
 export const groups = [
   {
-    regex: /^(?!periodic)(?!inductor).*mem_leak_check/,
+    regex: /mem_leak_check/,
     name: "Memory Leak Check",
     persistent: true,
   },

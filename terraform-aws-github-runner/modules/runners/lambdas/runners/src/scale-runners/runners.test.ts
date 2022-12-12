@@ -41,8 +41,9 @@ function createExpectedRunInstancesLinux(
   runnerParameters: RunnerInputParameters,
   subnetId: number,
   enableOrg = false,
-  awsRegion = Config.Instance.awsRegion,
+  vpcIdx: string | undefined = undefined,
 ) {
+  const vpcId = vpcIdx ?? Config.Instance.shuffledVPCsForAwsRegion(Config.Instance.awsRegion)[0];
   const tags = [
     { Key: 'Application', Value: 'github-action-runner' },
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
@@ -58,6 +59,8 @@ function createExpectedRunInstancesLinux(
       Value: runnerParameters.repoName as string,
     });
   }
+  const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get(vpcId) || [];
+  const snetId = Config.Instance.shuffledSubnetsForVpcId(vpcId)[subnetId];
   return {
     MaxCount: 1,
     MinCount: 1,
@@ -84,8 +87,8 @@ function createExpectedRunInstancesLinux(
     NetworkInterfaces: [
       {
         AssociatePublicIpAddress: true,
-        SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(awsRegion)[subnetId],
-        Groups: Config.Instance.securityGroupIds,
+        SubnetId: snetId,
+        Groups: secGroup,
         DeviceIndex: 0,
       },
     ],
@@ -113,6 +116,10 @@ beforeEach(() => {
 
 describe('list instances', () => {
   const mockDescribeInstances = { promise: jest.fn() };
+  const config = {
+    awsRegion: 'us-east-1',
+    shuffledAwsRegionInstances: ['us-east-1'],
+  };
 
   beforeEach(() => {
     mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
@@ -143,6 +150,7 @@ describe('list instances', () => {
       ],
     };
     mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
 
   it('ec2 fails', async () => {
@@ -340,7 +348,10 @@ describe('createRunner', () => {
   describe('single region', () => {
     const mockRunInstances = { promise: jest.fn() };
     const mockPutParameter = { promise: jest.fn() };
-    const subnetIds = new Set(['sub-1234', 'sub-4321']);
+    const subnetIds = new Set([
+      ['sg3', 'sub-1234'],
+      ['sg4', 'sub-4321'],
+    ]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
       launchTemplateVersionLinux: '1-linux',
@@ -349,10 +360,13 @@ describe('createRunner', () => {
       subnetIds: new Map([['us-east-1', subnetIds]]),
       awsRegion: 'us-east-1',
       shuffledAwsRegionInstances: ['us-east-1'],
-      shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation(() => {
-        return Array.from(subnetIds).sort();
+      vpcIdToSecurityGroupIds: new Map([['vpc-agdgaduwg113', ['sg1', 'sg2']]]),
+      shuffledVPCsForAwsRegion: jest.fn().mockImplementation(() => {
+        return ['vpc-agdgaduwg113'];
       }),
-      securityGroupIds: ['123', '321', '456'],
+      shuffledSubnetsForVpcId: jest.fn().mockImplementation(() => {
+        return ['sub-1234', 'sub-4321'];
+      }),
     };
 
     beforeEach(() => {
@@ -438,6 +452,8 @@ describe('createRunner', () => {
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion);
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
+      const snetId = Config.Instance.shuffledSubnetsForVpcId('vpc-agdgaduwg113');
       expect(mockEC2.runInstances).toBeCalledWith({
         MaxCount: 1,
         MinCount: 1,
@@ -460,8 +476,8 @@ describe('createRunner', () => {
         NetworkInterfaces: [
           {
             AssociatePublicIpAddress: true,
-            SubnetId: Config.Instance.shuffledSubnetIdsForAwsRegion(Config.Instance.awsRegion)[0],
-            Groups: Config.Instance.securityGroupIds,
+            SubnetId: snetId[0],
+            Groups: secGroup,
             DeviceIndex: 0,
           },
         ],
@@ -568,22 +584,33 @@ describe('createRunner', () => {
   describe('multiregion', () => {
     const mockRunInstances = { promise: jest.fn() };
     const mockPutParameter = { promise: jest.fn() };
-    const subnetIds = new Map([
-      ['us-east-1', new Set(['sub-0987', 'sub-7890'])],
-      ['us-west-1', new Set(['sub-1234', 'sub-4321'])],
+    const regionToVpc = new Map([
+      ['us-east-1', ['vpc-agdgaduwg113-1']],
+      ['us-west-1', ['vpc-agdgaduwg113-2']],
+    ]);
+    const vpcToSg = new Map([
+      ['vpc-agdgaduwg113-1', ['sg1', 'sg2']],
+      ['vpc-agdgaduwg113-2', ['sg3', 'sg4']],
+    ]);
+    const vpcToSn = new Map([
+      ['vpc-agdgaduwg113-1', ['sub-1234', 'sub-4321']],
+      ['vpc-agdgaduwg113-2', ['sub-113', 'sub-311']],
     ]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
       launchTemplateVersionLinux: '1-linux',
       launchTemplateNameWindows: 'launch-template-name-windows',
       launchTemplateVersionWindows: '1-windows',
-      subnetIds: subnetIds,
       awsRegion: 'us-east-1',
+
       shuffledAwsRegionInstances: ['us-east-1', 'us-west-1'],
-      shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation((awsRegion: string) => {
-        return Array.from(subnetIds.get(awsRegion) ?? []).sort();
+      vpcIdToSecurityGroupIds: vpcToSg,
+      shuffledVPCsForAwsRegion: jest.fn().mockImplementation((awsRegion: string) => {
+        return Array.from(regionToVpc.get(awsRegion) ?? []);
       }),
-      securityGroupIds: ['123', '321', '456'],
+      shuffledSubnetsForVpcId: jest.fn().mockImplementation((vpcId) => {
+        return Array.from(vpcToSn.get(vpcId) ?? []);
+      }),
     };
     const runInstanceSuccess = {
       Instances: [
@@ -647,12 +674,8 @@ describe('createRunner', () => {
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
 
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(2);
-      expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 0, false, 'us-east-1'),
-      );
-      expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 1, false, 'us-east-1'),
-      );
+      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, false));
+      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 1, false));
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0]);
     });
@@ -680,14 +703,15 @@ describe('createRunner', () => {
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[1]);
 
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(3);
+      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, false));
+      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 1, false));
       expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 0, false, 'us-east-1'),
-      );
-      expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 1, false, 'us-east-1'),
-      );
-      expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 0, false, 'us-west-1'),
+        createExpectedRunInstancesLinux(
+          runnerParameters,
+          0,
+          false,
+          Config.Instance.shuffledVPCsForAwsRegion('us-west-1')[0],
+        ),
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[1]);
@@ -718,16 +742,36 @@ describe('createRunner', () => {
 
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(4);
       expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 0, false, 'us-east-1'),
+        createExpectedRunInstancesLinux(
+          runnerParameters,
+          0,
+          false,
+          Config.Instance.shuffledVPCsForAwsRegion('us-east-1')[0],
+        ),
       );
       expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 1, false, 'us-east-1'),
+        createExpectedRunInstancesLinux(
+          runnerParameters,
+          1,
+          false,
+          Config.Instance.shuffledVPCsForAwsRegion('us-east-1')[0],
+        ),
       );
       expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 0, false, 'us-west-1'),
+        createExpectedRunInstancesLinux(
+          runnerParameters,
+          0,
+          false,
+          Config.Instance.shuffledVPCsForAwsRegion('us-west-1')[0],
+        ),
       );
       expect(mockEC2.runInstances).toBeCalledWith(
-        createExpectedRunInstancesLinux(runnerParameters, 1, false, 'us-west-1'),
+        createExpectedRunInstancesLinux(
+          runnerParameters,
+          1,
+          false,
+          Config.Instance.shuffledVPCsForAwsRegion('us-west-1')[0],
+        ),
       );
       expect(runnerConfigFn).toBeCalledTimes(0);
     });
