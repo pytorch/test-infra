@@ -15,6 +15,11 @@ const NUM_HOURS_ACROSS_JOBS = 72;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
+// TODO: This is to gate the new feature to close disabled non-flaky tests automatically.
+// I don't want to run it to all application issues yet, instead trying to roll out this
+// to a smaller subset first to limit any potential bad UX
+const ROLLOUT_PERCENTAGE = 0.05;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<void>
@@ -51,7 +56,10 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
   const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
 
   nonFlakyTests.forEach(async function (test) {
-    await handleNonFlakyTest(test, issues, octokit);
+    const rollout = Math.random();
+    if (rollout < ROLLOUT_PERCENTAGE) {
+      await handleNonFlakyTest(test, issues, octokit);
+    }
   })
 }
 
@@ -138,11 +146,14 @@ export async function handleNonFlakyTest(
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
 
   if (matchingIssues.length === 0) {
+    console.log(`Found not matching issue for ${issueTitle}`);
     return;
   }
 
   const matchingIssue = matchingIssues[0];
   if (matchingIssue.state === "open") {
+    console.log(`Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky anymore after ${test.num_green} reruns`);
+
     const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without any failures`;
     await octokit.rest.issues.createComment({
       owner,
