@@ -2016,6 +2016,13 @@
     "https://github.com/pytorch/pytorch/issues/70517",
     []
   ],
+  "test_pure_fp16_cpu_offload_CPUOffload(offload_params=False) (__main__.TestPureFP16)": [
+    "73315",
+    "https://github.com/pytorch/pytorch/issues/73315",
+    [
+      "linux"
+    ]
+  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
