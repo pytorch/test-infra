@@ -647,6 +647,13 @@
       "linux"
     ]
   ],
+  "test_cpu_gpu_parity_nn_ConvTranspose2d_cuda_complex64 (__main__.TestModuleCUDA)": [
+    "90756",
+    "https://github.com/pytorch/pytorch/issues/90756",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_gpu_parity_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
     "86503",
     "https://github.com/pytorch/pytorch/issues/86503",
