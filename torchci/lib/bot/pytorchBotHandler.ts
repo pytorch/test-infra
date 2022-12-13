@@ -1,5 +1,5 @@
-import { upsertDrCiComment } from "lib/drciUtils";
 import _ from "lodash";
+import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
@@ -276,11 +276,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async handleDrCI() {
     await this.logger.log("Dr. CI");
-    const { owner, repo, ctx, prNum } = this;
-    const prUrl = ctx.payload.issue.html_url
+    const { ctx, prNum } = this;
 
     await this.ackComment();
-    await upsertDrCiComment(owner, repo, prNum, ctx, prUrl);
+    await updateDrciComments(ctx.octokit, prNum.toString());
   }
 
   async handlePytorchCommands(inputArgs: string) {

@@ -41,7 +41,9 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_STABLE_VERSION = "1.13.1"
+CURRENT_CANDIDATE_VERSION = "1.13.1"
+CURRENT_STABLE_VERSION = "1.13.0"
+mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
 mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
@@ -92,6 +94,11 @@ def validation_runner(arch_type: str, os: str) -> str:
         return LINUX_CPU_RUNNER
 
 def initialize_globals(channel: str):
+    if channel == TEST:
+        mod.CURRENT_VERSION = CURRENT_CANDIDATE_VERSION
+    else:
+        mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
+
     mod.CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
     mod.ROCM_ARCHES = ROCM_ACRHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
@@ -174,11 +181,11 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
     if os == 'macos':
         build_name = "libtorch-macos-latest.zip"
         if channel == RELEASE:
-            build_name = f"libtorch-macos-{CURRENT_STABLE_VERSION}.zip"
+            build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
     elif os == 'linux' and (channel == RELEASE or channel == TEST):
-        build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
+        build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip" if devtoolset ==  "cxx11-abi" else f"{prefix}-{_libtorch_variant}-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
     elif os == 'windows' and (channel == RELEASE or channel == TEST):
-        build_name = f"{prefix}-shared-with-deps-debug-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip" if libtorch_config == 'debug' else f"{prefix}-shared-with-deps-{CURRENT_STABLE_VERSION}%2B{desired_cuda}.zip"
+        build_name = f"{prefix}-shared-with-deps-debug-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip" if libtorch_config == 'debug' else f"{prefix}-shared-with-deps-{mod.CURRENT_VERSION}%2B{desired_cuda}.zip"
     elif os == "windows" and channel == NIGHTLY:
         build_name = f"{prefix}-shared-with-deps-debug-latest.zip" if libtorch_config == 'debug' else f"{prefix}-shared-with-deps-latest.zip"
 
@@ -228,7 +235,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     ),
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "channel": channel,
-                    "stable_version": CURRENT_STABLE_VERSION,
+                    "stable_version": mod.CURRENT_VERSION,
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version, os)
                 }
             )
@@ -317,7 +324,7 @@ def generate_libtorch_matrix(
                         "validation_runner": validation_runner(gpu_arch_type, os),
                         "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
                         "channel": channel,
-                        "stable_version": CURRENT_STABLE_VERSION
+                        "stable_version": mod.CURRENT_VERSION
                     }
                 )
     return ret
@@ -345,11 +352,13 @@ def generate_wheels_matrix(
         if with_py311 == ENABLE and channel != "release":
             python_versions += ["3.11"]
 
+    upload_to_base_bucket = "yes"
     if arches is None:
         # Define default compute archivectures
         arches = ["cpu"]
 
         if with_cuda == ENABLE:
+            upload_to_base_bucket = "no"
             if os == "linux":
                 arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
             elif os == "windows":
@@ -379,7 +388,8 @@ def generate_wheels_matrix(
                     "validation_runner": validation_runner(gpu_arch_type, os),
                     "installation": get_wheel_install_command(os, channel, gpu_arch_type, gpu_arch_version, desired_cuda, python_version),
                     "channel": channel,
-                    "stable_version": CURRENT_STABLE_VERSION
+                    "upload_to_base_bucket": upload_to_base_bucket,
+                    "stable_version": mod.CURRENT_VERSION
                 }
             )
     return ret
@@ -433,6 +443,7 @@ def main(args) -> None:
 
     package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
     channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
+
 
     for channel in channels:
         for package in package_types:
