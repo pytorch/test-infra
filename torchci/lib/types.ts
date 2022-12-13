@@ -114,6 +114,7 @@ export interface RecentWorkflowsData {
   html_url: string;
   head_sha: string;
   pr_number?: number;
+  failure_captures: string[];
 }
 
 export interface TTSChange {

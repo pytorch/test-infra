@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOctokit } from "lib/github";
-import fetchRecentWorkflows from "lib/fetchRecentWorkflows";
+import {
+  fetchRecentWorkflows,
+  fetchCommitFailedJobs,
+} from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import {
   NUM_MINUTES,
@@ -13,11 +16,19 @@ import {
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
+import urllib from "urllib";
+import { isEqual } from "lodash";
 
 interface PRandJobs {
     head_sha: string;
     pr_number: number;
     jobs: Map<string, RecentWorkflowsData>;
+    merge_base: string;
+}
+
+export interface FlakyJob {
+  name: string;
+  captures: string[];
 }
 
 export default async function handler(
@@ -40,26 +51,104 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         NUM_MINUTES + ""
     );
 
-    const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+    const workflowsByPR = await reorganizeWorkflows(octokit, recentWorkflows);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+    const masterFlakyJobs = await getFlakyJobs();
+    const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
     for (const [pr_number, pr_info] of workflowsByPR) {
-        const { pending, failedJobs } = getWorkflowJobsStatuses(pr_info);
+        const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
+          getWorkflowJobsStatuses(
+            pr_info,
+            masterFlakyJobs,
+            baseCommitJobs.get(pr_info.merge_base) || new Map()
+          );
 
-        const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
-        const comment = formDrciComment(pr_number, failureInfo, formDrciSevBody(sevs));
+        const failureInfo = constructResultsComment(
+          pending,
+          failedJobs,
+          flakyJobs,
+          brokenTrunkJobs,
+          pr_info.head_sha,
+          pr_info.merge_base
+        );
+        const comment = formDrciComment(
+          pr_number,
+          failureInfo,
+          formDrciSevBody(sevs)
+        );
 
         await updateCommentWithWorkflow(octokit, pr_info, comment);
     }
+    console.log("done")
+}
+
+
+async function getBaseCommitJobs(
+  workflowsByPR: Map<number, PRandJobs>
+): Promise<Map<string, Map<string, RecentWorkflowsData>>> {
+  // get merge base shas
+  let baseShas = [];
+  for (const [_, pr_info] of workflowsByPR) {
+    baseShas.push(pr_info.merge_base);
+  }
+
+  // fetch failing jobs on those shas
+  const commitFailedJobsQueryResult = await fetchCommitFailedJobs(baseShas);
+
+  // reorganize into a map of sha -> name -> data
+  const jobsBySha = new Map();
+  for (const job of commitFailedJobsQueryResult) {
+    if (!jobsBySha.has(job.head_sha)) {
+      jobsBySha.set(job.head_sha, new Map());
+    }
+    const existing_job = jobsBySha.get(job.head_sha).get(job.name!);
+    if (!existing_job || existing_job.id < job.id!) {
+      // if rerun, choose the job with the larger id as that is more recent
+      jobsBySha.get(job.head_sha).set(job.name, job);
+    }
+  }
+  return jobsBySha;
+}
+
+async function getFlakyJobs(): Promise<FlakyJob[]> {
+  const urlkey =
+    "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/rules.json";
+
+  const result = await urllib.request(urlkey);
+  if (result.res.statusCode !== 200) {
+    return [];
+  }
+  const flakyJobs: FlakyJob[] = JSON.parse(result.data.toString());
+  return flakyJobs;
+}
+
+function constructResultsJobsSections(
+  header: string,
+  jobs: RecentWorkflowsData[]
+): string {
+  if (jobs.length === 0) {
+    return "";
+  }
+  let output = `\n<details open><summary>${header}:</summary><p>\n\n`;
+  const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
+  for (const job of jobsSorted) {
+    output += `* [${job.name}](${job.html_url})\n`;
+  }
+  output += "</p></details>";
+  return output;
 }
 
 export function constructResultsComment(
     pending: number,
     failedJobs: RecentWorkflowsData[],
-    sha: string
+    flakyJobs: RecentWorkflowsData[],
+    brokenTrunkJobs: RecentWorkflowsData[],
+    sha: string,
+    merge_base: string,
 ): string {
     let output = `\n`;
-    const failing = failedJobs.length;
+    const failing = failedJobs.length + flakyJobs.length + brokenTrunkJobs.length;
     const headerPrefix = `## `
     const pendingIcon = `:hourglass_flowing_sand:`
     const successIcon = `:white_check_mark:`
@@ -92,35 +181,82 @@ export function constructResultsComment(
             output += somePending;
         }
         output += `\nAs of commit ${sha}:`;
-        output += '\n<details open><summary>The following jobs have failed:</summary><p>\n\n';
-        const failedJobsSorted = failedJobs.sort((a, b) => a.name.localeCompare(b.name))
-        for (const job of failedJobsSorted) {
-            output += `* [${job.name}](${job.html_url})\n`;
-        }
-        output += "</p></details>"
+        output += constructResultsJobsSections(
+          "The following jobs have failed",
+          failedJobs
+        );
     }
+    output += constructResultsJobsSections(
+      "The following jobs failed but were likely due to flakiness present on master",
+      flakyJobs
+    );
+    output += constructResultsJobsSections(
+      `The following jobs failed but were likely due to broken trunk (merge base ${merge_base})`,
+      brokenTrunkJobs
+    );
     return output;
 }
 
-export function getWorkflowJobsStatuses(prInfo: PRandJobs): {
-  pending: number;
-  failedJobs: RecentWorkflowsData[];
-} {
-  let numPending = 0;
-  const failedJobsInfo: RecentWorkflowsData[] = [];
-  for (const [_, job] of prInfo.jobs) {
-    if (job.conclusion === null && job.completed_at === null) {
-      numPending++;
-    } else if (job.conclusion === "failure" || job.conclusion === 'cancelled') {
-      failedJobsInfo.push(job);
-    }
-  }
-  return { pending: numPending, failedJobs: failedJobsInfo };
+function isFlaky(
+  job: RecentWorkflowsData,
+  masterFlakyJobs: FlakyJob[]
+): boolean {
+  return masterFlakyJobs.some(
+    (masterFlakyJob) =>
+      job.name.includes(masterFlakyJob.name) &&
+      masterFlakyJob.captures.every((capture) =>
+        job.failure_captures.includes(capture)
+      )
+  );
 }
 
-export function reorganizeWorkflows(
+export function getWorkflowJobsStatuses(
+  prInfo: PRandJobs,
+  masterFlakyJobs: FlakyJob[],
+  baseJobs: Map<string, RecentWorkflowsData>
+): {
+  pending: number;
+  failedJobs: RecentWorkflowsData[];
+  flakyJobs: RecentWorkflowsData[];
+  brokenTrunkJobs: RecentWorkflowsData[];
+} {
+  let pending = 0;
+  const failedJobs: RecentWorkflowsData[] = [];
+  const flakyJobs: RecentWorkflowsData[] = [];
+  const brokenTrunkJobs: RecentWorkflowsData[] = [];
+  for (const [name, job] of prInfo.jobs) {
+    if (job.conclusion === null && job.completed_at === null) {
+      pending++;
+    } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
+      if (
+        baseJobs.get(job.name)?.conclusion == job.conclusion &&
+        isEqual(job.failure_captures, baseJobs.get(job.name)?.failure_captures)
+      ) {
+        brokenTrunkJobs.push(job);
+      } else if (isFlaky(job, masterFlakyJobs)) {
+        flakyJobs.push(job);
+      } else {
+        failedJobs.push(job);
+      }
+    }
+  }
+  return { pending, failedJobs, flakyJobs, brokenTrunkJobs };
+}
+
+async function getMergeBase(octokit: Octokit, sha: string) {
+  const diff = await octokit.rest.repos.compareCommits({
+    owner: OWNER,
+    repo: REPO,
+    base: sha,
+    head: "master",
+  });
+  return diff.data.merge_base_commit.sha;
+}
+
+export async function reorganizeWorkflows(
+  octokit: Octokit,
   recentWorkflows: RecentWorkflowsData[]
-): Map<number, PRandJobs> {
+): Promise<Map<number, PRandJobs>> {
   const workflowsByPR = new Map();
 
   for (const workflow of recentWorkflows) {
@@ -130,6 +266,7 @@ export function reorganizeWorkflows(
         pr_number: pr_number,
         head_sha: workflow.head_sha,
         jobs: new Map(),
+        merge_base: await getMergeBase(octokit, workflow.head_sha)
       });
     }
     const name = workflow.name!;
