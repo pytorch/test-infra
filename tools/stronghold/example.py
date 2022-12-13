@@ -88,6 +88,7 @@ def add_flexible_parameter(
     a: int,
     /,
     b: int,
+    new_param: int,
     c: int = 0,
     *args: int,
     d: int,
