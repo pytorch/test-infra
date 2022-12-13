@@ -47,7 +47,7 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
   });
 
   // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
-  // that no flaky tests are accidentally included
+  // that no flaky test is accidentally closed
   const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
 
   nonFlakyTests.forEach(async function (test) {
@@ -143,7 +143,7 @@ export async function handleNonFlakyTest(
 
   const matchingIssue = matchingIssues[0];
   if (matchingIssue.state === "open") {
-    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without failures`;
+    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without any failures`;
     await octokit.rest.issues.createComment({
       owner,
       repo,
