@@ -45,14 +45,6 @@ WORKFLOWS = [
         lambda_name="rds-proxy",
         timeout=3,
     ),
-    # This can't be deployed from GitHub's runners since it installs incompatible
-    # binaries when downloading dependencies
-    # CIWorkflow(
-    #     template="deploy_lambda.yml.j2",
-    #     name="github-status-sync",
-    #     lambda_name="ossci-job-status-sync",
-    #     timeout=5 * 60,
-    # ),
     CIWorkflow(
         template="metrics_pytorch_org.yml.j2", name="metrics-pytorch-org", timeout=3
     ),

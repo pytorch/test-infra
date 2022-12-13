@@ -27,7 +27,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --requirement=.mypy_requirements.txt
-          pip install -r aws/lambda/github-status-sync/requirements.txt
       - name: Run mypy
         env:
           MYPY_FORCE_COLOR: 1
