@@ -55,11 +55,6 @@
       "linux"
     ]
   ],
-  "test_RNN_dropout_state (__main__.TestNN)": [
-    "68849",
-    "https://github.com/pytorch/pytorch/issues/68849",
-    []
-  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
@@ -617,13 +612,6 @@
     "https://github.com/pytorch/pytorch/issues/90756",
     [
       "rocm"
-    ]
-  ],
-  "test_cpu_gpu_parity_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86503",
-    "https://github.com/pytorch/pytorch/issues/86503",
-    [
-      "linux"
     ]
   ],
   "test_create_store_single_server (__main__.DistributedUtilTest)": [
@@ -1222,37 +1210,9 @@
       "rocm"
     ]
   ],
-  "test_forward_nn_LSTM_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86773",
-    "https://github.com/pytorch/pytorch/issues/86773",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86500",
-    "https://github.com/pytorch/pytorch/issues/86500",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_nn_LSTM_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86505",
-    "https://github.com/pytorch/pytorch/issues/86505",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86387",
     "https://github.com/pytorch/pytorch/issues/86387",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86772",
-    "https://github.com/pytorch/pytorch/issues/86772",
     [
       "linux"
     ]
@@ -1520,30 +1480,9 @@
     "https://github.com/pytorch/pytorch/issues/78457",
     []
   ],
-  "test_memory_format_nn_LSTM_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86499",
-    "https://github.com/pytorch/pytorch/issues/86499",
-    [
-      "linux"
-    ]
-  ],
-  "test_memory_format_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86634",
-    "https://github.com/pytorch/pytorch/issues/86634",
-    [
-      "linux"
-    ]
-  ],
   "test_memory_format_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86771",
     "https://github.com/pytorch/pytorch/issues/86771",
-    [
-      "linux"
-    ]
-  ],
-  "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86635",
-    "https://github.com/pytorch/pytorch/issues/86635",
     [
       "linux"
     ]
@@ -1781,27 +1720,6 @@
       "linux"
     ]
   ],
-  "test_pickle_nn_GRU_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86501",
-    "https://github.com/pytorch/pytorch/issues/86501",
-    [
-      "linux"
-    ]
-  ],
-  "test_pickle_nn_GRU_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86636",
-    "https://github.com/pytorch/pytorch/issues/86636",
-    [
-      "linux"
-    ]
-  ],
-  "test_pickle_nn_GRU_train_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86502",
-    "https://github.com/pytorch/pytorch/issues/86502",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86637",
     "https://github.com/pytorch/pytorch/issues/86637",
@@ -1967,11 +1885,6 @@
     [
       "linux"
     ]
-  ],
-  "test_profiler_seq_nr (__main__.TestAutograd)": [
-    "66893",
-    "https://github.com/pytorch/pytorch/issues/66893",
-    []
   ],
   "test_proper_exit (__main__.TestDataLoader)": [
     "70517",
@@ -2246,13 +2159,6 @@
   "test_success_first_then_exception (__main__.SpawnTest)": [
     "72625",
     "https://github.com/pytorch/pytorch/issues/72625",
-    [
-      "linux"
-    ]
-  ],
-  "test_success_non_blocking (__main__.ForkTest)": [
-    "81280",
-    "https://github.com/pytorch/pytorch/issues/81280",
     [
       "linux"
     ]
