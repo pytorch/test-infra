@@ -74,7 +74,7 @@ function retryBot(app: Probot): void {
 
       // rerun if the linter didn't fail on the actual linting steps
       if (workflowName === "lint" &&
-        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("[nonretryable]"))){
+        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("(nonretryable)"))){
           return true
       }
 
