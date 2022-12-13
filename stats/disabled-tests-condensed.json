@@ -217,30 +217,9 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalar_fastpath__foreach_div_cuda_int64 (__main__.TestForeachCUDA)": [
-    "86892",
-    "https://github.com/pytorch/pytorch/issues/86892",
-    [
-      "linux"
-    ]
-  ],
-  "test_binary_op_scalar_fastpath__foreach_div_cuda_int8 (__main__.TestForeachCUDA)": [
-    "84047",
-    "https://github.com/pytorch/pytorch/issues/84047",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalar_fastpath__foreach_div_cuda_uint8 (__main__.TestForeachCUDA)": [
     "86999",
     "https://github.com/pytorch/pytorch/issues/86999",
-    [
-      "linux"
-    ]
-  ],
-  "test_binary_op_scalar_fastpath__foreach_mul_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "86996",
-    "https://github.com/pytorch/pytorch/issues/86996",
     [
       "linux"
     ]
@@ -262,13 +241,6 @@
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
     "83029",
     "https://github.com/pytorch/pytorch/issues/83029",
-    [
-      "linux"
-    ]
-  ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int8 (__main__.TestForeachCUDA)": [
-    "86998",
-    "https://github.com/pytorch/pytorch/issues/86998",
     [
       "linux"
     ]
@@ -304,13 +276,6 @@
   "test_binary_op_tensorlists_fastpath__foreach_add_cuda_bool (__main__.TestForeachCUDA)": [
     "79780",
     "https://github.com/pytorch/pytorch/issues/79780",
-    [
-      "linux"
-    ]
-  ],
-  "test_binary_op_tensorlists_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)": [
-    "82300",
-    "https://github.com/pytorch/pytorch/issues/82300",
     [
       "linux"
     ]
@@ -982,13 +947,6 @@
       "linux"
     ]
   ],
-  "test_dtypes__refs_sinh_cuda (__main__.TestCommonCUDA)": [
-    "86894",
-    "https://github.com/pytorch/pytorch/issues/86894",
-    [
-      "rocm"
-    ]
-  ],
   "test_dynamic_rpc_existing_rank_can_communicate_with_new_rank (__main__.TensorPipeTensorPipeAgentRpcTest)": [
     "84116",
     "https://github.com/pytorch/pytorch/issues/84116",
@@ -1028,13 +986,6 @@
   "test_error_workers (__main__.TestDataLoaderPersistentWorkers)": [
     "78017",
     "https://github.com/pytorch/pytorch/issues/78017",
-    [
-      "linux"
-    ]
-  ],
-  "test_exception_all (__main__.SpawnTest)": [
-    "74223",
-    "https://github.com/pytorch/pytorch/issues/74223",
     [
       "linux"
     ]
@@ -1157,13 +1108,6 @@
   "test_first_argument_index (__main__.ForkTest)": [
     "76009",
     "https://github.com/pytorch/pytorch/issues/76009",
-    [
-      "linux"
-    ]
-  ],
-  "test_first_argument_index (__main__.SpawnTest)": [
-    "73266",
-    "https://github.com/pytorch/pytorch/issues/73266",
     [
       "linux"
     ]
@@ -1571,14 +1515,6 @@
       "rocm"
     ]
   ],
-  "test_matmul_cuda_float64 (__main__.TestNestedTensorDeviceTypeCUDA)": [
-    "82588",
-    "https://github.com/pytorch/pytorch/issues/82588",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
     "78457",
     "https://github.com/pytorch/pytorch/issues/78457",
@@ -1594,13 +1530,6 @@
   "test_memory_format_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86634",
     "https://github.com/pytorch/pytorch/issues/86634",
-    [
-      "linux"
-    ]
-  ],
-  "test_memory_format_nn_RNN_eval_mode_cuda_float32 (__main__.TestModuleCUDA)": [
-    "86633",
-    "https://github.com/pytorch/pytorch/issues/86633",
     [
       "linux"
     ]
@@ -2467,11 +2396,6 @@
     [
       "linux"
     ]
-  ],
-  "test_worker_seed_reproducibility (__main__.TestDataLoaderPersistentWorkers)": [
-    "62970",
-    "https://github.com/pytorch/pytorch/issues/62970",
-    []
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "75984",
