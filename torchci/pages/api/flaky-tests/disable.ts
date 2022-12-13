@@ -3,7 +3,8 @@ import * as urllib from "urllib";
 
 import { getOctokit } from "lib/github";
 import fetchFlakyTests, { fetchFlakyTestsAcrossJobs } from "lib/fetchFlakyTests";
-import { FlakyTestData, IssueData } from "lib/types";
+import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
+import { FlakyTestData, IssueData, DisabledNonFlakyTestData } from "lib/types";
 import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -14,34 +15,53 @@ const NUM_HOURS_ACROSS_JOBS = 72;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
+// TODO: This is to gate the new feature to close disabled non-flaky tests automatically.
+// I don't want to run it to all applicable issues yet, instead trying to roll out this
+// to a smaller subset first to limit any potential bad UX. There will be another follow
+// up PR to remove this gate once everything is confirmed to be working
+const ROLLOUT_PERCENTAGE = 0.05;
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<void>
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    await disableFlakyTests();
+    await disableFlakyTestsAndReenableNonFlakyTests();
     res.status(200).end();
   }
   res.status(403).end();
 }
 
-async function disableFlakyTests() {
-  const [octokit, flakyTests, flakyTestsAcrossJobs, issues] = await Promise.all(
+async function disableFlakyTestsAndReenableNonFlakyTests() {
+  const [octokit, flakyTests, flakyTestsAcrossJobs, issues, disabledNonFlakyTests] = await Promise.all(
     [
       getOctokit(owner, repo),
       fetchFlakyTests(`${NUM_HOURS}`),
       fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
       fetchIssuesByLabel("skipped"),
+      fetchDisabledNonFlakyTests(),
     ]
   );
 
+  const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs);
   // If the test is flaky only on PRs, we should not disable it yet.
-  const flakyTestsOnTrunk = filterOutPRFlakyTests(flakyTests.concat(flakyTestsAcrossJobs));
+  const flakyTestsOnTrunk = filterOutPRFlakyTests(allFlakyTests);
 
   flakyTestsOnTrunk.forEach(async function (test) {
     await handleFlakyTest(test, issues, octokit);
   });
+
+  // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
+  // that no flaky test is accidentally closed
+  const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
+
+  nonFlakyTests.forEach(async function (test) {
+    const rollout = Math.random();
+    if (rollout < ROLLOUT_PERCENTAGE) {
+      await handleNonFlakyTest(test, issues, octokit);
+    }
+  })
 }
 
 export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
@@ -102,6 +122,54 @@ export async function handleFlakyTest(
     }
   } else {
     await createIssueFromFlakyTest(test, octokit);
+  }
+}
+
+export function filterOutNonFlakyTests(
+  nonFlakyTests: DisabledNonFlakyTestData[],
+  allFlakyTests: FlakyTestData[],
+): DisabledNonFlakyTestData[] {
+  const flakyTestKeys = allFlakyTests.map(
+    (test) => `${test.name} / ${test.suite}`
+  );
+
+  return nonFlakyTests.filter(
+    (test) => !flakyTestKeys.includes(`${test.name} / ${test.classname}`)
+  );
+}
+
+export async function handleNonFlakyTest(
+  test: DisabledNonFlakyTestData,
+  issues: IssueData[],
+  octokit: Octokit
+) {
+  const issueTitle = getIssueTitle(test.name, test.classname);
+  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+
+  if (matchingIssues.length === 0) {
+    console.log(`Found no matching issue for ${issueTitle}`);
+    return;
+  }
+
+  const matchingIssue = matchingIssues[0];
+  if (matchingIssue.state === "open") {
+    console.log(`Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky anymore after ${test.num_green} reruns`);
+
+    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without any failures`;
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: matchingIssue.number,
+      body,
+    });
+
+    // Close the issue
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: matchingIssue.number,
+      state: "closed",
+    });
   }
 }
 
