@@ -1688,6 +1688,14 @@
       "macos"
     ]
   ],
+  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
+    "88467",
+    "https://github.com/pytorch/pytorch/issues/88467",
+    [
+      "linux",
+      "macos"
+    ]
+  ],
   "test_multi_drop (__main__.TestDataLoaderUtils)": [
     "82865",
     "https://github.com/pytorch/pytorch/issues/82865",
