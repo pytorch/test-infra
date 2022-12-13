@@ -16,8 +16,9 @@ const owner: string = "pytorch";
 const repo: string = "pytorch";
 
 // TODO: This is to gate the new feature to close disabled non-flaky tests automatically.
-// I don't want to run it to all application issues yet, instead trying to roll out this
-// to a smaller subset first to limit any potential bad UX
+// I don't want to run it to all applicable issues yet, instead trying to roll out this
+// to a smaller subset first to limit any potential bad UX. There will be another follow
+// up PR to remove this gate once everything is confirmed to be working
 const ROLLOUT_PERCENTAGE = 0.05;
 
 export default async function handler(
@@ -146,7 +147,7 @@ export async function handleNonFlakyTest(
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
 
   if (matchingIssues.length === 0) {
-    console.log(`Found not matching issue for ${issueTitle}`);
+    console.log(`Found no matching issue for ${issueTitle}`);
     return;
   }
 
