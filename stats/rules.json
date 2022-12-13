@@ -1,0 +1,6 @@
+[
+  {
+    "name": "macos",
+    "captures": ["Library not loaded: @rpath/libzstd.1.dylib"]
+  }
+]
