@@ -13,11 +13,12 @@ import {
   getDrciComment,
   getActiveSEVs,
   formDrciSevBody,
+  FLAKY_RULES_JSON,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
-import urllib from "urllib";
 import { isEqual } from "lodash";
+import { fetchJSON } from "lib/bot/utils";
 
 interface PRandJobs {
     head_sha: string;
@@ -54,7 +55,7 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
     await addMergeBaseCommits(octokit, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-    const masterFlakyJobs = await getFlakyJobs();
+    const masterFlakyJobs: FlakyJob[] = await fetchJSON(FLAKY_RULES_JSON) || [];
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
     await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
@@ -131,18 +132,6 @@ async function getBaseCommitJobs(
     }
   }
   return jobsBySha;
-}
-
-async function getFlakyJobs(): Promise<FlakyJob[]> {
-  const urlkey =
-    "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/rules.json";
-
-  const result = await urllib.request(urlkey);
-  if (result.res.statusCode !== 200) {
-    return [];
-  }
-  const flakyJobs: FlakyJob[] = JSON.parse(result.data.toString());
-  return flakyJobs;
 }
 
 function constructResultsJobsSections(
