@@ -207,13 +207,6 @@
       "mac"
     ]
   ],
-  "test_binary_op_scalar_fastpath__foreach_div_cuda_int32 (__main__.TestForeachCUDA)": [
-    "84048",
-    "https://github.com/pytorch/pytorch/issues/84048",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalar_fastpath__foreach_div_cuda_uint8 (__main__.TestForeachCUDA)": [
     "86999",
     "https://github.com/pytorch/pytorch/issues/86999",
@@ -545,14 +538,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_single_arg (__main__.MiscTests)": [
-    "90343",
-    "https://github.com/pytorch/pytorch/issues/90343",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_cond_nested_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "89676",
     "https://github.com/pytorch/pytorch/issues/89676",
@@ -599,13 +584,6 @@
     "66207",
     "https://github.com/pytorch/pytorch/issues/66207",
     []
-  ],
-  "test_cuda_simple (__main__.TestMultiprocessing)": [
-    "86579",
-    "https://github.com/pytorch/pytorch/issues/86579",
-    [
-      "linux"
-    ]
   ],
   "test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "79750",
@@ -2130,31 +2108,12 @@
       "mac"
     ]
   ],
-  "test_terminate_exit (__main__.SpawnTest)": [
-    "72624",
-    "https://github.com/pytorch/pytorch/issues/72624",
-    [
-      "linux"
-    ]
-  ],
-  "test_terminate_signal (__main__.ForkTest)": [
-    "72927",
-    "https://github.com/pytorch/pytorch/issues/72927",
-    [
-      "linux"
-    ]
-  ],
   "test_terminate_signal (__main__.SpawnTest)": [
     "73341",
     "https://github.com/pytorch/pytorch/issues/73341",
     [
       "linux"
     ]
-  ],
-  "test_timeout (__main__.TestDataLoaderPersistentWorkers)": [
-    "68844",
-    "https://github.com/pytorch/pytorch/issues/68844",
-    []
   ],
   "test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)": [
     "75417",
@@ -2208,24 +2167,12 @@
       "linux"
     ]
   ],
-  "test_worker_init_fn (__main__.TestDataLoader)": [
-    "82803",
-    "https://github.com/pytorch/pytorch/issues/82803",
-    [
-      "linux"
-    ]
-  ],
   "test_worker_seed (__main__.TestDataLoader)": [
     "80769",
     "https://github.com/pytorch/pytorch/issues/80769",
     [
       "linux"
     ]
-  ],
-  "test_worker_seed (__main__.TestDataLoaderPersistentWorkers)": [
-    "62969",
-    "https://github.com/pytorch/pytorch/issues/62969",
-    []
   ],
   "test_worker_seed_reproducibility (__main__.TestDataLoader)": [
     "80249",
