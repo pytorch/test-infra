@@ -200,11 +200,6 @@
       "mac"
     ]
   ],
-  "test_batch_sampler (__main__.TestDataLoaderPersistentWorkers)": [
-    "70756",
-    "https://github.com/pytorch/pytorch/issues/70756",
-    []
-  ],
   "test_binary_op_scalar_fastpath__foreach_div_cuda_int32 (__main__.TestForeachCUDA)": [
     "84048",
     "https://github.com/pytorch/pytorch/issues/84048",
@@ -957,13 +952,6 @@
       "macos"
     ]
   ],
-  "test_error_workers (__main__.TestDataLoaderPersistentWorkers)": [
-    "78017",
-    "https://github.com/pytorch/pytorch/issues/78017",
-    [
-      "linux"
-    ]
-  ],
   "test_exception_single (__main__.ForkTest)": [
     "75409",
     "https://github.com/pytorch/pytorch/issues/75409",
@@ -1401,13 +1389,6 @@
   "test_load_rowwise_to_colwise (__main__.TestDistributedReshardOnLoad)": [
     "84440",
     "https://github.com/pytorch/pytorch/issues/84440",
-    [
-      "rocm"
-    ]
-  ],
-  "test_load_with_different_shard_plan (__main__.TestDistributedReshardOnLoad)": [
-    "84531",
-    "https://github.com/pytorch/pytorch/issues/84531",
     [
       "rocm"
     ]
@@ -1853,11 +1834,6 @@
       "linux"
     ]
   ],
-  "test_profiler_seq_nr (__main__.TestAutograd)": [
-    "66893",
-    "https://github.com/pytorch/pytorch/issues/66893",
-    []
-  ],
   "test_proper_exit (__main__.TestDataLoader)": [
     "70517",
     "https://github.com/pytorch/pytorch/issues/70517",
@@ -2157,13 +2133,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_terminate_exit (__main__.ForkTest)": [
-    "81389",
-    "https://github.com/pytorch/pytorch/issues/81389",
-    [
-      "linux"
     ]
   ],
   "test_terminate_exit (__main__.SpawnTest)": [
