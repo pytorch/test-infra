@@ -261,13 +261,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_tensorlists_fastpath__foreach_add_cuda_bool (__main__.TestForeachCUDA)": [
-    "79780",
-    "https://github.com/pytorch/pytorch/issues/79780",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_tensorlists_fastpath__foreach_div_cuda_int16 (__main__.TestForeachCUDA)": [
     "83513",
     "https://github.com/pytorch/pytorch/issues/83513",
@@ -967,13 +960,6 @@
   "test_error_workers (__main__.TestDataLoaderPersistentWorkers)": [
     "78017",
     "https://github.com/pytorch/pytorch/issues/78017",
-    [
-      "linux"
-    ]
-  ],
-  "test_exception_raises (__main__.SpawnTest)": [
-    "83499",
-    "https://github.com/pytorch/pytorch/issues/83499",
     [
       "linux"
     ]
@@ -2109,6 +2095,13 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
+    ]
+  ],
+  "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
+    "90817",
+    "https://github.com/pytorch/pytorch/issues/90817",
+    [
+      "linux"
     ]
   ],
   "test_success (__main__.ForkTest)": [
