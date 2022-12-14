@@ -55,15 +55,15 @@ function retryBot(app: Probot): void {
     }
 
     // @ts-expect-error - we don't have types for these
-    let doesLookLikeInfraFailure = (job, isInfraStep: (step: any) => boolean) => {
-      // Ensure that the steps that failed are only infra related steps (e.g. they're not lint, build, test steps)
+    let doesLookLikeUserFailure = (job, isCodeValiationStep: (step: any) => boolean) => {
+      // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
       return job.steps?.filter(
         // @ts-expect-error
         (step) =>
           step.conclusion !== null &&
           FAILURE_CONCLUSIONS.includes(step.conclusion) &&
-          !isInfraStep(step) 
-      ).length === 0
+          isCodeValiationStep(step) 
+      ).length > 0
     }
 
     const shouldRetry = failedJobs.filter((job) => {
@@ -72,22 +72,20 @@ function retryBot(app: Probot): void {
         return true;
       }
 
-      // rerun if the linter didn't fail on the actual linting steps
-      if (workflowName === "lint" &&
-        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("(nonretryable)"))){
-          return true
+      // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
+      if (workflowName.toLocaleLowerCase() === "lint") {
+          return !doesLookLikeUserFailure(job, step => step.name.toLowerCase().includes("(nonretryable)"))
       }
 
-      // for builds, rerun if it didn't fail on the actual build step
+      // for builds, don't rerun if it failed on the actual build step
       if (job.name.toLocaleLowerCase().startsWith("build") &&
-        doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().startsWith("build"))){
-          return true
+          doesLookLikeUserFailure(job, step => step.name.toLowerCase().startsWith("build"))){
+          // we continue our retry checks even if this test passes in case this is a build-and-test job
+          return false
       }
 
       // if no test steps failed, can rerun
-      if (doesLookLikeInfraFailure(job, step => !step.name.toLowerCase().includes("test"))){
-        return true;
-      }
+      return !doesLookLikeUserFailure(job, step => step.name.toLowerCase().includes("test"))
     });
     
     if (shouldRetry.length === 0) {
