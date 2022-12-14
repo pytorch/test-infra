@@ -81,6 +81,7 @@ export class CachedIssueTracker extends CachedConfigTracker {
   }
 }
 
+// returns undefined if the request fails
 export async function fetchJSON(path: string): Promise<any> {
   const result = await urllib.request(path);
   if (result.res.statusCode !== 200) {
