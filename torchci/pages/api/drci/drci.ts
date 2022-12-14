@@ -136,12 +136,13 @@ async function getBaseCommitJobs(
 
 function constructResultsJobsSections(
   header: string,
+  description: string,
   jobs: RecentWorkflowsData[]
 ): string {
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details open><summary>${header}:</summary><p>\n\n`;
+  let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary><p>\n\n`;
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${job.html_url})\n`;
@@ -193,16 +194,19 @@ export function constructResultsComment(
         }
         output += `\nAs of commit ${sha}:`;
         output += constructResultsJobsSections(
+          "NEW FAILURES",
           "The following jobs have failed",
           failedJobs
         );
     }
     output += constructResultsJobsSections(
+      "FLAKY",
       "The following jobs failed but were likely due to flakiness present on master",
       flakyJobs
     );
     output += constructResultsJobsSections(
-      `The following jobs failed but were likely due to broken trunk (merge base ${merge_base})`,
+      "BROKEN TRUNK",
+      `The following jobs failed but were present on the merge base ${merge_base}`,
       brokenTrunkJobs
     );
     return output;

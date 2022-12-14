@@ -376,7 +376,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "3 Failures, 1 Pending",
         "The following jobs have failed",
         "The following jobs failed but were likely due to flakiness present on master",
-        "The following jobs failed but were likely due to broken trunk (merge base random base sha)",
+        "The following jobs failed but were present on the merge base random base sha",
         failedA.name,
         failedB.name,
         failedC.name,
