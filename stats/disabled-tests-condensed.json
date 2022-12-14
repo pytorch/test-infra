@@ -976,13 +976,6 @@
     "https://github.com/pytorch/pytorch/issues/69660",
     []
   ],
-  "test_fft_round_trip_cuda_float32 (__main__.TestFFTCUDA)": [
-    "88916",
-    "https://github.com/pytorch/pytorch/issues/88916",
-    [
-      "linux"
-    ]
-  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -1277,13 +1270,6 @@
       "macos"
     ]
   ],
-  "test_iterable_style_dataset (__main__.TestDataLoader)": [
-    "73055",
-    "https://github.com/pytorch/pytorch/issues/73055",
-    [
-      "linux"
-    ]
-  ],
   "test_iterable_style_dataset (__main__.TestDataLoaderPersistentWorkers)": [
     "62968",
     "https://github.com/pytorch/pytorch/issues/62968",
@@ -1349,13 +1335,6 @@
     "https://github.com/pytorch/pytorch/issues/78377",
     [
       "macos"
-    ]
-  ],
-  "test_load_rowwise_to_colwise (__main__.TestDistributedReshardOnLoad)": [
-    "84440",
-    "https://github.com/pytorch/pytorch/issues/84440",
-    [
-      "rocm"
     ]
   ],
   "test_lobpcg (__main__.TestAutograd)": [
@@ -1661,11 +1640,6 @@
       "linux"
     ]
   ],
-  "test_pointwise_op_fastpath__foreach_addcmul_cuda_int64 (__main__.TestForeachCUDA)": [
-    "74781",
-    "https://github.com/pytorch/pytorch/issues/74781",
-    []
-  ],
   "test_pointwise_op_fastpath__foreach_addcmul_cuda_uint8 (__main__.TestForeachCUDA)": [
     "67723",
     "https://github.com/pytorch/pytorch/issues/67723",
@@ -1771,13 +1745,6 @@
       "windows"
     ]
   ],
-  "test_profiler_extra_cuda_copy_pattern (__main__.TestExperimentalUtils)": [
-    "82873",
-    "https://github.com/pytorch/pytorch/issues/82873",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_for_loop_indexing_pattern (__main__.TestExperimentalUtils)": [
     "83491",
     "https://github.com/pytorch/pytorch/issues/83491",
@@ -1798,6 +1765,11 @@
     [
       "linux"
     ]
+  ],
+  "test_profiler_seq_nr (__main__.TestAutograd)": [
+    "66893",
+    "https://github.com/pytorch/pytorch/issues/66893",
+    []
   ],
   "test_proper_exit (__main__.TestDataLoader)": [
     "70517",
@@ -2049,13 +2021,6 @@
   "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
     "90817",
     "https://github.com/pytorch/pytorch/issues/90817",
-    [
-      "linux"
-    ]
-  ],
-  "test_success (__main__.ForkTest)": [
-    "76061",
-    "https://github.com/pytorch/pytorch/issues/76061",
     [
       "linux"
     ]
