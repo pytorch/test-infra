@@ -29,8 +29,16 @@ name = 'GHA timeout'
 pattern = '^##\[error\]The action has timed out.'
 
 [[rule]]
+name = 'Faulty ROCM runner'
+pattern = '^Error: .*[dD]etect.*GPUs on the runner'
+
+[[rule]]
 name = 'GHA cancellation'
 pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
+
+[[rule]]
+name = 'make build failure'
+pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 
 [[rule]]
 name = 'bazel build failure'
@@ -73,6 +81,10 @@ name = 'Python unittest failure'
 pattern = 'FAIL \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
+name = 'Python unittest unexpected success'
+pattern = 'XPASS \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+
+[[rule]]
 name = 'pytest failure'
 pattern = '^FAILED .*.py::.*::test_.*$'
 
@@ -83,6 +95,10 @@ pattern = 'ERROR \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
 [[rule]]
 name = 'pytest test error'
 pattern = '^ERROR .*.py::.*::test_.*$'
+
+[[rule]]
+name = 'inductor model failure'
+pattern = '^(\S*) *(fail_accuracy|fail_to_run)$'
 
 [[rule]]
 name = 'failed to download github artifacts'
@@ -145,12 +161,20 @@ name = "Python Test SIG Code"
 pattern = '^.*(Received Signal: SIG.*)'
 
 [[rule]]
-name = "Any SIGKILL"
-pattern = 'SIGKILL'
+name = 'Library not loaded'
+pattern = 'Library not loaded: .*$'
+
+[[rule]]
+name = 'Bad response status code'
+pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
 name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
+
+[[rule]]
+name = 'Scribe upload failure'
+pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
 
 [[rule]]
 name = 'CUDA out of memory error'
@@ -158,7 +182,7 @@ pattern = '^RuntimeError: CUDA out of memory.'
 
 [[rule]]
 name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: test.* failed'
+pattern = '^RuntimeError: .*test.* failed'
 
 [[rule]]
 name = 'Python flaky unittest - failed'
@@ -187,6 +211,10 @@ pattern = '''Docker login for '.*' failed.*'''
 [[rule]]
 name = 'conda failure'
 pattern = 'An unexpected error has occurred. Conda has prepared the above report.'
+
+[[rule]]
+name = 'Docker error'
+pattern = '^docker: Error.*'
 
 [[rule]]
 name = 'GHA error'

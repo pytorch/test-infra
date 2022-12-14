@@ -1,3 +1,4 @@
 **/.terraform.lock.hcl linguist-generated=true
 .github/workflows/generated-*.yml linguist-generated=true
+.github/actions/setup-ssh/index.js linguist-generated=true
 aws/lambda/github-webhook-rds-sync/existing_schema.py linguist-generated=true

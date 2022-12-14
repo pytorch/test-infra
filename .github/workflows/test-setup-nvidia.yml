@@ -1,0 +1,26 @@
+name: Test setup nvidia
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-setup-nvidia.yml
+      - .github/actions/setup-nvidia/action.yml
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner-type:
+          - linux.4xlarge.nvidia.gpu
+          - linux.g5.4xlarge.nvidia.gpu
+          - linux.g5.12xlarge.nvidia.gpu  # Choose a test case with multiple GPUs
+    name: Install NVIDIA driver on ${{ matrix.runner-type }}
+    runs-on: ${{ matrix.runner-type }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test that setup-nvidia works
+        uses: ./.github/actions/setup-nvidia

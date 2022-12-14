@@ -3,14 +3,26 @@ variable "aws_region" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "The VPC for security groups of the action runners."
-  type        = string
+variable "aws_region_instances" {
+  description = "AWS region to run EC2 runners."
+  default     = []
+  type        = list(string)
 }
 
-variable "subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
-  type        = list(string)
+variable "vpc_ids" {
+  description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
+  type        = list(map(string))
+}
+
+variable "vpc_sgs" {
+  description = "The list of security group ids for vpc ids. keys: 'vpc', 'sg'"
+  type        = list(map(string))
+}
+
+variable "subnet_vpc_ids" {
+  description = "The relation between subnet and vpcs. keys; 'vpc' 'subnet'"
+  type        = list(map(string))
+  default     = []
 }
 
 variable "tags" {
@@ -290,13 +302,13 @@ variable "ghes_url" {
 }
 
 variable "lambda_subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
 
 variable "lambda_security_group_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_id`."
+  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
   type        = list(string)
   default     = []
 }
@@ -305,12 +317,6 @@ variable "key_name" {
   description = "Key pair name"
   type        = string
   default     = null
-}
-
-variable "runner_additional_security_group_ids" {
-  description = "(optional) List of additional security groups IDs to apply to the runner"
-  type        = list(string)
-  default     = []
 }
 
 variable "secretsmanager_secrets_id" {

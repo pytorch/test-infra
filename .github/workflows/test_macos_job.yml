@@ -11,6 +11,7 @@ jobs:
   test-x86:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-x86-64-py3.8"
       runner: macos-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -23,6 +24,7 @@ jobs:
   test-m1:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-arm64-py3.8"
       runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -36,6 +38,7 @@ jobs:
   test-x86-with-repo:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-x86-64-py3.8"
       runner: macos-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -50,6 +53,7 @@ jobs:
   test-m1-with-repo:
     uses: ./.github/workflows/macos_job.yml
     with:
+      job-name: "macos-arm64-py3.8"
       runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}

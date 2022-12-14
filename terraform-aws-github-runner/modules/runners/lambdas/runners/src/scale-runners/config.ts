@@ -5,7 +5,9 @@ export class Config {
 
   readonly awsRegion: string;
   readonly awsRegionInstances: string[];
+  readonly awsRegionsToVpcIds: Map<string, Array<string>>;
   readonly cantHaveIssuesLabels: string[];
+  readonly datetimeDeploy: string | undefined;
   readonly enableOrganizationRunners: boolean;
   readonly environment: string;
   readonly ghesUrl: undefined | string;
@@ -28,17 +30,19 @@ export class Config {
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
   readonly secretsManagerSecretsId: string | undefined;
-  readonly securityGroupIds: string[];
-  readonly subnetIds: string[];
+  readonly vpcIdToSecurityGroupIds: Map<string, Array<string>>;
+  readonly vpcIdToSubnetIds: Map<string, Array<string>>;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
-    this.awsRegionInstances = Array.from(
-      /* istanbul ignore next */
-      new Set(process.env.AWS_REGION_INSTANCES?.split(',').filter((w) => w.length > 0) || []).add(this.awsRegion),
-    ).sort();
+    /* istanbul ignore next */
+    this.awsRegionInstances = process.env.AWS_REGION_INSTANCES?.split(',').filter((w) => w.length > 0) || [];
+    this.awsRegionsToVpcIds = this.getMapFromFlatEnv(process.env.AWS_REGIONS_TO_VPC_IDS);
     /* istanbul ignore next */
     this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
+    /* istanbul ignore next */
+    this.datetimeDeploy = process.env.DATETIME_DEPLOY ? process.env.DATETIME_DEPLOY : undefined;
+    this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
     this.environment = process.env.ENVIRONMENT || 'gh-ci';
     /* istanbul ignore next */
     this.ghesUrl = process.env.GHES_URL;
@@ -53,12 +57,10 @@ export class Config {
     this.launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
     this.launchTemplateVersionLinuxNvidia = process.env.LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA;
     this.launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS;
-
     /* istanbul ignore next */
     const mnAvalRuns = Number(process.env.MIN_AVAILABLE_RUNNERS || '10');
     /* istanbul ignore next */
     this.minAvailableRunners = mnAvalRuns > 0 ? mnAvalRuns : 1;
-
     /* istanbul ignore next */
     const mnRunMin = Number(process.env.MINIMUM_RUNNING_TIME_IN_MINUTES || '10');
     /* istanbul ignore next */
@@ -71,11 +73,8 @@ export class Config {
     this.scaleConfigRepo = process.env.SCALE_CONFIG_REPO || 'test-infra';
     this.scaleConfigRepoPath = process.env.SCALE_CONFIG_REPO_PATH || '.github/scale-config.yml';
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
-    /* istanbul ignore next */
-    this.securityGroupIds = process.env.SECURITY_GROUP_IDS?.split(',').filter((w) => w.length > 0) ?? [];
-    /* istanbul ignore next */
-    this.subnetIds = process.env.SUBNET_IDS?.split(',').filter((w) => w.length > 0) ?? [];
-    this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);
+    this.vpcIdToSecurityGroupIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SECURITY_GROUP_IDS);
+    this.vpcIdToSubnetIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SUBNET_IDS);
   }
 
   static get Instance(): Config {
@@ -86,13 +85,24 @@ export class Config {
     this._instance = undefined;
   }
 
-  get shuffledSubnetIds(): string[] {
-    const shuffled = [...this.subnetIds];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  shuffledVPCsForAwsRegion(awsRegion: string): Array<string> {
+    const arr = Array.from(this.awsRegionsToVpcIds.get(awsRegion) || []);
+    return this.shuffleInPlace(arr);
+  }
+
+  shuffledSubnetsForVpcId(vpcId: string): Array<string> {
+    const arr = Array.from(this.vpcIdToSubnetIds.get(vpcId) || []);
+    return this.shuffleInPlace(arr);
+  }
+
+  get shuffledAwsRegionInstances(): string[] {
+    let arr: string[];
+    if (this.awsRegionsToVpcIds.size > 0) {
+      arr = Array.from(this.awsRegionsToVpcIds.keys());
+    } else {
+      arr = [...this.awsRegionInstances];
     }
-    return shuffled;
+    return this.shuffleInPlace(arr);
   }
 
   get ghesUrlApi(): undefined | string {
@@ -103,5 +113,31 @@ export class Config {
   get ghesUrlHost(): string {
     /* istanbul ignore next */
     return this.ghesUrl ?? 'https://github.com';
+  }
+
+  protected shuffleInPlace<T>(arr: T[]): T[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  protected getMapFromFlatEnv(envVar: string | undefined): Map<string, Array<string>> {
+    const ret: Map<string, Array<string>> = new Map();
+
+    (envVar?.split(',') || []).forEach((entry) => {
+      const split = entry.split('|').filter((w) => w.length > 0);
+      if (split.length == 2) {
+        if (ret.has(split[0])) {
+          /* istanbul ignore next */
+          ret.get(split[0])?.push(split[1]);
+        } else {
+          ret.set(split[0], [split[1]]);
+        }
+      }
+    });
+
+    return ret;
   }
 }

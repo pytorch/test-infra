@@ -12,7 +12,8 @@
     "build": "ncc build src/lambda.ts -o dist",
     "dist": "yarn build && cd dist && zip ../runners.zip index.js",
     "format": "prettier --write \"**/*.ts\"",
-    "format-check": "prettier --check \"**/*.ts\""
+    "format-check": "prettier --check \"**/*.ts\"",
+    "commit-check": "yarn format && yarn lint && yarn test && yarn build"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.72",

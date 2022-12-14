@@ -1,4 +1,5 @@
 import _ from "lodash";
+import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
@@ -273,6 +274,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
   }
 
+  async handleDrCI() {
+    await this.logger.log("Dr. CI");
+    const { ctx, prNum } = this;
+
+    await this.ackComment();
+    await updateDrciComments(ctx.octokit, prNum.toString());
+  }
+
   async handlePytorchCommands(inputArgs: string) {
     let args;
     try {
@@ -310,6 +319,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }
       case "label": {
         return await this.handleLabel(args.labels);
+      }
+      case "drci": {
+        return await this.handleDrCI();
       }
       default:
         return await this.handleConfused(false);

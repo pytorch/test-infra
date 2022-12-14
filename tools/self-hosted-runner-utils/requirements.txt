@@ -1,2 +1,3 @@
-PyGithub
+git+https://github.com/jorgegarciarey/PyGithub@master
 black
+tqdm

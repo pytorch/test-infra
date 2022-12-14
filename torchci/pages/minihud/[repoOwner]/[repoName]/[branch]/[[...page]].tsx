@@ -40,13 +40,7 @@ function includesCaseInsensitive(value: string, pattern: string): boolean {
   return value.toLowerCase().includes(pattern.toLowerCase());
 }
 
-function FailedJob({
-  job,
-  classification,
-}: {
-  job: JobData;
-  classification?: string | null;
-}) {
+function FailedJob({ job }: { job: JobData }) {
   const [jobFilter, setJobFilter] = useContext(JobFilterContext);
   const [jobHoverContext, setJobHoverContext] = useContext(JobHoverContext);
   const [highlighted, setHighlighted] = useState(false);
@@ -79,7 +73,7 @@ function FailedJob({
       setJobFilter(job.name!);
     }
   }
-  const isClassified = classification != null;
+  const isClassified = job.failureAnnotation != null;
   const linkStyle: CSSProperties = { cursor: "pointer", marginRight: "0.5em" };
   if (job.name === jobHoverContext) {
     linkStyle.backgroundColor = "khaki";
@@ -127,7 +121,7 @@ function FailedJob({
       <div>
         <JobAnnotationToggle
           job={job}
-          annotation={(classification ?? "null") as JobAnnotation}
+          annotation={(job.failureAnnotation ?? "null") as JobAnnotation}
         />
       </div>
       <LogViewer job={job} />
@@ -135,26 +129,16 @@ function FailedJob({
   );
 }
 
-function FailedJobs({
-  failedJobs,
-  classifiedFailures,
-}: {
-  failedJobs: JobData[];
-  classifiedFailures: any;
-}) {
+function FailedJobs({ failedJobs }: { failedJobs: JobData[] }) {
   if (failedJobs.length === 0) {
     return null;
   }
   return (
     <ul className={styles.failedJobList}>
       {failedJobs.map((job) => {
-        const classification = classifiedFailures[job?.id ?? ""] ?? {};
         return (
           <li key={job.id}>
-            <FailedJob
-              job={job}
-              classification={classification["annotation"] ?? "null"}
-            />
+            <FailedJob job={job} />
           </li>
         );
       })}
@@ -475,21 +459,16 @@ function CommitSummary({
         );
 
   const failedJobs = jobs.filter(isFailedJob);
+  const classifiedJobs = jobs.filter((job) => job.failureAnnotation != null);
   const pendingJobs = jobs.filter((job) => job.conclusion === "pending");
   const router = useRouter();
   const { repoOwner, repoName } = router.query;
-
-  const { data } = useSWR(
-    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
-      JSON.stringify(failedJobs.map((failedJob) => failedJob.id))
-    )}`
-  );
 
   let className;
   if (jobs.length === 0) {
     className = styles.workflowBoxNone;
   } else if (failedJobs.length !== 0) {
-    if (Object.keys(data ?? {}).length == failedJobs.length) {
+    if (classifiedJobs.length == failedJobs.length) {
       className = styles.workflowBoxClassified;
     } else {
       className = styles.workflowBoxFail;
@@ -532,9 +511,6 @@ function CommitSummary({
   }, [row.sha]);
   useScrollTo();
 
-  if (data == null) {
-    return null;
-  }
   return (
     <div id={row.sha} className={className}>
       <div
@@ -546,9 +522,7 @@ function CommitSummary({
           showRevert={failedJobs.length !== 0}
           ttsAlert={concerningTTS.length > 0}
         />
-        {!showDurationInfo && (
-          <FailedJobs failedJobs={failedJobs} classifiedFailures={data ?? {}} />
-        )}
+        {!showDurationInfo && <FailedJobs failedJobs={failedJobs} />}
         {showDurationInfo && (
           <DurationInfo
             concerning={concerningTTS}

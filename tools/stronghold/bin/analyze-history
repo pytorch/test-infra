@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+
+"""Runs the API backward compatibility check on commits in the repo.
+
+This gives an indication of what the tool would have caught if applied
+to the commit before integrated into trunk.
+"""
+
+from __future__ import annotations
+
+import argparse
+from collections.abc import Iterable, Sequence
+import os
+import pathlib
+import pprint
+import subprocess
+import sys
+
+import api.compatibility
+import api.git
+
+
+def main(argv: Sequence[str]) -> None:
+    parser = argparse.ArgumentParser(
+        prog=argv[0],
+        description=__doc__,
+        # Our description docstring has newlines we wish to preserve.
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument('repo', type=pathlib.Path, help='The path to the repository.')
+
+    parser.add_argument(
+        '--commit_id',
+        default='HEAD',
+        type=str,
+        help='Which commit id to start with.',
+    )
+    parser.add_argument(
+        '--limit',
+        default=1,
+        type=int,
+        help=(
+            'If greater than 1, how many commits to inspect, following parents from '
+            '--commit_id.'
+        ),
+    )
+
+    args = parser.parse_args(argv[1:])
+
+    repo = api.git.Repository(args.repo)
+
+    for commit in list_commits(
+        args.repo, starting_commit_id=args.commit_id, limit=args.limit
+    ):
+        violations_by_file = api.compatibility.check_range(
+            repo, head=commit, base=f'{commit}~'
+        )
+        if len(violations_by_file) == 0:
+            continue
+        print('Commit:', commit)
+        for file, violations in violations_by_file.items():
+            print('File:', os.fspath(file))
+            pprint.pp(violations)
+            print()
+
+
+def list_commits(
+    repo: pathlib.Path, *, starting_commit_id: str, limit: int
+) -> Iterable[str]:
+    """Lists the commits going back from the starting commit."""
+    pinfo = subprocess.run(
+        ['git', 'log', '--pretty=%H', f'--max-count={limit}', starting_commit_id],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    return pinfo.stdout.splitlines()
+
+
+if __name__ == "__main__":
+    main(sys.argv)

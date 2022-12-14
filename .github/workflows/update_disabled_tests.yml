@@ -9,16 +9,26 @@ on:
 
 jobs:
   update-disabled-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Generate new disabled test json
+
+      - name: Install some python dependencies
         run: |
-          .github/scripts/update_disabled_tests.py
+          python3 -mpip install rockset==0.8.3
+
+      - name: Generate new disabled test json
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+        run: |
+          # TODO: Run this in dry-run mode until we can automatically close non flaky disabled tests
+          python3 .github/scripts/update_disabled_tests.py --dry-run
+
       - name: Print file
         run: |
           cat disabled-tests-condensed.json
+
       - name: Push file to test-infra repository
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:

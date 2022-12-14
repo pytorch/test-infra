@@ -1,5 +1,5 @@
 import asyncio
-import aiohttp  # type: ignore
+import aiohttp
 import math
 import os
 import datetime
@@ -351,7 +351,7 @@ class GraphQL:
         remaining = headers.get("X-RateLimit-Remaining")
         used = headers.get("X-RateLimit-Used")
         total = headers.get("X-RateLimit-Limit")
-        reset_timestamp = int(headers.get("X-RateLimit-Reset", 0))  # type: ignore
+        reset_timestamp = int(headers.get("X-RateLimit-Reset", 0))
         reset = datetime.datetime.fromtimestamp(reset_timestamp).strftime(
             "%a, %d %b %Y %H:%M:%S"
         )

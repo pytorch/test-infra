@@ -27,12 +27,24 @@ def get_pytorch_pip_install_command(
     return [f"export PIP_INSTALL_TORCH='{pip_install} --extra-index-url {extra_index}'"]
 
 
+def get_pytorch_s3_bucket_path(
+    gpu_arch_version: str,
+    channel: str,
+    upload_to_base_bucket: bool,
+) -> List[str]:
+    path = f"s3://pytorch/whl/{channel}/{gpu_arch_version}/"
+    if upload_to_base_bucket:
+        path = f"s3://pytorch/whl/{channel}/"
+    return [f"export PYTORCH_S3_BUCKET_PATH='{path}'"]
+
+
 def get_wheel_variables(
     platform: str,
     gpu_arch_version: str,
     python_version: str,
     pytorch_version: str,
     channel: str,
+    upload_to_base_bucket: bool,
 ) -> List[str]:
     ret = []
     if platform.startswith("linux"):
@@ -42,6 +54,13 @@ def get_wheel_variables(
             gpu_arch_version=gpu_arch_version,
             pytorch_version=pytorch_version,
             channel=channel,
+        )
+    )
+    ret.extend(
+        get_pytorch_s3_bucket_path(
+            gpu_arch_version=gpu_arch_version,
+            channel=channel,
+            upload_to_base_bucket=upload_to_base_bucket,
         )
     )
     return ret

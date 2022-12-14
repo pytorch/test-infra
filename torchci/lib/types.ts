@@ -7,6 +7,7 @@ export interface JobData {
   jobName?: string;
   sha?: string;
   id?: string;
+  branch?: string;
   workflowId?: string;
   githubArtifactUrl?: string;
   time?: string;
@@ -50,8 +51,9 @@ export interface CommitData {
 
 export interface RowData extends CommitData {
   jobs: JobData[];
-  groupedJobs?: GroupData[];
+  groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
+  nameToJobs?: Map<string, JobData>
 }
 
 export interface HudData {
@@ -85,24 +87,33 @@ export interface FlakyTestData {
   file: string;
   suite: string;
   name: string;
-  numGreen: number;
-  numRed: number;
+  numGreen?: number;
+  numRed?: number;
   workflowIds: string[];
   workflowNames: string[];
   jobIds: number[];
   jobNames: string[];
   branches: string[];
+  eventTimes?: string[];
+}
+
+export interface DisabledNonFlakyTestData {
+  name: string;
+  classname: string;
+  filename: string;
+  flaky: boolean;
+  num_green: number;
+  num_red: number;
 }
 
 export interface RecentWorkflowsData {
-  job_name: string;
+  id: string;
+  name: string;
   conclusion: string | null;
   completed_at: string | null;
   html_url: string;
-  head_sha?: string;
-  run_attempt: number;
+  head_sha: string;
   pr_number?: number;
-  owner_login?: string;
 }
 
 export interface TTSChange {

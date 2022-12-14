@@ -1,0 +1,16 @@
+[tool.black]
+color = true  # welcome to the future
+skip-string-normalization = true  # we use single-quotes like the Python standard library
+
+[tool.mypy]
+strict = true
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",  # https://docs.pytest.org/en/7.1.x/explanation/goodpractices.html#which-import-mode
+]
+
+pythonpath = [
+    "src",         # allow importing from the src/ directory by default
+    "tests/lib/",  # allow imports from tests/lib/ directory by default
+]

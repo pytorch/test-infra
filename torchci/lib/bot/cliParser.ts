@@ -92,7 +92,7 @@ const rebase = commands.add_parser("rebase", {
   help: "Rebase a PR",
   description:
     "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch.\n" +
-    "You, along with any member of the pytorch organization, can rebase your PR.",
+    "You must have write permissions to the repo to rebase a PR.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
@@ -115,6 +115,16 @@ label.add_argument("labels", {
   type: "string",
   nargs: "+",
   help: "Labels to add to given Pull Request",
+});
+
+// Dr. CI
+const drCi = commands.add_parser("drci", {
+  help: "Update Dr. CI",
+  description:
+    "Update Dr. CI. Updates the Dr. CI comment on the PR in case it's gotten out of sync " + 
+    "with actual CI results.",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
 });
 
 // Help
@@ -156,5 +166,8 @@ ${rebase.format_help()}\`\`\`
 ## Label
 \`\`\`
 ${label.format_help()}\`\`\`
+## Dr CI
+\`\`\`
+${drCi.format_help()}\`\`\`
 `;
 }

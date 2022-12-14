@@ -14,6 +14,7 @@ jobs:
       runner: windows.4xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      job-name: "win-py3.8-cpu"
       script: |
         conda create -y -n test python=3.8
         conda activate test
@@ -26,6 +27,7 @@ jobs:
       runner: windows.8xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      job-name: "win-py3.8-cu116"
       timeout: 60
       script: |
         conda create -y -n test python=3.8

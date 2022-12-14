@@ -12,12 +12,12 @@ import {
   formDrciSevBody,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { Octokit } from "octokit";
 
 interface PRandJobs {
     head_sha: string;
     pr_number: number;
-    owner_login: string;
-    jobs: RecentWorkflowsData[];
+    jobs: Map<string, RecentWorkflowsData>;
 }
 
 export default async function handler(
@@ -26,14 +26,17 @@ export default async function handler(
 ) {
     const authorization = req.headers.authorization;
     if (authorization === process.env.DRCI_BOT_KEY) {
-        updateDrciComments();
+        const { prNumber } = req.query;
+        const octokit = await getOctokit(OWNER, REPO);
+        updateDrciComments(octokit, prNumber as string);
         res.status(200).end();
     }
     res.status(403).end();
 }
 
-export async function updateDrciComments() {
+export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
+        prNumber,
         NUM_MINUTES + ""
     );
 
@@ -46,7 +49,7 @@ export async function updateDrciComments() {
         const failureInfo = constructResultsComment(pending, failedJobs, pr_info.head_sha);
         const comment = formDrciComment(pr_number, failureInfo, formDrciSevBody(sevs));
 
-        await updateCommentWithWorkflow(pr_info, comment);
+        await updateCommentWithWorkflow(octokit, pr_info, comment);
     }
 }
 
@@ -90,73 +93,61 @@ export function constructResultsComment(
         }
         output += `\nAs of commit ${sha}:`;
         output += '\n<details open><summary>The following jobs have failed:</summary><p>\n\n';
-        const failedJobsSorted = failedJobs.sort((a, b) => a.job_name.localeCompare(b.job_name))
+        const failedJobsSorted = failedJobs.sort((a, b) => a.name.localeCompare(b.name))
         for (const job of failedJobsSorted) {
-            output += `* [${job.job_name}](${job.html_url})\n`;
+            output += `* [${job.name}](${job.html_url})\n`;
         }
         output += "</p></details>"
     }
     return output;
 }
 
-export function getWorkflowJobsStatuses(
-    prInfo: PRandJobs
-): { pending: number; failedJobs: RecentWorkflowsData[] } {
-    const jobs = prInfo.jobs;
-    let numPending = 0;
-    const jobsInfo: Map<string, RecentWorkflowsData> = new Map();
-    for (const workflow of jobs) {
-        const jobName = workflow.job_name;
-        const runAttempt = workflow.run_attempt;
-
-        if (workflow.conclusion === null && workflow.completed_at === null) {
-            numPending++;
-        }
-        else if (!jobsInfo.has(jobName) || (jobsInfo.get(jobName)!.run_attempt < runAttempt)) {
-            // Only keep the latest job run
-            jobsInfo.set(jobName, workflow);
-        }
+export function getWorkflowJobsStatuses(prInfo: PRandJobs): {
+  pending: number;
+  failedJobs: RecentWorkflowsData[];
+} {
+  let numPending = 0;
+  const failedJobsInfo: RecentWorkflowsData[] = [];
+  for (const [_, job] of prInfo.jobs) {
+    if (job.conclusion === null && job.completed_at === null) {
+      numPending++;
+    } else if (job.conclusion === "failure" || job.conclusion === 'cancelled') {
+      failedJobsInfo.push(job);
     }
-
-    const failedJobsInfo: RecentWorkflowsData[] = [];
-    for (const [workflowName, workflow] of jobsInfo) {
-        if (workflow.conclusion === "failure") {
-            failedJobsInfo.push(workflow);
-        }
-    }
-
-    return { pending: numPending, failedJobs: failedJobsInfo };
+  }
+  return { pending: numPending, failedJobs: failedJobsInfo };
 }
 
 export function reorganizeWorkflows(
-    recentWorkflows: RecentWorkflowsData[]
+  recentWorkflows: RecentWorkflowsData[]
 ): Map<number, PRandJobs> {
-    const workflowsByPR = new Map();
+  const workflowsByPR = new Map();
 
-    for (const workflow of recentWorkflows) {
-        const pr_number = workflow.pr_number!;
-        if (workflowsByPR.has(pr_number)) {
-            workflowsByPR.get(pr_number).jobs.push(workflow);
-        }
-        else {
-            const new_pr: PRandJobs = {
-                head_sha: workflow.head_sha!,
-                pr_number: pr_number,
-                owner_login: workflow.owner_login!,
-                jobs: [workflow]
-            };
-            workflowsByPR.set(pr_number, new_pr);
-        }
+  for (const workflow of recentWorkflows) {
+    const pr_number = workflow.pr_number!;
+    if (!workflowsByPR.has(pr_number)) {
+      workflowsByPR.set(pr_number, {
+        pr_number: pr_number,
+        head_sha: workflow.head_sha,
+        jobs: new Map(),
+      });
     }
-    return workflowsByPR;
+    const name = workflow.name!;
+    const existing_job = workflowsByPR.get(pr_number).jobs.get(name);
+    if (!existing_job || existing_job.id < workflow.id!) {
+      // if rerun, choose the job with the larger id as that is more recent
+      workflowsByPR.get(pr_number).jobs.set(name, workflow);
+    }
+  }
+  return workflowsByPR;
 }
 
 export async function updateCommentWithWorkflow(
+    octokit: Octokit,
     pr_info: PRandJobs,
     comment: string,
 ): Promise<void> {
     const { pr_number } = pr_info;
-    const octokit = await getOctokit(OWNER, REPO);
     const { id, body } = await getDrciComment(octokit, OWNER, REPO, pr_number!);
 
     if (id === 0 || body === comment) {

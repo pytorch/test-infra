@@ -2,15 +2,24 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import * as urllib from "urllib";
 
 import { getOctokit } from "lib/github";
-import fetchFlakyTests from "lib/fetchFlakyTests";
-import { FlakyTestData, IssueData } from "lib/types";
+import fetchFlakyTests, { fetchFlakyTestsAcrossJobs } from "lib/fetchFlakyTests";
+import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
+import { FlakyTestData, IssueData, DisabledNonFlakyTestData } from "lib/types";
 import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
+import dayjs from "dayjs";
 
 const NUM_HOURS = 3;
+const NUM_HOURS_ACROSS_JOBS = 72;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
+
+// TODO: This is to gate the new feature to close disabled non-flaky tests automatically.
+// I don't want to run it to all applicable issues yet, instead trying to roll out this
+// to a smaller subset first to limit any potential bad UX. There will be another follow
+// up PR to remove this gate once everything is confirmed to be working
+const ROLLOUT_PERCENTAGE = 0.05;
 
 export default async function handler(
   req: NextApiRequest,
@@ -18,25 +27,41 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    await disableFlakyTests();
+    await disableFlakyTestsAndReenableNonFlakyTests();
     res.status(200).end();
   }
   res.status(403).end();
 }
 
-async function disableFlakyTests() {
-  const [octokit, flakyTests, issues] = await Promise.all([
-    getOctokit(owner, repo),
-    fetchFlakyTests(`${NUM_HOURS}`),
-    fetchIssuesByLabel("skipped"),
-  ]);
+async function disableFlakyTestsAndReenableNonFlakyTests() {
+  const [octokit, flakyTests, flakyTestsAcrossJobs, issues, disabledNonFlakyTests] = await Promise.all(
+    [
+      getOctokit(owner, repo),
+      fetchFlakyTests(`${NUM_HOURS}`),
+      fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
+      fetchIssuesByLabel("skipped"),
+      fetchDisabledNonFlakyTests(),
+    ]
+  );
 
+  const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs);
   // If the test is flaky only on PRs, we should not disable it yet.
-  const flakyTestsOnTrunk = filterOutPRFlakyTests(flakyTests);
+  const flakyTestsOnTrunk = filterOutPRFlakyTests(allFlakyTests);
 
   flakyTestsOnTrunk.forEach(async function (test) {
     await handleFlakyTest(test, issues, octokit);
   });
+
+  // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
+  // that no flaky test is accidentally closed
+  const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
+
+  nonFlakyTests.forEach(async function (test) {
+    const rollout = Math.random();
+    if (rollout < ROLLOUT_PERCENTAGE) {
+      await handleNonFlakyTest(test, issues, octokit);
+    }
+  })
 }
 
 export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
@@ -57,6 +82,9 @@ export async function handleFlakyTest(
   if (matchingIssues.length !== 0) {
     // There is a matching issue
     const matchingIssue = matchingIssues[0];
+    if (!wasRecent(test)) {
+      return;
+    }
     if (matchingIssue.state === "open") {
       const body = `Another case of trunk flakiness has been found [here](${getLatestTrunkJobURL(
         test
@@ -94,6 +122,54 @@ export async function handleFlakyTest(
     }
   } else {
     await createIssueFromFlakyTest(test, octokit);
+  }
+}
+
+export function filterOutNonFlakyTests(
+  nonFlakyTests: DisabledNonFlakyTestData[],
+  allFlakyTests: FlakyTestData[],
+): DisabledNonFlakyTestData[] {
+  const flakyTestKeys = allFlakyTests.map(
+    (test) => `${test.name} / ${test.suite}`
+  );
+
+  return nonFlakyTests.filter(
+    (test) => !flakyTestKeys.includes(`${test.name} / ${test.classname}`)
+  );
+}
+
+export async function handleNonFlakyTest(
+  test: DisabledNonFlakyTestData,
+  issues: IssueData[],
+  octokit: Octokit
+) {
+  const issueTitle = getIssueTitle(test.name, test.classname);
+  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+
+  if (matchingIssues.length === 0) {
+    console.log(`Found no matching issue for ${issueTitle}`);
+    return;
+  }
+
+  const matchingIssue = matchingIssues[0];
+  if (matchingIssue.state === "open") {
+    console.log(`Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky anymore after ${test.num_green} reruns`);
+
+    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without any failures`;
+    await octokit.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: matchingIssue.number,
+      body,
+    });
+
+    // Close the issue
+    await octokit.rest.issues.update({
+      owner,
+      repo,
+      issue_number: matchingIssue.number,
+      state: "closed",
+    });
   }
 }
 
@@ -144,7 +220,26 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
-  const examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
+  let examplesURL = `https://hud.pytorch.org/flakytest?name=${test.name}&suite=${test.suite}`;
+  let numRedGreen = `Over the past ${NUM_HOURS} hours, it has been determined flaky in ${test.workflowIds.length} workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.`;
+  let debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
+DO NOT BE ALARMED IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
+To find relevant log snippets:
+1. Click on the workflow logs linked above
+2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.
+3. Grep for \`${test.name}\`
+4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
+`;
+  if (test.numRed === undefined) {
+    // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
+    numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
+    examplesURL = `https://hud.pytorch.org/failure/${test.name}`;
+    debuggingSteps = `**Debugging instructions (after clicking on the recent samples link):**
+To find relevant log snippets:
+1. Click on the workflow logs linked above
+2. Grep for \`${test.name}\`
+`;
+}
   return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
     ", "
   )}
@@ -153,18 +248,9 @@ This test was disabled because it is failing in CI. See [recent examples](${exam
     test
   )}).
 
-Over the past ${NUM_HOURS} hours, it has been determined flaky in ${
-    test.workflowIds.length
-  } workflow(s) with ${test.numRed} failures and ${test.numGreen} successes.
+${numRedGreen}
 
-**Debugging instructions (after clicking on the recent samples link):**
-DO NOT BE ALARMED IF THE CI IS GREEN. We now shield flaky tests from developers so CI will thus be green but it will be harder to parse the logs.
-To find relevant log snippets:
-1. Click on the workflow logs linked above
-2. Click on the Test step of the job so that it is expanded. Otherwise, the grepping will not work.
-3. Grep for \`${test.name}\`
-4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
-`;
+${debuggingSteps}`;
 }
 
 export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
@@ -203,6 +289,17 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
     return ["module: unknown"];
   }
 }
+
+
+export function wasRecent(test: FlakyTestData) {
+  if (test.eventTimes) {
+    return test.eventTimes.some(
+      (value) => dayjs().diff(dayjs(value), "minutes") < NUM_HOURS * 60
+    );
+  }
+  return true;
+}
+
 
 export async function createIssueFromFlakyTest(
   test: FlakyTestData,

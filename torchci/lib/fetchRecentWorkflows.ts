@@ -4,6 +4,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 import { RecentWorkflowsData } from "./types";
 
 export default async function fetchRecentWorkflows(
+  prNumber: string = "0",
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
   const rocksetClient = getRocksetClient();
@@ -17,6 +18,11 @@ export default async function fetchRecentWorkflows(
           name: "numMinutes",
           type: "int",
           value: numMinutes,
+        },
+        {
+          name: "prNumber",
+          type: "int",
+          value: prNumber,
         },
       ],
     }

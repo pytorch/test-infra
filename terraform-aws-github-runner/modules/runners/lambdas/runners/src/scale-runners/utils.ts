@@ -4,13 +4,15 @@ export interface Repo {
 }
 
 export interface RunnerInfo {
+  applicationDeployDatetime?: string;
+  awsRegion: string;
+  environment?: string;
+  ghRunnerId?: string;
   instanceId: string;
   launchTime?: Date;
-  repo?: string;
   org?: string;
+  repo?: string;
   runnerType?: string;
-  ghRunnerId?: string;
-  environment?: string;
 }
 
 export function getRepoKey(repo: Repo): string {

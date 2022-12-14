@@ -7,6 +7,7 @@ on:
       - .github/workflows/test_build_conda_linux.yml
       - .github/workflows/build_conda_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
 jobs:
@@ -25,7 +26,7 @@ jobs:
       matrix:
         include:
           - repository: pytorch/text
-            pre-script: ""
+            pre-script: packaging/install_torchdata.sh
             post-script: ""
             conda-package-directory: packaging/torchtext
             smoke-test-script: test/smoke_tests/smoke_tests.py
@@ -43,3 +44,5 @@ jobs:
       post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+    secrets:
+      CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
