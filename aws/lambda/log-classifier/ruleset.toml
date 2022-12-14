@@ -173,10 +173,6 @@ name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
 
 [[rule]]
-name = 'Scribe upload failure'
-pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
-
-[[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
 
@@ -191,6 +187,10 @@ pattern = '^\s*(test.*) failed - num_retries_left:'
 [[rule]]
 name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
+
+[[rule]]
+name = 'Scribe upload failure'
+pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
 
 [[rule]]
 name = 'Python RuntimeError'
