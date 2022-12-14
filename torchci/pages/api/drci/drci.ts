@@ -57,49 +57,53 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     const masterFlakyJobs = await getFlakyJobs();
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
-    await Promise.all(
-      Array.from(workflowsByPR.values()).map(async (pr_info) => {
-        const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
-          getWorkflowJobsStatuses(
-            pr_info,
-            masterFlakyJobs,
-            baseCommitJobs.get(pr_info.merge_base) || new Map()
-          );
-
-        const failureInfo = constructResultsComment(
-          pending,
-          failedJobs,
-          flakyJobs,
-          brokenTrunkJobs,
-          pr_info.head_sha,
-          pr_info.merge_base
-        );
-        const comment = formDrciComment(
-          pr_info.pr_number,
-          failureInfo,
-          formDrciSevBody(sevs)
+    await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
+      const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
+        getWorkflowJobsStatuses(
+          pr_info,
+          masterFlakyJobs,
+          baseCommitJobs.get(pr_info.merge_base) || new Map()
         );
 
-        await updateCommentWithWorkflow(octokit, pr_info, comment);
-      })
-    );
+      const failureInfo = constructResultsComment(
+        pending,
+        failedJobs,
+        flakyJobs,
+        brokenTrunkJobs,
+        pr_info.head_sha,
+        pr_info.merge_base
+      );
+      const comment = formDrciComment(
+        pr_info.pr_number,
+        failureInfo,
+        formDrciSevBody(sevs)
+      );
+
+      await updateCommentWithWorkflow(octokit, pr_info, comment);
+    });
+}
+
+async function forAllPRs(workflowsByPR: Map<number, PRandJobs>, func: CallableFunction) {
+  await Promise.all(
+    Array.from(workflowsByPR.values()).map(async (pr_info) => {
+      await func(pr_info);
+    })
+  );
 }
 
 async function addMergeBaseCommits(
   octokit: Octokit,
   workflowsByPR: Map<number, PRandJobs>
 ) {
-  await Promise.all(
-    Array.from(workflowsByPR.values()).map(async (pr_info) => {
-      const diff = await octokit.rest.repos.compareCommits({
-        owner: OWNER,
-        repo: REPO,
-        base: pr_info.head_sha,
-        head: "master",
-      });
-      pr_info.merge_base = diff.data.merge_base_commit.sha;
-    })
-  );
+  await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
+    const diff = await octokit.rest.repos.compareCommits({
+      owner: OWNER,
+      repo: REPO,
+      base: pr_info.head_sha,
+      head: "master",
+    });
+    pr_info.merge_base = diff.data.merge_base_commit.sha;
+  });
 }
 
 async function getBaseCommitJobs(
@@ -148,12 +152,12 @@ function constructResultsJobsSections(
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details open><summary>${header}:</summary>\n\n`;
+  let output = `\n<details open><summary>${header}:</summary><p>\n\n`;
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${job.html_url})\n`;
   }
-  output += "</details>";
+  output += "<p></details>";
   return output;
 }
 
@@ -223,7 +227,7 @@ function isFlaky(
     (masterFlakyJob) =>
       job.name.includes(masterFlakyJob.name) &&
       masterFlakyJob.captures.every((capture) =>
-        job.failure_captures.includes(capture)
+        job.failure_captures?.includes(capture)
       )
   );
 }
