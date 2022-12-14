@@ -145,6 +145,13 @@
       "linux"
     ]
   ],
+  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "86434",
+    "https://github.com/pytorch/pytorch/issues/86434",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -336,13 +343,6 @@
     "60998",
     "https://github.com/pytorch/pytorch/issues/60998",
     []
-  ],
-  "test_chain_iterable_style_dataset (__main__.TestDataLoaderPersistentWorkers)": [
-    "80757",
-    "https://github.com/pytorch/pytorch/issues/80757",
-    [
-      "linux"
-    ]
   ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
     "71349",
@@ -852,11 +852,6 @@
       "linux"
     ]
   ],
-  "test_dispatch_meta_outplace_fft_fft_cuda_bool (__main__.TestMetaCUDA)": [
-    "89168",
-    "https://github.com/pytorch/pytorch/issues/89168",
-    []
-  ],
   "test_dispatch_meta_outplace_fft_fft_cuda_float64 (__main__.TestMetaCUDA)": [
     "88692",
     "https://github.com/pytorch/pytorch/issues/88692",
@@ -1002,14 +997,6 @@
     "69660",
     "https://github.com/pytorch/pytorch/issues/69660",
     []
-  ],
-  "test_fd_sharing (__main__.TestMultiprocessing)": [
-    "68831",
-    "https://github.com/pytorch/pytorch/issues/68831",
-    [
-      "win",
-      "linux"
-    ]
   ],
   "test_fft_round_trip_cuda_float32 (__main__.TestFFTCUDA)": [
     "88916",
@@ -1640,6 +1627,13 @@
       "linux"
     ]
   ],
+  "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
+    "87190",
+    "https://github.com/pytorch/pytorch/issues/87190",
+    [
+      "linux"
+    ]
+  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
@@ -1693,13 +1687,6 @@
     "74781",
     "https://github.com/pytorch/pytorch/issues/74781",
     []
-  ],
-  "test_pointwise_op_fastpath__foreach_addcmul_cuda_int8 (__main__.TestForeachCUDA)": [
-    "76599",
-    "https://github.com/pytorch/pytorch/issues/76599",
-    [
-      "linux"
-    ]
   ],
   "test_pointwise_op_fastpath__foreach_addcmul_cuda_uint8 (__main__.TestForeachCUDA)": [
     "67723",
@@ -1941,6 +1928,14 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_return_nested_function (__main__.MiscTests)": [
+    "90835",
+    "https://github.com/pytorch/pytorch/issues/90835",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_rmsprop (__main__.TestOptim)": [
