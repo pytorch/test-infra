@@ -2,5 +2,9 @@
   {
     "name": "macos",
     "captures": ["Library not loaded: @rpath/libzstd.1.dylib"]
+  },
+  {
+    "name": "rocm",
+    "captures": ["##[error]The action has timed out."]
   }
 ]
