@@ -51,12 +51,14 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         NUM_MINUTES + ""
     );
 
-    const workflowsByPR = await reorganizeWorkflows(octokit, recentWorkflows);
+    const workflowsByPR = reorganizeWorkflows(recentWorkflows);
+    await addMergeBaseCommits(octokit, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
     const masterFlakyJobs = await getFlakyJobs();
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
-    for (const [pr_number, pr_info] of workflowsByPR) {
+    await Promise.all(
+      Array.from(workflowsByPR.values()).map(async (pr_info) => {
         const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
           getWorkflowJobsStatuses(
             pr_info,
@@ -73,16 +75,32 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
           pr_info.merge_base
         );
         const comment = formDrciComment(
-          pr_number,
+          pr_info.pr_number,
           failureInfo,
           formDrciSevBody(sevs)
         );
 
         await updateCommentWithWorkflow(octokit, pr_info, comment);
-    }
-    console.log("done")
+      })
+    );
 }
 
+async function addMergeBaseCommits(
+  octokit: Octokit,
+  workflowsByPR: Map<number, PRandJobs>
+) {
+  await Promise.all(
+    Array.from(workflowsByPR.values()).map(async (pr_info) => {
+      const diff = await octokit.rest.repos.compareCommits({
+        owner: OWNER,
+        repo: REPO,
+        base: pr_info.head_sha,
+        head: "master",
+      });
+      pr_info.merge_base = diff.data.merge_base_commit.sha;
+    })
+  );
+}
 
 async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
@@ -243,20 +261,9 @@ export function getWorkflowJobsStatuses(
   return { pending, failedJobs, flakyJobs, brokenTrunkJobs };
 }
 
-async function getMergeBase(octokit: Octokit, sha: string) {
-  const diff = await octokit.rest.repos.compareCommits({
-    owner: OWNER,
-    repo: REPO,
-    base: sha,
-    head: "master",
-  });
-  return diff.data.merge_base_commit.sha;
-}
-
-export async function reorganizeWorkflows(
-  octokit: Octokit,
+export function reorganizeWorkflows(
   recentWorkflows: RecentWorkflowsData[]
-): Promise<Map<number, PRandJobs>> {
+): Map<number, PRandJobs> {
   const workflowsByPR = new Map();
 
   for (const workflow of recentWorkflows) {
@@ -266,7 +273,6 @@ export async function reorganizeWorkflows(
         pr_number: pr_number,
         head_sha: workflow.head_sha,
         jobs: new Map(),
-        merge_base: await getMergeBase(octokit, workflow.head_sha)
       });
     }
     const name = workflow.name!;

@@ -109,14 +109,8 @@ const closedSev : IssueData= {
 };
 
 describe("Update Dr. CI Bot Unit Tests", () => {
-    const octokit = testOctokit();
 
-    beforeEach(() => {
-      nock("https://api.github.com")
-        .persist()
-        .get("/repos/pytorch/pytorch/compare/abcdefg...master")
-        .reply(200, { merge_base_commit: { sha: dummyBaseSha } });
-    });
+    beforeEach(() => {});
 
     afterEach(() => {
         nock.cleanAll();
@@ -132,7 +126,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedC,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -166,7 +159,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedA,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -184,7 +176,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedA,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -218,7 +209,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedA,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -265,7 +255,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedA,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -303,7 +292,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedASuccessfulRetry,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -337,7 +325,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         failedAFailedRetry,
       ];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
@@ -362,7 +349,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     test("test flaky jobs and broken trunk jobs are filtered out", async () => {
       const originalWorkflows = [failedA, failedB];
       const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
-        octokit,
         originalWorkflows
       );
       const pr_1001 = workflowsByPR.get(1001)!;
