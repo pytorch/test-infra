@@ -261,13 +261,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_div_cuda_int64 (__main__.TestForeachCUDA)": [
-    "83028",
-    "https://github.com/pytorch/pytorch/issues/83028",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_tensorlists_fastpath__foreach_add_cuda_bool (__main__.TestForeachCUDA)": [
     "79780",
     "https://github.com/pytorch/pytorch/issues/79780",
@@ -1210,13 +1203,6 @@
       "rocm"
     ]
   ],
-  "test_forward_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86387",
-    "https://github.com/pytorch/pytorch/issues/86387",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)": [
     "79017",
     "https://github.com/pytorch/pytorch/issues/79017",
@@ -1638,11 +1624,6 @@
       "linux"
     ]
   ],
-  "test_no_segfault (__main__.TestDataLoaderPersistentWorkers)": [
-    "70968",
-    "https://github.com/pytorch/pytorch/issues/70968",
-    []
-  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
@@ -1886,6 +1867,11 @@
       "linux"
     ]
   ],
+  "test_profiler_seq_nr (__main__.TestAutograd)": [
+    "66893",
+    "https://github.com/pytorch/pytorch/issues/66893",
+    []
+  ],
   "test_proper_exit (__main__.TestDataLoader)": [
     "70517",
     "https://github.com/pytorch/pytorch/issues/70517",
@@ -1910,13 +1896,6 @@
     "https://github.com/pytorch/pytorch/issues/73473",
     [
       "macos",
-      "linux"
-    ]
-  ],
-  "test_python_ref_executor__refs_permute_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
-    "90074",
-    "https://github.com/pytorch/pytorch/issues/90074",
-    [
       "linux"
     ]
   ],
@@ -2070,11 +2049,6 @@
     [
       "linux"
     ]
-  ],
-  "test_shuffle_batch_workers (__main__.TestDataLoader)": [
-    "74548",
-    "https://github.com/pytorch/pytorch/issues/74548",
-    []
   ],
   "test_shuffle_batch_workers_prefetch (__main__.TestDataLoaderPersistentWorkers)": [
     "83659",
