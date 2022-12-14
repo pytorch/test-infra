@@ -2,6 +2,7 @@
 
 
 def parameter_added_with_lots_of_parameters(
+    a: int,
     b: int,
     c: int,
     d: int,
