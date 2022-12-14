@@ -27,7 +27,7 @@ interface PRandJobs {
     merge_base: string;
 }
 
-export interface FlakyJob {
+export interface FlakyRule {
   name: string;
   captures: string[];
 }
@@ -55,14 +55,14 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
     await addMergeBaseCommits(octokit, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-    const masterFlakyJobs: FlakyJob[] = await fetchJSON(FLAKY_RULES_JSON) || [];
+    const flakyRules: FlakyRule[] = await fetchJSON(FLAKY_RULES_JSON) || [];
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
     await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
       const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
         getWorkflowJobsStatuses(
           pr_info,
-          masterFlakyJobs,
+          flakyRules,
           baseCommitJobs.get(pr_info.merge_base) || new Map()
         );
 
@@ -210,7 +210,7 @@ export function constructResultsComment(
 
 function isFlaky(
   job: RecentWorkflowsData,
-  masterFlakyJobs: FlakyJob[]
+  masterFlakyJobs: FlakyRule[]
 ): boolean {
   return masterFlakyJobs.some(
     (masterFlakyJob) =>
@@ -223,7 +223,7 @@ function isFlaky(
 
 export function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
-  masterFlakyJobs: FlakyJob[],
+  flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData>
 ): {
   pending: number;
@@ -244,7 +244,7 @@ export function getWorkflowJobsStatuses(
         isEqual(job.failure_captures, baseJobs.get(job.name)?.failure_captures)
       ) {
         brokenTrunkJobs.push(job);
-      } else if (isFlaky(job, masterFlakyJobs)) {
+      } else if (isFlaky(job, flakyRules)) {
         flakyJobs.push(job);
       } else {
         failedJobs.push(job);

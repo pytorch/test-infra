@@ -20,7 +20,7 @@ export const HUD_URL = "https://hud.pytorch.org/pr/";
 export const BOT_COMMANDS_WIKI_URL =
   "https://github.com/pytorch/pytorch/wiki/Bot-commands";
 export const FLAKY_RULES_JSON =
-  "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/rules.json";
+  "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
 
 export function formDrciHeader(prNum: number): string {
     return `## :link: Helpful Links
