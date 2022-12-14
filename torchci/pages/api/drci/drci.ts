@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getOctokit } from "lib/github";
 import {
   fetchRecentWorkflows,
-  fetchCommitFailedJobs,
+  fetchFailedJobsFromCommits,
 } from "lib/fetchRecentWorkflows";
 import { RecentWorkflowsData } from "lib/types";
 import {
@@ -83,6 +83,7 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         await updateCommentWithWorkflow(octokit, pr_info, comment);
       })
     );
+    console.log("done")
 }
 
 async function addMergeBaseCommits(
@@ -112,7 +113,7 @@ async function getBaseCommitJobs(
   }
 
   // fetch failing jobs on those shas
-  const commitFailedJobsQueryResult = await fetchCommitFailedJobs(baseShas);
+  const commitFailedJobsQueryResult = await fetchFailedJobsFromCommits(baseShas);
 
   // reorganize into a map of sha -> name -> data
   const jobsBySha = new Map();
@@ -148,12 +149,12 @@ function constructResultsJobsSections(
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details open><summary>${header}:</summary><p>\n\n`;
+  let output = `\n<details open><summary>${header}:</summary>\n\n`;
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${job.html_url})\n`;
   }
-  output += "</p></details>";
+  output += "</details>";
   return output;
 }
 

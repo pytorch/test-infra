@@ -30,7 +30,7 @@ export async function fetchRecentWorkflows(
   return recentWorkflowsQuery.results ?? [];
 }
 
-export async function fetchCommitFailedJobs(
+export async function fetchFailedJobsFromCommits(
   shas: string[]
 ): Promise<RecentWorkflowsData[]> {
   const rocksetClient = getRocksetClient();
