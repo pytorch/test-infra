@@ -214,13 +214,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalar_fastpath__foreach_sub_cuda_int8 (__main__.TestForeachCUDA)": [
-    "86997",
-    "https://github.com/pytorch/pytorch/issues/86997",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)": [
     "82168",
     "https://github.com/pytorch/pytorch/issues/82168",
@@ -1924,13 +1917,6 @@
       "mac"
     ]
   ],
-  "test_seqential_batch_workers (__main__.TestDataLoader)": [
-    "81891",
-    "https://github.com/pytorch/pytorch/issues/81891",
-    [
-      "linux"
-    ]
-  ],
   "test_seqential_batch_workers (__main__.TestDataLoaderPersistentWorkers)": [
     "73955",
     "https://github.com/pytorch/pytorch/issues/73955",
@@ -2037,23 +2023,9 @@
       "linux"
     ]
   ],
-  "test_success_first_then_exception (__main__.SpawnTest)": [
-    "72625",
-    "https://github.com/pytorch/pytorch/issues/72625",
-    [
-      "linux"
-    ]
-  ],
   "test_success_non_blocking (__main__.SpawnTest)": [
     "72926",
     "https://github.com/pytorch/pytorch/issues/72926",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_properties (__main__.TestTorchTidyProfiler)": [
-    "83113",
-    "https://github.com/pytorch/pytorch/issues/83113",
     [
       "linux"
     ]
