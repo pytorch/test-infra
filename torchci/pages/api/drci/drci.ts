@@ -83,7 +83,6 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         await updateCommentWithWorkflow(octokit, pr_info, comment);
       })
     );
-    console.log("done")
 }
 
 async function addMergeBaseCommits(
