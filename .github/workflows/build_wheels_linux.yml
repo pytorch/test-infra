@@ -89,6 +89,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
+        working-directory: ${{ inputs.repository }}
         run: |
           cat "${BUILD_ENV_FILE}" "${{ inputs.env-var-script }}" > tmp_file
           cat tmp_file > "${BUILD_ENV_FILE}"
