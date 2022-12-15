@@ -1425,11 +1425,6 @@
     "https://github.com/pytorch/pytorch/issues/70947",
     []
   ],
-  "test_multiprocessing_contexts (__main__.TestDataLoader)": [
-    "71229",
-    "https://github.com/pytorch/pytorch/issues/71229",
-    []
-  ],
   "test_multiprocessing_contexts (__main__.TestDataLoaderPersistentWorkers)": [
     "77599",
     "https://github.com/pytorch/pytorch/issues/77599",
