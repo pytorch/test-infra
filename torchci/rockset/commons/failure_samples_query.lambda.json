@@ -9,7 +9,7 @@
     {
       "name": "captures",
       "type": "string",
-      "value": "timeout "
+      "value": "test_cublas_baddbmm_large_input_1_10000_10000_10000_cuda_float32,TestMatmulCudaCUDA"
     },
     {
       "name": "repo",

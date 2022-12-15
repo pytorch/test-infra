@@ -97,6 +97,15 @@ export interface FlakyTestData {
   eventTimes?: string[];
 }
 
+export interface DisabledNonFlakyTestData {
+  name: string;
+  classname: string;
+  filename: string;
+  flaky: boolean;
+  num_green: number;
+  num_red: number;
+}
+
 export interface RecentWorkflowsData {
   id: string;
   name: string;
@@ -105,6 +114,7 @@ export interface RecentWorkflowsData {
   html_url: string;
   head_sha: string;
   pr_number?: number;
+  failure_captures: string[];
 }
 
 export interface TTSChange {

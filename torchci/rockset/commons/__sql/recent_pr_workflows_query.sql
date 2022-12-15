@@ -22,6 +22,7 @@ SELECT
     j.html_url,
     p.number AS pr_number,
     p.head.sha as head_sha,
+    j.torchci_classification.captures as failure_captures,
 FROM
     recent_shas
     join commons.workflow_job j ON j.head_sha = recent_shas.sha
@@ -35,6 +36,7 @@ SELECT
     w.html_url,
     p.number AS pr_number,
     w.head_sha,
+    null as failure_line
 FROM
     recent_shas
     join commons.workflow_run w ON w.head_sha = recent_shas.sha

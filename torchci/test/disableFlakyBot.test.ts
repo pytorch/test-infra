@@ -78,6 +78,24 @@ const flakyTestAcrossJobA = {
   branches: ["master", "master"],
 };
 
+const nonFlakyTestA = {
+  name: "test_a",
+  classname: "suite_a",
+  filename: "file_a.py",
+  flaky: false,
+  num_green: 50,
+  num_red: 0,
+}
+
+const nonFlakyTestZ = {
+  name: "test_z",
+  classname: "suite_z",
+  filename: "file_z.py",
+  flaky: false,
+  num_green: 50,
+  num_red: 0,
+}
+
 describe("Disable Flaky Test Bot Across Jobs", () => {
   const octokit = utils.testOctokit();
 
@@ -349,6 +367,51 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
     }
     scope.done();
   });
+
+  test("comment and close non flaky test", async () => {
+    const scope = nock("https://api.github.com")
+      .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+        const comment = JSON.stringify(body.body);
+        expect(comment).toContain(
+          "Another case of trunk flakiness has been found"
+        );
+        expect(comment).toContain("Please verify");
+        return true;
+      })
+      .reply(200, {})
+      .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+        const comment = JSON.stringify(body.body);
+        expect(comment).toContain(
+          "Resolving the issue because the test is not flaky anymore"
+        );
+        return true;
+      })
+      .reply(200, {})
+      .patch("/repos/pytorch/pytorch/issues/1", (body) => {
+        expect(body).toMatchObject({ state: "closed" });
+        return true;
+      })
+      .reply(200, {})
+
+    const issues = [
+      {
+        number: 1,
+        title: "DISABLED test_a (__main__.suite_a)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "open" as "open" | "closed",
+        body: "random",
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
+    // Close the disabled issue if the test is not flaky anymore
+    await disableFlakyTestBot.handleNonFlakyTest(nonFlakyTestA, issues, octokit);
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
 });
 
 describe("Disable Flaky Test Bot Unit Tests", () => {
@@ -604,5 +667,21 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
       "https://hud.pytorch.org/flakytest?name=test_a&suite=suite_a"
     );
+  });
+
+  test("filterOutNonFlakyTest: should not contain any flaky tests", async () => {
+    const disabledNonFlakyTests = [
+      nonFlakyTestA,
+      nonFlakyTestZ,
+    ];
+
+    const flakyTests = [
+      flakyTestA,
+      flakyTestB,
+    ];
+
+    expect(disableFlakyTestBot.filterOutNonFlakyTests(disabledNonFlakyTests, flakyTests)).toEqual([
+      nonFlakyTestZ,
+    ]);
   });
 });

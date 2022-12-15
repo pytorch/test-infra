@@ -3,7 +3,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 
 import { RecentWorkflowsData } from "./types";
 
-export default async function fetchRecentWorkflows(
+export async function fetchRecentWorkflows(
   prNumber: string = "0",
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
@@ -28,4 +28,26 @@ export default async function fetchRecentWorkflows(
     }
   );
   return recentWorkflowsQuery.results ?? [];
+}
+
+export async function fetchFailedJobsFromCommits(
+  shas: string[]
+): Promise<RecentWorkflowsData[]> {
+  const rocksetClient = getRocksetClient();
+  const commitFailedJobsQuery =
+    await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "commit_failed_jobs",
+      rocksetVersions.commons.commit_failed_jobs,
+      {
+        parameters: [
+          {
+            name: "shas",
+            type: "string",
+            value: shas.join(","),
+          },
+        ],
+      }
+    );
+  return commitFailedJobsQuery.results ?? [];
 }
