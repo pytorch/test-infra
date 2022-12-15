@@ -156,7 +156,10 @@ class JobStatus:
             and self.current_status["conclusion"] != "success"
             and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
             and all(
-                [disabled_alert not in self.job_name for disabled_alert in DISABLED_ALERTS]
+                [
+                    disabled_alert not in self.job_name
+                    for disabled_alert in DISABLED_ALERTS
+                ]
             )
         )
 
