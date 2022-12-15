@@ -1848,13 +1848,6 @@
       "linux"
     ]
   ],
-  "test_serialization_map_location (__main__.TestOldSerialization)": [
-    "81685",
-    "https://github.com/pytorch/pytorch/issues/81685",
-    [
-      "linux"
-    ]
-  ],
   "test_sharding (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "67295",
     "https://github.com/pytorch/pytorch/issues/67295",
@@ -1935,11 +1928,6 @@
       "linux"
     ]
   ],
-  "test_success (__main__.SpawnTest)": [
-    "72298",
-    "https://github.com/pytorch/pytorch/issues/72298",
-    []
-  ],
   "test_success_first_then_exception (__main__.ForkTest)": [
     "73340",
     "https://github.com/pytorch/pytorch/issues/73340",
@@ -2017,13 +2005,6 @@
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
-    [
-      "linux"
-    ]
-  ],
-  "test_worker_seed_reproducibility (__main__.TestDataLoader)": [
-    "80249",
-    "https://github.com/pytorch/pytorch/issues/80249",
     [
       "linux"
     ]
