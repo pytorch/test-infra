@@ -277,11 +277,6 @@
       "linux"
     ]
   ],
-  "test_builtin_collection_conversion (__main__.TestDataLoader)": [
-    "71037",
-    "https://github.com/pytorch/pytorch/issues/71037",
-    []
-  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -912,13 +907,6 @@
       "linux"
     ]
   ],
-  "test_extra_fields (__main__.TestTorchTidyProfiler)": [
-    "82719",
-    "https://github.com/pytorch/pytorch/issues/82719",
-    [
-      "linux"
-    ]
-  ],
   "test_extract_gradients_from_module (__main__.TestIdentifyGradients)": [
     "88865",
     "https://github.com/pytorch/pytorch/issues/88865",
@@ -1329,14 +1317,6 @@
       "windows"
     ]
   ],
-  "test_matmul_cuda_float32 (__main__.TestNestedTensorDeviceTypeCUDA)": [
-    "82299",
-    "https://github.com/pytorch/pytorch/issues/82299",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
     "78457",
     "https://github.com/pytorch/pytorch/issues/78457",
@@ -1456,11 +1436,6 @@
     [
       "linux"
     ]
-  ],
-  "test_multiprocessing_iterdatapipe (__main__.TestDataLoader)": [
-    "74498",
-    "https://github.com/pytorch/pytorch/issues/74498",
-    []
   ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
