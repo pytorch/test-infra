@@ -1163,14 +1163,6 @@
       "mac"
     ]
   ],
-  "test_gradgrad_nn_LazyConvTranspose3d_cuda_float64 (__main__.TestModuleCUDA)": [
-    "82701",
-    "https://github.com/pytorch/pytorch/issues/82701",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -1623,13 +1615,6 @@
       "linux"
     ]
   ],
-  "test_profiler_conv2d_bias_followed_by_batchnorm2d_pattern (__main__.TestExperimentalUtils)": [
-    "82720",
-    "https://github.com/pytorch/pytorch/issues/82720",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
     "https://github.com/pytorch/pytorch/issues/82499",
@@ -1919,13 +1904,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
-    "90817",
-    "https://github.com/pytorch/pytorch/issues/90817",
-    [
-      "linux"
     ]
   ],
   "test_success_first_then_exception (__main__.ForkTest)": [
