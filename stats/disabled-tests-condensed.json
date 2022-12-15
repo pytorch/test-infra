@@ -221,20 +221,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_uint8 (__main__.TestForeachCUDA)": [
-    "83026",
-    "https://github.com/pytorch/pytorch/issues/83026",
-    [
-      "linux"
-    ]
-  ],
-  "test_binary_op_scalarlist_fastpath__foreach_div_cuda_bool (__main__.TestForeachCUDA)": [
-    "83027",
-    "https://github.com/pytorch/pytorch/issues/83027",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalarlist_fastpath__foreach_div_cuda_int16 (__main__.TestForeachCUDA)": [
     "83951",
     "https://github.com/pytorch/pytorch/issues/83951",
@@ -1483,11 +1469,6 @@
       "dynamo"
     ]
   ],
-  "test_named_params_with_sharded_tensor (__main__.TestShardedOptimizer)": [
-    "82023",
-    "https://github.com/pytorch/pytorch/issues/82023",
-    []
-  ],
   "test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)": [
     "68319",
     "https://github.com/pytorch/pytorch/issues/68319",
@@ -1525,6 +1506,14 @@
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
     [
+      "macos"
+    ]
+  ],
+  "test_numpy_ref_mps_nn_functional_group_norm_mps_float32 (__main__.TestCommonMPS)": [
+    "90894",
+    "https://github.com/pytorch/pytorch/issues/90894",
+    [
+      "mac",
       "macos"
     ]
   ],
@@ -1601,13 +1590,6 @@
   "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86637",
     "https://github.com/pytorch/pytorch/issues/86637",
-    [
-      "linux"
-    ]
-  ],
-  "test_pointwise_op_fastpath__foreach_addcmul_cuda_int16 (__main__.TestForeachCUDA)": [
-    "71478",
-    "https://github.com/pytorch/pytorch/issues/71478",
     [
       "linux"
     ]
@@ -2079,13 +2061,6 @@
   "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "85341",
     "https://github.com/pytorch/pytorch/issues/85341",
-    [
-      "linux"
-    ]
-  ],
-  "test_worker_seed (__main__.TestDataLoader)": [
-    "80769",
-    "https://github.com/pytorch/pytorch/issues/80769",
     [
       "linux"
     ]
