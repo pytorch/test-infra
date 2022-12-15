@@ -36,3 +36,5 @@ class Parameter:
     keyword: bool
     # Whether or not this parameter must be provided.
     required: bool
+    # Which line the parameter is defined on.
+    line: int
