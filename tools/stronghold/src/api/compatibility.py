@@ -92,6 +92,7 @@ def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
         # function definition.
 
         violations += _check_by_name(name, before_def, after_def)
+        violations += _check_parameter_ordering(name, before_def, after_def)
         violations += _check_by_position(name, before_def, after_def)
         violations += _check_by_requiredness(name, before_def, after_def)
         violations += _check_variadic_parameters(name, before_def, after_def)
@@ -122,13 +123,6 @@ def _check_by_name(
             yield Violation(func, f'{name} was removed', line=after.line)
             continue
         assert after_param.name == name
-        if before_param.position != after_param.position:
-            yield Violation(
-                func,
-                f'the position of {name} moved from {before_param.position} to '
-                f'{after_param.position}',
-                line=after_param.line,
-            )
 
     for name, after_param in _named_parameters(after).items():
         assert after_param.name == name
@@ -143,6 +137,26 @@ def _named_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
         if len(params.parameters) > 0
         else {}
     )
+
+
+def _check_parameter_ordering(
+    func: str, before: api.Parameters, after: api.Parameters
+) -> Iterable[Violation]:
+    before_params = [param for param in before.parameters if param.position is not None]
+    after_params = [param for param in after.parameters if param.position is not None]
+
+    before_param_names = [param.name for param in before_params]
+    after_param_names = [param.name for param in after_params]
+
+    if before_param_names == after_param_names:
+        return []
+
+    if set(before_param_names) == set(after_param_names):
+        yield Violation(
+            func,
+            'positional parameters were reordered',
+            line=after.line,
+        )
 
 
 def _check_by_position(
@@ -175,13 +189,6 @@ def _check_by_position(
         else:
             assert before_param is not None
             assert after_param is not None
-            if before_param.name != after_param.name:
-                yield Violation(
-                    func,
-                    f'{before_param.name} was renamed to {after_param.name}',
-                    line=after.line,
-                )
-                continue
 
     # TODO support renaming parameters.
     # Positional parameters may be renamed, but may not be
