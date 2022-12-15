@@ -171,6 +171,9 @@ jobs:
               ${CONDA_RUN} conda install -y 'numpy>=1.11'
               ${CONDA_RUN} conda install pillow
           fi
+          if [[ "${{ inputs.package-name }}" = "torchdata" ]]; then
+              ${CONDA_RUN} conda install -y portalocker>=2.0.0
+          fi
           ${CONDA_RUN} conda install "$BINARY_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then

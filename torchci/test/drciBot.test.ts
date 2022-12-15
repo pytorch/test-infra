@@ -7,7 +7,7 @@ import pytorchBot from "../lib/bot/pytorchBot";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
 import { handleScope } from "./common";
-import { recentWorkflowA } from "./drci.test"
+import { successfulA } from "./drci.test"
 
 nock.disableNetConnect();
 
@@ -21,6 +21,9 @@ describe("verify-drci-functionality", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
+    nock("https://raw.githubusercontent.com")
+      .get((url) => url.includes("rules.json"))
+      .reply(200, []);
   });
 
   afterEach(() => {
@@ -170,13 +173,15 @@ describe("verify-drci-functionality", () => {
     event["payload"]["repository"]["owner"]["login"] = OWNER;
     event["payload"]["repository"]["name"] = REPO;
     event["payload"]["comment"]["body"] = "@pytorchmergebot drci";
-    const pytorchbot_comment_number = event["payload"]["comment"]["id"]
+    const pytorchbot_comment_number = event["payload"]["comment"]["id"];
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => uri.includes("recent_pr_workflows_query"))
-      .reply(200, { results: [recentWorkflowA] })
+      .reply(200, { results: [successfulA] })
       .post((uri) => uri.includes("issue_query"))
+      .reply(200, { results: [] })
+      .post((url) => url.includes("commit_failed_jobs"))
       .reply(200, { results: [] });
 
     const scope = nock("https://api.github.com")
@@ -188,12 +193,9 @@ describe("verify-drci-functionality", () => {
         }
       )
       .reply(200, {})
-      .get(
-        `/repos/${OWNER}/${REPO}/issues/1000/comments`,
-        (body) => {
-          return true;
-        }
-      )
+      .get((url) => url.includes(`/repos/${OWNER}/${REPO}/compare/`))
+      .reply(200, { merge_base_commit: { sha: "dummyMergeBaseSha" } })
+      .get(`/repos/${OWNER}/${REPO}/issues/1000/comments`)
       .reply(200, [
         {
           id: comment_id,
