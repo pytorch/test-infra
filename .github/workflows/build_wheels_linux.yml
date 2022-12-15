@@ -35,6 +35,10 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      env-var-script:
+        description: "Script that sets Domain-Specific Environment Variables"
+        default: ""
+        type: string
       package-name:
         description: "Name of the actual python package that is imported"
         default: ""
@@ -83,6 +87,11 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: true
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Combine Env Var and Build Env Files
+        if: ${{ inputs.env-var-script != '' }}
+        run: |
+          cat "${BUILD_ENV_FILE}" "${{ inputs.env-var-script }}" > tmp_file
+          cat tmp_file > "${BUILD_ENV_FILE}"
       - name: Install torch dependency
         run: |
           source "${BUILD_ENV_FILE}"
