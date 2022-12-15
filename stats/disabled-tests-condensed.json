@@ -1713,13 +1713,6 @@
       "linux"
     ]
   ],
-  "test_profiler_matmul_dim_fp16_pattern (__main__.TestExperimentalUtils)": [
-    "82864",
-    "https://github.com/pytorch/pytorch/issues/82864",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_optimizer_single_tensor_pattern (__main__.TestExperimentalUtils)": [
     "82914",
     "https://github.com/pytorch/pytorch/issues/82914",
@@ -1980,13 +1973,6 @@
   "test_success_first_then_exception (__main__.ForkTest)": [
     "73340",
     "https://github.com/pytorch/pytorch/issues/73340",
-    [
-      "linux"
-    ]
-  ],
-  "test_success_non_blocking (__main__.SpawnTest)": [
-    "72926",
-    "https://github.com/pytorch/pytorch/issues/72926",
     [
       "linux"
     ]
