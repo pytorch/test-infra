@@ -1,14 +1,16 @@
-from unittest import TestCase, main
 from datetime import datetime
-from check_alerts import (
-    JobStatus,
-    handle_flaky_tests_alert,
-    generate_no_flaky_tests_issue,
-)
+from unittest import main, TestCase
 from unittest.mock import patch
+
+from check_alerts import (
+    generate_no_flaky_tests_issue,
+    handle_flaky_tests_alert,
+    JobStatus,
+)
 
 
 job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
+disabled_job_name = "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)"
 test_data = [
     {
         "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
@@ -55,6 +57,11 @@ class TestGitHubPR(TestCase):
         status = JobStatus(
             job_name, [test_data[0]] + [{"conclusion": "success"}] + [test_data[1]]
         )
+        self.assertFalse(status.should_alert())
+
+    # No need to send alerts for some jobs
+    def test_disabled_alert(self) -> None:
+        status = JobStatus(disabled_job_name, [{}] + [{}] + test_data)
         self.assertFalse(status.should_alert())
 
     def test_generate_no_flaky_tests_issue(self):

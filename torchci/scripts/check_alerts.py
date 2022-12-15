@@ -3,8 +3,8 @@ import os
 import urllib.parse
 from collections import defaultdict
 from curses.ascii import CAN
-from difflib import SequenceMatcher
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 from email.policy import default
 from typing import Any, Dict, List, Tuple
 
@@ -62,6 +62,7 @@ PYTORCH_ALERT_LABEL = "pytorch-alert"
 FLAKY_TESTS_LABEL = "module: flaky-tests"
 NO_FLAKY_TESTS_LABEL = "no-flaky-tests-alert"
 FLAKY_TESTS_SEARCH_PERIOD_DAYS = 14
+DISABLED_ALERTS = ["rerun_disabled_tests"]
 
 headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
 CREATE_ISSUE_URL = (
@@ -154,6 +155,9 @@ class JobStatus:
             self.current_status != None
             and self.current_status["conclusion"] != "success"
             and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
+            and all(
+                [disabled_alert not in self.job_name for disabled_alert in DISABLED_ALERTS]
+            )
         )
 
     def __repr__(self) -> str:
@@ -234,8 +238,11 @@ def update_issue(issue: Dict, old_issue: Any) -> Dict:
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
     )
     r.raise_for_status()
-    r = requests.post(f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{old_issue['number']}/comments",
-                      data=json.dumps({"body": UPDATING_ALERT_COMMENT}), headers=headers)
+    r = requests.post(
+        f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{old_issue['number']}/comments",
+        data=json.dumps({"body": UPDATING_ALERT_COMMENT}),
+        headers=headers,
+    )
     r.raise_for_status()
     return issue
 
@@ -384,6 +391,7 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
     print("No new alert for flaky tests bots.")
     return None
 
+
 def check_for_recurrently_failing_jobs_alert():
     job_names, sha_grid = fetch_hud_data()
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
@@ -415,15 +423,18 @@ def check_for_recurrently_failing_jobs_alert():
     else:
         create_issue(generate_failed_job_issue(jobs_to_alert_on))
 
+
 def check_for_no_flaky_tests_alert():
     existing_no_flaky_tests_alerts = fetch_alerts(
         TEST_INFRA_REPO_NAME, NO_FLAKY_TESTS_LABEL
     )
     handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
 
+
 def main():
     check_for_recurrently_failing_jobs_alert()
     check_for_no_flaky_tests_alert()
+
 
 if __name__ == "__main__":
     main()
