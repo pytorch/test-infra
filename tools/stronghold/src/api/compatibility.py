@@ -126,7 +126,7 @@ def _check_by_name(
                 func,
                 f'the position of {name} moved from {before_param.position} to '
                 f'{after_param.position}',
-                line=after.line,
+                line=after_param.line,
             )
         if not before_param.required and after_param.required:
             yield Violation(func, f'{name} became required', line=after.line)

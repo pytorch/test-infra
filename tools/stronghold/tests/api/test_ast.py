@@ -28,7 +28,9 @@ def test_extract_positional(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=0, keyword=False, required=True)
+                api.Parameter(
+                    name='x', position=0, keyword=False, required=True, line=1
+                )
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -45,7 +47,9 @@ def test_extract_positional_with_default(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=0, keyword=False, required=False)
+                api.Parameter(
+                    name='x', position=0, keyword=False, required=False, line=1
+                )
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -62,7 +66,7 @@ def test_extract_flexible(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=0, keyword=True, required=True)
+                api.Parameter(name='x', position=0, keyword=True, required=True, line=1)
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -79,7 +83,9 @@ def test_extract_flexible_with_default(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=0, keyword=True, required=False)
+                api.Parameter(
+                    name='x', position=0, keyword=True, required=False, line=1
+                )
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -96,7 +102,9 @@ def test_extract_keyword(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=None, keyword=True, required=True)
+                api.Parameter(
+                    name='x', position=None, keyword=True, required=True, line=1
+                )
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -113,7 +121,9 @@ def test_extract_keyword_with_default(tmp_path: pathlib.Path) -> None:
     assert funcs == {
         'func': api.Parameters(
             parameters=[
-                api.Parameter(name='x', position=None, keyword=True, required=False)
+                api.Parameter(
+                    name='x', position=None, keyword=True, required=False, line=1
+                )
             ],
             variadic_args=False,
             variadic_kwargs=False,
@@ -160,6 +170,7 @@ def test_extract_class_method(tmp_path: pathlib.Path) -> None:
                     position=0,
                     keyword=False,
                     required=True,
+                    line=2,
                 ),
             ],
             variadic_args=False,
@@ -185,24 +196,28 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     position=0,
                     keyword=False,
                     required=True,
+                    line=3,
                 ),
                 api.Parameter(
                     name='a',
                     position=1,
                     keyword=False,
                     required=True,
+                    line=3,
                 ),
                 api.Parameter(
                     name='b',
                     position=2,
                     keyword=True,
                     required=False,
+                    line=3,
                 ),
                 api.Parameter(
                     name='c',
                     position=None,
                     keyword=True,
                     required=True,
+                    line=3,
                 ),
             ],
             variadic_args=True,
