@@ -186,13 +186,6 @@
     "https://github.com/pytorch/pytorch/issues/59794",
     []
   ],
-  "test_backward_symeig_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "90073",
-    "https://github.com/pytorch/pytorch/issues/90073",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_unused_tensors (__main__.TensorPipeDistAutogradTest)": [
     "77556",
     "https://github.com/pytorch/pytorch/issues/77556",
@@ -527,13 +520,6 @@
   "test_cond_export_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "90047",
     "https://github.com/pytorch/pytorch/issues/90047",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_nested_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "89676",
-    "https://github.com/pytorch/pytorch/issues/89676",
     [
       "linux"
     ]
@@ -1891,13 +1877,6 @@
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
-    [
-      "linux"
-    ]
-  ],
-  "test_scalar_ins (__main__.TestTorchTidyProfiler)": [
-    "83247",
-    "https://github.com/pytorch/pytorch/issues/83247",
     [
       "linux"
     ]
