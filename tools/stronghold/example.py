@@ -20,10 +20,6 @@ def parameter_added_with_lots_of_parameters(
     pass
 
 
-def removed_function() -> None:
-    pass
-
-
 def remove_positional_parameter(
     b: int,
     c: int = 0,
