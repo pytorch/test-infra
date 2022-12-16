@@ -112,7 +112,9 @@ def test_new_renamed_positional_parameter(tmp_path: pathlib.Path) -> None:
 
     after = source.make_file(tmp_path, func)
 
-    assert api.compatibility.check(before, after) == []
+    assert api.compatibility.check(before, after) == [
+        api.compatibility.Violation('func', 'x was renamed to y', line=1),
+    ]
 
 
 def test_removed_positional_parameter(tmp_path: pathlib.Path) -> None:
@@ -332,6 +334,45 @@ def test_ignores_internal_class(tmp_path: pathlib.Path) -> None:
     # _Class was deleted but it's not a violation because it's
     # internal.
     assert api.compatibility.check(before, after) == []
+
+
+def test_multiple_params(tmp_path: pathlib.Path) -> None:
+    def func(
+        b: int,
+        c: int,
+        /,
+        d: int,
+        e: int,
+        *args: int,
+        f: int,
+        **kwds: int,
+    ) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(  # type: ignore[no-redef]
+        a: int,
+        b: int,
+        c: int,
+        /,
+        d: int,
+        e: int,
+        *args: int,
+        f: int,
+        **kwds: int,
+    ) -> None:
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == [
+        api.compatibility.Violation(
+            'func',
+            'a was added and is required',
+            line=2,
+        ),
+    ]
 
 
 @pytest.mark.parametrize(
