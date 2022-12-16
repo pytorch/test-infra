@@ -26,9 +26,12 @@ jobs:
         python3 -c 'import torch'
   test-gpu:
     uses: ./.github/workflows/linux_job.yml
+    strategy:
+      matrix:
+        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
     with:
       job-name: "linux-py3.8-cu116"
-      runner: linux.4xlarge.nvidia.gpu
+      runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cuda
@@ -39,7 +42,11 @@ jobs:
         conda activate test
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
         # Can import pytorch, cuda is available
-        python3 -c 'import torch;assert(torch.cuda.is_available())'
+        python3 -c 'import torch;cuda_avail = torch.cuda.is_available();print("CUDA available: " + str(cuda_avail));assert(cuda_avail)'
+        python3 -c 'import torch;t = torch.ones([2,2], device="cuda:0");print(t);print("tensor device:" + str(t.device))'
+        nvidia-smi
+        nvcc --version | grep "cuda_11.6"
+        [[ "${CUDA_HOME}" == "/usr/local/cuda-11.6" ]] || exit 1
   test-docker-image:
     uses: ./.github/workflows/linux_job.yml
     with:

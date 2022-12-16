@@ -1,0 +1,17 @@
+{
+  "sql_path": "__sql/disabled_non_flaky_tests.sql",
+  "default_parameters": [
+    {
+      "name": "max_num_red",
+      "type": "int",
+      "value": "0"
+    },
+    {
+      "name": "min_num_green",
+      "type": "int",
+      "value": "50"
+    }
+  ],
+  "description": ""
+}
+

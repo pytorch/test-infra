@@ -39,6 +39,10 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      env-var-script:
+        description: "Script that sets Domain-Specific Environment Variables"
+        default: ""
+        type: string
       package-name:
         description: "Name of the actual python package that is imported"
         default: ""
@@ -84,6 +88,11 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Combine Env Var and Build Env Files
+        if: ${{ inputs.env-var-script != '' }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -161,6 +170,9 @@ jobs:
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
               ${CONDA_RUN} conda install -y 'numpy>=1.11'
               ${CONDA_RUN} conda install pillow
+          fi
+          if [[ "${{ inputs.package-name }}" = "torchdata" ]]; then
+              ${CONDA_RUN} conda install -y portalocker>=2.0.0
           fi
           ${CONDA_RUN} conda install "$BINARY_NAME"
 

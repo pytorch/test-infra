@@ -1,12 +1,16 @@
 import pathlib
 
+import pytest
+
 import api.compatibility
 import api.github
 
 
-def test_render_violation() -> None:
+@pytest.mark.parametrize('level', ['notice', 'warning'])
+def test_render_violation(level: str) -> None:
     assert (
         api.github.render_violation(
+            level,
             pathlib.Path('test.py'),
             api.compatibility.Violation(
                 func='foo',
@@ -14,5 +18,5 @@ def test_render_violation() -> None:
                 line=3,
             ),
         )
-        == '::warning file=test.py,line=3::Function foo: **kwargs was removed'
+        == f'::{level} file=test.py,line=3::Function foo: **kwargs was removed'
     )

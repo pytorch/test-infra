@@ -2,84 +2,86 @@ import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
 import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
 import { IssueData } from "lib/types";
+import { testOctokit } from "./utils";
 
 nock.disableNetConnect();
 
-const recentWorkflowA = {
-    job_name: 'linux-docs / build-docs (cpp)',
+const dummyBaseSha = "dummyBaseSha";
+export const successfulA = {
+    name: 'linux-docs / build-docs (cpp)',
     conclusion: "success",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "abcdefg",
     head_sha: "abcdefg",
     pr_number: 1000,
-    owner_login: "swang392",
-    run_attempt: 1,
+    id: "1",
+    failure_captures: ["a"]
 }
 
-const recentWorkflowB = {
-    job_name: 'linux-docs / build-docs (cpp)',
+const pendingA = {
+    name: 'linux-docs / build-docs (cpp)',
     conclusion: null,
     completed_at: null,
     html_url: "abcdefg",
     head_sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
+    failure_captures: ["a"]
 }
 
-const recentWorkflowC = {
-    job_name: 'Lint',
+const failedA = {
+    name: 'Lint',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
     head_sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
+    failure_captures: ["a"]
 }
 
-const recentWorkflowCSuccessfulRetry = {
-    job_name: 'Lint',
+const failedASuccessfulRetry = {
+    name: 'Lint',
     conclusion: "success",
     completed_at: '2022-07-14T19:34:03Z',
     html_url: "a",
     head_sha: "abcdefg",
+    id: "2",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 2,
+    failure_captures: ["a"]
 }
 
-const recentWorkflowCFailedRetry = {
-    job_name: 'Lint',
+const failedAFailedRetry = {
+    name: 'Lint',
     conclusion: "failure",
     completed_at: '2022-07-15T19:34:03Z',
     html_url: "a",
     head_sha: "abcdefg",
+    id: "3",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 3,
+    failure_captures: ["a"]
 }
 
-const recentWorkflowD = {
-    job_name: 'something',
+const failedB = {
+    name: 'something',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
     head_sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
+    failure_captures: ["a"]
 }
 
-const recentWorkflowE = {
-    job_name: 'z-docs / build-docs (cpp)',
+const failedC = {
+    name: 'z-docs / build-docs (cpp)',
     conclusion: "failure",
     completed_at: '2022-07-13T19:34:03Z',
     html_url: "a",
     head_sha: "abcdefg",
+    id: "1",
     pr_number: 1001,
-    owner_login: "notswang392",
-    run_attempt: 1,
+    failure_captures: ["a"]
 }
 
 const sev : IssueData= {
@@ -107,53 +109,88 @@ const closedSev : IssueData= {
 };
 
 describe("Update Dr. CI Bot Unit Tests", () => {
-    beforeEach(() => { });
+
+    beforeEach(() => {});
 
     afterEach(() => {
         nock.cleanAll();
         jest.restoreAllMocks();
     });
 
-    test("Check that constructFailureAnalysis works correctly", async () => {
-        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowD, recentWorkflowC, recentWorkflowE];
-        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
-        const pr_1001 = workflowsByPR.get(1001)!;
-        const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(pr_1001);
-        const failureInfo = updateDrciBot.constructResultsComment(pending, failedJobs, pr_1001.head_sha);
-        const failedJobName = recentWorkflowC.job_name;
+    test("Check that constructResultsComment works correctly", async () => {
+      const originalWorkflows = [
+        successfulA,
+        pendingA,
+        failedB,
+        failedA,
+        failedC,
+      ];
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
+      const failureInfo = updateDrciBot.constructResultsComment(
+        pending,
+        failedJobs,
+        [],
+        [],
+        pr_1001.head_sha,
+        "random sha"
+      );
+      const failedJobName = failedA.name;
 
-        expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
-        expect(failureInfo.includes(failedJobName)).toBeTruthy();
-        const expectedFailureOrder = `* [Lint](a)
+      expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
+      expect(failureInfo.includes(failedJobName)).toBeTruthy();
+      const expectedFailureOrder = `* [Lint](a)
 * [something](a)
 * [z-docs / build-docs (cpp)](a)`;
-        expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
-        console.log(failureInfo);
+      expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
     });
 
     test("Check that reorganizeWorkflows works correctly", async () => {
-        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
-        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
-        const pr_1001 = workflowsByPR.get(1001)!;
-        const pr_1000 = workflowsByPR.get(1000)!;
+      const originalWorkflows = [
+        successfulA,
+        pendingA,
+        failedA,
+      ];
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const pr_1000 = workflowsByPR.get(1000)!;
 
-        expect(workflowsByPR.size).toBe(2);
-        expect(pr_1000.jobs.length).toBe(1);
-        expect(pr_1001.jobs.length).toBe(2);
+      expect(workflowsByPR.size).toBe(2);
+      expect(pr_1000.jobs.size).toBe(1);
+      expect(pr_1001.jobs.size).toBe(2);
     });
 
-    test("Check that getWorkflowAnalysis works correctly", async () => {
-        const originalWorkflows = [recentWorkflowA, recentWorkflowB, recentWorkflowC];
-        const workflowsByPR = updateDrciBot.reorganizeWorkflows(originalWorkflows);
-        const pr_1001 = workflowsByPR.get(1001)!;
-        const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+    test("Check that getWorkflowJobsStatuses works correctly", async () => {
+      const originalWorkflows = [
+        successfulA,
+        pendingA,
+        failedA,
+      ];
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
 
-        expect(pending).toBe(1);
-        expect(failedJobs.length).toBe(1);
+      expect(pending).toBe(1);
+      expect(failedJobs.length).toBe(1);
     });
 
     test("Check that dr ci comment is correctly formed", async () => {
-        const comment = formDrciComment(recentWorkflowA.pr_number);
+        const comment = formDrciComment(successfulA.pr_number);
         expect(comment.includes(DRCI_COMMENT_START)).toBeTruthy();
         expect(
             comment.includes("See artifacts and rendered test results")
@@ -167,20 +204,27 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     test("Make dr ci comment with failures", async () => {
       const originalWorkflows = [
-        recentWorkflowA,
-        recentWorkflowB,
-        recentWorkflowC,
+        successfulA,
+        pendingA,
+        failedA,
       ];
-      const workflowsByPR =
-        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
       const pr_1001 = workflowsByPR.get(1001)!;
-      const { pending, failedJobs } =
-        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
 
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        [],
+        [],
+        pr_1001.head_sha,
+        "random sha"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -206,20 +250,27 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     test("test form dr ci comment with sevs", async () => {
       const originalWorkflows = [
-        recentWorkflowA,
-        recentWorkflowB,
-        recentWorkflowC,
+        successfulA,
+        pendingA,
+        failedA,
       ];
-      const workflowsByPR =
-        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
       const pr_1001 = workflowsByPR.get(1001)!;
-      const { pending, failedJobs } =
-        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
 
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        [],
+        [],
+        pr_1001.head_sha,
+        "random sha"
       );
       const comment = formDrciComment(
         1001,
@@ -235,58 +286,101 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     test("test that the result of the latest retry is used (success)", async () => {
       const originalWorkflows = [
-        recentWorkflowA,
-        recentWorkflowB,
-        recentWorkflowC,
-        recentWorkflowCSuccessfulRetry,
+        successfulA,
+        pendingA,
+        failedA,
+        failedASuccessfulRetry,
       ];
-      const workflowsByPR =
-        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
       const pr_1001 = workflowsByPR.get(1001)!;
-      const { pending, failedJobs } =
-        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        [],
+        [],
+        pr_1001.head_sha,
+        "random sha"
       );
-      const comment = formDrciComment(
-        1001,
-        failureInfo,
-      );
+      const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(
         comment.includes("## :hourglass_flowing_sand: No Failures, 1 Pending")
       ).toBeTruthy();
-      expect(
-        comment.includes(":green_heart:")
-      ).toBeTruthy();
+      expect(comment.includes(":green_heart:")).toBeTruthy();
     });
 
     test("test that the result of the latest retry is used (failure)", async () => {
       const originalWorkflows = [
-        recentWorkflowA,
-        recentWorkflowB,
-        recentWorkflowC,
-        recentWorkflowCSuccessfulRetry,
-        recentWorkflowCFailedRetry,
+        successfulA,
+        pendingA,
+        failedA,
+        failedASuccessfulRetry,
+        failedAFailedRetry,
       ];
-      const workflowsByPR =
-        updateDrciBot.reorganizeWorkflows(originalWorkflows);
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
       const pr_1001 = workflowsByPR.get(1001)!;
-      const { pending, failedJobs } =
-        updateDrciBot.getWorkflowJobsStatuses(pr_1001);
+      const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [],
+        new Map()
+      );
       const failureInfo = updateDrciBot.constructResultsComment(
         pending,
         failedJobs,
-        pr_1001.head_sha
+        [],
+        [],
+        pr_1001.head_sha,
+        "random sha"
       );
-      const comment = formDrciComment(
-        1001,
-        failureInfo,
-      );
-      console.log(comment);
+      const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
+    });
+
+    test("test flaky jobs and broken trunk jobs are filtered out", async () => {
+      const originalWorkflows = [failedA, failedB];
+      const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+        originalWorkflows
+      );
+      const pr_1001 = workflowsByPR.get(1001)!;
+      const { failedJobs, brokenTrunkJobs, flakyJobs } =
+        updateDrciBot.getWorkflowJobsStatuses(
+          pr_1001,
+          [{ name: failedB.name, captures: failedB.failure_captures }],
+          new Map().set(failedA.name, failedA)
+        );
+      expect(failedJobs.length).toBe(0);
+      expect(brokenTrunkJobs.length).toBe(1);
+      expect(flakyJobs.length).toBe(1);
+    });
+
+    test("test flaky jobs and broken trunk jobs are included in the comment", async () => {
+      const failureInfoComment = updateDrciBot.constructResultsComment(
+        1,
+        [failedA],
+        [failedB],
+        [failedC],
+        "random head sha",
+        "random base sha"
+      );
+      const expectToContain = [
+        "3 Failures, 1 Pending",
+        "The following jobs have failed",
+        "The following jobs failed but were likely due to flakiness present on master",
+        "The following jobs failed but were present on the merge base random base sha",
+        failedA.name,
+        failedB.name,
+        failedC.name,
+      ];
+      expect(expectToContain.every((s) => failureInfoComment.includes(s))).toBeTruthy();;
     });
 });

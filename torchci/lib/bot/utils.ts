@@ -1,4 +1,5 @@
 import { Context, Probot } from "probot";
+import urllib from "urllib";
 
 export function repoKey(context: Context): string {
   const repo = context.repo();
@@ -78,4 +79,13 @@ export class CachedIssueTracker extends CachedConfigTracker {
     }
     return this.repoIssues[key];
   }
+}
+
+// returns undefined if the request fails
+export async function fetchJSON(path: string): Promise<any> {
+  const result = await urllib.request(path);
+  if (result.res.statusCode !== 200) {
+    return;
+  }
+  return JSON.parse(result.data.toString());
 }

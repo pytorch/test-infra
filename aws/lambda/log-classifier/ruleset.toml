@@ -37,6 +37,10 @@ name = 'GHA cancellation'
 pattern = 'The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.'
 
 [[rule]]
+name = 'GHA job was cancelled'
+pattern = '^##\[error\]The operation was canceled.'
+
+[[rule]]
 name = 'make build failure'
 pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 
@@ -78,11 +82,11 @@ pattern = '^FAILED: Build did NOT complete successfully'
 
 [[rule]]
 name = 'Python unittest failure'
-pattern = 'FAIL \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+pattern = 'FAIL(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'Python unittest unexpected success'
-pattern = 'XPASS \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
@@ -90,7 +94,7 @@ pattern = '^FAILED .*.py::.*::test_.*$'
 
 [[rule]]
 name = 'Python unittest error'
-pattern = 'ERROR \[.*\]: (test.*) \((?:__main__\.)?(.*)\)'
+pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest test error'
@@ -98,7 +102,7 @@ pattern = '^ERROR .*.py::.*::test_.*$'
 
 [[rule]]
 name = 'inductor model failure'
-pattern = '^(\S*) *(fail_accuracy|fail_to_run)$'
+pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation)$'
 
 [[rule]]
 name = 'failed to download github artifacts'
@@ -169,20 +173,16 @@ name = 'Bad response status code'
 pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
-name = 'Python AttributeError'
-pattern = '^AttributeError: .*'
-
-[[rule]]
-name = 'Scribe upload failure'
-pattern = '^ERROR ENCOUNTERED WHEN UPLOADING TO SCRIBE: .*'
+name = 'Python Test File RuntimeError'
+pattern = '^RuntimeError: .*test.* failed'
 
 [[rule]]
 name = 'CUDA out of memory error'
 pattern = '^RuntimeError: CUDA out of memory.'
 
 [[rule]]
-name = 'Python Test File RuntimeError'
-pattern = '^RuntimeError: .*test.* failed'
+name = 'Python AttributeError'
+pattern = '^AttributeError: .*'
 
 [[rule]]
 name = 'Python flaky unittest - failed'
