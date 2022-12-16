@@ -1,3 +1,4 @@
+import { PullRequestReview } from "@octokit/webhooks-types";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
@@ -140,6 +141,70 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return null;
   }
 
+  async doesHaveApprovedStatus() {
+    var res = await this.ctx.octokit.pulls.listReviews({
+      owner: this.owner,
+      repo: this.repo,
+      pull_number: this.prNum,
+    })
+
+    if (!res?.data?.length) {
+      this.ctx.log("Could not find any reviews for PR")
+      return false;
+    }
+
+    var reviews = res?.data
+        
+    // From https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
+    const ALLOWED_APPROVER_ASSOCIATIONS = [
+      "COLLABORATOR",
+      "CONTRIBUTOR",
+      "MEMBER",
+      "OWNER",
+    ]
+
+    var latest_reviews: { [user: string]: string } = reviews
+      .sort((a: PullRequestReview, b: PullRequestReview) => {
+        Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
+      })
+      .reduce((latest_reviews: { [user: string]: string }, curr_review: PullRequestReview) => {
+        if (!ALLOWED_APPROVER_ASSOCIATIONS.includes(curr_review.author_association)) {
+          // Not an authorized approver
+          return latest_reviews;
+        }
+
+        // Casing is werid here. The typescript defintion says state will be lower case, yet github
+        // returns upper case. We can't trust that to remain that way, so always conver the state
+        // to lowercase before any comparisons
+        switch(curr_review.state.toLocaleLowerCase()) {
+          case 'commented': // Ignore mere comments
+            break; 
+          case 'dismissed': // Ignore previous reviews by this person
+            delete latest_reviews[curr_review.user.login]
+            break;
+          case 'changes_requested': 
+          case 'approved':
+            latest_reviews[curr_review.user.login] = curr_review.state; 
+            break;
+          default:
+            this.ctx.log(`Found an invalid review state '${curr_review.state}' on review id ${curr_review.id}. See ${curr_review.html_url}`)
+        }
+
+        return latest_reviews;
+      }, {})
+      
+      let approval_status = ""
+      for (let [_, review_state] of Object.entries(latest_reviews)) {
+        if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
+          approval_status = review_state
+        }
+      }
+
+    var result =  approval_status.toLocaleLowerCase() === 'approved'
+    console.debug(`Result was ${result}`)
+    return result;
+  }
+
   async handleMerge(
     forceMessage: string,
     mergeOnGreen: boolean,
@@ -157,46 +222,55 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (forceRequested) {
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
+    } else {
+      // Ensure the PR has been signed off on
+      let isApprovedPR = await this.doesHaveApprovedStatus()
+      if (!isApprovedPR) {
+        rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
+      }
     }
 
-    if (!rejection_reason) {
-      if (
-        rebase &&
-        !(await this.hasWritePermissions(
-          this.ctx.payload?.comment?.user?.login
-        ))
-      ) {
-        await this.addComment(
-          "You don't have permissions to rebase this PR, only people with write permissions may rebase PRs."
-        );
-        rebase = false;
-      }
-      await this.logger.log("merge", extra_data);
-      if (!forceRequested) {
-        let labels: string[] = this.ctx.payload?.issue?.labels.map(
-          (e: any) => e["name"]
-        );
-        if (labels === undefined) {
-          labels = this.ctx.payload?.pull_request?.labels.map(
-          (e: any) => e["name"]
-          );
-        }
-
-        if (labels !== undefined && ! labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
-          await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL])
-        }
-      }
-      await this.dispatchEvent("try-merge", {
-        force: forceRequested,
-        on_green: mergeOnGreen,
-        land_checks: landChecks,
-        rebase: rebase,
-      });
-      await this.ackComment();
-    } else {
+    if (rejection_reason) {
       await this.logger.log("merge-error", extra_data);
       await this.handleConfused(true, rejection_reason);
+      return;
     }
+
+    if (
+      rebase &&
+      !(await this.hasWritePermissions(
+        this.ctx.payload?.comment?.user?.login
+      ))
+    ) {
+      await this.addComment(
+        "You don't have permissions to rebase this PR, only people with write permissions may rebase PRs."
+      );
+      rebase = false;
+    }
+
+    await this.logger.log("merge", extra_data);
+    if (!forceRequested) {
+      let labels: string[] = this.ctx.payload?.issue?.labels.map(
+        (e: any) => e["name"]
+      );
+      if (labels === undefined) {
+        labels = this.ctx.payload?.pull_request?.labels.map(
+        (e: any) => e["name"]
+        );
+      }
+
+      if (labels !== undefined && ! labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
+        await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL])
+      }
+    }
+    
+    await this.dispatchEvent("try-merge", {
+      force: forceRequested,
+      on_green: mergeOnGreen,
+      land_checks: landChecks,
+      rebase: rebase,
+    });
+    await this.ackComment();
   }
 
   async handleRevert(reason: string) {
