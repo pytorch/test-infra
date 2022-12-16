@@ -1610,14 +1610,6 @@
       "macos"
     ]
   ],
-  "test_python_ir_utils_graph (__main__.TestJit)": [
-    "73473",
-    "https://github.com/pytorch/pytorch/issues/73473",
-    [
-      "macos",
-      "linux"
-    ]
-  ],
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
     "77598",
     "https://github.com/pytorch/pytorch/issues/77598",
@@ -1728,11 +1720,6 @@
     [
       "linux"
     ]
-  ],
-  "test_sharding (__main__.TestZeroRedundancyOptimizerDistributed)": [
-    "67295",
-    "https://github.com/pytorch/pytorch/issues/67295",
-    []
   ],
   "test_shuffle (__main__.TestDataLoader2)": [
     "74390",
