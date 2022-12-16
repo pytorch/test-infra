@@ -22,7 +22,7 @@
         "type": "User",
         "site_admin": false
       },
-      "body": "LGTM! I think we should put a comment on why `Run lint` prefix is needed",
+      "body": "LGTM!",
       "state": "APPROVED",
       "html_url": "https://github.com/pytorch/pytorch/pull/90705#pullrequestreview-1214331908",
       "pull_request_url": "https://api.github.com/repos/pytorch/pytorch/pulls/90705",
@@ -61,7 +61,7 @@
         "type": "User",
         "site_admin": false
       },
-      "body": "This feels wrong to me: workflow name should be computed as combination of workflow name + job name, as its currently done by the hud, see: \r\n<img width=\"353\" alt=\"image\" src=\"https://user-images.githubusercontent.com/2453524/207161653-95fcb055-1699-48d8-8aa3-02ef079fefc3.png\">\r\n",
+      "body": "This feels wrong to me",
       "state": "CHANGES_REQUESTED",
       "html_url": "https://github.com/pytorch/pytorch/pull/90705#pullrequestreview-1214391541",
       "pull_request_url": "https://api.github.com/repos/pytorch/pytorch/pulls/90705",
@@ -100,7 +100,7 @@
         "type": "User",
         "site_admin": false
       },
-      "body": "LGTM, but I wonder if it could be suffix rather than prefix (as machines do not care about length of the string, but humans do, and sentences written in latin alphabet are usually read from left to right)\r\nAnother suggestion: should we use say #nonretryable ? (or explain how we can add other modifiers to the code?)",
+      "body": "LGTM",
       "state": "APPROVED",
       "html_url": "https://github.com/pytorch/pytorch/pull/90705#pullrequestreview-1215986780",
       "pull_request_url": "https://api.github.com/repos/pytorch/pytorch/pulls/90705",
