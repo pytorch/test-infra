@@ -344,23 +344,9 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addmv_cuda_float16 (__main__.TestDecompCUDA)": [
-    "87166",
-    "https://github.com/pytorch/pytorch/issues/87166",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addmv_cuda_float64 (__main__.TestDecompCUDA)": [
     "86867",
     "https://github.com/pytorch/pytorch/issues/86867",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_addr_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "86869",
-    "https://github.com/pytorch/pytorch/issues/86869",
     [
       "rocm"
     ]
@@ -788,14 +774,6 @@
       "macos"
     ]
   ],
-  "test_embedding_bag_device_cpu_int64_int64_float16 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
-    "86638",
-    "https://github.com/pytorch/pytorch/issues/86638",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -988,13 +966,6 @@
     "71183",
     "https://github.com/pytorch/pytorch/issues/71183",
     []
-  ],
-  "test_fq_module_per_tensor (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
-    "80409",
-    "https://github.com/pytorch/pytorch/issues/80409",
-    [
-      "mac"
-    ]
   ],
   "test_fs (__main__.TestMultiprocessing)": [
     "76866",
