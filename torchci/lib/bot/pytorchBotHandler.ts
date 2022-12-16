@@ -199,9 +199,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // One approval is all that's needed, unless someone blocks it with a `changes_requested`
     let approval_status = ""
     for (let [_, review_state] of Object.entries(latest_reviews)) {
-      // if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
+      if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
         approval_status = review_state
-      // }
+      }
     }
 
     var result =  approval_status.toLocaleLowerCase() === 'approved'
