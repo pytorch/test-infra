@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 import dataclasses
-import itertools
+import difflib
 import pathlib
 import tempfile
 
@@ -92,7 +92,6 @@ def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
         # function definition.
 
         violations += _check_by_name(name, before_def, after_def)
-        violations += _check_parameter_ordering(name, before_def, after_def)
         violations += _check_by_position(name, before_def, after_def)
         violations += _check_by_requiredness(name, before_def, after_def)
         violations += _check_variadic_parameters(name, before_def, after_def)
@@ -116,40 +115,42 @@ def _check_by_name(
     func: str, before: api.Parameters, after: api.Parameters
 ) -> Iterable[Violation]:
     """Checks for violations among the named parameters."""
-    for name, before_param in _named_parameters(before).items():
+    for name, before_param in _keyword_only_parameters(before).items():
         assert before_param.name == name
-        after_param = _named_parameters(after).get(name)
+        after_param = _keyword_only_parameters(after).get(name)
         if after_param is None:
             yield Violation(func, f'{name} was removed', line=after.line)
             continue
         assert after_param.name == name
 
-    for name, after_param in _named_parameters(after).items():
+    for name, after_param in _keyword_only_parameters(after).items():
         assert after_param.name == name
-        if after_param.required and name not in _named_parameters(before):
+        if after_param.required and name not in _keyword_only_parameters(before):
             yield Violation(func, f'{name} was added and is required', line=after.line)
 
 
-def _named_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
+def _keyword_only_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
     """Extracts the parameters that can be passed by name."""
     return (
-        {param.name: param for param in params.parameters if param.keyword}
+        {param.name: param for param in params.parameters if not param.positional}
         if len(params.parameters) > 0
         else {}
     )
 
 
-def _check_parameter_ordering(
+def _check_by_position(
     func: str, before: api.Parameters, after: api.Parameters
 ) -> Iterable[Violation]:
-    before_params = [param for param in before.parameters if param.position is not None]
-    after_params = [param for param in after.parameters if param.position is not None]
+    """Checks for violations among the positional parameters."""
+
+    before_params = [param for param in before.parameters if param.positional]
+    after_params = [param for param in after.parameters if param.positional]
 
     before_param_names = [param.name for param in before_params]
     after_param_names = [param.name for param in after_params]
 
     if before_param_names == after_param_names:
-        return []
+        return
 
     if set(before_param_names) == set(after_param_names):
         yield Violation(
@@ -157,38 +158,33 @@ def _check_parameter_ordering(
             'positional parameters were reordered',
             line=after.line,
         )
+        return
 
-
-def _check_by_position(
-    func: str, before: api.Parameters, after: api.Parameters
-) -> Iterable[Violation]:
-    """Checks for violations among the positional parameters."""
-    before_params = [param for param in before.parameters if not param.keyword]
-    after_params = [param for param in after.parameters if not param.keyword]
-
-    if before_params == after_params:
-        return []
-
-    for i, (before_param, after_param) in enumerate(
-        itertools.zip_longest(before_params, after_params)
-    ):
-        assert before_param is None or before_param.position == i
-        assert after_param is None or after_param.position == i
-
-        if before_param is None:
-            assert after_param is not None
-            if after_param.required:
-                yield Violation(
-                    func,
-                    f'{after_param.name} was added and is required',
-                    line=after.line,
-                )
-        elif after_param is None:
-            assert before_param is not None
-            yield Violation(func, f'{before_param.name} was removed', line=after.line)
-        else:
-            assert before_param is not None
-            assert after_param is not None
+    matcher = difflib.SequenceMatcher(a=before_param_names, b=after_param_names)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+        if tag == 'replace':
+            yield Violation(
+                func,
+                f'{before_param_names[i1]} was renamed to {after_param_names[j1]}',
+                line=after.line,
+            )
+            continue
+        if tag == 'insert':
+            after_param = after_params[j1]
+            yield Violation(
+                func,
+                f'{after_param.name} was added and is required',
+                line=after_param.line,
+            )
+            continue
+        if tag == 'delete':
+            yield Violation(
+                func,
+                f'{before_params[i1].name} was removed',
+                line=after.line,
+            )
 
     # TODO support renaming parameters.
     # Positional parameters may be renamed, but may not be
