@@ -213,6 +213,48 @@ def test_new_required_keyword_parameter(tmp_path: pathlib.Path) -> None:
     ]
 
 
+def test_new_optional_positional_parameter(tmp_path: pathlib.Path) -> None:
+    def func() -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(x: int = 0, /) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
+
+
+def test_new_optional_flexible_parameter(tmp_path: pathlib.Path) -> None:
+    def func() -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(x: int = 0) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
+
+
+def test_new_optional_keyword_parameter(tmp_path: pathlib.Path) -> None:
+    def func() -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(*, x: int = 0) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
+
+
 def test_positional_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     def func(x: int = 0, /) -> None:
         pass  # pragma: no cover
