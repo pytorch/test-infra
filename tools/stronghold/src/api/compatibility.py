@@ -93,6 +93,7 @@ def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
 
         violations += _check_by_name(name, before_def, after_def)
         violations += _check_by_position(name, before_def, after_def)
+        violations += _check_by_requiredness(name, before_def, after_def)
         violations += _check_variadic_parameters(name, before_def, after_def)
 
     return violations
@@ -128,8 +129,6 @@ def _check_by_name(
                 f'{after_param.position}',
                 line=after_param.line,
             )
-        if not before_param.required and after_param.required:
-            yield Violation(func, f'{name} became required', line=after.line)
 
     for name, after_param in _named_parameters(after).items():
         assert after_param.name == name
@@ -183,10 +182,6 @@ def _check_by_position(
                     line=after.line,
                 )
                 continue
-            if not before_param.required and after_param.required:
-                yield Violation(
-                    func, f'{before_param.name} became required', line=after.line
-                )
 
     # TODO support renaming parameters.
     # Positional parameters may be renamed, but may not be
@@ -195,6 +190,30 @@ def _check_by_position(
     # argument is renamed, it could theoretically have the same
     # semantics as before, but if it is reordered, we expect that the
     # semantics would remain bound to the names.
+
+
+def _check_by_requiredness(
+    func: str, before: api.Parameters, after: api.Parameters
+) -> Iterable[Violation]:
+    """Checks for parameters that were made required."""
+    before_params = _parameters_by_name(before)
+    after_params = _parameters_by_name(after)
+    if before_params == after_params:
+        return []
+
+    for name, before_param in before_params.items():
+        after_param = after_params.get(name)
+        if after_param is None:
+            continue
+        if not before_param.required and after_param.required:
+            yield Violation(
+                func, f'{before_param.name} became required', line=after.line
+            )
+
+
+def _parameters_by_name(params: api.Parameters) -> Mapping[str, api.Parameter]:
+    """Indexes the parameters by their name."""
+    return {param.name: param for param in params.parameters}
 
 
 def _check_variadic_parameters(
