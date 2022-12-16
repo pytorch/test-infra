@@ -21,13 +21,7 @@ def parameter_added_with_lots_of_parameters(
     pass
 
 
-def removed_function() -> None:
-    pass
-
-
 def remove_positional_parameter(
-    a: int,
-    /,
     b: int,
     c: int = 0,
     *args: int,
@@ -84,6 +78,7 @@ def remove_kwds(
 
 def add_positional_parameter(
     a: int,
+    new_param: int,
     /,
     b: int,
     c: int = 0,
@@ -97,6 +92,7 @@ def add_positional_parameter(
 
 def add_positional_parameter_with_default(
     a: int,
+    new_param: int = 0,
     /,
     b: int = 0,
     c: int = 0,
@@ -112,6 +108,7 @@ def add_flexible_parameter(
     a: int,
     /,
     b: int,
+    new_param: int,
     c: int = 0,
     *args: int,
     d: int,
