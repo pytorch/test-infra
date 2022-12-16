@@ -45,7 +45,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     params = [
         api.Parameter(
             name=arg.arg,
-            positional=True,
+            position=i,
             keyword=False,
             required=i < num_required,
             line=arg.lineno,
@@ -57,7 +57,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     params += [
         api.Parameter(
             name=arg.arg,
-            positional=True,
+            position=i,
             keyword=True,
             required=i < num_required,
             line=arg.lineno,
@@ -70,7 +70,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     params += [
         api.Parameter(
             name=arg.arg,
-            positional=False,
+            position=None,
             keyword=True,
             required=args.kw_defaults[i] is None,
             line=arg.lineno,
