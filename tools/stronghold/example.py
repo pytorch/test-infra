@@ -25,8 +25,6 @@ def removed_function() -> None:
 
 
 def remove_positional_parameter(
-    a: int,
-    /,
     b: int,
     c: int = 0,
     *args: int,
