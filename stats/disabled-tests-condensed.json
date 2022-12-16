@@ -200,13 +200,6 @@
       "mac"
     ]
   ],
-  "test_binary_op_scalar_fastpath__foreach_div_cuda_uint8 (__main__.TestForeachCUDA)": [
-    "86999",
-    "https://github.com/pytorch/pytorch/issues/86999",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)": [
     "82168",
     "https://github.com/pytorch/pytorch/issues/82168",
@@ -379,16 +372,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_cartesian_prod_cpu_bfloat16 (__main__.TestDecompCPU)": [
-    "84150",
-    "https://github.com/pytorch/pytorch/issues/84150",
-    [
-      "win",
-      "windows",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_comprehensive_cdist_cuda_float64 (__main__.TestDecompCUDA)": [
     "87165",
     "https://github.com/pytorch/pytorch/issues/87165",
@@ -470,13 +453,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_cond_export_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "90047",
-    "https://github.com/pytorch/pytorch/issues/90047",
-    [
-      "linux"
     ]
   ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
@@ -756,11 +732,6 @@
     [
       "linux"
     ]
-  ],
-  "test_dispatch_meta_outplace_fft_fft_cuda_float64 (__main__.TestMetaCUDA)": [
-    "88692",
-    "https://github.com/pytorch/pytorch/issues/88692",
-    []
   ],
   "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
     "77318",
