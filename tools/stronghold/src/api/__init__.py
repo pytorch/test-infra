@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import dataclasses
+from typing import Optional
 
 
 @dataclasses.dataclass
@@ -28,8 +29,9 @@ class Parameter:
     # The name of the parameter, only usable if it may be provided as
     # a keyword argument.
     name: str
-    # Whether or not this parameter may be provided positionally.
-    positional: bool
+    # The position of the parameter, not present if this is a keyword
+    # only parameter.
+    position: Optional[int]
     # Whether or not this parameter may be provided by name.
     keyword: bool
     # Whether or not this parameter must be provided.
