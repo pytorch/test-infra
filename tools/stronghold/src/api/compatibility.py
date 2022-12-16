@@ -173,11 +173,12 @@ def _check_by_position(
             continue
         if tag == 'insert':
             after_param = after_params[j1]
-            yield Violation(
-                func,
-                f'{after_param.name} was added and is required',
-                line=after_param.line,
-            )
+            if after_param.required:
+                yield Violation(
+                    func,
+                    f'{after_param.name} was added and is required',
+                    line=after_param.line,
+                )
             continue
         if tag == 'delete':
             yield Violation(
