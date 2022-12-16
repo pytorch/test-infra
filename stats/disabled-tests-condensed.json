@@ -117,11 +117,6 @@
     "https://github.com/pytorch/pytorch/issues/86765",
     []
   ],
-  "test_argminmax_large_axis_cuda (__main__.TestReductionsCUDA)": [
-    "63933",
-    "https://github.com/pytorch/pytorch/issues/63933",
-    []
-  ],
   "test_asgd (__main__.TestOptim)": [
     "86763",
     "https://github.com/pytorch/pytorch/issues/86763",
@@ -1045,13 +1040,6 @@
       "dynamo"
     ]
   ],
-  "test_inherit_tensor (__main__.TestMultiprocessing)": [
-    "79776",
-    "https://github.com/pytorch/pytorch/issues/79776",
-    [
-      "linux"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -1248,13 +1236,6 @@
       "linux"
     ]
   ],
-  "test_multiprocessing_contexts (__main__.TestDataLoaderPersistentWorkers)": [
-    "77599",
-    "https://github.com/pytorch/pytorch/issues/77599",
-    [
-      "linux"
-    ]
-  ],
   "test_nadam (__main__.TestOptim)": [
     "68171",
     "https://github.com/pytorch/pytorch/issues/68171",
@@ -1431,13 +1412,6 @@
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
     []
-  ],
-  "test_profiler (test_jit.TestJit)": [
-    "81626",
-    "https://github.com/pytorch/pytorch/issues/81626",
-    [
-      "linux"
-    ]
   ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
@@ -1620,13 +1594,6 @@
       "mac"
     ]
   ],
-  "test_seqential_batch_workers (__main__.TestDataLoaderPersistentWorkers)": [
-    "73955",
-    "https://github.com/pytorch/pytorch/issues/73955",
-    [
-      "linux"
-    ]
-  ],
   "test_shuffle (__main__.TestDataLoader2)": [
     "74390",
     "https://github.com/pytorch/pytorch/issues/74390",
@@ -1646,14 +1613,6 @@
     "74877",
     "https://github.com/pytorch/pytorch/issues/74877",
     []
-  ],
-  "test_shuffle_workers (__main__.TestDataLoader)": [
-    "84032",
-    "https://github.com/pytorch/pytorch/issues/84032",
-    [
-      "mac",
-      "macos"
-    ]
   ],
   "test_shutdown_errors (__main__.TensorPipeRpcTestWithSpawn)": [
     "61670",
