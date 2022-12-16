@@ -91,6 +91,7 @@ def add_positional_parameter(
 
 def add_positional_parameter_with_default(
     a: int,
+    new_param: int = 0,
     /,
     b: int = 0,
     c: int = 0,
