@@ -132,7 +132,7 @@ def _check_by_name(
 def _keyword_only_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
     """Extracts the parameters that can be passed by name."""
     return (
-        {param.name: param for param in params.parameters if param.position is None}
+        {param.name: param for param in params.parameters if not param.positional}
         if len(params.parameters) > 0
         else {}
     )
@@ -143,8 +143,8 @@ def _check_by_position(
 ) -> Iterable[Violation]:
     """Checks for violations among the positional parameters."""
 
-    before_params = [param for param in before.parameters if param.position is not None]
-    after_params = [param for param in after.parameters if param.position is not None]
+    before_params = [param for param in before.parameters if param.positional]
+    after_params = [param for param in after.parameters if param.positional]
 
     before_param_names = [param.name for param in before_params]
     after_param_names = [param.name for param in after_params]
