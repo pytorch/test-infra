@@ -430,15 +430,6 @@
       "windows"
     ]
   ],
-  "test_comprehensive_column_stack_cpu_float16 (__main__.TestDecompCPU)": [
-    "84122",
-    "https://github.com/pytorch/pytorch/issues/84122",
-    [
-      "mac",
-      "macos",
-      "win"
-    ]
-  ],
   "test_comprehensive_diagflat_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "87607",
     "https://github.com/pytorch/pytorch/issues/87607",
@@ -557,13 +548,6 @@
     "https://github.com/pytorch/pytorch/issues/87748",
     [
       "dynamo"
-    ]
-  ],
-  "test_dcgan_models (jit.test_models.TestModels)": [
-    "79142",
-    "https://github.com/pytorch/pytorch/issues/79142",
-    [
-      "linux"
     ]
   ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
@@ -883,21 +867,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_exception_single (__main__.ForkTest)": [
-    "75409",
-    "https://github.com/pytorch/pytorch/issues/75409",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_exception_single (__main__.SpawnTest)": [
-    "78982",
-    "https://github.com/pytorch/pytorch/issues/78982",
-    [
-      "linux"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
@@ -1524,13 +1493,6 @@
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
-    [
-      "linux"
-    ]
-  ],
-  "test_partial_workers (__main__.TestDataLoader)": [
-    "81034",
-    "https://github.com/pytorch/pytorch/issues/81034",
     [
       "linux"
     ]
