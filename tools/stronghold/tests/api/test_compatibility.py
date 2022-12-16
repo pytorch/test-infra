@@ -112,9 +112,7 @@ def test_new_renamed_positional_parameter(tmp_path: pathlib.Path) -> None:
 
     after = source.make_file(tmp_path, func)
 
-    assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was renamed to y', line=1)
-    ]
+    assert api.compatibility.check(before, after) == []
 
 
 def test_removed_positional_parameter(tmp_path: pathlib.Path) -> None:
@@ -273,8 +271,9 @@ def test_positional_parameters_reordered(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was renamed to y', line=1),
-        api.compatibility.Violation('func', 'y was renamed to x', line=1),
+        api.compatibility.Violation(
+            'func', 'positional parameters were reordered', line=1
+        ),
     ]
 
 
@@ -291,10 +290,7 @@ def test_flexible_parameters_reordered(tmp_path: pathlib.Path) -> None:
 
     assert api.compatibility.check(before, after) == [
         api.compatibility.Violation(
-            'func', 'the position of x moved from 0 to 1', line=1
-        ),
-        api.compatibility.Violation(
-            'func', 'the position of y moved from 1 to 0', line=1
+            'func', 'positional parameters were reordered', line=1
         ),
     ]
 
