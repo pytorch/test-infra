@@ -25,7 +25,7 @@ jobs:
           echo "$PYTORCH_CANARY_SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
       - name: Clone pytorch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: 'pytorch/pytorch'
           ref: ${{ matrix.ref }}
