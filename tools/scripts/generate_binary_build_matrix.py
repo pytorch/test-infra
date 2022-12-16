@@ -440,10 +440,8 @@ def main(args) -> None:
     options = parser.parse_args(args)
     includes = []
 
-    pckages = options.package_type.split(",")
-    if len(pckages) > 1:
-        package_types = [pkg for pkg in pckages]
-    else:
+    package_types = options.package_type.split(",")
+    if len(package_types) == 1:
         package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
 
     channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
