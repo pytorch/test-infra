@@ -389,16 +389,6 @@
       "macos"
     ]
   ],
-  "test_comprehensive_cartesian_prod_cpu_float16 (__main__.TestDecompCPU)": [
-    "84213",
-    "https://github.com/pytorch/pytorch/issues/84213",
-    [
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
   "test_comprehensive_cdist_cuda_float64 (__main__.TestDecompCUDA)": [
     "87165",
     "https://github.com/pytorch/pytorch/issues/87165",
@@ -1105,14 +1095,6 @@
       "linux"
     ]
   ],
-  "test_get_worker_info (__main__.TestDataLoaderPersistentWorkers)": [
-    "74075",
-    "https://github.com/pytorch/pytorch/issues/74075",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1360,11 +1342,6 @@
       "linux"
     ]
   ],
-  "test_multiple_dataloaders (__main__.TestDataLoaderPersistentWorkers)": [
-    "70947",
-    "https://github.com/pytorch/pytorch/issues/70947",
-    []
-  ],
   "test_multiprocessing_contexts (__main__.TestDataLoaderPersistentWorkers)": [
     "77599",
     "https://github.com/pytorch/pytorch/issues/77599",
@@ -1600,13 +1577,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_profiler_for_loop_indexing_pattern (__main__.TestExperimentalUtils)": [
-    "83491",
-    "https://github.com/pytorch/pytorch/issues/83491",
-    [
-      "linux"
     ]
   ],
   "test_profiler_optimizer_single_tensor_pattern (__main__.TestExperimentalUtils)": [
