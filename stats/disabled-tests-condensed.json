@@ -228,13 +228,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_tensorlists_fastpath__foreach_div_cuda_int16 (__main__.TestForeachCUDA)": [
-    "83513",
-    "https://github.com/pytorch/pytorch/issues/83513",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_ops (__main__.TestTensorExprFuser)": [
     "86776",
     "https://github.com/pytorch/pytorch/issues/86776",
@@ -779,11 +772,6 @@
     "https://github.com/pytorch/pytorch/issues/88692",
     []
   ],
-  "test_dispatch_meta_outplace_fft_ifft_cuda_float64 (__main__.TestMetaCUDA)": [
-    "89156",
-    "https://github.com/pytorch/pytorch/issues/89156",
-    []
-  ],
   "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
     "77318",
     "https://github.com/pytorch/pytorch/issues/77318",
@@ -1323,15 +1311,6 @@
     "https://github.com/pytorch/pytorch/issues/77026",
     []
   ],
-  "test_module_and_optimizer_ids (__main__.TestTorchTidyProfiler)": [
-    "87581",
-    "https://github.com/pytorch/pytorch/issues/87581",
-    [
-      "linux",
-      "win",
-      "windows"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -1737,13 +1716,6 @@
       "windows"
     ]
   ],
-  "test_reload_jit_extension (__main__.TestCppExtensionJIT)": [
-    "80933",
-    "https://github.com/pytorch/pytorch/issues/80933",
-    [
-      "linux"
-    ]
-  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
@@ -1771,14 +1743,6 @@
     "https://github.com/pytorch/pytorch/issues/81962",
     [
       "linux"
-    ]
-  ],
-  "test_segfault (__main__.TestDataLoaderPersistentWorkers)": [
-    "81082",
-    "https://github.com/pytorch/pytorch/issues/81082",
-    [
-      "mac",
-      "macos"
     ]
   ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
