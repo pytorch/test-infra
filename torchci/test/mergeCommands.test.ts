@@ -1232,8 +1232,6 @@ some other text lol
     handleScope(scope);
   });
 
-
-
   test("Approvals from unauthorized users don't count", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
