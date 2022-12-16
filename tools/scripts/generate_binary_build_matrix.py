@@ -405,9 +405,8 @@ def main(args) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--package-type",
-        help="Package type to lookup for",
+        help="Package type to lookup for, also supports comma separated values",
         type=str,
-        choices=["wheel", "conda", "libtorch", "all"],
         default=os.getenv("PACKAGE_TYPE", "wheel"),
     )
     parser.add_argument(
@@ -441,9 +440,11 @@ def main(args) -> None:
     options = parser.parse_args(args)
     includes = []
 
-    package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
-    channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
+    package_types = options.package_type.split(",")
+    if len(package_types) == 1:
+        package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
 
+    channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
 
     for channel in channels:
         for package in package_types:
