@@ -163,6 +163,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       "OWNER",
     ]
 
+    // Find the latest review offered by each authroized reviewer
+    // But first sort them in case Github ever returns the list unsorted
     var latest_reviews: { [user: string]: string } = reviews
       .sort((a: PullRequestReview, b: PullRequestReview) => {
         Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
@@ -192,13 +194,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
         return latest_reviews;
       }, {})
-      
-      let approval_status = ""
-      for (let [_, review_state] of Object.entries(latest_reviews)) {
-        if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
-          approval_status = review_state
-        }
-      }
+    
+    // Aggregate the reviews to figure out the overall status.
+    // One approval is all that's needed, unless someone blocks it with a `changes_requested`
+    let approval_status = ""
+    for (let [_, review_state] of Object.entries(latest_reviews)) {
+      // if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
+        approval_status = review_state
+      // }
+    }
 
     var result =  approval_status.toLocaleLowerCase() === 'approved'
     console.debug(`Result was ${result}`)
