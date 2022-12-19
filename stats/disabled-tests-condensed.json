@@ -798,6 +798,13 @@
     "https://github.com/pytorch/pytorch/issues/69660",
     []
   ],
+  "test_fft_round_trip_cuda_float32 (__main__.TestFFTCUDA)": [
+    "88916",
+    "https://github.com/pytorch/pytorch/issues/88916",
+    [
+      "linux"
+    ]
+  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -1059,13 +1066,6 @@
     "62968",
     "https://github.com/pytorch/pytorch/issues/62968",
     []
-  ],
-  "test_jit_cuda_extension (__main__.TestCppExtensionJIT)": [
-    "61655",
-    "https://github.com/pytorch/pytorch/issues/61655",
-    [
-      "windows"
-    ]
   ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
@@ -1338,13 +1338,6 @@
     "https://github.com/pytorch/pytorch/issues/78112",
     [
       "linux"
-    ]
-  ],
-  "test_pdist_norm_large_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "74154",
-    "https://github.com/pytorch/pytorch/issues/74154",
-    [
-      "windows"
     ]
   ],
   "test_pickle_cuda_float64 (__main__.TestSparseCUDA)": [
