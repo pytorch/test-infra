@@ -1053,13 +1053,6 @@
       "linux"
     ]
   ],
-  "test_kineto_profiler_api (__main__.TestProfiler)": [
-    "68846",
-    "https://github.com/pytorch/pytorch/issues/68846",
-    [
-      "win"
-    ]
-  ],
   "test_launch_user_script (__main__.TestDistributedLaunch)": [
     "79488",
     "https://github.com/pytorch/pytorch/issues/79488",
