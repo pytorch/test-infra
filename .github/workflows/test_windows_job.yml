@@ -16,6 +16,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       job-name: "win-py3.8-cpu"
       script: |
+        bash .github/scripts/test_conda_in_script.sh
         conda create -y -n test python=3.8
         conda activate test
         python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
