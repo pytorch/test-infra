@@ -304,13 +304,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addcdiv_cuda_complex64 (__main__.TestDecompCUDA)": [
-    "86866",
-    "https://github.com/pytorch/pytorch/issues/86866",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addmm_cuda_float32 (__main__.TestDecompCUDA)": [
     "86868",
     "https://github.com/pytorch/pytorch/issues/86868",
@@ -722,11 +715,6 @@
     [
       "linux"
     ]
-  ],
-  "test_early_exit (__main__.TestDataLoaderPersistentWorkers)": [
-    "74868",
-    "https://github.com/pytorch/pytorch/issues/74868",
-    []
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
