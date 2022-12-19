@@ -372,13 +372,6 @@
       "macos"
     ]
   ],
-  "test_comprehensive_lerp_cuda_float32 (__main__.TestDecompCUDA)": [
-    "87139",
-    "https://github.com/pytorch/pytorch/issues/87139",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
@@ -1435,13 +1428,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_profiler_optimizer_single_tensor_pattern (__main__.TestExperimentalUtils)": [
-    "82914",
-    "https://github.com/pytorch/pytorch/issues/82914",
-    [
-      "linux"
     ]
   ],
   "test_profiler_seq_nr (__main__.TestAutograd)": [
