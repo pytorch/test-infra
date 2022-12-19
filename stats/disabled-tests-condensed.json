@@ -55,13 +55,6 @@
       "linux"
     ]
   ],
-  "test_adamax (__main__.TestOptim)": [
-    "86474",
-    "https://github.com/pytorch/pytorch/issues/86474",
-    [
-      "dynamo"
-    ]
-  ],
   "test_adamw (__main__.TestOptim)": [
     "86435",
     "https://github.com/pytorch/pytorch/issues/86435",
@@ -735,14 +728,6 @@
     "https://github.com/pytorch/pytorch/issues/74868",
     []
   ],
-  "test_embedding_bag_device_cpu_int32_int64_float16 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
-    "86982",
-    "https://github.com/pytorch/pytorch/issues/86982",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1195,13 +1180,6 @@
       "linux"
     ]
   ],
-  "test_nadam (__main__.TestOptim)": [
-    "68171",
-    "https://github.com/pytorch/pytorch/issues/68171",
-    [
-      "dynamo"
-    ]
-  ],
   "test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)": [
     "68319",
     "https://github.com/pytorch/pytorch/issues/68319",
@@ -1281,13 +1259,6 @@
   "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
     "89545",
     "https://github.com/pytorch/pytorch/issues/89545",
-    [
-      "linux"
-    ]
-  ],
-  "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
-    "87190",
-    "https://github.com/pytorch/pytorch/issues/87190",
     [
       "linux"
     ]
