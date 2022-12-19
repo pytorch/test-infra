@@ -1079,14 +1079,6 @@
       "win"
     ]
   ],
-  "test_large_cumsum_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "75726",
-    "https://github.com/pytorch/pytorch/issues/75726",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_launch_user_script (__main__.TestDistributedLaunch)": [
     "79488",
     "https://github.com/pytorch/pytorch/issues/79488",
