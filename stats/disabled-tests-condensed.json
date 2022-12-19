@@ -436,13 +436,6 @@
       "dynamo"
     ]
   ],
-  "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
-    "78641",
-    "https://github.com/pytorch/pytorch/issues/78641",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_buffer_hook_allreduce_return_future (__main__.TestDistBackendWithSpawn)": [
     "77261",
     "https://github.com/pytorch/pytorch/issues/77261",
