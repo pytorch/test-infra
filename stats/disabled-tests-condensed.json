@@ -195,13 +195,6 @@
       "mac"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_float16 (__main__.TestForeachCUDA)": [
-    "82168",
-    "https://github.com/pytorch/pytorch/issues/82168",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
     "83029",
     "https://github.com/pytorch/pytorch/issues/83029",
@@ -442,11 +435,6 @@
     [
       "rocm"
     ]
-  ],
-  "test_create_store_single_server (__main__.DistributedUtilTest)": [
-    "66207",
-    "https://github.com/pytorch/pytorch/issues/66207",
-    []
   ],
   "test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "79750",
@@ -1328,13 +1316,6 @@
   "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "86637",
     "https://github.com/pytorch/pytorch/issues/86637",
-    [
-      "linux"
-    ]
-  ],
-  "test_pointwise_op_fastpath__foreach_addcmul_cuda_int32 (__main__.TestForeachCUDA)": [
-    "75591",
-    "https://github.com/pytorch/pytorch/issues/75591",
     [
       "linux"
     ]
