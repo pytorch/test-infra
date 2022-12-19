@@ -209,13 +209,6 @@
       "linux"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_div_cuda_int16 (__main__.TestForeachCUDA)": [
-    "83951",
-    "https://github.com/pytorch/pytorch/issues/83951",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_ops (__main__.TestTensorExprFuser)": [
     "86776",
     "https://github.com/pytorch/pytorch/issues/86776",
@@ -1495,13 +1488,6 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
-  "test_quick_nn_functional_prelu_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86870",
-    "https://github.com/pytorch/pytorch/issues/86870",
-    [
-      "rocm"
-    ]
-  ],
   "test_radam (__main__.TestOptim)": [
     "86389",
     "https://github.com/pytorch/pytorch/issues/86389",
@@ -1534,13 +1520,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_ref_small_input_prod_cuda_int32 (__main__.TestReductionsCUDA)": [
-    "77333",
-    "https://github.com/pytorch/pytorch/issues/77333",
-    [
-      "win"
     ]
   ],
   "test_reflection_pad2d (quantization.core.test_quantized_op.TestPadding)": [
