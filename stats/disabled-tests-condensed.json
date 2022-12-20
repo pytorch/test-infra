@@ -297,13 +297,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addmm_cuda_float32 (__main__.TestDecompCUDA)": [
-    "86868",
-    "https://github.com/pytorch/pytorch/issues/86868",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_addmv_cuda_float64 (__main__.TestDecompCUDA)": [
     "86867",
     "https://github.com/pytorch/pytorch/issues/86867",
@@ -1240,13 +1233,6 @@
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
-    [
-      "linux"
-    ]
-  ],
-  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
-    "89545",
-    "https://github.com/pytorch/pytorch/issues/89545",
     [
       "linux"
     ]
