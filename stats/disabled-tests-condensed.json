@@ -965,6 +965,16 @@
       "win"
     ]
   ],
+  "test_index_add_correctness (__main__.TestTorch)": [
+    "91184",
+    "https://github.com/pytorch/pytorch/issues/91184",
+    [
+      "linux",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_index_put_accumulate_large_tensor_cpu (__main__.TestIndexingCPU)": [
     "88472",
     "https://github.com/pytorch/pytorch/issues/88472",
@@ -1527,13 +1537,6 @@
     "https://github.com/pytorch/pytorch/issues/73341",
     [
       "linux"
-    ]
-  ],
-  "test_torch_nn_CrossEntropyLoss_2d_indices_target_smoothing_weight_cuda (__main__.TestCppApiParity)": [
-    "75417",
-    "https://github.com/pytorch/pytorch/issues/75417",
-    [
-      "windows"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
