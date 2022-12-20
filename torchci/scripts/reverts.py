@@ -4,7 +4,7 @@ import re
 from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from rockset import Client, ParamDict  # type: ignore[import]
 
 CLASSIFICATIONS = {
@@ -28,7 +28,8 @@ def find_corresponding_gitlog_commit(
 
 
 def format_string_for_markdown_long(
-    commit: GitCommit, rockset_result: Optional[Dict[str, str]] = None
+    commit: Optional[GitCommit],
+    rockset_result: Optional[Dict[str, str]] = None
 ) -> str:
     s = ""
     if commit is None:
@@ -41,7 +42,7 @@ def format_string_for_markdown_long(
     return s
 
 
-def get_start_stop_times() -> Any:
+def get_start_stop_times() -> Tuple[str, str]:
     today = datetime.date.today()
     start_time_date = today + datetime.timedelta(days=-today.weekday(), weeks=-1)
     end_time_date = today + datetime.timedelta(days=-today.weekday())
@@ -96,7 +97,8 @@ def main() -> None:
     start_time, end_time = get_start_stop_times()
     rockset_reverts = get_rockset_reverts(start_time, end_time)
     gitlog_reverts = get_gitlog_reverts(start_time, end_time)
-    classification_dict: Dict[str, List[Any]] = defaultdict(lambda: [])
+    # map classification type -> list of (commit, rockset result)
+    classification_dict: Dict[str, List[Tuple[Optional[str], Optional[Dict[str, str]]]]] = defaultdict(lambda: [])
 
     for rockset_revert in rockset_reverts:
         pr_num_match = re.search(r"/(\d+)\#", rockset_revert["comment_url"])
