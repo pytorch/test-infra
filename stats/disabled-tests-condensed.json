@@ -387,6 +387,13 @@
       "macos"
     ]
   ],
+  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "91143",
+    "https://github.com/pytorch/pytorch/issues/91143",
+    [
+      "linux"
+    ]
+  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
@@ -1448,14 +1455,6 @@
       "mac"
     ]
   ],
-  "test_return_nested_function (__main__.MiscTests)": [
-    "90835",
-    "https://github.com/pytorch/pytorch/issues/90835",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_rmsprop (__main__.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
@@ -1593,6 +1592,13 @@
   "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
     "86655",
     "https://github.com/pytorch/pytorch/issues/86655",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_eager_linalg_ldl_solve_cuda_float32 (__main__.TestCommonCUDA)": [
+    "91144",
+    "https://github.com/pytorch/pytorch/issues/91144",
     [
       "linux"
     ]
