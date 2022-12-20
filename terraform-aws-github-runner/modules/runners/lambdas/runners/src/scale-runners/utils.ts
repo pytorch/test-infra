@@ -13,6 +13,7 @@ export interface RunnerInfo {
   org?: string;
   repo?: string;
   runnerType?: string;
+  instanceManagement?: string;
 }
 
 export function getRepoKey(repo: Repo): string {
