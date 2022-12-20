@@ -365,14 +365,6 @@
       "linux"
     ]
   ],
-  "test_cond_export (__main__.MiscTests)": [
-    "90064",
-    "https://github.com/pytorch/pytorch/issues/90064",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "91143",
     "https://github.com/pytorch/pytorch/issues/91143",
