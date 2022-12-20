@@ -262,13 +262,6 @@
     "https://github.com/pytorch/pytorch/issues/71349",
     []
   ],
-  "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
-    "79510",
-    "https://github.com/pytorch/pytorch/issues/79510",
-    [
-      "linux"
-    ]
-  ],
   "test_cnn_model_sum_cuda (__main__.TestExpandedWeightFunctionalCUDA)": [
     "86498",
     "https://github.com/pytorch/pytorch/issues/86498",
