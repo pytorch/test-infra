@@ -107,6 +107,7 @@ export interface DisabledNonFlakyTestData {
 }
 
 export interface RecentWorkflowsData {
+  workflow_id?: string;
   id: string;
   name: string;
   conclusion: string | null;
