@@ -181,13 +181,6 @@
       "mac"
     ]
   ],
-  "test_binary_op_scalarlist_fastpath__foreach_add_cuda_int32 (__main__.TestForeachCUDA)": [
-    "83029",
-    "https://github.com/pytorch/pytorch/issues/83029",
-    [
-      "linux"
-    ]
-  ],
   "test_binary_ops (__main__.TestTensorExprFuser)": [
     "86776",
     "https://github.com/pytorch/pytorch/issues/86776",
@@ -293,13 +286,6 @@
   "test_comprehensive_addmv_cuda_float64 (__main__.TestDecompCUDA)": [
     "86867",
     "https://github.com/pytorch/pytorch/issues/86867",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_cholesky_solve_cuda_float64 (__main__.TestDecompCUDA)": [
-    "87138",
-    "https://github.com/pytorch/pytorch/issues/87138",
     [
       "rocm"
     ]
