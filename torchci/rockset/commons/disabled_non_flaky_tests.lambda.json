@@ -9,9 +9,8 @@
     {
       "name": "min_num_green",
       "type": "int",
-      "value": "50"
+      "value": "150"
     }
   ],
   "description": ""
 }
-
