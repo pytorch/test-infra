@@ -17,4 +17,4 @@ Write-Output "Installing conda packages for building and testing PyTorch"
 conda install -y numpy"<1.23" ninja pyyaml setuptools cmake cffi typing_extensions future six requests dataclasses boto3 libuv
 conda install -y -c conda-forge cmake=3.22.3
 # and setup_pytorch_env script
-conda install -y mkl protobuf numba scipy=1.6.2 typing_extensions dataclasses
+conda install -y mkl protobuf numba scipy=1.6.2 typing_extensions dataclasses conda==22.9.0

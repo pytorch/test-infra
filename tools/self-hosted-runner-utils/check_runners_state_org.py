@@ -38,7 +38,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--token",
-        required=True,
         help="Github token to pull from (Can also pass GITHUB_TOKEN as an env variable)",
         type=str,
         default=os.getenv("GITHUB_TOKEN", ""),

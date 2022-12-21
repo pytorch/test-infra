@@ -1,11 +1,12 @@
-from collections import defaultdict
 import datetime
-import re
-from torchci.scripts.github_analyze import GitCommit, GitRepo
 import json
 import os
-from typing import Dict, List, Optional
-from rockset import Client, ParamDict
+import re
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
+from rockset import Client, ParamDict  # type: ignore[import]
+from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
@@ -14,7 +15,7 @@ CLASSIFICATIONS = {
     "weird": "Weird",
     "ghfirst": "GHFirst",
     "manual": "Not through pytorchbot",
-    "unknown": "Got @pytorchbot revert command, but no corresponding commit"
+    "unknown": "Got @pytorchbot revert command, but no corresponding commit",
 }
 
 
@@ -28,7 +29,7 @@ def find_corresponding_gitlog_commit(
 
 
 def format_string_for_markdown_long(
-    commit: GitCommit, rockset_result: Optional[Dict[str, str]] = None
+    commit: Optional[GitCommit], rockset_result: Optional[Dict[str, str]] = None
 ) -> str:
     s = ""
     if commit is None:
@@ -41,12 +42,12 @@ def format_string_for_markdown_long(
     return s
 
 
-def get_start_stop_times():
+def get_start_stop_times() -> Tuple[str, str]:
     today = datetime.date.today()
-    start_time = today + datetime.timedelta(days=-today.weekday(), weeks=-1)
-    end_time = today + datetime.timedelta(days=-today.weekday())
-    start_time = f"{start_time}T00:13:30.000Z"
-    end_time = f"{end_time}T00:13:30.000Z"
+    start_time_date = today + datetime.timedelta(days=-today.weekday(), weeks=-1)
+    end_time_date = today + datetime.timedelta(days=-today.weekday())
+    start_time = f"{start_time_date}T00:13:30.000Z"
+    end_time = f"{end_time_date}T00:13:30.000Z"
     return start_time, end_time
 
 
@@ -73,11 +74,11 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
         version=prod_versions["commons"]["reverted_prs_with_reason"],
         workspace="commons",
     )
+    res: List[Dict[str, str]] = qlambda.execute(parameters=params).results
+    return res
 
-    return qlambda.execute(parameters=params).results
 
-
-def get_gitlog_reverts(start_time: str, end_time: str):
+def get_gitlog_reverts(start_time: str, end_time: str) -> List[GitCommit]:
     repo_path = "../pytorch"
     remote = "origin"
     repo = GitRepo(repo_path, remote)
@@ -92,14 +93,20 @@ def get_gitlog_reverts(start_time: str, end_time: str):
     ]
 
 
-def main():
+def main() -> None:
     start_time, end_time = get_start_stop_times()
     rockset_reverts = get_rockset_reverts(start_time, end_time)
     gitlog_reverts = get_gitlog_reverts(start_time, end_time)
-    classification_dict = defaultdict(lambda: [])
+    # map classification type -> list of (commit, rockset result)
+    classification_dict: Dict[
+        str, List[Tuple[Optional[str], Optional[Dict[str, str]]]]
+    ] = defaultdict(lambda: [])
 
     for rockset_revert in rockset_reverts:
-        pr_num = re.search(r"/(\d+)\#", rockset_revert["comment_url"]).group(1)
+        pr_num_match = re.search(r"/(\d+)\#", rockset_revert["comment_url"])
+        if pr_num_match is None:
+            continue
+        pr_num = pr_num_match.group(1)
         commit = find_corresponding_gitlog_commit(pr_num, gitlog_reverts)
         if commit is not None:
             classification_dict[rockset_revert["code"]].append((commit, rockset_revert))
@@ -112,7 +119,9 @@ def main():
     filename = f"{start_time.split('T')[0]}.md"
     with open(filename, "w") as f:
         num_reverts = sum([len(reverts) for reverts in classification_dict.values()])
-        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n")
+        f.write(
+            f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n"
+        )
         for classification, reverts in classification_dict.items():
             f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
