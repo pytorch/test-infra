@@ -107,6 +107,7 @@ export interface DisabledNonFlakyTestData {
 }
 
 export interface RecentWorkflowsData {
+  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
   workflow_id?: string;
   id: string;
   name: string;
