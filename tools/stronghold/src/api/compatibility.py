@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-import dataclasses
+from typing import List
 import difflib
 import pathlib
 import tempfile
@@ -67,7 +67,7 @@ def check(
     before_api = api.ast.extract(before)
     after_api = api.ast.extract(after)
 
-    violations = []
+    violations: List[api.violations.Violation] = []
     for name, before_def in before_api.items():
         if any(token.startswith('_') for token in name.split('.')):
             continue

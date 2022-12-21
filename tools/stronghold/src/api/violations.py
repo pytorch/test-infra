@@ -21,7 +21,8 @@ class Violation:
 class FunctionDeleted(Violation):
     """Represents a public function being deleted
 
-    Downstream users may rely on this public function, is it possible to create a shim in the interim?
+    Downstream users may rely on this public function, is it possible to create
+    a shim in the interim?
     """
 
     message: str = 'function deleted'
@@ -33,14 +34,14 @@ class FunctionDeleted(Violation):
 class VarArgsDeleted(Violation):
     """Represents when *varargs has been deleted"""
 
-    message: str = 'removed *varargs'
+    message: str = '*varargs was removed'
 
 
 @dataclass
 class KwArgsDeleted(Violation):
     """Represents when **kwargs has been deleted"""
 
-    message: str = 'removed **kawargs'
+    message: str = '**kwargs was removed'
 
 
 # ====================================
@@ -57,7 +58,7 @@ class ParameterRemoved(ParameterViolation):
 
     message: str = ''
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.message = f"{self.parameter} was removed"
 
 
@@ -67,17 +68,17 @@ class ParameterBecameRequired(ParameterViolation):
 
     message: str = ''
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.message = f'{self.parameter} became now required'
 
 
 @dataclass
 class ParameterNowRequired(ParameterViolation):
-    """Represents when a public function has a parameter that's been added and is now required"""
+    """Represents when a public function has a parameter is now required"""
 
     message: str = ''
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.message = f'{self.parameter} was added and is now required'
 
 
@@ -86,7 +87,8 @@ class ParameterReordered(Violation):
     """Represents when a public function has a parameter that's been removed
     message: str = ''
 
-    NOTE: This is not technically a ParameterViolation because no specific paramter name is needed
+    NOTE: This is not technically a ParameterViolation because no specific
+          paramter name is needed
     """
 
     message: str = "positional parameters were reordered"
@@ -101,5 +103,5 @@ class ParameterRenamed(ParameterViolation):
 
     message: str = ''
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.message = f'{self.parameter} was renamed to {self.parameter_after}'
