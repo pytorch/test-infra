@@ -1,11 +1,12 @@
-from collections import defaultdict
 import datetime
-import re
-from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 import json
 import os
+import re
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
+
 from rockset import Client, ParamDict  # type: ignore[import]
+from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
@@ -14,7 +15,7 @@ CLASSIFICATIONS = {
     "weird": "Weird",
     "ghfirst": "GHFirst",
     "manual": "Not through pytorchbot",
-    "unknown": "Got @pytorchbot revert command, but no corresponding commit"
+    "unknown": "Got @pytorchbot revert command, but no corresponding commit",
 }
 
 
@@ -28,8 +29,7 @@ def find_corresponding_gitlog_commit(
 
 
 def format_string_for_markdown_long(
-    commit: Optional[GitCommit],
-    rockset_result: Optional[Dict[str, str]] = None
+    commit: Optional[GitCommit], rockset_result: Optional[Dict[str, str]] = None
 ) -> str:
     s = ""
     if commit is None:
@@ -98,7 +98,9 @@ def main() -> None:
     rockset_reverts = get_rockset_reverts(start_time, end_time)
     gitlog_reverts = get_gitlog_reverts(start_time, end_time)
     # map classification type -> list of (commit, rockset result)
-    classification_dict: Dict[str, List[Tuple[Optional[str], Optional[Dict[str, str]]]]] = defaultdict(lambda: [])
+    classification_dict: Dict[
+        str, List[Tuple[Optional[str], Optional[Dict[str, str]]]]
+    ] = defaultdict(lambda: [])
 
     for rockset_revert in rockset_reverts:
         pr_num_match = re.search(r"/(\d+)\#", rockset_revert["comment_url"])
@@ -117,7 +119,9 @@ def main() -> None:
     filename = f"{start_time.split('T')[0]}.md"
     with open(filename, "w") as f:
         num_reverts = sum([len(reverts) for reverts in classification_dict.values()])
-        f.write(f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n")
+        f.write(
+            f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n"
+        )
         for classification, reverts in classification_dict.items():
             f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
