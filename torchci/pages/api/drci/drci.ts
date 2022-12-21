@@ -261,7 +261,7 @@ export function getWorkflowJobsStatuses(
 export function reorganizeWorkflows(
   recentWorkflows: RecentWorkflowsData[]
 ): Map<number, PRandJobs> {
-  const workflowsByPR = new Map();
+  const workflowsByPR: Map<number, PRandJobs> = new Map();
 
   for (const workflow of recentWorkflows) {
     const pr_number = workflow.pr_number!;
@@ -270,14 +270,29 @@ export function reorganizeWorkflows(
         pr_number: pr_number,
         head_sha: workflow.head_sha,
         jobs: new Map(),
+        merge_base: "",
       });
     }
     const name = workflow.name!;
-    const existing_job = workflowsByPR.get(pr_number).jobs.get(name);
+    const existing_job = workflowsByPR.get(pr_number)?.jobs.get(name);
     if (!existing_job || existing_job.id < workflow.id!) {
       // if rerun, choose the job with the larger id as that is more recent
-      workflowsByPR.get(pr_number).jobs.set(name, workflow);
+      workflowsByPR.get(pr_number)!.jobs.set(name, workflow);
     }
+  }
+
+  // clean up the workflows - remove workflows that have jobs
+  for (const [, prInfo] of workflowsByPR) {
+    const workflowIds = Array.from(prInfo.jobs.values()).map(
+      (jobInfo: RecentWorkflowsData) => jobInfo.workflow_id
+    );
+    const newJobs: Map<string, RecentWorkflowsData> = new Map();
+    for (const [jobName, jobInfo] of prInfo.jobs) {
+      if (!workflowIds.includes(jobInfo.id)) {
+        newJobs.set(jobName, jobInfo);
+      }
+    }
+    prInfo.jobs = newJobs;
   }
   return workflowsByPR;
 }
