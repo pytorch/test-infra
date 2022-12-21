@@ -207,6 +207,20 @@ def test_removed_keyword_parameter_with_kwargs(tmp_path: pathlib.Path) -> None:
     assert api.compatibility.check(before, after) == []
 
 
+def test_create_forwarding_function(tmp_path: pathlib.Path) -> None:
+    def func(positional: int, /, flexible: int, *, keyword: int) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(*args: int, **kwargs: int) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
+
+
 def test_new_required_positional_parameter(tmp_path: pathlib.Path) -> None:
     def func() -> None:
         pass  # pragma: no cover
