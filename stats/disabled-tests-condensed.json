@@ -105,11 +105,6 @@
       "macos"
     ]
   ],
-  "test_aot_autograd_symbolic_exhaustive_nn_functional_feature_alpha_dropout_with_train_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
-    "86765",
-    "https://github.com/pytorch/pytorch/issues/86765",
-    []
-  ],
   "test_asgd (__main__.TestOptim)": [
     "86763",
     "https://github.com/pytorch/pytorch/issues/86763",
@@ -369,13 +364,6 @@
     "https://github.com/pytorch/pytorch/issues/80248",
     [
       "linux"
-    ]
-  ],
-  "test_cpu_gpu_parity_nn_ConvTranspose2d_cuda_complex64 (__main__.TestModuleCUDA)": [
-    "90756",
-    "https://github.com/pytorch/pytorch/issues/90756",
-    [
-      "rocm"
     ]
   ],
   "test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
@@ -677,13 +665,6 @@
     "https://github.com/pytorch/pytorch/issues/87157",
     [
       "linux"
-    ]
-  ],
-  "test_extract_gradients_from_module (__main__.TestIdentifyGradients)": [
-    "88865",
-    "https://github.com/pytorch/pytorch/issues/88865",
-    [
-      "rocm"
     ]
   ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
