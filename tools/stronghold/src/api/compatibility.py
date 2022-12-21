@@ -184,7 +184,7 @@ def _check_by_position(
         if tag == 'delete':
             param = before_params[i1]
             assert param.positional
-            if not before.variadic_args or (param.keyword and not before.variadic_kwargs):
+            if not after.variadic_args or (param.keyword and not after.variadic_kwargs):
                 yield Violation(
                     func,
                     f'{before_params[i1].name} was removed',
