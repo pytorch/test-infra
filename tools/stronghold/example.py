@@ -58,7 +58,6 @@ def remove_varargs(
     a: int,
     /,
     b: int,
-    *args: int,
     c: int,
     **kwds: int,
 ) -> None:
@@ -71,7 +70,6 @@ def remove_kwds(
     b: int,
     *args: int,
     c: int,
-    **kwds: int,
 ) -> None:
     pass
 
