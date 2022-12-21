@@ -164,11 +164,11 @@ where
     j.torchci_classification is null
     and w.head_branch = 'master'
     and j.conclusion in ('failure', 'cancelled')
-    and j._event_time > CURRENT_DATETIME() - HOURS(12)
+    and j.completed_at > CURRENT_DATETIME() - INTERVAL 10 MINUTE
     and j.name != 'ciflow_should_run'
     and j.name != 'generate-test-matrix'
-    and w.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
-    and w.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+    and w.event != 'workflow_run'
+    and w.event != 'repository_dispatch'
     and w.repository.full_name = 'pytorch/pytorch'
 `,
   },
