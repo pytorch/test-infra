@@ -209,6 +209,6 @@ def remove_keyword_parameter_with_kwargs(
 
 def remove_flexible_parameter_with_varargs_and_kwargs(
     *args: int,
-    **kwds: int,
+    **kwds: str,
 ) -> None:
     pass
