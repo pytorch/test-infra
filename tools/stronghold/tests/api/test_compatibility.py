@@ -114,7 +114,9 @@ def test_new_renamed_positional_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.ParameterRenamed(func=func.__name__, parameter="x", parameter_after="y", line=1)
+        api.violations.ParameterRenamed(
+            func=func.__name__, parameter="x", parameter_after="y", line=1
+        )
     ]
 
 
@@ -268,7 +270,9 @@ def test_positional_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.ParameterBecameRequired(func=func.__name__, parameter="x", line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
@@ -284,7 +288,9 @@ def test_flexible_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.ParameterBecameRequired(func=func.__name__, parameter="x", line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
@@ -300,7 +306,9 @@ def test_keyword_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.ParameterBecameRequired(func=func.__name__, parameter="x", line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
