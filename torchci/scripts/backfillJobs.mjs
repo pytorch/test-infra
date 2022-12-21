@@ -149,3 +149,35 @@ for (const id of ids) {
   );
 }
 console.log("::endgroup::");
+
+console.log("::group::Backfill unclassified logs");
+const unclassifiedJobs = await client.queries.query({
+  sql: {
+    query: `
+  select
+    j.id,
+FROM
+    commons.workflow_job j
+    join commons.workflow_run w on w.id = j.run_id
+where
+    j.torchci_classification is null
+    and w.head_branch = 'master'
+    and j.conclusion in ('failure', 'cancelled')
+    and j._event_time > CURRENT_DATETIME() - HOURS(12)
+    and j.name != 'ciflow_should_run'
+    AND j.name != 'generate-test-matrix'
+    AND w.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
+    AND w.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+    AND w.repository.full_name = 'pytorch/pytorch'
+`,
+  },
+});
+const xhr = new XMLHttpRequest();
+for (const job of unclassifiedJobs) {
+  xhr.open(
+    "POST",
+    `https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id=${job.id}`
+  );
+  console.log(xhr.responseText)
+}
+console.log("::endgroup");
