@@ -69,7 +69,7 @@ describe("retry-bot", () => {
     handleScope(scope);
   });
 
-  test("rerun all if lint", async () => {
+  test("rerun lint if no nonretryable step failed", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "Lint";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -88,6 +88,29 @@ describe("retry-bot", () => {
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
       .reply(200);
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("don't rerun lint if nonretryable step failed", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "Lint";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    workflow_jobs.jobs[3].conclusion = "failure";
+    workflow_jobs.jobs[3].steps[0].name = "Do the lints (nonretryable)"
+    workflow_jobs.jobs[3].steps[0].conclusion = "failure"
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+    
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
 
     await probot.receive(event);
     handleScope(scope);
