@@ -16,6 +16,10 @@ function retryBot(app: Probot): void {
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
+      (
+        ctx.payload.workflow_run.conclusion === "cancelled" &&
+        ctx.payload.workflow_run.head_branch !== "master"
+      ) ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
@@ -67,8 +71,12 @@ function retryBot(app: Probot): void {
     }
 
     const shouldRetry = failedJobs.filter((job) => {
-      // if the job was cancelled, it was probably an infra error, so rerun
-      if (job.conclusion === "cancelled") {
+      // If the job was cancelled on master, it was probably an infra error, so rerun.
+      // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
+      // Would be good to fine tune this further for non-master branches to differentiate between.
+      // retryable and nonretryable cancellations
+      if (job.conclusion === "cancelled" &&
+          ctx.payload.workflow_run.head_branch === "master") {
         return true;
       }
 
