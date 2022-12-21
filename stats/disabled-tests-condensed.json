@@ -1392,13 +1392,6 @@
       "mac"
     ]
   ],
-  "test_rmsprop (__main__.TestOptim)": [
-    "86433",
-    "https://github.com/pytorch/pytorch/issues/86433",
-    [
-      "dynamo"
-    ]
-  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
