@@ -1160,13 +1160,6 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
-  "test_new_empty (__main__.TestSymbolicTracing)": [
-    "83408",
-    "https://github.com/pytorch/pytorch/issues/83408",
-    [
-      "linux"
-    ]
-  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
@@ -1227,13 +1220,6 @@
   "test_pickle_cuda_float64 (__main__.TestSparseCUDA)": [
     "89296",
     "https://github.com/pytorch/pytorch/issues/89296",
-    [
-      "linux"
-    ]
-  ],
-  "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86637",
-    "https://github.com/pytorch/pytorch/issues/86637",
     [
       "linux"
     ]
@@ -1327,11 +1313,6 @@
     "https://github.com/pytorch/pytorch/issues/66893",
     []
   ],
-  "test_proper_exit (__main__.TestDataLoader)": [
-    "70517",
-    "https://github.com/pytorch/pytorch/issues/70517",
-    []
-  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
@@ -1350,13 +1331,6 @@
     "32644",
     "https://github.com/pytorch/pytorch/issues/32644",
     []
-  ],
-  "test_radam (__main__.TestOptim)": [
-    "86389",
-    "https://github.com/pytorch/pytorch/issues/86389",
-    [
-      "dynamo"
-    ]
   ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "70516",
@@ -1436,13 +1410,6 @@
     "https://github.com/pytorch/pytorch/issues/77345",
     [
       "linux"
-    ]
-  ],
-  "test_sparse_add_cuda_complex128 (__main__.TestSparseCSRCUDA)": [
-    "86388",
-    "https://github.com/pytorch/pytorch/issues/86388",
-    [
-      "rocm"
     ]
   ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
