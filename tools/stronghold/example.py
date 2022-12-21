@@ -2,6 +2,7 @@
 
 
 def parameter_added_with_lots_of_parameters(
+    a: str,
     b: int,
     c: int,
     d: int,
@@ -20,13 +21,7 @@ def parameter_added_with_lots_of_parameters(
     pass
 
 
-def removed_function() -> None:
-    pass
-
-
 def remove_positional_parameter(
-    a: int,
-    /,
     b: int,
     c: int = 0,
     *args: int,
@@ -83,6 +78,7 @@ def remove_kwds(
 
 def add_positional_parameter(
     a: int,
+    new_param: int,
     /,
     b: int,
     c: int = 0,
@@ -96,6 +92,7 @@ def add_positional_parameter(
 
 def add_positional_parameter_with_default(
     a: int,
+    new_param: int = 0,
     /,
     b: int = 0,
     c: int = 0,
@@ -111,6 +108,7 @@ def add_flexible_parameter(
     a: int,
     /,
     b: int,
+    new_param: int,
     c: int = 0,
     *args: int,
     d: int,
@@ -196,23 +194,31 @@ def complex(
 
 
 def remove_positional_parameter_with_varargs(
-    a: int,
-    /,
     *args: int,
 ) -> None:
     pass
 
 
+<<<<<<< dest:   bb298b9fcf8f - mikeyd: add functions to test API compatibilit...
+=======
+def remove_varargs(
+) -> None:
+    pass
+
+
+def remove_kwargs(
+) -> None:
+    pass
+
+
+>>>>>>> source: 6da7f9fb7ffe - mikeyd: violate API compatibility checks
 def remove_keyword_parameter_with_kwargs(
-    *,
-    a: int,
     **kwds: int,
 ) -> None:
     pass
 
 
 def remove_flexible_parameter_with_varargs_and_kwargs(
-    a: int,
     *args: int,
     **kwds: int,
 ) -> None:
@@ -220,13 +226,13 @@ def remove_flexible_parameter_with_varargs_and_kwargs(
 
 
 def rename_parameter(
-    a: int,
+    b: int,
 ) -> None:
     pass
 
 
 def reorder_parameters(
-    a: int,
     b: int,
+    a: int,
 ) -> None:
     pass
