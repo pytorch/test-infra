@@ -115,13 +115,14 @@ def _check_by_name(
     func: str, before: api.Parameters, after: api.Parameters
 ) -> Iterable[Violation]:
     """Checks for violations among the named parameters."""
-    for name, before_param in _keyword_only_parameters(before).items():
-        assert before_param.name == name
-        after_param = _keyword_only_parameters(after).get(name)
-        if after_param is None:
-            yield Violation(func, f'{name} was removed', line=after.line)
-            continue
-        assert after_param.name == name
+    if not after.variadic_kwargs:
+        for name, before_param in _keyword_only_parameters(before).items():
+            assert before_param.name == name
+            after_param = _keyword_only_parameters(after).get(name)
+            if after_param is None:
+                yield Violation(func, f'{name} was removed', line=after.line)
+                continue
+            assert after_param.name == name
 
     for name, after_param in _keyword_only_parameters(after).items():
         assert after_param.name == name
@@ -181,11 +182,14 @@ def _check_by_position(
                 )
             continue
         if tag == 'delete':
-            yield Violation(
-                func,
-                f'{before_params[i1].name} was removed',
-                line=after.line,
-            )
+            param = before_params[i1]
+            assert param.positional
+            if not before.variadic_args or (param.keyword and not before.variadic_kwargs):
+                yield Violation(
+                    func,
+                    f'{before_params[i1].name} was removed',
+                    line=after.line,
+                )
 
     # TODO support renaming parameters.
     # Positional parameters may be renamed, but may not be
