@@ -50,4 +50,5 @@ def run() -> None:
     for file, file_violations in violations.items():
         for violation in file_violations:
             print(api.github.render_violation(level, file, violation), file=sys.stderr)
+            print(level, file, violation, file=sys.stderr)
     sys.exit(not suppressed)
