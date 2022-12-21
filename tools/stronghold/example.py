@@ -21,6 +21,7 @@ def parameter_added_with_lots_of_parameters(
     pass
 
 
+
 def remove_positional_parameter(
     b: int,
     c: int = 0,
@@ -219,5 +220,15 @@ def rename_parameter(
 def reorder_parameters(
     b: int,
     a: int,
+) -> None:
+    pass
+
+
+def add_multiple_parameters(
+    a: int,
+    b: int,
+    /,
+    c: int,
+    d: int,
 ) -> None:
     pass
