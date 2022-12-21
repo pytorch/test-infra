@@ -133,13 +133,6 @@
       "linux"
     ]
   ],
-  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "86434",
-    "https://github.com/pytorch/pytorch/issues/86434",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -1399,14 +1392,6 @@
       "windows"
     ]
   ],
-  "test_reflection_pad2d (quantization.core.test_quantized_op.TestPadding)": [
-    "87052",
-    "https://github.com/pytorch/pytorch/issues/87052",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
@@ -1459,13 +1444,6 @@
     "61670",
     "https://github.com/pytorch/pytorch/issues/61670",
     []
-  ],
-  "test_slow_tasks (__main__.TestFunctionalAutogradBenchmark)": [
-    "77260",
-    "https://github.com/pytorch/pytorch/issues/77260",
-    [
-      "linux"
-    ]
   ],
   "test_smoke (__main__.TestCollectEnv)": [
     "77345",
