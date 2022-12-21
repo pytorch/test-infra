@@ -31,26 +31,56 @@ function CommitLink({ job }: { job: JobData }) {
 
 function FlakyJob({
   job,
+  similarJobs,
   classification,
 }: {
   job: JobData;
+  similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
   return (
     <div style={{ padding: "10px" }}>
       <li>
-        <JobSummary job={job} />
+        <JobSummary job={job} /> (failing {similarJobs.length} times)
         <div>
           <CommitLink job={job} />
           {" | "}
           <JobLinks job={job} />
         </div>
         <div>
-          <JobAnnotationToggle job={job} annotation={classification} />
+          <JobAnnotationToggle
+            job={job}
+            similarJobs={similarJobs}
+            annotation={classification}
+          />
         </div>
         <LogViewer job={job} />
       </li>
     </div>
+  );
+}
+
+function FlakyJobsByFailure({
+  jobs,
+  annotations,
+}: {
+  jobs: JobData[],
+  annotations: { [id: string]: { [key: string]: any } },
+}) {
+  // Select a random representative job in the group of similar jobs. Once
+  // this job is classified, the rest will be put into the same category
+  const job: JobData | undefined = _.sample(jobs);
+
+  if (job === undefined) {
+    return (<></>);
+  }
+
+  return (
+    <FlakyJob
+      job={job}
+      similarJobs={jobs}
+      classification={annotations?.[job.id!]?.["annotation"] ?? "null"}
+    />
   );
 }
 
@@ -107,15 +137,44 @@ function FlakyJobs({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const groupedJobs = _.groupBy(_.sortBy(allJobs, ["jobName"]), (job) => {
-    return annotations[job.id.toString()]
+  // Grouped by annotation then by job name
+  const groupedJobs: {
+    [annotation: string]: {
+      [name: string]: JobData[]
+    }
+  } = {};
+
+  // To clean up some variants in the failure message such as timestamp
+  const cleanupRegex = /\[.+\]|{.+}/g;
+
+  _.forEach(_.sortBy(allJobs, ["jobName"]), (job) => {
+    const annotation = annotations[job.id.toString()]
       ? annotations[job.id.toString()].annotation
       : "Not Annotated";
+    if (!(annotation in groupedJobs)) {
+      groupedJobs[annotation] = {};
+    }
+
+    // For simplicity, having same name, workflow, failure line are consider having
+    // the same failure
+    const jobName = job.jobName;
+    const workflowName = job.workflowName;
+
+    // The failure message might include some variants such as timestamp, so we need
+    // to clean that up
+    const failureLine = (job.failureLine ?? "").replace(cleanupRegex, "");
+
+    const failure = jobName + workflowName + failureLine;
+    if (!(failure in groupedJobs[annotation])) {
+      groupedJobs[annotation][failure] = []
+    }
+
+    groupedJobs[annotation][failure].push(job)
   });
 
   return (
     <>
-      {_.map(groupedJobs, (val, key) => (
+      {_.map(groupedJobs, (groupedJobsByFailure, key) => (
         <details open key={key}>
           <summary
             style={{
@@ -125,14 +184,13 @@ function FlakyJobs({
               fontWeight: "bold",
             }}
           >
-            {key} ({val.length})
+            {key} ({_.reduce(groupedJobsByFailure, (s, v) => { return s + v.length; }, 0)})
           </summary>
           <ul>
-            {val.map((job: any) => (
-              <FlakyJob
-                key={job.id}
-                job={job}
-                classification={annotations?.[job.id]?.["annotation"] ?? "null"}
+            {_.map(groupedJobsByFailure, (jobs, failure) => (
+              <FlakyJobsByFailure
+                jobs={jobs}
+                annotations={annotations}
               />
             ))}
           </ul>

@@ -15,10 +15,12 @@ export enum JobAnnotation {
 
 export default function JobAnnotationToggle({
   job,
+  similarJobs,
   annotation,
   repo = null,
 }: {
   job: JobData;
+  similarJobs?: JobData[] | null;
   annotation: JobAnnotation;
   repo?: string | null;
 }) {
@@ -35,6 +37,9 @@ export default function JobAnnotationToggle({
       `/api/job_annotation/${repo ?? job.repo}/${job.id}/${newState}`,
       {
         method: "POST",
+        // Also send over the list of similar jobs so that they can be annotated
+        // in one API call
+        body: JSON.stringify((similarJobs ?? []).map((job) => job.id)),
       }
     );
   }
