@@ -174,10 +174,10 @@ where
   },
 });
 for (const job of unclassifiedJobs.results) {
-  console.log(`Attempting to backfill log of ${job.id}`)
+  console.log(`Attempting to backfill log of ${job.id}`);
   const a = await request(
     `https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id=${job.id}`
   );
-  console.log(a)
+  console.log(a);
 }
 console.log("::endgroup");
