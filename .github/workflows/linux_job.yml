@@ -59,6 +59,10 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      uses-binary-build-matrix:
+        description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
+        default: false
+        type: boolean
 
 jobs:
   job:
@@ -120,6 +124,11 @@ jobs:
         with:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
+
+      - name: Initialize env vars from matrix
+        if: ${{ inputs.uses-binary-build-matrix }}
+        run: |
+          echo "Python version is: ${{ matrix.python_version }}"
 
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
