@@ -151,7 +151,7 @@ for (const id of ids) {
 }
 console.log("::endgroup::");
 
-console.log("::group::Backfill unclassified logs");
+console.log("::group::Backfill unclassified logs...");
 const unclassifiedJobs = await client.queries.query({
   sql: {
     query: `
@@ -164,7 +164,7 @@ where
     j.torchci_classification is null
     and w.head_branch = 'master'
     and j.conclusion in ('failure', 'cancelled')
-    and j.completed_at > CURRENT_DATETIME() - INTERVAL 10 MINUTE
+    and j.completed_at > CURRENT_DATETIME() - INTERVAL 15 MINUTE
     and j.name != 'ciflow_should_run'
     and j.name != 'generate-test-matrix'
     and w.event != 'workflow_run'
