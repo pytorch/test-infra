@@ -1218,11 +1218,6 @@
       "windows"
     ]
   ],
-  "test_profiler_seq_nr (__main__.TestAutograd)": [
-    "66893",
-    "https://github.com/pytorch/pytorch/issues/66893",
-    []
-  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
