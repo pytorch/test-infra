@@ -29,12 +29,11 @@ export default async function handler(
     return res.status(401).end();
   }
   const client = getDynamoClient();
-  const { jobId, repoOwner, repoName, annotation } = req.query;
+  const { repoOwner, repoName, annotation } = req.query;
 
   // The request body contains an optional list of similar failures. If the list
   // exists, the API will annotate all failures in the list with the same annotation
   const jobIds = JSON.parse(req.body) ?? [];
-  jobIds.push(jobId);
 
   const queries = jobIds.map((jobId: any) => {
     const dynamoKey = `${repoOwner}/${repoName}/${jobId}`;

@@ -24,6 +24,9 @@ export default function JobAnnotationToggle({
   annotation: JobAnnotation;
   repo?: string | null;
 }) {
+  const allJobs = (similarJobs ?? []);
+  allJobs.push(job);
+
   const [state, setState] = React.useState<JobAnnotation>(
     (annotation ?? "null") as JobAnnotation
   );
@@ -34,12 +37,12 @@ export default function JobAnnotationToggle({
   ) {
     setState(newState);
     await fetch(
-      `/api/job_annotation/${repo ?? job.repo}/${job.id}/${newState}`,
+      `/api/job_annotation/${repo ?? job.repo}/${newState}`,
       {
         method: "POST",
         // Also send over the list of similar jobs so that they can be annotated
         // in one API call
-        body: JSON.stringify((similarJobs ?? []).map((job) => job.id)),
+        body: JSON.stringify(allJobs.map((job) => job.id)),
       }
     );
   }
