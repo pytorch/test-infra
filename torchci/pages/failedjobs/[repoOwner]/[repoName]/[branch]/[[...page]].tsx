@@ -29,7 +29,7 @@ function CommitLink({ job }: { job: JobData }) {
   );
 }
 
-function SimilarFlakyJobs({
+function SimilarFailedJobs({
   job,
   similarJobs,
   classification,
@@ -54,7 +54,7 @@ function SimilarFlakyJobs({
         <code>Failing {similarJobs.length} times</code>
       </button>
       {showDetail && _.map(similarJobs, (job) => (
-        <FlakyJob
+        <FailedJob
           job={job}
           similarJobs={[]}
           classification={classification}
@@ -63,7 +63,7 @@ function SimilarFlakyJobs({
   );
 }
 
-function FlakyJob({
+function FailedJob({
   job,
   similarJobs,
   classification,
@@ -93,7 +93,7 @@ function FlakyJob({
         <LogViewer job={job} />
         {
           hasSimilarJobs &&
-          <SimilarFlakyJobs
+          <SimilarFailedJobs
             job={job}
             similarJobs={similarJobs}
             classification={classification}
@@ -104,7 +104,7 @@ function FlakyJob({
   );
 }
 
-function FlakyJobsByFailure({
+function FailedJobsByFailure({
   jobs,
   annotations,
 }: {
@@ -120,7 +120,7 @@ function FlakyJobsByFailure({
   }
 
   return (
-    <FlakyJob
+    <FailedJob
       job={job}
       similarJobs={jobs}
       classification={annotations?.[job.id!]?.["annotation"] ?? "null"}
@@ -128,7 +128,7 @@ function FlakyJobsByFailure({
   );
 }
 
-function FlakyJobs({
+function FailedJobs({
   queryParams,
   repoName,
   repoOwner,
@@ -168,9 +168,6 @@ function FlakyJobs({
     }
   } = {};
 
-  // To clean up some variants in the failure message such as timestamp
-  const cleanupRegex = /\[.+\]|{.+}/g;
-
   _.forEach(_.sortBy(failedJobs, ["jobName"]), (job) => {
     const annotation = annotations[job.id.toString()]
       ? annotations[job.id.toString()].annotation
@@ -186,9 +183,9 @@ function FlakyJobs({
 
     // The failure message might include some variants such as timestamp, so we need
     // to clean that up
-    const failureLine = (job.failureLine ?? "").replace(cleanupRegex, "");
+    const failureCaptures = (job.failureCaptures ?? "");
 
-    const failure = jobName + workflowName + failureLine;
+    const failure = jobName + workflowName + failureCaptures;
     if (!(failure in groupedJobs[annotation])) {
       groupedJobs[annotation][failure] = []
     }
@@ -212,7 +209,7 @@ function FlakyJobs({
           </summary>
           <ul>
             {_.map(groupedJobsByFailure, (jobs, failure) => (
-              <FlakyJobsByFailure
+              <FailedJobsByFailure
                 jobs={jobs}
                 annotations={annotations}
               />
@@ -272,7 +269,7 @@ export default function Page() {
         />
       </Stack>
 
-      <FlakyJobs
+      <FailedJobs
         queryParams={queryParams}
         repoName={repoName as string}
         repoOwner={repoOwner as string}

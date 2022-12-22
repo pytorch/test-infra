@@ -75,7 +75,7 @@ function NavBar() {
               </Link>
             </li>
             <li>
-              <Link prefetch={false} href="/flakyjobs/pytorch/pytorch/master">
+              <Link prefetch={false} href="/failedjobs/pytorch/pytorch/master">
                 Failures Classfier
               </Link>
             </li>
