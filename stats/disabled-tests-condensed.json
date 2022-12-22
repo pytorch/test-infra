@@ -278,13 +278,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_addmv_cuda_float64 (__main__.TestDecompCUDA)": [
-    "86867",
-    "https://github.com/pytorch/pytorch/issues/86867",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_column_stack_cpu_bfloat16 (__main__.TestDecompCPU)": [
     "84191",
     "https://github.com/pytorch/pytorch/issues/84191",
@@ -1278,6 +1271,13 @@
     "https://github.com/pytorch/pytorch/issues/73474",
     [
       "macos"
+    ]
+  ],
+  "test_python_ref_executor__refs_le_executor_nvfuser_cuda_int32 (__main__.TestCommonCUDA)": [
+    "91296",
+    "https://github.com/pytorch/pytorch/issues/91296",
+    [
+      "linux"
     ]
   ],
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
