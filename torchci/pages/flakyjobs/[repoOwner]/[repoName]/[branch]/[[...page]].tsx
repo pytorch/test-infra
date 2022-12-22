@@ -29,6 +29,40 @@ function CommitLink({ job }: { job: JobData }) {
   );
 }
 
+function SimilarFlakyJobs({
+  job,
+  similarJobs,
+  classification,
+}: {
+  job: JobData;
+  similarJobs: JobData[];
+  classification: JobAnnotation;
+}) {
+  const [showDetail, setShowDetail] = useState(false);
+
+  function handleClick() {
+    setShowDetail(!showDetail);
+  }
+
+  return (
+    <div>
+      <button
+        style={{ background: "none", cursor: "pointer" }}
+        onClick={handleClick}
+      >
+       {showDetail ? "▼ " : "▶ "}
+        <code>Failing {similarJobs.length} times</code>
+      </button>
+      {showDetail && _.map(similarJobs, (job) => (
+        <FlakyJob
+          job={job}
+          similarJobs={[]}
+          classification={classification}
+        />))}
+    </div>
+  );
+}
+
 function FlakyJob({
   job,
   similarJobs,
@@ -38,10 +72,12 @@ function FlakyJob({
   similarJobs: JobData[];
   classification: JobAnnotation;
 }) {
+  const hasSimilarJobs = similarJobs.length > 1;
+
   return (
     <div style={{ padding: "10px" }}>
-      <li>
-        <JobSummary job={job} /> (failing {similarJobs.length} times)
+      <li key={ job.id }>
+        <JobSummary job={job} />
         <div>
           <CommitLink job={job} />
           {" | "}
@@ -55,6 +91,14 @@ function FlakyJob({
           />
         </div>
         <LogViewer job={job} />
+        {
+          hasSimilarJobs &&
+          <SimilarFlakyJobs
+            job={job}
+            similarJobs={similarJobs}
+            classification={classification}
+          />
+        }
       </li>
     </div>
   );
@@ -93,49 +137,29 @@ function FlakyJobs({
   repoName: string;
   repoOwner: string;
 }) {
-  const url = `/api/query/commons/flaky_workflows_jobs?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
-
-  const { data: rerunJobs } = useSWR(url, fetcher, {
-    refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
-    revalidateOnFocus: false,
-  });
-
-  const { data: annotatedJobs } = useSWR(
-    `/api/query/commons/annotated_flaky_jobs?parameters=${encodeURIComponent(
+  // Note: querying the list of failed jobs here and send their IDs over to get
+  // their annotation is not a scalable solution because the list of failures
+  // could be longer than the browser-dependent URL-length limit. The workaround
+  // here is to send the query param over to another annotation API that will then
+  // make a query to Rockset to get the list of failed jobs itself and return the
+  // list to the caller here
+  const { data: failedJobsWithAnnotations } = useSWR(
+    `/api/job_annotation/${repoOwner}/${repoName}/failures/${encodeURIComponent(
       JSON.stringify(queryParams)
     )}`,
     fetcher,
     {
-      refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
+      refreshInterval: 30 * 60 * 1000, // refresh every 30 minutes
       revalidateOnFocus: false,
     }
   );
 
-  var allJobs = rerunJobs
-    ?.concat(annotatedJobs)
-    .reduce((map: any, job: JobData) => {
-      if (job && job.id) {
-        map[job.id] = job;
-      }
-      return map;
-    }, {});
-
-  const { data: annotations } = useSWR(
-    `/api/job_annotation/${repoOwner}/${repoName}/annotations/${encodeURIComponent(
-      JSON.stringify(Object.keys(allJobs ? allJobs : {}))
-    )}`,
-    fetcher,
-    {
-      refreshInterval: 30 * 60 * 1000, // refresh every 5 minutes
-      revalidateOnFocus: false,
-    }
-  );
-
-  if (allJobs === undefined || annotations === undefined) {
+  if (failedJobsWithAnnotations === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
+
+  const failedJobs = failedJobsWithAnnotations["failedJobs"] ?? [];
+  const annotations = failedJobsWithAnnotations["annotationsMap"] ?? {};
 
   // Grouped by annotation then by job name
   const groupedJobs: {
@@ -147,7 +171,7 @@ function FlakyJobs({
   // To clean up some variants in the failure message such as timestamp
   const cleanupRegex = /\[.+\]|{.+}/g;
 
-  _.forEach(_.sortBy(allJobs, ["jobName"]), (job) => {
+  _.forEach(_.sortBy(failedJobs, ["jobName"]), (job) => {
     const annotation = annotations[job.id.toString()]
       ? annotations[job.id.toString()].annotation
       : "Not Annotated";
@@ -227,13 +251,18 @@ export default function Page() {
       type: "string",
       value: `${branch}`,
     },
+    {
+      "name": "count",
+      "type": "int",
+      "value": "0",   // Set the count to 0 to query all failures
+    },
   ];
 
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          Flaky Jobs
+          Failures
         </Typography>
         <TimeRangePicker
           startTime={startTime}
