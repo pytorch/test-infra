@@ -80,10 +80,12 @@ jobs:
     strategy:
       matrix:
         python_version: ["3.7", "3.8", "3.9", "3.10"]
+
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      uses-binary-build-matrix: true
       script: |
         set -x
         PYTHON_VERSION="${{ matrix.python_version }}"
