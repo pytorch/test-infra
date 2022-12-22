@@ -88,7 +88,7 @@ class ParameterReordered(Violation):
     message: str = ''
 
     NOTE: This is not technically a ParameterViolation because no specific
-          paramter name is needed
+          parameter name is needed
     """
 
     message: str = "positional parameters were reordered"
