@@ -288,14 +288,6 @@
       "windows"
     ]
   ],
-  "test_comprehensive_diagflat_cpu_float16 (__main__.TestDecompCPU)": [
-    "87671",
-    "https://github.com/pytorch/pytorch/issues/87671",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
@@ -955,13 +947,6 @@
   "test_launch_user_script (__main__.TestDistributedLaunch)": [
     "79488",
     "https://github.com/pytorch/pytorch/issues/79488",
-    [
-      "linux"
-    ]
-  ],
-  "test_ldl_factor_cuda_complex128 (__main__.TestLinalgCUDA)": [
-    "77038",
-    "https://github.com/pytorch/pytorch/issues/77038",
     [
       "linux"
     ]
