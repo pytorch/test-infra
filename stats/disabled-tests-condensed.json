@@ -1415,13 +1415,6 @@
       "mac"
     ]
   ],
-  "test_terminate_signal (__main__.SpawnTest)": [
-    "73341",
-    "https://github.com/pytorch/pytorch/issues/73341",
-    [
-      "linux"
-    ]
-  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
