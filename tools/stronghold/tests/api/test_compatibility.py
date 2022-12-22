@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 import api.compatibility
+import api.violations
 
 from testing import git
 from testing import source
@@ -19,7 +20,7 @@ def test_deleted_function(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, lambda: None)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'function deleted', line=1)
+        api.violations.FunctionDeleted(func='func', line=1)
     ]
 
 
@@ -39,7 +40,7 @@ def test_renamed_function(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, rose_by_any_other_name)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('rose', 'function deleted', line=1)
+        api.violations.FunctionDeleted(func='rose', line=1)
     ]
 
 
@@ -53,7 +54,7 @@ def test_deleted_method(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, lambda: None)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('Class.func', 'function deleted', line=1)
+        api.violations.FunctionDeleted(func='Class.func', line=1)
     ]
 
 
@@ -69,7 +70,7 @@ def test_deleted_variadic_args(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'removed *varargs', line=1)
+        api.violations.VarArgsDeleted(func='func', line=1)
     ]
 
 
@@ -85,7 +86,7 @@ def test_deleted_variadic_kwargs(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'removed **kwargs', line=1)
+        api.violations.KwArgsDeleted(func='func', line=1)
     ]
 
 
@@ -113,7 +114,9 @@ def test_new_renamed_positional_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was renamed to y', line=1),
+        api.violations.ParameterRenamed(
+            func=func.__name__, parameter="x", parameter_after="y", line=1
+        )
     ]
 
 
@@ -129,7 +132,7 @@ def test_removed_positional_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was removed', line=1)
+        api.violations.ParameterRemoved(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -145,7 +148,7 @@ def test_removed_flexible_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was removed', line=1)
+        api.violations.ParameterRemoved(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -161,7 +164,7 @@ def test_removed_keyword_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was removed', line=1)
+        api.violations.ParameterRemoved(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -177,7 +180,7 @@ def test_new_required_positional_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was added and is required', line=1)
+        api.violations.ParameterNowRequired(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -193,7 +196,7 @@ def test_new_required_flexible_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was added and is required', line=1)
+        api.violations.ParameterNowRequired(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -209,7 +212,7 @@ def test_new_required_keyword_parameter(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x was added and is required', line=1)
+        api.violations.ParameterNowRequired(func=func.__name__, parameter="x", line=1)
     ]
 
 
@@ -267,7 +270,9 @@ def test_positional_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x became required', line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
@@ -283,7 +288,9 @@ def test_flexible_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x became required', line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
@@ -299,7 +306,9 @@ def test_keyword_parameter_becomes_required(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation('func', 'x became required', line=1)
+        api.violations.ParameterBecameRequired(
+            func=func.__name__, parameter="x", line=1
+        )
     ]
 
 
@@ -315,9 +324,7 @@ def test_positional_parameters_reordered(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation(
-            'func', 'positional parameters were reordered', line=1
-        ),
+        api.violations.ParameterReordered(func=func.__name__, line=1)
     ]
 
 
@@ -333,9 +340,7 @@ def test_flexible_parameters_reordered(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation(
-            'func', 'positional parameters were reordered', line=1
-        ),
+        api.violations.ParameterReordered(func=func.__name__, line=1)
     ]
 
 
@@ -409,11 +414,7 @@ def test_multiple_params(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, func)
 
     assert api.compatibility.check(before, after) == [
-        api.compatibility.Violation(
-            'func',
-            'a was added and is required',
-            line=2,
-        ),
+        api.violations.ParameterNowRequired(func=func.__name__, parameter="a", line=2)
     ]
 
 
@@ -461,6 +462,6 @@ def test_check_range(git_repo: api.git.Repository) -> None:
 
     assert violations == {
         pathlib.Path('module.py'): [
-            api.compatibility.Violation('will_be_deleted', 'function deleted', line=1)
+            api.violations.FunctionDeleted(func='will_be_deleted', line=1)
         ],
     }

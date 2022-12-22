@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-import dataclasses
 import difflib
 import pathlib
 import tempfile
@@ -11,11 +10,12 @@ import tempfile
 import api
 import api.ast
 import api.git
+import api.violations
 
 
 def check_range(
     repo: api.git.Repository, *, head: str, base: str
-) -> Mapping[pathlib.Path, Sequence[Violation]]:
+) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
     result = {}
     for file in repo.get_files_in_range(f'{base}..{head}'):
         # Someday, we'll want to customize the filters we use to
@@ -59,19 +59,21 @@ def check_range(
     return result
 
 
-def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
+def check(
+    before: pathlib.Path, after: pathlib.Path
+) -> Sequence[api.violations.Violation]:
     """Identifies API compatibility issues between two files."""
     before_api = api.ast.extract(before)
     after_api = api.ast.extract(after)
 
-    violations = []
+    violations: list[api.violations.Violation] = []
     for name, before_def in before_api.items():
         if any(token.startswith('_') for token in name.split('.')):
             continue
 
         after_def = after_api.get(name)
         if after_def is None:
-            violations.append(Violation(name, 'function deleted', line=1))
+            violations.append(api.violations.FunctionDeleted(func=name, line=1))
             continue
 
         # Let's refine some terminology. Parameters come in three flavors:
@@ -99,34 +101,26 @@ def check(before: pathlib.Path, after: pathlib.Path) -> Sequence[Violation]:
     return violations
 
 
-@dataclasses.dataclass
-class Violation:
-    """Represents an API violation."""
-
-    # The fully-qualified name of the function within the module.
-    func: str
-    # A description of the violation.
-    message: str
-    # Where the violation occurred.
-    line: int
-
-
 def _check_by_name(
     func: str, before: api.Parameters, after: api.Parameters
-) -> Iterable[Violation]:
+) -> Iterable[api.violations.Violation]:
     """Checks for violations among the named parameters."""
     for name, before_param in _keyword_only_parameters(before).items():
         assert before_param.name == name
         after_param = _keyword_only_parameters(after).get(name)
         if after_param is None:
-            yield Violation(func, f'{name} was removed', line=after.line)
+            yield api.violations.ParameterRemoved(
+                func=func, parameter=name, line=after.line
+            )
             continue
         assert after_param.name == name
 
     for name, after_param in _keyword_only_parameters(after).items():
         assert after_param.name == name
         if after_param.required and name not in _keyword_only_parameters(before):
-            yield Violation(func, f'{name} was added and is required', line=after.line)
+            yield api.violations.ParameterNowRequired(
+                func=func, parameter=name, line=after.line
+            )
 
 
 def _keyword_only_parameters(params: api.Parameters) -> Mapping[str, api.Parameter]:
@@ -140,7 +134,7 @@ def _keyword_only_parameters(params: api.Parameters) -> Mapping[str, api.Paramet
 
 def _check_by_position(
     func: str, before: api.Parameters, after: api.Parameters
-) -> Iterable[Violation]:
+) -> Iterable[api.violations.Violation]:
     """Checks for violations among the positional parameters."""
 
     before_params = [param for param in before.parameters if param.positional]
@@ -153,9 +147,8 @@ def _check_by_position(
         return
 
     if set(before_param_names) == set(after_param_names):
-        yield Violation(
-            func,
-            'positional parameters were reordered',
+        yield api.violations.ParameterReordered(
+            func=func,
             line=after.line,
         )
         return
@@ -165,25 +158,26 @@ def _check_by_position(
         if tag == 'equal':
             continue
         if tag == 'replace':
-            yield Violation(
-                func,
-                f'{before_param_names[i1]} was renamed to {after_param_names[j1]}',
+            yield api.violations.ParameterRenamed(
+                func=func,
+                parameter=before_param_names[i1],
+                parameter_after=after_param_names[j1],
                 line=after.line,
             )
             continue
         if tag == 'insert':
             after_param = after_params[j1]
             if after_param.required:
-                yield Violation(
-                    func,
-                    f'{after_param.name} was added and is required',
+                yield api.violations.ParameterNowRequired(
+                    func=func,
+                    parameter=after_param.name,
                     line=after_param.line,
                 )
             continue
         if tag == 'delete':
-            yield Violation(
-                func,
-                f'{before_params[i1].name} was removed',
+            yield api.violations.ParameterRemoved(
+                func=func,
+                parameter=before_params[i1].name,
                 line=after.line,
             )
 
@@ -198,7 +192,7 @@ def _check_by_position(
 
 def _check_by_requiredness(
     func: str, before: api.Parameters, after: api.Parameters
-) -> Iterable[Violation]:
+) -> Iterable[api.violations.Violation]:
     """Checks for parameters that were made required."""
     before_params = _parameters_by_name(before)
     after_params = _parameters_by_name(after)
@@ -210,8 +204,8 @@ def _check_by_requiredness(
         if after_param is None:
             continue
         if not before_param.required and after_param.required:
-            yield Violation(
-                func, f'{before_param.name} became required', line=after.line
+            yield api.violations.ParameterBecameRequired(
+                func=func, parameter=before_param.name, line=after.line
             )
 
 
@@ -222,9 +216,9 @@ def _parameters_by_name(params: api.Parameters) -> Mapping[str, api.Parameter]:
 
 def _check_variadic_parameters(
     func: str, before: api.Parameters, after: api.Parameters
-) -> Iterable[Violation]:
+) -> Iterable[api.violations.Violation]:
     """Checks that support for variadic parameters is not removed."""
     if before.variadic_args and not after.variadic_args:
-        yield Violation(func, 'removed *varargs', line=after.line)
+        yield api.violations.VarArgsDeleted(func=func, line=after.line)
     if before.variadic_kwargs and not after.variadic_kwargs:
-        yield Violation(func, 'removed **kwargs', line=after.line)
+        yield api.violations.KwArgsDeleted(func, line=after.line)
