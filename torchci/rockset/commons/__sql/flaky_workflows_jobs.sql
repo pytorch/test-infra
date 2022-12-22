@@ -16,7 +16,7 @@ with repeats as (
         j.name,
         w.name
     having
-        count(*) > 1
+        count(*) > :count
         and bool_or(
             j.conclusion in ('failure', 'cancelled', 'time_out')
         )
