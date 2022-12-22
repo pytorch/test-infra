@@ -15,6 +15,7 @@ jobs:
         job_type:
           - linux_job
     with:
+      binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
   test-windows:
@@ -25,6 +26,7 @@ jobs:
         job_type:
           - windows_job
     with:
+      binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
   test-macos:
@@ -35,5 +37,6 @@ jobs:
         job_type:
           - macos_job
     with:
+      binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1

@@ -59,10 +59,11 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
-      uses-binary-build-matrix:
+      binary-matrix:
         description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
-        default: false
-        type: boolean
+        required: false
+        default: ''
+        type: string
 
 jobs:
   job:
@@ -127,11 +128,15 @@ jobs:
 
       - name: Export matrix variables (if any)
         uses: ./test-infra/.github/actions/export-matrix-variables
+        if: ${{ inputs.binary-matrix != '' }}
+        with:
+          binary-matrix: ${{ inputs.binary-matrix }}
 
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
+          set -ex
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
@@ -145,7 +150,6 @@ jobs:
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
-            --env-file="${GITHUB_ENV}" \
             `# It is unknown why the container sees a different value for this.` \
             --env=GITHUB_STEP_SUMMARY \
             --cap-add=SYS_PTRACE \
