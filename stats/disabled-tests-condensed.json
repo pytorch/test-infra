@@ -55,13 +55,6 @@
       "linux"
     ]
   ],
-  "test_adamw (__main__.TestOptim)": [
-    "86435",
-    "https://github.com/pytorch/pytorch/issues/86435",
-    [
-      "dynamo"
-    ]
-  ],
   "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
     "81029",
     "https://github.com/pytorch/pytorch/issues/81029",
@@ -103,13 +96,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_asgd (__main__.TestOptim)": [
-    "86763",
-    "https://github.com/pytorch/pytorch/issues/86763",
-    [
-      "dynamo"
     ]
   ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
@@ -202,13 +188,6 @@
     "https://github.com/pytorch/pytorch/issues/81028",
     [
       "linux"
-    ]
-  ],
-  "test_broadcast_in_dim_cuda_float32 (__main__.TestPrimsCUDA)": [
-    "77237",
-    "https://github.com/pytorch/pytorch/issues/77237",
-    [
-      "rocm"
     ]
   ],
   "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
