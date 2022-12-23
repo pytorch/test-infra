@@ -222,13 +222,6 @@
     "https://github.com/pytorch/pytorch/issues/71349",
     []
   ],
-  "test_cnn_model_sum_cuda (__main__.TestExpandedWeightFunctionalCUDA)": [
-    "86498",
-    "https://github.com/pytorch/pytorch/issues/86498",
-    [
-      "rocm"
-    ]
-  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -236,35 +229,11 @@
       "dynamo"
     ]
   ],
-  "test_collect_callgrind (__main__.TestBenchmarkUtils)": [
-    "76932",
-    "https://github.com/pytorch/pytorch/issues/76932",
-    [
-      "linux"
-    ]
-  ],
   "test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)": [
     "78205",
     "https://github.com/pytorch/pytorch/issues/78205",
     [
       "rocm"
-    ]
-  ],
-  "test_comprehensive_addbmm_cuda_float16 (__main__.TestDecompCUDA)": [
-    "86865",
-    "https://github.com/pytorch/pytorch/issues/86865",
-    [
-      "rocm"
-    ]
-  ],
-  "test_comprehensive_column_stack_cpu_bfloat16 (__main__.TestDecompCPU)": [
-    "84191",
-    "https://github.com/pytorch/pytorch/issues/84191",
-    [
-      "mac",
-      "macos",
-      "win",
-      "windows"
     ]
   ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
@@ -589,20 +558,6 @@
       "linux"
     ]
   ],
-  "test_dlpack_conversion_with_streams_cuda_bfloat16 (__main__.TestTorchDlPackCUDA)": [
-    "86386",
-    "https://github.com/pytorch/pytorch/issues/86386",
-    [
-      "linux"
-    ]
-  ],
-  "test_dlpack_conversion_with_streams_cuda_complex64 (__main__.TestTorchDlPackCUDA)": [
-    "86778",
-    "https://github.com/pytorch/pytorch/issues/86778",
-    [
-      "linux"
-    ]
-  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
@@ -633,11 +588,6 @@
       "win",
       "windows"
     ]
-  ],
-  "test_fd_pool (__main__.TestMultiprocessing)": [
-    "69660",
-    "https://github.com/pytorch/pytorch/issues/69660",
-    []
   ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
@@ -944,13 +894,6 @@
       "linux"
     ]
   ],
-  "test_make_fx_exhaustive_nn_functional_ctc_loss_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "84019",
-    "https://github.com/pytorch/pytorch/issues/84019",
-    [
-      "macos"
-    ]
-  ],
   "test_masked_bmm (__main__.TestMatMul)": [
     "84586",
     "https://github.com/pytorch/pytorch/issues/84586",
@@ -1127,18 +1070,6 @@
       "linux"
     ]
   ],
-  "test_pickle_cuda_float64 (__main__.TestSparseCUDA)": [
-    "89296",
-    "https://github.com/pytorch/pytorch/issues/89296",
-    [
-      "linux"
-    ]
-  ],
-  "test_pointwise_op_fastpath__foreach_addcmul_cuda_uint8 (__main__.TestForeachCUDA)": [
-    "67723",
-    "https://github.com/pytorch/pytorch/issues/67723",
-    []
-  ],
   "test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)": [
     "77123",
     "https://github.com/pytorch/pytorch/issues/77123",
@@ -1195,13 +1126,6 @@
       "rocm"
     ]
   ],
-  "test_profiler_experimental_tree_with_memory_and_stack (__main__.TestProfilerTree)": [
-    "83228",
-    "https://github.com/pytorch/pytorch/issues/83228",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_experimental_tree_with_record_function (__main__.TestProfilerTree)": [
     "83246",
     "https://github.com/pytorch/pytorch/issues/83246",
@@ -1242,11 +1166,6 @@
   "test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)": [
     "32644",
     "https://github.com/pytorch/pytorch/issues/32644",
-    []
-  ],
-  "test_random_seed (__main__.TestDataLoaderUtils)": [
-    "70516",
-    "https://github.com/pytorch/pytorch/issues/70516",
     []
   ],
   "test_readall (test_zipfile.ZipfileTest)": [
@@ -1299,14 +1218,6 @@
       "linux"
     ]
   ],
-  "test_shuffle_batch_workers_prefetch (__main__.TestDataLoaderPersistentWorkers)": [
-    "83659",
-    "https://github.com/pytorch/pytorch/issues/83659",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_shuffle_iterdatapipe (__main__.TestFunctionalIterDataPipe)": [
     "74877",
     "https://github.com/pytorch/pytorch/issues/74877",
@@ -1336,13 +1247,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_success_first_then_exception (__main__.ForkTest)": [
-    "73340",
-    "https://github.com/pytorch/pytorch/issues/73340",
-    [
-      "linux"
     ]
   ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
@@ -1396,13 +1300,6 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
-    ]
-  ],
-  "test_vmap_exhaustive_linalg_ldl_solve_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
-    "85341",
-    "https://github.com/pytorch/pytorch/issues/85341",
-    [
-      "linux"
     ]
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
