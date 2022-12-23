@@ -162,13 +162,6 @@
       "mac"
     ]
   ],
-  "test_binary_ops (__main__.TestTensorExprFuser)": [
-    "86776",
-    "https://github.com/pytorch/pytorch/issues/86776",
-    [
-      "rocm"
-    ]
-  ],
   "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
     "68433",
     "https://github.com/pytorch/pytorch/issues/68433",
