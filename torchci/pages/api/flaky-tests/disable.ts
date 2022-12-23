@@ -15,12 +15,6 @@ const NUM_HOURS_ACROSS_JOBS = 72;
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
-// TODO: This is to gate the new feature to close disabled non-flaky tests automatically.
-// I don't want to run it to all applicable issues yet, instead trying to roll out this
-// to a smaller subset first to limit any potential bad UX. There will be another follow
-// up PR to remove this gate once everything is confirmed to be working
-const ROLLOUT_PERCENTAGE = 0.05;
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<void>
@@ -57,10 +51,7 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
   const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
 
   nonFlakyTests.forEach(async function (test) {
-    const rollout = Math.random();
-    if (rollout < ROLLOUT_PERCENTAGE) {
-      await handleNonFlakyTest(test, issues, octokit);
-    }
+    await handleNonFlakyTest(test, issues, octokit);
   })
 }
 
