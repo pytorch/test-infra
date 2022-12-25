@@ -1204,6 +1204,13 @@
       "mac"
     ]
   ],
+  "test_sharded_tensor_to_cpu (__main__.TestShardedTensorEnumerable)": [
+    "91381",
+    "https://github.com/pytorch/pytorch/issues/91381",
+    [
+      "linux"
+    ]
+  ],
   "test_shuffle (__main__.TestDataLoader2)": [
     "74390",
     "https://github.com/pytorch/pytorch/issues/74390",
