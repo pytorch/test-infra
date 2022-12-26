@@ -236,13 +236,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_linalg_pinv_singular_cuda_complex128 (__main__.TestDecompCUDA)": [
-    "80934",
-    "https://github.com/pytorch/pytorch/issues/80934",
-    [
-      "linux"
-    ]
-  ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
     "85012",
     "https://github.com/pytorch/pytorch/issues/85012",
@@ -253,13 +246,6 @@
   "test_compute_bucket_assignment_by_size_sparse_error_without_logger (__main__.TestDistBackendWithSpawn)": [
     "85339",
     "https://github.com/pytorch/pytorch/issues/85339",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "91143",
-    "https://github.com/pytorch/pytorch/issues/91143",
     [
       "linux"
     ]
@@ -1140,13 +1126,6 @@
     "https://github.com/pytorch/pytorch/issues/73474",
     [
       "macos"
-    ]
-  ],
-  "test_python_ref_executor__refs_le_executor_nvfuser_cuda_int32 (__main__.TestCommonCUDA)": [
-    "91296",
-    "https://github.com/pytorch/pytorch/issues/91296",
-    [
-      "linux"
     ]
   ],
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
