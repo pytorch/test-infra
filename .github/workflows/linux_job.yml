@@ -59,6 +59,11 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      binary-matrix:
+        description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
+        required: false
+        default: ''
+        type: string
 
 jobs:
   job:
@@ -121,10 +126,17 @@ jobs:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
 
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
+        if: ${{ inputs.binary-matrix != '' }}
+        with:
+          binary-matrix: ${{ inputs.binary-matrix }}
+
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
+          set -ex
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
