@@ -962,13 +962,6 @@
       "rocm"
     ]
   ],
-  "test_nccl_high_priority_stream (__main__.TestDistBackendWithSpawn)": [
-    "81022",
-    "https://github.com/pytorch/pytorch/issues/81022",
-    [
-      "linux"
-    ]
-  ],
   "test_nested (__main__.ForkTest)": [
     "67881",
     "https://github.com/pytorch/pytorch/issues/67881",
