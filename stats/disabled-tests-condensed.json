@@ -732,6 +732,15 @@
     "https://github.com/pytorch/pytorch/issues/71183",
     []
   ],
+  "test_fs_sharing (__main__.TestMultiprocessing)": [
+    "67002",
+    "https://github.com/pytorch/pytorch/issues/67002",
+    [
+      "windows",
+      "mac",
+      "linux"
+    ]
+  ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
     "84046",
     "https://github.com/pytorch/pytorch/issues/84046",
@@ -951,13 +960,6 @@
     "https://github.com/pytorch/pytorch/issues/68319",
     [
       "rocm"
-    ]
-  ],
-  "test_nccl_high_priority_stream (__main__.TestDistBackendWithSpawn)": [
-    "81022",
-    "https://github.com/pytorch/pytorch/issues/81022",
-    [
-      "linux"
     ]
   ],
   "test_nested (__main__.ForkTest)": [
