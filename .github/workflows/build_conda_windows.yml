@@ -82,7 +82,9 @@ jobs:
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
-          github-secret: ${{ github.token }}
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
