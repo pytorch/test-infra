@@ -7,11 +7,22 @@ async function readJSON(path) {
 }
 
 async function pushProdTag(client, workspace, queryName, version) {
-  console.log(`Tagging that ${workspace}.${queryName}:${version} as 'prod'`);
-  await client.queryLambdas.createQueryLambdaTag(workspace, queryName, {
-    version,
-    tag_name: "prod",
-  });
+  const currentRocksetVersion = await client.queryLambdas.getQueryLambdaTagVersion(
+    workspace,
+    queryName,
+    "prod"
+  );
+  if (currentRocksetVersion.data.version.version == version) {
+    console.log(
+      `${workspace}.${queryName}:${version} already tagged as 'prod'`
+    );
+  } else {
+    console.log(`Tagging that ${workspace}.${queryName}:${version} as 'prod'`);
+    await client.queryLambdas.createQueryLambdaTag(workspace, queryName, {
+      version,
+      tag_name: "prod",
+    });
+  }
 }
 
 const client = rockset.default(process.env.ROCKSET_API_KEY);
