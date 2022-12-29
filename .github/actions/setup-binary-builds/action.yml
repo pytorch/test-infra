@@ -65,7 +65,7 @@ runs:
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v2
         with:
-          miniconda-version: "latest"
+          miniconda-version: "22.11.1"
           python-version: 3.9
       - name: Clean conda environment
         shell: bash -l {0}
