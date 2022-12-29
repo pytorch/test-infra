@@ -95,11 +95,14 @@ jobs:
           github-secret: ${{ secrets.GITHUB_TOKEN }}
           activate-with-label: false
           instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
+      - name: Add Conda scripts to GitHub path
+        run: |
+          echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install torch dependency
         run: |
