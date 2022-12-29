@@ -217,13 +217,6 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_canonicalize_tensor_iterator (jit.test_tracer.TestTracer)": [
-    "91487",
-    "https://github.com/pytorch/pytorch/issues/91487",
-    [
-      "linux"
-    ]
-  ],
   "test_cat (test_jit.TestScript)": [
     "91491",
     "https://github.com/pytorch/pytorch/issues/91491",
@@ -302,13 +295,6 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
-    [
-      "linux"
-    ]
-  ],
-  "test_conv_dim_folding (jit.test_peephole.TestPeephole)": [
-    "91480",
-    "https://github.com/pytorch/pytorch/issues/91480",
     [
       "linux"
     ]
