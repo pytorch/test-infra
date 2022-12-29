@@ -17,11 +17,11 @@ async function pushProdTag(client, workspace, queryName, version) {
       `${workspace}.${queryName}:${version} already tagged as 'prod'`
     );
   } else {
-    console.log(`Tagging that ${workspace}.${queryName}:${version} as 'prod'`);
     await client.queryLambdas.createQueryLambdaTag(workspace, queryName, {
       version,
       tag_name: "prod",
     });
+    console.log(`Tagged that ${workspace}.${queryName}:${version} as 'prod'`);
   }
 }
 
