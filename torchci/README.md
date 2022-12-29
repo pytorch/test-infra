@@ -83,7 +83,7 @@ console.
 
 1. Edit the query on console.rockset.com.
 2. Save the query, creating a new version.
-3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`.
+3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`. (You can skip `<version>` if you want the latest version)
 4. Update `rockset/prodVersion.json` with the new version of the lambda.
 
 

@@ -44,15 +44,19 @@ const metadata = {
   default_parameters: qLambda.sql.default_parameters,
   description: qLambda.description ?? "",
 };
+
+const workspaceDir = `./rockset/${args.workspace}`
+
+await fs.mkdir(`${workspaceDir}/__sql`, { recursive: true });
 await fs.writeFile(
-  `./rockset/${args.workspace}/__sql/${args.query}.sql`,
+  `${workspaceDir}/__sql/${args.query}.sql`,
   sql,
   "utf8"
 );
 
 const metadaJson = JSON.stringify(metadata, null, 2);
 await fs.writeFile(
-  `./rockset/${args.workspace}/${args.query}.lambda.json`,
+  `${workspaceDir}/${args.query}.lambda.json`,
   metadaJson,
   "utf8"
 );
