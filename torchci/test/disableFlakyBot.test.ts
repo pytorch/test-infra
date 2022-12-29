@@ -156,7 +156,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -177,7 +177,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -211,7 +211,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -232,7 +232,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -326,7 +326,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -362,7 +362,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
-        updated_at: "2022-12-21T03:39:24Z",
+        updated_at: dayjs().toString(),
       },
     ];
 
