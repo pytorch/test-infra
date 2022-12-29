@@ -90,6 +90,13 @@
       "linux"
     ]
   ],
+  "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
+    "91486",
+    "https://github.com/pytorch/pytorch/issues/91486",
+    [
+      "linux"
+    ]
+  ],
   "test_aot_autograd_exhaustive_as_strided_scatter_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
     "85879",
     "https://github.com/pytorch/pytorch/issues/85879",
@@ -210,6 +217,20 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
+  "test_canonicalize_tensor_iterator (jit.test_tracer.TestTracer)": [
+    "91487",
+    "https://github.com/pytorch/pytorch/issues/91487",
+    [
+      "linux"
+    ]
+  ],
+  "test_cat (test_jit.TestScript)": [
+    "91491",
+    "https://github.com/pytorch/pytorch/issues/91491",
+    [
+      "linux"
+    ]
+  ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
     "71349",
     "https://github.com/pytorch/pytorch/issues/71349",
@@ -274,6 +295,13 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
+    [
+      "linux"
+    ]
+  ],
+  "test_conv_dim_folding (jit.test_peephole.TestPeephole)": [
+    "91480",
+    "https://github.com/pytorch/pytorch/issues/91480",
     [
       "linux"
     ]
@@ -886,6 +914,13 @@
       "mac"
     ]
   ],
+  "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
+    "91481",
+    "https://github.com/pytorch/pytorch/issues/91481",
+    [
+      "linux"
+    ]
+  ],
   "test_meta_linalg_ldl_factor_cuda (__main__.TestMetaCUDA)": [
     "77020",
     "https://github.com/pytorch/pytorch/issues/77020",
@@ -910,6 +945,13 @@
     "77026",
     "https://github.com/pytorch/pytorch/issues/77026",
     []
+  ],
+  "test_mm_batching (test_jit.TestScript)": [
+    "91496",
+    "https://github.com/pytorch/pytorch/issues/91496",
+    [
+      "linux"
+    ]
   ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
@@ -1029,9 +1071,30 @@
       "linux"
     ]
   ],
+  "test_optional_list (test_jit.TestScript)": [
+    "91484",
+    "https://github.com/pytorch/pytorch/issues/91484",
+    [
+      "linux"
+    ]
+  ],
+  "test_optional_tensor (test_jit.TestScript)": [
+    "91494",
+    "https://github.com/pytorch/pytorch/issues/91494",
+    [
+      "linux"
+    ]
+  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
+    [
+      "linux"
+    ]
+  ],
+  "test_partial_eval_stitching (jit.test_symbolic_shape_analysis.TestSymbolicShapeAnalysis)": [
+    "91479",
+    "https://github.com/pytorch/pytorch/issues/91479",
     [
       "linux"
     ]
@@ -1067,6 +1130,13 @@
   "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
     "84886",
     "https://github.com/pytorch/pytorch/issues/84886",
+    [
+      "linux"
+    ]
+  ],
+  "test_prim_grad_undefined (test_jit.TestScript)": [
+    "91493",
+    "https://github.com/pytorch/pytorch/issues/91493",
     [
       "linux"
     ]
@@ -1127,6 +1197,13 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
+  "test_rand (test_jit.TestScript)": [
+    "91495",
+    "https://github.com/pytorch/pytorch/issues/91495",
+    [
+      "linux"
+    ]
+  ],
   "test_readall (test_zipfile.ZipfileTest)": [
     "75406",
     "https://github.com/pytorch/pytorch/issues/75406",
@@ -1149,11 +1226,32 @@
       "windows"
     ]
   ],
+  "test_refinement_through_graph_stitching (jit.test_symbolic_shape_analysis.TestSymbolicShapeAnalysis)": [
+    "91478",
+    "https://github.com/pytorch/pytorch/issues/91478",
+    [
+      "linux"
+    ]
+  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_request_bailout (test_jit.TestScript)": [
+    "91490",
+    "https://github.com/pytorch/pytorch/issues/91490",
+    [
+      "linux"
+    ]
+  ],
+  "test_requires_grad_loop (test_jit.TestScript)": [
+    "91492",
+    "https://github.com/pytorch/pytorch/issues/91492",
+    [
+      "linux"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
@@ -1215,6 +1313,41 @@
       "win"
     ]
   ],
+  "test_stack (test_jit.TestScript)": [
+    "91483",
+    "https://github.com/pytorch/pytorch/issues/91483",
+    [
+      "linux"
+    ]
+  ],
+  "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
+    "91489",
+    "https://github.com/pytorch/pytorch/issues/91489",
+    [
+      "linux"
+    ]
+  ],
+  "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
+    "91488",
+    "https://github.com/pytorch/pytorch/issues/91488",
+    [
+      "linux"
+    ]
+  ],
+  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
+    "91482",
+    "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
+    ]
+  ],
+  "test_tensor_requires_grad (test_jit.TestScript)": [
+    "91497",
+    "https://github.com/pytorch/pytorch/issues/91497",
+    [
+      "linux"
+    ]
+  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
@@ -1228,6 +1361,13 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
+    ]
+  ],
+  "test_torch_tensor_dtype (test_jit.TestScript)": [
+    "91485",
+    "https://github.com/pytorch/pytorch/issues/91485",
+    [
+      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
