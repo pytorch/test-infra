@@ -125,7 +125,7 @@ jobs:
         run: |
           set -ex
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} python setup.py clean
+          ${CONDA_RUN} python3 setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
@@ -133,7 +133,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
-          ${CONDA_RUN} python setup.py bdist_wheel
+          ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Upload wheel to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
