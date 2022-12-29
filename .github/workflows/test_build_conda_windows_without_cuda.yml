@@ -44,7 +44,7 @@ jobs:
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_windows.yml
     with:
-      runner-type: windows-2019
+      runner-type: windows.4xlarge
       conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
       ref: nightly
