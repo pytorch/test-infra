@@ -47,3 +47,7 @@
 .flaky {
   color: lightgreen;
 }
+
+.warning {
+  color: lightpink;
+}

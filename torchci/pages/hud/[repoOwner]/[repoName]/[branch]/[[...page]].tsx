@@ -26,7 +26,7 @@ import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
 import useSWR from "swr";
-import { isFailedJob } from "lib/jobUtils";
+import { isFailedJob, isRerunDisabledTestsJob } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
 
 export function JobCell({
@@ -49,6 +49,7 @@ export function JobCell({
           conclusion={job.conclusion}
           failedPreviousRun={job.failedPreviousRun}
           classified={job.failureAnnotation != null}
+          warningOnly={isFailedJob(job) && isRerunDisabledTestsJob(job)}
         />
       </TooltipTarget>
     </td>
@@ -68,7 +69,6 @@ function HudRow({
   const params = packHudParams(router.query);
   const sha = rowData.sha;
 
-  const failedJobs = rowData.jobs.filter(isFailedJob);
   const { repoOwner, repoName } = router.query;
 
   return (
