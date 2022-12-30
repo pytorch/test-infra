@@ -156,6 +156,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -176,6 +177,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -209,6 +211,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -229,6 +232,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -322,6 +326,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -357,6 +362,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/pytorch/pytorch/issues/1",
         state: "closed" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().toString(),
       },
     ];
 
@@ -400,6 +406,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
+        updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING + 1, "hour").toString(),
       },
     ];
 
@@ -411,6 +418,40 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
     scope.done();
+  });
+
+  test("do not close non flaky test if it's manual updated recently", async () => {
+    const scope = nock("https://api.github.com")
+      .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+        const comment = JSON.stringify(body.body);
+        expect(comment).toContain(
+          "Another case of trunk flakiness has been found"
+        );
+        expect(comment).toContain("Please verify");
+        return true;
+      })
+      .reply(200, {});
+
+    const issues = [
+      {
+        number: 1,
+        title: "DISABLED test_a (__main__.suite_a)",
+        html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
+        state: "open" as "open" | "closed",
+        body: "random",
+        updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING - 1, "hour").toString(),
+      },
+    ];
+
+    await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
+    // Close the disabled issue if the test is not flaky anymore
+    await disableFlakyTestBot.handleNonFlakyTest(nonFlakyTestA, issues, octokit);
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+
   });
 });
 

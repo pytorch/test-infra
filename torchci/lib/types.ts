@@ -67,6 +67,7 @@ export interface IssueData {
   html_url: string;
   state: "open" | "closed";
   body: string;
+  updated_at: string;
 }
 
 export interface HudParams {
