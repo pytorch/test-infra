@@ -1,5 +1,5 @@
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, push._event_time)) AS bucket,
+    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, push._event_time)) AS bucket,
     COUNT(*) as num
 FROM
     push

@@ -22,8 +22,8 @@
     "test_insights_latest_runs": "aa6c15c6d52860b2"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "dd2bac0ff36ea47f",
-    "number_of_force_pushes_historical": "7f57dbe505878a81",
+    "num_reverts": "fd6e5a4fae7ef012",
+    "number_of_force_pushes_historical": "6a8bcb873ed6a08e",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "ff332d025976c103",
@@ -40,8 +40,8 @@
     "last_successful_workflow": "5d22927dd0b0956b",
     "log_captures_count": "9cbd496ad254c3de",
     "master_commit_red_avg": "a88bee94d93198ed",
-    "master_commit_red": "4c39daa3ac2f30e4",
-    "master_commit_red_percent": "65bc4585d9e42bb0",
+    "master_commit_red": "42759e92fb2e438c",
+    "master_commit_red_percent": "946385659785d80c",
     "master_jobs_red_avg": "e5cc28eb51fc9fe9",
     "master_jobs_red": "aa08fa7af455e1b9",
     "number_of_force_pushes": "7c12c25f00d85d5d",

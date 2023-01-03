@@ -69,7 +69,7 @@ with commit_overall_conclusion as (
 )
 SELECT
     FORMAT_TIMESTAMP(
-        '%m-%d-%y',
+        '%Y-%m-%d',
         DATE_TRUNC('hour', time),
         :timezone
     ) AS granularity_bucket,
