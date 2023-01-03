@@ -105,6 +105,11 @@
       "macos"
     ]
   ],
+  "test_aot_autograd_exhaustive_svd_lowrank_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
+    "91610",
+    "https://github.com/pytorch/pytorch/issues/91610",
+    []
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
