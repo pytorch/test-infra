@@ -55,7 +55,7 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
     await addMergeBaseCommits(octokit, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-    const flakyRules: FlakyRule[] = await fetchJSON(FLAKY_RULES_JSON) || [];
+    const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
     await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
