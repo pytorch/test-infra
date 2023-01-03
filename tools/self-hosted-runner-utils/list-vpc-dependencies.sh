@@ -1,5 +1,5 @@
 #!/bin/bash
-vpc="vpc-00f0efde003393c10"
+vpc="${1}"
 region="us-east-1"
 aws ec2 describe-internet-gateways --region $region --filters 'Name=attachment.vpc-id,Values='$vpc | grep InternetGatewayId
 aws ec2 describe-subnets --region $region --filters 'Name=vpc-id,Values='$vpc | grep SubnetId
@@ -15,4 +15,3 @@ aws ec2 describe-vpn-gateways --region $region --filters 'Name=attachment.vpc-id
 aws ec2 describe-network-interfaces --region $region --filters 'Name=vpc-id,Values='$vpc | grep NetworkInterfaceId
 aws ec2 describe-carrier-gateways --region $region --filters Name=vpc-id,Values=$vpc | grep CarrierGatewayId
 aws ec2 describe-local-gateway-route-table-vpc-associations --region $region --filters Name=vpc-id,Values=$vpc | grep LocalGatewayRouteTableVpcAssociationId
-
