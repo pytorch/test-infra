@@ -158,15 +158,12 @@ jobs:
           echo "$CONDA_OUTPUT_PATH"
           BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
           echo "$BINARY_NAME"
-          if [[ "${GPU_ARCH}" = "cpu" ]]; then
-            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
-          elif [[ "${GPU_ARCH}" = "cuda" && ("${DESIRED_CUDA}" = "cu116" || "${DESIRED_CUDA}" = "cu117") ]]; then
+          if [[ "${GPU_ARCH}" = "cuda" ]]; then
             ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia pytorch pytorch-cuda="${GPU_ARCH_VERSION}"
-          elif [[ "${GPU_ARCH}" = "cuda" ]]; then
-            conda install -v -y -c pytorch-"${CHANNEL}" pytorch cudatoolkit="${GPU_ARCH_VERSION}"
           else
             ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
           fi
+
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
               ${CONDA_RUN} conda install -y 'numpy>=1.11'
               ${CONDA_RUN} conda install pillow
