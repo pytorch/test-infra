@@ -161,7 +161,7 @@ jobs:
           if [[ "${GPU_ARCH}" = "cuda" ]]; then
             ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia pytorch pytorch-cuda="${GPU_ARCH_VERSION}"
           else
-            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch cpuonly
           fi
 
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
