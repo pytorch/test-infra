@@ -44,13 +44,13 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: macos-i386
+          s3-prefix: macos-i386/11.1.0
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   build-M1:
-    runs-on: macos-m1-13
+    runs-on: macos-m1-12
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -73,8 +73,12 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: macos-arm
+          s3-prefix: macos-arm/11.1.0
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
