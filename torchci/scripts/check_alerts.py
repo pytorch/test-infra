@@ -222,25 +222,18 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
     return issue
 
 
-def parse_failing_job_issue(body: str) -> List[str]:
-    '''
-    Get a list of jobs that is mentioned in the failing job issue
-    '''
-    jobs = []
-    regex_pattern = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
-    for line in body.splitlines():
-        match = re.match(regex_pattern, line.strip())
-        if match is not None:
-            jobs.append(match.group(1))
-    return jobs
-
-
 def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
     """
     Returns empty string if nothing signficant changed. Otherwise returns a
     short string meant for updating the issue.
     """
-    original_jobs = parse_failing_job_issue(original_body)
+    regex_pattern = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
+    original_jobs = []
+    for line in original_body.splitlines():
+        match = re.match(regex_pattern, line.strip())
+        if match is not None:
+            original_jobs.append(match.group(1))
+
     new_jobs = [job.job_name for job in jobs]
     stopped_failing_jobs = [job for job in original_jobs if job not in new_jobs]
     started_failing_jobs = [job for job in new_jobs if job not in original_jobs]
