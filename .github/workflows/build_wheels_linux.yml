@@ -183,7 +183,7 @@ jobs:
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
             # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl bucket-owner-full-control
           done
 
 concurrency:
