@@ -618,6 +618,7 @@ const ShowDurationContext = createContext<[boolean, (name: boolean) => void]>([
 export default function Page() {
   const router = useRouter();
   const params = packHudParams(router.query);
+  params.filter_reruns = true;
   const [jobFilter, setJobFilter] = useState<string | null>(null);
   const [jobHover, setJobHover] = useState<string | null>(null);
   const [showDurationInfo, setShowDurationInfo] = useState<boolean>(false);
