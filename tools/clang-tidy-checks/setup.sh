@@ -35,7 +35,11 @@ function check_requirements() {
   gcc --version
   python3 --version
   ninja --version
-  ld.lld --version
+  if [ "$(uname)" != "Darwin" ]; then
+    ld.lld --version
+  else
+    echo "ld.lld is no longer available on Darwin"
+  fi
   success
 }
 
@@ -44,7 +48,7 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-11.0.0 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-11.1.0 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
