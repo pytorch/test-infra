@@ -154,19 +154,39 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
-      - name: Upload package to conda
-        if: ${{ inputs.trigger-event == 'push' }}
-        working-directory: ${{ inputs.repository }}
+      - name: Run Primitive Smoke Tests
         env:
-          CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+          GPU_ARCH: ${{ matrix.gpu_arch_type }}
+          DESIRED_CUDA: ${{ matrix.desired_cuda }}
+          GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
         run: |
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
-          set -x
-          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
-          set ANACONDA_PATH
-          echo "$ANACONDA_PATH"
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          CONDA_OUTPUT_PATH="${{ inputs.repository }}/dist/win-64/"
+          echo "$CONDA_OUTPUT_PATH"
+          BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
+          echo "$BINARY_NAME"
+          if [[ "${GPU_ARCH}" = "cpu" ]]; then
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
+          elif [[ "${GPU_ARCH}" = "cuda" && ("${DESIRED_CUDA}" = "cu116" || "${DESIRED_CUDA}" = "cu117") ]]; then
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia pytorch pytorch-cuda="${GPU_ARCH_VERSION}"
+          elif [[ "${GPU_ARCH}" = "cuda" ]]; then
+            conda install -v -y -c pytorch-"${CHANNEL}" pytorch cudatoolkit="${GPU_ARCH_VERSION}"
+          else
+            ${CONDA_RUN} conda install -v -y -c pytorch-"${CHANNEL}" pytorch
+          fi
+          ${CONDA_RUN} conda install --offline "$BINARY_NAME"
+          if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
+            ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          else
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
+            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+            ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+          fi
+
+      # TODO: Figure out upload method to s3
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
