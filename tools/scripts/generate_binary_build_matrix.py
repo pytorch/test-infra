@@ -23,7 +23,7 @@ mod = sys.modules[__name__]
 FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
 CUDA_ACRHES_DICT = {
-    "nightly": ["11.6", "11.7"],
+    "nightly": ["11.6", "11.7", "11.8"],
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
