@@ -16,7 +16,7 @@ SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
-UPDATING_ALERT_COMMENT = "Updating alert"
+FAILED_JOB_PATTERN = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
 
 PENDING = "pending"
 NEUTRAL = "neutral"
@@ -227,10 +227,9 @@ def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
     Returns empty string if nothing signficant changed. Otherwise returns a
     short string meant for updating the issue.
     """
-    regex_pattern = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
     original_jobs = []
     for line in original_body.splitlines():
-        match = re.match(regex_pattern, line.strip())
+        match = re.match(FAILED_JOB_PATTERN, line.strip())
         if match is not None:
             original_jobs.append(match.group(1))
 
