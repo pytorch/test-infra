@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from email.policy import default
 from typing import Any, Dict, List, Tuple
+import re
 
 import requests
 
@@ -221,6 +222,45 @@ def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
     return issue
 
 
+def parse_failing_job_issue(body: str) -> List[str]:
+    '''
+    Get a list of jobs that is mentioned in the failing job issue
+    '''
+    jobs = []
+    regex_pattern = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
+    for line in body.splitlines():
+        match = re.match(regex_pattern, line.strip())
+        if match is not None:
+            jobs.append(match.group(1))
+    return jobs
+
+
+def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
+    """
+    Returns empty string if nothing signficant changed. Otherwise returns a
+    short string meant for updating the issue.
+    """
+    original_jobs = parse_failing_job_issue(original_body)
+    new_jobs = [job.job_name for job in jobs]
+    stopped_failing_jobs = [job for job in original_jobs if job not in new_jobs]
+    started_failing_jobs = [job for job in new_jobs if job not in original_jobs]
+
+    s = ''
+    if len(stopped_failing_jobs) > 0:
+        s += 'These jobs stopped failing:\n'
+        for job in stopped_failing_jobs:
+            s += f'* {job}\n'
+        s += "\n"
+    if len(started_failing_jobs) > 0:
+        s += 'These jobs started failing:\n'
+        for job in started_failing_jobs:
+            s += f'* {job}\n'
+    if s:
+        # funky string to make internal alert messaging have code blocks
+        return f"````\n```\n{s}\n```\n````"
+    return s
+
+
 def generate_no_flaky_tests_issue() -> Any:
     issue = {}
     issue[
@@ -235,7 +275,7 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def update_issue(issue: Dict, old_issue: Any) -> Dict:
+def update_issue(issue: Dict, old_issue: Any, update_comment: str) -> Dict:
     print("Updating issue", issue)
     r = requests.patch(
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
@@ -243,7 +283,7 @@ def update_issue(issue: Dict, old_issue: Any) -> Dict:
     r.raise_for_status()
     r = requests.post(
         f"https://api.github.com/repos/{REPO_OWNER}/{TEST_INFRA_REPO_NAME}/issues/{old_issue['number']}/comments",
-        data=json.dumps({"body": UPDATING_ALERT_COMMENT}),
+        data=json.dumps({"body": update_comment}),
         headers=headers,
     )
     r.raise_for_status()
@@ -354,7 +394,7 @@ def trunk_is_green(sha_grid: Any):
 
 
 # Creates Job Statuses which has the logic for if need to alert or if there's flaky jobs
-def classify_jobs(job_names: List[str], sha_grid: Any) -> Tuple[List[Any], List[Any]]:
+def classify_jobs(job_names: List[str], sha_grid: Any) -> Tuple[List[JobStatus], List[Any]]:
     job_data = map_job_data(job_names, sha_grid)
     job_statuses: list[JobStatus] = []
     for job in job_data:
@@ -410,17 +450,17 @@ def check_for_recurrently_failing_jobs_alert():
 
     # Find the existing alert for recurrently failing jobs (if any).
     # We're going to update the existing alert if possible instead of filing a new one.
-    existing_recurrent_job_failure_alert = None
+    existing_issue = None
     for alert in existing_alerts:
         if "Recurrently Failing Jobs on pytorch/pytorch master" in alert["title"]:
-            existing_recurrent_job_failure_alert = alert
+            existing_issue = alert
             break
-
     # Create a new alert if no alerts are active or edit the original one if there's a new update
-    if existing_recurrent_job_failure_alert:
-        new_issue = generate_failed_job_issue(jobs_to_alert_on)
-        if existing_recurrent_job_failure_alert["body"] != new_issue["body"]:
-            update_issue(new_issue, existing_recurrent_job_failure_alert)
+    if existing_issue:
+        update_comment = gen_update_comment(existing_issue['body'], jobs_to_alert_on)
+        if update_comment:
+            new_issue = generate_failed_job_issue(jobs_to_alert_on)
+            update_issue(new_issue, existing_issue, update_comment)
         else:
             print("No new updates. Not updating any alerts.")
     else:

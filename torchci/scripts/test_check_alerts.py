@@ -5,6 +5,7 @@ from unittest.mock import patch
 from check_alerts import (
     generate_no_flaky_tests_issue,
     handle_flaky_tests_alert,
+    gen_update_comment,
     JobStatus,
 )
 
@@ -63,6 +64,24 @@ class TestGitHubPR(TestCase):
     def test_disabled_alert(self) -> None:
         status = JobStatus(disabled_job_name, [{}] + [{}] + test_data)
         self.assertFalse(status.should_alert())
+
+    def test_update_comment_empty(self):
+        jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertFalse(update_comment)
+
+        jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertTrue("started failing" in update_comment)
+        self.assertTrue("job2" in update_comment)
+
+        jobs = [JobStatus("job1", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertTrue("stopped failing" in update_comment)
+        self.assertTrue("job2" in update_comment)
 
     def test_generate_no_flaky_tests_issue(self):
         issue = generate_no_flaky_tests_issue()
