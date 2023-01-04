@@ -189,7 +189,15 @@ function FailureInfo({
       </div>
       <h3>Failures ({totalCount} total)</h3>
       <ul>
-        {samples.map((sample) => (
+        {samples
+          // Keep the most recent samples on top
+          .sort(function(sampleA: JobData, sampleB: JobData) {
+            if (sampleA.time == sampleB.time) {
+              return 0 
+            }
+            return dayjs(sampleA.time).isBefore(dayjs(sampleB.time)) ? 1 : -1
+          })
+          .map((sample) => (
           <li key={sample.id}>
             <JobSummary job={sample} highlight={sample.branch ? highlighted.has(sample.branch) : false} />
             <div>

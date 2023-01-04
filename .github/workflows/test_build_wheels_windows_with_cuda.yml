@@ -1,10 +1,10 @@
-name: Test Build Windows Wheels
+name: Test Build Windows Wheels with CUDA
 
 on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_wheels_windows.yml
+      - .github/workflows/test_build_wheels_windows_with_cuda.yml
       - .github/workflows/build_wheels_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
       - tools/scripts/generate_binary_build_matrix.py
@@ -57,5 +57,5 @@ jobs:
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
-      runner-type: windows-2019
+      runner-type: windows.8xlarge.nvidia.gpu
       trigger-event: "${{ github.event_name }}"

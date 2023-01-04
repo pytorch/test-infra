@@ -1,0 +1,42 @@
+name: Test export-matrix-variables
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test-export-matrix-variables.yml
+      - .github/actions/export-matrix-variables/*
+
+jobs:
+  test-linux:
+    uses: ./.github/workflows/linux_job.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        job_type:
+          - linux_job
+    with:
+      binary-matrix: ${{ toJSON(matrix) }}
+      script: |
+        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
+  test-windows:
+    uses: ./.github/workflows/windows_job.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        job_type:
+          - windows_job
+    with:
+      binary-matrix: ${{ toJSON(matrix) }}
+      script: |
+        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
+  test-macos:
+    uses: ./.github/workflows/macos_job.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        job_type:
+          - macos_job
+    with:
+      binary-matrix: ${{ toJSON(matrix) }}
+      script: |
+        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1

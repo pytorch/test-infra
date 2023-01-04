@@ -1,5 +1,5 @@
 with any_red as (
-    SELECT 
+    SELECT
         time,
         sha,
         CAST(
@@ -66,7 +66,7 @@ with any_red as (
         time DESC
 )
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
     AVG(any_red) as red,
 from
     any_red

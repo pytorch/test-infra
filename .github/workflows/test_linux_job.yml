@@ -84,6 +84,7 @@ jobs:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      binary-matrix: ${{ toJSON(matrix) }}
       script: |
         set -x
         PYTHON_VERSION="${{ matrix.python_version }}"

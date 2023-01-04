@@ -12,6 +12,7 @@ import dayjs from "dayjs";
 
 const NUM_HOURS = 3;
 const NUM_HOURS_ACROSS_JOBS = 72;
+export const NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING = 24 * 14  // 2 weeks
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
@@ -143,10 +144,33 @@ export async function handleNonFlakyTest(
   }
 
   const matchingIssue = matchingIssues[0];
-  if (matchingIssue.state === "open") {
-    console.log(`Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky anymore after ${test.num_green} reruns`);
 
-    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without any failures`;
+  if (matchingIssue.state === "open") {
+    const updatedAt = dayjs(matchingIssue.updated_at);
+    const daysSinceLastUpdate: number = NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
+
+    // Only close the issue if the issue is not flaky and hasn't been updated in
+    // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
+    if (updatedAt.isBefore(dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour"))) {
+      console.log(
+        `Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky ` +
+        `anymore after ${test.num_green} reruns and hasn't been updated in ${daysSinceLastUpdate} ` +
+        `days from the current date ${dayjs()}`
+      );
+    }
+    else {
+      console.log(
+        `According to PyTorch flaky bot, issue ${matchingIssue.title} (${matchingIssue.html_url}) ` +
+        `is not flaky anymore after ${test.num_green} reruns. But the issue was last updated at ` +
+        `${updatedAt}, which was less than ${daysSinceLastUpdate} days from the current date ${dayjs()}. ` +
+        `So, the issue won't be closed yet`
+      );
+      return;
+    }
+
+    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
+      `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
+      `issue to re-disable the test if you think this is a false positive`;
     await octokit.rest.issues.createComment({
       owner,
       repo,

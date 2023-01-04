@@ -17,14 +17,17 @@ on:
       - '.github/workflows/clang-tidy-macos.yml'
 
 jobs:
-  build:
-    runs-on: macos-10.15
+  build-Intel:
+    runs-on: macos-12
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install dependencies
         run: |
           brew install ninja
+      - name: Set xcode version
+        run: |
+            echo "DEVELOPER_DIR=/Applications/Xcode_13.3.1.app/Contents/Developer" >> "${GITHUB_ENV}"
       - name: Build
         working-directory: ./tools/clang-tidy-checks
         run: |
@@ -41,8 +44,41 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: macos
+          s3-prefix: macos-i386/11.1.0
           s3-bucket: oss-clang-format
           path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  build-M1:
+    runs-on: macos-m1-12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          brew install ninja cmake
+      - name: Build
+        working-directory: ./tools/clang-tidy-checks
+        run: |
+          set -ex
+
+          # LLVM is installed on the machine, but the binaries are not on the path
+          PATH="$(brew --prefix llvm)/bin:$PATH"
+          export PATH
+
+          ./setup.sh
+      - uses: driazati/upload-artifact-s3@50adbe4ef0b6d9221df25c18c5fc528dfcb7c3f8
+        name: Publish binary
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          name: clang-tidy
+          if-no-files-found: error
+          s3-prefix: macos-arm/11.1.0
+          s3-bucket: oss-clang-format
+          path: tools/clang-tidy-checks/llvm-project/build/bin/clang-tidy
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true

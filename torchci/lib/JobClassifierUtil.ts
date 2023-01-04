@@ -116,6 +116,8 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
       return "X";
     case GroupedJobStatus.Flaky:
       return "F";
+    case GroupedJobStatus.WarningOnly:
+      return "W";
     default:
       return "U";
   }
