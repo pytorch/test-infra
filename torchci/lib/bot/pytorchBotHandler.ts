@@ -20,6 +20,11 @@ export interface PytorchbotParams {
   useReactions: boolean;
 }
 
+const PR_COMMENTED = 'commented'
+const PR_DISMISSED = 'dismissed'
+const PR_CHANGES_REQUESTED = 'changes_requested'
+const PR_APPROVED = 'approved'
+
 class PytorchBotHandler {
   ctx: any;
   useReactions: boolean;
@@ -142,19 +147,33 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async getApprovalStatus(): Promise<string> {
-    var res = await this.ctx.octokit.pulls.listReviews({
-      owner: this.owner,
-      repo: this.repo,
-      pull_number: this.prNum,
-    })
+    var reviews:PullRequestReview[] = []
+    const REVIEWS_PER_PAGE = 100
 
-    if (!res?.data?.length) {
+    var page = 1;
+    var gotAllPages = false
+    while (!gotAllPages) {
+      var res = await this.ctx.octokit.pulls.listReviews({
+        owner: this.owner,
+        repo: this.repo,
+        pull_number: this.prNum,
+        per_page: REVIEWS_PER_PAGE,
+        page: page
+      })
+      
+      if ((res?.data?.length ?? 0) < REVIEWS_PER_PAGE) {
+        gotAllPages = true
+      }
+
+      reviews = reviews.concat(res?.data ?? [])
+      page += 1
+    }
+
+    if (!reviews.length) {
       this.ctx.log("Could not find any reviews for PR")
       return "no_reviews";
     }
 
-    var reviews = res?.data
-        
     // From https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
     const ALLOWED_APPROVER_ASSOCIATIONS = [
       "COLLABORATOR",
@@ -167,7 +186,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // But first sort them in case Github ever returns the list unsorted
     var latest_reviews: { [user: string]: string } = reviews
       .sort((a: PullRequestReview, b: PullRequestReview) => {
-        Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
+         return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "") ? -1 : 1
       })
       .reduce((latest_reviews: { [user: string]: string }, curr_review: PullRequestReview) => {
         if (!ALLOWED_APPROVER_ASSOCIATIONS.includes(curr_review.author_association)) {
@@ -179,13 +198,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         // returns upper case. We can't trust that to remain that way, so always conver the state
         // to lowercase before any comparisons
         switch(curr_review.state.toLocaleLowerCase()) {
-          case 'commented': // Ignore mere comments
+          case PR_COMMENTED: // Ignore mere comments
             break; 
-          case 'dismissed': // Ignore previous reviews by this person
+          case PR_DISMISSED: // Ignore previous reviews by this person
             delete latest_reviews[curr_review.user.login]
             break;
-          case 'changes_requested': 
-          case 'approved':
+          case PR_CHANGES_REQUESTED:
+          case PR_APPROVED:
             latest_reviews[curr_review.user.login] = curr_review.state; 
             break;
           default:
@@ -196,10 +215,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }, {})
     
     // Aggregate the reviews to figure out the overall status.
-    // One approval is all that's needed, unless someone blocks it with a `changes_requested`
+    // One approval is all that's needed
     let approval_status = ""
     for (let [_, review_state] of Object.entries(latest_reviews)) {
-      if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
+      if (review_state.toLocaleLowerCase() ==  PR_APPROVED) {
         approval_status = review_state
       }
     }
@@ -227,12 +246,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     } else {
       // Ensure the PR has been signed off on
       let approval_status = await this.getApprovalStatus()
-      if (approval_status !== 'approved') {
-        if (approval_status === 'changes_requested') {
-          rejection_reason = "There are changes requested on this PR. Please address the request and either get a re-review from the person or dismiss their review."
-        } else {
-          rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
-        }
+      if (approval_status !== PR_APPROVED) {
+        rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
       }
     }
 

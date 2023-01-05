@@ -107,7 +107,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -328,7 +328,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
     await probot.receive(event);
 
@@ -699,7 +699,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -767,7 +767,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
     await probot.receive(event);
 
@@ -806,7 +806,7 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
     await probot.receive(event);
 
@@ -849,7 +849,7 @@ some other text lol
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
     await probot.receive(event);
     handleScope(scope);
@@ -923,7 +923,7 @@ some other text lol
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -966,7 +966,7 @@ some other text lol
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -1016,7 +1016,7 @@ some other text lol
         return true;
       })
       .reply(200, {})
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, requireDeepCopy("./fixtures/pull_request_reviews.json"));
 
     await probot.receive(event);
@@ -1129,19 +1129,20 @@ some other text lol
     handleScope(scope);
   });
 
-  test("Any rejected PR blocks the merge workflow", async () => {
+  test("A PR with only requested chagnes doesn't trigger the merge workflow", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     
     const pull_requests = requireDeepCopy("./fixtures/pull_request_reviews.json");
     pull_requests[0].state = "CHANGES_REQUESTED"
+    pull_requests[2].state = "CHANGES_REQUESTED"
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1153,11 +1154,53 @@ some other text lol
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "There are changes requested"
+          "This PR needs to be approved"
         );
         return true;
       })
       .reply(200);
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("An approval is prioritized over a PR rejection", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+    event.payload.comment.body = "@pytorchbot merge";
+    
+    const pull_requests = requireDeepCopy("./fixtures/pull_request_reviews.json");
+    pull_requests[0].state = "CHANGES_REQUESTED"
+    pull_requests[1].state = "APPROVED"
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
+      .reply(200, pull_requests)
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `"labels":["ciflow/trunk"]`
+        );
+        return true;
+      })
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+        );
+        return true;
+      })
+      .reply(200, {})
     await probot.receive(event);
 
     handleScope(scope);
@@ -1177,7 +1220,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1210,7 +1253,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
@@ -1246,7 +1289,7 @@ some other text lol
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
     const scope = nock("https://api.github.com")
-      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100&page=1`)
       .reply(200, pull_requests)
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
