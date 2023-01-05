@@ -77,6 +77,7 @@ export interface HudParams {
   page: number;
   per_page: number;
   nameFilter?: string;
+  filter_reruns: boolean;
 }
 
 export interface PRData {
@@ -137,6 +138,7 @@ export function packHudParams(input: any) {
     page: parseInt((input.page as string) ?? 1),
     per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
+    filter_reruns: input.filter_reruns ?? false as boolean,
   };
 }
 
@@ -164,6 +166,10 @@ function formatHudURL(
   }/${encodeURIComponent(params.branch)}/${params.page}`;
 
   base += `?per_page=${params.per_page}`;
+
+  if (params.filter_reruns) {
+    base += `&filter_reruns=true`
+  }
 
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;

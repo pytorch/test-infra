@@ -66,7 +66,10 @@ export default async function fetchHud(params: HudParams): Promise<{
   }));
 
   const commitsBySha = _.keyBy(commits, "sha");
-  const results = hudQuery.results;
+  let results = hudQuery.results;
+  if (params.filter_reruns) {
+    results = results?.filter((job: JobData) => !job.name?.includes("rerun_disabled_tests"));
+  }
 
   const namesSet: Set<string> = new Set();
   // Built a list of all the distinct job names.
