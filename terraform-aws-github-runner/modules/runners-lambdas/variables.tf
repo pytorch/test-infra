@@ -25,16 +25,6 @@ variable "subnet_vpc_ids" {
   default     = []
 }
 
-variable "overrides" {
-  description = "This maps provides the possibility to override some defaults. The following attributes are supported: `name_sg` overwrite the `Name` tag for all security groups created by this module. `name_runner_agent_instance` override the `Name` tag for the ec2 instance defined in the auto launch configuration. `name_docker_machine_runners` override the `Name` tag spot instances created by the runner agent."
-  type        = map(string)
-
-  default = {
-    name_runner = ""
-    name_sg     = ""
-  }
-}
-
 variable "tags" {
   description = "Map of tags that will be added to created resources. By default resources will be tagged with name and environment."
   type        = map(string)
@@ -50,12 +40,6 @@ variable "runner_extra_labels" {
 variable "environment" {
   description = "A name that identifies the environment, used as prefix and for tagging."
   type        = string
-}
-
-variable "s3_bucket_runner_binaries" {
-  type = object({
-    arn = string
-  })
 }
 
 variable "s3_location_runner_binaries_linux" {

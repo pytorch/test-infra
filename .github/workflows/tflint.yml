@@ -52,13 +52,23 @@ jobs:
       run: tflint --module
 
     - name: "Init TFLint runners"
-      working-directory: terraform-aws-github-runner/modules/runners
+      working-directory: terraform-aws-github-runner/modules/runners-lambdas
       run: tflint --init
     - name: "Init terraform runners"
-      working-directory: terraform-aws-github-runner/modules/runners
+      working-directory: terraform-aws-github-runner/modules/runners-lambdas
       run: terraform init
     - name: "Run TFLint runners"
-      working-directory: terraform-aws-github-runner/modules/runners
+      working-directory: terraform-aws-github-runner/modules/runners-lambdas
+      run: tflint --module
+
+    - name: "Init TFLint runners"
+      working-directory: terraform-aws-github-runner/modules/runners-instances
+      run: tflint --init
+    - name: "Init terraform runners"
+      working-directory: terraform-aws-github-runner/modules/runners-instances
+      run: terraform init
+    - name: "Run TFLint runners"
+      working-directory: terraform-aws-github-runner/modules/runners-instances
       run: tflint --module
 
     - name: "Init TFLint setup-iam-permissions"
