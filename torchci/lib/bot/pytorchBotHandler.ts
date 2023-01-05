@@ -141,7 +141,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return null;
   }
 
-  async doesHaveApprovedStatus() {
+  async getApprovalStatus(): Promise<string> {
     var res = await this.ctx.octokit.pulls.listReviews({
       owner: this.owner,
       repo: this.repo,
@@ -150,7 +150,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (!res?.data?.length) {
       this.ctx.log("Could not find any reviews for PR")
-      return false;
+      return "no_reviews";
     }
 
     var reviews = res?.data
@@ -204,9 +204,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }
     }
 
-    var result =  approval_status.toLocaleLowerCase() === 'approved'
-    console.debug(`Result was ${result}`)
-    return result;
+    return approval_status.toLocaleLowerCase();
   }
 
   async handleMerge(
@@ -228,9 +226,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
     } else {
       // Ensure the PR has been signed off on
-      let isApprovedPR = await this.doesHaveApprovedStatus()
-      if (!isApprovedPR) {
-        rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
+      let approval_status = await this.getApprovalStatus()
+      if (approval_status !== 'approved') {
+        if (approval_status === 'changes_requested') {
+          rejection_reason = "There are changes requested on this PR. Please address the request and either get a re-review from the person or dismiss their review."
+        } else {
+          rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
+        }
       }
     }
 

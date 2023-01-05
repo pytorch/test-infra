@@ -1153,7 +1153,7 @@ some other text lol
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "This PR needs to be approved"
+          "There are changes requested"
         );
         return true;
       })
