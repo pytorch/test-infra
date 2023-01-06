@@ -20,6 +20,11 @@ export interface PytorchbotParams {
   useReactions: boolean;
 }
 
+const PR_COMMENTED = 'commented'
+const PR_DISMISSED = 'dismissed'
+const PR_CHANGES_REQUESTED = 'changes_requested'
+const PR_APPROVED = 'approved'
+
 class PytorchBotHandler {
   ctx: any;
   useReactions: boolean;
@@ -141,20 +146,34 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return null;
   }
 
-  async doesHaveApprovedStatus() {
-    var res = await this.ctx.octokit.pulls.listReviews({
-      owner: this.owner,
-      repo: this.repo,
-      pull_number: this.prNum,
-    })
+  async getApprovalStatus(): Promise<string> {
+    var reviews:PullRequestReview[] = []
+    const REVIEWS_PER_PAGE = 100
 
-    if (!res?.data?.length) {
-      this.ctx.log("Could not find any reviews for PR")
-      return false;
+    var page = 1;
+    var gotAllPages = false
+    while (!gotAllPages) {
+      var res = await this.ctx.octokit.pulls.listReviews({
+        owner: this.owner,
+        repo: this.repo,
+        pull_number: this.prNum,
+        per_page: REVIEWS_PER_PAGE,
+        page: page
+      })
+      
+      if ((res?.data?.length ?? 0) < REVIEWS_PER_PAGE) {
+        gotAllPages = true
+      }
+
+      reviews = reviews.concat(res?.data ?? [])
+      page += 1
     }
 
-    var reviews = res?.data
-        
+    if (!reviews.length) {
+      this.ctx.log("Could not find any reviews for PR")
+      return "no_reviews";
+    }
+
     // From https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
     const ALLOWED_APPROVER_ASSOCIATIONS = [
       "COLLABORATOR",
@@ -167,7 +186,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // But first sort them in case Github ever returns the list unsorted
     var latest_reviews: { [user: string]: string } = reviews
       .sort((a: PullRequestReview, b: PullRequestReview) => {
-        Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
+         return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "") ? -1 : 1
       })
       .reduce((latest_reviews: { [user: string]: string }, curr_review: PullRequestReview) => {
         if (!ALLOWED_APPROVER_ASSOCIATIONS.includes(curr_review.author_association)) {
@@ -179,13 +198,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         // returns upper case. We can't trust that to remain that way, so always conver the state
         // to lowercase before any comparisons
         switch(curr_review.state.toLocaleLowerCase()) {
-          case 'commented': // Ignore mere comments
+          case PR_COMMENTED: // Ignore mere comments
             break; 
-          case 'dismissed': // Ignore previous reviews by this person
+          case PR_DISMISSED: // Ignore previous reviews by this person
             delete latest_reviews[curr_review.user.login]
             break;
-          case 'changes_requested': 
-          case 'approved':
+          case PR_CHANGES_REQUESTED:
+          case PR_APPROVED:
             latest_reviews[curr_review.user.login] = curr_review.state; 
             break;
           default:
@@ -196,17 +215,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }, {})
     
     // Aggregate the reviews to figure out the overall status.
-    // One approval is all that's needed, unless someone blocks it with a `changes_requested`
+    // One approval is all that's needed
     let approval_status = ""
     for (let [_, review_state] of Object.entries(latest_reviews)) {
-      if (approval_status.toLocaleLowerCase() !=  'changes_requested') {
+      if (review_state.toLocaleLowerCase() ==  PR_APPROVED) {
         approval_status = review_state
       }
     }
 
-    var result =  approval_status.toLocaleLowerCase() === 'approved'
-    console.debug(`Result was ${result}`)
-    return result;
+    return approval_status.toLocaleLowerCase();
   }
 
   async handleMerge(
@@ -228,8 +245,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
     } else {
       // Ensure the PR has been signed off on
-      let isApprovedPR = await this.doesHaveApprovedStatus()
-      if (!isApprovedPR) {
+      let approval_status = await this.getApprovalStatus()
+      if (approval_status !== PR_APPROVED) {
         rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
       }
     }
