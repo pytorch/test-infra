@@ -1,5 +1,6 @@
 import AWS from 'aws-sdk';
 import { Config } from '../config';
+import { expBackOff } from '../utils';
 import { KMS } from 'aws-sdk';
 import { Metrics } from '../metrics';
 
@@ -23,10 +24,8 @@ export async function decrypt(
   // this is so the linter understands that KMS is not undefined at this point :(
   const kmsD = kms;
 
-  const decripted = await metrics.trackRequest(
-    metrics.kmsDecryptAWSCallSuccess,
-    metrics.kmsDecryptAWSCallFailure,
-    () => {
+  const decripted = await expBackOff(() => {
+    return metrics.trackRequest(metrics.kmsDecryptAWSCallSuccess, metrics.kmsDecryptAWSCallFailure, () => {
       return kmsD
         .decrypt({
           CiphertextBlob: Buffer.from(encrypted, 'base64'),
@@ -36,8 +35,8 @@ export async function decrypt(
           },
         })
         .promise();
-    },
-  );
+    });
+  });
 
   /* istanbul ignore next */
   return decripted.Plaintext?.toString() ?? undefined;

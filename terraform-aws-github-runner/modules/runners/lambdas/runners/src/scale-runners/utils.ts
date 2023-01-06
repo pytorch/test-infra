@@ -1,3 +1,5 @@
+import { RequestError } from '@octokit/request-error';
+
 export interface Repo {
   owner: string;
   repo: string;
@@ -18,6 +20,12 @@ export interface RunnerInfo {
 
 export function getRepoKey(repo: Repo): string {
   return `${repo.owner}/${repo.repo}`;
+}
+
+export function isGHRateLimitError(e: unknown) {
+  const requestErr = e as RequestError | null;
+  const headers = requestErr?.headers || requestErr?.response?.headers;
+  return requestErr?.status === 403 && headers?.['x-ratelimit-remaining'] === '0';
 }
 
 export function getBoolean(value: string | number | undefined | boolean, defaultVal = false): boolean {
@@ -63,7 +71,7 @@ export async function expBackOff<T>(
     try {
       return await callback();
     } catch (e) {
-      if (`${e}`.includes('RequestLimitExceeded') || `${e}`.includes('ThrottlingException')) {
+      if (`${e}`.includes('RequestLimitExceeded') || `${e}`.includes('ThrottlingException') || isGHRateLimitError(e)) {
         if (expBackOffMs > maxMs) {
           throw e;
         }
