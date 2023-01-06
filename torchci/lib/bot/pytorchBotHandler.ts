@@ -147,27 +147,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   async getApprovalStatus(): Promise<string> {
-    var reviews:PullRequestReview[] = []
-    const REVIEWS_PER_PAGE = 100
-
-    var page = 1;
-    var gotAllPages = false
-    while (!gotAllPages) {
-      var res = await this.ctx.octokit.pulls.listReviews({
+    var reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
+      this.ctx.octokit.pulls.listReviews,
+      {
         owner: this.owner,
         repo: this.repo,
         pull_number: this.prNum,
-        per_page: REVIEWS_PER_PAGE,
-        page: page
-      })
-      
-      if ((res?.data?.length ?? 0) < REVIEWS_PER_PAGE) {
-        gotAllPages = true
       }
-
-      reviews = reviews.concat(res?.data ?? [])
-      page += 1
-    }
+    );
 
     if (!reviews.length) {
       this.ctx.log("Could not find any reviews for PR")
