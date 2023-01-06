@@ -1055,6 +1055,14 @@
       "rocm"
     ]
   ],
+  "test_op_has_batch_rule_ge_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
+    "91804",
+    "https://github.com/pytorch/pytorch/issues/91804",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
