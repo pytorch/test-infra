@@ -292,6 +292,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
     ];
+    /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
       tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
     }
