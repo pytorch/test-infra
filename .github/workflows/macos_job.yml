@@ -107,6 +107,7 @@ jobs:
         if: ${{ inputs.binary-matrix != '' }}
         with:
           binary-matrix: ${{ inputs.binary-matrix }}
+          target-os: "macos"
 
       - name: Run script
         shell: bash -l {0}

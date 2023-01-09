@@ -12,31 +12,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job_type:
-          - linux_job
+        installation:
+          - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
-        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
+        [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1
   test-windows:
     uses: ./.github/workflows/windows_job.yml
     strategy:
       fail-fast: false
       matrix:
-        job_type:
-          - windows_job
+        installation:
+          - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
-        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
+        [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1
   test-macos:
     uses: ./.github/workflows/macos_job.yml
     strategy:
       fail-fast: false
       matrix:
-        job_type:
-          - macos_job
+        installation:
+          - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
-        [[ "${MATRIX_JOB_TYPE}" = "${{ matrix.job_type }}" ]] || exit 1
+        [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1

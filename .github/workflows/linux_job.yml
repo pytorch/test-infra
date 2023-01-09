@@ -131,6 +131,7 @@ jobs:
         if: ${{ inputs.binary-matrix != '' }}
         with:
           binary-matrix: ${{ inputs.binary-matrix }}
+          target-os: "linux"
 
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
