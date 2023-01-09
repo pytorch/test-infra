@@ -772,7 +772,8 @@
       "windows",
       "mac",
       "linux",
-      "dynamo"
+      "dynamo",
+      "rocm"
     ]
   ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
