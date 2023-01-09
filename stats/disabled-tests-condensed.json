@@ -1369,6 +1369,27 @@
       "mac"
     ]
   ],
+  "test_torch_profiler (__main__.MiscTests)": [
+    "91868",
+    "https://github.com/pytorch/pytorch/issues/91868",
+    [
+      "linux"
+    ]
+  ],
+  "test_torch_seed (__main__.MiscTests)": [
+    "91867",
+    "https://github.com/pytorch/pytorch/issues/91867",
+    [
+      "linux"
+    ]
+  ],
+  "test_torch_size (__main__.MiscTests)": [
+    "91866",
+    "https://github.com/pytorch/pytorch/issues/91866",
+    [
+      "linux"
+    ]
+  ],
   "test_torch_tensor_dtype (test_jit.TestScript)": [
     "91485",
     "https://github.com/pytorch/pytorch/issues/91485",
