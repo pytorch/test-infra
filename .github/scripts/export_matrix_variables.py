@@ -18,7 +18,7 @@ def main(args) -> None:
 
     for key, value in variables_to_export.items():
         print(
-            f"MATRIX_{key.upper().replace('-', '_')}={value.replace('-', '_')}"
+            f"MATRIX_{key.upper().replace('-', '_')}={value}"
         )
 
 if __name__ == "__main__":
