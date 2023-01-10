@@ -166,7 +166,7 @@ where
     j.torchci_classification is null
     and w.head_branch = 'master'
     and j.conclusion in ('failure', 'cancelled')
-    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 30 MINUTE
+    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 1 DAY
     and j.name != 'ciflow_should_run'
     and j.name != 'generate-test-matrix'
     and w.event != 'workflow_run'
@@ -187,4 +187,4 @@ for (const job of unclassifiedJobs.results) {
     console.log(`Failed to backfill log of ${job.id}: ${error}`)
   }
 }
-console.log("::endgroup");
+console.log("::endgroup::");
