@@ -136,5 +136,5 @@ runner_types:
     disk_size: 256
     instance_type: g5.4xlarge
     is_ephemeral: false
-    max_available: 10
+    max_available: 150
     os: windows
