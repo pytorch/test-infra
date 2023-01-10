@@ -82,76 +82,76 @@ async function backfillWorkflowJob(id, repo_name, owner, skipBackfill) {
   await dClient.put(thing);
 }
 
-// console.log("::group::Backfilling jobs without a conclusion...");
-// const jobsWithNoConclusion = await client.queries.query({
-//   sql: {
-//     query: `
-// SELECT
-//     j.id,
-//     w.repository.name as repo_name,
-//     w.repository.owner.login as owner
-// FROM
-//     workflow_job j
-//     INNER JOIN workflow_run w on j.run_id = w.id
-// WHERE
-//     j.conclusion IS NULL
-//     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
-//     AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
-//     AND w.head_repository.owner.login = 'pytorch'
-// ORDER BY
-//     j._event_time DESC
-// LIMIT 10000
-// `,
-//   },
-// });
+console.log("::group::Backfilling jobs without a conclusion...");
+const jobsWithNoConclusion = await client.queries.query({
+  sql: {
+    query: `
+SELECT
+    j.id,
+    w.repository.name as repo_name,
+    w.repository.owner.login as owner
+FROM
+    workflow_job j
+    INNER JOIN workflow_run w on j.run_id = w.id
+WHERE
+    j.conclusion IS NULL
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
+    AND w.head_repository.owner.login = 'pytorch'
+ORDER BY
+    j._event_time DESC
+LIMIT 10000
+`,
+  },
+});
 
-// // Await in a loop???
-// // Yes: when GitHub has outages and fails to deliver webhooks en masse, we can
-// // get rate limited while trying to backfill. Since backfilling is not
-// // latency-sensitive, it's fine to just processed them serially to ensure we
-// // make forward progress.
-// for (const { id, repo_name, owner} of jobsWithNoConclusion.results) {
-//   // Some jobs just never get marked completed due to bugs in the GHA backend.
-//   // Just skip them.
-//   await backfillWorkflowJob(id, repo_name, owner, (job) => job.conclusion === null);
-// }
-// console.log("::endgroup::");
+// Await in a loop???
+// Yes: when GitHub has outages and fails to deliver webhooks en masse, we can
+// get rate limited while trying to backfill. Since backfilling is not
+// latency-sensitive, it's fine to just processed them serially to ensure we
+// make forward progress.
+for (const { id, repo_name, owner} of jobsWithNoConclusion.results) {
+  // Some jobs just never get marked completed due to bugs in the GHA backend.
+  // Just skip them.
+  await backfillWorkflowJob(id, repo_name, owner, (job) => job.conclusion === null);
+}
+console.log("::endgroup::");
 
-// console.log("::group::Backfilling queued jobs...");
-// // Also try to backfill queued jobs specifically, with a tighter time bound.
-// // This is so our queue time stats are as accurate as possible.
-// const queuedJobs = await client.queries.query({
-//   sql: {
-//     query: `
-// SELECT
-//     j.id,
-//     w.repository.name as repo_name,
-//     w.repository.owner.login as owner
-// FROM
-//     workflow_job j
-//     INNER JOIN workflow_run w on j.run_id = w.id
-// WHERE
-//     j.status = 'queued'
-//     AND w.status != 'completed'
-//     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-//     AND w.head_repository.owner.login = 'pytorch'
-// ORDER BY
-//     j._event_time DESC
-// LIMIT 10000
-// `,
-//   },
-// });
+console.log("::group::Backfilling queued jobs...");
+// Also try to backfill queued jobs specifically, with a tighter time bound.
+// This is so our queue time stats are as accurate as possible.
+const queuedJobs = await client.queries.query({
+  sql: {
+    query: `
+SELECT
+    j.id,
+    w.repository.name as repo_name,
+    w.repository.owner.login as owner
+FROM
+    workflow_job j
+    INNER JOIN workflow_run w on j.run_id = w.id
+WHERE
+    j.status = 'queued'
+    AND w.status != 'completed'
+    AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+    AND w.head_repository.owner.login = 'pytorch'
+ORDER BY
+    j._event_time DESC
+LIMIT 10000
+`,
+  },
+});
 
-// // See above for why we're awaiting in a loop.
-// for (const {id, repo_name, owner} of queuedJobs.results) {
-//   await backfillWorkflowJob(
-//     id,
-//     repo_name,
-//     owner,
-//     (job) => job.status === "queued" && job.steps.length === 0
-//   );
-// }
-// console.log("::endgroup::");
+// See above for why we're awaiting in a loop.
+for (const {id, repo_name, owner} of queuedJobs.results) {
+  await backfillWorkflowJob(
+    id,
+    repo_name,
+    owner,
+    (job) => job.status === "queued" && job.steps.length === 0
+  );
+}
+console.log("::endgroup::");
 
 console.log("::group::Backfill unclassified logs...");
 const unclassifiedJobs = await client.queries.query({
@@ -166,7 +166,7 @@ where
     j.torchci_classification is null
     and w.head_branch = 'master'
     and j.conclusion in ('failure', 'cancelled')
-    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 3 DAY
+    and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 30 MINUTE
     and j.name != 'ciflow_should_run'
     and j.name != 'generate-test-matrix'
     and w.event != 'workflow_run'
