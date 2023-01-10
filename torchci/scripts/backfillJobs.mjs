@@ -176,15 +176,15 @@ where
   },
 });
 console.log(`There are ${unclassifiedJobs.results.length} jobs with unclassified logs`)
-// for (const job of unclassifiedJobs.results) {
-//   console.log(`Attempting to backfill log of ${job.id}`);
-//   try {
-//     const a = await request(
-//       `https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id=${job.id}`
-//     );
-//     console.log(a);
-//   } catch (error) {
-//     console.log(`Failed to backfill log of ${job.id}: ${error}`)
-//   }
-// }
+for (const job of unclassifiedJobs.results) {
+  console.log(`Attempting to backfill log of ${job.id}`);
+  try {
+    const a = await request(
+      `https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id=${job.id}`
+    );
+    console.log(a);
+  } catch (error) {
+    console.log(`Failed to backfill log of ${job.id}: ${error}`)
+  }
+}
 console.log("::endgroup::");
