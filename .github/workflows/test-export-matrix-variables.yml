@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         job_type:
-          - linux_job
+          - conda linux job
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         job_type:
-          - windows_job
+          - conda windows - job
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         job_type:
-          - macos_job
+          - conda macos job
     with:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
