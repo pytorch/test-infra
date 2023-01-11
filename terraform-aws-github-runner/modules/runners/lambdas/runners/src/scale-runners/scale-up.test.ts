@@ -17,7 +17,6 @@ import * as MetricsModule from './metrics';
 jest.mock('./runners');
 jest.mock('./gh-runners');
 jest.mock('./gh-issues');
-jest.mock('./metrics');
 
 beforeEach(() => {
   jest.resetModules();
@@ -30,6 +29,7 @@ const baseCfg = {
   awsRegion: 'us-east-1',
   cantHaveIssuesLabels: [],
   mustHaveIssuesLabels: [],
+  lambdaTimeout: 600,
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpMetrics();
