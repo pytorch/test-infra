@@ -48,14 +48,14 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-11.1.0 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-15.0.6 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
 function apply_patches() {
   info "applying patches"
   cd llvm-project
-  for check in ../*.diff; do
+  for check in ../15.x-patches/*.diff; do
     patch -p1 -N -d . < "$check"
   done
   success
