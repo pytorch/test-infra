@@ -91,11 +91,12 @@ jobs:
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
         run: |
+          set -eax
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install torch dependency
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
-          set -ex
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
       - name: Run pre-script
@@ -105,6 +106,7 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         shell: bash -l {0}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -116,12 +118,14 @@ jobs:
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
@@ -139,6 +143,7 @@ jobs:
         if: ${{ inputs.post-script != '' }}
         shell: bash -l {0}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
@@ -152,6 +157,7 @@ jobs:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
@@ -179,6 +185,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do

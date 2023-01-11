@@ -76,6 +76,7 @@ jobs:
     steps:
       - name: Clean workspace
         run: |
+          set -eax
           echo "::group::Cleanup debug output"
           rm -rfv "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
@@ -100,6 +101,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -109,10 +111,12 @@ jobs:
           fi
       - name: Setup base environment variables
         run: |
+          set -eax
           echo "SOURCE_ROOT_DIR=${GITHUB_WORKSPACE}/${REPOSITORY}" >> "${GITHUB_ENV}"
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
@@ -143,6 +147,7 @@ jobs:
           POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
@@ -156,6 +161,7 @@ jobs:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
 
           arch_name="$(uname -m)"
@@ -189,8 +195,8 @@ jobs:
         env:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
+          set -eax
           source "${BUILD_ENV_FILE}"
-          set -x
           conda create --yes -n upload_env python="${PYTHON_VERSION}"
           conda run -n upload_env conda install -yq anaconda-client
           arch_name="$(uname -m)"
