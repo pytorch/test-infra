@@ -43,6 +43,10 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
+      env-var-script:
+        description: "Script that sets Domain-Specific Environment Variables"
+        default: ""
+        type: string
       trigger-event:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
@@ -94,6 +98,11 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+      - name: Combine Env Var and Build Env Files
+        if: ${{ inputs.env-var-script != '' }}
+        working-directory: ${{ inputs.repository }}
+        run: |
+          cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
         env:
