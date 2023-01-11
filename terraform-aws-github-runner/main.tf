@@ -22,15 +22,27 @@ resource "random_string" "random" {
   upper   = false
 }
 
+resource "aws_sqs_queue" "queued_builds_dead_letter" {
+  name                        = "${var.environment}-queued-builds-dead-letter.fifo"
+  fifo_queue                  = true
+  redrive_allow_policy        = jsonencode({
+    redrivePermission = "allowAll",
+  })
+  tags                        = var.tags
+}
+
 resource "aws_sqs_queue" "queued_builds" {
   name                        = "${var.environment}-queued-builds.fifo"
-  visibility_timeout_seconds  = var.runners_scale_up_lambda_timeout
+  visibility_timeout_seconds  = var.runners_scale_up_sqs_visibility_timeout
   fifo_queue                  = true
   content_based_deduplication = true
   max_message_size            = 1024
-  message_retention_seconds   = 5800
-
-  tags = var.tags
+  message_retention_seconds   = var.runners_scale_up_sqs_max_retry * var.runners_scale_up_sqs_visibility_timeout + 100
+  redrive_policy              = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.queued_builds_dead_letter.arn
+    maxReceiveCount     = var.runners_scale_up_sqs_max_retry
+  })
+  tags                        = var.tags
 }
 
 module "webhook" {
