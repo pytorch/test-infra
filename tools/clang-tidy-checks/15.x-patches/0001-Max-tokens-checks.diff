@@ -1,4 +1,4 @@
-From e6d62c83b29eeda8c1b7bd45106b8364c45c7c72 Mon Sep 17 00:00:00 2001
+From d9c63bd71de07bfff508981dcf4dfbfa3f0c8fd3 Mon Sep 17 00:00:00 2001
 From: Nikita Shulga <nshulga@meta.com>
 Date: Tue, 10 Jan 2023 17:52:43 -0800
 Subject: [PATCH 1/2] Max tokens checks
@@ -7,7 +7,7 @@ Subject: [PATCH 1/2] Max tokens checks
  .../clang-tidy/misc/CMakeLists.txt            |  1 +
  .../clang-tidy/misc/MaxTokensCheck.cpp        | 66 +++++++++++++++++++
  .../clang-tidy/misc/MaxTokensCheck.h          | 37 +++++++++++
- .../clang-tidy/misc/MiscTidyModule.cpp        |  2 +
+ .../clang-tidy/misc/MiscTidyModule.cpp        |  3 +
  clang-tools-extra/docs/ReleaseNotes.rst       |  5 ++
  .../docs/clang-tidy/checks/list.rst           |  1 +
  .../clang-tidy/checks/misc-max-tokens.rst     |  6 ++
@@ -15,7 +15,7 @@ Subject: [PATCH 1/2] Max tokens checks
  clang/include/clang/Lex/PPCallbacks.h         | 22 +++++++
  clang/lib/Parse/ParsePragma.cpp               |  5 ++
  clang/lib/Parse/Parser.cpp                    | 10 +++
- 11 files changed, 175 insertions(+)
+ 11 files changed, 176 insertions(+)
  create mode 100644 clang-tools-extra/clang-tidy/misc/MaxTokensCheck.cpp
  create mode 100644 clang-tools-extra/clang-tidy/misc/MaxTokensCheck.h
  create mode 100644 clang-tools-extra/docs/clang-tidy/checks/misc-max-tokens.rst
@@ -149,10 +149,18 @@ index 000000000..5e73923ad
 +
 +#endif // LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_MAXTOKENSCHECK_H
 diff --git a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
-index 127889230..29c576ea7 100644
+index 127889230..c24aa8470 100644
 --- a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
 +++ b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
-@@ -41,6 +41,8 @@ public:
+@@ -12,6 +12,7 @@
+ #include "ConfusableIdentifierCheck.h"
+ #include "ConstCorrectnessCheck.h"
+ #include "DefinitionsInHeadersCheck.h"
++#include "MaxTokensCheck.h"
+ #include "MisleadingBidirectional.h"
+ #include "MisleadingIdentifier.h"
+ #include "MisplacedConstCheck.h"
+@@ -41,6 +42,8 @@ public:
          "misc-const-correctness");
      CheckFactories.registerCheck<DefinitionsInHeadersCheck>(
          "misc-definitions-in-headers");

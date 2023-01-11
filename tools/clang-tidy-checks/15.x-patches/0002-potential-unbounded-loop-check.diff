@@ -1,4 +1,4 @@
-From 32c040718880435fbb5eae1933d89e376c2a0a94 Mon Sep 17 00:00:00 2001
+From 39cbe114c84df19e8b116897ee7b31b89066515f Mon Sep 17 00:00:00 2001
 From: Nikita Shulga <nshulga@meta.com>
 Date: Tue, 10 Jan 2023 20:13:19 -0800
 Subject: [PATCH 2/2] potential unbounded loop check
@@ -34,10 +34,10 @@ index 6b3084d5d..a69e0bb71 100644
    StaticAssertCheck.cpp
    ThrowByValueCatchByReferenceCheck.cpp
 diff --git a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
-index 29c576ea7..2602c74d3 100644
+index c24aa8470..2c2e9c00d 100644
 --- a/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
 +++ b/clang-tools-extra/clang-tidy/misc/MiscTidyModule.cpp
-@@ -19,6 +19,7 @@
+@@ -20,6 +20,7 @@
  #include "NoRecursionCheck.h"
  #include "NonCopyableObjects.h"
  #include "NonPrivateMemberVariablesInClassesCheck.h"
@@ -45,7 +45,7 @@ index 29c576ea7..2602c74d3 100644
  #include "RedundantExpressionCheck.h"
  #include "StaticAssertCheck.h"
  #include "ThrowByValueCatchByReferenceCheck.h"
-@@ -55,6 +56,8 @@ public:
+@@ -56,6 +57,8 @@ public:
          "misc-non-copyable-objects");
      CheckFactories.registerCheck<NonPrivateMemberVariablesInClassesCheck>(
          "misc-non-private-member-variables-in-classes");
