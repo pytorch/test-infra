@@ -1387,6 +1387,14 @@
       "linux"
     ]
   ],
+  "test_torch_profiler_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92042",
+    "https://github.com/pytorch/pytorch/issues/92042",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_torch_seed (__main__.MiscTests)": [
     "91867",
     "https://github.com/pytorch/pytorch/issues/91867",
