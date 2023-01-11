@@ -1,18 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import * as urllib from "urllib";
-
 import { getOctokit } from "lib/github";
-import fetchFlakyTests, { fetchFlakyTestsAcrossJobs } from "lib/fetchFlakyTests";
+import fetchFlakyTests, {
+  fetchFlakyTestsAcrossJobs,
+} from "lib/fetchFlakyTests";
 import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
 import { FlakyTestData, IssueData, DisabledNonFlakyTestData } from "lib/types";
 import { supportedPlatforms } from "lib/bot/verifyDisableTestIssueBot";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import { retryRequest } from "lib/bot/utils";
 import { Octokit } from "octokit";
 import dayjs from "dayjs";
 
 const NUM_HOURS = 3;
 const NUM_HOURS_ACROSS_JOBS = 72;
-export const NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING = 24 * 14  // 2 weeks
+export const NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING = 24 * 14; // 2 weeks
 const owner: string = "pytorch";
 const repo: string = "pytorch";
 
@@ -139,7 +140,6 @@ export async function handleNonFlakyTest(
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
 
   if (matchingIssues.length === 0) {
-    console.log(`Found no matching issue for ${issueTitle}`);
     return;
   }
 
@@ -151,22 +151,15 @@ export async function handleNonFlakyTest(
 
     // Only close the issue if the issue is not flaky and hasn't been updated in
     // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
-    if (updatedAt.isBefore(dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour"))) {
-      console.log(
-        `Resolving issue ${matchingIssue.title} (${matchingIssue.html_url}) because it's not flaky ` +
-        `anymore after ${test.num_green} reruns and hasn't been updated in ${daysSinceLastUpdate} ` +
-        `days from the current date ${dayjs()}`
-      );
-    }
-    else {
-      console.log(
-        `According to PyTorch flaky bot, issue ${matchingIssue.title} (${matchingIssue.html_url}) ` +
-        `is not flaky anymore after ${test.num_green} reruns. But the issue was last updated at ` +
-        `${updatedAt}, which was less than ${daysSinceLastUpdate} days from the current date ${dayjs()}. ` +
-        `So, the issue won't be closed yet`
-      );
+    if (
+      updatedAt.isAfter(
+        dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
+      )
+    ) {
+      console.log(`${matchingIssue.number} is not flaky but is too recent.`);
       return;
     }
+    console.log(`${matchingIssue.number} is not longer flaky`);
 
     const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
       `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
@@ -268,16 +261,17 @@ ${numRedGreen}
 ${debuggingSteps}`;
 }
 
-export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
+export async function getTestOwnerLabels(
+  testFile: string
+): Promise<{ labels: string[]; additionalErrMessage?: string }> {
   const urlkey =
     "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
   try {
-    const result = await urllib.request(`${urlkey}${testFile}`);
+    const result = await retryRequest(`${urlkey}${testFile}`);
     const statusCode = result.res.statusCode;
     if (statusCode !== 200) {
-      console.warn(`Error retrieving test file of flaky test: ${statusCode}`);
-      return ["module: unknown"];
+      throw new Error(`Statuscode ${statusCode}`);
     }
     const fileContents = result.data.toString(); // data is a Buffer
     const lines = fileContents.split(/[\r\n]+/);
@@ -286,7 +280,7 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
       if (line.startsWith(prefix)) {
         const labels: string[] = JSON.parse(line.substring(prefix.length));
         if (labels.length === 0) {
-          return ["module: unknown"];
+          return { labels: ["module: unknown"] };
         }
         if (
           labels.some(
@@ -295,13 +289,17 @@ export async function getTestOwnerLabels(testFile: string): Promise<string[]> {
         ) {
           labels.push("triaged");
         }
-        return labels;
+        return { labels: labels };
       }
     }
-    return ["module: unknown"];
+    return { labels: ["module: unknown"] };
   } catch (err) {
-    console.warn(`Error retrieving test file of flaky test: ${err}`);
-    return ["module: unknown"];
+    const errMessage = `Error retrieving ${testFile}: ${err}`;
+    console.warn(errMessage);
+    return {
+      labels: ["module: unknown"],
+      additionalErrMessage: errMessage,
+    };
   }
 }
 
@@ -321,15 +319,16 @@ export async function createIssueFromFlakyTest(
   octokit: Octokit
 ): Promise<void> {
   const title = getIssueTitle(test.name, test.suite);
-  const body = getIssueBodyForFlakyTest(test);
-  const labels = ["skipped", "module: flaky-tests"].concat(
-    await getTestOwnerLabels(test.file)
-  );
+  let body = getIssueBodyForFlakyTest(test);
+  const { labels, additionalErrMessage } = await getTestOwnerLabels(test.file);
+  if (additionalErrMessage) {
+    body += `\n\n${additionalErrMessage}`;
+  }
   await octokit.rest.issues.create({
     owner,
     repo,
     title,
     body,
-    labels,
+    labels: ["skipped", "module: flaky-tests"].concat(labels),
   });
 }

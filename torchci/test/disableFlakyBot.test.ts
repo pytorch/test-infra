@@ -541,9 +541,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
       );
 
-    const labels = await disableFlakyTestBot.getTestOwnerLabels(
-      flakyTestA.file
-    );
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+    expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: fft", "triaged"]);
 
     if (!scope.isDone()) {
@@ -562,7 +562,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         )
       );
 
-    const labels = await disableFlakyTestBot.getTestOwnerLabels(
+    const { labels } = await disableFlakyTestBot.getTestOwnerLabels(
       flakyTestA.file
     );
     expect(labels).toEqual(["oncall: distributed"]);
@@ -583,10 +583,10 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         )
       );
 
-    const labels = await disableFlakyTestBot.getTestOwnerLabels(
-      flakyTestA.file
-    );
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
     expect(labels).toEqual(["module: unknown"]);
+    expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -602,10 +602,54 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         Buffer.from("line1\nline2\nline3\nstill no owners\nline4\nlastline\n")
       );
 
-    const labels = await disableFlakyTestBot.getTestOwnerLabels(
-      flakyTestA.file
-    );
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
     expect(labels).toEqual(["module: unknown"]);
+    expect(additionalErrMessage).toEqual(undefined);
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("getTestOwnerLabels: retry getting file fails all times", async () => {
+    const scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404);
+
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+    expect(labels).toEqual(["module: unknown"]);
+    expect(additionalErrMessage).toEqual(
+      "Error retrieving file_a.py: Error: Statuscode 404"
+    );
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("getTestOwnerLabels: retry getting file fails all times", async () => {
+    const scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(
+        200,
+        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
+      );
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+    expect(labels).toEqual(["module: fft", "triaged"]);
+    expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
