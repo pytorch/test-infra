@@ -24,16 +24,26 @@ runs:
         TARGET_OS: ${{ inputs.target-os }}
       run: |
         set -ex
-        # Fix for windows to make sure python is initialized
         echo "${MATRIX_TO_EXPORT}" > "${RUNNER_TEMP}"/matrix_to_export.json
+
+        # For linux environment variables are passed via docker file
+        # for all other OS's we execute export line by line.
+        # hence the quotes around the value
+        export ADD_QUOTES_AROUND_VAR=""
+        if [[ ${TARGET_OS} != "linux" ]]; then
+          export ADD_QUOTES_AROUND_VAR="--add-quotes-around-value"
+        fi
+
+        # Fix for windows we need to make sure python is initialized
+        # hence we are using conda environment
         if [[ ${TARGET_OS} == 'windows' ]]; then
           source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
           conda activate base
           python \
-            test-infra/.github/scripts/export_matrix_variables.py  \
-            --input-file "${RUNNER_TEMP}"/matrix_to_export.json >> ${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}
+            test-infra/.github/scripts/export_matrix_variables.py ${ADD_QUOTES_AROUND_VAR}  \
+            --input-file "${RUNNER_TEMP}"/matrix_to_export.json  >> ${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}
         else
           python3 \
-            test-infra/.github/scripts/export_matrix_variables.py  \
+            test-infra/.github/scripts/export_matrix_variables.py ${ADD_QUOTES_AROUND_VAR} \
             --input-file "${RUNNER_TEMP}"/matrix_to_export.json >> ${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}
         fi
