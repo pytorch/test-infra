@@ -1209,6 +1209,11 @@
       "macos"
     ]
   ],
+  "test_python_ref_executor__refs_mean_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
+    "92046",
+    "https://github.com/pytorch/pytorch/issues/92046",
+    []
+  ],
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
     "77598",
     "https://github.com/pytorch/pytorch/issues/77598",
