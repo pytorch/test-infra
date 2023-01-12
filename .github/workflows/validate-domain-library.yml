@@ -164,6 +164,7 @@ jobs:
         set -ex
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
+        export SMOKE_TEST="${{ inputs.smoke_test }}"
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
           source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi

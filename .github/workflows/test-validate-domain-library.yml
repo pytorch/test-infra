@@ -11,7 +11,7 @@ jobs:
   test-validate-domain-library:
     uses: ./.github/workflows/validate-domain-library.yml
     with:
-      package_type: "conda,wheel"
+      package_type: "wheel"
       os: "all"
       channel: "nightly"
       repository: "pytorch/text"
