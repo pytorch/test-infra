@@ -1143,6 +1143,13 @@
     "https://github.com/pytorch/pytorch/issues/65521",
     []
   ],
+  "test_profiler (test_jit.TestJit)": [
+    "81626",
+    "https://github.com/pytorch/pytorch/issues/81626",
+    [
+      "linux"
+    ]
+  ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
     "https://github.com/pytorch/pytorch/issues/82499",
@@ -1343,6 +1350,14 @@
     "https://github.com/pytorch/pytorch/issues/91867",
     [
       "linux"
+    ]
+  ],
+  "test_torch_seed_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92104",
+    "https://github.com/pytorch/pytorch/issues/92104",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_torch_size (__main__.MiscTests)": [
