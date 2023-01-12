@@ -149,7 +149,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/binaries_wheel",
   ];
 
-  if (!valid_labels.includes(label) && !valid_test_config_labels.includes(label)) {
+  if (!valid_labels.includes(label)) {
     let body;
     if (label === "ciflow/all") {
       body =
@@ -186,15 +186,6 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
         issue_number: context.payload.pull_request.number,
       })
     );
-    return;
-  }
-
-  // TODO: Convert the test config label to tag is not yet supported and could
-  // only be done once we refactor the current workflows to support smaller
-  // workflow granularity per test config. After that, we can remove this check
-  // and do the same for these ciflow test config labels as what we are currently
-  // doing with ciflow/trunk, ciflow/periodic, and others
-  if (valid_test_config_labels.includes(label)) {
     return;
   }
 
