@@ -222,6 +222,14 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
+  "test_cdist_large_batch (__main__.TestMPS)": [
+    "92078",
+    "https://github.com/pytorch/pytorch/issues/92078",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
     "71349",
     "https://github.com/pytorch/pytorch/issues/71349",
