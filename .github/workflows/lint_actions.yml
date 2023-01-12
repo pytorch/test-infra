@@ -35,4 +35,5 @@ jobs:
           # Would like to eventually have this in a config file but it's here until then
           actionlint \
             -ignore "SC1090" \
-            -ignore 'when a reusable workflow is called with "uses", "strategy" is not available.'
+            -ignore 'when a reusable workflow is called with "uses", "strategy" is not available.' \
+            -ignore 'reusable workflow cannot be nested.'
