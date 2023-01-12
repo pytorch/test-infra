@@ -140,7 +140,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/periodic",
     "ciflow/android",
     "ciflow/binaries",
-    "ciflow/experiment",
+    "ciflow/unstable",
     "ciflow/inductor",
     "ciflow/mps",
     "ciflow/nightly",
@@ -179,7 +179,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     body +=
       " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
     body +=
-      " - `ciflow/experiment`: run all experimental jobs\n";
+      " - `ciflow/unstable`: run all flaky or experimental jobs that are not yet stable enough to be part of pull or trunk\n";
     await context.octokit.issues.createComment(
       context.repo({
         body,
