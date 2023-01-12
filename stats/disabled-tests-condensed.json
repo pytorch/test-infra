@@ -222,13 +222,6 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_cat (test_jit.TestScript)": [
-    "91491",
-    "https://github.com/pytorch/pytorch/issues/91491",
-    [
-      "linux"
-    ]
-  ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
     "71349",
     "https://github.com/pytorch/pytorch/issues/71349",
@@ -955,13 +948,6 @@
     "https://github.com/pytorch/pytorch/issues/77026",
     []
   ],
-  "test_mm_batching (test_jit.TestScript)": [
-    "91496",
-    "https://github.com/pytorch/pytorch/issues/91496",
-    [
-      "linux"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -1095,20 +1081,6 @@
       "linux"
     ]
   ],
-  "test_optional_list (test_jit.TestScript)": [
-    "91484",
-    "https://github.com/pytorch/pytorch/issues/91484",
-    [
-      "linux"
-    ]
-  ],
-  "test_optional_tensor (test_jit.TestScript)": [
-    "91494",
-    "https://github.com/pytorch/pytorch/issues/91494",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
@@ -1154,13 +1126,6 @@
   "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
     "84886",
     "https://github.com/pytorch/pytorch/issues/84886",
-    [
-      "linux"
-    ]
-  ],
-  "test_prim_grad_undefined (test_jit.TestScript)": [
-    "91493",
-    "https://github.com/pytorch/pytorch/issues/91493",
     [
       "linux"
     ]
@@ -1226,13 +1191,6 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
-  "test_rand (test_jit.TestScript)": [
-    "91495",
-    "https://github.com/pytorch/pytorch/issues/91495",
-    [
-      "linux"
-    ]
-  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
     "https://github.com/pytorch/pytorch/issues/84937",
@@ -1274,20 +1232,6 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_request_bailout (test_jit.TestScript)": [
-    "91490",
-    "https://github.com/pytorch/pytorch/issues/91490",
-    [
-      "linux"
-    ]
-  ],
-  "test_requires_grad_loop (test_jit.TestScript)": [
-    "91492",
-    "https://github.com/pytorch/pytorch/issues/91492",
-    [
-      "linux"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
@@ -1342,13 +1286,6 @@
       "win"
     ]
   ],
-  "test_stack (test_jit.TestScript)": [
-    "91483",
-    "https://github.com/pytorch/pytorch/issues/91483",
-    [
-      "linux"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -1359,20 +1296,6 @@
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91488",
     "https://github.com/pytorch/pytorch/issues/91488",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
-    "91482",
-    "https://github.com/pytorch/pytorch/issues/91482",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_requires_grad (test_jit.TestScript)": [
-    "91497",
-    "https://github.com/pytorch/pytorch/issues/91497",
     [
       "linux"
     ]
@@ -1417,13 +1340,6 @@
   "test_torch_size (__main__.MiscTests)": [
     "91866",
     "https://github.com/pytorch/pytorch/issues/91866",
-    [
-      "linux"
-    ]
-  ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
     [
       "linux"
     ]
