@@ -140,6 +140,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/periodic",
     "ciflow/android",
     "ciflow/binaries",
+    "ciflow/unstable",
     "ciflow/inductor",
     "ciflow/mps",
     "ciflow/nightly",
@@ -148,27 +149,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/binaries_wheel",
   ];
 
-  // The following labels control the test subsets we want to run,
-  // so their names are the same as shard names
-  const valid_test_config_labels = [
-    "ciflow/backwards_compat",
-    "ciflow/crossref",
-    "ciflow/default",
-    "ciflow/deploy",
-    "ciflow/distributed",
-    "ciflow/docs_tests",
-    "ciflow/dynamo",
-    "ciflow/force_on_cpu",
-    "ciflow/functorch",
-    "ciflow/jit_legacy",
-    "ciflow/multigpu",
-    "ciflow/nogpu_AVX512",
-    "ciflow/nogpu_NO_AVX2",
-    "ciflow/slow",
-    "ciflow/xla",
-  ];
-
-  if (!valid_labels.includes(label) && !valid_test_config_labels.includes(label)) {
+  if (!valid_labels.includes(label)) {
     let body;
     if (label === "ciflow/all") {
       body =
@@ -189,29 +170,22 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
       "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
     body +=
       "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
-    body += "- `ciflow/binaries`: all binary build and upload jobs\n";
+    body +=
+      "- `ciflow/binaries`: all binary build and upload jobs\n";
     body +=
       " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
     body +=
       " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
-    body += " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
-    body += "In addition, you can use the following labels to select the test subsets to run: ";
-    body += valid_test_config_labels.join(", ");
+    body +=
+      " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
+    body +=
+      " - `ciflow/unstable`: run all flaky or experimental jobs that are not yet stable enough to be part of pull or trunk\n";
     await context.octokit.issues.createComment(
       context.repo({
         body,
         issue_number: context.payload.pull_request.number,
       })
     );
-    return;
-  }
-
-  // TODO: Convert the test config label to tag is not yet supported and could
-  // only be done once we refactor the current workflows to support smaller
-  // workflow granularity per test config. After that, we can remove this check
-  // and do the same for these ciflow test config labels as what we are currently
-  // doing with ciflow/trunk, ciflow/periodic, and others
-  if (valid_test_config_labels.includes(label)) {
     return;
   }
 
