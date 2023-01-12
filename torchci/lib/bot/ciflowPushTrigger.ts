@@ -140,32 +140,13 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/periodic",
     "ciflow/android",
     "ciflow/binaries",
+    "ciflow/experiment",
     "ciflow/inductor",
     "ciflow/mps",
     "ciflow/nightly",
     "ciflow/binaries_conda",
     "ciflow/binaries_libtorch",
     "ciflow/binaries_wheel",
-  ];
-
-  // The following labels control the test subsets we want to run,
-  // so their names are the same as shard names
-  const valid_test_config_labels = [
-    "ciflow/backwards_compat",
-    "ciflow/crossref",
-    "ciflow/default",
-    "ciflow/deploy",
-    "ciflow/distributed",
-    "ciflow/docs_tests",
-    "ciflow/dynamo",
-    "ciflow/force_on_cpu",
-    "ciflow/functorch",
-    "ciflow/jit_legacy",
-    "ciflow/multigpu",
-    "ciflow/nogpu_AVX512",
-    "ciflow/nogpu_NO_AVX2",
-    "ciflow/slow",
-    "ciflow/xla",
   ];
 
   if (!valid_labels.includes(label) && !valid_test_config_labels.includes(label)) {
@@ -189,14 +170,16 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
       "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
     body +=
       "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
-    body += "- `ciflow/binaries`: all binary build and upload jobs\n";
+    body +=
+      "- `ciflow/binaries`: all binary build and upload jobs\n";
     body +=
       " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
     body +=
       " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
-    body += " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
-    body += "In addition, you can use the following labels to select the test subsets to run: ";
-    body += valid_test_config_labels.join(", ");
+    body +=
+      " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
+    body +=
+      " - `ciflow/experiment`: run all experimental jobs\n";
     await context.octokit.issues.createComment(
       context.repo({
         body,
