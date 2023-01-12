@@ -91,3 +91,20 @@ jobs:
         conda create -y -n test python="${PYTHON_VERSION}"
         conda activate test
         python --version | grep "${PYTHON_VERSION}"
+  test-builder-checkout:
+    uses: ./.github/workflows/linux_job.yml
+    strategy:
+      matrix:
+        python_version: ["3.9"]
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      binary-matrix: ${{ toJSON(matrix) }}
+      repository: pytorch/text
+      ref: main
+      builder-repository: pytorch/builder
+      timeout: 60
+      script: |
+        set -x
+        [ -f ./builder/README.md ] && echo "builder checked out" || exit 1

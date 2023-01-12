@@ -28,6 +28,7 @@ jobs:
       runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      builder-repository: "pytorch/builder"
       timeout: 60
       script: |
         conda create -y -n test python=3.8
@@ -85,3 +86,20 @@ jobs:
       download-artifact: my-cool-artifact
       script: |
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  test-builder-checkout:
+    uses: ./.github/workflows/macos_job.yml
+    strategy:
+      matrix:
+        python_version: ["3.9"]
+    with:
+      runner: macos-12
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      binary-matrix: ${{ toJSON(matrix) }}
+      repository: pytorch/text
+      ref: main
+      builder-repository: pytorch/builder
+      timeout: 60
+      script: |
+        set -x
+        [ -f ./builder/README.md ] && echo "builder checked out" || exit 1

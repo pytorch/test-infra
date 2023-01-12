@@ -39,6 +39,16 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
+      builder-repository:
+        description: "Builder repository to use"
+        default: ""
+        type: string
+        required: false
+      builder-ref:
+        description: "Builder reference to use"
+        default: "main"
+        type: string
+        required: false
       docker-image:
         description: Identifies the Docker image by name.
         default: "pytorch/conda-builder"
@@ -118,6 +128,15 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
+
+      - name: Checkout builder
+        if: ${{ inputs.builder-repository != '' }}
+        uses: actions/checkout@v3
+        with:
+          # Please note: Builder needs to be checked out current working directory
+          repository: ${{ inputs.builder-repository }}
+          ref: ${{ inputs.builder-ref }}
+          path: "${{ inputs.repository || github.repository }}/builder"
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
