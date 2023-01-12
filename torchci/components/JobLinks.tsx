@@ -60,7 +60,7 @@ export default function JobLinks({ job }: { job: JobData }) {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
-const pytestFailureRe = /^FAILED .*.py::(.*)::(test_.*)$/;
+const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
 function getTestName(failureCapture: string)  {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
