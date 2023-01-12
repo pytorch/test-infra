@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.1] - 2023-01-12
+
+### Bug Fixes
+
+- Allow --paths-cmd to run on Windows ([#23](https://github.com/suo/lintrunner/issues/23)) ([a1c4191](https://github.com/suo/lintrunner/commit/a1c4191575959974ce5b17269f624b17e93951a0))
+
 ## [0.10.0] - 2022-11-28
 
 ### Bug Fixes
