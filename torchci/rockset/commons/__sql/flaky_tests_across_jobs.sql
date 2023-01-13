@@ -25,7 +25,6 @@ with failed_jobs as (
         w.head_branch,
         w.name as workflow_name,
         w.run_attempt as workflow_run_attempt,
-        job._event_time as event_time
     from
         commons.workflow_job job
         join commons.workflow_run w on w.id = job.run_id
@@ -63,7 +62,8 @@ flaky_tests as (
             test_run.failure is null,
             test_run.error.message,
             test_run.failure.message
-        ) as failure_or_err_message
+        ) as failure_or_err_message,
+        test_run._event_time as event_time
     from
         test_run_s3 test_run
         join flaky_jobs job on test_run.job_id = job.id
