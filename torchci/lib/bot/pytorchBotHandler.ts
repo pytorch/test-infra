@@ -5,6 +5,7 @@ import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
+import { isPyTorchOrg, isPyTorchPyTorch } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
@@ -200,7 +201,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
         return latest_reviews;
       }, {})
-    
+
     // Aggregate the reviews to figure out the overall status.
     // One approval is all that's needed
     let approval_status = ""
@@ -230,7 +231,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (forceRequested) {
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
-    } else {
+    } else if (isPyTorchOrg(this.owner)) {
       // Ensure the PR has been signed off on
       let approval_status = await this.getApprovalStatus()
       if (approval_status !== PR_APPROVED) {
@@ -257,7 +258,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     await this.logger.log("merge", extra_data);
-    if (!forceRequested) {
+    if (!forceRequested && isPyTorchPyTorch(this.owner, this.repo)) {
       let labels: string[] = this.ctx.payload?.issue?.labels.map(
         (e: any) => e["name"]
       );
@@ -271,7 +272,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL])
       }
     }
-    
+
     await this.dispatchEvent("try-merge", {
       force: forceRequested,
       on_green: mergeOnGreen,
