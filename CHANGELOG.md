@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.10.1] - 2023-01-12
+## [0.10.2] - 2023-01-13
+
+### Features
+
+- Update the message format produced by `convert_to_sarif.py` ([#28](https://github.com/suo/lintrunner/issues/28)) ([b3370bf](https://github.com/suo/lintrunner/commit/b3370bff64ee5bdaad7faef89b4127c2d3b4f357))
+
+## [0.10.1] - 2023-01-13
 
 ### Bug Fixes
 
