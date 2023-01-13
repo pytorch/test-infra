@@ -5,7 +5,7 @@ import shlex from "shlex";
 import { addLabels, hasWritePermissions as _hasWP, reactOnComment } from "./botUtils";
 import { getHelp, getParser } from "./cliParser";
 import PytorchBotLogger from "./pytorchbotLogger";
-import { isPyTorchPyTorch } from "./utils";
+import { isPyTorchOrg, isPyTorchPyTorch } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
@@ -126,7 +126,6 @@ class PytorchBotHandler {
     forceMessage: string
   ): Promise<string | null> {
     const { ctx } = this;
-
     const hasWritePermission = await this.hasWritePermissions(
       ctx.payload?.comment?.user?.login
     );
@@ -201,7 +200,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
         return latest_reviews;
       }, {})
-    
+
     // Aggregate the reviews to figure out the overall status.
     // One approval is all that's needed
     let approval_status = ""
@@ -228,24 +227,21 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     };
     const forceRequested = forceMessage != undefined;
 
-    if (this.owner == "python") {
-      let rejection_reason = null;
-
-      if (forceRequested) {
-        rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
-      } else {
-        // Ensure the PR has been signed off on
-        let approval_status = await this.getApprovalStatus()
-        if (approval_status !== PR_APPROVED) {
-          rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
-        }
+    let rejection_reason = null;
+    if (forceRequested) {
+      rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
+    } else if (isPyTorchOrg(this.owner)) {
+      // Ensure the PR has been signed off on
+      let approval_status = await this.getApprovalStatus()
+      if (approval_status !== PR_APPROVED) {
+        rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
       }
+    }
 
-      if (rejection_reason) {
-        await this.logger.log("merge-error", extra_data);
-        await this.handleConfused(true, rejection_reason);
-        return;
-      }
+    if (rejection_reason) {
+      await this.logger.log("merge-error", extra_data);
+      await this.handleConfused(true, rejection_reason);
+      return;
     }
 
     if (

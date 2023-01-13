@@ -6,8 +6,12 @@ export function repoKey(context: Context): string {
   return `${repo.owner}/${repo.repo}`;
 }
 
+export function isPyTorchOrg(owner: string) : boolean {
+  return owner === "pytorch";
+}
+
 export function isPyTorchPyTorch(owner: string, repo: string): boolean {
-  return owner === "pytorch" && repo === "pytorch";
+  return isPyTorchOrg(owner) && repo === "pytorch";
 }
 
 export class CachedConfigTracker {
