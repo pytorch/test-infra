@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import unittest
 
 import convert_to_sarif
 
 
 class TestConvertToSarif(unittest.TestCase):
-    def test_produce_sarif_returns_correct_sarif_result(self):
+    def test_produce_sarif_returns_correct_sarif_result(self) -> None:
         lintrunner_results = [
             {
                 "path": "test.py",
@@ -47,9 +49,7 @@ class TestConvertToSarif(unittest.TestCase):
                                 {
                                     "id": "FLAKE8/test-code",
                                     "name": "FLAKE8/test-code",
-                                    "shortDescription": {
-                                        "text": "FLAKE8/test-code: test description"
-                                    },
+                                    "shortDescription": {"text": "FLAKE8/test-code"},
                                     "fullDescription": {
                                         "text": "FLAKE8/test-code\ntest description"
                                     },
@@ -58,9 +58,7 @@ class TestConvertToSarif(unittest.TestCase):
                                 {
                                     "id": "FLAKE8/test-code-2",
                                     "name": "FLAKE8/test-code-2",
-                                    "shortDescription": {
-                                        "text": "FLAKE8/test-code-2: test description"
-                                    },
+                                    "shortDescription": {"text": "FLAKE8/test-code-2"},
                                     "fullDescription": {
                                         "text": "FLAKE8/test-code-2\ntest description"
                                     },
@@ -73,7 +71,7 @@ class TestConvertToSarif(unittest.TestCase):
                         {
                             "ruleId": "FLAKE8/test-code",
                             "level": "error",
-                            "message": {"text": "FLAKE8/test-code\ntest description"},
+                            "message": {"text": "test description"},
                             "locations": [
                                 {
                                     "physicalLocation": {
@@ -86,7 +84,7 @@ class TestConvertToSarif(unittest.TestCase):
                         {
                             "ruleId": "FLAKE8/test-code-2",
                             "level": "error",
-                            "message": {"text": "FLAKE8/test-code-2\ntest description"},
+                            "message": {"text": "test description"},
                             "locations": [
                                 {
                                     "physicalLocation": {
@@ -99,7 +97,7 @@ class TestConvertToSarif(unittest.TestCase):
                         {
                             "ruleId": "FLAKE8/test-code",
                             "level": "note",
-                            "message": {"text": "FLAKE8/test-code\ntest description"},
+                            "message": {"text": "test description"},
                             "locations": [
                                 {
                                     "physicalLocation": {
@@ -116,7 +114,7 @@ class TestConvertToSarif(unittest.TestCase):
         self.maxDiff = None
         self.assertEqual(actual, expected)
 
-    def test_it_handles_relative_paths(self):
+    def test_it_handles_relative_paths(self) -> None:
         lintrunner_results = [
             {
                 "path": "test.py",
@@ -133,7 +131,7 @@ class TestConvertToSarif(unittest.TestCase):
             {
                 "ruleId": "FLAKE8/test-code",
                 "level": "error",
-                "message": {"text": "FLAKE8/test-code\ntest description"},
+                "message": {"text": "test description"},
                 "locations": [
                     {
                         "physicalLocation": {
@@ -146,7 +144,7 @@ class TestConvertToSarif(unittest.TestCase):
         ]
         self.assertEqual(actual["runs"][0]["results"], expected_results)
 
-    def test_it_handles_absolute_paths(self):
+    def test_it_handles_absolute_paths(self) -> None:
         lintrunner_results = [
             {
                 "path": "/path/to/test.py",
@@ -163,7 +161,7 @@ class TestConvertToSarif(unittest.TestCase):
             {
                 "ruleId": "FLAKE8/test-code",
                 "level": "error",
-                "message": {"text": "FLAKE8/test-code\ntest description"},
+                "message": {"text": "test description"},
                 "locations": [
                     {
                         "physicalLocation": {
