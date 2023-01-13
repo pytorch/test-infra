@@ -115,7 +115,7 @@ function setup() {
 function check_if_static() {
   case $(uname) in
     Linux)
-      ldd ./bin/clang-tidy 2>&1 | grep -q "not a dynamic executable"
+      ldd ./bin/clang-tidy 2>&1 | grep -q -e "not a dynamic executable" -e "statically linked"
       ;;
     Darwin)
       # No static link check for MacOS
