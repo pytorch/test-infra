@@ -83,9 +83,24 @@ export class CachedIssueTracker extends CachedConfigTracker {
 
 // returns undefined if the request fails
 export async function fetchJSON(path: string): Promise<any> {
-  const result = await urllib.request(path);
+  const result = await retryRequest(path);
   if (result.res.statusCode !== 200) {
     return;
   }
   return JSON.parse(result.data.toString());
+}
+
+export async function retryRequest(
+  path: string,
+  numRetries: number = 3,
+  delay: number = 500
+): Promise<urllib.HttpClientResponse<any>> {
+  for (let i = 0; i < numRetries; i++) {
+    const result = await urllib.request(path);
+    if (result.res.statusCode == 200) {
+      return result;
+    }
+    await new Promise((f) => setTimeout(f, delay));
+  }
+  return await urllib.request(path);
 }
