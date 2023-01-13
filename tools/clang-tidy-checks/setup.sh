@@ -54,14 +54,16 @@ function clone_llvm() {
 
 function apply_patches() {
   info "applying patches"
-  cd llvm-project
+  pushd llvm-project
   for check in ../15.x-patches/*.diff; do
     patch -p1 -N -d . < "$check"
   done
+  popd
   success
 }
 
 function build() {
+  cd llvm-project
   local cmake_common_args=(
     -DCMAKE_C_COMPILER=clang
     -DCMAKE_CXX_COMPILER=clang++
