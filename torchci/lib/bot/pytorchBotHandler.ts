@@ -126,6 +126,7 @@ class PytorchBotHandler {
     forceMessage: string
   ): Promise<string | null> {
     const { ctx } = this;
+
     const hasWritePermission = await this.hasWritePermissions(
       ctx.payload?.comment?.user?.login
     );
@@ -226,8 +227,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       rebase,
     };
     const forceRequested = forceMessage != undefined;
-
     let rejection_reason = null;
+
     if (forceRequested) {
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
     } else if (isPyTorchOrg(this.owner)) {
