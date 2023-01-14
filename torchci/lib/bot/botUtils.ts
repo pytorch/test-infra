@@ -51,3 +51,20 @@ export async function hasWritePermissions(ctx: any, username: string): Promise<b
   const permissions = await getUserPermissions(ctx, username);
   return permissions === "admin" || permissions === "write";
 }
+
+export async function isFirstTimeContributor(ctx: any, username: string): Promise<boolean> {
+  const commits = await ctx.octokit.repos.listCommits({
+    owner: ctx.payload.repository.owner.login,
+    repo: ctx.payload.repository.name,
+    author: username,
+    per_page: 1,
+  })
+  return commits?.data?.length === 0;
+}
+
+export async function hasWorkflowRunningPermissions(ctx: any, username: string): Promise<boolean> {
+  return (
+    (await hasWritePermissions(ctx, username)) ||
+    !(await isFirstTimeContributor(ctx, username))
+  );
+}

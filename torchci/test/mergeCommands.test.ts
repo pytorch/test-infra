@@ -682,6 +682,10 @@ describe("merge-bot", () => {
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+      )
+      .reply(200, [])
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
           "You don't have permissions to rebase this PR"
@@ -689,6 +693,48 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200);
+
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("rebase no write permissions but has committed before", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot rebase";
+    event.payload.comment.user.login = "random1";
+    event.payload.issue.user.login = "random2";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+      )
+      .reply(200, [{}])
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain(`{"content":"+1"}`);
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-rebase","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"branch":"viable/strict"}}`
+        );
+        return true;
+      })
+      .reply(200, {});
 
     await probot.receive(event);
 
@@ -963,6 +1009,10 @@ some other text lol
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+      )
+      .reply(200, [])
       .post(
         `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
         (body) => {
@@ -973,7 +1023,7 @@ some other text lol
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "You don't have permissions to rebase this PR"
+          "You don't have permissions to rebase this PR since"
         );
         return true;
       })
@@ -981,6 +1031,45 @@ some other text lol
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
           `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("merge rebase no write permissions but has committed before", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -r";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+      )
+      .reply(200, [{}])
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"viable/strict"}}`
         );
         return true;
       })
