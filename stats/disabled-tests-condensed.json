@@ -1408,6 +1408,14 @@
       "macos"
     ]
   ],
+  "test_typing_variable_isinstance_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92196",
+    "https://github.com/pytorch/pytorch/issues/92196",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
