@@ -1388,6 +1388,14 @@
       "linux"
     ]
   ],
+  "test_torch_size_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92210",
+    "https://github.com/pytorch/pytorch/issues/92210",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
