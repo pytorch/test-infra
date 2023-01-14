@@ -57,6 +57,7 @@ export async function isFirstTimeContributor(ctx: any, username: string): Promis
     owner: ctx.payload.repository.owner.login,
     repo: ctx.payload.repository.name,
     author: username,
+    sha: ctx.payload.repository.default_branch,
     per_page: 1,
   })
   return commits?.data?.length === 0;

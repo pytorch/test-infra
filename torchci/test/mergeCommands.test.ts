@@ -677,13 +677,15 @@ describe("merge-bot", () => {
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
+    const default_branch = event.payload.repository.default_branch;
+
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
       .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
       )
       .reply(200, [])
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
@@ -710,6 +712,7 @@ describe("merge-bot", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
 
     const scope = nock("https://api.github.com")
       .get(
@@ -717,7 +720,7 @@ describe("merge-bot", () => {
       )
       .reply(200, { permission: "read" })
       .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
       )
       .reply(200, [{}])
       .post(
@@ -1004,13 +1007,15 @@ some other text lol
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
+
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
       )
       .reply(200, { permission: "read" })
       .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
       )
       .reply(200, [])
       .post(
@@ -1049,6 +1054,7 @@ some other text lol
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
 
     const scope = nock("https://api.github.com")
       .get(
@@ -1056,7 +1062,7 @@ some other text lol
       )
       .reply(200, { permission: "read" })
       .get(
-        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&per_page=1`
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
       )
       .reply(200, [{}])
       .post(
@@ -1342,6 +1348,7 @@ some other text lol
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
+
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews`)
       .reply(200, pull_requests)
