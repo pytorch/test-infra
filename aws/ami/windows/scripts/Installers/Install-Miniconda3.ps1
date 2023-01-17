@@ -12,7 +12,9 @@ if (-Not (Test-Path -Path $parentDir)) {
   New-Item -Path $parentDir -ItemType "directory"
 }
 
-$condaFilename = "Miniconda3-latest-Windows-x86_64.exe"
+# Miniconda3-latest-Windows-x86_64 nows use Python3.10 which will causes conflicts
+# later on when installing
+$condaFilename = "Miniconda3-py39_22.11.1-1-Windows-x86_64.exe"
 $condaURI = "https://repo.anaconda.com/miniconda/$condaFileName"
 
 Write-Output "Downloading Miniconda from $condaURI to $downloadDir, please wait ..."
@@ -36,15 +38,14 @@ Remove-Item -Path "$downloadDir\*" -Recurse -Force -ErrorAction SilentlyContinue
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_profiles
 $PS_PROFILE = "$PSHOME\Microsoft.PowerShell_profile.ps1"
 
-$Env:PATH += ";$installationDir"
-# Add conda path to the powershell profile to make its commands available when logging in to Windows
-# runners, for example python
-Add-Content "$PS_PROFILE" '$Env:PATH += ' + "';$installationDir'"
+$PYTHON_PATH = '$Env:PATH += ' + "';$installationDir'"
+# Add conda path to the powershell profile to make its commands, i.e. python, available when logging
+# in to Windows runners or when the CI uses powershell
+Add-Content "$PS_PROFILE" "$PYTHON_PATH"
 
+$Env:PATH += ";$installationDir"
 # According to https://docs.conda.io/en/latest/miniconda.html, Miniconda have only one built-in
 # python executable, and it can be Python3 or 2 depending on which installation package is used
-#
-# So we want to have an Python3 alias here in case it's referred to
 try {
   $PYTHON = (Get-Command python).Source
 } catch {
@@ -72,5 +73,6 @@ Else {
 }
 
 If (("$PYTHON3" -eq "") -and ("$PYTHON" -ne "")) {
+  # Setup an alias from Python3 to Python when only the latter exists in Miniconda3
   Add-Content "$PS_PROFILE" "Set-Alias -Name python3 -Value $PYTHON"
 }
