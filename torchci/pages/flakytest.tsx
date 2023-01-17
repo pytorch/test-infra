@@ -41,9 +41,12 @@ export default function Page() {
               from file <code>{`${test.file}`}</code>
               <h4>Debugging instructions:</h4>
               <p>
-                DO NOT BE ALARMED IF THE CI IS GREEN. We now shield flaky tests
+                DO NOT ASSUME THINGS ARE OKAY IF THE CI IS GREEN. We now shield flaky tests
                 from developers so CI will thus be green but it will be harder
-                to parse the logs. To find relevant log snippets:
+                to parse the logs.
+              </p>
+              <p>
+                To find relevant log snippets:
               </p>
               <ol>
                 <li>
