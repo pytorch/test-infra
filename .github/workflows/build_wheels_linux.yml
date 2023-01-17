@@ -130,8 +130,10 @@ jobs:
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
 
-          echo "### CUDA check:"
-          nvidia-smi
+          if [ -d "/usr/local" ]; then
+            echo "### CUDA check:"
+            ls -l /usr/local | grep cuda
+          fi
 
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
