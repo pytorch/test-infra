@@ -1,6 +1,5 @@
 import { Context, Probot } from "probot";
-import { addLabels, hasWritePermissions } from "./botUtils";
-import { isPyTorchPyTorch } from "./utils";
+import { addLabels, isPyTorchPyTorch } from "./utils";
 
 
 const titleRegexToLabel: [RegExp, string][] = [

@@ -2,15 +2,16 @@ import { PullRequestReview } from "@octokit/webhooks-types";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
+import { getHelp, getParser } from "./cliParser";
+import PytorchBotLogger from "./pytorchbotLogger";
 import {
+  isPyTorchOrg,
+  isPyTorchPyTorch,
   addLabels,
   hasWritePermissions as _hasWP,
   reactOnComment,
   hasWorkflowRunningPermissions as _hasWRP,
-} from "./botUtils";
-import { getHelp, getParser } from "./cliParser";
-import PytorchBotLogger from "./pytorchbotLogger";
-import { isPyTorchOrg, isPyTorchPyTorch } from "./utils";
+} from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
