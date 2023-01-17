@@ -2,6 +2,7 @@ import nock from "nock";
 import * as probot from "probot";
 import * as utils from "./utils";
 import pytorchBot from "lib/bot/pytorchBot";
+import { handleScope } from "./common";
 
 nock.disableNetConnect();
 
@@ -64,9 +65,7 @@ describe("label-bot", () => {
         expect(JSON.stringify(body)).toContain(`{"labels":["enhancement"]}`);
         return true;
       })
-      .reply(200, {})
-      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
-      .reply(200, {'permission': "read" });
+      .reply(200, {});
     await probot.receive(event);
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -84,6 +83,7 @@ describe("label-bot", () => {
     const repo = event.payload.repository.name;
     const pr_number = event.payload.issue.number;
     const comment_number = event.payload.comment.id;
+
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/labels`)
       .reply(200, existingRepoLabelsResponse)
@@ -108,13 +108,84 @@ describe("label-bot", () => {
         );
         return true;
       })
-      .reply(200, {})
-      .get(`/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`)
-      .reply(200, {'permission': "write" });
+      .reply(200, {});
     await probot.receive(event);
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
     scope.done();
+  });
+
+  test("label with ciflow bad permissions", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot label enhancement 'ciflow/trunk'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const default_branch = event.payload.repository.default_branch;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
+      )
+      .reply(200, [])
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain(
+          `{"body":"Can't add following labels to PR: ciflow/trunk`
+        );
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("label with ciflow good permissions", async () => {
+    const event = require("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot label 'ciflow/trunk'";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const default_branch = event.payload.repository.default_branch;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+      )
+      .reply(200, { permission: "read" })
+      .get(
+        `/repos/${owner}/${repo}/commits?author=${event.payload.comment.user.login}&sha=${default_branch}&per_page=1`
+      )
+      .reply(200, [{}])
+      .get(`/repos/${owner}/${repo}/labels`)
+      .reply(200, existingRepoLabelsResponse)
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`{"labels":["ciflow/trunk"]}`);
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event);
+    handleScope(scope);
   });
 });
