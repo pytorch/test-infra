@@ -48,11 +48,6 @@ WORKFLOWS = [
     CIWorkflow(
         template="metrics_pytorch_org.yml.j2", name="metrics-pytorch-org", timeout=3
     ),
-    CIWorkflow(
-        template="update_grafana_dashboards.yml.j2",
-        name="update-grafana-dashboards",
-        timeout=3,
-    ),
 ]
 
 
