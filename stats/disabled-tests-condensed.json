@@ -1378,7 +1378,8 @@
     "https://github.com/pytorch/pytorch/issues/92104",
     [
       "mac",
-      "macos"
+      "macos",
+      "linux"
     ]
   ],
   "test_torch_size (__main__.MiscTests)": [
