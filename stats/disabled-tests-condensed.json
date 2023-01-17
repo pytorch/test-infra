@@ -1363,7 +1363,8 @@
     "https://github.com/pytorch/pytorch/issues/92042",
     [
       "mac",
-      "macos"
+      "macos",
+      "linux"
     ]
   ],
   "test_torch_seed (__main__.MiscTests)": [
