@@ -599,7 +599,7 @@ describe("auto-label-bot", () => {
     scope.done();
   });
 
-  test("topic: not user facing is added for unusing facing files", async () => {
+  test("topic: not user facing is added for unuser facing files", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
