@@ -1431,7 +1431,8 @@
     "https://github.com/pytorch/pytorch/issues/92196",
     [
       "mac",
-      "macos"
+      "macos",
+      "linux"
     ]
   ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
