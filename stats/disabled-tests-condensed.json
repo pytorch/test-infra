@@ -1422,7 +1422,8 @@
     "https://github.com/pytorch/pytorch/issues/92178",
     [
       "mac",
-      "macos"
+      "macos",
+      "linux"
     ]
   ],
   "test_typing_variable_isinstance_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
