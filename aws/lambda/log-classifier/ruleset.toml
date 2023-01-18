@@ -193,6 +193,10 @@ name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
 [[rule]]
+name = 'sccache error'
+pattern = '^sccache: error: .*'
+
+[[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
 
