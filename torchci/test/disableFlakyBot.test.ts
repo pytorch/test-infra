@@ -8,6 +8,7 @@ nock.disableNetConnect();
 
 const flakyTestA = {
   file: "file_a.py",
+  invoking_file: "file_a",
   suite: "suite_a",
   name: "test_a",
   numGreen: 4,
@@ -25,6 +26,7 @@ const flakyTestA = {
 
 const flakyTestB = {
   file: "file_b.py",
+  invoking_file: "file_b",
   suite: "suite_b",
   name: "test_b",
   numGreen: 4,
@@ -46,6 +48,7 @@ const flakyTestB = {
 
 const flakyTestE = {
   file: "file_e.py",
+  invoking_file: "file_e",
   suite: "suite_e",
   name: "test_e",
   numGreen: 4,
@@ -66,6 +69,7 @@ const flakyTestAcrossJobA = {
   name: "test_conv1d_vs_scipy_mode_same_cuda_complex64",
   suite: "TestConvolutionNNDeviceTypeCUDA",
   file: "nn/test_convolution.py",
+  invoking_file: "nn.test_convolution",
   jobNames: [
     "linux-focal-rocm5.2-py3.8 / test (default, 1, 2, linux.rocm.gpu)",
     "linux-focal-rocm5.2-py3.8 / test (default, 1, 2, linux.rocm.gpu)",
@@ -468,6 +472,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       flakyTestA,
       {
         file: "file_b.py",
+        invoking_file: "file_b",
         suite: "suite_b",
         name: "test_b",
         numGreen: 4,
@@ -480,6 +485,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       },
       {
         file: "file_c.py",
+        invoking_file: "file_c",
         suite: "suite_c",
         name: "test_c",
         numGreen: 4,
@@ -496,6 +502,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       },
       {
         file: "file_d.py",
+        invoking_file: "file_d",
         suite: "suite_d",
         name: "test_d",
         numGreen: 4,
@@ -512,6 +519,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       flakyTestA,
       {
         file: "file_c.py",
+        invoking_file: "file_c",
         suite: "suite_c",
         name: "test_c",
         numGreen: 4,
@@ -542,7 +550,10 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestA.file,
+        flakyTestA.invoking_file
+      );
     expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: fft", "triaged"]);
 
@@ -563,7 +574,8 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels } = await disableFlakyTestBot.getTestOwnerLabels(
-      flakyTestA.file
+      flakyTestA.file,
+      flakyTestA.invoking_file
     );
     expect(labels).toEqual(["oncall: distributed"]);
 
@@ -584,7 +596,10 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestA.file,
+        flakyTestA.invoking_file
+      );
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -603,7 +618,10 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestA.file,
+        flakyTestA.invoking_file
+      );
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -622,13 +640,24 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(404)
       .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
       .reply(404);
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestA.file,
+        flakyTestA.invoking_file
+      );
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(
-      "Error retrieving file_a.py: Error: Statuscode 404"
+      "Error: Error retrieving file_a.py: 404, file_a: 404"
     );
 
     if (!scope.isDone()) {
@@ -637,7 +666,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     scope.done();
   });
 
-  test("getTestOwnerLabels: retry getting file fails all times", async () => {
+  test("getTestOwnerLabels: retry getting file", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
       .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
       .reply(404)
@@ -647,7 +676,39 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
       );
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA.file);
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestA.file,
+        flakyTestA.invoking_file
+      );
+    expect(labels).toEqual(["module: fft", "triaged"]);
+    expect(additionalErrMessage).toEqual(undefined);
+
+    if (!scope.isDone()) {
+      console.error("pending mocks: %j", scope.pendingMocks());
+    }
+    scope.done();
+  });
+
+  test("getTestOwnerLabels: fallback to invoking file when retrieving file", async () => {
+    const scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .reply(404)
+      .get(`/pytorch/pytorch/master/test/nn/test_convolution.py`)
+      .reply(
+        200,
+        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
+      );
+    const { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(
+        flakyTestAcrossJobA.file,
+        flakyTestAcrossJobA.invoking_file
+      );
     expect(labels).toEqual(["module: fft", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
