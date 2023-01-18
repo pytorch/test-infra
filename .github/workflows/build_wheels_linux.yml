@@ -142,6 +142,8 @@ jobs:
           echo "### Check CUDA version:"
           nvcc --version
 
+          nvidia-smi
+
           echo "### LD_LIBRARY_PATH:"
           echo $LD_LIBRARY_PATH
 
