@@ -142,7 +142,6 @@ jobs:
           echo "### Check CUDA version:"
           nvcc --version
 
-#          nvidia-smi
           dpkg -l | grep nvidia-driver
 
           echo "### LD_LIBRARY_PATH:"
