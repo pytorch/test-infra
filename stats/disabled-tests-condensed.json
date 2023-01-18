@@ -753,6 +753,13 @@
       "linux"
     ]
   ],
+  "test_dict_reconstruct_keeps_original_order_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92526",
+    "https://github.com/pytorch/pytorch/issues/92526",
+    [
+      "linux"
+    ]
+  ],
   "test_dictcomp_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92513",
     "https://github.com/pytorch/pytorch/issues/92513",
@@ -1132,6 +1139,13 @@
       "linux"
     ]
   ],
+  "test_guard_failure_fn2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92524",
+    "https://github.com/pytorch/pytorch/issues/92524",
+    [
+      "linux"
+    ]
+  ],
   "test_guard_failure_fn_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92444",
     "https://github.com/pytorch/pytorch/issues/92444",
@@ -1288,6 +1302,13 @@
   "test_is_tensor_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92453",
     "https://github.com/pytorch/pytorch/issues/92453",
+    [
+      "linux"
+    ]
+  ],
+  "test_is_tensor_like2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92521",
+    "https://github.com/pytorch/pytorch/issues/92521",
     [
       "linux"
     ]
@@ -1906,6 +1927,13 @@
       "asan"
     ]
   ],
+  "test_range_input_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92523",
+    "https://github.com/pytorch/pytorch/issues/92523",
+    [
+      "linux"
+    ]
+  ],
   "test_readall (test_zipfile.ZipfileTest)": [
     "75406",
     "https://github.com/pytorch/pytorch/issues/75406",
@@ -1945,6 +1973,13 @@
   "test_release_input_memory_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92498",
     "https://github.com/pytorch/pytorch/issues/92498",
+    [
+      "linux"
+    ]
+  ],
+  "test_release_module_memory_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92525",
+    "https://github.com/pytorch/pytorch/issues/92525",
     [
       "linux"
     ]
@@ -2137,6 +2172,13 @@
   "test_tensor_is_contiguous_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92492",
     "https://github.com/pytorch/pytorch/issues/92492",
+    [
+      "linux"
+    ]
+  ],
+  "test_tensor_item_capture_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92522",
+    "https://github.com/pytorch/pytorch/issues/92522",
     [
       "linux"
     ]
