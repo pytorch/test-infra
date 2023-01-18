@@ -97,13 +97,6 @@
       "linux"
     ]
   ],
-  "test_allow_in_graph_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92405",
-    "https://github.com/pytorch/pytorch/issues/92405",
-    [
-      "linux"
-    ]
-  ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91486",
     "https://github.com/pytorch/pytorch/issues/91486",
@@ -132,55 +125,6 @@
     [
       "win",
       "windows",
-      "linux"
-    ]
-  ],
-  "test_autocast_cpu_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92407",
-    "https://github.com/pytorch/pytorch/issues/92407",
-    [
-      "linux"
-    ]
-  ],
-  "test_autocast_device_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92408",
-    "https://github.com/pytorch/pytorch/issues/92408",
-    [
-      "linux"
-    ]
-  ],
-  "test_autocast_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92409",
-    "https://github.com/pytorch/pytorch/issues/92409",
-    [
-      "linux"
-    ]
-  ],
-  "test_autocast_float64_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92410",
-    "https://github.com/pytorch/pytorch/issues/92410",
-    [
-      "linux"
-    ]
-  ],
-  "test_autograd_function_equivalence_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92411",
-    "https://github.com/pytorch/pytorch/issues/92411",
-    [
-      "linux"
-    ]
-  ],
-  "test_autograd_profiler_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92412",
-    "https://github.com/pytorch/pytorch/issues/92412",
-    [
-      "linux"
-    ]
-  ],
-  "test_autograd_profiler_enabled_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92413",
-    "https://github.com/pytorch/pytorch/issues/92413",
-    [
       "linux"
     ]
   ],
@@ -246,13 +190,6 @@
       "linux"
     ]
   ],
-  "test_boolarg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92414",
-    "https://github.com/pytorch/pytorch/issues/92414",
-    [
-      "linux"
-    ]
-  ],
   "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
     "68433",
     "https://github.com/pytorch/pytorch/issues/68433",
@@ -277,27 +214,6 @@
   "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
     "82847",
     "https://github.com/pytorch/pytorch/issues/82847",
-    [
-      "linux"
-    ]
-  ],
-  "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92415",
-    "https://github.com/pytorch/pytorch/issues/92415",
-    [
-      "linux"
-    ]
-  ],
-  "test_builder_for_class_with_metaclass_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92416",
-    "https://github.com/pytorch/pytorch/issues/92416",
-    [
-      "linux"
-    ]
-  ],
-  "test_builtin_isinstance_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92417",
-    "https://github.com/pytorch/pytorch/issues/92417",
     [
       "linux"
     ]
@@ -329,54 +245,12 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_call_parent_non_class_methods_from_child_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92418",
-    "https://github.com/pytorch/pytorch/issues/92418",
-    [
-      "linux"
-    ]
-  ],
-  "test_callpacked_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92419",
-    "https://github.com/pytorch/pytorch/issues/92419",
-    [
-      "linux"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_cell_output1_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92420",
-    "https://github.com/pytorch/pytorch/issues/92420",
-    [
-      "linux"
-    ]
-  ],
-  "test_cell_output2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92421",
-    "https://github.com/pytorch/pytorch/issues/92421",
-    [
-      "linux"
-    ]
-  ],
-  "test_cfgmod_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92406",
-    "https://github.com/pytorch/pytorch/issues/92406",
-    [
-      "linux"
-    ]
-  ],
-  "test_change_backends_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92423",
-    "https://github.com/pytorch/pytorch/issues/92423",
-    [
-      "linux"
     ]
   ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
@@ -419,13 +293,6 @@
       "linux"
     ]
   ],
-  "test_cond_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92422",
-    "https://github.com/pytorch/pytorch/issues/92422",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_export_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "90047",
     "https://github.com/pytorch/pytorch/issues/90047",
@@ -443,27 +310,6 @@
   "test_cond_nested_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "89676",
     "https://github.com/pytorch/pytorch/issues/89676",
-    [
-      "linux"
-    ]
-  ],
-  "test_config_getattr_default_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92424",
-    "https://github.com/pytorch/pytorch/issues/92424",
-    [
-      "linux"
-    ]
-  ],
-  "test_config_log_level_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92426",
-    "https://github.com/pytorch/pytorch/issues/92426",
-    [
-      "linux"
-    ]
-  ],
-  "test_config_obj_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92425",
-    "https://github.com/pytorch/pytorch/issues/92425",
     [
       "linux"
     ]
@@ -515,13 +361,6 @@
     "https://github.com/pytorch/pytorch/issues/87748",
     [
       "dynamo"
-    ]
-  ],
-  "test_dataclass_fields_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92427",
-    "https://github.com/pytorch/pytorch/issues/92427",
-    [
-      "linux"
     ]
   ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
@@ -741,37 +580,9 @@
       "linux"
     ]
   ],
-  "test_dict_mutation_side_effect_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92428",
-    "https://github.com/pytorch/pytorch/issues/92428",
-    [
-      "linux"
-    ]
-  ],
-  "test_dict_reconstruct_keeps_original_order_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92526",
-    "https://github.com/pytorch/pytorch/issues/92526",
-    [
-      "linux"
-    ]
-  ],
-  "test_dictcomp_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92513",
-    "https://github.com/pytorch/pytorch/issues/92513",
-    [
-      "linux"
-    ]
-  ],
   "test_different_graph_across_ranks (__main__.TestDistBackendWithSpawn)": [
     "78748",
     "https://github.com/pytorch/pytorch/issues/78748",
-    [
-      "linux"
-    ]
-  ],
-  "test_disallow_in_graph_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92429",
-    "https://github.com/pytorch/pytorch/issues/92429",
     [
       "linux"
     ]
@@ -804,51 +615,9 @@
       "linux"
     ]
   ],
-  "test_dunder_methods_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92430",
-    "https://github.com/pytorch/pytorch/issues/92430",
-    [
-      "linux"
-    ]
-  ],
-  "test_duplicate_graph_break_warning_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92431",
-    "https://github.com/pytorch/pytorch/issues/92431",
-    [
-      "linux"
-    ]
-  ],
   "test_dynamic_rpc_existing_rank_can_communicate_with_new_rank (__main__.TensorPipeTensorPipeAgentRpcTest)": [
     "84116",
     "https://github.com/pytorch/pytorch/issues/84116",
-    [
-      "linux"
-    ]
-  ],
-  "test_dynamo_min_operator_with_shape_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92432",
-    "https://github.com/pytorch/pytorch/issues/92432",
-    [
-      "linux"
-    ]
-  ],
-  "test_empty_list_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92433",
-    "https://github.com/pytorch/pytorch/issues/92433",
-    [
-      "linux"
-    ]
-  ],
-  "test_enum_no_graphbreaks_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92434",
-    "https://github.com/pytorch/pytorch/issues/92434",
-    [
-      "linux"
-    ]
-  ],
-  "test_error_on_nested_fx_trace_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92435",
-    "https://github.com/pytorch/pytorch/issues/92435",
     [
       "linux"
     ]
@@ -987,13 +756,6 @@
       "linux"
     ]
   ],
-  "test_fold_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92436",
-    "https://github.com/pytorch/pytorch/issues/92436",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86680",
     "https://github.com/pytorch/pytorch/issues/86680",
@@ -1041,13 +803,6 @@
     "https://github.com/pytorch/pytorch/issues/71183",
     []
   ],
-  "test_frozenset_torch_func_contains_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92438",
-    "https://github.com/pytorch/pytorch/issues/92438",
-    [
-      "linux"
-    ]
-  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
@@ -1064,13 +819,6 @@
       "linux",
       "dynamo",
       "rocm"
-    ]
-  ],
-  "test_function_annotation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92437",
-    "https://github.com/pytorch/pytorch/issues/92437",
-    [
-      "linux"
     ]
   ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
@@ -1092,60 +840,11 @@
       "linux"
     ]
   ],
-  "test_generate_tensor_from_list_of_numpy_primitive_type_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92443",
-    "https://github.com/pytorch/pytorch/issues/92443",
-    [
-      "linux"
-    ]
-  ],
-  "test_get_device_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92439",
-    "https://github.com/pytorch/pytorch/issues/92439",
-    [
-      "linux"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
     [
       "mac"
-    ]
-  ],
-  "test_grad_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92440",
-    "https://github.com/pytorch/pytorch/issues/92440",
-    [
-      "linux"
-    ]
-  ],
-  "test_grad_mode_guard_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92441",
-    "https://github.com/pytorch/pytorch/issues/92441",
-    [
-      "linux"
-    ]
-  ],
-  "test_graph_break_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92442",
-    "https://github.com/pytorch/pytorch/issues/92442",
-    [
-      "linux"
-    ]
-  ],
-  "test_guard_failure_fn2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92524",
-    "https://github.com/pytorch/pytorch/issues/92524",
-    [
-      "linux"
-    ]
-  ],
-  "test_guard_failure_fn_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92444",
-    "https://github.com/pytorch/pytorch/issues/92444",
-    [
-      "linux"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
@@ -1158,20 +857,6 @@
   "test_huge_index (__main__.TestCuda)": [
     "90063",
     "https://github.com/pytorch/pytorch/issues/90063",
-    [
-      "linux"
-    ]
-  ],
-  "test_id_of_nn_module_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92445",
-    "https://github.com/pytorch/pytorch/issues/92445",
-    [
-      "linux"
-    ]
-  ],
-  "test_if_cond_nn_mod_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92447",
-    "https://github.com/pytorch/pytorch/issues/92447",
     [
       "linux"
     ]
@@ -1202,13 +887,6 @@
       "dynamo"
     ]
   ],
-  "test_inference_mode_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92446",
-    "https://github.com/pytorch/pytorch/issues/92446",
-    [
-      "linux"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -1224,114 +902,9 @@
       "macos"
     ]
   ],
-  "test_inline_dict_mutation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92454",
-    "https://github.com/pytorch/pytorch/issues/92454",
-    [
-      "linux"
-    ]
-  ],
-  "test_inline_func_jump_on_tensor_condition_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92448",
-    "https://github.com/pytorch/pytorch/issues/92448",
-    [
-      "linux"
-    ]
-  ],
-  "test_inline_list_mutation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92450",
-    "https://github.com/pytorch/pytorch/issues/92450",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_check (jit.test_tracer.TestTracer)": [
     "91457",
     "https://github.com/pytorch/pytorch/issues/91457",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92449",
-    "https://github.com/pytorch/pytorch/issues/92449",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_param_update_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92451",
-    "https://github.com/pytorch/pytorch/issues/92451",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_compiling_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92486",
-    "https://github.com/pytorch/pytorch/issues/92486",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_floating_point2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92520",
-    "https://github.com/pytorch/pytorch/issues/92520",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_floating_point_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92452",
-    "https://github.com/pytorch/pytorch/issues/92452",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_tensor2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92497",
-    "https://github.com/pytorch/pytorch/issues/92497",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_tensor_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92453",
-    "https://github.com/pytorch/pytorch/issues/92453",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_tensor_like2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92521",
-    "https://github.com/pytorch/pytorch/issues/92521",
-    [
-      "linux"
-    ]
-  ],
-  "test_is_tensor_like_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92455",
-    "https://github.com/pytorch/pytorch/issues/92455",
-    [
-      "linux"
-    ]
-  ],
-  "test_item_changes_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92505",
-    "https://github.com/pytorch/pytorch/issues/92505",
-    [
-      "linux"
-    ]
-  ],
-  "test_item_changes_new_shape_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92482",
-    "https://github.com/pytorch/pytorch/issues/92482",
-    [
-      "linux"
-    ]
-  ],
-  "test_item_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92485",
-    "https://github.com/pytorch/pytorch/issues/92485",
     [
       "linux"
     ]
@@ -1362,30 +935,9 @@
       "macos"
     ]
   ],
-  "test_list_append_return_none_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92484",
-    "https://github.com/pytorch/pytorch/issues/92484",
-    [
-      "linux"
-    ]
-  ],
-  "test_listcomp_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92504",
-    "https://github.com/pytorch/pytorch/issues/92504",
-    [
-      "linux"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
-    [
-      "linux"
-    ]
-  ],
-  "test_manual_seed_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92483",
-    "https://github.com/pytorch/pytorch/issues/92483",
     [
       "linux"
     ]
@@ -1401,13 +953,6 @@
       "rocm",
       "win",
       "windows"
-    ]
-  ],
-  "test_matmul1_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92507",
-    "https://github.com/pytorch/pytorch/issues/92507",
-    [
-      "linux"
     ]
   ],
   "test_mem_leak (__main__.TestProfilerCUDA)": [
@@ -1490,13 +1035,6 @@
       "macos"
     ]
   ],
-  "test_module_deepcopy_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92503",
-    "https://github.com/pytorch/pytorch/issues/92503",
-    [
-      "linux"
-    ]
-  ],
   "test_multi_drop (__main__.TestDataLoaderUtils)": [
     "82865",
     "https://github.com/pytorch/pytorch/issues/82865",
@@ -1507,34 +1045,6 @@
   "test_multi_threads (__main__.TestTorchrun)": [
     "83654",
     "https://github.com/pytorch/pytorch/issues/83654",
-    [
-      "linux"
-    ]
-  ],
-  "test_namedtuple1_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92404",
-    "https://github.com/pytorch/pytorch/issues/92404",
-    [
-      "linux"
-    ]
-  ],
-  "test_namedtuple2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92517",
-    "https://github.com/pytorch/pytorch/issues/92517",
-    [
-      "linux"
-    ]
-  ],
-  "test_namedtuple3_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92456",
-    "https://github.com/pytorch/pytorch/issues/92456",
-    [
-      "linux"
-    ]
-  ],
-  "test_nan_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92457",
-    "https://github.com/pytorch/pytorch/issues/92457",
     [
       "linux"
     ]
@@ -1558,107 +1068,9 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
-  "test_nested_closure_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92458",
-    "https://github.com/pytorch/pytorch/issues/92458",
-    [
-      "linux"
-    ]
-  ],
-  "test_nested_closure_mutation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92460",
-    "https://github.com/pytorch/pytorch/issues/92460",
-    [
-      "linux"
-    ]
-  ],
-  "test_nested_disable_decorator_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92459",
-    "https://github.com/pytorch/pytorch/issues/92459",
-    [
-      "linux"
-    ]
-  ],
-  "test_nested_optimize_decorator_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92461",
-    "https://github.com/pytorch/pytorch/issues/92461",
-    [
-      "linux"
-    ]
-  ],
-  "test_nested_optimize_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92462",
-    "https://github.com/pytorch/pytorch/issues/92462",
-    [
-      "linux"
-    ]
-  ],
-  "test_nested_optimize_run_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92463",
-    "https://github.com/pytorch/pytorch/issues/92463",
-    [
-      "linux"
-    ]
-  ],
-  "test_nn_functional_reduction_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92506",
-    "https://github.com/pytorch/pytorch/issues/92506",
-    [
-      "linux"
-    ]
-  ],
-  "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92465",
-    "https://github.com/pytorch/pytorch/issues/92465",
-    [
-      "linux"
-    ]
-  ],
-  "test_nn_sequential_invocation_reposition_indices_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92464",
-    "https://github.com/pytorch/pytorch/issues/92464",
-    [
-      "linux"
-    ]
-  ],
-  "test_no_error_on_nested_fx_trace_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92514",
-    "https://github.com/pytorch/pytorch/issues/92514",
-    [
-      "linux"
-    ]
-  ],
-  "test_no_grad_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92495",
-    "https://github.com/pytorch/pytorch/issues/92495",
-    [
-      "linux"
-    ]
-  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
-    [
-      "linux"
-    ]
-  ],
-  "test_not_dynamic_scope_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92519",
-    "https://github.com/pytorch/pytorch/issues/92519",
-    [
-      "linux"
-    ]
-  ],
-  "test_numel_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92516",
-    "https://github.com/pytorch/pytorch/issues/92516",
-    [
-      "linux"
-    ]
-  ],
-  "test_numpy_int_constant_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92512",
-    "https://github.com/pytorch/pytorch/issues/92512",
     [
       "linux"
     ]
@@ -1676,13 +1088,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_numpy_variable_isinstance_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92466",
-    "https://github.com/pytorch/pytorch/issues/92466",
-    [
-      "linux"
     ]
   ],
   "test_nvfuser_correctness_masked_amax (__main__.TestCudaFuserOpInfoCUDA)": [
@@ -1706,27 +1111,6 @@
       "rocm"
     ]
   ],
-  "test_object_classmethod_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92467",
-    "https://github.com/pytorch/pytorch/issues/92467",
-    [
-      "linux"
-    ]
-  ],
-  "test_object_staticmethod_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92468",
-    "https://github.com/pytorch/pytorch/issues/92468",
-    [
-      "linux"
-    ]
-  ],
-  "test_onnx_shape_as_tensor_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92469",
-    "https://github.com/pytorch/pytorch/issues/92469",
-    [
-      "linux"
-    ]
-  ],
   "test_op_has_batch_rule_ge_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
     "91804",
     "https://github.com/pytorch/pytorch/issues/91804",
@@ -1742,23 +1126,9 @@
       "linux"
     ]
   ],
-  "test_optimize_on_module_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92502",
-    "https://github.com/pytorch/pytorch/issues/92502",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
-    [
-      "linux"
-    ]
-  ],
-  "test_pair_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92470",
-    "https://github.com/pytorch/pytorch/issues/92470",
     [
       "linux"
     ]
@@ -1882,31 +1252,10 @@
       "linux"
     ]
   ],
-  "test_python_slice_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92471",
-    "https://github.com/pytorch/pytorch/issues/92471",
-    [
-      "linux"
-    ]
-  ],
   "test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)": [
     "32644",
     "https://github.com/pytorch/pytorch/issues/32644",
     []
-  ],
-  "test_raises_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92472",
-    "https://github.com/pytorch/pytorch/issues/92472",
-    [
-      "linux"
-    ]
-  ],
-  "test_rand_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92473",
-    "https://github.com/pytorch/pytorch/issues/92473",
-    [
-      "linux"
-    ]
   ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
@@ -1915,25 +1264,11 @@
       "asan"
     ]
   ],
-  "test_range_input_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92523",
-    "https://github.com/pytorch/pytorch/issues/92523",
-    [
-      "linux"
-    ]
-  ],
   "test_readall (test_zipfile.ZipfileTest)": [
     "75406",
     "https://github.com/pytorch/pytorch/issues/75406",
     [
       "mac"
-    ]
-  ],
-  "test_recursive_inline_list_mutation_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92474",
-    "https://github.com/pytorch/pytorch/issues/92474",
-    [
-      "linux"
     ]
   ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
@@ -1958,53 +1293,11 @@
       "linux"
     ]
   ],
-  "test_release_input_memory_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92498",
-    "https://github.com/pytorch/pytorch/issues/92498",
-    [
-      "linux"
-    ]
-  ],
-  "test_release_module_memory_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92525",
-    "https://github.com/pytorch/pytorch/issues/92525",
-    [
-      "linux"
-    ]
-  ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_repro_graph_breaks_in__get_item_by_idx_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92475",
-    "https://github.com/pytorch/pytorch/issues/92475",
-    [
-      "linux"
-    ]
-  ],
-  "test_restore_graphstate_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92476",
-    "https://github.com/pytorch/pytorch/issues/92476",
-    [
-      "linux"
-    ]
-  ],
-  "test_restore_graphstate_internals_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92480",
-    "https://github.com/pytorch/pytorch/issues/92480",
-    [
-      "linux"
-    ]
-  ],
-  "test_return_nested_function_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92477",
-    "https://github.com/pytorch/pytorch/issues/92477",
-    [
-      "linux"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
@@ -2014,46 +1307,11 @@
       "linux"
     ]
   ],
-  "test_sample_input_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92479",
-    "https://github.com/pytorch/pytorch/issues/92479",
-    [
-      "linux"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
-    ]
-  ],
-  "test_setattr_mutation1_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92501",
-    "https://github.com/pytorch/pytorch/issues/92501",
-    [
-      "linux"
-    ]
-  ],
-  "test_setattr_mutation2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92478",
-    "https://github.com/pytorch/pytorch/issues/92478",
-    [
-      "linux"
-    ]
-  ],
-  "test_setattr_mutation3_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92481",
-    "https://github.com/pytorch/pytorch/issues/92481",
-    [
-      "linux"
-    ]
-  ],
-  "test_shape_unpack_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92500",
-    "https://github.com/pytorch/pytorch/issues/92500",
-    [
-      "linux"
     ]
   ],
   "test_shuffle (__main__.TestDataLoader2)": [
@@ -2072,27 +1330,6 @@
     "61670",
     "https://github.com/pytorch/pytorch/issues/61670",
     []
-  ],
-  "test_side_effects_codegen_update_mutated_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92499",
-    "https://github.com/pytorch/pytorch/issues/92499",
-    [
-      "linux"
-    ]
-  ],
-  "test_size_input_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92487",
-    "https://github.com/pytorch/pytorch/issues/92487",
-    [
-      "linux"
-    ]
-  ],
-  "test_slice_input_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92490",
-    "https://github.com/pytorch/pytorch/issues/92490",
-    [
-      "linux"
-    ]
   ],
   "test_smoke (__main__.TestCollectEnv)": [
     "77345",
@@ -2129,69 +1366,6 @@
       "linux"
     ]
   ],
-  "test_tensor_data_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92510",
-    "https://github.com/pytorch/pytorch/issues/92510",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_dict1_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92493",
-    "https://github.com/pytorch/pytorch/issues/92493",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_dict2_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92511",
-    "https://github.com/pytorch/pytorch/issues/92511",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_dot_grad_no_graph_break_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92496",
-    "https://github.com/pytorch/pytorch/issues/92496",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_is_contiguous_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92492",
-    "https://github.com/pytorch/pytorch/issues/92492",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_item_capture_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92522",
-    "https://github.com/pytorch/pytorch/issues/92522",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_item_no_capture_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92488",
-    "https://github.com/pytorch/pytorch/issues/92488",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_layout_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92489",
-    "https://github.com/pytorch/pytorch/issues/92489",
-    [
-      "linux"
-    ]
-  ],
-  "test_tensor_types_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92491",
-    "https://github.com/pytorch/pytorch/issues/92491",
-    [
-      "linux"
-    ]
-  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
@@ -2205,34 +1379,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_top_package_import_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92508",
-    "https://github.com/pytorch/pytorch/issues/92508",
-    [
-      "linux"
-    ]
-  ],
-  "test_torch_cuda_is_available_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92509",
-    "https://github.com/pytorch/pytorch/issues/92509",
-    [
-      "linux"
-    ]
-  ],
-  "test_torch_cudnn_is_acceptable_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92515",
-    "https://github.com/pytorch/pytorch/issues/92515",
-    [
-      "linux"
-    ]
-  ],
-  "test_torch_nn_parameter_isinstance_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92494",
-    "https://github.com/pytorch/pytorch/issues/92494",
-    [
-      "linux"
     ]
   ],
   "test_torch_profiler (__main__.MiscTests)": [
