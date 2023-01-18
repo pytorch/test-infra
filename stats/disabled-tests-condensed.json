@@ -1742,13 +1742,6 @@
       "linux"
     ]
   ],
-  "test_operator_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "91685",
-    "https://github.com/pytorch/pytorch/issues/91685",
-    [
-      "linux"
-    ]
-  ],
   "test_optimize_on_module_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92502",
     "https://github.com/pytorch/pytorch/issues/92502",
