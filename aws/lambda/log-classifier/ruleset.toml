@@ -193,10 +193,6 @@ name = 'Python flaky unittest - errored'
 pattern = '^\s*(test.*) errored - num_retries_left:'
 
 [[rule]]
-name = 'sccache error'
-pattern = '^sccache: error: .*'
-
-[[rule]]
 name = 'Python RuntimeError'
 pattern = '^RuntimeError: .*'
 
@@ -219,6 +215,10 @@ pattern = 'An unexpected error has occurred. Conda has prepared the above report
 [[rule]]
 name = 'Docker error'
 pattern = '^docker: Error.*'
+
+[[rule]]
+name = 'sccache error'
+pattern = '^sccache: error: .*'
 
 [[rule]]
 name = 'GHA error'
