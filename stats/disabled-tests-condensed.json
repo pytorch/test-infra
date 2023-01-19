@@ -121,6 +121,13 @@
       "linux"
     ]
   ],
+  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "86434",
+    "https://github.com/pytorch/pytorch/issues/86434",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
