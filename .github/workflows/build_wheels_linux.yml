@@ -132,8 +132,11 @@ jobs:
 
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
 
-          echo "### Check CUDA version:"
-          nvcc --version
+          if ! command -v nvcc &> /dev/null
+          then
+            echo "### Check CUDA version:"
+            nvcc --version
+          fi
 
           echo "### LD_LIBRARY_PATH:"
           echo $LD_LIBRARY_PATH
