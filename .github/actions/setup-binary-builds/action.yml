@@ -111,5 +111,3 @@ runs:
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
-      - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-        uses: ./test-infra/.github/actions/setup-nvidia
