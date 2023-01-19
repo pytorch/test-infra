@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple, Optional
 
 mod = sys.modules[__name__]
 
-FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+FULL_PYTHON_VERSIONS = ["3.8", "3.9", "3.10"]
 
 CUDA_ACRHES_DICT = {
     "nightly": ["11.6", "11.7", "11.8"],
@@ -211,9 +211,6 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
             # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
             arches += list_without(mod.CUDA_ARCHES, ["10.2"])
 
-    if os == "macos-arm64":
-        python_versions = list_without(python_versions, ["3.7"])
-
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
         for arch_version in arches:
@@ -343,8 +340,6 @@ def generate_wheels_matrix(
     if python_versions is None:
         # Define default python version
         python_versions = list(FULL_PYTHON_VERSIONS)
-        if os == "macos-arm64":
-            python_versions = list_without(python_versions, ["3.7"])
 
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
