@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.5] - 2023-01-19
+
+### Bug Fixes
+
+- Add a space to the severity on oneline format ([#30](https://github.com/suo/lintrunner/issues/30)) ([5120786](https://github.com/suo/lintrunner/commit/5120786d3a61bf9013563a126f61f9cb5727be1a))
+
 ## [0.10.2] - 2023-01-13
 
 ### Features
