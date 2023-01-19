@@ -113,4 +113,3 @@ runs:
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
       - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
         uses: ./test-infra/.github/actions/setup-nvidia
-        if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
