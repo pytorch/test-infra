@@ -111,3 +111,15 @@ runs:
             wheel=0.37
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+      - name: Needs nvidia driver?
+        shell: bash
+        id: needs-nvidia-driver
+        run: |
+          needs=0
+          if lspci -v | grep -e 'controller.*NVIDIA' >/dev/null 2>/dev/null; then
+            needs=1
+          fi
+          echo "::set-output name=does::${needs}"
+      - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
+        uses: ./test-infra/.github/actions/setup-nvidia
+        if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}

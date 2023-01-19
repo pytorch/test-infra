@@ -144,6 +144,8 @@ jobs:
 
           echo "### LD_LIBRARY_PATH:"
           echo $LD_LIBRARY_PATH
+          
+          nvidia-smi
 
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
