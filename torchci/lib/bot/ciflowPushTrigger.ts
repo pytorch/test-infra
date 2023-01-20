@@ -134,22 +134,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     return;
   }
 
-  // collected from .github/workflows/*
-  const valid_labels = [
-    "ciflow/trunk",
-    "ciflow/periodic",
-    "ciflow/android",
-    "ciflow/binaries",
-    "ciflow/unstable",
-    "ciflow/inductor",
-    "ciflow/mps",
-    "ciflow/nightly",
-    "ciflow/binaries_conda",
-    "ciflow/binaries_libtorch",
-    "ciflow/binaries_wheel",
-  ];
-
-  if (!valid_labels.includes(label)) {
+  {
     let body;
     if (label === "ciflow/all") {
       body =
@@ -186,7 +171,6 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
         issue_number: context.payload.pull_request.number,
       })
     );
-    return;
   }
 
   const prNum = context.payload.pull_request.number;
