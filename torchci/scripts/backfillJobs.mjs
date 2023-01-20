@@ -164,7 +164,6 @@ from
     join commons.workflow_run w on w.id = j.run_id
 where
     j.torchci_classification is null
-    and w.head_branch = 'master'
     and j.conclusion in ('failure', 'cancelled')
     and PARSE_TIMESTAMP_ISO8601(j.completed_at) > CURRENT_DATETIME() - INTERVAL 30 MINUTE
     and j.name != 'ciflow_should_run'
