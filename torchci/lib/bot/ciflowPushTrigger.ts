@@ -134,45 +134,6 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     return;
   }
 
-  {
-    let body;
-    if (label === "ciflow/all") {
-      body =
-        "The `ciflow/all` label was recently removed. It ran very expensive periodic CI jobs when most contributors ";
-      body +=
-        "did not need them. If you just want to check that you won't be reverted, use `ciflow/trunk`. ";
-      body +=
-        "If you *really* want the old `ciflow/all` behavior, add `ciflow/trunk` and `ciflow/periodic`.";
-    } else {
-      body = `We have recently simplified the CIFlow labels and \`${label}\` is no longer in use.\n`;
-    }
-    body += "You can use any of the following\n";
-    body +=
-      "- `ciflow/trunk` (`.github/workflows/trunk.yml`): all jobs we run per-commit on master\n";
-    body +=
-      "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
-    body +=
-      "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
-    body +=
-      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
-    body +=
-      "- `ciflow/binaries`: all binary build and upload jobs\n";
-    body +=
-      " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
-    body +=
-      " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
-    body +=
-      " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
-    body +=
-      " - `ciflow/unstable`: run all flaky or experimental jobs that are not yet stable enough to be part of pull or trunk\n";
-    await context.octokit.issues.createComment(
-      context.repo({
-        body,
-        issue_number: context.payload.pull_request.number,
-      })
-    );
-  }
-
   const prNum = context.payload.pull_request.number;
   const owner = context.payload.repository.owner.login;
   const repo = context.payload.repository.name;

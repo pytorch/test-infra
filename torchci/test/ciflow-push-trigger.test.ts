@@ -159,7 +159,6 @@ describe("Push trigger integration tests", () => {
     const prNum = payload.pull_request.number;
     const labels = [
       "ciflow/test",
-      /* payload has "unrelated" label which should be skipped */
       "ciflow/1",
     ];
 
@@ -208,7 +207,6 @@ describe("Push trigger integration tests", () => {
     const prNum = payload.pull_request.number;
     const labels = [
       "ciflow/test",
-      /* payload has "unrelated" label which should be skipped */
       "ciflow/1",
     ];
     for (const label of labels) {
@@ -236,34 +234,6 @@ describe("Push trigger integration tests", () => {
         )
         .reply(200);
     }
-    await probot.receive({ name: "pull_request", id: "123", payload });
-  });
-
-  test("old/invalid CIFlow label creates comment", async () => {
-    const payload = require("./fixtures/push-trigger/pull_request.labeled");
-    payload.pull_request.state = "open";
-
-    payload.label.name = "ciflow/test";
-    nock("https://api.github.com")
-      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use."
-        );
-        return true;
-      })
-      .reply(200);
-    await probot.receive({ name: "pull_request", id: "123", payload });
-
-    payload.label.name = "ci/test";
-    nock("https://api.github.com")
-      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ci/test` is no longer in use."
-        );
-        return true;
-      })
-      .reply(200);
-
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 });
