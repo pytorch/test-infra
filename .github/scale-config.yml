@@ -135,6 +135,6 @@ runner_types:
   windows.g5.4xlarge.nvidia.gpu:
     disk_size: 256
     instance_type: g5.4xlarge
-    is_ephemeral: true
+    is_ephemeral: false
     max_available: 150
     os: windows
