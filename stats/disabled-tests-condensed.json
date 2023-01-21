@@ -1283,6 +1283,13 @@
       "mac"
     ]
   ],
+  "test_serialization_2gb_file (__main__.TestSerialization)": [
+    "92746",
+    "https://github.com/pytorch/pytorch/issues/92746",
+    [
+      "linux"
+    ]
+  ],
   "test_shuffle (__main__.TestDataLoader2)": [
     "74390",
     "https://github.com/pytorch/pytorch/issues/74390",
