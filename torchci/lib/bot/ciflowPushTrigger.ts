@@ -147,6 +147,7 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
     "ciflow/binaries_conda",
     "ciflow/binaries_libtorch",
     "ciflow/binaries_wheel",
+    "ciflow/inductor-perf-test-nightly",
   ];
 
   if (!valid_labels.includes(label)) {

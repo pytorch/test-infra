@@ -9,7 +9,11 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupingData, groups } from "lib/JobClassifierUtil";
+import {
+  getGroupingData,
+  groups,
+  isPersistentGroup,
+} from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
   HudData,
@@ -438,8 +442,14 @@ function GroupedHudTable({
   );
   const [hideUnstable, setHideUnstable] = useState<boolean>(true);
 
-  const groupNames = Array.from(groupNameMapping.keys());
-  let names = groupNames;
+  const groupNames = Array.from(groupNameMapping.keys()).filter(
+    (name) => !isPersistentGroup(name)
+  );
+  let names = groupNames.concat(
+    Array.from(groupNameMapping.keys()).filter((name) =>
+      isPersistentGroup(name)
+    )
+  );
 
   if (useGrouping) {
     expandedGroups.forEach((group) => {
@@ -453,7 +463,7 @@ function GroupedHudTable({
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
-      if (groupNames.includes(group.name) && group.persistent) {
+      if (isPersistentGroup(group.name)) {
         names.push(group.name);
         names = names.filter(
           (name) => !groupNameMapping.get(group.name)?.includes(name)

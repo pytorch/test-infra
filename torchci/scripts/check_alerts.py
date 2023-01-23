@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import urllib.parse
 from collections import defaultdict
 from curses.ascii import CAN
@@ -7,7 +8,6 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from email.policy import default
 from typing import Any, Dict, List, Tuple
-import re
 
 import requests
 
@@ -16,7 +16,9 @@ SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
 HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
-FAILED_JOB_PATTERN = r'^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$'
+FAILED_JOB_PATTERN = (
+    r"^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$"
+)
 
 PENDING = "pending"
 NEUTRAL = "neutral"
@@ -63,7 +65,10 @@ PYTORCH_ALERT_LABEL = "pytorch-alert"
 FLAKY_TESTS_LABEL = "module: flaky-tests"
 NO_FLAKY_TESTS_LABEL = "no-flaky-tests-alert"
 FLAKY_TESTS_SEARCH_PERIOD_DAYS = 14
-DISABLED_ALERTS = ["rerun_disabled_tests"]
+DISABLED_ALERTS = [
+    "rerun_disabled_tests",
+    "unstable",
+]
 
 headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
 CREATE_ISSUE_URL = (
@@ -237,16 +242,16 @@ def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
     stopped_failing_jobs = [job for job in original_jobs if job not in new_jobs]
     started_failing_jobs = [job for job in new_jobs if job not in original_jobs]
 
-    s = ''
+    s = ""
     if len(stopped_failing_jobs) > 0:
-        s += 'These jobs stopped failing:\n'
+        s += "These jobs stopped failing:\n"
         for job in stopped_failing_jobs:
-            s += f'* {job}\n'
+            s += f"* {job}\n"
         s += "\n"
     if len(started_failing_jobs) > 0:
-        s += 'These jobs started failing:\n'
+        s += "These jobs started failing:\n"
         for job in started_failing_jobs:
-            s += f'* {job}\n'
+            s += f"* {job}\n"
     if s:
         # funky string to make internal alert messaging have code blocks
         return f"````\n```\n{s}\n```\n````"
@@ -386,7 +391,9 @@ def trunk_is_green(sha_grid: Any):
 
 
 # Creates Job Statuses which has the logic for if need to alert or if there's flaky jobs
-def classify_jobs(job_names: List[str], sha_grid: Any) -> Tuple[List[JobStatus], List[Any]]:
+def classify_jobs(
+    job_names: List[str], sha_grid: Any
+) -> Tuple[List[JobStatus], List[Any]]:
     job_data = map_job_data(job_names, sha_grid)
     job_statuses: list[JobStatus] = []
     for job in job_data:
@@ -449,7 +456,7 @@ def check_for_recurrently_failing_jobs_alert():
             break
     # Create a new alert if no alerts are active or edit the original one if there's a new update
     if existing_issue:
-        update_comment = gen_update_comment(existing_issue['body'], jobs_to_alert_on)
+        update_comment = gen_update_comment(existing_issue["body"], jobs_to_alert_on)
         if update_comment:
             new_issue = generate_failed_job_issue(jobs_to_alert_on)
             update_issue(new_issue, existing_issue, update_comment)
