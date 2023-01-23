@@ -414,7 +414,13 @@ function GroupedHudTable({
   let names = groupNames;
 
   if (useGrouping) {
+    const sortedGroups = expandedGroups.filter((group) => !group.persistent);
+    sortedGroups
+    const persistentGroups = expandedGroups.filter((group) => group.persistent);
+
     expandedGroups.forEach((group) => {
+      if (group.persistent)
+
       const nameInd = names.indexOf(group);
       names = [
         ...names.slice(0, nameInd + 1),
