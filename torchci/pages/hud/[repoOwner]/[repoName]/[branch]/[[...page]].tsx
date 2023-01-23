@@ -13,6 +13,7 @@ import {
   getGroupingData,
   groups,
   isPersistentGroup,
+  isUnstableGroup,
 } from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
@@ -294,7 +295,6 @@ function UnstableCheckBox({
         <input type="checkbox" name="hideUnstable" checked={hideUnstable} />
         <label htmlFor="hideUnstable"> Hide unstable jobs</label>
       </div>
-      <br />
     </>
   );
 }
@@ -451,6 +451,10 @@ function GroupedHudTable({
     )
   );
 
+  if (hideUnstable) {
+    names = names.filter((name) => !isUnstableGroup(name));
+  }
+
   if (useGrouping) {
     expandedGroups.forEach((group) => {
       const nameInd = names.indexOf(group);
@@ -463,6 +467,10 @@ function GroupedHudTable({
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
+      if (hideUnstable && isUnstableGroup(group.name)) {
+        return;
+      }
+
       if (isPersistentGroup(group.name)) {
         names.push(group.name);
         names = names.filter(
