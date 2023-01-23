@@ -424,9 +424,8 @@ function GroupedHudTable({
     });
   } else {
     names = [...data.jobNames];
-
     groups.forEach((group) => {
-      if (groupNames.includes(group.name) && group.persistent) {
+      if (isPersistentGroup(group.name)) {
         names.push(group.name);
         names = names.filter(
           (name) => !groupNameMapping.get(group.name)?.includes(name)
