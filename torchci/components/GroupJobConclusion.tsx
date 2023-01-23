@@ -7,7 +7,11 @@ import {
   JobCell,
   PinnedTooltipContext,
 } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
-import { isFailedJob, isRerunDisabledTestsJob } from "lib/jobUtils";
+import {
+  isFailedJob,
+  isRerunDisabledTestsJob,
+  isUnstableJob,
+} from "lib/jobUtils";
 
 export enum JobStatus {
   Success = "success",
@@ -47,7 +51,7 @@ export default function HudGroupedCell({
   const failedPreviousRunJobs = [];
   for (const job of groupData.jobs) {
     if (isFailedJob(job)) {
-      if (isRerunDisabledTestsJob(job)) {
+      if (isRerunDisabledTestsJob(job) || isUnstableJob(job)) {
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);
@@ -57,7 +61,7 @@ export default function HudGroupedCell({
     } else if (job.conclusion === undefined) {
       noStatusJobs.push(job);
     } else if (job.conclusion === JobStatus.Success && job.failedPreviousRun) {
-      failedPreviousRunJobs.push(job)
+      failedPreviousRunJobs.push(job);
     }
   }
 

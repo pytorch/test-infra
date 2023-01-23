@@ -4,6 +4,10 @@ import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isFailure } from "./JobClassifierUtil";
+import {
+  isRerunDisabledTestsJob,
+  isUnstableJob,
+} from "./jobUtils";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -67,8 +71,12 @@ export default async function fetchHud(params: HudParams): Promise<{
 
   const commitsBySha = _.keyBy(commits, "sha");
   let results = hudQuery.results;
+
   if (params.filter_reruns) {
-    results = results?.filter((job: JobData) => !job.name?.includes("rerun_disabled_tests"));
+    results = results?.filter((job: JobData) => !isRerunDisabledTestsJob(job));
+  }
+  if (params.filter_unstable) {
+    results = results?.filter((job: JobData) => !isUnstableJob(job));
   }
   if (params.filter_unstable) {
     results = results?.filter((job: JobData) => !job.name?.includes("unstable"));

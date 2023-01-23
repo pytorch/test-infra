@@ -3,15 +3,18 @@ from unittest import main, TestCase
 from unittest.mock import patch
 
 from check_alerts import (
+    gen_update_comment,
     generate_no_flaky_tests_issue,
     handle_flaky_tests_alert,
-    gen_update_comment,
     JobStatus,
 )
 
 
 job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
-disabled_job_name = "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)"
+disabled_job_names = [
+    "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
+    "unstable / linux-bionic-py3_7-clang8-xla / test (xla, 1, 1, linux.4xlarge)",
+]
 test_data = [
     {
         "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
@@ -62,8 +65,9 @@ class TestGitHubPR(TestCase):
 
     # No need to send alerts for some jobs
     def test_disabled_alert(self) -> None:
-        status = JobStatus(disabled_job_name, [{}] + [{}] + test_data)
-        self.assertFalse(status.should_alert())
+        for job_name in disabled_job_names:
+            status = JobStatus(job_name, [{}] + [{}] + test_data)
+            self.assertFalse(status.should_alert())
 
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]

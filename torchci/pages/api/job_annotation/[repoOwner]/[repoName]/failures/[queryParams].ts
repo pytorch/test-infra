@@ -6,7 +6,7 @@ import { RocksetParam } from "lib/rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
 async function fetchFailureJobs(
-  queryParams: RocksetParam[],
+  queryParams: RocksetParam[]
 ): Promise<JobData[]> {
   const rocksetClient = getRocksetClient();
   const failedJobs = await rocksetClient.queryLambdas.executeQueryLambda(
