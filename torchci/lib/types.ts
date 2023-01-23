@@ -78,6 +78,7 @@ export interface HudParams {
   per_page: number;
   nameFilter?: string;
   filter_reruns: boolean;
+  filter_unstable: boolean;
 }
 
 export interface PRData {

@@ -214,7 +214,7 @@ function GroupFilterableHudTable({
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   useGrouping: boolean;
   setUseGrouping: any;
-  hideUnstable: bookean;
+  hideUnstable: boolean;
   setHideUnstable: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
