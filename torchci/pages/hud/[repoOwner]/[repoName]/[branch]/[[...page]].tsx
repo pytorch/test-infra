@@ -198,6 +198,8 @@ function GroupFilterableHudTable({
   setExpandedGroups,
   useGrouping,
   setUseGrouping,
+  hideUnstable,
+  setHideUnstable
 }: {
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
@@ -207,6 +209,8 @@ function GroupFilterableHudTable({
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   useGrouping: boolean;
   setUseGrouping: any;
+  hideUnstable: bookean;
+  setHideUnstable: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
     useTableFilter(params);
@@ -224,6 +228,10 @@ function GroupFilterableHudTable({
       <GroupViewCheckBox
         useGrouping={useGrouping}
         setUseGrouping={setUseGrouping}
+      />
+      <UnstableCheckBox
+        hideUnstable={hideUnstable}
+        setHideUnstable={setHideUnstable}
       />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
@@ -260,6 +268,27 @@ function GroupViewCheckBox({
       >
         <input type="checkbox" name="groupView" checked={useGrouping} />
         <label htmlFor="groupView"> Use grouped view</label>
+      </div>
+    </>
+  );
+}
+
+function UnstableCheckBox({
+  hideUnstable,
+  setHideUnstable,
+}: {
+  hideUnstable: boolean;
+  setHideUnstable: any;
+}) {
+  return (
+    <>
+      <div
+        onClick={() => {
+          setHideUnstable(!hideUnstable);
+        }}
+      >
+        <input type="checkbox" name="hideUnstable" checked={hideUnstable} />
+        <label htmlFor="hideUnstable"> Hide unstable jobs</label>
       </div>
       <br />
     </>
@@ -407,6 +436,8 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
+  const [hideUnstable, setHideUnstable] = useState<boolean>(true);
+
   const groupNames = Array.from(groupNameMapping.keys());
   let names = groupNames;
 
@@ -443,6 +474,8 @@ function GroupedHudTable({
       setExpandedGroups={setExpandedGroups}
       useGrouping={useGrouping}
       setUseGrouping={setUseGrouping}
+      hideUnstable={hideUnstable}
+      setHideUnstable={setHideUnstable}
     >
       <HudTableBody
         shaGrid={shaGrid}
