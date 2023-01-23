@@ -204,7 +204,7 @@ function GroupFilterableHudTable({
   useGrouping,
   setUseGrouping,
   hideUnstable,
-  setHideUnstable
+  setHideUnstable,
 }: {
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
