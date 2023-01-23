@@ -155,7 +155,7 @@ function HudJobCells({
             <HudGroupedCell
               sha={rowData.sha}
               key={name}
-              groupData={rowData.groupedJobs?.get(name)!}
+              groupData={rowData.groupedJobs?.get(name)}
               isExpanded={expandedGroups.has(name)}
               isClassified={
                 numClassified != 0 && numClassified == failedJobs?.length
