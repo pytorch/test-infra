@@ -442,14 +442,8 @@ function GroupedHudTable({
   );
   const [hideUnstable, setHideUnstable] = useState<boolean>(true);
 
-  const groupNames = Array.from(groupNameMapping.keys()).filter(
-    (name) => !isPersistentGroup(name)
-  );
-  let names = groupNames.concat(
-    Array.from(groupNameMapping.keys()).filter((name) =>
-      isPersistentGroup(name)
-    )
-  );
+  const groupNames = Array.from(groupNameMapping.keys());
+  let names = groupNames;
 
   if (hideUnstable) {
     names = names.filter((name) => !isUnstableGroup(name));
@@ -471,7 +465,7 @@ function GroupedHudTable({
         return;
       }
 
-      if (isPersistentGroup(group.name)) {
+      if (groupNames.includes(group.name) && group.persistent) {
         names.push(group.name);
         names = names.filter(
           (name) => !groupNameMapping.get(group.name)?.includes(name)
