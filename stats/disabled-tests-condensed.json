@@ -1289,6 +1289,13 @@
       "mac"
     ]
   ],
+  "test_repro_graph_breaks_in__get_item_by_idx_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92475",
+    "https://github.com/pytorch/pytorch/issues/92475",
+    [
+      "linux"
+    ]
+  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
