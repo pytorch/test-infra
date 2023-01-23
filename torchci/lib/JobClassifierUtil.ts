@@ -229,7 +229,3 @@ export function isPersistentGroup(name: string) {
     0
   );
 }
-
-export function isUnstableGroup(name: string) {
-  return name === "Unstable Jobs";
-}
