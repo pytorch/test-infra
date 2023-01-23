@@ -26,16 +26,14 @@ import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
 import useSWR from "swr";
-import { isFailedJob, isRerunDisabledTestsJob } from "lib/jobUtils";
+import {
+  isFailedJob,
+  isRerunDisabledTestsJob,
+  isUnstableJobs,
+} from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
 
-export function JobCell({
-  sha,
-  job,
-}: {
-  sha: string;
-  job: JobData;
-}) {
+export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
@@ -49,7 +47,10 @@ export function JobCell({
           conclusion={job.conclusion}
           failedPreviousRun={job.failedPreviousRun}
           classified={job.failureAnnotation != null}
-          warningOnly={isFailedJob(job) && isRerunDisabledTestsJob(job)}
+          warningOnly={
+            isFailedJob(job) &&
+            (isRerunDisabledTestsJob(job) || isUnstableJobs(job))
+          }
         />
       </TooltipTarget>
     </td>
@@ -142,7 +143,9 @@ function HudJobCells({
               numClassified++;
             }
           }
-          const failedJobs = rowData.groupedJobs?.get(name)?.jobs.filter(isFailedJob);
+          const failedJobs = rowData.groupedJobs
+            ?.get(name)
+            ?.jobs.filter(isFailedJob);
           return (
             <HudGroupedCell
               sha={rowData.sha}
@@ -156,13 +159,7 @@ function HudJobCells({
           );
         } else {
           const job = rowData.nameToJobs?.get(name);
-          return (
-            <JobCell
-              sha={rowData.sha}
-              key={name}
-              job={job!}
-            />
-          );
+          return <JobCell sha={rowData.sha} key={name} job={job!} />;
         }
       })}
     </>

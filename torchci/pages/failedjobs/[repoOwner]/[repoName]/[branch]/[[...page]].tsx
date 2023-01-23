@@ -14,6 +14,7 @@ import JobAnnotationToggle, {
 import { JobData } from "lib/types";
 import { TimeRangePicker } from "pages/metrics";
 import dayjs from "dayjs";
+import { isRerunDisabledTestsJob, isUnstableJobs } from "lib/jobUtils";
 
 function CommitLink({ job }: { job: JobData }) {
   return (
@@ -50,15 +51,17 @@ function SimilarFailedJobs({
         style={{ background: "none", cursor: "pointer" }}
         onClick={handleClick}
       >
-       {showDetail ? "▼ " : "▶ "}
+        {showDetail ? "▼ " : "▶ "}
         <code>Failing {similarJobs.length} times</code>
       </button>
-      {showDetail && _.map(similarJobs, (job) => (
-        <FailedJob
-          job={job}
-          similarJobs={[]}
-          classification={classification}
-        />))}
+      {showDetail &&
+        _.map(similarJobs, (job) => (
+          <FailedJob
+            job={job}
+            similarJobs={[]}
+            classification={classification}
+          />
+        ))}
     </div>
   );
 }
@@ -76,7 +79,7 @@ function FailedJob({
 
   return (
     <div style={{ padding: "10px" }}>
-      <li key={ job.id }>
+      <li key={job.id}>
         <JobSummary job={job} />
         <div>
           <CommitLink job={job} />
@@ -91,14 +94,13 @@ function FailedJob({
           />
         </div>
         <LogViewer job={job} />
-        {
-          hasSimilarJobs &&
+        {hasSimilarJobs && (
           <SimilarFailedJobs
             job={job}
             similarJobs={similarJobs}
             classification={classification}
           />
-        }
+        )}
       </li>
     </div>
   );
@@ -108,15 +110,15 @@ function FailedJobsByFailure({
   jobs,
   annotations,
 }: {
-  jobs: JobData[],
-  annotations: { [id: string]: { [key: string]: any } },
+  jobs: JobData[];
+  annotations: { [id: string]: { [key: string]: any } };
 }) {
   // Select a random representative job in the group of similar jobs. Once
   // this job is classified, the rest will be put into the same category
   const job: JobData | undefined = _.sample(jobs);
 
   if (job === undefined) {
-    return (<></>);
+    return <></>;
   }
 
   return (
@@ -164,11 +166,15 @@ function FailedJobs({
   // Grouped by annotation then by job name
   const groupedJobs: {
     [annotation: string]: {
-      [name: string]: JobData[]
-    }
+      [name: string]: JobData[];
+    };
   } = {};
 
   _.forEach(_.sortBy(failedJobs, ["jobName"]), (job) => {
+    if (isRerunDisabledTestsJob(job) || isUnstableJobs(job)) {
+      return;
+    }
+
     const annotation = annotations[job.id.toString()]
       ? annotations[job.id.toString()].annotation
       : "Not Annotated";
@@ -183,14 +189,14 @@ function FailedJobs({
 
     // The failure message might include some variants such as timestamp, so we need
     // to clean that up
-    const failureCaptures = (job.failureCaptures ?? "");
+    const failureCaptures = job.failureCaptures ?? "";
 
     const failure = jobName + workflowName + failureCaptures;
     if (!(failure in groupedJobs[annotation])) {
-      groupedJobs[annotation][failure] = []
+      groupedJobs[annotation][failure] = [];
     }
 
-    groupedJobs[annotation][failure].push(job)
+    groupedJobs[annotation][failure].push(job);
   });
 
   return (
@@ -205,14 +211,19 @@ function FailedJobs({
               fontWeight: "bold",
             }}
           >
-            {key} ({_.reduce(groupedJobsByFailure, (s, v) => { return s + v.length; }, 0)})
+            {key} (
+            {_.reduce(
+              groupedJobsByFailure,
+              (s, v) => {
+                return s + v.length;
+              },
+              0
+            )}
+            )
           </summary>
           <ul>
             {_.map(groupedJobsByFailure, (jobs, failure) => (
-              <FailedJobsByFailure
-                jobs={jobs}
-                annotations={annotations}
-              />
+              <FailedJobsByFailure jobs={jobs} annotations={annotations} />
             ))}
           </ul>
         </details>
@@ -249,9 +260,9 @@ export default function Page() {
       value: `${branch}`,
     },
     {
-      "name": "count",
-      "type": "int",
-      "value": "0",   // Set the count to 0 to query all failures
+      name: "count",
+      type: "int",
+      value: "0", // Set the count to 0 to query all failures
     },
   ];
 
