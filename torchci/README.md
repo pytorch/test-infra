@@ -93,9 +93,7 @@ The scripts/check_alerts.py queries HUD, filters out pending jobs, and then chec
 SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
 Github Issue.
 
-Once the issue is created, internal webhooks create a task out of the issue. Then a [butterfly bot
-rule](https://www.internalfb.com/butterfly/rule/5455687371213466) will trigger to assign the task to 
-the oncall and update it to a UBN so that it alerts the current oncall.
+A Meta internal butterfly bot rule will trigger when the task is [created](https://www.internalfb.com/butterfly/rule/5455687371213466) or [edited](https://www.internalfb.com/butterfly/rule/2024866984357962) to assign the task to the oncall and notify the team.
 
 ### Modifying Deployment Settings
 
