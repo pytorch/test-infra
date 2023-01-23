@@ -13,6 +13,11 @@ export const groups = [
     persistent: true,
   },
   {
+    regex: /unstable/,
+    name: "Unstable Jobs",
+    persistent: true,
+  },
+  {
     regex: /Lint/,
     name: "Lint Jobs",
   },
@@ -138,11 +143,14 @@ export function isFailure(conclusion?: string): boolean {
       return false;
   }
 }
-export function getConclusionChar(conclusion?: string, failedPreviousRun?: boolean): string {
+export function getConclusionChar(
+  conclusion?: string,
+  failedPreviousRun?: boolean
+): string {
   switch (conclusion) {
     case JobStatus.Success:
       if (failedPreviousRun) {
-        return "F"
+        return "F";
       }
       return "O";
     case JobStatus.Failure:
@@ -213,4 +221,11 @@ export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
     row.groupedJobs = groupedJobs;
   }
   return { shaGrid, groupNameMapping };
+}
+
+export function isPersistentGroup(name: string) {
+  return (
+    groups.filter((group) => group.name == name && group.persistent).length !==
+    0
+  );
 }

@@ -9,7 +9,11 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupingData, groups } from "lib/JobClassifierUtil";
+import {
+  getGroupingData,
+  groups,
+  isPersistentGroup,
+} from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
   HudData,
@@ -29,13 +33,7 @@ import useSWR from "swr";
 import { isFailedJob, isRerunDisabledTestsJob } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
 
-export function JobCell({
-  sha,
-  job,
-}: {
-  sha: string;
-  job: JobData;
-}) {
+export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
@@ -142,7 +140,9 @@ function HudJobCells({
               numClassified++;
             }
           }
-          const failedJobs = rowData.groupedJobs?.get(name)?.jobs.filter(isFailedJob);
+          const failedJobs = rowData.groupedJobs
+            ?.get(name)
+            ?.jobs.filter(isFailedJob);
           return (
             <HudGroupedCell
               sha={rowData.sha}
@@ -156,13 +156,7 @@ function HudJobCells({
           );
         } else {
           const job = rowData.nameToJobs?.get(name);
-          return (
-            <JobCell
-              sha={rowData.sha}
-              key={name}
-              job={job!}
-            />
-          );
+          return <JobCell sha={rowData.sha} key={name} job={job!} />;
         }
       })}
     </>
@@ -410,8 +404,14 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
-  const groupNames = Array.from(groupNameMapping.keys());
-  let names = groupNames;
+  const groupNames = Array.from(groupNameMapping.keys()).filter(
+    (name) => !isPersistentGroup(name)
+  );
+  let names = groupNames.concat(
+    Array.from(groupNameMapping.keys()).filter((name) =>
+      isPersistentGroup(name)
+    )
+  );
 
   if (useGrouping) {
     expandedGroups.forEach((group) => {
@@ -425,7 +425,7 @@ function GroupedHudTable({
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
-      if (groupNames.includes(group.name) && group.persistent) {
+      if (isPersistentGroup(group.name)) {
         names.push(group.name);
         names = names.filter(
           (name) => !groupNameMapping.get(group.name)?.includes(name)
