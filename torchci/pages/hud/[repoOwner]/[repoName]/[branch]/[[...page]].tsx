@@ -9,7 +9,11 @@ import JobFilterInput from "components/JobFilterInput";
 import JobTooltip from "components/JobTooltip";
 import { LocalTimeHuman } from "components/TimeUtils";
 import TooltipTarget from "components/TooltipTarget";
-import { getGroupingData, groups } from "lib/JobClassifierUtil";
+import {
+  getGroupingData,
+  groups,
+  isPersistentGroup,
+} from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
   HudData,
@@ -410,17 +414,11 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
-  const groupNames = Array.from(groupNameMapping.keys());
-  let names = groupNames;
+  const groupNames = Array.from(groupNameMapping.keys()).filter((name) => !isPersistentGroup(name));
+  let names = groupNames.concat(Array.from(groupNameMapping.keys()).filter((name) => isPersistentGroup(name)));
 
   if (useGrouping) {
-    const sortedGroups = expandedGroups.filter((group) => !group.persistent);
-    sortedGroups
-    const persistentGroups = expandedGroups.filter((group) => group.persistent);
-
     expandedGroups.forEach((group) => {
-      if (group.persistent)
-
       const nameInd = names.indexOf(group);
       names = [
         ...names.slice(0, nameInd + 1),
@@ -430,17 +428,18 @@ function GroupedHudTable({
     });
   } else {
     names = [...data.jobNames];
-    groups.forEach((group) => {
-      if (groupNames.includes(group.name) && group.persistent) {
-        names.push(group.name);
-        names = names.filter(
-          (name) => !groupNameMapping.get(group.name)?.includes(name)
-        );
-        if (expandedGroups.has(group.name)) {
-          names = names.concat(groupNameMapping.get(group.name) ?? []);
-        }
+
+  groups.forEach((group) => {
+    if (groupNames.includes(group.name) && group.persistent) {
+      names.push(group.name);
+      names = names.filter(
+        (name) => !groupNameMapping.get(group.name)?.includes(name)
+      );
+      if (expandedGroups.has(group.name)) {
+        names = names.concat(groupNameMapping.get(group.name) ?? []);
       }
-    });
+    }
+  });
   }
 
   return (

@@ -219,3 +219,7 @@ export function getGroupingData(shaGrid: RowData[], jobNames: string[]) {
   }
   return { shaGrid, groupNameMapping };
 }
+
+export function isPersistentGroup(name: string) {
+  return groups.filter((group) => group.name == name && group.persistent).length !== 0;
+}
