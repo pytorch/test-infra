@@ -42,7 +42,9 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
 
   const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs);
   // If the test is flaky only on PRs, we should not disable it yet.
-  const flakyTestsOnTrunk = filterOutPRFlakyTests(allFlakyTests);
+  const flakyTestsOnTrunk = filterThreshold(
+    filterOutPRFlakyTests(allFlakyTests)
+  );
 
   flakyTestsOnTrunk.forEach(async function (test) {
     await handleFlakyTest(test, issues, octokit);
@@ -62,6 +64,13 @@ export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
   return tests.filter(
     (test) => test.branches.includes("master") || test.branches.includes("main")
   );
+}
+
+export function filterThreshold(
+  tests: FlakyTestData[],
+  threshold: number = 1
+): FlakyTestData[] {
+  return tests.filter((test) => new Set(test.jobIds).size > threshold);
 }
 
 export async function handleFlakyTest(
@@ -262,16 +271,23 @@ ${debuggingSteps}`;
 }
 
 export async function getTestOwnerLabels(
-  testFile: string
+  testFile: string,
+  invokingFile: string
 ): Promise<{ labels: string[]; additionalErrMessage?: string }> {
   const urlkey =
     "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
 
   try {
-    const result = await retryRequest(`${urlkey}${testFile}`);
-    const statusCode = result.res.statusCode;
+    let result = await retryRequest(`${urlkey}${testFile}`);
+    let statusCode = result.res.statusCode;
     if (statusCode !== 200) {
-      throw new Error(`Statuscode ${statusCode}`);
+      const invokingFileClean = invokingFile.replaceAll(".", "/");
+      result = await retryRequest(`${urlkey}${invokingFileClean}.py`);
+      if (result.res.statusCode !== 200) {
+        throw new Error(
+          `Error retrieving ${testFile}: ${statusCode}, ${invokingFileClean}: ${result.res.statusCode}`
+        );
+      }
     }
     const fileContents = result.data.toString(); // data is a Buffer
     const lines = fileContents.split(/[\r\n]+/);
@@ -294,11 +310,10 @@ export async function getTestOwnerLabels(
     }
     return { labels: ["module: unknown"] };
   } catch (err) {
-    const errMessage = `Error retrieving ${testFile}: ${err}`;
-    console.warn(errMessage);
+    console.warn(err);
     return {
       labels: ["module: unknown"],
-      additionalErrMessage: errMessage,
+      additionalErrMessage: `${err}`,
     };
   }
 }
@@ -320,7 +335,10 @@ export async function createIssueFromFlakyTest(
 ): Promise<void> {
   const title = getIssueTitle(test.name, test.suite);
   let body = getIssueBodyForFlakyTest(test);
-  const { labels, additionalErrMessage } = await getTestOwnerLabels(test.file);
+  const { labels, additionalErrMessage } = await getTestOwnerLabels(
+    test.file,
+    test.invoking_file
+  );
   if (additionalErrMessage) {
     body += `\n\n${additionalErrMessage}`;
   }

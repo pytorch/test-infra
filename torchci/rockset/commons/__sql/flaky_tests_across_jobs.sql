@@ -57,6 +57,7 @@ flaky_tests as (
         test_run.name,
         test_run.file,
         test_run.classname,
+        test_run.invoking_file,
         *,
         if (
             test_run.failure is null,
@@ -81,6 +82,7 @@ select
     name,
     classname as suite,
     file,
+    invoking_file,
     ARRAY_AGG(jobname) as jobNames,
     ARRAY_AGG(id) as jobIds,
     ARRAY_AGG(workflow_id) as workflowIds,
@@ -95,8 +97,7 @@ where
 group by
     name,
     file,
-    classname
-having
-    count(*) > :threshold
+    classname,
+    invoking_file
 order by
     name

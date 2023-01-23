@@ -89,6 +89,7 @@ export interface FlakyTestData {
   file: string;
   suite: string;
   name: string;
+  invoking_file: string;
   numGreen?: number;
   numRed?: number;
   workflowIds: string[];
