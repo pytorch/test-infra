@@ -78,9 +78,6 @@ export default async function fetchHud(params: HudParams): Promise<{
   if (params.filter_unstable) {
     results = results?.filter((job: JobData) => !isUnstableJob(job));
   }
-  if (params.filter_unstable) {
-    results = results?.filter((job: JobData) => !job.name?.includes("unstable"));
-  }
 
   const namesSet: Set<string> = new Set();
   // Built a list of all the distinct job names.
