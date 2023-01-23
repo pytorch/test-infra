@@ -10,7 +10,7 @@ import {
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
-  isUnstableJobs,
+  isUnstableJob,
 } from "lib/jobUtils";
 
 export enum JobStatus {
@@ -51,7 +51,7 @@ export default function HudGroupedCell({
   const failedPreviousRunJobs = [];
   for (const job of groupData.jobs) {
     if (isFailedJob(job)) {
-      if (isRerunDisabledTestsJob(job) || isUnstableJobs(job)) {
+      if (isRerunDisabledTestsJob(job) || isUnstableJob(job)) {
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);

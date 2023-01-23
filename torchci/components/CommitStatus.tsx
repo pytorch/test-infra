@@ -7,7 +7,7 @@ import _ from "lodash";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
-  isUnstableJobs,
+  isUnstableJob,
 } from "lib/jobUtils";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
@@ -79,14 +79,14 @@ export default function CommitStatus({
         pred={(job) =>
           isFailedJob(job) &&
           !isRerunDisabledTestsJob(job) &&
-          !isUnstableJobs(job)
+          !isUnstableJob(job)
         }
         showClassification
       />
       <FilteredJobList
         filterName="Failed unstable jobs"
         jobs={jobs}
-        pred={(job) => isFailedJob(job) && isUnstableJobs(job)}
+        pred={(job) => isFailedJob(job) && isUnstableJob(job)}
       />
       <FilteredJobList
         filterName="Daily rerunning disabled jobs"

@@ -14,7 +14,7 @@ import JobAnnotationToggle, {
 import { JobData } from "lib/types";
 import { TimeRangePicker } from "pages/metrics";
 import dayjs from "dayjs";
-import { isRerunDisabledTestsJob, isUnstableJobs } from "lib/jobUtils";
+import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";
 
 function CommitLink({ job }: { job: JobData }) {
   return (
@@ -171,7 +171,7 @@ function FailedJobs({
   } = {};
 
   _.forEach(_.sortBy(failedJobs, ["jobName"]), (job) => {
-    if (isRerunDisabledTestsJob(job) || isUnstableJobs(job)) {
+    if (isRerunDisabledTestsJob(job) || isUnstableJob(job)) {
       return;
     }
 

@@ -3,7 +3,7 @@ import JobConclusion from "./JobConclusion";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
-  isUnstableJobs,
+  isUnstableJob,
 } from "lib/jobUtils";
 
 function BranchName({
@@ -36,7 +36,7 @@ export default function JobSummary({
         conclusion={job.conclusion}
         warningOnly={
           isFailedJob(job) &&
-          (isRerunDisabledTestsJob(job) || isUnstableJobs(job))
+          (isRerunDisabledTestsJob(job) || isUnstableJob(job))
         }
       />
       <a href={job.htmlUrl}> {job.jobName} </a>

@@ -29,7 +29,7 @@ import useSWR from "swr";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
-  isUnstableJobs,
+  isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
 
@@ -49,7 +49,7 @@ export function JobCell({ sha, job }: { sha: string; job: JobData }) {
           classified={job.failureAnnotation != null}
           warningOnly={
             isFailedJob(job) &&
-            (isRerunDisabledTestsJob(job) || isUnstableJobs(job))
+            (isRerunDisabledTestsJob(job) || isUnstableJob(job))
           }
         />
       </TooltipTarget>
