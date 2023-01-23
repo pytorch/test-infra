@@ -13,6 +13,11 @@ export const groups = [
     persistent: true,
   },
   {
+    regex: /unstable/,
+    name: "Unstable Jobs",
+    persistent: true,
+  },
+  {
     regex: /Lint/,
     name: "Lint Jobs",
   },
