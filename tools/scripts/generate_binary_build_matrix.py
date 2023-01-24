@@ -105,6 +105,7 @@ def initialize_globals(channel: str):
 
     mod.CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
     mod.ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
+    mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
