@@ -37,7 +37,7 @@ runs:
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
-          set -eax
+          set -euxo pipefail
           rm -rf "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
@@ -48,7 +48,7 @@ runs:
       - name: Set release CHANNEL
         shell: bash -l {0}
         run: |
-          set -eax
+          set -euxo pipefail
           # reference ends with an RC suffix
           if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
             echo "CHANNEL=test" >> "${GITHUB_ENV}"
@@ -60,7 +60,7 @@ runs:
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
-          set -eax
+          set -euxo pipefail
           # Set artifact name here since github actions doesn't have string manipulation tools
           # and "/" is not allowed in artifact names
           echo "ARTIFACT_NAME=${REPOSITORY/\//_}_${REF}_${PYTHON_VERSION}" >> "${GITHUB_ENV}"
@@ -73,13 +73,13 @@ runs:
       - name: Clean conda environment
         shell: bash -l {0}
         run: |
-          set -eax
+          set -euxo pipefail
           conda clean --all --quiet --yes
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
         run: |
-          set -eax
+          set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
           conda create \
             --yes \
@@ -97,7 +97,7 @@ runs:
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
-          set -eax
+          set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
 
           conda create \

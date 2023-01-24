@@ -77,7 +77,7 @@ jobs:
     steps:
       - name: Clean workspace
         run: |
-          set -eax
+          set -euxo pipefail
           echo "::group::Cleanup debug output"
           rm -rfv "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
@@ -101,11 +101,11 @@ jobs:
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install delocate-wheel
         run: |
-          set -eax
+          set -euxo pipefail
           ${CONDA_RUN} python3 -m pip install delocate
       - name: Install torch dependency
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
@@ -115,7 +115,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -126,13 +126,13 @@ jobs:
       - name: Build clean
         working-directory: ${{ inputs.repository }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} python3 setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
@@ -146,7 +146,7 @@ jobs:
       - name: Delocate wheel
         working-directory: ${{ inputs.repository }}
         run: |
-          set -eax
+          set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
       - name: Upload wheel to GitHub
         continue-on-error: true
@@ -160,7 +160,7 @@ jobs:
           POST_SCRIPT: ${{ inputs.post-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${POST_SCRIPT} ]]; then
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
@@ -174,7 +174,7 @@ jobs:
           PACKAGE_NAME: ${{ inputs.package-name }}
           SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
@@ -202,7 +202,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
         run: |
-          set -eax
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} pip install awscli
           for pkg in dist/*; do
