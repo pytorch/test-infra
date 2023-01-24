@@ -124,6 +124,8 @@ jobs:
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
           set -eax
           source "${BUILD_ENV_FILE}"
