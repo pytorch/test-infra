@@ -248,16 +248,17 @@ def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
     stopped_failing_jobs = [job for job in original_jobs if job not in new_jobs]
     started_failing_jobs = [job for job in new_jobs if job not in original_jobs]
 
+    # TODO: Add real HUD links to these eventually since not having clickable links is bad
     s = ""
     if len(stopped_failing_jobs) > 0:
         s += "These jobs stopped failing:\n"
         for job in stopped_failing_jobs:
-            s += f"* {generate_failed_job_hud_link(job)}\n"
+            s += f"* {job}\n"
         s += "\n"
     if len(started_failing_jobs) > 0:
         s += "These jobs started failing:\n"
         for job in started_failing_jobs:
-            s += f"* {generate_failed_job_hud_link(job)}\n"
+            s += f"* {job}\n"
     return s
 
 
@@ -483,7 +484,7 @@ def check_for_no_flaky_tests_alert():
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", help="Repository to do checks for", type=str, default=os.getenv("BRANCH_TO_CHECK", "pytorch/pytorch"))
+    parser.add_argument("--repo", help="Repository to do checks for", type=str, default=os.getenv("REPO_TO_CHECK", "pytorch/pytorch"))
     parser.add_argument("--branch", help="Branch to do checks for", type=str, default=os.getenv("BRANCH_TO_CHECK", "master"))
     parser.add_argument("--dry-run", help="", action='store_true')
     return parser.parse_args()
