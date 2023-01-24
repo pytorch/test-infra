@@ -15,16 +15,16 @@ export const groups = [
   },
   {
     regex: /unstable/,
-    name: "Unstable Jobs",
+    name: "Unstable",
     persistent: true,
   },
   {
     regex: /periodic/,
-    name: "Periodic Jobs",
+    name: "Periodic",
   },
   {
     regex: /Lint/,
-    name: "Lint Jobs",
+    name: "Lint",
   },
   {
     regex: /inductor/,
