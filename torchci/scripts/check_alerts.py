@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import re
@@ -14,7 +15,6 @@ import requests
 ALL_SKIPPED_THRESHOLD = 100
 SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
-HUD_API_URL = "https://hud.pytorch.org/api/hud/pytorch/pytorch/master/0"
 MAX_CONCURRENT_ALERTS = 1
 FAILED_JOB_PATTERN = (
     r"^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$"
@@ -173,9 +173,9 @@ class JobStatus:
         return f"jobName: {self.job_name}"
 
 
-def fetch_alerts(repo: str, labels: List[str]) -> List[Any]:
+def fetch_alerts(alert_repo: str, labels: List[str]) -> List[Any]:
     try:
-        variables = {"owner": REPO_OWNER, "name": repo, "labels": labels}
+        variables = {"owner": REPO_OWNER, "name": alert_repo, "labels": labels}
         r = requests.post(
             GRAPHQL_URL,
             json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
@@ -203,20 +203,26 @@ def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str)
         raise RuntimeError("Error fetching issues count", e)
 
 
-def generate_failed_job_issue(failed_jobs: List[JobStatus]) -> Any:
+def generate_failed_job_hud_link(failed_job: JobStatus) -> str:
+    # TODO: I don't think minihud is universal across multiple repositories
+    #       would be good to just replace this with something that is
+    hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
+        failed_job.job_name
+    )
+    return f"[{failed_job.job_name}]({hud_link})"
+
+
+def generate_failed_job_issue(repo: str, branch: str, failed_jobs: List[JobStatus]) -> Any:
     failed_jobs.sort(key=lambda status: status.job_name)
     issue = {}
     issue[
         "title"
-    ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on pytorch/pytorch master"
+    ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on {repo} {branch}"
     body = "Within the last 50 commits, there are the following failures on the master branch of pytorch: \n"
     for job in failed_jobs:
         failing_sha = job.failure_chain[-1]["sha"]
-        hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
-            job.job_name
-        )
-        body += f"- [{job.job_name}]({hud_link}) failed consecutively starting with "
-        body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{REPO_OWNER}/{REPO_OWNER}/{failing_sha})"
+        body += f"- {generate_failed_job_hud_link(job)} failed consecutively starting with "
+        body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{repo}/{failing_sha})"
         body += "\n\n"
 
     body += "Please review the errors and revert if needed."
@@ -246,15 +252,12 @@ def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
     if len(stopped_failing_jobs) > 0:
         s += "These jobs stopped failing:\n"
         for job in stopped_failing_jobs:
-            s += f"* {job}\n"
+            s += f"* {generate_failed_job_hud_link(job)}\n"
         s += "\n"
     if len(started_failing_jobs) > 0:
         s += "These jobs started failing:\n"
         for job in started_failing_jobs:
-            s += f"* {job}\n"
-    if s:
-        # funky string to make internal alert messaging have code blocks
-        return f"````\n```\n{s}\n```\n````"
+            s += f"* {generate_failed_job_hud_link(job)}\n"
     return s
 
 
@@ -272,8 +275,11 @@ def generate_no_flaky_tests_issue() -> Any:
     return issue
 
 
-def update_issue(issue: Dict, old_issue: Any, update_comment: str) -> Dict:
-    print("Updating issue", issue)
+def update_issue(issue: Dict, old_issue: Any, update_comment: str, dry_run: bool) -> None:
+    print(f"Updating issue {issue} with content:{os.linesep}{update_comment}")
+    if dry_run:
+        print(f"NOTE: Dry run, not doing any real work")
+        return
     r = requests.patch(
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
     )
@@ -284,18 +290,20 @@ def update_issue(issue: Dict, old_issue: Any, update_comment: str) -> Dict:
         headers=headers,
     )
     r.raise_for_status()
-    return issue
 
 
-def create_issue(issue: Dict) -> Dict:
-    print("Creating issue", issue)
+def create_issue(issue: Dict, dry_run: bool) -> Dict:
+    print(f"Creating issue with content:{os.linesep}{issue}")
+    if dry_run:
+        print(f"NOTE: Dry run activated, not doing any real work")
+        return
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
     return issue
 
 
-def fetch_hud_data() -> Any:
-    response = requests.get(HUD_API_URL)
+def fetch_hud_data(repo: str, branch: str) -> Any:
+    response = requests.get(f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0")
     response.raise_for_status()
     hud_data = json.loads(response.text)
     return (hud_data["jobNames"], hud_data["shaGrid"])
@@ -428,14 +436,14 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
             num_issues_with_flaky_tests_lables,
         )
         if num_issues_with_flaky_tests_lables == 0:
-            return create_issue(generate_no_flaky_tests_issue())
+            return create_issue(generate_no_flaky_tests_issue(), False)
 
     print("No new alert for flaky tests bots.")
     return None
 
 
-def check_for_recurrently_failing_jobs_alert():
-    job_names, sha_grid = fetch_hud_data()
+def check_for_recurrently_failing_jobs_alert(repo: str, branch: str, dry_run: bool):
+    job_names, sha_grid = fetch_hud_data(repo=repo, branch=branch)
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
     # Fetch alerts
@@ -451,19 +459,19 @@ def check_for_recurrently_failing_jobs_alert():
     # We're going to update the existing alert if possible instead of filing a new one.
     existing_issue = None
     for alert in existing_alerts:
-        if "Recurrently Failing Jobs on pytorch/pytorch master" in alert["title"]:
+        if f"Recurrently Failing Jobs on {repo} {branch}" in alert["title"]:
             existing_issue = alert
             break
     # Create a new alert if no alerts are active or edit the original one if there's a new update
     if existing_issue:
         update_comment = gen_update_comment(existing_issue["body"], jobs_to_alert_on)
         if update_comment:
-            new_issue = generate_failed_job_issue(jobs_to_alert_on)
-            update_issue(new_issue, existing_issue, update_comment)
+            new_issue = generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=jobs_to_alert_on)
+            update_issue(new_issue, existing_issue, update_comment, dry_run=dry_run)
         else:
             print("No new updates. Not updating any alerts.")
     else:
-        create_issue(generate_failed_job_issue(jobs_to_alert_on))
+        create_issue(generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=jobs_to_alert_on), dry_run=dry_run)
 
 
 def check_for_no_flaky_tests_alert():
@@ -473,9 +481,20 @@ def check_for_no_flaky_tests_alert():
     handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo", help="Repository to do checks for", type=str, default=os.getenv("BRANCH_TO_CHECK", "pytorch/pytorch"))
+    parser.add_argument("--branch", help="Branch to do checks for", type=str, default=os.getenv("BRANCH_TO_CHECK", "master"))
+    parser.add_argument("--dry-run", help="", action='store_true')
+    return parser.parse_args()
+
+
 def main():
-    check_for_recurrently_failing_jobs_alert()
-    check_for_no_flaky_tests_alert()
+    args = parse_args()
+    check_for_recurrently_failing_jobs_alert(args.repo, args.branch, args.dry_run)
+    # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
+    if not args.dry_run:
+        check_for_no_flaky_tests_alert()
 
 
 if __name__ == "__main__":
