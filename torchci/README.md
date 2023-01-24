@@ -39,7 +39,20 @@ following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Developing Probot
+## Testing
+To run tests first make sure you're in the `torchci` folder and then:
+
+- To run all tests: 
+  - `yarn test`
+- To run all tests in a specific file:
+  - `yarn test <path-to-file>`
+  - e.g. `yarn test test/autoLabelBot.test.ts`
+- To run a specific test in a specific file:
+  - `yarn test <path-to-file> -t "<part-of-test-name>"`
+  - e.g. `yarn test test/autoLabelBot.test.ts -t "triage"`
+  - Note: This will run all tests that contain the string you entered
+
+### Testing Probot
 
 The easiest way to develop probot actions is to use `nock` to mock out
 interactions with the GitHub API and develop completely locally. If you _do_
