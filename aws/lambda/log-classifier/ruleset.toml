@@ -221,5 +221,9 @@ name = 'sccache error'
 pattern = '^sccache: error: .*'
 
 [[rule]]
+name = 'Docker error'
+pattern = '^Error response from daemon: .*'
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
