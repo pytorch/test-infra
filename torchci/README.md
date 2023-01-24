@@ -45,7 +45,8 @@ To run tests first make sure you're in the `torchci` folder and then:
 - To run all tests: 
   - `yarn test`
 - To run all tests in a specific file:
-  - `yarn test <path-to-file>`, e.g. `yarn test test/autoLabelBot.test.ts`
+  - `yarn test <path-to-file>`
+  - e.g. `yarn test test/autoLabelBot.test.ts`
 - To run a specific test in a specific file:
   - `yarn test <path-to-file> -t "<part-of-test-name>"`
   - e.g. `yarn test test/autoLabelBot.test.ts -t "triage"`
