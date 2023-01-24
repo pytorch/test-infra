@@ -1,6 +1,7 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
+// Jobs will be grouped with the first regex they match in this list
 export const groups = [
   {
     regex: /mem_leak_check/,
@@ -14,12 +15,16 @@ export const groups = [
   },
   {
     regex: /unstable/,
-    name: "Unstable Jobs",
+    name: "Unstable",
     persistent: true,
   },
   {
+    regex: /periodic/,
+    name: "Periodic",
+  },
+  {
     regex: /Lint/,
-    name: "Lint Jobs",
+    name: "Lint",
   },
   {
     regex: /inductor/,
@@ -231,5 +236,5 @@ export function isPersistentGroup(name: string) {
 }
 
 export function isUnstableGroup(name: string) {
-  return name === "Unstable Jobs";
+  return name.toLocaleLowerCase().includes("unstable");
 }
