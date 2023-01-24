@@ -236,5 +236,5 @@ export function isPersistentGroup(name: string) {
 }
 
 export function isUnstableGroup(name: string) {
-  return name === "Unstable Jobs";
+  return name.toLocaleLowerCase().includes("unstable");
 }
