@@ -1,5 +1,9 @@
 name: Check Alerts
 on:
+  pull_request:
+    paths:
+      - .github/workflows/check-alerts.yml
+      - torchci/scripts/check_alerts.py
   schedule:
     # Every 5 minutes
     - cron: "*/5 * * * *"
@@ -9,6 +13,21 @@ on:
 
 jobs:
   update-alerts:
+    strategy:
+      matrix:
+        include:
+          - repo: pytorch/pytorch
+            branch: master
+            with_flaky_test_alerting: YES
+          - repo: pytorch/pytorch
+            branch: nightly
+            with_flaky_test_alerting: NO
+    env:
+      REPO_TO_CHECK: ${{ matrix.repo }}
+      BRANCH_TO_CHECK: ${{ matrix.branch }}
+      WITH_FLAKY_TEST_ALERTING: ${{ matrix.with_flaky_test_alerting }}
+      # Don't do actual work on pull request
+      DRY_RUN: ${{ github.event_name == 'pull_request'}}
     runs-on: ubuntu-18.04
     steps:
       - name: Checkout
@@ -16,8 +35,12 @@ jobs:
       - name: Install requests
         run: |
            pip3 install requests
+      - name: Run tests
+        run: |
+          python3 torchci/scripts/test_check_alerts.py
       - name: Check for alerts and creates issue
         run: |
           python3 torchci/scripts/check_alerts.py
         env:
+          # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

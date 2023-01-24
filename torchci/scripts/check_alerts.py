@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from email.policy import default
 from typing import Any, Dict, List, Tuple
+from setuptools import distutils  # type: ignore[import]
 
 import requests
 
@@ -484,9 +485,30 @@ def check_for_no_flaky_tests_alert():
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--repo", help="Repository to do checks for", type=str, default=os.getenv("REPO_TO_CHECK", "pytorch/pytorch"))
-    parser.add_argument("--branch", help="Branch to do checks for", type=str, default=os.getenv("BRANCH_TO_CHECK", "master"))
-    parser.add_argument("--dry-run", help="", action='store_true')
+    parser.add_argument(
+        "--repo",
+        help="Repository to do checks for",
+        type=str,
+        default=os.getenv("REPO_TO_CHECK", "pytorch/pytorch")
+    )
+    parser.add_argument(
+        "--branch",
+        help="Branch to do checks for",
+        type=str,
+        default=os.getenv("BRANCH_TO_CHECK", "master")
+    )
+    parser.add_argument(
+        "--with-flaky-test-alert",
+        help="Run this script with the flaky test alerting",
+        type=distutils.util.strtobool,
+        default=os.getenv("WITH_FLAKY_TEST_ALERT", "NO")
+    )
+    parser.add_argument(
+        "--dry-run",
+        help="Whether or not to actually post issues",
+        type=distutils.util.strtobool,
+        default=os.getenv("DRY_RUN", "YES")
+    )
     return parser.parse_args()
 
 
@@ -494,7 +516,7 @@ def main():
     args = parse_args()
     check_for_recurrently_failing_jobs_alert(args.repo, args.branch, args.dry_run)
     # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
-    if not args.dry_run:
+    if args.with_flaky_test_alert:
         check_for_no_flaky_tests_alert()
 
 
