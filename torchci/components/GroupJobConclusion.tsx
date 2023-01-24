@@ -44,10 +44,6 @@ export default function HudGroupedCell({
   isExpanded: boolean;
   isClassified: boolean;
 }) {
-  if (groupData == undefined) {
-    return (<></>);
-  }
-
   const erroredJobs = [];
   const warningOnlyJobs = [];
   const pendingJobs = [];
