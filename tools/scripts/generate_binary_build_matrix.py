@@ -197,7 +197,7 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
     else:
         packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
-        return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
