@@ -130,7 +130,7 @@ jobs:
           set -eax
           source "${BUILD_ENV_FILE}"
           if [[ "${PACKAGE_NAME}" = "torchrec" ]]; then
-            ${CONDA_RUN} pip install requirements.txt
+            ${CONDA_RUN} pip install -r requirements.txt
           fi
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
