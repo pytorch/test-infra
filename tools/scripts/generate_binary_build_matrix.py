@@ -20,14 +20,17 @@ from typing import Dict, List, Tuple, Optional
 
 mod = sys.modules[__name__]
 
-FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
-
-CUDA_ACRHES_DICT = {
+PYTHON_ARCHES_DICT = {
+    "nightly": ["3.8", "3.9", "3.10"],
+    "test": ["3.7", "3.8", "3.9", "3.10"],
+    "release": ["3.7", "3.8", "3.9", "3.10"],
+}
+CUDA_ARCHES_DICT = {
     "nightly": ["11.6", "11.7", "11.8"],
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
-ROCM_ACRHES_DICT = {
+ROCM_ARCHES_DICT = {
     "nightly": ["5.2", "5.3"],
     "test": ["5.1.1", "5.2"],
     "release": ["5.1.1", "5.2"],
@@ -46,8 +49,9 @@ CURRENT_STABLE_VERSION = "1.13.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
-mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
-mod.ROCM_ARCHES = ROCM_ACRHES_DICT[NIGHTLY]
+mod.CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
+mod.ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
+mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
@@ -99,8 +103,9 @@ def initialize_globals(channel: str):
     else:
         mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
-    mod.CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
-    mod.ROCM_ARCHES = ROCM_ACRHES_DICT[channel]
+    mod.CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
+    mod.ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
+    mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
@@ -202,7 +207,7 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
 def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
-    python_versions = FULL_PYTHON_VERSIONS
+    python_versions = PYTHON_ARCHES_DICT[channel]
 
     if with_cuda == ENABLE:
         if os == "linux":
@@ -342,7 +347,7 @@ def generate_wheels_matrix(
 
     if python_versions is None:
         # Define default python version
-        python_versions = list(FULL_PYTHON_VERSIONS)
+        python_versions = list(PYTHON_ARCHES_DICT[channel])
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
 
@@ -444,7 +449,7 @@ def main(args) -> None:
     if len(package_types) == 1:
         package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
 
-    channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
+    channels = CUDA_ARCHES_DICT.keys() if options.channel == "all" else [options.channel]
 
     for channel in channels:
         for package in package_types:
