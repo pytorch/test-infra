@@ -100,16 +100,20 @@ console.
 
 This will autoupdate sql and lambda files in the `rockset/<workspace>` dir and the version in `rockset/prodVersion.json`.
 
-### Alerts
+## Alerts
 
 The scripts/check_alerts.py queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
 SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
 Github Issue.
 
-A Meta internal Butterfly bot rule will trigger when the task is [created](https://www.internalfb.com/butterfly/rule/5455687371213466) 
-or [edited](https://www.internalfb.com/butterfly/rule/2024866984357962) to assign the task to the oncall and notify the team.
+A Meta internal Butterfly bot rule will trigger when the task is created or updated to assign the task to the oncall to notify the DevX team.
 
-### Modifying Deployment Settings
+Butterfly bot links:
+- [When a new alert is created](https://www.internalfb.com/butterfly/rule/5455687371213466)
+- [When pytorch/pytorch failures are edited](https://www.internalfb.com/butterfly/rule/2024866984357962)
+- [When flaky test detector bot alerts are edited](https://www.internalfb.com/butterfly/rule/741489054164977)
+
+## Modifying Deployment Settings
 
 If you ever need to modify the deployment settings like the oauth callbacks, domain names, there's a few places that you need to change these settings in. Here's a list:
 1. [DNS Registry/Certificates](https://fb.workplace.com/groups/osssupport) (Contact the the OSS team)
