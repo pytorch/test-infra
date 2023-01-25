@@ -1,72 +1,12 @@
 import { Context, Probot } from "probot";
 import { addLabels, isPyTorchPyTorch } from "./utils";
+import * as yaml from 'js-yaml';
+import { readFile } from 'fs/promises';
 
-
+const releaseNoteLabelFile = "./lib/bot/conf/releaseNotesLabelConfig.yml";
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
-];
-
-const filenameRegexToReleaseCategory: [RegExp, string][] = [
-  // dataloader_frontend
-  [/torch\/utils\/data/gi, "release notes: dataloader"],
-  [/test_data(loader|pipe)/gi, "release notes: dataloader"],
-  // distributed + its flavors
-  [/c10d/gi, "release notes: distributed (c10d)"],
-  [/distributed.*sharded/gi, "release notes: distributed (sharded)"],
-  [/distributed.*ddp/gi, "release notes: distributed (ddp)"],
-  [/distributed.*pipeline/gi, "release notes: distributed (pipeline)"],
-  [/distributed.*fsdp/gi, "release notes: distributed (fsdp)"],
-  [/distributed.*rpc/gi, "release notes: distributed (rpc)"],
-  // vulkan
-  [/vulkan/gi, "release notes: vulkan"],
-  // foreach_frontend
-  [/foreach/gi, "release notes: foreach_frontend"],
-  // onnx
-  [/onnx/gi, "release notes: onnx"],
-  // fx
-  [/torch\/fx/gi, "release notes: fx"],
-  [/test_fx/gi, "release notes: fx"],
-  // ao
-  [/(torch|test)\/ao/gi, "release notes: AO frontend"],
-  // quantization
-  [/(torch|test)\/quantization/gi, "release notes: quantization"],
-  [/aten\/src\/ATen\/native\/quantized/gi, "release notes: quantization"],
-  [/torch\/nn\/quantiz(ed|able)/gi, "release notes: quantization"],
-  // package
-  [/(torch|test)\/package/gi, "release notes: package/deploy"],
-  // mobile
-  [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
-  [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],
-  [/aten\/src\/ATen\/native\/mps/gi, "release notes: mps"],
-  [/aten\/src\/ATen\/mps/gi, "release notes: mps"],
-  [/test\/mobile/gi, "release notes: mobile"],
-  [/torch\/backends\/_nnapi\//gi, "release notes: mobile"],
-  [/test\/test_nnapi.py/gi, "release notes: mobile"],
-  // linalg_frontend
-  [/aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi, "release notes: linalg_frontend"],
-  [/test\/test_linalg.py/gi, "release notes: linalg_frontend"],
-  [/torch\/linalg/gi, "release notes: linalg_frontend"],
-  // sparse_frontend
-  [/aten\/src\/ATen\/native\/sparse/gi, "release notes: sparse"],
-  [/torch\/sparse/gi, "release notes: sparse"],
-  [/torch\/_masked\/__init__.py/gi, "release notes: sparse"],
-  // nn_frontend => also did not exist
-  [/test\/test_nn.py/gi, "release notes: nn"],
-  [/test\/test_module.py/gi, "release notes: nn"],
-  [/torch\/optim/gi, "release notes: nn"],
-  [/tools\/nn\/modules/gi, "release notes: nn"],
-  [/tools\/nn\/functional.py/gi, "release notes: nn"],
-  // jit
-  [/torch\/(csrc\/)?jit/gi, "release notes: jit"],
-  // releng
-  [/docker\//gi, "release notes: releng"],
-  [/.circleci/gi, "release notes: releng"],
-  [/.github/gi, "release notes: releng"],
-  [/.jenkins/gi, "release notes: releng"],
-  [/.azure_pipelines/gi, "release notes: releng"],
-  // cpp_frontend
-  [/torch\/(csrc|cpp)\/api/gi, "release notes: cpp"],
 ];
 
 const notUserFacingPatterns: RegExp[] = [
@@ -199,12 +139,31 @@ function myBot(app: Probot): void {
     return labelsToAdd;
   }
 
+
+  async function getLabelFromConfig(
+      filepath: string,
+      filesChanged: string[],
+    ): Promise<string> {
+    const configObject: any = yaml.load(await readFile(filepath, "utf8")) as string;
+    const labelGlobMap = getLabelGlobMapFromObject(configObject)
+    for (const file of filesChanged) {
+      // check for typical matches
+      for (const [label, regexList] of labelGlobMap) {
+          let found = regexList.some(regex => regex.test(file));
+          if(found) {
+            return label;
+          }
+      }
+    }
+    return null as any;
+  }
+
   // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
-  function getReleaseNotesCategoryAndTopic(
+  async function getReleaseNotesCategoryAndTopic(
     title: string,
     labels: string[],
     filesChanged: string[],
-  ): [string, string] {
+  ): Promise<[string, string]> {
     let topic: string = "untopiced";
 
     if (labels.includes("module: bc-breaking")) {
@@ -239,14 +198,9 @@ function myBot(app: Probot): void {
       return ["uncategorized", "topic: not user facing"];
     }
 
-    for (const file of filesChanged) {
-      // check for typical matches
-      for (const [regex, label] of filenameRegexToReleaseCategory) {
-        if (file.match(regex)) {
-          // return here since we take the first match (first category of first matching file)
-          return [label, topic];
-        }
-      }
+    let label = await getLabelFromConfig(releaseNoteLabelFile, filesChanged);
+    if(label != null) {
+      return [label, topic];
     }
 
     if (filesChanged.length > 0 && filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
@@ -281,6 +235,26 @@ function myBot(app: Probot): void {
     }
   }
 
+  function getLabelGlobMapFromObject(
+    configObject: any
+  ): Map<string, RegExp[]> {
+    const labelGlobs: Map<string, RegExp[]> = new Map();
+    for (const label in configObject) {
+      if (configObject[label] instanceof Array) {
+        labelGlobs.set(label, configObject[label].map((regex: string) => {
+          var parts = /\/(.*)\/(.*)/.exec(regex)!;
+          return RegExp(parts[1], parts[2]);
+      }));
+      } else {
+        throw Error(
+          `found unexpected type for label ${label} (should be array of globs)`
+        );
+      }
+    }
+
+    return labelGlobs;
+  }
+
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const labels: string[] = context.payload.issue.labels!.map(
       (e) => e["name"]
@@ -312,7 +286,7 @@ function myBot(app: Probot): void {
 
     // only categorize for release notes for prs in pytorch/pytorch
     if (isPyTorchPyTorch(owner, repo)) {
-      const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+      const [category, topic] = await getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
       if (category !== "uncategorized" && category !== "skip") {
         labelsToAdd.push(category);
       }
