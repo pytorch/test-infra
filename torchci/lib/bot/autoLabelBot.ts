@@ -158,12 +158,11 @@ function myBot(app: Probot): void {
     return null as any;
   }
 
-  // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
-  async function getReleaseNotesCategoryAndTopic(
+  function getTopic(
     title: string,
     labels: string[],
     filesChanged: string[],
-  ): Promise<[string, string]> {
+  ): string {
     let topic: string = "untopiced";
 
     if (labels.includes("module: bc-breaking")) {
@@ -177,48 +176,63 @@ function myBot(app: Probot): void {
 
     // these files do not warrant a real category and mostly not user facing
     // we want to return this _before_ categorizing
+    if (isNotUserFacing(filesChanged) || title.toLowerCase().includes("[codemod]")) {
+      topic = "topic: not user facing";
+    }
+
+    // don't re-categorize those with existing labels: already topiced
+    if (labels.some(l => l === "topic: not user facing")) {
+        return  "skip";
+    }
+    return topic;
+  }
+
+  // https://github.com/pytorch/pytorch/blob/master/scripts/release_notes/commitlist.py#L90
+  async function getReleaseNotesCategory(
+    title: string,
+    labels: string[],
+    filesChanged: string[],
+  ): Promise<string> {
+    // these files do not warrant a real category and mostly not user facing
+    // we want to return this _before_ categorizing
     if (isNotUserFacing(filesChanged)) {
-      return ["skip", "topic: not user facing"];
+      return "skip";
     }
 
     // don't re-categorize those with existing labels
     if (labels.some(l => l.startsWith("release notes:" ) || l === "topic: not user facing")) {
-      // already topiced
-      if (labels.some(l => l.startsWith("topic:" ))) {
-        return ["skip", "skip"];
-      }
-      return ["skip", topic];
+        return "skip";
     }
 
     if (filesChanged.length > 0 && filesChanged.every(f => f.includes("caffe2"))) {
-      return ["caffe2", topic];
+      return "caffe2";
     }
 
     if (title.toLowerCase().includes("[codemod]")) {
-      return ["uncategorized", "topic: not user facing"];
+      return "uncategorized";
     }
 
     let label = await getLabelFromConfig(releaseNoteLabelFile, filesChanged);
     if(label != null) {
-      return [label, topic];
+      return label;
     }
 
     if (filesChanged.length > 0 && filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
-      return ["release notes: cuda", topic];
+      return "release notes: cuda";
     }
 
     if (title.includes("[PyTorch Edge]")) {
-      return ["release notes: mobile", topic];
+      return "release notes: mobile";
     }
 
     // OpInfo related
     if (filesChanged.length === 1 &&
         (filesChanged.at(0)?.includes("torch/testing/_internal/common_methods_invocations.py") ||
         filesChanged.at(0)?.includes("torch/_torch_docs.py"))) {
-          return ["release notes: python_frontend", topic];
+          return "release notes: python_frontend";
     }
 
-    return ["uncategorized", topic];
+    return "uncategorized";
   }
 
   async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
@@ -286,7 +300,8 @@ function myBot(app: Probot): void {
 
     // only categorize for release notes for prs in pytorch/pytorch
     if (isPyTorchPyTorch(owner, repo)) {
-      const [category, topic] = await getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+      const category = await getReleaseNotesCategory(title, labels, filesChanged);
+      const topic = getTopic(title, labels, filesChanged);
       if (category !== "uncategorized" && category !== "skip") {
         labelsToAdd.push(category);
       }
