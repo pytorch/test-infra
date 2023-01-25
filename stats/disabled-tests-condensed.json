@@ -878,6 +878,13 @@
       "linux"
     ]
   ],
+  "test_jit_cuda_extension (__main__.TestCppExtensionJIT)": [
+    "61655",
+    "https://github.com/pytorch/pytorch/issues/61655",
+    [
+      "windows"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1371,20 +1378,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_torch_seed (__main__.MiscTests)": [
-    "91867",
-    "https://github.com/pytorch/pytorch/issues/91867",
-    [
-      "linux"
-    ]
-  ],
-  "test_torch_size (__main__.MiscTests)": [
-    "91866",
-    "https://github.com/pytorch/pytorch/issues/91866",
-    [
-      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
