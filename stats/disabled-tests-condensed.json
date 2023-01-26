@@ -948,13 +948,6 @@
       "macos"
     ]
   ],
-  "test_inplace_check (jit.test_tracer.TestTracer)": [
-    "91457",
-    "https://github.com/pytorch/pytorch/issues/91457",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93046",
     "https://github.com/pytorch/pytorch/issues/93046",
@@ -1322,11 +1315,6 @@
     [
       "linux"
     ]
-  ],
-  "test_python_ref_executor__refs_mean_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
-    "92046",
-    "https://github.com/pytorch/pytorch/issues/92046",
-    []
   ],
   "test_python_ref_executor__refs_permute_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
     "90074",
