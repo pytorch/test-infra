@@ -962,6 +962,13 @@
       "linux"
     ]
   ],
+  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "93070",
+    "https://github.com/pytorch/pytorch/issues/93070",
+    [
+      "linux"
+    ]
+  ],
   "test_jit_cuda_extension (__main__.TestCppExtensionJIT)": [
     "61655",
     "https://github.com/pytorch/pytorch/issues/61655",
