@@ -846,6 +846,17 @@
       "dynamo"
     ]
   ],
+  "test_fs_sharing (__main__.TestMultiprocessing)": [
+    "67002",
+    "https://github.com/pytorch/pytorch/issues/67002",
+    [
+      "windows",
+      "mac",
+      "linux",
+      "dynamo",
+      "rocm"
+    ]
+  ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
     "84046",
     "https://github.com/pytorch/pytorch/issues/84046",
