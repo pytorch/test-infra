@@ -1274,13 +1274,6 @@
     "https://github.com/pytorch/pytorch/issues/65521",
     []
   ],
-  "test_profiler (test_jit.TestJit)": [
-    "81626",
-    "https://github.com/pytorch/pytorch/issues/81626",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
     "https://github.com/pytorch/pytorch/issues/82499",
