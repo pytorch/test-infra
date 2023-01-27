@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/test-setup-miniconda.yml
+      - .github/actions/check-disk-space/*
       - .github/actions/setup-miniconda/*
 
 jobs:
