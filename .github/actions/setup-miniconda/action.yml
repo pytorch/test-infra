@@ -28,7 +28,7 @@ runs:
   using: composite
   steps:
       - name: Get disk space usage and throw an error for low disk space
-        uses: ./test-infra/.github/actions/check-disk-space
+        uses: ./.github/actions/check-disk-space
 
       # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
       # to refresh the cache daily. This is kind of optional though
