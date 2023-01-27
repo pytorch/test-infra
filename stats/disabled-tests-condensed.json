@@ -1389,13 +1389,6 @@
       "linux"
     ]
   ],
-  "test_roi_align_dynamic_shapes_cuda (__main__.CudaTests)": [
-    "93054",
-    "https://github.com/pytorch/pytorch/issues/93054",
-    [
-      "linux"
-    ]
-  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
