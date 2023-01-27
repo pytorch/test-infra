@@ -909,6 +909,13 @@
       "mac"
     ]
   ],
+  "test_graph_concurrent_replay (__main__.TestCuda)": [
+    "93165",
+    "https://github.com/pytorch/pytorch/issues/93165",
+    [
+      "linux"
+    ]
+  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
