@@ -28,7 +28,14 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 
-const SUPPORTED_WORKFLOWS = ["lint", "pull", "trunk", "periodic", "inductor", "unstable"];
+const SUPPORTED_WORKFLOWS = [
+  "lint",
+  "pull",
+  "trunk",
+  "periodic",
+  "inductor",
+  "unstable",
+];
 
 function Panel({
   series,
@@ -140,7 +147,9 @@ function Graphs({
     timeFieldName,
     redFieldName
   );
-  const displayRedPercentages = redPercentages.filter((item: any) => filter.has(item["name"]));
+  const displayRedPercentages = redPercentages.filter((item: any) =>
+    filter.has(item["name"])
+  );
 
   const rowHeight = 800;
   const jobUrlPrefix = `/reliability/pytorch/pytorch?jobName=`;
