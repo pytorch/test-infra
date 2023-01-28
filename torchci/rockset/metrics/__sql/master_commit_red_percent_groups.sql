@@ -11,9 +11,7 @@ WITH all_jobs AS (
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
-        AND ( -- Limit it to workflows which block viable/strict upgrades
-            ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-        )
+        AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         AND push.ref = 'refs/heads/master'
         AND push.repository.owner.name = 'pytorch'
