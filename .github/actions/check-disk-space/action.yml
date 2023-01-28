@@ -1,6 +1,8 @@
-name: Check remaining disk space
+name: Check and clean up the runner disk space
 
-description: Clean workspace and check out PyTorch
+description: |
+  Checking for remaining space works for Linux and MacOS. Cleaning up the volume
+  is only supported in MacOS (pet instances)
 
 inputs:
   minimum-available-space-in-gb:
@@ -53,6 +55,9 @@ runs:
           sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data" || true
           # Stop the daemon and launchctl will automatically start it again, thus accomplish a restart and free up the above file
           sudo launchctl stop com.apple.coresymbolicationd || true
+
+          # Also try to clean up torch.hub caching directory
+          rm -rf "${HOME}/.cache/torch/hub" || true
 
           echo "Re-run disk space check for ${RUNNER_OS} after cleaning up"
           # Re-run the check
