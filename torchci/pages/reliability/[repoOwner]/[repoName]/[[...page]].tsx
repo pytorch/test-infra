@@ -26,15 +26,9 @@ import {
 } from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
-import { TimeRangePicker, TtsPercentilePicker } from "../../../../metrics";
+import { TimeRangePicker } from "../../../metrics";
 
-const SUPPORTED_WORKFLOWS = [
-  "lint",
-  "pull",
-  "trunk",
-  "periodic",
-  "inductor",
-];
+const SUPPORTED_WORKFLOWS = ["lint", "pull", "trunk", "periodic", "inductor"];
 
 function Panel({
   series,
@@ -107,8 +101,8 @@ function Graphs({
   if (error !== undefined) {
     return (
       <div>
-        An error occurred while fetching data, perhaps there are too many results
-        with your choice of time range and granularity?
+        An error occurred while fetching data, perhaps there are too many
+        results with your choice of time range and granularity?
       </div>
     );
   }
@@ -129,8 +123,12 @@ function Graphs({
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset
-  const startTime = dayjs(queryParams.find((p) => p.name === "startTime")?.value).startOf(granularity);
-  const stopTime = dayjs(queryParams.find((p) => p.name === "stopTime")?.value).startOf(granularity);
+  const startTime = dayjs(
+    queryParams.find((p) => p.name === "startTime")?.value
+  ).startOf(granularity);
+  const stopTime = dayjs(
+    queryParams.find((p) => p.name === "stopTime")?.value
+  ).startOf(granularity);
 
   const redFieldName = "red";
   const timeFieldName = "granularity_bucket";
@@ -143,7 +141,7 @@ function Graphs({
     granularity,
     groupByFieldName,
     timeFieldName,
-    ttsFieldName
+    redFieldName
   );
 
   const rowHeight = 800;
@@ -169,7 +167,11 @@ function Graphs({
                 checked={filter.has(job[groupByFieldName])}
               />
               <label htmlFor={job[groupByFieldName]}>
-                <a href={jobUrlPrefix + encodeURIComponent(job[groupByFieldName])}>
+                <a
+                  href={
+                    jobUrlPrefix + encodeURIComponent(job[groupByFieldName])
+                  }
+                >
                   {job[groupByFieldName]}
                 </a>
               </label>
