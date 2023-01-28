@@ -28,7 +28,7 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 
-const SUPPORTED_WORKFLOWS = ["lint", "pull", "trunk", "periodic", "inductor"];
+const SUPPORTED_WORKFLOWS = ["lint", "pull", "trunk", "periodic", "inductor", "unstable"];
 
 function Panel({
   series,
@@ -43,9 +43,8 @@ function Panel({
     xAxis: { type: "time" },
     yAxis: {
       type: "value",
-      axisLabel: {
-        formatter: durationDisplay,
-      },
+      min: 0,
+      max: 100,
     },
     series,
     legend: {
@@ -64,7 +63,7 @@ function Panel({
         `${params.seriesName}` +
         `<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>` +
         `${getTooltipMarker(params.color)}` +
-        `<b>${durationDisplay(params.value[1])}</b>`,
+        `<b>${params.value[1]}</b>`,
     },
   };
 
@@ -80,12 +79,10 @@ function Panel({
 function Graphs({
   queryParams,
   granularity,
-  selectedJobName,
   checkboxRef,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
-  selectedJobName: string;
   checkboxRef: any;
 }) {
   const [filter, setFilter] = useState(new Set());
@@ -143,6 +140,7 @@ function Graphs({
     timeFieldName,
     redFieldName
   );
+  const displayRedPercentages = redPercentages.filter((item: any) => filter.has(item["name"]));
 
   const rowHeight = 800;
   const jobUrlPrefix = `/reliability/pytorch/pytorch?jobName=`;
@@ -150,7 +148,7 @@ function Graphs({
     <Grid container spacing={2}>
       <Grid item xs={9} height={rowHeight}>
         <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"%"} series={redPercentages} />
+          <Panel title={"%"} series={displayRedPercentages} />
         </Paper>
       </Grid>
       <Grid item xs={3} height={rowHeight}>
@@ -257,7 +255,7 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          Red signal percentage by jobs
+          Failures
         </Typography>
         <TimeRangePicker
           startTime={startTime}
@@ -273,7 +271,6 @@ export default function Page() {
       <Graphs
         queryParams={queryParams}
         granularity={granularity}
-        selectedJobName={jobName}
         checkboxRef={checkboxRef}
       />
     </div>

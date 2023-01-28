@@ -35,6 +35,10 @@ module.exports = {
         source: "/tts",
         destination: "/tts/pytorch/pytorch/master",
       },
+      {
+        source: "/reliability",
+        destination: "/reliability/pytorch/pytorch",
+      },
     ];
   },
 };
