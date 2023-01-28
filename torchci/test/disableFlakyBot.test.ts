@@ -815,6 +815,12 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     );
   });
 
+  test("getIssueBodyForFlakyTest: should contain file info", async () => {
+    expect(disableFlakyTestBot.getIssueBodyForFlakyTest(flakyTestA)).toContain(
+      "Test file path: `file_a.py`"
+    );
+  });
+
   test("filterOutNonFlakyTest: should not contain any flaky tests", async () => {
     const disabledNonFlakyTests = [
       nonFlakyTestA,

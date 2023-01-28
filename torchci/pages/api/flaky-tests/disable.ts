@@ -247,6 +247,10 @@ To find relevant log snippets:
 3. Grep for \`${test.name}\`
 4. There should be several instances run (as flaky tests are rerun in CI) from which you can study the logs.
 `;
+  let fileInfo = `Test file path: \`${test.file}\``;
+  if (test.file !== `${test.invoking_file}.py`) {
+    fileInfo += ` or \`${test.file}\``;
+  }
   if (test.numRed === undefined) {
     // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
     numRedGreen = `Over the past ${NUM_HOURS_ACROSS_JOBS} hours, it has flakily failed in ${test.workflowIds.length} workflow(s).`;
@@ -256,7 +260,7 @@ To find relevant log snippets:
 1. Click on the workflow logs linked above
 2. Grep for \`${test.name}\`
 `;
-}
+  }
   return `Platforms: ${getPlatformsAffected(getWorkflowJobNames(test)).join(
     ", "
   )}
@@ -267,7 +271,9 @@ This test was disabled because it is failing in CI. See [recent examples](${exam
 
 ${numRedGreen}
 
-${debuggingSteps}`;
+${debuggingSteps}
+
+${fileInfo}`;
 }
 
 export async function getTestOwnerLabels(
