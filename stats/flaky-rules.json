@@ -6,5 +6,13 @@
   {
     "name": "rocm",
     "captures": ["##[error]The action has timed out."]
+  },
+  { 
+    "name": "-xla",
+    "captures": ["FAILED: Build did NOT complete successfully"]
+  },
+  { 
+    "name": "bazel",
+    "captures": ["Process completed with exit code 2."]
   }
 ]
