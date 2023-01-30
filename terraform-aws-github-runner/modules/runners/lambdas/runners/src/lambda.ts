@@ -28,26 +28,22 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
     if (evtFailed.length > 0) {
       console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
 
-      let sqs: SQS | undefined = undefined;
+      const sqs: SQS = new SQS();
 
-      for (const evt of event.Records) {
+      for (const evt of evtFailed) {
         const body: ActionRequestMessage = JSON.parse(evt.body);
         const retryCount = body?.retryCount ?? 0;
-        const delaySeconds = Math.min(body?.delaySeconds ?? Config.Instance.retryScaleUpRecordDelayS / 2, 20);
+        const delaySeconds = Math.max(body?.delaySeconds ?? Config.Instance.retryScaleUpRecordDelayS / 2, 10);
 
         if (
-          retryCount < Config.Instance.maxRetryScaleUpRecord
-          && (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
+          retryCount < Config.Instance.maxRetryScaleUpRecord &&
+          (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
         ) {
-          if (sqs === undefined) {
-            sqs = new SQS();
-          }
-
           body.retryCount = retryCount + 1;
           body.delaySeconds = delaySeconds * 2;
 
           const sqsPayload: SQS.SendMessageRequest = {
-            DelaySeconds: getDelayWithJitter(body.delaySeconds, 0.2),
+            DelaySeconds: getDelayWithJitter(body.delaySeconds, Config.Instance.retryScaleUpRecordJitterPct),
             MessageBody: JSON.stringify(body),
             QueueUrl: Config.Instance.retryScaleUpRecordQueueUrl as string,
           };

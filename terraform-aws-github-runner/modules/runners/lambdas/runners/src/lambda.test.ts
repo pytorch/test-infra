@@ -1,13 +1,23 @@
 import { scaleDown as scaleDownL, scaleUp as scaleUpL } from './lambda';
 
-import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
-import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
+import { Config } from './scale-runners/config';
+import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
+import { getDelayWithJitter } from './scale-runners/utils';
+import { mocked } from 'ts-jest/utils';
 import { scaleDown } from './scale-runners/scale-down';
-import { scaleUp } from './scale-runners/scale-up';
+import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
+
+const mockSQS = {
+  sendMessage: jest.fn().mockReturnValue({ promise: jest.fn() }),
+};
+jest.mock('aws-sdk', () => ({
+  SQS: jest.fn().mockImplementation(() => mockSQS),
+}));
 
 jest.mock('./scale-runners/scale-down');
 jest.mock('./scale-runners/scale-up');
+jest.mock('./scale-runners/utils');
 
 beforeEach(() => {
   jest.resetModules();
@@ -54,6 +64,47 @@ describe('scaleUp', () => {
     expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 });
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed handling SQS event');
+  });
+
+  it('RetryableScalingError', async () => {
+    const config = {
+      maxRetryScaleUpRecord: 12,
+      retryScaleUpRecordDelayS: 20,
+      retryScaleUpRecordJitterPct: 0.2,
+      retryScaleUpRecordQueueUrl: 'asdf',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const records = [
+      { eventSource: 'aws:sqs', body: '{"id":1}' },
+      { eventSource: 'aws:sqs', body: '{"id":2}' },
+      { eventSource: 'aws:sqs', body: '{"id":3}' },
+      { eventSource: 'aws:sqs', body: '{"id":4,"retryCount":2,"delaySeconds":90}' },
+      { eventSource: 'aws:sqs', body: '{"id":5,"retryCount":12,"delaySeconds":90}' },
+    ];
+    mocked(getDelayWithJitter).mockImplementation((delayBase: number, jitter: number) => {
+      return delayBase * (1 + jitter);
+    });
+    const mockedScaleUp = mocked(scaleUp)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new RetryableScalingError('whatever'))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new RetryableScalingError('whatever'))
+      .mockRejectedValueOnce(new RetryableScalingError('whatever'));
+    const callback = jest.fn();
+    await scaleUpL({ Records: records } as unknown as SQSEvent, {} as unknown as Context, callback);
+    expect(mockedScaleUp).toBeCalledTimes(5);
+
+    expect(mockSQS.sendMessage).toBeCalledTimes(2);
+    expect(mockSQS.sendMessage).toBeCalledWith({
+      DelaySeconds: 24,
+      MessageBody: '{"id":2,"retryCount":1,"delaySeconds":20}',
+      QueueUrl: 'asdf',
+    });
+    expect(mockSQS.sendMessage).toBeCalledWith({
+      DelaySeconds: 216,
+      MessageBody: '{"id":4,"retryCount":3,"delaySeconds":180}',
+      QueueUrl: 'asdf',
+    });
   });
 });
 

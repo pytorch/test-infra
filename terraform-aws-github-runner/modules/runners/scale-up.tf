@@ -49,7 +49,7 @@ resource "aws_lambda_function" "scale_up" {
       MAX_RETRY_SCALEUP_RECORD              = "12"
       MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
       RETRY_SCALE_UP_RECORD_DELAY_S         = "20"
-      RETRY_SCALE_UP_RECORD_JITTER_PCT      = "0.2"
+      RETRY_SCALE_UP_RECORD_JITTER_PCT      = "0.15"
       RETRY_SCALE_UP_RECORD_QUEUE_URL       = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
