@@ -1014,6 +1014,20 @@
       "macos"
     ]
   ],
+  "test_load_rowwise_to_colwise_thread_count_1 (__main__.TestDistributedReshardOnLoad)": [
+    "93244",
+    "https://github.com/pytorch/pytorch/issues/93244",
+    [
+      "linux"
+    ]
+  ],
+  "test_load_rowwise_to_colwise_thread_count_2 (__main__.TestDistributedReshardOnLoad)": [
+    "93245",
+    "https://github.com/pytorch/pytorch/issues/93245",
+    [
+      "linux"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1326,20 +1340,6 @@
     "https://github.com/pytorch/pytorch/issues/73474",
     [
       "macos"
-    ]
-  ],
-  "test_python_ref_executor__refs_fmod_executor_nvfuser_cuda_int32 (__main__.TestCommonCUDA)": [
-    "92185",
-    "https://github.com/pytorch/pytorch/issues/92185",
-    [
-      "linux"
-    ]
-  ],
-  "test_python_ref_executor__refs_permute_executor_nvfuser_cuda_float32 (__main__.TestCommonCUDA)": [
-    "90074",
-    "https://github.com/pytorch/pytorch/issues/90074",
-    [
-      "linux"
     ]
   ],
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
