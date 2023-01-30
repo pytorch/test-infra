@@ -46,7 +46,11 @@ resource "aws_lambda_function" "scale_up" {
       LAUNCH_TEMPLATE_VERSION_LINUX         = aws_launch_template.linux_runner.latest_version
       LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA  = aws_launch_template.linux_runner_nvidia.latest_version
       LAUNCH_TEMPLATE_VERSION_WINDOWS       = aws_launch_template.windows_runner.latest_version
+      MAX_RETRY_SCALEUP_RECORD              = "12"
       MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
+      RETRY_SCALE_UP_RECORD_DELAY_S         = "20"
+      RETRY_SCALE_UP_RECORD_JITTER_PCT      = "0.2"
+      RETRY_SCALE_UP_RECORD_QUEUE_URL       = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
 
@@ -118,12 +122,25 @@ resource "aws_lambda_event_source_mapping" "scale_up" {
   function_name    = aws_lambda_alias.scale_up_lambda_alias.arn
 }
 
+resource "aws_lambda_event_source_mapping" "scale_up_retry" {
+  event_source_arn = var.sqs_build_queue_retry.arn
+  function_name    = aws_lambda_alias.scale_up_lambda_alias.arn
+}
+
 resource "aws_lambda_permission" "scale_runners_lambda" {
   statement_id  = "AllowExecutionFromSQS"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.scale_up.function_name
   principal     = "sqs.amazonaws.com"
   source_arn    = var.sqs_build_queue.arn
+}
+
+resource "aws_lambda_permission" "scale_runners_lambda_retry" {
+  statement_id  = "AllowExecutionFromSQS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.scale_up.function_name
+  principal     = "sqs.amazonaws.com"
+  source_arn    = var.sqs_build_queue_retry.arn
 }
 
 resource "aws_iam_role" "scale_up" {
@@ -141,6 +158,7 @@ resource "aws_iam_role_policy" "scale_up" {
   policy = templatefile("${path.module}/policies/lambda-scale-up.json", {
     arn_runner_instance_role = aws_iam_role.runner.arn
     sqs_arn                  = var.sqs_build_queue.arn
+    sqs_retry_arn            = var.sqs_build_queue_retry.arn
   })
 }
 

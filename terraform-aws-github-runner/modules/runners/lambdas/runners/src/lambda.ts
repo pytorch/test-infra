@@ -1,24 +1,68 @@
-import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
+import { SQS } from 'aws-sdk';
+import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
 
+import { Config } from './scale-runners/config';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
-import { scaleUp as scaleUpR, RetryableScalingError } from './scale-runners/scale-up';
+import { scaleUp as scaleUpR, RetryableScalingError, ActionRequestMessage } from './scale-runners/scale-up';
+import { getDelayWithJitter } from './scale-runners/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleUp(event: SQSEvent, context: Context, callback: any) {
   console.dir(event, { depth: 5 });
   try {
-    for (const e of event.Records) {
-      await scaleUpR(e.eventSource, JSON.parse(e.body));
+    const evtFailed: Array<SQSRecord> = [];
+
+    for (const evt of event.Records) {
+      try {
+        await scaleUpR(evt.eventSource, JSON.parse(evt.body));
+      } catch (e) {
+        if (e instanceof RetryableScalingError) {
+          console.error(`Retryable error thrown: "${e.message}"`);
+          evtFailed.push(evt);
+        } else {
+          throw e;
+        }
+      }
     }
+
+    if (evtFailed.length > 0) {
+      console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
+
+      let sqs: SQS | undefined = undefined;
+
+      for (const evt of event.Records) {
+        const body: ActionRequestMessage = JSON.parse(evt.body);
+        const retryCount = body?.retryCount ?? 0;
+        const delaySeconds = Math.min(body?.delaySeconds ?? Config.Instance.retryScaleUpRecordDelayS / 2, 20);
+
+        if (
+          retryCount < Config.Instance.maxRetryScaleUpRecord
+          && (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
+        ) {
+          if (sqs === undefined) {
+            sqs = new SQS();
+          }
+
+          body.retryCount = retryCount + 1;
+          body.delaySeconds = delaySeconds * 2;
+
+          const sqsPayload: SQS.SendMessageRequest = {
+            DelaySeconds: getDelayWithJitter(body.delaySeconds, 0.2),
+            MessageBody: JSON.stringify(body),
+            QueueUrl: Config.Instance.retryScaleUpRecordQueueUrl as string,
+          };
+
+          await sqs.sendMessage(sqsPayload).promise();
+        } else {
+          console.error(`Permanently abandoning message: ${evt.body}`);
+        }
+      }
+    }
+
     return callback(null);
   } catch (e) {
     console.error(e);
-    if (e instanceof RetryableScalingError) {
-      console.error('Received a RetryableScalingError, will callback with failure');
-      return callback(e);
-    } else {
-      return callback('Failed handling SQS event');
-    }
+    return callback('Failed handling SQS event');
   }
 }
 
