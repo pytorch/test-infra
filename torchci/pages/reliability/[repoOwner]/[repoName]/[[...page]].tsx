@@ -28,22 +28,11 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import TablePanel from "components/metrics/panels/TablePanel";
-import {
-  GridRenderCellParams,
-} from "@mui/x-data-grid";
+import { GridRenderCellParams } from "@mui/x-data-grid";
 
-const PRIMARY_WORKFLOWS = [
-  "lint",
-  "pull",
-  "trunk",
-];
-const SECONDARY_WORKFLOWS = [
-  "periodic",
-  "inductor",
-];
-const UNSTABLE_WORKFLOWS = [
-  "unstable",
-];
+const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
+const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
+const UNSTABLE_WORKFLOWS = ["unstable"];
 const ROW_HEIGHT = 340;
 const ROW_GAP = 30;
 const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
@@ -86,12 +75,8 @@ function GroupReliabilityPanel({
             }
 
             const encodedJobName = encodeURIComponent(jobName);
-            return (
-              <a href={URL_PREFIX + encodedJobName}>
-                {jobName}
-              </a>
-            );
-          }
+            return <a href={URL_PREFIX + encodedJobName}>{jobName}</a>;
+          },
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
@@ -235,9 +220,7 @@ function Graphs({
               />
               <label htmlFor={job[groupByFieldName]}>
                 <a
-                  href={
-                    URL_PREFIX + encodeURIComponent(job[groupByFieldName])
-                  }
+                  href={URL_PREFIX + encodeURIComponent(job[groupByFieldName])}
                 >
                   {job[groupByFieldName]}
                 </a>
@@ -308,7 +291,8 @@ export default function Page() {
     },
   ];
 
-  const allWorkflows = PRIMARY_WORKFLOWS.concat(SECONDARY_WORKFLOWS).concat(UNSTABLE_WORKFLOWS);
+  const allWorkflows =
+    PRIMARY_WORKFLOWS.concat(SECONDARY_WORKFLOWS).concat(UNSTABLE_WORKFLOWS);
 
   const checkboxRef = useCallback(() => {
     const selectedJob = document.getElementById(jobName);
@@ -342,7 +326,7 @@ export default function Page() {
               name: "workflowNames",
               type: "string",
               value: allWorkflows.join(","),
-            }
+            },
           ])}
           granularity={granularity}
           checkboxRef={checkboxRef}
@@ -359,7 +343,7 @@ export default function Page() {
                 name: "workflowNames",
                 type: "string",
                 value: PRIMARY_WORKFLOWS.join(","),
-              }
+              },
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
@@ -375,7 +359,7 @@ export default function Page() {
                 name: "workflowNames",
                 type: "string",
                 value: SECONDARY_WORKFLOWS.join(","),
-              }
+              },
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
@@ -391,7 +375,7 @@ export default function Page() {
                 name: "workflowNames",
                 type: "string",
                 value: UNSTABLE_WORKFLOWS.join(","),
-              }
+              },
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
