@@ -4,7 +4,7 @@ import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
 import { Config } from './scale-runners/config';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { scaleUp as scaleUpR, RetryableScalingError, ActionRequestMessage } from './scale-runners/scale-up';
-import { getDelayWithJitter } from './scale-runners/utils';
+import { getDelayWithJitterRetryCount } from './scale-runners/utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleUp(event: SQSEvent, context: Context, callback: any) {
@@ -33,22 +33,26 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
       for (const evt of evtFailed) {
         const body: ActionRequestMessage = JSON.parse(evt.body);
         const retryCount = body?.retryCount ?? 0;
-        const delaySeconds = Math.max(body?.delaySeconds ?? Config.Instance.retryScaleUpRecordDelayS / 2, 10);
 
         if (
           retryCount < Config.Instance.maxRetryScaleUpRecord &&
           (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
         ) {
           body.retryCount = retryCount + 1;
-          body.delaySeconds = delaySeconds * 2;
+          body.delaySeconds = getDelayWithJitterRetryCount(
+            retryCount,
+            Math.max(Config.Instance.retryScaleUpRecordDelayS, 20),
+            Config.Instance.retryScaleUpRecordJitterPct,
+          );
 
           const sqsPayload: SQS.SendMessageRequest = {
-            DelaySeconds: getDelayWithJitter(body.delaySeconds, Config.Instance.retryScaleUpRecordJitterPct),
+            DelaySeconds: body.delaySeconds,
             MessageBody: JSON.stringify(body),
             QueueUrl: Config.Instance.retryScaleUpRecordQueueUrl as string,
           };
 
           await sqs.sendMessage(sqsPayload).promise();
+          console.warn(`Sent message: ${evt.body}`);
         } else {
           console.error(`Permanently abandoning message: ${evt.body}`);
         }
