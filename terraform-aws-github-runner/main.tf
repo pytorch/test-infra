@@ -45,12 +45,21 @@ resource "aws_sqs_queue" "queued_builds" {
   tags                        = var.tags
 }
 
+resource "aws_sqs_queue" "queued_builds_retry_dead_letter" {
+  name                        = "${var.environment}-queued-builds-retry-dead-letter"
+  redrive_allow_policy        = jsonencode({
+    redrivePermission = "allowAll",
+  })
+  tags                        = var.tags
+}
+
 resource "aws_sqs_queue" "queued_builds_retry" {
   name                        = "${var.environment}-queued-builds-retry"
+  visibility_timeout_seconds  = var.runners_scale_up_sqs_visibility_timeout
   max_message_size            = 2048
   message_retention_seconds   = var.runners_scale_up_sqs_max_retry * var.runners_scale_up_sqs_visibility_timeout + 100
   redrive_policy              = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.queued_builds_dead_letter.arn
+    deadLetterTargetArn = aws_sqs_queue.queued_builds_retry_dead_letter.arn
     maxReceiveCount     = var.runners_scale_up_sqs_max_retry
   })
   tags                        = var.tags

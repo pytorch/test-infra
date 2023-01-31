@@ -136,7 +136,7 @@ resource "aws_lambda_permission" "scale_runners_lambda" {
 }
 
 resource "aws_lambda_permission" "scale_runners_lambda_retry" {
-  statement_id  = "AllowExecutionFromSQS"
+  statement_id  = "AllowRetryExecutionFromSQS"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.scale_up.function_name
   principal     = "sqs.amazonaws.com"

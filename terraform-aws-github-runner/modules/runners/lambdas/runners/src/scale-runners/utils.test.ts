@@ -209,37 +209,37 @@ describe('./utils', () => {
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(0, 20, 0.1);
         expect(r).toBeLessThanOrEqual(22);
-        expect(r).toBeGreaterThanOrEqual(18);
+        expect(r).toBeGreaterThanOrEqual(20);
       }
 
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(1, 20, 0.1);
         expect(r).toBeLessThanOrEqual(44);
-        expect(r).toBeGreaterThanOrEqual(36);
+        expect(r).toBeGreaterThanOrEqual(40);
       }
 
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(2, 20, 0.1);
         expect(r).toBeLessThanOrEqual(88);
-        expect(r).toBeGreaterThanOrEqual(72);
+        expect(r).toBeGreaterThanOrEqual(80);
       }
 
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(0, 100, 0.5);
         expect(r).toBeLessThanOrEqual(150);
-        expect(r).toBeGreaterThanOrEqual(50);
+        expect(r).toBeGreaterThanOrEqual(100);
       }
 
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(1, 1000, 1.0);
         expect(r).toBeLessThanOrEqual(4000);
-        expect(r).toBeGreaterThanOrEqual(0);
+        expect(r).toBeGreaterThanOrEqual(1000);
       }
 
       for (let i = 0; i < checks; i += 1) {
         const r = getDelayWithJitterRetryCount(0, 1000, 2.0);
         expect(r).toBeLessThanOrEqual(3000);
-        expect(r).toBeGreaterThanOrEqual(0);
+        expect(r).toBeGreaterThanOrEqual(1000);
       }
     });
   });

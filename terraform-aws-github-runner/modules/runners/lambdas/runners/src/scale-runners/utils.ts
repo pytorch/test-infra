@@ -116,10 +116,7 @@ export function groupBy<T, V>(lst: T[], keyGetter: (itm: T) => V): Map<V, Array<
 }
 
 export function getDelayWithJitter(delayBase: number, jitter: number) {
-  // jitter is forced to always be positive, if jitter > 1.0, negative values for it are force to be positive
-  // this could be useful to create jitters with median == 0 but average > 0 that can be useful in some
-  // circustances
-  return Math.max(0, delayBase) * (1 + Math.max(0, Math.random() * Math.max(0, jitter)));
+  return Math.max(0, delayBase) * (1 + Math.random() * Math.max(0, jitter));
 }
 
 export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
