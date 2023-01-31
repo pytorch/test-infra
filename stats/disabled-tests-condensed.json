@@ -234,6 +234,13 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
+  "test_canonicalize_tensor_iterator (jit.test_tracer.TestTracer)": [
+    "91487",
+    "https://github.com/pytorch/pytorch/issues/91487",
+    [
+      "linux"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
