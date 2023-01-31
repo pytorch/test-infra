@@ -1253,6 +1253,13 @@
       "linux"
     ]
   ],
+  "test_out_linalg_lu_cuda_float32 (__main__.TestCommonCUDA)": [
+    "86777",
+    "https://github.com/pytorch/pytorch/issues/86777",
+    [
+      "linux"
+    ]
+  ],
   "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
     "89545",
     "https://github.com/pytorch/pytorch/issues/89545",
