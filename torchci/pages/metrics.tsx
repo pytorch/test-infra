@@ -254,7 +254,7 @@ export function TimeRangePicker({
   stopTime: dayjs.Dayjs;
   setStartTime: any;
   setStopTime: any;
-  defaultValue: number | undefined;
+  defaultValue?: number;
 }) {
   // User-selected time range. If it's a number, the range is (#days to now). If
   // it's -1, the time range has been to a custom value.
