@@ -76,7 +76,7 @@ function NavBar() {
             </li>
             <li>
               <Link prefetch={false} href="/reliability">
-                Failures %
+                Failures Metric
               </Link>
             </li>
             <li>
