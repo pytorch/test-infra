@@ -19,6 +19,8 @@ export interface ActionRequestMessage {
   repositoryOwner: string;
   installationId?: number;
   runnerLabels?: string[];
+  retryCount?: number;
+  delaySeconds?: number;
 }
 
 export class RetryableScalingError extends Error {
