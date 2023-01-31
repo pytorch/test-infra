@@ -39,10 +39,13 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
           (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
         ) {
           body.retryCount = retryCount + 1;
-          body.delaySeconds = getDelayWithJitterRetryCount(
-            retryCount,
-            Math.max(Config.Instance.retryScaleUpRecordDelayS, 20),
-            Config.Instance.retryScaleUpRecordJitterPct,
+          body.delaySeconds = Math.min(
+            900,
+            getDelayWithJitterRetryCount(
+              retryCount,
+              Math.max(Config.Instance.retryScaleUpRecordDelayS, 20),
+              Config.Instance.retryScaleUpRecordJitterPct,
+            ),
           );
 
           const sqsPayload: SQS.SendMessageRequest = {
