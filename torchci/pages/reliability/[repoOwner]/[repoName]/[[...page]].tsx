@@ -27,17 +27,79 @@ import {
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
+import TablePanel from "components/metrics/panels/TablePanel";
+import {
+  GridRenderCellParams,
+} from "@mui/x-data-grid";
 
-const SUPPORTED_WORKFLOWS = [
+const PRIMARY_WORKFLOWS = [
   "lint",
   "pull",
   "trunk",
+];
+const SECONDARY_WORKFLOWS = [
   "periodic",
   "inductor",
+];
+const UNSTABLE_WORKFLOWS = [
   "unstable",
 ];
+const ROW_HEIGHT = 340;
+const ROW_GAP = 30;
+const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 
-function Panel({
+// Specialized version of TablePanel for reliability metrics
+function GroupReliabilityPanel({
+  title,
+  queryName,
+  queryParams,
+  metricHeaderName,
+  metricName,
+}: {
+  title: string;
+  queryName: string;
+  queryParams: RocksetParam[];
+  metricHeaderName: string;
+  metricName: string;
+}) {
+  return (
+    <TablePanel
+      title={title}
+      queryName={queryName}
+      queryParams={queryParams}
+      columns={[
+        {
+          field: metricName,
+          headerName: metricHeaderName,
+          flex: 1,
+        },
+        {
+          field: "name",
+          headerName: "Name",
+          flex: 5,
+          // valueFormatter only treat the return value as string, so we need
+          // to use renderCell here to get the JSX
+          renderCell: (params: GridRenderCellParams<string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return `Invalid job name ${jobName}`;
+            }
+
+            const encodedJobName = encodeURIComponent(jobName);
+            return (
+              <a href={URL_PREFIX + encodedJobName}>
+                {jobName}
+              </a>
+            );
+          }
+        },
+      ]}
+      dataGridProps={{ getRowId: (el: any) => el.name }}
+    />
+  );
+}
+
+function GraphPanel({
   series,
   title,
 }: {
@@ -151,18 +213,16 @@ function Graphs({
     filter.has(item["name"])
   );
 
-  const rowHeight = 800;
-  const jobUrlPrefix = `/reliability/pytorch/pytorch?jobName=`;
   return (
     <Grid container spacing={2}>
-      <Grid item xs={9} height={rowHeight}>
-        <Paper sx={{ p: 2, height: "50%" }} elevation={3}>
-          <Panel title={"%"} series={displayRedPercentages} />
+      <Grid item xs={9} height={ROW_HEIGHT}>
+        <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+          <GraphPanel title={"%"} series={displayRedPercentages} />
         </Paper>
       </Grid>
-      <Grid item xs={3} height={rowHeight}>
+      <Grid item xs={3} height={ROW_HEIGHT}>
         <div
-          style={{ overflow: "auto", height: rowHeight, fontSize: "15px" }}
+          style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
           ref={checkboxRef}
         >
           {redPercentages.map((job) => (
@@ -176,7 +236,7 @@ function Graphs({
               <label htmlFor={job[groupByFieldName]}>
                 <a
                   href={
-                    jobUrlPrefix + encodeURIComponent(job[groupByFieldName])
+                    URL_PREFIX + encodeURIComponent(job[groupByFieldName])
                   }
                 >
                   {job[groupByFieldName]}
@@ -246,12 +306,9 @@ export default function Page() {
       type: "string",
       value: granularity,
     },
-    {
-      name: "workflowNames",
-      type: "string",
-      value: SUPPORTED_WORKFLOWS.join(","),
-    },
   ];
+
+  const allWorkflows = PRIMARY_WORKFLOWS.concat(SECONDARY_WORKFLOWS).concat(UNSTABLE_WORKFLOWS);
 
   const checkboxRef = useCallback(() => {
     const selectedJob = document.getElementById(jobName);
@@ -277,11 +334,70 @@ export default function Page() {
           setGranularity={setGranularity}
         />
       </Stack>
-      <Graphs
-        queryParams={queryParams}
-        granularity={granularity}
-        checkboxRef={checkboxRef}
-      />
+
+      <Grid item xs={6} height={ROW_HEIGHT + ROW_GAP}>
+        <Graphs
+          queryParams={queryParams.concat([
+            {
+              name: "workflowNames",
+              type: "string",
+              value: allWorkflows.join(","),
+            }
+          ])}
+          granularity={granularity}
+          checkboxRef={checkboxRef}
+        />
+      </Grid>
+
+      <Grid container spacing={2}>
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <GroupReliabilityPanel
+            title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
+            queryName={"top_reds"}
+            queryParams={queryParams.concat([
+              {
+                name: "workflowNames",
+                type: "string",
+                value: PRIMARY_WORKFLOWS.join(","),
+              }
+            ])}
+            metricName={"red"}
+            metricHeaderName={"Failures %"}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <GroupReliabilityPanel
+            title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
+            queryName={"top_reds"}
+            queryParams={queryParams.concat([
+              {
+                name: "workflowNames",
+                type: "string",
+                value: SECONDARY_WORKFLOWS.join(","),
+              }
+            ])}
+            metricName={"red"}
+            metricHeaderName={"Failures %"}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <GroupReliabilityPanel
+            title={"Unstable jobs"}
+            queryName={"top_reds"}
+            queryParams={queryParams.concat([
+              {
+                name: "workflowNames",
+                type: "string",
+                value: UNSTABLE_WORKFLOWS.join(","),
+              }
+            ])}
+            metricName={"red"}
+            metricHeaderName={"Failures %"}
+          />
+        </Grid>
+      </Grid>
     </div>
   );
 }

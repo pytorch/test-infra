@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/top_reds.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-12-01T00:00:00.000Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-02-01T00:00:00.000Z"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "lint,pull,trunk"
+    }
+  ],
+  "description": ""
+}
