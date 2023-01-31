@@ -248,11 +248,13 @@ export function TimeRangePicker({
   stopTime,
   setStartTime,
   setStopTime,
+  defaultValue,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
   setStartTime: any;
   setStopTime: any;
+  defaultValue: number | undefined;
 }) {
   // User-selected time range. If it's a number, the range is (#days to now). If
   // it's -1, the time range has been to a custom value.
@@ -291,7 +293,7 @@ export function TimeRangePicker({
       <FormControl>
         <InputLabel id="time-picker-select-label">Time Range</InputLabel>
         <Select
-          defaultValue={7}
+          defaultValue={defaultValue ?? 7}
           label="Time Range"
           labelId="time-picker-select-label"
           onChange={handleChange}

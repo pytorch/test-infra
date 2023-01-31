@@ -33,6 +33,7 @@ import { GridRenderCellParams } from "@mui/x-data-grid";
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
 const UNSTABLE_WORKFLOWS = ["unstable"];
+const LAST_MONTH = 30;
 const ROW_HEIGHT = 340;
 const ROW_GAP = 30;
 const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
@@ -312,6 +313,7 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
+          defaultValue={LAST_MONTH}
         />
         <GranularityPicker
           granularity={granularity}
