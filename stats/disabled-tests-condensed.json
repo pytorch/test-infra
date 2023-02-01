@@ -1509,6 +1509,13 @@
       "linux"
     ]
   ],
+  "test_tensor_requires_grad (test_jit.TestScript)": [
+    "91497",
+    "https://github.com/pytorch/pytorch/issues/91497",
+    [
+      "linux"
+    ]
+  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
