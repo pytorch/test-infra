@@ -241,6 +241,13 @@
       "linux"
     ]
   ],
+  "test_cat (test_jit.TestScript)": [
+    "91491",
+    "https://github.com/pytorch/pytorch/issues/91491",
+    [
+      "linux"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
@@ -334,6 +341,13 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
+    [
+      "linux"
+    ]
+  ],
+  "test_conv_dim_folding (jit.test_peephole.TestPeephole)": [
+    "91480",
+    "https://github.com/pytorch/pytorch/issues/91480",
     [
       "linux"
     ]
@@ -1156,6 +1170,13 @@
     "https://github.com/pytorch/pytorch/issues/77026",
     []
   ],
+  "test_mm_batching (test_jit.TestScript)": [
+    "91496",
+    "https://github.com/pytorch/pytorch/issues/91496",
+    [
+      "linux"
+    ]
+  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -1288,6 +1309,20 @@
       "linux"
     ]
   ],
+  "test_optional_list (test_jit.TestScript)": [
+    "91484",
+    "https://github.com/pytorch/pytorch/issues/91484",
+    [
+      "linux"
+    ]
+  ],
+  "test_optional_tensor (test_jit.TestScript)": [
+    "91494",
+    "https://github.com/pytorch/pytorch/issues/91494",
+    [
+      "linux"
+    ]
+  ],
   "test_out_linalg_lu_cuda_float32 (__main__.TestCommonCUDA)": [
     "86777",
     "https://github.com/pytorch/pytorch/issues/86777",
@@ -1358,10 +1393,24 @@
       "linux"
     ]
   ],
+  "test_prim_grad_undefined (test_jit.TestScript)": [
+    "91493",
+    "https://github.com/pytorch/pytorch/issues/91493",
+    [
+      "linux"
+    ]
+  ],
   "test_profiler (__main__.TestJit)": [
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
     []
+  ],
+  "test_profiler (test_jit.TestJit)": [
+    "81626",
+    "https://github.com/pytorch/pytorch/issues/81626",
+    [
+      "linux"
+    ]
   ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
@@ -1414,6 +1463,13 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
+  "test_rand (test_jit.TestScript)": [
+    "91495",
+    "https://github.com/pytorch/pytorch/issues/91495",
+    [
+      "linux"
+    ]
+  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
     "https://github.com/pytorch/pytorch/issues/84937",
@@ -1460,6 +1516,13 @@
   "test_repro_graph_breaks_in__get_item_by_idx_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92475",
     "https://github.com/pytorch/pytorch/issues/92475",
+    [
+      "linux"
+    ]
+  ],
+  "test_request_bailout (test_jit.TestScript)": [
+    "91490",
+    "https://github.com/pytorch/pytorch/issues/91490",
     [
       "linux"
     ]
