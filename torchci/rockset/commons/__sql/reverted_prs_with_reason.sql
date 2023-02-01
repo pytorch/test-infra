@@ -32,5 +32,6 @@ WHERE
     ic._event_time = rc.event_time
     AND ic._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
     AND ic._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
+    AND ic.user.login != 'pytorch-bot[bot]'
 ORDER BY
     code DESC
