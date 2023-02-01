@@ -55,6 +55,13 @@
       "linux"
     ]
   ],
+  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
+    "81029",
+    "https://github.com/pytorch/pytorch/issues/81029",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
     "81023",
     "https://github.com/pytorch/pytorch/issues/81023",
