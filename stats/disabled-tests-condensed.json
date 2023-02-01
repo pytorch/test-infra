@@ -1458,6 +1458,13 @@
       "linux"
     ]
   ],
+  "test_pytorch_np (__main__.TestTensorBoardPyTorchNumpy)": [
+    "93840",
+    "https://github.com/pytorch/pytorch/issues/93840",
+    [
+      "linux"
+    ]
+  ],
   "test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)": [
     "32644",
     "https://github.com/pytorch/pytorch/issues/32644",
@@ -1523,6 +1530,13 @@
   "test_request_bailout (test_jit.TestScript)": [
     "91490",
     "https://github.com/pytorch/pytorch/issues/91490",
+    [
+      "linux"
+    ]
+  ],
+  "test_requires_grad_loop (test_jit.TestScript)": [
+    "91492",
+    "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
     ]
@@ -1607,6 +1621,13 @@
       "linux"
     ]
   ],
+  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
+    "91482",
+    "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
+    ]
+  ],
   "test_tensor_requires_grad (test_jit.TestScript)": [
     "91497",
     "https://github.com/pytorch/pytorch/issues/91497",
@@ -1627,6 +1648,13 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
+    ]
+  ],
+  "test_torch_tensor_dtype (test_jit.TestScript)": [
+    "91485",
+    "https://github.com/pytorch/pytorch/issues/91485",
+    [
+      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
