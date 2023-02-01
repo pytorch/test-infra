@@ -1247,6 +1247,13 @@
       "linux"
     ]
   ],
+  "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
+    "93865",
+    "https://github.com/pytorch/pytorch/issues/93865",
+    [
+      "linux"
+    ]
+  ],
   "test_nested (__main__.ForkTest)": [
     "67881",
     "https://github.com/pytorch/pytorch/issues/67881",
