@@ -14,6 +14,9 @@ const mockCloudWatch = {
   }),
 };
 const mockSQS = {
+  changeMessageVisibilityBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  deleteMessageBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  endpoint: { href: 'AGDGADUWG113' },
   sendMessage: jest.fn().mockReturnValue({ promise: jest.fn() }),
 };
 jest.mock('aws-sdk', () => ({
@@ -49,8 +52,8 @@ describe('scaleUp', () => {
     await scaleUpL(
       {
         Records: [
-          { eventSource: 'aws:sqs', body: '{"id":1}' },
-          { eventSource: 'aws:sqs', body: '{"id":2}' },
+          { eventSource: 'aws:sqs', body: '{"id":1}', eventSourceARN: '1:2:3:4:5:6' },
+          { eventSource: 'aws:sqs', body: '{"id":2}', eventSourceARN: '1:2:3:4:5:6' },
         ],
       } as unknown as SQSEvent,
       {} as unknown as Context,
@@ -69,8 +72,20 @@ describe('scaleUp', () => {
     await scaleUpL(
       {
         Records: [
-          { eventSource: 'aws:sqs', body: '{"id":1}' },
-          { eventSource: 'aws:sqs', body: '{"id":2}' },
+          {
+            eventSource: 'aws:sqs',
+            body: '{"id":1}',
+            eventSourceARN: '1:2:3:4:5:6',
+            receiptHandle: 'xxx',
+            messageId: 1,
+          },
+          {
+            eventSource: 'aws:sqs',
+            body: '{"id":2}',
+            eventSourceARN: '1:2:3:4:5:6',
+            receiptHandle: 'xxx',
+            messageId: 2,
+          },
         ],
       } as unknown as SQSEvent,
       {} as unknown as Context,
@@ -80,6 +95,23 @@ describe('scaleUp', () => {
     expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 }, metrics);
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed handling SQS event');
+
+    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledTimes(1);
+    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
+      QueueUrl: 'AGDGADUWG1135/6',
+      Entries: [
+        {
+          Id: 1,
+          ReceiptHandle: 'xxx',
+          VisibilityTimeout: 0,
+        },
+        {
+          Id: 2,
+          ReceiptHandle: 'xxx',
+          VisibilityTimeout: 0,
+        },
+      ],
+    });
   });
 
   it('RetryableScalingError', async () => {
@@ -91,23 +123,37 @@ describe('scaleUp', () => {
     };
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     const records = [
-      { eventSource: 'aws:sqs', body: '{"id":1}' },
-      { eventSource: 'aws:sqs', body: '{"id":2}' },
-      { eventSource: 'aws:sqs', body: '{"id":3}' },
-      { eventSource: 'aws:sqs', body: '{"id":4,"retryCount":3}' },
-      { eventSource: 'aws:sqs', body: '{"id":5,"retryCount":12}' },
+      { eventSource: 'aws:sqs', body: '{"id":1}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 1 },
+      { eventSource: 'aws:sqs', body: '{"id":2}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 2 },
+      { eventSource: 'aws:sqs', body: '{"id":3}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 3 },
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":4,"retryCount":3}',
+        eventSourceARN: '1:2:3:4:5:6',
+        receiptHandle: 'xxx',
+        messageId: 4,
+      },
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":5,"retryCount":12}',
+        eventSourceARN: '1:2:3:4:5:6',
+        receiptHandle: 'xxx',
+        messageId: 5,
+      },
+      { eventSource: 'aws:sqs', body: '{"id":6}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 6 },
     ];
     const mockedScaleUp = mocked(scaleUp)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new RetryableScalingError('whatever'))
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new RetryableScalingError('whatever'))
-      .mockRejectedValueOnce(new RetryableScalingError('whatever'));
+      .mockRejectedValueOnce(new RetryableScalingError('whatever'))
+      .mockRejectedValueOnce(new Error('whatever'));
     const callback = jest.fn();
     await scaleUpL({ Records: records } as unknown as SQSEvent, {} as unknown as Context, callback);
-    expect(mockedScaleUp).toBeCalledTimes(5);
+    expect(mockedScaleUp).toBeCalledTimes(6);
 
-    expect(mockSQS.sendMessage).toBeCalledTimes(2);
+    expect(mockSQS.sendMessage).toBeCalledTimes(3);
     expect(mockSQS.sendMessage).toBeCalledWith({
       DelaySeconds: 24,
       MessageBody: '{"id":2,"retryCount":1,"delaySeconds":24}',
@@ -117,6 +163,50 @@ describe('scaleUp', () => {
       DelaySeconds: 192,
       MessageBody: '{"id":4,"retryCount":4,"delaySeconds":192}',
       QueueUrl: 'asdf',
+    });
+    expect(mockSQS.sendMessage).toBeCalledWith({
+      DelaySeconds: 24,
+      MessageBody: '{"id":6,"retryCount":1,"delaySeconds":24}',
+      QueueUrl: 'asdf',
+    });
+
+    expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
+    expect(mockSQS.deleteMessageBatch).toBeCalledWith({
+      QueueUrl: 'AGDGADUWG1135/6',
+      Entries: [
+        {
+          Id: 1,
+          ReceiptHandle: 'xxx',
+        },
+        {
+          Id: 2,
+          ReceiptHandle: 'xxx',
+        },
+        {
+          Id: 3,
+          ReceiptHandle: 'xxx',
+        },
+        {
+          Id: 4,
+          ReceiptHandle: 'xxx',
+        },
+        {
+          Id: 5,
+          ReceiptHandle: 'xxx',
+        },
+      ],
+    });
+
+    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledTimes(1);
+    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
+      QueueUrl: 'AGDGADUWG1135/6',
+      Entries: [
+        {
+          Id: 6,
+          ReceiptHandle: 'xxx',
+          VisibilityTimeout: 0,
+        },
+      ],
     });
   });
 });
