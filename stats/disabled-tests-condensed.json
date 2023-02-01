@@ -607,6 +607,13 @@
       "linux"
     ]
   ],
+  "test_dlpack_conversion_with_streams_cuda_uint8 (__main__.TestTorchDlPackCUDA)": [
+    "86696",
+    "https://github.com/pytorch/pytorch/issues/86696",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
@@ -986,6 +993,13 @@
       "linux"
     ]
   ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93417",
+    "https://github.com/pytorch/pytorch/issues/93417",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93046",
     "https://github.com/pytorch/pytorch/issues/93046",
@@ -996,6 +1010,13 @@
   "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "93061",
     "https://github.com/pytorch/pytorch/issues/93061",
+    [
+      "linux"
+    ]
+  ],
+  "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93418",
+    "https://github.com/pytorch/pytorch/issues/93418",
     [
       "linux"
     ]
