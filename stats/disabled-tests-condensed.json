@@ -635,6 +635,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_op_db_empty_like_cpu_float32 (__main__.TestDTensorOpsCPU)": [
+    "93844",
+    "https://github.com/pytorch/pytorch/issues/93844",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
