@@ -1082,13 +1082,6 @@
       "linux"
     ]
   ],
-  "test_load_rowwise_to_colwise_thread_count_2 (__main__.TestDistributedReshardOnLoad)": [
-    "93245",
-    "https://github.com/pytorch/pytorch/issues/93245",
-    [
-      "linux"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
