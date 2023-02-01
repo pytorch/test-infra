@@ -26,7 +26,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.7", "3.8", "3.9", "3.10"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.6", "11.7", "11.8"],
+    "nightly": ["11.7", "11.8"],
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
