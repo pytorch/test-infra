@@ -9,7 +9,7 @@ inputs:
     description: If set to any value, ensure that there is that number of GB left before continue
     required: false
     type: number
-    default: 5
+    default: 6
 
 runs:
   using: composite
