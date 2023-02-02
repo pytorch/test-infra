@@ -76,6 +76,13 @@
       "mac"
     ]
   ],
+  "test_all_to_all_single_bfp16 (__main__.DistQuantizationTests)": [
+    "93933",
+    "https://github.com/pytorch/pytorch/issues/93933",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_to_all_single_equal_split_cuda (__main__.TestDistBackendWithSpawn)": [
     "81030",
     "https://github.com/pytorch/pytorch/issues/81030",
