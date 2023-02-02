@@ -3,7 +3,16 @@ WITH all_jobs AS (
         push._event_time AS time,
         job.conclusion AS conclusion,
         push.head_commit.id AS sha,
-        CONCAT(workflow.name, ' / ', ELEMENT_AT(SPLIT(job.name, ' / '), 1)) AS name,
+        CONCAT(
+            workflow.name,
+            ' / ',
+            ELEMENT_AT(SPLIT(job.name, ' / '), 1),
+            IF(
+                job.name LIKE '%/%',
+                CONCAT(' / ', ELEMENT_AT(SPLIT(ELEMENT_AT(SPLIT(job.name, ' / '), 2), ', '), 1)),
+                ''
+            )
+        ) AS name,
     FROM
         commons.workflow_job job
         JOIN commons.workflow_run workflow ON workflow.id = job.run_id
@@ -11,6 +20,12 @@ WITH all_jobs AS (
     WHERE
         job.name != 'ciflow_should_run'
         AND job.name != 'generate-test-matrix'
+        AND job.name NOT LIKE '%rerun_disabled_tests%'
+        AND job.name NOT LIKE '%filter%'
+        AND (
+            LOWER(workflow.name) = 'lint'
+            OR job.name LIKE '%/%'
+        )
         AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         AND push.ref = 'refs/heads/master'
@@ -23,7 +38,7 @@ reds AS(
     SELECT
         time,
         sha,
-        name,
+        IF (name LIKE '%(%' AND name NOT LIKE '%)%', CONCAT(name, ')'), name) AS name,
         CAST(
             SUM(
                 CASE
