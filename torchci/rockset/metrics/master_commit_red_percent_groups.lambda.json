@@ -1,25 +1,25 @@
 {
-  "sql_path": "__sql/master_jobs_red.sql",
+  "sql_path": "__sql/master_commit_red_percent_groups.sql",
   "default_parameters": [
     {
       "name": "granularity",
       "type": "string",
-      "value": "hour"
+      "value": "day"
     },
     {
       "name": "startTime",
       "type": "string",
-      "value": "2022-02-09T00:06:32.839Z"
+      "value": "2022-12-01T00:00:00.000Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2022-02-16T00:06:32.839Z"
+      "value": "2023-02-01T00:00:00.000Z"
     },
     {
-      "name": "timezone",
+      "name": "workflowNames",
       "type": "string",
-      "value": "America/Los_Angeles"
+      "value": "lint,pull,trunk"
     }
   ],
   "description": ""
