@@ -131,6 +131,13 @@
       "linux"
     ]
   ],
+  "test_average_parameters (__main__.TestDistBackendWithSpawn)": [
+    "93929",
+    "https://github.com/pytorch/pytorch/issues/93929",
+    [
+      "rocm"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
