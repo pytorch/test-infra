@@ -47,7 +47,7 @@ impl RunInfo {
     // this run.
     fn dir_name(&self) -> String {
         let args = blake3::hash(self.args.join("_").as_bytes()).to_string();
-        self.timestamp.clone().replace(":", "-") + "_" + &args
+        self.timestamp.clone().replace(":", "-").replace("+", "_") + "_" + &args
     }
 }
 
