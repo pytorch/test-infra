@@ -90,6 +90,13 @@
       "linux"
     ]
   ],
+  "test_all_to_all_single_fp16 (__main__.DistQuantizationTests)": [
+    "93931",
+    "https://github.com/pytorch/pytorch/issues/93931",
+    [
+      "rocm"
+    ]
+  ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91486",
     "https://github.com/pytorch/pytorch/issues/91486",
