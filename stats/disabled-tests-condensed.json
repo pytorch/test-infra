@@ -200,6 +200,13 @@
       "windows"
     ]
   ],
+  "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
+    "81028",
+    "https://github.com/pytorch/pytorch/issues/81028",
+    [
+      "linux"
+    ]
+  ],
   "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
     "82847",
     "https://github.com/pytorch/pytorch/issues/82847",
@@ -1087,13 +1094,6 @@
     "https://github.com/pytorch/pytorch/issues/78377",
     [
       "macos"
-    ]
-  ],
-  "test_load_rowwise_to_colwise_thread_count_1 (__main__.TestDistributedReshardOnLoad)": [
-    "93244",
-    "https://github.com/pytorch/pytorch/issues/93244",
-    [
-      "linux"
     ]
   ],
   "test_lobpcg (__main__.TestAutograd)": [
