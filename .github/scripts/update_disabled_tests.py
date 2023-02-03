@@ -143,12 +143,14 @@ def query_non_flaky_disabled_tests() -> Dict[str, Dict[str, Any]]:
     Get the list of all non flaky tests that are still disabled
     """
     rs = rockset.RocksetClient(
-        host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
 
     try:
         response = rs.QueryLambdas.execute_query_lambda(
-            query_lambda="disabled_non_flaky_tests", version="8c6281756c969663", workspace="commons"
+            query_lambda="disabled_non_flaky_tests",
+            version="8c6281756c969663",
+            workspace="commons",
         )
     except rockset.RocksetException as e:
         print(f"WARNING: Fail to query non flaky disabled test from Rockset: {e}")

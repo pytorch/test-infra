@@ -52,17 +52,9 @@ def get_start_stop_times() -> Tuple[str, str]:
 
 
 def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
-    params =[
-        {
-            "name": "startTime",
-            "type": "string",
-            "value": start_time
-        },
-        {
-            "name": "stopTime",
-            "type": "string",
-            "value": end_time
-        },
+    params = [
+        {"name": "startTime", "type": "string", "value": start_time},
+        {"name": "stopTime", "type": "string", "value": end_time},
     ]
     ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
     if ROCKSET_API_KEY is None:
@@ -73,7 +65,7 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
 
     client = RocksetClient(
         api_key=ROCKSET_API_KEY,
-        host="https://api.rs2.usw2.rockset.com",
+        host="https://api.usw2a1.rockset.com",
     )
     response = client.QueryLambdas.execute_query_lambda(
         query_lambda="reverted_prs_with_reason",
