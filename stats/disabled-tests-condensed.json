@@ -1266,6 +1266,14 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
+  "test_nn_sequential_invocation_reposition_indices (__main__.MiscTests)": [
+    "94027",
+    "https://github.com/pytorch/pytorch/issues/94027",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
