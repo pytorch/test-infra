@@ -331,13 +331,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "91143",
-    "https://github.com/pytorch/pytorch/issues/91143",
-    [
-      "linux"
-    ]
-  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
@@ -1327,13 +1320,6 @@
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
-    [
-      "linux"
-    ]
-  ],
-  "test_operator_symeig_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "92610",
-    "https://github.com/pytorch/pytorch/issues/92610",
     [
       "linux"
     ]
