@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
-from rockset import Client, ParamDict  # type: ignore[import]
+from rockset import RocksetClient  # type: ignore[import]
 from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 CLASSIFICATIONS = {
@@ -52,12 +52,10 @@ def get_start_stop_times() -> Tuple[str, str]:
 
 
 def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
-    params = ParamDict(
-        {
-            "startTime": start_time,
-            "stopTime": end_time,
-        }
-    )
+    params = [
+        {"name": "startTime", "type": "string", "value": start_time},
+        {"name": "stopTime", "type": "string", "value": end_time},
+    ]
     ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
     if ROCKSET_API_KEY is None:
         raise RuntimeError("ROCKSET_API_KEY not set")
@@ -65,16 +63,17 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
     with open("torchci/rockset/prodVersions.json") as f:
         prod_versions = json.load(f)
 
-    client = Client(
+    client = RocksetClient(
         api_key=ROCKSET_API_KEY,
-        api_server="https://api.rs2.usw2.rockset.com",
+        host="https://api.usw2a1.rockset.com",
     )
-    qlambda = client.QueryLambda.retrieve(
-        "reverted_prs_with_reason",
+    response = client.QueryLambdas.execute_query_lambda(
+        query_lambda="reverted_prs_with_reason",
         version=prod_versions["commons"]["reverted_prs_with_reason"],
         workspace="commons",
+        parameters=params,
     )
-    res: List[Dict[str, str]] = qlambda.execute(parameters=params).results
+    res: List[Dict[str, str]] = response.results
     return res
 
 
