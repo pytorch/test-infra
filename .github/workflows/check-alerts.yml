@@ -25,7 +25,7 @@ jobs:
     env:
       REPO_TO_CHECK: ${{ matrix.repo }}
       BRANCH_TO_CHECK: ${{ matrix.branch }}
-      WITH_FLAKY_TEST_ALERTING: ${{ matrix.with_flaky_test_alerting }}
+      WITH_FLAKY_TEST_ALERT: ${{ matrix.with_flaky_test_alerting }}
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
     runs-on: ubuntu-18.04
