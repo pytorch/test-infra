@@ -1716,6 +1716,13 @@
       "linux"
     ]
   ],
+  "test_variable_sharing (__main__.TestMultiprocessing)": [
+    "94024",
+    "https://github.com/pytorch/pytorch/issues/94024",
+    [
+      "asan"
+    ]
+  ],
   "test_variant_consistency_eager_linalg_ldl_solve_cuda_float32 (__main__.TestCommonCUDA)": [
     "91144",
     "https://github.com/pytorch/pytorch/issues/91144",
