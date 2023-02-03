@@ -59,6 +59,11 @@ runs:
           # Also try to clean up torch.hub caching directory
           rm -rf "${HOME}/.cache/torch/hub" || true
 
+          # Purge conda
+          conda clean -p -t -y || true
+          # and pip cache
+          pip cache purge || true
+
           echo "Re-run disk space check for ${RUNNER_OS} after cleaning up"
           # Re-run the check
           RESULT=$(check_disk_space)
