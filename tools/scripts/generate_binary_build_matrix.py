@@ -21,7 +21,7 @@ from typing import Dict, List, Tuple, Optional
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10"],
+    "nightly": ["3.10", "3.11"],
     "test": ["3.7", "3.8", "3.9", "3.10"],
     "release": ["3.7", "3.8", "3.9", "3.10"],
 }
