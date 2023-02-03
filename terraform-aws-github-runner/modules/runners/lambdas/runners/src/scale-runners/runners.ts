@@ -27,6 +27,7 @@ export interface RunnerType {
   disk_size: number;
   runnerTypeName: string;
   is_ephemeral: boolean;
+  ami?: string;
 }
 
 export interface DescribeInstancesResultRegion {
@@ -330,42 +331,44 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                 metrics.ec2RunInstancesAWSCallSuccess,
                 metrics.ec2RunInstancesAWSCallFailure,
                 () => {
-                  return ec2
-                    .runInstances({
-                      MaxCount: 1,
-                      MinCount: 1,
-                      LaunchTemplate: {
-                        LaunchTemplateName: launchTemplateName,
-                        Version: launchTemplateVersion,
+                  const params: EC2.RunInstancesRequest = {
+                    MaxCount: 1,
+                    MinCount: 1,
+                    LaunchTemplate: {
+                      LaunchTemplateName: launchTemplateName,
+                      Version: launchTemplateVersion,
+                    },
+                    InstanceType: runnerParameters.runnerType.instance_type,
+                    BlockDeviceMappings: [
+                      {
+                        DeviceName: storageDeviceName,
+                        Ebs: {
+                          VolumeSize: runnerParameters.runnerType.disk_size,
+                          VolumeType: 'gp3',
+                          Encrypted: true,
+                          DeleteOnTermination: true,
+                        },
                       },
-                      InstanceType: runnerParameters.runnerType.instance_type,
-                      BlockDeviceMappings: [
-                        {
-                          DeviceName: storageDeviceName,
-                          Ebs: {
-                            VolumeSize: runnerParameters.runnerType.disk_size,
-                            VolumeType: 'gp3',
-                            Encrypted: true,
-                            DeleteOnTermination: true,
-                          },
-                        },
-                      ],
-                      NetworkInterfaces: [
-                        {
-                          AssociatePublicIpAddress: true,
-                          SubnetId: subnet,
-                          Groups: securityGroupIds,
-                          DeviceIndex: 0,
-                        },
-                      ],
-                      TagSpecifications: [
-                        {
-                          ResourceType: 'instance',
-                          Tags: tags,
-                        },
-                      ],
-                    })
-                    .promise();
+                    ],
+                    NetworkInterfaces: [
+                      {
+                        AssociatePublicIpAddress: true,
+                        SubnetId: subnet,
+                        Groups: securityGroupIds,
+                        DeviceIndex: 0,
+                      },
+                    ],
+                    TagSpecifications: [
+                      {
+                        ResourceType: 'instance',
+                        Tags: tags,
+                      },
+                    ],
+                  };
+                  if (runnerParameters.runnerType.ami) {
+                    params.ImageId = runnerParameters.runnerType.ami;
+                  }
+                  return ec2.runInstances(params).promise();
                 },
               );
             });
