@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Any, Dict, List
 from urllib.request import Request, urlopen
 
-from rockset import Client
+import rockset
 
 # Modified from https://github.com/pytorch/pytorch/blob/b00206d4737d1f1e7a442c9f8a1cadccd272a386/torch/hub.py#L129
 
@@ -142,21 +142,20 @@ def query_non_flaky_disabled_tests() -> Dict[str, Dict[str, Any]]:
     """
     Get the list of all non flaky tests that are still disabled
     """
-    rs = Client(
-        api_server="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    )
-    qlambda = rs.QueryLambda.retrieve(
-        "disabled_non_flaky_tests", version="8c6281756c969663", workspace="commons"
+    rs = rockset.RocksetClient(
+        host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
 
     try:
-        response = qlambda.execute()
-    except rockset.exception.Error as e:
+        response = rs.QueryLambdas.execute_query_lambda(
+            query_lambda="disabled_non_flaky_tests", version="8c6281756c969663", workspace="commons"
+        )
+    except rockset.RocksetException as e:
         print(f"WARNING: Fail to query non flaky disabled test from Rockset: {e}")
         return []
 
     results: Dict[str, Any] = {}
-    for record in response.get("results"):
+    for record in response.results:
         name = record.get("name")
         classname = record.get("classname")
         # Format the test name in the same way as the disabled issue
