@@ -1528,13 +1528,6 @@
       "linux"
     ]
   ],
-  "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
-    "69178",
-    "https://github.com/pytorch/pytorch/issues/69178",
-    [
-      "mac"
-    ]
-  ],
   "test_repro_graph_breaks_in__get_item_by_idx_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92475",
     "https://github.com/pytorch/pytorch/issues/92475",
