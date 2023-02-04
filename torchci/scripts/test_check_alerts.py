@@ -3,6 +3,7 @@ from unittest import main, TestCase
 from unittest.mock import patch
 
 from check_alerts import (
+    filter_job_names,
     gen_update_comment,
     generate_no_flaky_tests_issue,
     handle_flaky_tests_alert,
@@ -125,6 +126,36 @@ class TestGitHubPR(TestCase):
         mock_get_num_issues_with_label.return_value = 0
         res = handle_flaky_tests_alert(existing_alerts)
         self.assertDictEqual(res, mock_issue)
+
+    # test filter job names
+    def test_job_filter(self):
+        job_names = ["pytorch_linux_xenial_py3_6_gcc5_4_test", "pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+        self.assertListEqual(
+            filter_job_names(job_names, ""),
+            job_names,
+            "empty regex should match all jobs"
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*"),
+            job_names
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*"),
+            job_names
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*test2"),
+            ["pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*test3"),
+            []
+        )
+        self.assertRaises(
+            Exception,
+            lambda: filter_job_names(job_names, "["),
+            msg="malformed regex should throw exception"
+        )
 
 
 if __name__ == "__main__":
