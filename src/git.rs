@@ -18,7 +18,9 @@ pub fn get_head() -> Result<String> {
 pub fn get_paths_from_cmd(paths_cmd: &str) -> Result<Vec<AbsPath>> {
     debug!("Running paths_cmd: {}", paths_cmd);
     if paths_cmd.is_empty() {
-        return Err(anyhow::Error::msg("paths_cmd is empty. Please provide an executable command."));
+        return Err(anyhow::Error::msg(
+            "paths_cmd is empty. Please provide an executable command.",
+        ));
     }
     let argv = shell_words::split(paths_cmd).context("failed to split paths_cmd")?;
     debug!("Parsed paths_cmd: {:?}", argv);

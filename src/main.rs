@@ -6,6 +6,7 @@ use clap::Parser;
 
 use lintrunner::{
     do_init, do_lint,
+    git::get_head,
     init::check_init_changed,
     lint_config::{get_linters_from_config, LintRunnerConfig},
     log_utils::setup_logger,
@@ -13,11 +14,11 @@ use lintrunner::{
     persistent_data::{ExitInfo, PersistentDataStore, RunInfo},
     rage::do_rage,
     render::print_error,
-    PathsOpt, RenderOpt, RevisionOpt, git::get_head,
+    PathsOpt, RenderOpt, RevisionOpt,
 };
 use log::debug;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Parser)]
 #[clap(version, name = "lintrunner", infer_subcommands(true))]

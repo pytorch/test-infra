@@ -173,10 +173,7 @@ pub fn get_linters_from_config(
             );
         }
 
-        linters = linters
-            .into_iter()
-            .filter(|linter| taken_linters.contains(&linter.code))
-            .collect();
+        linters.retain(|linter| taken_linters.contains(&linter.code));
     }
 
     // Apply --skip
@@ -190,10 +187,7 @@ pub fn get_linters_from_config(
                 all_linters,
             );
         }
-        linters = linters
-            .into_iter()
-            .filter(|linter| !skipped_linters.contains(&linter.code))
-            .collect();
+        linters.retain(|linter| !skipped_linters.contains(&linter.code));
     }
     Ok(linters)
 }

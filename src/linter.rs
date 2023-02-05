@@ -160,7 +160,7 @@ impl Linter {
                     original: None,
                     replacement: None,
                 };
-                return vec![err_lint];
+                vec![err_lint]
             }
             Ok(messages) => messages,
         }
