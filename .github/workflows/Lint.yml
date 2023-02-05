@@ -1,0 +1,59 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
+
+jobs:
+  lintrunner:
+    name: lintrunner
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python_version: ["3.11"]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+      - name: Install Lintrunner
+        run: |
+          pip install .
+          lintrunner init
+      - name: Run lintrunner on all files - Linux
+        if: matrix.os != 'windows-latest'
+        run: |
+          set +e
+          if ! lintrunner -v --force-color --all-files --tee-json=lint.json; then
+              echo ""
+              echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner -m main\`.\e[0m"
+              exit 1
+          fi
+      - name: Run lintrunner on all files - Windows
+        if: matrix.os == 'windows-latest'
+        run: lintrunner -v --force-color --all-files
+      - name: Produce SARIF
+        if: always() && matrix.os == 'ubuntu-latest'
+        run: |
+          python tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
+      - name: Upload SARIF file
+        if: always() && matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          # Path to SARIF file relative to the root of the repository
+          sarif_file: lintrunner.sarif
+          category: lintrunner
+          checkout_path: ${{ github.workspace }}

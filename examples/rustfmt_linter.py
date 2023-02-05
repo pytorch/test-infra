@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import concurrent.futures
 import json
@@ -8,7 +10,7 @@ import subprocess
 import sys
 import time
 from enum import Enum
-from typing import Any, List, NamedTuple, Optional, Pattern
+from typing import Any, BinaryIO, List, NamedTuple, Optional, Pattern
 
 
 IS_WINDOWS: bool = os.name == "nt"
@@ -56,16 +58,20 @@ def strip_path_from_error(error: str) -> str:
 
 
 def run_command(
-    args: List[str],
-) -> "subprocess.CompletedProcess[bytes]":
+    args: list[str],
+    *,
+    stdin: BinaryIO | None = None,
+    check: bool = False,
+) -> subprocess.CompletedProcess[bytes]:
     logging.debug("$ %s", " ".join(args))
     start_time = time.monotonic()
     try:
         return subprocess.run(
             args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
+            capture_output=True,
+            shell=False,
+            stdin=stdin,
+            check=check,
         )
     finally:
         end_time = time.monotonic()
@@ -80,16 +86,18 @@ def check_file(
     try:
         with open(filename, "rb") as f:
             original = f.read()
-        proc = run_command(
-            [
-                binary,
-                "--config-path",
-                config_path,
-                "--emit=stdout",
-                "--quiet",
-                filename,
-            ]
-        )
+        with open(filename, "rb") as f:
+            proc = run_command(
+                [
+                    binary,
+                    "--config-path",
+                    config_path,
+                    "--emit=stdout",
+                    "--quiet",
+                ],
+                stdin=f,
+                check=True,
+            )
     except (OSError, subprocess.CalledProcessError) as err:
         # https://github.com/rust-lang/rustfmt#running
         # TODO: Fix the syntax error regexp to handle multiple issues and
