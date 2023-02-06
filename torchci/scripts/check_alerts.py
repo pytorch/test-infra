@@ -447,7 +447,7 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
 # filter job names that don't match the regex
 def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
     if job_name_regex:
-        return list(filter(lambda job: re.match(job_name_regex, job), job_names))
+        return [job_name for job_name in job_names if re.match(job_name_regex, job_name)]
     return job_names
 
 
