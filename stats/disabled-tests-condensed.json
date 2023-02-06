@@ -119,16 +119,6 @@
       "macos"
     ]
   ],
-  "test_aot_autograd_symbolic_exhaustive_unsafe_split_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
-    "92785",
-    "https://github.com/pytorch/pytorch/issues/92785",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
@@ -1130,16 +1120,6 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_unsafe_split_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "92784",
-    "https://github.com/pytorch/pytorch/issues/92784",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_masked_bmm (__main__.TestMatMul)": [
