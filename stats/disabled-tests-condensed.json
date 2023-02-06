@@ -678,13 +678,8 @@
     "94209",
     "https://github.com/pytorch/pytorch/issues/94209",
     [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
       "macos",
-      "rocm",
-      "win",
-      "windows.>"
+      "mac"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
