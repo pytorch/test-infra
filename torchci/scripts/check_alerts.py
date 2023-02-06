@@ -444,8 +444,16 @@ def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
     return None
 
 
-def check_for_recurrently_failing_jobs_alert(repo: str, branch: str, dry_run: bool):
+# filter job names that don't match the regex
+def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
+    if job_name_regex:
+        return [job_name for job_name in job_names if re.match(job_name_regex, job_name)]
+    return job_names
+
+
+def check_for_recurrently_failing_jobs_alert(repo: str, branch: str, job_name_regex: str, dry_run: bool):
     job_names, sha_grid = fetch_hud_data(repo=repo, branch=branch)
+    job_names = filter_job_names(job_names, job_name_regex)
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
 
     # Fetch alerts
@@ -498,6 +506,12 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("BRANCH_TO_CHECK", "master")
     )
     parser.add_argument(
+        "--job-name-regex",
+        help="Consider only job names matching given regex (if omitted, all jobs are matched)",
+        type=str,
+        default=os.getenv("JOB_NAME_REGEX", "")
+    )
+    parser.add_argument(
         "--with-flaky-test-alert",
         help="Run this script with the flaky test alerting",
         type=distutils.util.strtobool,
@@ -514,7 +528,7 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
-    check_for_recurrently_failing_jobs_alert(args.repo, args.branch, args.dry_run)
+    check_for_recurrently_failing_jobs_alert(args.repo, args.branch, args.job_name_regex, args.dry_run)
     # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
     if args.with_flaky_test_alert:
         check_for_no_flaky_tests_alert()
