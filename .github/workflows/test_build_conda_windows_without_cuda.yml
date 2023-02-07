@@ -7,7 +7,7 @@ on:
       - .github/workflows/test_build_conda_windows_without_cuda.yml
       - .github/workflows/build_conda_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
-      # - tools/scripts/generate_binary_build_matrix.py
+      - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
 jobs:
