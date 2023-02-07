@@ -132,6 +132,15 @@ variable "sqs_build_queue" {
   description = "SQS queue to consume accepted build events."
   type = object({
     arn = string
+    url = string
+  })
+}
+
+variable "sqs_build_queue_retry" {
+  description = "SQS queue to forward messages to retry requests"
+  type = object({
+    arn = string
+    url = string
   })
 }
 

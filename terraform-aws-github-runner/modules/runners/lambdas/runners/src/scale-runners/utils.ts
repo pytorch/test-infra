@@ -114,3 +114,11 @@ export function groupBy<T, V>(lst: T[], keyGetter: (itm: T) => V): Map<V, Array<
   }
   return map;
 }
+
+export function getDelayWithJitter(delayBase: number, jitter: number) {
+  return Math.max(0, delayBase) * (1 + Math.random() * Math.max(0, jitter));
+}
+
+export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
+  return getDelayWithJitter(Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount)), jitter);
+}
