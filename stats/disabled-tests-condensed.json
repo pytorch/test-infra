@@ -1154,6 +1154,13 @@
     "https://github.com/pytorch/pytorch/issues/78457",
     []
   ],
+  "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86635",
+    "https://github.com/pytorch/pytorch/issues/86635",
+    [
+      "linux"
+    ]
+  ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
