@@ -6,6 +6,7 @@ import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import { mocked } from 'ts-jest/utils';
 import { scaleDown } from './scale-runners/scale-down';
 import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
+import { sqsSendMessages, sqsChangeMessageVisibilityBatch, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import * as MetricsModule from './scale-runners/metrics';
 
 const mockCloudWatch = {
@@ -13,19 +14,13 @@ const mockCloudWatch = {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
-const mockSQS = {
-  changeMessageVisibilityBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  deleteMessageBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  endpoint: { href: 'AGDGADUWG113' },
-  sendMessage: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
 jest.mock('aws-sdk', () => ({
-  SQS: jest.fn().mockImplementation(() => mockSQS),
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
 
 jest.mock('./scale-runners/scale-down');
 jest.mock('./scale-runners/scale-up');
+jest.mock('./scale-runners/sqs');
 
 const metrics = new MetricsModule.ScaleUpMetrics();
 
@@ -69,24 +64,25 @@ describe('scaleUp', () => {
   it('fails', async () => {
     const mockedScaleUp = mocked(scaleUp).mockRejectedValue(Error('error'));
     const callback = jest.fn();
+    const evts = [
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":1}',
+        eventSourceARN: '1:2:3:4:5:6',
+        receiptHandle: 'xxx',
+        messageId: 1,
+      },
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":2}',
+        eventSourceARN: '1:2:3:4:5:6',
+        receiptHandle: 'xxx',
+        messageId: 2,
+      },
+    ];
     await scaleUpL(
       {
-        Records: [
-          {
-            eventSource: 'aws:sqs',
-            body: '{"id":1}',
-            eventSourceARN: '1:2:3:4:5:6',
-            receiptHandle: 'xxx',
-            messageId: 1,
-          },
-          {
-            eventSource: 'aws:sqs',
-            body: '{"id":2}',
-            eventSourceARN: '1:2:3:4:5:6',
-            receiptHandle: 'xxx',
-            messageId: 2,
-          },
-        ],
+        Records: evts,
       } as unknown as SQSEvent,
       {} as unknown as Context,
       callback,
@@ -96,22 +92,8 @@ describe('scaleUp', () => {
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed handling SQS event');
 
-    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledTimes(1);
-    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
-      Entries: [
-        {
-          Id: 1,
-          ReceiptHandle: 'xxx',
-          VisibilityTimeout: 0,
-        },
-        {
-          Id: 2,
-          ReceiptHandle: 'xxx',
-          VisibilityTimeout: 0,
-        },
-      ],
-    });
+    expect(sqsChangeMessageVisibilityBatch).toBeCalledTimes(1);
+    expect(sqsChangeMessageVisibilityBatch).toBeCalledWith(metrics, evts, 0);
   });
 
   it('RetryableScalingError', async () => {
@@ -129,14 +111,14 @@ describe('scaleUp', () => {
       {
         eventSource: 'aws:sqs',
         body: '{"id":4,"retryCount":3}',
-        eventSourceARN: '1:2:3:4:5:6',
+        eventSourceARN: '1:2:3:4:5:6:7',
         receiptHandle: 'xxx',
         messageId: 4,
       },
       {
         eventSource: 'aws:sqs',
         body: '{"id":5,"retryCount":12}',
-        eventSourceARN: '1:2:3:4:5:6',
+        eventSourceARN: '1:2:3:4:5:6:7',
         receiptHandle: 'xxx',
         messageId: 5,
       },
@@ -153,61 +135,31 @@ describe('scaleUp', () => {
     await scaleUpL({ Records: records } as unknown as SQSEvent, {} as unknown as Context, callback);
     expect(mockedScaleUp).toBeCalledTimes(6);
 
-    expect(mockSQS.sendMessage).toBeCalledTimes(3);
-    expect(mockSQS.sendMessage).toBeCalledWith({
-      DelaySeconds: 24,
-      MessageBody: '{"id":2,"retryCount":1,"delaySeconds":24}',
-      QueueUrl: 'asdf',
-    });
-    expect(mockSQS.sendMessage).toBeCalledWith({
-      DelaySeconds: 192,
-      MessageBody: '{"id":4,"retryCount":4,"delaySeconds":192}',
-      QueueUrl: 'asdf',
-    });
-    expect(mockSQS.sendMessage).toBeCalledWith({
-      DelaySeconds: 24,
-      MessageBody: '{"id":6,"retryCount":1,"delaySeconds":24}',
-      QueueUrl: 'asdf',
-    });
+    const expected = [
+      {
+        id: 2,
+        retryCount: 1,
+        delaySeconds: 24,
+      },
+      {
+        id: 4,
+        retryCount: 4,
+        delaySeconds: 192,
+      },
+      {
+        id: 6,
+        retryCount: 1,
+        delaySeconds: 24,
+      },
+    ];
+    expect(sqsSendMessages).toBeCalledTimes(1);
+    expect(sqsSendMessages).toBeCalledWith(metrics, expected, 'asdf');
 
-    expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
-    expect(mockSQS.deleteMessageBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
-      Entries: [
-        {
-          Id: 1,
-          ReceiptHandle: 'xxx',
-        },
-        {
-          Id: 2,
-          ReceiptHandle: 'xxx',
-        },
-        {
-          Id: 3,
-          ReceiptHandle: 'xxx',
-        },
-        {
-          Id: 4,
-          ReceiptHandle: 'xxx',
-        },
-        {
-          Id: 5,
-          ReceiptHandle: 'xxx',
-        },
-      ],
-    });
+    expect(sqsDeleteMessageBatch).toBeCalledTimes(1);
+    expect(sqsDeleteMessageBatch).toBeCalledWith(metrics, records.slice(0, 5));
 
-    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledTimes(1);
-    expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
-      Entries: [
-        {
-          Id: 6,
-          ReceiptHandle: 'xxx',
-          VisibilityTimeout: 0,
-        },
-      ],
-    });
+    expect(sqsChangeMessageVisibilityBatch).toBeCalledTimes(1);
+    expect(sqsChangeMessageVisibilityBatch).toBeCalledWith(metrics, [records[5]], 0);
   });
 });
 

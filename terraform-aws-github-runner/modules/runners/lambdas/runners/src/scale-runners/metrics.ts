@@ -441,6 +441,60 @@ export class Metrics {
 
   // AWS API CALLS
   /* istanbul ignore next */
+  sqsSendMessagesBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.count`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.success`, 1);
+    this.addEntry(`aws.sqs.sendMessagesBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsSendMessagesBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.count`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.failure`, 1);
+    this.addEntry(`aws.sqs.sendMessagesBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsChangeMessageVisibilityBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.count`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.success`, 1);
+    this.addEntry(`aws.sqs.changeMessageVisibilityBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsChangeMessageVisibilityBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.count`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.failure`, 1);
+    this.addEntry(`aws.sqs.changeMessageVisibilityBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsDeleteMessageBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.count`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.success`, 1);
+    this.addEntry(`aws.sqs.sqsDeleteMessageBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsDeleteMessageBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.count`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.failure`, 1);
+    this.addEntry(`aws.sqs.sqsDeleteMessageBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
   kmsDecryptAWSCallSuccess(ms: number) {
     this.countEntry(`aws.calls.total`, 1);
     this.countEntry(`aws.kms.calls.total`, 1);
