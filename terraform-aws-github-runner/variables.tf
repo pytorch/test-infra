@@ -102,7 +102,7 @@ variable "runners_scale_up_sqs_message_ret_s" {
 variable "runners_scale_up_sqs_visibility_timeout" {
   description = "Time out for visibility of messages in the scale up sqs."
   type        = number
-  default     = 600
+  default     = 960
 }
 
 variable "runners_scale_up_lambda_timeout" {
