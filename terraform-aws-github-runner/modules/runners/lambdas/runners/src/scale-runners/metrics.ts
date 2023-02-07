@@ -724,6 +724,30 @@ export class ScaleUpMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  scaleUpChangeMessageVisibilitySuccess(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.changeMessageVisibility.success.count');
+    this.addEntry('run.scaleUp.sqs.changeMessageVisibility.success.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpChangeMessageVisibilityFailure(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.changeMessageVisibility.failure.count');
+    this.addEntry('run.scaleUp.sqs.changeMessageVisibility.failure.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpDeleteMessageSuccess(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.deleteMessage.success.count');
+    this.addEntry('run.scaleUp.sqs.deleteMessage.success.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpDeleteMessageFailure(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.deleteMessage.failure.count');
+    this.addEntry('run.scaleUp.sqs.deleteMessage.failure.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
   ghRunnersRepoStats(repo: Repo, runnerType: string, total: number, labeled: number, busy: number) {
     const dimensions = this.getRepoDim(repo);
     this.countEntry('run.ghrunners.perRepo.total', total, dimensions);

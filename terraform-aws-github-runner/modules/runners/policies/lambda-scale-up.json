@@ -35,19 +35,21 @@
     {
       "Effect": "Allow",
       "Action": [
-        "sqs:ReceiveMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
         "sqs:GetQueueAttributes",
-        "sqs:DeleteMessage"
+        "sqs:ReceiveMessage"
       ],
       "Resource": "${sqs_arn}"
     },
     {
       "Effect": "Allow",
       "Action": [
-        "sqs:ReceiveMessage",
-        "sqs:SendMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
         "sqs:GetQueueAttributes",
-        "sqs:DeleteMessage"
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage"
       ],
       "Resource": "${sqs_retry_arn}"
     }

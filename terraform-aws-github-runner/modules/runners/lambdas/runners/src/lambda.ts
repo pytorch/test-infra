@@ -110,19 +110,7 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
   } catch (e) {
     console.error(e);
   } finally {
-    try {
-      clearTimeout(sndMetricsTimout.setTimeout);
-      sndMetricsTimout.metrics = undefined;
-      sndMetricsTimout.setTimeout = undefined;
-      metrics.sendMetrics();
-    } catch (e) {
-      console.error(`Error sending metrics: ${e}`);
-    }
-
-    if (success) {
-      // In this case the framework properly do all the expected cleanup of messages, avoiding jamming
-      callback(null);
-    } else {
+    if (!success) {
       // In this case the framework does nothing and exits in a dirty state, this makes the message currently being
       // processed to stay in-flight and jam the processing of the other messages due the FIFO nature of the SQS queue
       // so a manual cleanup is required
@@ -143,8 +131,10 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
 
         try {
           await sqs.changeMessageVisibilityBatch(parameters).promise();
+          metrics.scaleUpChangeMessageVisibilitySuccess(evtVisible.length);
         } catch (e) {
           console.error(`FAILED TO SET MESSAGES BACK TO VISIBLE: ${e}`);
+          metrics.scaleUpChangeMessageVisibilityFailure(evtVisible.length);
         }
       }
 
@@ -162,11 +152,26 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
 
         try {
           await sqs.deleteMessageBatch(parameters).promise();
+          metrics.scaleUpDeleteMessageSuccess(evtDelete.length);
         } catch (e) {
           console.error(`FAILED TO DELETE PROCESSED MESSAGES: ${e}`);
+          metrics.scaleUpDeleteMessageFailure(evtDelete.length);
         }
       }
+    }
 
+    try {
+      clearTimeout(sndMetricsTimout.setTimeout);
+      sndMetricsTimout.metrics = undefined;
+      sndMetricsTimout.setTimeout = undefined;
+      metrics.sendMetrics();
+    } catch (e) {
+      console.error(`Error sending metrics: ${e}`);
+    }
+
+    if (success) {
+      callback(null);
+    } else {
       callback('Failed handling SQS event');
     }
   }
