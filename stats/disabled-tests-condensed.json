@@ -1382,6 +1382,13 @@
       "linux"
     ]
   ],
+  "test_pickle_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "94315",
+    "https://github.com/pytorch/pytorch/issues/94315",
+    [
+      "linux"
+    ]
+  ],
   "test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)": [
     "77123",
     "https://github.com/pytorch/pytorch/issues/77123",
