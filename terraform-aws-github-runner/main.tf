@@ -36,30 +36,10 @@ resource "aws_sqs_queue" "queued_builds" {
   visibility_timeout_seconds  = var.runners_scale_up_sqs_visibility_timeout
   fifo_queue                  = true
   content_based_deduplication = true
-  max_message_size            = 2048
+  max_message_size            = 1024
   message_retention_seconds   = var.runners_scale_up_sqs_max_retry * var.runners_scale_up_sqs_visibility_timeout + 100
   redrive_policy              = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.queued_builds_dead_letter.arn
-    maxReceiveCount     = var.runners_scale_up_sqs_max_retry
-  })
-  tags                        = var.tags
-}
-
-resource "aws_sqs_queue" "queued_builds_retry_dead_letter" {
-  name                        = "${var.environment}-queued-builds-retry-dead-letter"
-  redrive_allow_policy        = jsonencode({
-    redrivePermission = "allowAll",
-  })
-  tags                        = var.tags
-}
-
-resource "aws_sqs_queue" "queued_builds_retry" {
-  name                        = "${var.environment}-queued-builds-retry"
-  visibility_timeout_seconds  = var.runners_scale_up_sqs_visibility_timeout
-  max_message_size            = 2048
-  message_retention_seconds   = var.runners_scale_up_sqs_max_retry * var.runners_scale_up_sqs_visibility_timeout + 100
-  redrive_policy              = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.queued_builds_retry_dead_letter.arn
     maxReceiveCount     = var.runners_scale_up_sqs_max_retry
   })
   tags                        = var.tags
@@ -124,7 +104,6 @@ module "runners" {
   ami_filter_windows  = var.ami_filter_windows
 
   sqs_build_queue                      = aws_sqs_queue.queued_builds
-  sqs_build_queue_retry                = aws_sqs_queue.queued_builds_retry
   github_app                           = var.github_app
   enable_organization_runners          = var.enable_organization_runners
   scale_down_schedule_expression       = var.scale_down_schedule_expression

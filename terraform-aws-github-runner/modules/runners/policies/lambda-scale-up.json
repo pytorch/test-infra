@@ -40,16 +40,6 @@
         "sqs:DeleteMessage"
       ],
       "Resource": "${sqs_arn}"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "sqs:ReceiveMessage",
-        "sqs:SendMessage",
-        "sqs:GetQueueAttributes",
-        "sqs:DeleteMessage"
-      ],
-      "Resource": "${sqs_retry_arn}"
     }
   ]
 }
