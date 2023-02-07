@@ -104,9 +104,11 @@ runs:
             conda create \
               --yes \
               --prefix "${CONDA_ENV}" \
-              -c conda-forge \
               "python=${PYTHON_VERSION}"
-            conda install wheel cmake ninja pkg-config conda-build
+              cmake=3.22 \
+              ninja=1.10 \
+              pkg-config=0.29 \
+              wheel=0.37
           else
             conda create \
               --yes \
