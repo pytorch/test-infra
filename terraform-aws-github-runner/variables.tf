@@ -90,25 +90,19 @@ variable "runners_lambda_zip" {
 variable "runners_scale_up_sqs_max_retry" {
   description = "max retry count for messages in the scale up sqs."
   type        = number
-  default     = 1
-}
-
-variable "runners_scale_up_sqs_message_ret_s" {
-  description = "scale up SQS message retention timeout (seconds)"
-  type        = number
-  default     = 7200
+  default     = 3
 }
 
 variable "runners_scale_up_sqs_visibility_timeout" {
   description = "Time out for visibility of messages in the scale up sqs."
   type        = number
-  default     = 600
+  default     = 180
 }
 
 variable "runners_scale_up_lambda_timeout" {
   description = "Time out for the scale up lambda in seconds."
   type        = number
-  default     = 600
+  default     = 180
 }
 
 variable "runners_scale_down_lambda_timeout" {
