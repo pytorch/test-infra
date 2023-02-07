@@ -674,14 +674,6 @@
       "linux"
     ]
   ],
-  "test_embedding_bag_bfloat16_cpu_int64_int32 (__main__.TestEmbeddingNNDeviceTypeCPU)": [
-    "94209",
-    "https://github.com/pytorch/pytorch/issues/94209",
-    [
-      "macos",
-      "mac"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
