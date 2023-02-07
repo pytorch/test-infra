@@ -106,7 +106,7 @@ runs:
               --prefix "${CONDA_ENV}" \
               -c conda-forge \
               "python=${PYTHON_VERSION}"
-            conda install wheel ninja pkg-config
+            conda install wheel ninja pkg-config conda-build
           else
             conda create \
               --yes \
