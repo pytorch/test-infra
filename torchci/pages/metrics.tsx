@@ -366,20 +366,20 @@ export function TtsPercentilePicker({
 function WorkflowDuration({
   percentileParam,
   timeParams,
-  workflowName,
+  workflowNames,
 }: {
   percentileParam: RocksetParam;
   timeParams: RocksetParam[];
-  workflowName: string;
+  workflowNames: string[];
 }) {
   const ttsPercentile = percentileParam.value;
 
-  let title: string = `p${ttsPercentile * 100} ${workflowName} workflow duration`;
+  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(", ") } workflows duration`;
   let queryName: string = "workflow_duration_percentile";
 
   // -1 is the specical case where we will show the avg instead
   if (ttsPercentile === -1) {
-    title = `avg ${workflowName} workflow duration`;
+    title = `avg ${workflowNames.join(", ")} workflow duration`;
     queryName = queryName.replace("percentile", "avg");
   }
 
@@ -390,7 +390,7 @@ function WorkflowDuration({
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
       queryParams={[
-        { name: "name", type: "string", value: workflowName },
+        { name: "workflowNames", type: "string", value: workflowNames.join(",") },
         percentileParam,
         ...timeParams,
       ]}
@@ -509,7 +509,7 @@ export default function Page() {
               metricName={"red"}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
               queryParams={timeParams}
-              badThreshold={(value) => value > 0.5}
+              badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
               title={"# commits"}
@@ -526,6 +526,21 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
+              title={"% commits red on master, retry"}
+              queryName={"master_commit_red_avg"}
+              metricName={"red"}
+              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              queryParams={[
+                {
+                  name: "useRetryConclusion",
+                  type: "bool",
+                  value: true,
+                },
+              ...timeParams,
+              ]}
+              badThreshold={(value) => value > 0.2}
+            />
+            <ScalarPanel
               title={"# reverts"}
               queryName={"reverts"}
               metricName={"num"}
@@ -533,16 +548,16 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(value) => value > 10}
             />
-            <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
-              workflowName={"pull"}
-            />
           </Stack>
         </Grid>
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
+            <WorkflowDuration
+              percentileParam={percentileParam}
+              timeParams={timeParams}
+              workflowNames={["pull", "trunk"]}
+            />
             <ScalarPanel
               title={"# force merges"}
               queryName={"number_of_force_pushes"}
@@ -551,11 +566,7 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
-            <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
-              workflowName={"trunk"}
-            />
+
           </Stack>
         </Grid>
 
