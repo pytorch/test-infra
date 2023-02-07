@@ -220,16 +220,6 @@ export class Metrics {
     }
   }
 
-  /* istanbul ignore next */
-  run() {
-    this.countEntry('run.count');
-  }
-
-  /* istanbul ignore next */
-  exception() {
-    this.countEntry('run.exceptions_count');
-  }
-
   // GitHub API CALLS
   /* istanbul ignore next */
   createAppAuthGHCallSuccess(ms: number) {
@@ -701,29 +691,6 @@ export class ScaleUpMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
-  scaleUpSuccess() {
-    this.countEntry('run.scaleup.success');
-  }
-
-  /* istanbul ignore next */
-  scaleUpFailureRetryable(retries: number) {
-    this.countEntry('run.scaleup.failure.total.count');
-    this.addEntry('run.scaleup.failure.total.retries', retries);
-
-    this.countEntry('run.scaleup.failure.retryable.count');
-    this.addEntry('run.scaleup.failure.retryable.retries', retries);
-  }
-
-  /* istanbul ignore next */
-  scaleUpFailureNonRetryable(retries: number) {
-    this.countEntry('run.scaleup.failure.total.count');
-    this.addEntry('run.scaleup.failure.total.retries', retries);
-
-    this.countEntry('run.scaleup.failure.nonretryable.count');
-    this.addEntry('run.scaleup.failure.nonretryable.retries', retries);
-  }
-
-  /* istanbul ignore next */
   ghRunnersRepoStats(repo: Repo, runnerType: string, total: number, labeled: number, busy: number) {
     const dimensions = this.getRepoDim(repo);
     this.countEntry('run.ghrunners.perRepo.total', total, dimensions);
@@ -825,6 +792,16 @@ export class ScaleUpMetrics extends Metrics {
 export class ScaleDownMetrics extends Metrics {
   constructor() {
     super('scaleDown');
+  }
+
+  /* istanbul ignore next */
+  run() {
+    this.countEntry('run.count');
+  }
+
+  /* istanbul ignore next */
+  exception() {
+    this.countEntry('run.exceptions_count');
   }
 
   /* istanbul ignore next */

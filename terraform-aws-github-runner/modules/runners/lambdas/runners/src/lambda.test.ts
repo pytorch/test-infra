@@ -6,25 +6,16 @@ import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import { mocked } from 'ts-jest/utils';
 import { scaleDown } from './scale-runners/scale-down';
 import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
-import * as MetricsModule from './scale-runners/metrics';
 
-const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
-};
 const mockSQS = {
   sendMessage: jest.fn().mockReturnValue({ promise: jest.fn() }),
 };
 jest.mock('aws-sdk', () => ({
   SQS: jest.fn().mockImplementation(() => mockSQS),
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
 
 jest.mock('./scale-runners/scale-down');
 jest.mock('./scale-runners/scale-up');
-
-const metrics = new MetricsModule.ScaleUpMetrics();
 
 beforeEach(() => {
   jest.resetModules();
@@ -36,7 +27,6 @@ beforeEach(() => {
 describe('scaleUp', () => {
   beforeEach(() => {
     jest.spyOn(global.Math, 'random').mockReturnValue(1.0);
-    jest.spyOn(MetricsModule, 'ScaleUpMetrics').mockReturnValue(metrics);
   });
 
   afterEach(() => {
@@ -57,8 +47,8 @@ describe('scaleUp', () => {
       callback,
     );
     expect(mockedScaleUp).toBeCalledTimes(2);
-    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 }, metrics);
-    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 2 }, metrics);
+    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 });
+    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 2 });
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith(null);
   });
@@ -77,7 +67,7 @@ describe('scaleUp', () => {
       callback,
     );
     expect(mockedScaleUp).toBeCalledTimes(1);
-    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 }, metrics);
+    expect(mockedScaleUp).toBeCalledWith('aws:sqs', { id: 1 });
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed handling SQS event');
   });
