@@ -11,7 +11,7 @@ FROM
     commons.workflow_run workflow
 WHERE
     conclusion = 'success'
-    AND name = :name
+    AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
     AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
     AND workflow.run_attempt = 1
