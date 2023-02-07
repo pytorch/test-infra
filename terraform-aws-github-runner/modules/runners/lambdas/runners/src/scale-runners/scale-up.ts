@@ -1,4 +1,4 @@
-import { Metrics, ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
+import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey } from './utils';
 import { RunnerType, RunnerInputParameters, createRunner } from './runners';
 import {
@@ -21,31 +21,15 @@ export interface ActionRequestMessage {
   runnerLabels?: string[];
 }
 
-export class RetryableScalingError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RetryableScalingError';
-  }
-}
-
 export async function scaleUp(eventSource: string, payload: ActionRequestMessage): Promise<void> {
   if (eventSource !== 'aws:sqs') throw Error('Cannot handle non-SQS events!');
 
   const metrics = new ScaleUpMetrics();
-  const sndMetricsTimout: sendMetricsTimeoutVars = {
-    metrics: metrics,
-  };
-  sndMetricsTimout.setTimeout = setTimeout(
-    sendMetricsAtTimeout(sndMetricsTimout),
-    (Config.Instance.lambdaTimeout - 10) * 1000,
-  );
 
   const repo: Repo = {
     owner: payload.repositoryOwner,
     repo: payload.repositoryName,
   };
-
-  const errors = [];
 
   try {
     if (await shouldSkipForRepo(repo, metrics)) {
@@ -102,8 +86,6 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
             metrics.runnersRepoCreate(repo, runnerType.runnerTypeName, awsRegion);
           }
         } catch (e) {
-          errors.push(e);
-
           /* istanbul ignore next */
           if (Config.Instance.enableOrganizationRunners) {
             metrics.runnersOrgCreateFail(repo.owner, runnerType.runnerTypeName);
@@ -118,18 +100,7 @@ export async function scaleUp(eventSource: string, payload: ActionRequestMessage
       }
     }
   } finally {
-    clearTimeout(sndMetricsTimout.setTimeout);
-    sndMetricsTimout.metrics = undefined;
-    sndMetricsTimout.setTimeout = undefined;
     metrics.sendMetrics();
-  }
-
-  if (errors.length > 0) {
-    const msg =
-      `Thrown ${errors.length} exceptions during scaleup when creating runners, ` +
-      'will fail this batch so it can be retried';
-    console.warn(msg);
-    throw new RetryableScalingError(msg);
   }
 }
 
