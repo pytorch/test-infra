@@ -107,7 +107,7 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   const options: EChartsOption = {
     title: {
       text: "Commits red on master, by day",
-      subtext: "Based on workflows which block viable/strict upgrade"
+      subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
@@ -175,7 +175,7 @@ function TTSPanel({
   queryParams,
   metricHeaderName,
   metricName,
-  branchName
+  branchName,
 }: {
   title: string;
   queryName: string;
@@ -213,11 +213,13 @@ function TTSPanel({
             const encodedJobName = encodeURIComponent(jobName);
             const encodedBranchName = encodeURIComponent(branchName);
             return (
-              <a href={`/tts/pytorch/pytorch/${encodedBranchName}?jobName=${encodedJobName}`}>
+              <a
+                href={`/tts/pytorch/pytorch/${encodedBranchName}?jobName=${encodedJobName}`}
+              >
                 {jobName}
               </a>
             );
-          }
+          },
         },
       ]}
       dataGridProps={{ getRowId: (el: any) => el.name }}
@@ -344,7 +346,9 @@ export function TtsPercentilePicker({
   return (
     <>
       <FormControl>
-        <InputLabel id="tts-percentile-picker-select-label">Percentile</InputLabel>
+        <InputLabel id="tts-percentile-picker-select-label">
+          Percentile
+        </InputLabel>
         <Select
           defaultValue={ttsPercentile}
           label="Percentile"
@@ -352,11 +356,11 @@ export function TtsPercentilePicker({
           onChange={handleChange}
         >
           <MenuItem value={-1.0}>avg</MenuItem>
-          <MenuItem value={0.50}>p50</MenuItem>
-          <MenuItem value={0.90}>p90</MenuItem>
+          <MenuItem value={0.5}>p50</MenuItem>
+          <MenuItem value={0.9}>p90</MenuItem>
           <MenuItem value={0.95}>p95</MenuItem>
           <MenuItem value={0.99}>p99</MenuItem>
-          <MenuItem value={1.00}>p100</MenuItem>
+          <MenuItem value={1.0}>p100</MenuItem>
         </Select>
       </FormControl>
     </>
@@ -374,7 +378,9 @@ function WorkflowDuration({
 }) {
   const ttsPercentile = percentileParam.value;
 
-  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(", ") } workflows duration`;
+  let title: string = `p${ttsPercentile * 100} ${workflowNames.join(
+    ", "
+  )} workflows duration`;
   let queryName: string = "workflow_duration_percentile";
 
   // -1 is the specical case where we will show the avg instead
@@ -390,7 +396,11 @@ function WorkflowDuration({
       metricName={"duration_sec"}
       valueRenderer={(value) => durationDisplay(value)}
       queryParams={[
-        { name: "workflowNames", type: "string", value: workflowNames.join(",") },
+        {
+          name: "workflowNames",
+          type: "string",
+          value: workflowNames.join(","),
+        },
         percentileParam,
         ...timeParams,
       ]}
@@ -466,7 +476,7 @@ export default function Page() {
     },
   ];
 
-  const [ttsPercentile, setTtsPercentile] = useState<number>(0.50);
+  const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
 
   const percentileParam: RocksetParam = {
     name: "percentile",
@@ -474,9 +484,9 @@ export default function Page() {
     value: ttsPercentile,
   };
 
-  var numberFormat = Intl.NumberFormat('en-US', {
+  var numberFormat = Intl.NumberFormat("en-US", {
     notation: "compact",
-    maximumFractionDigits: 1
+    maximumFractionDigits: 1,
   });
 
   return (
@@ -536,7 +546,7 @@ export default function Page() {
                   type: "bool",
                   value: true,
                 },
-              ...timeParams,
+                ...timeParams,
               ]}
               badThreshold={(value) => value > 0.2}
             />
@@ -566,7 +576,6 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
-
           </Stack>
         </Grid>
 
