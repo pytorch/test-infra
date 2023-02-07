@@ -1,7 +1,7 @@
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
-import { scaleUp as scaleUpR, RetryableScalingError } from './scale-runners/scale-up';
+import { scaleUp as scaleUpR } from './scale-runners/scale-up';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleUp(event: SQSEvent, context: Context, callback: any) {
@@ -13,12 +13,7 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
     return callback(null);
   } catch (e) {
     console.error(e);
-    if (e instanceof RetryableScalingError) {
-      console.error('Received a RetryableScalingError, will callback with failure');
-      return callback(e);
-    } else {
-      return callback('Failed handling SQS event');
-    }
+    return callback('Failed handling SQS event');
   }
 }
 
