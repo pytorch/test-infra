@@ -404,7 +404,7 @@ function WorkflowDuration({
         percentileParam,
         ...timeParams,
       ]}
-      badThreshold={(value) => value > 60 * 60 * 3} // 3 hours
+      badThreshold={(value) => value > 60 * 60 * 4} // 3 hours
     />
   );
 }
