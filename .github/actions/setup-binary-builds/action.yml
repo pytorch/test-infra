@@ -48,6 +48,15 @@ runs:
       - name: Set release CHANNEL
         shell: bash -l {0}
         run: |
+          echo "${GITHUB_REF_NAME}"
+          echo "${GITHUB_EVENT_REF}"
+          echo "${GITHUB_REF}"
+          echo "${GITHUB_BASE_REF}"
+
+          echo "${{ github.ref_name }}"
+          echo "${{ github.event.ref }}"
+          echo "${{ github.ref }}"
+          echo "${{ github.base_ref }}"
           set -euxo pipefail
           # reference ends with an RC suffix
           if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
