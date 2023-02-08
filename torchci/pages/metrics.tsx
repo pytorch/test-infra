@@ -536,7 +536,7 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"% commits red on master, retry"}
+              title={"% commits red on master, after retries"}
               queryName={"master_commit_red_avg"}
               metricName={"red"}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
