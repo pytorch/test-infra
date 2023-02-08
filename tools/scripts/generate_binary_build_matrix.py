@@ -210,7 +210,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_build
     arches = ["cpu"]
     python_versions = PYTHON_ARCHES_DICT[channel]
 
-    if with_cuda == ENABLE and os == "linux":
+    if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
 
     if os == "macos-arm64":
