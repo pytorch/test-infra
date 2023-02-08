@@ -23,8 +23,7 @@ resource "random_string" "random" {
 }
 
 resource "aws_sqs_queue" "queued_builds_dead_letter" {
-  name                        = "${var.environment}-queued-builds-dead-letter.fifo"
-  fifo_queue                  = true
+  name                        = "${var.environment}-queued-builds-dead-letter"
   redrive_allow_policy        = jsonencode({
     redrivePermission = "allowAll",
   })
@@ -32,10 +31,8 @@ resource "aws_sqs_queue" "queued_builds_dead_letter" {
 }
 
 resource "aws_sqs_queue" "queued_builds" {
-  name                        = "${var.environment}-queued-builds.fifo"
+  name                        = "${var.environment}-queued-builds"
   visibility_timeout_seconds  = var.runners_scale_up_sqs_visibility_timeout
-  fifo_queue                  = true
-  content_based_deduplication = true
   max_message_size            = 2048
   message_retention_seconds   = var.runners_scale_up_sqs_message_ret_s
   redrive_policy              = jsonencode({

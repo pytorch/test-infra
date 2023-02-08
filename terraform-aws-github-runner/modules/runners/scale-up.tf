@@ -118,13 +118,17 @@ resource "aws_cloudwatch_log_group" "scale_up" {
 }
 
 resource "aws_lambda_event_source_mapping" "scale_up" {
-  event_source_arn = var.sqs_build_queue.arn
-  function_name    = aws_lambda_alias.scale_up_lambda_alias.arn
+  event_source_arn                   = var.sqs_build_queue.arn
+  function_name                      = aws_lambda_alias.scale_up_lambda_alias.arn
+  maximum_batching_window_in_seconds = 10
+  batch_size                         = 10
 }
 
 resource "aws_lambda_event_source_mapping" "scale_up_retry" {
-  event_source_arn = var.sqs_build_queue_retry.arn
-  function_name    = aws_lambda_alias.scale_up_lambda_alias.arn
+  event_source_arn                   = var.sqs_build_queue_retry.arn
+  function_name                      = aws_lambda_alias.scale_up_lambda_alias.arn
+  maximum_batching_window_in_seconds = 60
+  batch_size                         = 10
 }
 
 resource "aws_lambda_permission" "scale_runners_lambda" {
