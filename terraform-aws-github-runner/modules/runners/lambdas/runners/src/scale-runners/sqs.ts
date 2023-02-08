@@ -82,10 +82,17 @@ export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSR
   };
 
   console.log(`Deleting ${events.length} messages`);
-  await expBackOff(() => {
+  const response = await expBackOff(() => {
     return metrics.trackRequest(metrics.sqsDeleteMessageBatchSuccess, metrics.sqsDeleteMessageBatchFailure, () => {
       return sqs.deleteMessageBatch(parameters).promise();
     });
   });
+  if (response.Failed.length || response.Successful.length < events.length) {
+    const msg =
+      `Failed to delete messages from SQS, this might cause them to be retried. Total: ${events.length} ` +
+      `Successful: ${response.Successful.length} Failed: ${response.Failed.length}`;
+    console.error(msg);
+    throw Error(msg);
+  }
   console.log(`Deleted ${events.length} messages`);
 }

@@ -9,9 +9,10 @@ const mockCloudWatch = {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
+const deleteMessageBatchPromise = jest.fn();
 const mockSQS = {
   changeMessageVisibilityBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  deleteMessageBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  deleteMessageBatch: jest.fn().mockReturnValue({ promise: deleteMessageBatchPromise }),
   endpoint: { href: 'AGDGADUWG113' },
   sendMessageBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
 };
@@ -111,8 +112,35 @@ describe('sqs', () => {
     });
   });
 
-  it('sqsDeleteMessageBatch', async () => {
+  it('sqsDeleteMessageBatch - succeed all', async () => {
+    deleteMessageBatchPromise.mockResolvedValue({
+      Failed: [],
+      Successful: sqsRecords,
+    });
     await sqsDeleteMessageBatch(metrics, sqsRecords);
+    expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
+    expect(mockSQS.deleteMessageBatch).toBeCalledWith({
+      QueueUrl: 'AGDGADUWG1135/6',
+      Entries: [
+        {
+          Id: '1',
+          ReceiptHandle: 'ASDF',
+        },
+        {
+          Id: '2',
+          ReceiptHandle: 'AGDGADUWG113',
+        },
+      ],
+    });
+  });
+
+  it('sqsDeleteMessageBatch - fail all', async () => {
+    deleteMessageBatchPromise.mockResolvedValue({
+      Failed: sqsRecords,
+      Successful: [],
+    });
+    expect(sqsDeleteMessageBatch(metrics, sqsRecords)).rejects.toThrowError();
+    expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
     expect(mockSQS.deleteMessageBatch).toBeCalledWith({
       QueueUrl: 'AGDGADUWG1135/6',
       Entries: [

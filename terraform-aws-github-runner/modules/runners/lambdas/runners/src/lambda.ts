@@ -5,7 +5,7 @@ import { Config } from './scale-runners/config';
 import { ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
-import { sqsSendMessages, sqsChangeMessageVisibilityBatch, sqsDeleteMessageBatch } from './scale-runners/sqs';
+import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 
 async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean]>, metrics: ScaleUpMetrics) {
   console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
@@ -62,8 +62,6 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
   );
 
   const evtFailed: Array<[SQSRecord, boolean]> = [];
-  const evtDelete: Array<SQSRecord> = [];
-  const evtVisible: Array<SQSRecord> = [];
 
   try {
     recordsIterProcess: for (let i = 0; i < event.Records.length; i += 1) {
@@ -71,19 +69,16 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
 
       try {
         await scaleUpR(evt.eventSource, JSON.parse(evt.body), metrics);
-        evtDelete.push(evt);
         metrics.scaleUpSuccess();
       } catch (e) {
         if (e instanceof RetryableScalingError) {
           console.error(`Retryable error thrown: "${e.message}"`);
           evtFailed.push([evt, true]);
-          evtDelete.push(evt);
         } else {
           console.error(`Non-retryable error during request: "${e.message}"`);
           console.error(`All remaning '${event.Records.length - i}' messages will be scheduled to retry`);
           for (let ii = i; ii < event.Records.length; ii += 1) {
             evtFailed.push([event.Records[ii], false]);
-            evtVisible.push(event.Records[ii]);
           }
           break recordsIterProcess;
         }
@@ -104,23 +99,13 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
       // In this case the framework does nothing and exits in a dirty state, this makes the message currently being
       // processed to stay in-flight and jam the processing of the other messages due the FIFO nature of the SQS queue
       // so a manual cleanup is required
-      if (evtVisible.length > 0) {
+      if (evtFailed.length > 0) {
         try {
-          await sqsChangeMessageVisibilityBatch(metrics, evtVisible, 0);
-          metrics.scaleUpChangeMessageVisibilitySuccess(evtVisible.length);
-        } catch (e) {
-          console.error(`FAILED TO SET MESSAGES BACK TO VISIBLE: ${e}`);
-          metrics.scaleUpChangeMessageVisibilityFailure(evtVisible.length);
-        }
-      }
-
-      if (evtDelete.length > 0) {
-        try {
-          await sqsDeleteMessageBatch(metrics, evtDelete);
-          metrics.scaleUpDeleteMessageSuccess(evtDelete.length);
+          await sqsDeleteMessageBatch(metrics, event.Records);
+          metrics.scaleUpDeleteMessageSuccess(evtFailed.length);
         } catch (e) {
           console.error(`FAILED TO DELETE PROCESSED MESSAGES: ${e}`);
-          metrics.scaleUpDeleteMessageFailure(evtDelete.length);
+          metrics.scaleUpDeleteMessageFailure(evtFailed.length);
         }
       }
     }

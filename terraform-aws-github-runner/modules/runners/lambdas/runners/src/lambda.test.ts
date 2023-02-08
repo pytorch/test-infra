@@ -6,7 +6,7 @@ import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import { mocked } from 'ts-jest/utils';
 import { scaleDown } from './scale-runners/scale-down';
 import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
-import { sqsSendMessages, sqsChangeMessageVisibilityBatch, sqsDeleteMessageBatch } from './scale-runners/sqs';
+import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import * as MetricsModule from './scale-runners/metrics';
 
 const mockCloudWatch = {
@@ -92,8 +92,8 @@ describe('scaleUp', () => {
     expect(callback).toBeCalledTimes(1);
     expect(callback).toBeCalledWith('Failed handling SQS event');
 
-    expect(sqsChangeMessageVisibilityBatch).toBeCalledTimes(1);
-    expect(sqsChangeMessageVisibilityBatch).toBeCalledWith(metrics, evts, 0);
+    expect(sqsDeleteMessageBatch).toBeCalledTimes(1);
+    expect(sqsDeleteMessageBatch).toBeCalledWith(metrics, evts);
   });
 
   it('RetryableScalingError', async () => {
@@ -123,6 +123,7 @@ describe('scaleUp', () => {
         messageId: 5,
       },
       { eventSource: 'aws:sqs', body: '{"id":6}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 6 },
+      { eventSource: 'aws:sqs', body: '{"id":7}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 7 },
     ];
     const mockedScaleUp = mocked(scaleUp)
       .mockResolvedValueOnce(undefined)
@@ -151,15 +152,17 @@ describe('scaleUp', () => {
         retryCount: 1,
         delaySeconds: 24,
       },
+      {
+        id: 7,
+        retryCount: 1,
+        delaySeconds: 24,
+      },
     ];
     expect(sqsSendMessages).toBeCalledTimes(1);
     expect(sqsSendMessages).toBeCalledWith(metrics, expected, 'asdf');
 
     expect(sqsDeleteMessageBatch).toBeCalledTimes(1);
-    expect(sqsDeleteMessageBatch).toBeCalledWith(metrics, records.slice(0, 5));
-
-    expect(sqsChangeMessageVisibilityBatch).toBeCalledTimes(1);
-    expect(sqsChangeMessageVisibilityBatch).toBeCalledWith(metrics, [records[5]], 0);
+    expect(sqsDeleteMessageBatch).toBeCalledWith(metrics, records);
   });
 });
 
