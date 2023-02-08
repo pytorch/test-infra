@@ -63,7 +63,8 @@ runs:
         run: |
           echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
       - name: Set CHANNEL for tagged pushes
-        if: ${{ GITHUB_EVENT_NAME == 'push' && startsWith(GITHUB_REF, 'refs/tags/') }}
+        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/') }}
+        # if: ${{ GITHUB_EVENT_NAME == 'push' && startsWith(GITHUB_REF, 'refs/tags/') }}
         shell: bash -l {0}
         run: |
           # Use GITHUB_EVENT_NAME or trigger-event above?
@@ -73,7 +74,9 @@ runs:
             echo "CHANNEL=test" >> "${GITHUB_ENV}"
           fi
       - name: Set Release CHANNEL for release
-        if: ${{ (GITHUB_EVENT_NAME == 'pull_request' && startsWith(GITHUB_BASE_REF, 'release')) || startsWith(GITHUB_REF, 'refs/heads/release') }}
+        if: ${{ (github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release') }}
+        # if: ${{ (GITHUB_EVENT_NAME == 'pull_request' && startsWith(GITHUB_BASE_REF, 'release')) || startsWith(GITHUB_REF, 'refs/heads/release') }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           echo "CHANNEL=test" >> "$GITHUB_ENV"
