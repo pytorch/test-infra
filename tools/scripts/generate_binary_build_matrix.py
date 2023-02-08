@@ -252,6 +252,7 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
+    limit_win_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
