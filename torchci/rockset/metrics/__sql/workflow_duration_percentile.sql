@@ -4,7 +4,7 @@ SELECT
 FROM (
     SELECT
     	tts.*,
-    	PERCENT_RANK() OVER (ORDER BY duration_sec DESC) AS percentile
+    	PERCENT_RANK() OVER (PARTITION BY name ORDER BY duration_sec DESC) AS percentile
     FROM (
     	SELECT
         	DATE_DIFF(
