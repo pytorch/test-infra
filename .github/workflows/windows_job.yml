@@ -27,6 +27,10 @@ on:
         description: 'Repository to checkout, defaults to ""'
         default: ""
         type: string
+      fetch-depth:
+        description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
+        default: 1
+        type: number
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
         default: ""
@@ -93,6 +97,7 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
+          fetch-depth: ${{ inputs.fetch-depth }}
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
