@@ -39,7 +39,7 @@
     "last_successful_jobs": "2e04949378c58607",
     "last_successful_workflow": "5d22927dd0b0956b",
     "log_captures_count": "9cbd496ad254c3de",
-    "master_commit_red_avg": "4c9d8b4e6c17a000",
+    "master_commit_red_avg": "18c967f80a2cb6c5",
     "master_commit_red": "b05a2786103f135c",
     "master_commit_red_percent": "5246c800e886b537",
     "master_commit_red_percent_groups": "224122f2a006f130",
@@ -57,8 +57,8 @@
     "tts_duration_historical_percentile": "f6824cbe03e1b6d8",
     "strict_lag_sec": "f9523e8c8c3a3311",
     "queue_times_historical": "7f4d6599362e70ba",
-    "workflow_duration_avg": "b92d60f09ac39069",
-    "workflow_duration_percentile": "a69732c03132613c",
+    "workflow_duration_avg": "7bae00900097a486",
+    "workflow_duration_percentile": "0b28cf65de7cfe07",
     "workflow_load": "eff394d8e0b76436"
   }
 }
