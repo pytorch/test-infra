@@ -2,11 +2,6 @@
   "sql_path": "__sql/workflow_duration_avg.sql",
   "default_parameters": [
     {
-      "name": "name",
-      "type": "string",
-      "value": "pull"
-    },
-    {
       "name": "startTime",
       "type": "string",
       "value": "2022-02-22T00:08:03.395Z"
@@ -15,6 +10,11 @@
       "name": "stopTime",
       "type": "string",
       "value": "2022-03-01T00:08:03.395Z"
+    },
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk"
     }
   ],
   "description": ""
