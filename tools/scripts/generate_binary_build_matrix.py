@@ -379,7 +379,6 @@ def generate_wheels_matrix(
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
-        print(f"GENERATING for PYTHON {python_version}")
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = "" if arch_version == "cpu" else arch_version
