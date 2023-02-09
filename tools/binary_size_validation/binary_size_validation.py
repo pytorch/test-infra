@@ -82,7 +82,7 @@ def main(url, include, exclude, threshold, only_latest_version):
         print(f"Validating {wheel.url}...")
         size = get_binary_size(wheel.url)
         print(f"{wheel.name}: {int(size) / 1024 / 1024:.2f} MB")
-        if threshold and int(size) > threshold:
+        if threshold and int(size) > threshold * 1024 * 1024:
             raise RuntimeError(
                 f"Binary size of {wheel.name} {int(size) / 1024 / 1024:.2f} MB exceeds the threshold {threshold} MB")
 
