@@ -1,4 +1,4 @@
-conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} numpy
+conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
 conda activate ${ENV_NAME}
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchvision}"
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchaudio}"
