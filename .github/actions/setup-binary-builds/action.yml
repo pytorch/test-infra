@@ -110,7 +110,6 @@ runs:
               ninja=1.10 \
               pkg-config=0.29 \
               wheel=0.37
-            conda install -c conda-forge conda-build
           else
             conda create \
               --yes \
