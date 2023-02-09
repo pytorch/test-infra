@@ -35,11 +35,11 @@ jobs:
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
-          - repository: pytorch/torchrec
-            pre-script: ""
-            post-script: ""
-            smoke-test-script: ""
-            package-name: torchrec
+          # - repository: pytorch/torchrec
+          #   pre-script: ""
+          #   post-script: ""
+          #   smoke-test-script: ""
+          #   package-name: torchrec
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:

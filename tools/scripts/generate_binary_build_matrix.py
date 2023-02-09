@@ -21,7 +21,7 @@ from typing import Dict, List, Tuple, Optional
 mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.8", "3.9", "3.10"],
+    "nightly": ["3.8", "3.9", "3.10", "3.11"],
     "test": ["3.7", "3.8", "3.9", "3.10"],
     "release": ["3.7", "3.8", "3.9", "3.10"],
 }
@@ -205,20 +205,24 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
         index_arg = "--index-url" if channel == "nightly" else "--extra-index-url"
         return f"{whl_install_command} {index_arg} {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = PYTHON_ARCHES_DICT[channel]
 
-    if with_cuda == ENABLE:
-        if os == "linux":
-            arches += mod.CUDA_ARCHES
-        elif os == "windows":
-            # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-            arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+    # Excluding Python 3.11 from conda builds for now due to package
+    # incompatibility issues with key dependencies.
+    if "3.11" in python_versions:
+        python_versions.remove("3.11")
+
+    if with_cuda == ENABLE and (os == "linux" or os == "windows"):
+        arches += mod.CUDA_ARCHES
 
     if os == "macos-arm64":
         python_versions = list_without(python_versions, ["3.7"])
+
+    if os == "windows" and limit_win_builds == ENABLE:
+        python_versions = [ python_versions[0] ]
 
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
@@ -245,6 +249,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version, os)
                 }
             )
+
     return ret
 
 
@@ -252,6 +257,7 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
+    limit_win_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -341,6 +347,7 @@ def generate_wheels_matrix(
     channel: str,
     with_cuda: str,
     with_py311: str,
+    limit_win_builds: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -370,6 +377,9 @@ def generate_wheels_matrix(
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
                 arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+
+    if (os == "windows" and limit_win_builds == ENABLE):
+        python_versions = [ python_versions[0] ]
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
@@ -442,6 +452,15 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_PY311", DISABLE),
     )
+    parser.add_argument(
+        "--limit-win-builds",
+        help="Limit windows builds to single python/cuda config",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("LIMIT_WIN_BUILDS", DISABLE),
+    )
+
+
 
     options = parser.parse_args(args)
     includes = []
@@ -460,13 +479,15 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.with_py311)
+                                                                options.with_py311,
+                                                                options.limit_win_builds)
                     )
             else:
                 includes.extend(
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
-                                                                options.with_cuda)
+                                                                options.with_cuda,
+                                                                options.limit_win_builds)
                     )
 
 
