@@ -126,7 +126,7 @@ jobs:
             ${CONDA_RUN} conda build \
               -c defaults \
               -c "${CUDATOOLKIT_CHANNEL}" \
-              -c "malfet"
+              -c "malfet" \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \
