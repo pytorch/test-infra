@@ -1389,6 +1389,13 @@
       "linux"
     ]
   ],
+  "test_pickle_nn_LSTM_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
+    "86637",
+    "https://github.com/pytorch/pytorch/issues/86637",
+    [
+      "linux"
+    ]
+  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
