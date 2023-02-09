@@ -208,7 +208,7 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
 def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
-    python_versions = PYTHON_ARCHES_DICT[channel]
+    python_versions = list(mod.PYTHON_ARCHES)
 
     # Excluding Python 3.11 from conda builds for now due to package
     # incompatibility issues with key dependencies.
@@ -353,7 +353,7 @@ def generate_wheels_matrix(
 
     if python_versions is None:
         # Define default python version
-        python_versions = list(PYTHON_ARCHES_DICT[channel])
+        python_versions = list(mod.PYTHON_ARCHES)
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
 
