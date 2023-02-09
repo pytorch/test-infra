@@ -1,5 +1,5 @@
 with any_red as (
-    SELECT 
+    SELECT
         time,
         sha,
         CAST(
@@ -31,6 +31,7 @@ with any_red as (
                   OR workflow.name like 'linux-binary%'
                   OR workflow.name like 'windows-binary%'
                 )
+                AND job.name NOT LIKE '%rerun_disabled_tests%'
                 AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
                 AND push.ref = 'refs/heads/master'
                 AND push.repository.owner.name = 'pytorch'
@@ -66,7 +67,7 @@ with any_red as (
         time DESC
 )
 SELECT
-    FORMAT_TIMESTAMP('%m-%d-%y', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
     AVG(any_red) as red,
 from
     any_red

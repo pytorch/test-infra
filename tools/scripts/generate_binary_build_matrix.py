@@ -20,17 +20,20 @@ from typing import Dict, List, Tuple, Optional
 
 mod = sys.modules[__name__]
 
-FULL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
-
-CUDA_ACRHES_DICT = {
-    "nightly": ["11.6", "11.7"],
+PYTHON_ARCHES_DICT = {
+    "nightly": ["3.8", "3.9", "3.10", "3.11"],
+    "test": ["3.7", "3.8", "3.9", "3.10"],
+    "release": ["3.7", "3.8", "3.9", "3.10"],
+}
+CUDA_ARCHES_DICT = {
+    "nightly": ["11.7", "11.8"],
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
 ROCM_ACRHES_DICT = {
-    "nightly": ["5.3", "5.4"],
-    "test": ["5.1.1", "5.2"],
-    "release": ["5.1.1", "5.2"],
+    "nightly": ["5.3", "5.4.2"],
+    "test": ["5.2", "5.3"],
+    "release": ["5.2", "5.3"],
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -42,12 +45,13 @@ NIGHTLY = "nightly"
 TEST = "test"
 
 CURRENT_CANDIDATE_VERSION = "1.13.1"
-CURRENT_STABLE_VERSION = "1.13.0"
+CURRENT_STABLE_VERSION = "1.13.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
-mod.CUDA_ARCHES = CUDA_ACRHES_DICT[NIGHTLY]
-mod.ROCM_ARCHES = ROCM_ACRHES_DICT[NIGHTLY]
+mod.CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
+mod.ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
+mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
@@ -99,8 +103,9 @@ def initialize_globals(channel: str):
     else:
         mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
-    mod.CUDA_ARCHES = CUDA_ACRHES_DICT[channel]
-    mod.ROCM_ARCHES = ROCM_ACRHES_DICT[channel]
+    mod.CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
+    mod.ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
+    mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
     mod.WHEEL_CONTAINER_IMAGES = {
         **{
             gpu_arch: f"pytorch/manylinux-builder:cuda{gpu_arch}"
@@ -197,22 +202,27 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
     else:
         packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
-        return f"{whl_install_command} --extra-index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        index_arg = "--index-url" if channel == "nightly" else "--extra-index-url"
+        return f"{whl_install_command} {index_arg} {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
-    python_versions = FULL_PYTHON_VERSIONS
+    python_versions = PYTHON_ARCHES_DICT[channel]
 
-    if with_cuda == ENABLE:
-        if os == "linux":
-            arches += mod.CUDA_ARCHES
-        elif os == "windows":
-            # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-            arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+    # Excluding Python 3.11 from conda builds for now due to package
+    # incompatibility issues with key dependencies.
+    if "3.11" in python_versions:
+        python_versions.remove("3.11")
+
+    if with_cuda == ENABLE and (os == "linux" or os == "windows"):
+        arches += mod.CUDA_ARCHES
 
     if os == "macos-arm64":
         python_versions = list_without(python_versions, ["3.7"])
+
+    if os == "windows" and limit_win_builds == ENABLE:
+        python_versions = [ python_versions[0] ]
 
     for python_version in python_versions:
         # We don't currently build conda packages for rocm
@@ -239,6 +249,7 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str) -> List[Dict[st
                     "installation": get_conda_install_command(channel, gpu_arch_type, arch_version, os)
                 }
             )
+
     return ret
 
 
@@ -246,6 +257,7 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
+    limit_win_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -335,6 +347,7 @@ def generate_wheels_matrix(
     channel: str,
     with_cuda: str,
     with_py311: str,
+    limit_win_builds: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -342,14 +355,14 @@ def generate_wheels_matrix(
 
     if python_versions is None:
         # Define default python version
-        python_versions = list(FULL_PYTHON_VERSIONS)
+        python_versions = list(PYTHON_ARCHES_DICT[channel])
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
 
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-        if with_py311 == ENABLE and channel != "release":
+        if with_py311 == ENABLE and channel == "test":
             python_versions += ["3.11"]
 
     upload_to_base_bucket = "yes"
@@ -364,6 +377,9 @@ def generate_wheels_matrix(
             elif os == "windows":
                 # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
                 arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+
+    if (os == "windows" and limit_win_builds == ENABLE):
+        python_versions = [ python_versions[0] ]
 
     ret: List[Dict[str, str]] = []
     for python_version in python_versions:
@@ -405,9 +421,8 @@ def main(args) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--package-type",
-        help="Package type to lookup for",
+        help="Package type to lookup for, also supports comma separated values",
         type=str,
-        choices=["wheel", "conda", "libtorch", "all"],
         default=os.getenv("PACKAGE_TYPE", "wheel"),
     )
     parser.add_argument(
@@ -437,13 +452,24 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_PY311", DISABLE),
     )
+    parser.add_argument(
+        "--limit-win-builds",
+        help="Limit windows builds to single python/cuda config",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("LIMIT_WIN_BUILDS", DISABLE),
+    )
+
+
 
     options = parser.parse_args(args)
     includes = []
 
-    package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
-    channels = CUDA_ACRHES_DICT.keys() if options.channel == "all" else [options.channel]
+    package_types = options.package_type.split(",")
+    if len(package_types) == 1:
+        package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
 
+    channels = CUDA_ARCHES_DICT.keys() if options.channel == "all" else [options.channel]
 
     for channel in channels:
         for package in package_types:
@@ -453,13 +479,15 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.with_py311)
+                                                                options.with_py311,
+                                                                options.limit_win_builds)
                     )
             else:
                 includes.extend(
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
-                                                                options.with_cuda)
+                                                                options.with_cuda,
+                                                                options.limit_win_builds)
                     )
 
 

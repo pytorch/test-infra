@@ -32,7 +32,8 @@ WITH good_periodic_sha AS (
 job AS (
     SELECT
         j.name,
-        j.id
+        j.id,
+        j.run_id,
     FROM
         commons.workflow_job j
         INNER JOIN workflow w on w.id = j.run_id
@@ -40,9 +41,9 @@ job AS (
 file_duration_per_job AS (
     SELECT
         test_run.invoking_file as file,
-        job.name,
         SUM(time) as time,
-        job.id
+        REGEXP_EXTRACT(job.name, '^(.*) /', 1) as base_name,
+        REGEXP_EXTRACT(job.name, '/ test \((\w*),', 1) as test_config,
     FROM
         commons.test_run_summary test_run
         /* `test_run` is ginormous and `job` is small, so lookup join is essential */
@@ -53,19 +54,21 @@ file_duration_per_job AS (
         test_run.file IS NOT NULL
     GROUP BY
         test_run.invoking_file,
-        job.name,
-        job.id
+        base_name,
+  		test_config,
+  		job.run_id
 )
 SELECT
     REPLACE(file, '.', '/') AS file,
-    REGEXP_EXTRACT(name, '^(.*) /', 1) as base_name,
-    REGEXP_EXTRACT(name, '/ test \((\w*),', 1) as test_config,
+    base_name,
+    test_config,
     AVG(time) as time
 FROM
     file_duration_per_job
 GROUP BY
     file,
-    name
+    base_name,
+    test_config
 ORDER BY
     base_name,
     test_config,

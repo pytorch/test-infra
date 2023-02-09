@@ -2,7 +2,7 @@
 
 set -xe
 
-checks=$(ls *.diff)
+checks=$(pushd 11.x-patches > /dev/null; ls *.diff; popd >/dev/null)
 found_checks=$(clang-tidy -checks=* --list-checks)
 for check in $checks; do
   name=${check%-check.*}

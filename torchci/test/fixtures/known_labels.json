@@ -17,5 +17,14 @@
     "color": "34c182",
     "default": true,
     "description": ""
+  },
+  {
+    "id": 3663721061,
+    "node_id": "LA_kwDOA-j9z87aX_Jl",
+    "url": "https://api.github.com/repos/pytorch/pytorch/labels/ciflow/trunk",
+    "name": "ciflow/trunk",
+    "color": "574CBB",
+    "default": false,
+    "description": "Trigger trunk jobs on your pull request"
   }
 ]

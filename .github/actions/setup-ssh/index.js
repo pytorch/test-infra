@@ -12863,7 +12863,9 @@ async function run() {
             const username = external_os_default().userInfo().username;
             core.info(`Login using: ssh ${username}@${hostname}`);
             if (instructions) {
-                core.info(instructions.replace('%%hostname%%', hostname).replace('%%username%%', username));
+                core.info(instructions
+                    .replace('%%hostname%%', hostname)
+                    .replace('%%username%%', username));
             }
             // Return early if we can get the right keys on the first try
             return;

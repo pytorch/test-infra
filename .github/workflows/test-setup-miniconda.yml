@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/test-setup-miniconda.yml
+      - .github/actions/check-disk-space/*
       - .github/actions/setup-miniconda/*
 
 jobs:
@@ -42,6 +43,9 @@ jobs:
       PYTHON_VERSION: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v3
+
+      - name: Get disk space usage and throw an error for low disk space
+        uses: ./.github/actions/check-disk-space
 
       - name: Test that setup-miniconda works
         uses: ./.github/actions/setup-miniconda

@@ -4,7 +4,11 @@ import { CommitData, JobData } from "lib/types";
 import WorkflowBox from "./WorkflowBox";
 import styles from "components/commit.module.css";
 import _ from "lodash";
-import { isFailedJob } from "lib/jobUtils";
+import {
+  isFailedJob,
+  isRerunDisabledTestsJob,
+  isUnstableJob,
+} from "lib/jobUtils";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import useScrollTo from "lib/useScrollTo";
@@ -72,8 +76,22 @@ export default function CommitStatus({
       <FilteredJobList
         filterName="Failed jobs"
         jobs={jobs}
-        pred={isFailedJob}
+        pred={(job) =>
+          isFailedJob(job) &&
+          !isRerunDisabledTestsJob(job) &&
+          !isUnstableJob(job)
+        }
         showClassification
+      />
+      <FilteredJobList
+        filterName="Failed unstable jobs"
+        jobs={jobs}
+        pred={(job) => isFailedJob(job) && isUnstableJob(job)}
+      />
+      <FilteredJobList
+        filterName="Daily rerunning disabled jobs"
+        jobs={jobs}
+        pred={(job) => isFailedJob(job) && isRerunDisabledTestsJob(job)}
       />
       <FilteredJobList
         filterName="Pending jobs"

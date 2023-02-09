@@ -16,10 +16,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: linux.12xlarge
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build docker image
         run: |
           set -ex
@@ -42,8 +42,12 @@ jobs:
         with:
           name: clang-tidy
           if-no-files-found: error
-          s3-prefix: linux64
+          s3-prefix: linux64/15.0.6
           s3-bucket: oss-clang-format
           path: clang-tidy
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true

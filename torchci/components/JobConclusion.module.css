@@ -47,3 +47,7 @@
 .flaky {
   color: lightgreen;
 }
+
+.warning {
+  color: #F8B88B;
+}

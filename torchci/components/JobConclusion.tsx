@@ -6,12 +6,16 @@ export default function JobConclusion({
   conclusion,
   classified = false,
   failedPreviousRun = false,
+  warningOnly = false,
 }: {
   conclusion?: string;
   classified?: boolean;
   failedPreviousRun?: boolean;
+  warningOnly?: boolean;
 }) {
-  const style = classified
+  const style = warningOnly
+    ? styles["warning"]
+    : classified
     ? styles["classified"]
     : conclusion == JobStatus.Success && failedPreviousRun
     ? styles["flaky"]

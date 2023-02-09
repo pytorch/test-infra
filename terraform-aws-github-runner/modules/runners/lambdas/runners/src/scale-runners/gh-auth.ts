@@ -1,13 +1,14 @@
 import { Config } from './config';
 import LRU from 'lru-cache';
+import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { OctokitOptions } from '@octokit/core/dist-types/types';
 import { SecretsManager } from 'aws-sdk';
 import { StrategyOptions } from '@octokit/auth-app/dist-types/types';
 import { createAppAuth } from '@octokit/auth-app';
 import { decrypt } from './kms';
+import { expBackOff } from './utils';
 import { request } from '@octokit/request';
-import { Metrics } from './metrics';
 
 export interface GithubCredentials {
   github_app_key_base64: string;
@@ -31,13 +32,16 @@ async function getCredentialsFromSecretsManager(
 
     if (secret === undefined) {
       const secretsManager = new SecretsManager();
-      const data = await metrics.trackRequest(
-        metrics.smGetSecretValueAWSCallSuccess,
-        metrics.smGetSecretValueAWSCallFailure,
-        () => {
-          return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
-        },
-      );
+      const data = await expBackOff(() => {
+        return metrics.trackRequest(
+          metrics.smGetSecretValueAWSCallSuccess,
+          metrics.smGetSecretValueAWSCallFailure,
+          () => {
+            return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
+          },
+        );
+      });
+
       if (data.SecretString === undefined) {
         throw Error('Issue grabbing secret');
       }
@@ -132,13 +136,11 @@ export async function createGithubAuth(
       });
     }
 
-    const auth = await metrics.trackRequest(
-      metrics.createAppAuthGHCallSuccess,
-      metrics.createAppAuthGHCallFailure,
-      () => {
+    const auth = await expBackOff(() => {
+      return metrics.trackRequest(metrics.createAppAuthGHCallSuccess, metrics.createAppAuthGHCallFailure, () => {
         return createAppAuth(authOptions)({ type: authType });
-      },
-    );
+      });
+    });
 
     let tokenDisplayInfo = '';
     if (auth.type !== undefined) tokenDisplayInfo += ` Type: ${auth.type}`;

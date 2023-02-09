@@ -3,6 +3,20 @@ import { promises as fs } from "fs";
 import dotenv from "dotenv";
 import path from "path";
 import _ from "lodash";
+import { request } from "urllib";
+
+async function getTestTimes(numRetries = 3) {
+  for (let i = 0; i < numRetries; i++) {
+    let result = await request(
+      "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
+    );
+
+    if (result.res.statusCode == 200) {
+      return JSON.parse(result.data);
+    }
+  }
+  throw new Error("failed to retrieve old test times")
+}
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -29,13 +43,13 @@ const periodic = await client.queryLambdas.executeQueryLambda(
   {}
 );
 
-let ret = {};
+let testTimes = await getTestTimes();
 for (const row of periodic.results.concat(response.results)) {
   _.set(
-    ret,
+    testTimes,
     `["${row.base_name}"]["${row.test_config}"]["${row.file}"]`,
     row.time
   );
 }
 
-process.stdout.write(JSON.stringify(ret, null, 2));
+process.stdout.write(JSON.stringify(testTimes, null, 2));

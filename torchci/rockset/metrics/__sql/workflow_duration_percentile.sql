@@ -4,7 +4,7 @@ SELECT
 FROM (
     SELECT
     	tts.*,
-    	PERCENT_RANK() OVER (ORDER BY duration_sec DESC) AS percentile
+    	PERCENT_RANK() OVER (PARTITION BY name ORDER BY duration_sec DESC) AS percentile
     FROM (
     	SELECT
         	DATE_DIFF(
@@ -17,7 +17,7 @@ FROM (
         	commons.workflow_run workflow
     	WHERE
     		conclusion = 'success'
-        	AND workflow.name = :name
+            AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         	AND workflow._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         	AND workflow._event_time < PARSE_DATETIME_ISO8601(:stopTime)
             AND workflow.run_attempt = 1

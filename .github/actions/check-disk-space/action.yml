@@ -1,0 +1,78 @@
+name: Check and clean up the runner disk space
+
+description: |
+  Checking for remaining space works for Linux and MacOS. Cleaning up the volume
+  is only supported in MacOS (pet instances)
+
+inputs:
+  minimum-available-space-in-gb:
+    description: If set to any value, ensure that there is that number of GB left before continue
+    required: false
+    type: number
+    default: 6
+
+runs:
+  using: composite
+  steps:
+    - name: Get disk space usage and throw an error for low disk space
+      shell: bash
+      env:
+        MINIMUM_AVAILABLE_SPACE_IN_GB: ${{ inputs.minimum-available-space-in-gb }}
+      run: |
+        echo "Print the available disk space for manual inspection"
+        df -h
+
+        function check_disk_space() {
+          set +e
+
+          # Set the minimum requirement space to 4GB
+          MINIMUM_AVAILABLE_SPACE_IN_KB=$(($MINIMUM_AVAILABLE_SPACE_IN_GB * 1024 * 1024))
+
+          # Use KB to avoid floating point warning like 3.1GB
+          df -k | tr -s ' ' | cut -d' ' -f 4,9 | while read -r LINE;
+          do
+            AVAIL=$(echo $LINE | cut -f1 -d' ')
+            MOUNT=$(echo $LINE | cut -f2 -d' ')
+
+            if [ "${MOUNT}" = "/" ]; then
+              if [ "${AVAIL}" -lt "${MINIMUM_AVAILABLE_SPACE_IN_KB}" ]; then
+                echo "Failure: There is only ${AVAIL}KB free space left in ${MOUNT}, which is less than the minimum requirement of ${MINIMUM_AVAILABLE_SPACE_IN_KB}KB for ${RUNNER_OS}"
+              else
+                echo "Success: There is ${AVAIL}KB free space left in ${MOUNT} for ${RUNNER_OS}, continue"
+              fi
+            fi
+          done
+
+          set -e
+        }
+
+        RESULT=$(check_disk_space)
+        echo "${RESULT}"
+
+        if [[ "${RESULT}" == *Failure* && "${RUNNER_OS}" == "macOS" ]]; then
+          # We can clean up /System/Library/Caches/com.apple.coresymbolicationd on MacOS to free up the space and this should free up enough space
+          # https://github.com/pytorch/pytorch/issues/85440
+          sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data" || true
+          # Stop the daemon and launchctl will automatically start it again, thus accomplish a restart and free up the above file
+          sudo launchctl stop com.apple.coresymbolicationd || true
+
+          # Also try to clean up torch.hub caching directory
+          rm -rf "${HOME}/.cache/torch/hub" || true
+
+          # Purge conda
+          conda clean -p -t -y || true
+          # and pip cache
+          pip cache purge || true
+
+          echo "Re-run disk space check for ${RUNNER_OS} after cleaning up"
+          # Re-run the check
+          RESULT=$(check_disk_space)
+          echo "${RESULT}"
+        fi
+
+        if [[ "${RESULT}" == *Failure* ]]; then
+          df -h
+
+          echo "Please help create an issue to PyTorch Release Engineering via https://github.com/pytorch/test-infra/issues and provide the link to the workflow run."
+          exit 1
+        fi

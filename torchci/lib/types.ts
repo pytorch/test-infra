@@ -67,6 +67,7 @@ export interface IssueData {
   html_url: string;
   state: "open" | "closed";
   body: string;
+  updated_at: string;
 }
 
 export interface HudParams {
@@ -76,6 +77,8 @@ export interface HudParams {
   page: number;
   per_page: number;
   nameFilter?: string;
+  filter_reruns: boolean;
+  filter_unstable: boolean;
 }
 
 export interface PRData {
@@ -87,6 +90,7 @@ export interface FlakyTestData {
   file: string;
   suite: string;
   name: string;
+  invoking_file: string;
   numGreen?: number;
   numRed?: number;
   workflowIds: string[];
@@ -97,7 +101,18 @@ export interface FlakyTestData {
   eventTimes?: string[];
 }
 
+export interface DisabledNonFlakyTestData {
+  name: string;
+  classname: string;
+  filename: string;
+  flaky: boolean;
+  num_green: number;
+  num_red: number;
+}
+
 export interface RecentWorkflowsData {
+  // only included in this is a job and not a workflow, if it is a workflow, the name is in the name field
+  workflow_id?: string;
   id: string;
   name: string;
   conclusion: string | null;
@@ -105,6 +120,7 @@ export interface RecentWorkflowsData {
   html_url: string;
   head_sha: string;
   pr_number?: number;
+  failure_captures: string[];
 }
 
 export interface TTSChange {
@@ -124,6 +140,8 @@ export function packHudParams(input: any) {
     page: parseInt((input.page as string) ?? 1),
     per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
+    filter_reruns: input.filter_reruns ?? false as boolean,
+    filter_unstable: input.filter_unstable ?? false as boolean,
   };
 }
 
@@ -151,6 +169,14 @@ function formatHudURL(
   }/${encodeURIComponent(params.branch)}/${params.page}`;
 
   base += `?per_page=${params.per_page}`;
+
+  if (params.filter_reruns) {
+    base += `&filter_reruns=true`
+  }
+
+  if (params.filter_unstable) {
+    base += `&filter_unstable=true`
+  }
 
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;

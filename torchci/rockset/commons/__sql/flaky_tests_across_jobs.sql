@@ -25,7 +25,6 @@ with failed_jobs as (
         w.head_branch,
         w.name as workflow_name,
         w.run_attempt as workflow_run_attempt,
-        job._event_time as event_time
     from
         commons.workflow_job job
         join commons.workflow_run w on w.id = job.run_id
@@ -58,12 +57,14 @@ flaky_tests as (
         test_run.name,
         test_run.file,
         test_run.classname,
+        test_run.invoking_file,
         *,
         if (
             test_run.failure is null,
             test_run.error.message,
             test_run.failure.message
-        ) as failure_or_err_message
+        ) as failure_or_err_message,
+        test_run._event_time as event_time
     from
         test_run_s3 test_run
         join flaky_jobs job on test_run.job_id = job.id
@@ -81,6 +82,7 @@ select
     name,
     classname as suite,
     file,
+    invoking_file,
     ARRAY_AGG(jobname) as jobNames,
     ARRAY_AGG(id) as jobIds,
     ARRAY_AGG(workflow_id) as workflowIds,
@@ -95,8 +97,7 @@ where
 group by
     name,
     file,
-    classname
-having
-    count(*) > :threshold
+    classname,
+    invoking_file
 order by
     name

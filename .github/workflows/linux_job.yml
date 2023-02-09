@@ -27,6 +27,10 @@ on:
         description: 'Repository to checkout, defaults to ""'
         default: ""
         type: string
+      fetch-depth:
+        description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
+        default: 1
+        type: number
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
         default: ""
@@ -59,6 +63,11 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      binary-matrix:
+        description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
+        required: false
+        default: ''
+        type: string
 
 jobs:
   job:
@@ -113,6 +122,7 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
+          fetch-depth: ${{ inputs.fetch-depth }}
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
@@ -121,10 +131,18 @@ jobs:
           name: ${{ inputs.download-artifact }}
           path: ${{ runner.temp }}/artifacts/
 
+      - name: Export matrix variables (if any)
+        uses: ./test-infra/.github/actions/export-matrix-variables
+        if: ${{ inputs.binary-matrix != '' }}
+        with:
+          binary-matrix: ${{ inputs.binary-matrix }}
+          target-os: "linux"
+
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
+          set -ex
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
@@ -149,6 +167,7 @@ jobs:
             --ulimit stack=10485760:83886080 \
             ${GPU_FLAG:-} \
             -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
+            -v "${GITHUB_WORKSPACE}/test-infra:/test-infra" \
             -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
             -v "${RUNNER_TEMP}/exec_script:/exec" \
             -v "${GITHUB_STEP_SUMMARY}":"${GITHUB_STEP_SUMMARY}" \

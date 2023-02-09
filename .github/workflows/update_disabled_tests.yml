@@ -12,11 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install some python dependencies
         run: |
-          python3 -mpip install rockset==0.8.3
+          python3 -mpip install rockset==1.0.3
 
       - name: Generate new disabled test json
         env:

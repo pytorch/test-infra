@@ -109,6 +109,7 @@ export async function listRunners(
               org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
               repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
               runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
+              instanceManagement: instance.Tags?.find((e) => e.Key == 'InstanceManagement')?.Value,
             })) ?? []
           );
         }) ?? []
@@ -291,6 +292,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
     ];
+    /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
       tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
     }

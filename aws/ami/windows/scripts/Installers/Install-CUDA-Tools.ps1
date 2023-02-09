@@ -28,7 +28,7 @@ Switch ($cudaVersion) {
   }
   "11.8" {
     $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
+    $cudnn_subfolder = "cudnn-windows-x86_64-8.7.0.84_cuda11-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion"
   }
 }
@@ -96,7 +96,11 @@ function Install-Cudnn() {
   Write-Output "Copying cudnn to $expectedInstallLocation"
 
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
-  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  if ($cudaVersion -eq "11.8") {
+    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
+  } else {
+    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  }
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
 
   if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {

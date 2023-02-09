@@ -39,7 +39,20 @@ following resources:
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Developing Probot
+## Testing
+To run tests first make sure you're in the `torchci` folder and then:
+
+- To run all tests: 
+  - `yarn test`
+- To run all tests in a specific file:
+  - `yarn test <path-to-file>`
+  - e.g. `yarn test test/autoLabelBot.test.ts`
+- To run a specific test in a specific file:
+  - `yarn test <path-to-file> -t "<part-of-test-name>"`
+  - e.g. `yarn test test/autoLabelBot.test.ts -t "triage"`
+  - Note: This will run all tests that contain the string you entered
+
+### Testing Probot
 
 The easiest way to develop probot actions is to use `nock` to mock out
 interactions with the GitHub API and develop completely locally. If you _do_
@@ -83,21 +96,24 @@ console.
 
 1. Edit the query on console.rockset.com.
 2. Save the query, creating a new version.
-3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`.
-4. Update `rockset/prodVersion.json` with the new version of the lambda.
+3. Download the query with `yarn node scripts/downloadQueryLambda.mjs <workspace> <queryname> <version>`. (You can skip `<version>` if you want the latest version).
 
+This will autoupdate sql and lambda files in the `rockset/<workspace>` dir and the version in `rockset/prodVersion.json`.
 
-### Alerts
+## Alerts
 
 The scripts/check_alerts.py queries HUD, filters out pending jobs, and then checks to see if there are 2 consecutive
 SHAs that have the same failing job. If it does, it will either create a new Github Issue or update the existing
 Github Issue.
 
-Once the issue is created, internal webhooks create a task out of the issue. Then a [butterfly bot
-rule](https://www.internalfb.com/butterfly/rule/5455687371213466) will trigger to assign the task to 
-the oncall and update it to a UBN so that it alerts the current oncall.
+A Meta internal Butterfly bot rule will trigger when the task is created or updated to assign the task to the oncall to notify the DevX team.
 
-### Modifying Deployment Settings
+Butterfly bot links:
+- [When a new alert is created](https://www.internalfb.com/butterfly/rule/5455687371213466)
+- [When pytorch/pytorch failures are edited](https://www.internalfb.com/butterfly/rule/2024866984357962)
+- [When flaky test detector bot alerts are edited](https://www.internalfb.com/butterfly/rule/741489054164977)
+
+## Modifying Deployment Settings
 
 If you ever need to modify the deployment settings like the oauth callbacks, domain names, there's a few places that you need to change these settings in. Here's a list:
 1. [DNS Registry/Certificates](https://fb.workplace.com/groups/osssupport) (Contact the the OSS team)

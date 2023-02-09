@@ -1,6 +1,6 @@
 import { Label } from "@octokit/webhooks-types";
 import { Probot } from "probot";
-import { addLabels } from "./botUtils";
+import { addLabels } from "./utils";
 
 function containsLabel(labels: Label[], labelName: string) {
   return labels.filter((label) => label.name === labelName).length > 0;

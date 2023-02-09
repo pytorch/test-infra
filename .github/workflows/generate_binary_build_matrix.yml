@@ -31,6 +31,10 @@ on:
         description: "Include Python 3.11"
         default: "disable"
         type: string
+      limit-win-builds:
+        description: "Limit windows builds to single python/cuda config"
+        default: "disable"
+        type: string
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -58,6 +62,7 @@ jobs:
           CHANNEL: ${{ inputs.channel }}
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_PY311: ${{ inputs.with-py311 }}
+          LIMIT_WIN_BUILDS: ${{ inputs.limit-win-builds }}
         run: |
           set -eou pipefail
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"

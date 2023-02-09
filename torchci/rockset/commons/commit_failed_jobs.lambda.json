@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/commit_failed_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "shas",
+      "type": "string",
+      "value": "a580a63448bf39c3a9783919c335990abe9e49be"
+    }
+  ],
+  "description": ""
+}

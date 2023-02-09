@@ -1,14 +1,21 @@
-from unittest import TestCase, main
 from datetime import datetime
-from check_alerts import (
-    JobStatus,
-    handle_flaky_tests_alert,
-    generate_no_flaky_tests_issue,
-)
+from unittest import main, TestCase
 from unittest.mock import patch
+
+from check_alerts import (
+    filter_job_names,
+    gen_update_comment,
+    generate_no_flaky_tests_issue,
+    handle_flaky_tests_alert,
+    JobStatus,
+)
 
 
 job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
+disabled_job_names = [
+    "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
+    "unstable / linux-bionic-py3_7-clang8-xla / test (xla, 1, 1, linux.4xlarge)",
+]
 test_data = [
     {
         "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
@@ -57,6 +64,30 @@ class TestGitHubPR(TestCase):
         )
         self.assertFalse(status.should_alert())
 
+    # No need to send alerts for some jobs
+    def test_disabled_alert(self) -> None:
+        for job_name in disabled_job_names:
+            status = JobStatus(job_name, [{}] + [{}] + test_data)
+            self.assertFalse(status.should_alert())
+
+    def test_update_comment_empty(self):
+        jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertFalse(update_comment)
+
+        jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertTrue("started failing" in update_comment)
+        self.assertTrue("job2" in update_comment)
+
+        jobs = [JobStatus("job1", [{}])]
+        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        update_comment = gen_update_comment(body, jobs)
+        self.assertTrue("stopped failing" in update_comment)
+        self.assertTrue("job2" in update_comment)
+
     def test_generate_no_flaky_tests_issue(self):
         issue = generate_no_flaky_tests_issue()
         self.assertListEqual(issue["labels"], ["no-flaky-tests-alert"])
@@ -95,6 +126,36 @@ class TestGitHubPR(TestCase):
         mock_get_num_issues_with_label.return_value = 0
         res = handle_flaky_tests_alert(existing_alerts)
         self.assertDictEqual(res, mock_issue)
+
+    # test filter job names
+    def test_job_filter(self):
+        job_names = ["pytorch_linux_xenial_py3_6_gcc5_4_test", "pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+        self.assertListEqual(
+            filter_job_names(job_names, ""),
+            job_names,
+            "empty regex should match all jobs"
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*"),
+            job_names
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*"),
+            job_names
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*test2"),
+            ["pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+        )
+        self.assertListEqual(
+            filter_job_names(job_names, ".*xenial.*test3"),
+            []
+        )
+        self.assertRaises(
+            Exception,
+            lambda: filter_job_names(job_names, "["),
+            msg="malformed regex should throw exception"
+        )
 
 
 if __name__ == "__main__":

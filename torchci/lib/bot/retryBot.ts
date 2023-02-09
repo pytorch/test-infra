@@ -16,7 +16,10 @@ function retryBot(app: Probot): void {
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
-      ctx.payload.workflow_run.head_branch !== "master" ||
+      (
+        ctx.payload.workflow_run.conclusion === "cancelled" &&
+        ctx.payload.workflow_run.head_branch !== "master"
+      ) ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
@@ -54,27 +57,45 @@ function retryBot(app: Probot): void {
       // or a widespread outage that wouldn't be helped by retries
       return;
     }
+
+    // @ts-expect-error - we don't have types for these
+    let doesLookLikeUserFailure = (job, isCodeValiationStep: (step: any) => boolean) => {
+      // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
+      return job.steps?.filter(
+        // @ts-expect-error
+        (step) =>
+          step.conclusion !== null &&
+          FAILURE_CONCLUSIONS.includes(step.conclusion) &&
+          isCodeValiationStep(step) 
+      ).length > 0
+    }
+
     const shouldRetry = failedJobs.filter((job) => {
-      // always rerun lint
-      if (workflowName === "lint") {
+      // If the job was cancelled on master, it was probably an infra error, so rerun.
+      // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
+      // Would be good to fine tune this further for non-master branches to differentiate between.
+      // retryable and nonretryable cancellations
+      if (job.conclusion === "cancelled" &&
+          ctx.payload.workflow_run.head_branch === "master") {
         return true;
       }
-      // if the job was cancelled, it was probably an infra error, so rerun
-      if (job.conclusion === "cancelled") {
-        return true;
+
+      // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
+      if (workflowName.toLocaleLowerCase() === "lint") {
+          return !doesLookLikeUserFailure(job, step => step.name.toLowerCase().includes("(nonretryable)"))
       }
+
+      // for builds, don't rerun if it failed on the actual build step
+      if (job.name.toLocaleLowerCase().startsWith("build") &&
+          doesLookLikeUserFailure(job, step => step.name.toLowerCase().startsWith("build"))){
+          // we continue our retry checks even if this test passes in case this is a build-and-test job
+          return false
+      }
+
       // if no test steps failed, can rerun
-      if (
-        job.steps?.filter(
-          (step) =>
-            step.conclusion !== null &&
-            step.name.toLowerCase().includes("test") &&
-            FAILURE_CONCLUSIONS.includes(step.conclusion)
-        ).length === 0
-      ) {
-        return true;
-      }
+      return !doesLookLikeUserFailure(job, step => step.name.toLowerCase().includes("test"))
     });
+    
     if (shouldRetry.length === 0) {
       return;
     }
