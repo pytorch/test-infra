@@ -149,6 +149,13 @@
       "linux"
     ]
   ],
+  "test_backward_masked_cumprod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94476",
+    "https://github.com/pytorch/pytorch/issues/94476",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
