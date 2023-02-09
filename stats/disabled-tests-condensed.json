@@ -956,16 +956,16 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
+  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93049",
+    "https://github.com/pytorch/pytorch/issues/93049",
     [
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
+  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94508",
+    "https://github.com/pytorch/pytorch/issues/94508",
     [
       "linux"
     ]
@@ -1089,13 +1089,6 @@
       "linux"
     ]
   ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
-    [
-      "linux"
-    ]
-  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1125,13 +1118,6 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
-    [
-      "linux"
-    ]
-  ],
-  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93064",
-    "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
     ]
