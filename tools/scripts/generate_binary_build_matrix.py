@@ -362,7 +362,7 @@ def generate_wheels_matrix(
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-        if with_py311 == ENABLE and channel != "release":
+        if with_py311 == ENABLE and channel == "test":
             python_versions += ["3.11"]
 
     upload_to_base_bucket = "yes"
