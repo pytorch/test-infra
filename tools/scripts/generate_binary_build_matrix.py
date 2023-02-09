@@ -277,8 +277,7 @@ def generate_libtorch_matrix(
                 arches += mod.CUDA_ARCHES
                 arches += mod.ROCM_ARCHES
             elif os == "windows":
-                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+                arches += mod.CUDA_ARCHES
 
     if abi_versions is None:
         if os == "windows":
@@ -346,7 +345,6 @@ def generate_wheels_matrix(
     os: str,
     channel: str,
     with_cuda: str,
-    with_py311: str,
     limit_win_builds: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
@@ -362,8 +360,6 @@ def generate_wheels_matrix(
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-        if with_py311 == ENABLE and channel == "test":
-            python_versions += ["3.11"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -375,8 +371,7 @@ def generate_wheels_matrix(
             if os == "linux":
                 arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
             elif os == "windows":
-                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+                arches += mod.CUDA_ARCHES
 
     if (os == "windows" and limit_win_builds == ENABLE):
         python_versions = [ python_versions[0] ]
@@ -446,13 +441,6 @@ def main(args) -> None:
         default=os.getenv("WITH_CUDA", ENABLE),
     )
     parser.add_argument(
-        "--with-py311",
-        help="Include Python 3.11 builds",
-        type=str,
-        choices=[ENABLE, DISABLE],
-        default=os.getenv("WITH_PY311", DISABLE),
-    )
-    parser.add_argument(
         "--limit-win-builds",
         help="Limit windows builds to single python/cuda config",
         type=str,
@@ -479,7 +467,6 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.with_py311,
                                                                 options.limit_win_builds)
                     )
             else:
