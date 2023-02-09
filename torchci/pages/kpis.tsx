@@ -59,6 +59,7 @@ export default function Kpis() {
                 timeFieldName={"bucket"}
                 yAxisFieldName={"num"}
                 yAxisRenderer={(unit) => `${unit}`}
+                groupByFieldName={"code"}
                 />
             </Grid>
 
