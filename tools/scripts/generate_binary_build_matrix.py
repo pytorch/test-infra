@@ -30,10 +30,10 @@ CUDA_ARCHES_DICT = {
     "test": ["11.6", "11.7"],
     "release": ["11.6", "11.7"],
 }
-ROCM_ACRHES_DICT = {
+ROCM_ARCHES_DICT = {
     "nightly": ["5.3", "5.4.2"],
-    "test": ["5.2", "5.3"],
-    "release": ["5.2", "5.3"],
+    "test": ["5.1.1", "5.2"],
+    "release": ["5.1.1", "5.2"],
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
