@@ -36,4 +36,4 @@ jobs:
             conda install -yq anaconda-client
             pwd
             ls
-            bash ./github/scripts/anaconda-prune/run.sh
+            bash ./.github/scripts/anaconda-prune/run.sh
