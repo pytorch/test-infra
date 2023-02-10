@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: pytorch/test-infra
-          ref: main
+          ref: ${{ github.ref }}
       - name: Prune binaries
         env:
           CHANNEl: ${{ inputs.channel }}
@@ -34,6 +34,4 @@ jobs:
         run: |
             set -ex
             conda install -yq anaconda-client
-            pwd
-            ls .
-            bash ./tools/scripts/anaconda-prune/run.sh
+            bash ./.github/scripts/anaconda-prune/run.sh
