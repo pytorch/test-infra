@@ -110,6 +110,11 @@ runs:
             echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
           fi
 
+          CONDA_EXTRA_FLAGS=""
+          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
+            CONDA_EXTRA_FLAGS=" -c pytorch-nightly"
+          fi
+
           conda create \
             --yes \
             --prefix "${CONDA_BASE_ENV}" \
@@ -118,7 +123,8 @@ runs:
             cmake=3.22 \
             ninja=1.10 \
             pkg-config=0.29 \
-            wheel=0.37
+            wheel=0.37 \
+            ${CONDA_EXTRA_FLAGS}
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
             conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
@@ -140,4 +146,9 @@ runs:
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
-          echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
+            # TODO: Remove me, when more packages will be available on default channel
+            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
+          else
+            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          fi
