@@ -1,7 +1,10 @@
-conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION} numpy
+conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
 conda activate ${ENV_NAME}
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchvision}"
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchaudio}"
+if [[ ${MATRIX_PACKAGE_TYPE} = "conda" ]]; then
+    export MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
+fi
 eval $MATRIX_INSTALLATION
 
 export PYTORCH_PIP_PREFIX=""
