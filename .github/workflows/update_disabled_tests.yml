@@ -6,6 +6,7 @@ on:
     - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
+  push:
 
 jobs:
   update-disabled-tests:
@@ -43,7 +44,9 @@ jobs:
           commit_message: "Updating condensed disabled tests stats"
 
       - name: Upload file to s3
-        run: python3 .github/scripts/upload_to_s3.py "disabled-tests-condensed.json"
+        run:
+          python3 -mpip install awscli==1.27.69
+          aws s3 cp "disabled-tests-condensed.json" s3://ossci-metrics/disabled-tests-condensed.json
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
