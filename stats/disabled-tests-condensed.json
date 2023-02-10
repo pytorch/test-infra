@@ -594,11 +594,6 @@
       "linux"
     ]
   ],
-  "test_dispatch_meta_outplace_fft_fft_cuda_float64 (__main__.TestMetaCUDA)": [
-    "88692",
-    "https://github.com/pytorch/pytorch/issues/88692",
-    []
-  ],
   "test_dispatch_meta_outplace_fft_ifft_cuda_float64 (__main__.TestMetaCUDA)": [
     "89156",
     "https://github.com/pytorch/pytorch/issues/89156",
@@ -1305,13 +1300,6 @@
       "linux"
     ]
   ],
-  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
-    "89545",
-    "https://github.com/pytorch/pytorch/issues/89545",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
@@ -1549,6 +1537,13 @@
     "https://github.com/pytorch/pytorch/issues/71195",
     [
       "mac"
+    ]
+  ],
+  "test_serialization_2gb_file (__main__.TestSerialization)": [
+    "92746",
+    "https://github.com/pytorch/pytorch/issues/92746",
+    [
+      "linux"
     ]
   ],
   "test_shuffle (__main__.TestDataLoader2)": [
