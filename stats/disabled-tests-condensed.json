@@ -653,6 +653,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_op_db_linalg_solve_ex_cpu_float32 (__main__.TestDTensorOpsCPU)": [
+    "94559",
+    "https://github.com/pytorch/pytorch/issues/94559",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
