@@ -100,6 +100,7 @@ export function seriesWithInterpolatedTimes(
       emphasis: {
         focus: "series",
       },
+      smooth: true,
     };
   });
 }
