@@ -19,7 +19,8 @@
     "reverted_prs_with_reason": "751f01cba16364f0",
     "unclassified": "1b31a2d8f4ab7230",
     "test_insights_overview": "c9be5cbdda1030af",
-    "test_insights_latest_runs": "aa6c15c6d52860b2"
+    "test_insights_latest_runs": "aa6c15c6d52860b2",
+    "master_commit_red_jobs": "1c1772d77c997259"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "fd6e5a4fae7ef012",
