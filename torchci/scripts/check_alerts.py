@@ -4,11 +4,9 @@ import os
 import re
 import urllib.parse
 from collections import defaultdict
-from curses.ascii import CAN
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
-from email.policy import default
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 from setuptools import distutils  # type: ignore[import]
 
 import requests
@@ -400,11 +398,18 @@ def trunk_is_green(sha_grid: Any):
     return first_green_sha_ind < first_red_sha_ind
 
 
-# Creates Job Statuses which has the logic for if need to alert or if there's flaky jobs
 def classify_jobs(
-    job_names: List[str], sha_grid: Any
+    all_job_names: List[str], sha_grid: Any, filtered_jobs_names: Set[str]
 ) -> Tuple[List[JobStatus], List[Any]]:
-    job_data = map_job_data(job_names, sha_grid)
+    """
+    Creates Job Statuses which has the logic for if need to alert or if there's flaky jobs.
+    Classifies jobs into jobs to alert on and flaky jobs.
+    :param all_job_names: list of all job names as returned by the HUD
+    :param sha_grid: list of all job data as returned by the HUD (parallel index to all_job_names)
+    :param filtered_jobs_names: set of job names to actually consider
+    :return:
+    """
+    job_data = map_job_data(all_job_names, sha_grid)
     job_statuses: list[JobStatus] = []
     for job in job_data:
         job_statuses.append(JobStatus(job, job_data[job]))
@@ -413,10 +418,13 @@ def classify_jobs(
     flaky_jobs = []
 
     for job_status in job_statuses:
+        if job_status.job_name not in filtered_jobs_names:
+            continue
         if job_status.should_alert():
             jobs_to_alert_on.append(job_status)
         flaky_jobs.extend(job_status.flaky_jobs)
-    return (jobs_to_alert_on, flaky_jobs)
+
+    return jobs_to_alert_on, flaky_jobs
 
 
 def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
@@ -453,8 +461,8 @@ def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
 
 def check_for_recurrently_failing_jobs_alert(repo: str, branch: str, job_name_regex: str, dry_run: bool):
     job_names, sha_grid = fetch_hud_data(repo=repo, branch=branch)
-    job_names = filter_job_names(job_names, job_name_regex)
-    (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid)
+    filtered_job_names = set(filter_job_names(job_names, job_name_regex))
+    (jobs_to_alert_on, flaky_jobs) = classify_jobs(job_names, sha_grid, filtered_job_names)
 
     # Fetch alerts
     existing_alerts = fetch_alerts(TEST_INFRA_REPO_NAME, PYTORCH_ALERT_LABEL)
