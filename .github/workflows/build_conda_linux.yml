@@ -194,9 +194,13 @@ jobs:
             conda install 'ffmpeg<5'
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+<<<<<<< HEAD
           conda deactivate
           conda env remove -p ${CONDA_RUN_SMOKE}
 
+=======
+          conda env remove -n "${CONDA_ENV_SMOKE}"
+>>>>>>> f1457a5f (fix lint)
       - name: Upload package to conda
         if: ${{ inputs.trigger-event == 'push' }}
         working-directory: ${{ inputs.repository }}
