@@ -31,3 +31,10 @@ jobs:
           user_email: 'test-infra@pytorch.org'
           user_name: 'PyTorch Test Infra'
           commit_message: 'Updating slow tests stats'
+      - name: Upload file to s3
+        run: |
+          python3 -mpip install boto3==1.19.12
+          python3 ../.github/scripts/upload_to_s3.py "slow-tests.json"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
