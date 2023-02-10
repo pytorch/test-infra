@@ -19,7 +19,7 @@ jobs:
         # Only testing minimum and maximum versions here
         python-version:
           - "3.8"
-          - "3.10"
+          - "3.11"
         env-file:
           - ""
           - "./.github/workflows/test-setup-miniconda-env-file"
