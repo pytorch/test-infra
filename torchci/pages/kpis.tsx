@@ -109,21 +109,6 @@ export default function Kpis() {
                 additionalOptions={{ yAxis: { max: 7 } }}
               />
             </Grid>
-            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-              <TimeSeriesPanel
-                title={"viable/strict Lag (Per Commit)"}
-                queryName={"strict_lag_historical"}
-                queryCollection={"pytorch_dev_infra_kpis"}
-                queryParams={[...timeParams]}
-                granularity={"minute"}
-                timeFieldName={"push_time"}
-                yAxisFieldName={"diff_hr"}
-                yAxisLabel={"Hours"}
-                yAxisRenderer={(unit) => `${unit}`}
-                // the data is very variable, so set the y axis to be something that makes this chart a bit easier to read
-                additionalOptions={{ yAxis: { max: 7 } }}
-              />
-            </Grid>
         </Grid>
     );
 }
