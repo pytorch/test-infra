@@ -183,7 +183,7 @@ jobs:
 
           if [[ "${{ inputs.package-name }}" = "torchvision" ]]; then
               ${CONDA_RUN_SMOKE} conda install -y 'numpy>=1.11'
-              ${CONDA_RUN_SMOKE} conda install pillow
+              ${CONDA_RUN_SMOKE} conda install pillow requests
           fi
           if [[ "${{ inputs.package-name }}" = "torchdata" ]]; then
               ${CONDA_RUN_SMOKE} conda install -y portalocker>=2.0.0
@@ -195,7 +195,7 @@ jobs:
             ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" pytorch cpuonly
           fi
 
-          ${CONDA_RUN_SMOKE} conda install "$BINARY_NAME"
+          ${CONDA_RUN_SMOKE} conda install --use-local "$BINARY_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
