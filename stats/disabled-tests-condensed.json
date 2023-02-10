@@ -279,13 +279,6 @@
     "https://github.com/pytorch/pytorch/issues/71349",
     []
   ],
-  "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
-    "89395",
-    "https://github.com/pytorch/pytorch/issues/89395",
-    [
-      "dynamo"
-    ]
-  ],
   "test_complex_half_reference_testing_as_strided_scatter_cuda_complex32 (__main__.TestCommonCUDA)": [
     "78205",
     "https://github.com/pytorch/pytorch/issues/78205",
@@ -375,13 +368,6 @@
     "https://github.com/pytorch/pytorch/issues/79750",
     [
       "linux"
-    ]
-  ],
-  "test_cycle_lr_removed_after_out_of_scope (__main__.TestLRScheduler)": [
-    "87748",
-    "https://github.com/pytorch/pytorch/issues/87748",
-    [
-      "dynamo"
     ]
   ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
