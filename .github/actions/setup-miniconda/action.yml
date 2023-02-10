@@ -138,10 +138,6 @@ runs:
             --prefix "${CONDA_ENV}" \
             --clone "${CONDA_BASE_ENV}"
 
-          # TODO: conda-build could not be cloned because it hardcodes the path, so it
-          # could not be cached
-          conda install --yes -p ${CONDA_ENV} conda-build=3.21
-
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
           echo "CONDA_BUILD=conda run -p ${CONDA_ENV} conda-build" >> "${GITHUB_ENV}"
