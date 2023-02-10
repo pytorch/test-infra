@@ -44,7 +44,7 @@ jobs:
           commit_message: "Updating condensed disabled tests stats"
 
       - name: Upload file to s3
-        run:
+        run: |
           python3 -mpip install awscli==1.27.69
           aws s3 cp "disabled-tests-condensed.json" s3://ossci-metrics/disabled-tests-condensed.json
         env:
