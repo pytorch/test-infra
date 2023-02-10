@@ -1,6 +1,6 @@
 # setup-miniconda
 
-Sets up miniconda in your `${RUNNER_TEMP}` environment and gives you the `${CONDA_RUN}` environment variable so you don't have to worry about polluting non-empeheral runners anymore
+Sets up miniconda in your `${RUNNER_TEMP}` environment and gives you the `${CONDA_RUN}` environment variable so you don't have to worry about polluting non-empeheral runners anymore. Intended to be used for CI, rather than binary builds (specifically it does not install `conda-build`)
 
 ## Supported platforms
 
@@ -13,7 +13,6 @@ Sets up miniconda in your `${RUNNER_TEMP}` environment and gives you the `${COND
 This action provides the following environment variables to use with the provided conda environment:
 
 * `CONDA_RUN` to run specific commands (including python within the environment)
-* `CONDA_BUILD` to run conda-build from the created environment
 * `CONDA_INSTALL` to install extra dependencies within the provided environment
 
 ```yaml
@@ -29,8 +28,4 @@ This action provides the following environment variables to use with the provide
       - name: Can use ${CONDA_INSTALL}, installs older numpy
         run: |
           ${CONDA_INSTALL} numpy=1.17
-      - name: Can use ${CONDA_BUILD}, outputs version
-        run: |
-          ${CONDA_BUILD} --version
-          ${CONDA_BUILD} path/to/mypackage
 ```
