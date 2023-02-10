@@ -28,7 +28,7 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import TablePanel from "components/metrics/panels/TablePanel";
-import { GridRenderCellParams } from "@mui/x-data-grid";
+import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
 import styles from "components/hud.module.css";
 
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
@@ -214,7 +214,12 @@ function Graphs({
           ref={checkboxRef}
         >
           {redPercentages.map((job) => (
-            <div key={job["name"]} className={filter.has(job[groupByFieldName]) ? styles.selectedRow : ""}>
+            <div
+              key={job["name"]}
+              className={
+                filter.has(job[groupByFieldName]) ? styles.selectedRow : ""
+              }
+            >
               <input
                 type="checkbox"
                 id={job[groupByFieldName]}
