@@ -21,11 +21,6 @@ jobs:
     container:
       image: continuumio/miniconda3:4.12.0
     steps:
-      - name: Checkout PyTorch
-        uses: pytorch/pytorch/.github/actions/checkout-pytorch@master
-        with:
-          no-sudo: true
-
       - name: Prune binaries
         env:
           CHANNEl: ${{ inputs.channel }}
@@ -34,4 +29,4 @@ jobs:
         run: |
             set -ex
             conda install -yq anaconda-client
-            bash ./scripts/release/anaconda-prune/run.sh
+            bash ./github/scripts/anaconda-prune/run.sh

@@ -18,7 +18,7 @@ jobs:
     name: anaconda-prune-pytorch-nightly
     uses: ./.github/workflows/_prune-anaconda-packages.yml
     with:
-      packages: "pytorch torchvision torchaudio torchtext torchdata ignite torchcsprng"
+      packages: "pytorch torchvision torchaudio torchtext torchdata ignite torchcsprng torchserve torcharrow"
       channel: pytorch-nightly
     secrets:
      conda-pytorchbot-token: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
