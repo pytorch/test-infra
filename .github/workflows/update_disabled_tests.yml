@@ -41,3 +41,11 @@ jobs:
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
           commit_message: "Updating condensed disabled tests stats"
+
+      - name: Upload file to s3
+        run: |
+          python3 -mpip install awscli==1.27.69
+          aws s3 cp "disabled-tests-condensed.json" s3://ossci-metrics/disabled-tests-condensed.json
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
