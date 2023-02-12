@@ -28,12 +28,13 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import TablePanel from "components/metrics/panels/TablePanel";
-import { GridRenderCellParams } from "@mui/x-data-grid";
+import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
+import styles from "components/hud.module.css";
 
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
 const UNSTABLE_WORKFLOWS = ["unstable"];
-const LAST_MONTH = 30;
+const LAST_WEEK = 7;
 const ROW_HEIGHT = 340;
 const ROW_GAP = 30;
 const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
@@ -45,12 +46,14 @@ function GroupReliabilityPanel({
   queryParams,
   metricHeaderName,
   metricName,
+  filter,
 }: {
   title: string;
   queryName: string;
   queryParams: RocksetParam[];
   metricHeaderName: string;
   metricName: string;
+  filter: any;
 }) {
   return (
     <TablePanel
@@ -77,6 +80,14 @@ function GroupReliabilityPanel({
 
             const encodedJobName = encodeURIComponent(jobName);
             return <a href={URL_PREFIX + encodedJobName}>{jobName}</a>;
+          },
+          cellClassName: (params: GridCellParams<string>) => {
+            const jobName = params.value;
+            if (jobName === undefined) {
+              return "";
+            }
+
+            return filter.has(jobName) ? styles.selectedRow : "";
           },
         },
       ]}
@@ -135,13 +146,15 @@ function Graphs({
   queryParams,
   granularity,
   checkboxRef,
+  filter,
+  toggleFilter,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   checkboxRef: any;
+  filter: any;
+  toggleFilter: any;
 }) {
-  const [filter, setFilter] = useState(new Set());
-
   const queryName = "master_commit_red_percent_groups";
   const url = `/api/query/metrics/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -160,17 +173,6 @@ function Graphs({
   }
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  function toggleFilter(e: any) {
-    var jobName = e.target.id;
-    const next = new Set(filter);
-    if (filter.has(jobName)) {
-      next.delete(jobName);
-    } else {
-      next.add(jobName);
-    }
-    setFilter(next);
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
@@ -212,7 +214,12 @@ function Graphs({
           ref={checkboxRef}
         >
           {redPercentages.map((job) => (
-            <div key={job["name"]}>
+            <div
+              key={job["name"]}
+              className={
+                filter.has(job[groupByFieldName]) ? styles.selectedRow : ""
+              }
+            >
               <input
                 type="checkbox"
                 id={job[groupByFieldName]}
@@ -265,9 +272,21 @@ export default function Page() {
   const router = useRouter();
   const jobName: string = (router.query.jobName as string) ?? "none";
 
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
+  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
+
+  const [filter, setFilter] = useState(new Set());
+  function toggleFilter(e: any) {
+    var jobName = e.target.id;
+    const next = new Set(filter);
+    if (filter.has(jobName)) {
+      next.delete(jobName);
+    } else {
+      next.add(jobName);
+    }
+    setFilter(next);
+  }
 
   const queryParams: RocksetParam[] = [
     {
@@ -313,7 +332,7 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_MONTH}
+          defaultValue={LAST_WEEK}
         />
         <GranularityPicker
           granularity={granularity}
@@ -332,6 +351,8 @@ export default function Page() {
           ])}
           granularity={granularity}
           checkboxRef={checkboxRef}
+          filter={filter}
+          toggleFilter={toggleFilter}
         />
       </Grid>
 
@@ -349,6 +370,7 @@ export default function Page() {
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
+            filter={filter}
           />
         </Grid>
 
@@ -365,6 +387,7 @@ export default function Page() {
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
+            filter={filter}
           />
         </Grid>
 
@@ -381,6 +404,7 @@ export default function Page() {
             ])}
             metricName={"red"}
             metricHeaderName={"Failures %"}
+            filter={filter}
           />
         </Grid>
       </Grid>
