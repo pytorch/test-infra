@@ -218,13 +218,6 @@
       "windows"
     ]
   ],
-  "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
-    "81028",
-    "https://github.com/pytorch/pytorch/issues/81028",
-    [
-      "linux"
-    ]
-  ],
   "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
     "82847",
     "https://github.com/pytorch/pytorch/issues/82847",
