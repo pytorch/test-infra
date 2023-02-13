@@ -129,7 +129,7 @@ jobs:
               -c "malfet" \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
-              --python "3.8" \
+              --python "${PYTHON_VERSION}" \
               --output-folder distr/ \
               "${CONDA_PACKAGE_DIRECTORY}"
           else
