@@ -601,11 +601,6 @@
       "linux"
     ]
   ],
-  "test_dispatch_meta_outplace_fft_ifft_cuda_float64 (__main__.TestMetaCUDA)": [
-    "89156",
-    "https://github.com/pytorch/pytorch/issues/89156",
-    []
-  ],
   "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
     "77318",
     "https://github.com/pytorch/pytorch/issues/77318",
@@ -836,9 +831,9 @@
       "linux"
     ]
   ],
-  "test_forward_ad_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "87051",
-    "https://github.com/pytorch/pytorch/issues/87051",
+  "test_fn_gradgrad_triangular_solve_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94770",
+    "https://github.com/pytorch/pytorch/issues/94770",
     [
       "linux"
     ]
