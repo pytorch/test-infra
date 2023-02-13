@@ -61,15 +61,23 @@ reds AS(
         AND SUM(IF(conclusion IS NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
     ORDER BY
         time DESC
+),
+reds_percentage AS (
+    SELECT
+        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+        name,
+        ROUND(AVG(any_red) * 100, 2) AS red,
+    FROM
+        reds
+    GROUP BY
+        granularity_bucket,
+        name
 )
 SELECT
-    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
-    name,
-    ROUND(AVG(any_red) * 100, 2) AS red,
+    *
 FROM
-    reds
-GROUP BY
-    granularity_bucket,
-    name
+    reds_percentage
+WHERE
+    red > 0
 ORDER BY
     name ASC
