@@ -3,17 +3,27 @@ import argparse
 import re
 from dataclasses import dataclass, field
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Tuple
 
 from github import Github, SelfHostedActionsRunner, PaginatedList
+
+LABELS_WE_CARE_ABOUT = [
+    re.compile("linux.*"),
+    re.compile("windows.*"),
+    re.compile("macos.*"),
+]
 
 
 @dataclass
 class RunnersState:
     num_total: int = 0
     num_online: int = 0
-    num_per_label: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    num_busy_per_label: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    num_per_label: Dict[Tuple[str], int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
+    num_busy_per_label: Dict[Tuple[str], int] = field(
+        default_factory=lambda: defaultdict(int)
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,11 +79,16 @@ def main() -> None:
         state.num_total += 1
         if runner.status == "online":
             state.num_online += 1
-            for label in runner.labels():
-                if label.get("type") == "custom" and label:
-                    state.num_per_label[str(label["name"])] += 1
-                    if runner.busy:
-                        state.num_busy_per_label[str(label["name"])] += 1
+            labels = tuple(
+                str(label["name"])
+                for label in runner.labels()
+                if any(pattern.match(str(label["name"])) for pattern in LABELS_WE_CARE_ABOUT)
+            )
+            if len(labels) < 1:
+                continue
+            state.num_per_label[labels] += 1
+            if runner.busy:
+                state.num_busy_per_label[labels] += 1
     over_total = lambda num: f"{num}/{state.num_total}"
     percentage_of = lambda num, label: f"{state.num_busy_per_label[label]}/{num}"
     print(f"Self Hosted stats for {options.org}")
