@@ -186,11 +186,14 @@ def fetch_alerts(
 
         data = json.loads(r.text)
         # Return only alert belonging to the target repo and branch
-        return list(filter(
-            lambda alert: f"Recurrently Failing Jobs on {repo} {branch}"
-            in alert["title"],
-            data["data"]["repository"]["issues"]["nodes"],
-        ))
+        return [
+            item
+            for item in filter(
+                lambda alert: f"Recurrently Failing Jobs on {repo} {branch}"
+                in alert["title"],
+                data["data"]["repository"]["issues"]["nodes"],
+            )
+        ]
     except Exception as e:
         raise RuntimeError("Error fetching alerts", e)
 
