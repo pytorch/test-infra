@@ -80,14 +80,14 @@ function GroupReliabilityPanel({
 
   // const displayFailures: { [jobName: string]: number } = {}
   const failuresByTypes = Object.entries(approximateFailureByTypePercent(data))
-    .map(item => {
+    .map((item) => {
       const jobName = item[0];
       const brokenTrunk = item[1][JobAnnotation.BROKEN_TRUNK];
       const infraBroken = item[1][JobAnnotation.INFRA_BROKEN];
       const testFlake = item[1][JobAnnotation.TEST_FLAKE];
 
       return {
-        "name": jobName,
+        name: jobName,
         [metricName]: brokenTrunk + testFlake,
         [JobAnnotation.BROKEN_TRUNK]: brokenTrunk,
         [JobAnnotation.INFRA_BROKEN]: infraBroken,
