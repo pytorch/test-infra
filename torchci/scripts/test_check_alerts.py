@@ -1,13 +1,17 @@
+import json
 from datetime import datetime
 from unittest import main, TestCase
 from unittest.mock import patch
 
 from check_alerts import (
+    fetch_alerts,
     filter_job_names,
     gen_update_comment,
     generate_no_flaky_tests_issue,
     handle_flaky_tests_alert,
     JobStatus,
+    PYTORCH_ALERT_LABEL,
+    TEST_INFRA_REPO_NAME,
 )
 
 
@@ -129,33 +133,111 @@ class TestGitHubPR(TestCase):
 
     # test filter job names
     def test_job_filter(self):
-        job_names = ["pytorch_linux_xenial_py3_6_gcc5_4_test", "pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+        job_names = [
+            "pytorch_linux_xenial_py3_6_gcc5_4_test",
+            "pytorch_linux_xenial_py3_6_gcc5_4_test2",
+        ]
         self.assertListEqual(
             filter_job_names(job_names, ""),
             job_names,
-            "empty regex should match all jobs"
+            "empty regex should match all jobs",
         )
-        self.assertListEqual(
-            filter_job_names(job_names, ".*"),
-            job_names
-        )
-        self.assertListEqual(
-            filter_job_names(job_names, ".*xenial.*"),
-            job_names
-        )
+        self.assertListEqual(filter_job_names(job_names, ".*"), job_names)
+        self.assertListEqual(filter_job_names(job_names, ".*xenial.*"), job_names)
         self.assertListEqual(
             filter_job_names(job_names, ".*xenial.*test2"),
-            ["pytorch_linux_xenial_py3_6_gcc5_4_test2"]
+            ["pytorch_linux_xenial_py3_6_gcc5_4_test2"],
         )
-        self.assertListEqual(
-            filter_job_names(job_names, ".*xenial.*test3"),
-            []
-        )
+        self.assertListEqual(filter_job_names(job_names, ".*xenial.*test3"), [])
         self.assertRaises(
             Exception,
             lambda: filter_job_names(job_names, "["),
-            msg="malformed regex should throw exception"
+            msg="malformed regex should throw exception",
         )
+
+    def mock_fetch_alerts(*args, **kwargs):
+        """
+        Return the mock JSON response when trying to fetch all existing alerts
+        """
+
+        class MockResponse:
+            def __init__(self, json_data, status_code):
+                self.text = json_data
+                self.status_code = status_code
+
+            def raise_for_status(self):
+                pass
+
+        response = {
+            "data": {
+                "repository": {
+                    "issues": {
+                        "nodes": [
+                            {
+                                "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
+                                "closed": False,
+                                "number": 3763,
+                                "body": "",
+                                "comments": {"nodes": []},
+                            },
+                            {
+                                "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch nightly",
+                                "closed": False,
+                                "number": 3764,
+                                "body": "",
+                                "comments": {"nodes": []},
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+        return MockResponse(json.dumps(response), 200)
+
+    @patch("requests.post", side_effect=mock_fetch_alerts)
+    def test_fetch_alert(self, mocked_alerts):
+        cases = [
+            {
+                "repo": "pytorch/builder",
+                "branch": "main",
+                "expected": [],
+            },
+            {
+                "repo": "pytorch/pytorch",
+                "branch": "master",
+                "expected": [
+                    {
+                        "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
+                        "closed": False,
+                        "number": 3763,
+                        "body": "",
+                        "comments": {"nodes": []},
+                    },
+                ],
+            },
+            {
+                "repo": "pytorch/pytorch",
+                "branch": "nightly",
+                "expected": [
+                    {
+                        "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch nightly",
+                        "closed": False,
+                        "number": 3764,
+                        "body": "",
+                        "comments": {"nodes": []},
+                    },
+                ],
+            },
+        ]
+
+        for case in cases:
+            alerts = fetch_alerts(
+                repo=case["repo"],
+                branch=case["branch"],
+                alert_repo=TEST_INFRA_REPO_NAME,
+                labels=PYTORCH_ALERT_LABEL,
+            )
+            self.assertListEqual(alerts, case["expected"])
 
 
 if __name__ == "__main__":
