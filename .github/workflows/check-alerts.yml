@@ -24,10 +24,6 @@ jobs:
             branch: nightly
             with_flaky_test_alerting: NO
             job_filter_regex: ""
-          - repo: pytorch/builder
-            branch: main
-            with_flaky_test_alerting: NO
-            job_filter_regex: "nightly.pypi.binary.size.validation"
     env:
       REPO_TO_CHECK: ${{ matrix.repo }}
       BRANCH_TO_CHECK: ${{ matrix.branch }}
