@@ -1,5 +1,5 @@
 import { Context, Probot } from "probot";
-import { isPyTorchPyTorch } from "./utils";
+import { CachedConfigTracker, isPyTorchPyTorch } from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
@@ -121,7 +121,10 @@ async function handleClosedEvent(context: Context<"pull_request.closed">) {
 }
 
 // Add the tag corresponding to the new label.
-async function handleLabelEvent(context: Context<"pull_request.labeled">) {
+async function handleLabelEvent(
+  context: Context<"pull_request.labeled">,
+  tracker: CachedConfigTracker
+) {
   context.log.debug("START Processing label event");
   if (context.payload.pull_request.state === "closed") {
     // Ignore closed PRs. If this PR is reopened, the tags will get pushed as
@@ -133,54 +136,23 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
   if (!isCIFlowLabel(label)) {
     return;
   }
-
-  // collected from .github/workflows/*
-  const valid_labels = [
-    "ciflow/trunk",
-    "ciflow/periodic",
-    "ciflow/android",
-    "ciflow/binaries",
-    "ciflow/unstable",
-    "ciflow/inductor",
-    "ciflow/mps",
-    "ciflow/nightly",
-    "ciflow/binaries_conda",
-    "ciflow/binaries_libtorch",
-    "ciflow/binaries_wheel",
-    "ciflow/inductor-perf-test-nightly",
-  ];
+  const config = await tracker.loadConfig(context);
+  const valid_labels = config !== null ? config["ciflow_push_tags"] : null;
+  if (valid_labels == null) {
+    await context.octokit.issues.createComment(
+      context.repo({
+        body: "No ciflow labels are configured for this repo.",
+        issue_number: context.payload.pull_request.number,
+      })
+    );
+    return;
+  }
 
   if (!valid_labels.includes(label)) {
-    let body;
-    if (label === "ciflow/all") {
-      body =
-        "The `ciflow/all` label was recently removed. It ran very expensive periodic CI jobs when most contributors ";
-      body +=
-        "did not need them. If you just want to check that you won't be reverted, use `ciflow/trunk`. ";
-      body +=
-        "If you *really* want the old `ciflow/all` behavior, add `ciflow/trunk` and `ciflow/periodic`.";
-    } else {
-      body = `We have recently simplified the CIFlow labels and \`${label}\` is no longer in use.\n`;
-    }
-    body += "You can use any of the following\n";
-    body +=
-      "- `ciflow/trunk` (`.github/workflows/trunk.yml`): all jobs we run per-commit on master\n";
-    body +=
-      "- `ciflow/periodic` (`.github/workflows/periodic.yml`): all jobs we run periodically on master\n";
-    body +=
-      "- `ciflow/android` (`.github/workflows/run_android_tests.yml`): android build and test\n";
-    body +=
-      "- `ciflow/nightly` (`.github/workflows/nightly.yml`): all jobs we run nightly\n";
-    body +=
-      "- `ciflow/binaries`: all binary build and upload jobs\n";
-    body +=
-      " - `ciflow/binaries_conda`: binary build and upload job for conda\n";
-    body +=
-      " - `ciflow/binaries_libtorch`: binary build and upload job for libtorch\n";
-    body +=
-      " - `ciflow/binaries_wheel`: binary build and upload job for wheel\n";
-    body +=
-      " - `ciflow/unstable`: run all flaky or experimental jobs that are not yet stable enough to be part of pull or trunk\n";
+    let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
+    valid_labels.forEach((l) => {
+      body += ` - \`${l}\`\n`;
+    });
     await context.octokit.issues.createComment(
       context.repo({
         body,
@@ -203,7 +175,10 @@ async function handleLabelEvent(context: Context<"pull_request.labeled">) {
 }
 
 export default function ciflowPushTrigger(app: Probot) {
-  app.on("pull_request.labeled", handleLabelEvent);
+  const tracker = new CachedConfigTracker(app);
+  app.on("pull_request.labeled", async (context) => {
+    await handleLabelEvent(context, tracker);
+  });
   app.on(
     [
       "pull_request.synchronize",
