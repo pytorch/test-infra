@@ -94,7 +94,7 @@ function GroupReliabilityPanel({
         [JobAnnotation.TEST_FLAKE]: testFlake,
       };
     })
-    .sort((a, b) => b[metricName] - a[metricName]);
+    .sort((a, b) => Number(b[metricName]) - Number(a[metricName]));
 
   return (
     <TablePanelWithData
