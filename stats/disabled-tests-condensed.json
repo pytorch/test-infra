@@ -1365,6 +1365,13 @@
       "linux"
     ]
   ],
+  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
+    "89545",
+    "https://github.com/pytorch/pytorch/issues/89545",
+    [
+      "linux"
+    ]
+  ],
   "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
     "87190",
     "https://github.com/pytorch/pytorch/issues/87190",
@@ -1647,6 +1654,13 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
+    ]
+  ],
+  "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
+    "90817",
+    "https://github.com/pytorch/pytorch/issues/90817",
+    [
+      "linux"
     ]
   ],
   "test_stack (test_jit.TestScript)": [
