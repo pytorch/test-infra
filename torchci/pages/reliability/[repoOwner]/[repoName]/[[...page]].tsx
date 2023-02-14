@@ -71,20 +71,18 @@ function GroupReliabilityPanel({
     refreshInterval: 60 * 60 * 1000,
   });
 
-  // const data = fetchData("top_reds", "metrics", queryParams);
-  // const failures = fetchData("master_commit_red_jobs", "commons", queryParams);
-
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  // const displayFailures: { [jobName: string]: number } = {}
   const failuresByTypes = Object.entries(approximateFailureByTypePercent(data))
     .map((item) => {
       const jobName = item[0];
-      const brokenTrunk = item[1][JobAnnotation.BROKEN_TRUNK];
-      const infraBroken = item[1][JobAnnotation.INFRA_BROKEN];
-      const testFlake = item[1][JobAnnotation.TEST_FLAKE];
+      const percent = item[1];
+
+      const brokenTrunk = percent[JobAnnotation.BROKEN_TRUNK];
+      const infraBroken = percent[JobAnnotation.INFRA_BROKEN];
+      const testFlake = percent[JobAnnotation.TEST_FLAKE];
 
       return {
         name: jobName,
@@ -388,6 +386,11 @@ export default function Page() {
     }
   }, [jobName]);
 
+  const queryName = "master_commit_red_jobs";
+  const queryCollection = "commons";
+  const metricName = "red";
+  const metricHeaderName = "Failures %";
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -427,8 +430,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
-            queryName="master_commit_red_jobs"
-            queryCollection="commons"
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -436,8 +439,8 @@ export default function Page() {
                 value: PRIMARY_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
@@ -445,8 +448,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
-            queryName="master_commit_red_jobs"
-            queryCollection="commons"
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -454,8 +457,8 @@ export default function Page() {
                 value: SECONDARY_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
@@ -463,8 +466,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={"Unstable jobs"}
-            queryName="master_commit_red_jobs"
-            queryCollection="commons"
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -472,8 +475,8 @@ export default function Page() {
                 value: UNSTABLE_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>

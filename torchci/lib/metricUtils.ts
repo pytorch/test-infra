@@ -5,52 +5,51 @@ import { JobsPerCommitData, JobAnnotation } from "lib/types";
 export const BROKEN_TRUNK_THRESHOLD = 3;
 
 // When more than N failures happening in the same commit, the failures are counted
-// as part of an outage (approximately)
+// as part of an outage or broken infra (approximately)
 export const OUTAGE_THRESHOLD = 10;
 
-function updateOutageCount(
-  failure: string,
-  count: number,
-  failuresByTypes: { [failure: string]: { [t: string]: number } }
+function getFailureByJobName(
+  jobName: string,
+  failures: { [jobName: string]: { [t: string]: number } }
 ) {
-  if (!(failure in failuresByTypes)) {
-    // TODO: Only these categories can be approximated at the moment
-    failuresByTypes[failure] = {
+  if (!(jobName in failures)) {
+    failures[jobName] = {
       [JobAnnotation.BROKEN_TRUNK]: 0,
       [JobAnnotation.INFRA_BROKEN]: 0,
       [JobAnnotation.TEST_FLAKE]: 0,
     };
   }
 
-  failuresByTypes[failure][JobAnnotation.INFRA_BROKEN] += count;
+  return failures[jobName];
 }
 
-function updateFailuresCount(
-  failure: string,
+function updateBrokenInfraCount(
+  jobName: string,
   count: number,
-  failuresByTypes: { [failure: string]: { [t: string]: number } },
-  is_broken_trunk: boolean
+  failures: { [jobName: string]: { [t: string]: number } }
 ) {
-  // No such failure has been recorded yet
   if (count === 0) {
     return;
   }
 
-  if (!(failure in failuresByTypes)) {
-    // TODO: Only these categories can be approximated at the moment
-    failuresByTypes[failure] = {
-      [JobAnnotation.BROKEN_TRUNK]: 0,
-      [JobAnnotation.INFRA_BROKEN]: 0,
-      [JobAnnotation.TEST_FLAKE]: 0,
-    };
+  const failure = getFailureByJobName(jobName, failures);
+  failure[JobAnnotation.INFRA_BROKEN] += count;
+}
+
+function updateFailureCount(
+  jobName: string,
+  count: number,
+  failures: { [jobName: string]: { [t: string]: number } },
+  is_broken_trunk: boolean
+) {
+  if (count === 0) {
+    return;
   }
 
-  if (is_broken_trunk) {
-    failuresByTypes[failure][JobAnnotation.BROKEN_TRUNK] += count;
-  } else {
-    // Not a broken trunk, count as flaky
-    failuresByTypes[failure][JobAnnotation.TEST_FLAKE] += count;
-  }
+  const failure = getFailureByJobName(jobName, failures);
+  failure[
+    is_broken_trunk ? JobAnnotation.BROKEN_TRUNK : JobAnnotation.TEST_FLAKE
+  ] += count;
 }
 
 export function approximateSuccessByJobName(
@@ -119,7 +118,7 @@ export function approximateFailureByType(
       if (failures.has(failure)) {
         // Count the commit as part of an outage
         if (failures.size >= outage_threshold) {
-          updateOutageCount(failure, 1, failuresByTypes);
+          updateBrokenInfraCount(failure, 1, failuresByTypes);
         }
 
         // Still failing, its counter has already been updated
@@ -128,7 +127,7 @@ export function approximateFailureByType(
 
       const count = failuresCount[failure];
       // Reaching here means that the job starts to fail on the commit after this
-      updateFailuresCount(
+      updateFailureCount(
         failure,
         count,
         failuresByTypes,
@@ -143,7 +142,7 @@ export function approximateFailureByType(
   Object.keys(failuresCount).forEach((failure: string) => {
     const count = failuresCount[failure];
     // Aggregate all remaining jobs
-    updateFailuresCount(
+    updateFailureCount(
       failure,
       count,
       failuresByTypes,
