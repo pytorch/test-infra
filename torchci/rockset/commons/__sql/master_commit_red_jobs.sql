@@ -41,17 +41,21 @@ WITH all_jobs AS (
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
 ),
-reds AS (
+filtered_jobs AS (
     SELECT
         time,
         sha,
-        ARRAY_REMOVE(
-            ARRAY_AGG(
-                IF (conclusion = 'failure' OR conclusion = 'timed_out' OR conclusion = 'cancelled', IF (name LIKE '%(%' AND name NOT LIKE '%)%', CONCAT(name, ')'), name))
-            ),
-            NULL
-        ) AS names,
-        COUNT_IF(conclusion = 'failure' OR conclusion = 'timed_out' OR conclusion = 'cancelled') AS red_count,
+        IF (name LIKE '%(%' AND name NOT LIKE '%)%', CONCAT(name, ')'), name) AS name,
+        CAST(
+            SUM(
+                CASE
+                    WHEN conclusion = 'failure' THEN 1
+                    WHEN conclusion = 'timed_out' THEN 1
+                    WHEN conclusion = 'cancelled' THEN 1
+                    ELSE 0
+                END
+            ) > 0 AS int
+        ) AS any_red,
         author,
         body
     FROM
@@ -59,20 +63,46 @@ reds AS (
     GROUP BY
         time,
         sha,
+        name,
         author,
         body
     HAVING
-        COUNT(*) > 10 -- Filter out jobs that didn't run anything.
+        COUNT(*) >= 1 -- Filter out jobs that didn't run anything.
         AND SUM(IF(conclusion IS NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
+),
+reds AS (
+    SELECT
+        time,
+        sha,
+        ARRAY_REMOVE(
+            ARRAY_AGG(
+                IF (any_red > 0, name)
+            ),
+            NULL
+        ) AS failures,
+        ARRAY_REMOVE(
+            ARRAY_AGG(
+                IF (any_red = 0, name)
+            ),
+            NULL
+        ) AS successes,
+        author,
+        body
+    FROM
+        filtered_jobs
+    GROUP BY
+        time,
+        sha,
+        author,
+        body
 )
 SELECT
-    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
     time,
     sha,
-    red_count,
     author,
     body,
-    names
+    failures,
+    successes
 FROM
     reds
 ORDER BY

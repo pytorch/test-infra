@@ -132,6 +132,25 @@ export interface TTSChange {
   absoluteChangeString: string;
 }
 
+export interface JobsPerCommitData {
+  sha: string;
+  author: string;
+  body?: string;
+  time: string;
+  failures: string[];
+  successes: string[];
+}
+
+export enum JobAnnotation {
+  NULL = "None",
+  BROKEN_TRUNK = "Broken Trunk",
+  TEST_FLAKE = "Test Flake",
+  INFRA_BROKEN = "Broken Infra",
+  INFRA_FLAKE = "Infra Flake",
+  NETWORK = "Network Error",
+  OTHER = "Other"
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,

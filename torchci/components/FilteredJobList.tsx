@@ -2,10 +2,11 @@ import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import { useRouter } from "next/router";
 import useSWR from "swr";
-import JobAnnotationToggle, { JobAnnotation } from "./JobAnnotationToggle";
+import JobAnnotationToggle from "./JobAnnotationToggle";
 import JobLinks from "./JobLinks";
 import JobSummary from "./JobSummary";
 import LogViewer from "./LogViewer";
+import { JobAnnotation } from "lib/types";
 
 export default function FilteredJobList({
   filterName,

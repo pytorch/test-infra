@@ -13,6 +13,7 @@ import {
   packHudParams,
   RowData,
   TTSChange,
+  JobAnnotation,
 } from "lib/types";
 import useHudData from "lib/useHudData";
 import useScrollTo from "lib/useScrollTo";
@@ -29,9 +30,7 @@ import {
   useState,
 } from "react";
 import useSWR, { SWRConfig } from "swr";
-import JobAnnotationToggle, {
-  JobAnnotation,
-} from "components/JobAnnotationToggle";
+import JobAnnotationToggle from "components/JobAnnotationToggle";
 
 function includesCaseInsensitive(value: string, pattern: string): boolean {
   if (pattern === "") {
