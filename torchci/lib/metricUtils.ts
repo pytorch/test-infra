@@ -11,7 +11,7 @@ export const OUTAGE_THRESHOLD = 10;
 function updateOutageCount(
   failure: string,
   count: number,
-  failuresByTypes: { [failure: string]: { [t: string] : number } },
+  failuresByTypes: { [failure: string]: { [t: string]: number } }
 ) {
   if (!(failure in failuresByTypes)) {
     // TODO: Only these categories can be approximated at the moment
@@ -28,8 +28,8 @@ function updateOutageCount(
 function updateFailuresCount(
   failure: string,
   count: number,
-  failuresByTypes: { [failure: string]: { [t: string] : number } },
-  is_broken_trunk: boolean,
+  failuresByTypes: { [failure: string]: { [t: string]: number } },
+  is_broken_trunk: boolean
 ) {
   // No such failure has been recorded yet
   if (count === 0) {
@@ -47,8 +47,7 @@ function updateFailuresCount(
 
   if (is_broken_trunk) {
     failuresByTypes[failure][JobAnnotation.BROKEN_TRUNK] += count;
-  }
-  else {
+  } else {
     // Not a broken trunk, count as flaky
     failuresByTypes[failure][JobAnnotation.TEST_FLAKE] += count;
   }
@@ -56,7 +55,7 @@ function updateFailuresCount(
 
 export function approximateSuccessByJobName(
   // The data from Rockset is sorted by time DESC, so newer commits come first
-  data?: JobsPerCommitData[],
+  data?: JobsPerCommitData[]
 ) {
   const successesByJobName: { [success: string]: number } = {};
 
@@ -64,8 +63,12 @@ export function approximateSuccessByJobName(
     return successesByJobName;
   }
 
-  data.forEach((commit: JobsPerCommitData) =>  {
-    const successes = new Set(commit.successes.filter(n => n !== null && n !== undefined && n.length > 0));
+  data.forEach((commit: JobsPerCommitData) => {
+    const successes = new Set(
+      commit.successes.filter(
+        (n) => n !== null && n !== undefined && n.length > 0
+      )
+    );
 
     // Iterate though all the successes in the commit and aggregate them by name
     successes.forEach((success: string) => {
@@ -85,17 +88,21 @@ export function approximateFailureByType(
   // The data from Rockset is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[],
   broken_trunk_threshold: number = BROKEN_TRUNK_THRESHOLD,
-  outage_threshold: number = OUTAGE_THRESHOLD,
+  outage_threshold: number = OUTAGE_THRESHOLD
 ) {
-  const failuresByTypes: { [failure: string]: { [t: string] : number } } = {};
+  const failuresByTypes: { [failure: string]: { [t: string]: number } } = {};
 
   if (data === undefined || data === null) {
     return failuresByTypes;
   }
 
   const failuresCount: { [failure: string]: number } = {};
-  data.forEach((commit: JobsPerCommitData) =>  {
-    const failures = new Set(commit.failures.filter(n => n !== null && n !== undefined && n.length > 0));
+  data.forEach((commit: JobsPerCommitData) => {
+    const failures = new Set(
+      commit.failures.filter(
+        (n) => n !== null && n !== undefined && n.length > 0
+      )
+    );
 
     // Iterate though all the failures in the commit and aggregate them by name
     failures.forEach((failure: string) => {
@@ -112,11 +119,7 @@ export function approximateFailureByType(
       if (failures.has(failure)) {
         // Count the commit as part of an outage
         if (failures.size >= outage_threshold) {
-          updateOutageCount(
-            failure,
-            1,
-            failuresByTypes,
-          );
+          updateOutageCount(failure, 1, failuresByTypes);
         }
 
         // Still failing, its counter has already been updated
@@ -129,7 +132,7 @@ export function approximateFailureByType(
         failure,
         count,
         failuresByTypes,
-        count >= broken_trunk_threshold,
+        count >= broken_trunk_threshold
       );
 
       // Reset the count
@@ -144,7 +147,7 @@ export function approximateFailureByType(
       failure,
       count,
       failuresByTypes,
-      count >= broken_trunk_threshold,
+      count >= broken_trunk_threshold
     );
   });
 
@@ -155,9 +158,13 @@ export function approximateFailureByTypePercent(
   // The data from Rockset is sorted by time DESC, so newer commits come first
   data?: JobsPerCommitData[],
   broken_trunk_threshold: number = BROKEN_TRUNK_THRESHOLD,
-  outage_threshold: number = OUTAGE_THRESHOLD,
+  outage_threshold: number = OUTAGE_THRESHOLD
 ) {
-  const failuresByTypes = approximateFailureByType(data, broken_trunk_threshold, outage_threshold);
+  const failuresByTypes = approximateFailureByType(
+    data,
+    broken_trunk_threshold,
+    outage_threshold
+  );
   if (data === undefined || data === null || data.length === 0) {
     return failuresByTypes;
   }
@@ -167,11 +174,15 @@ export function approximateFailureByTypePercent(
 
   Object.keys(failuresByTypes).forEach((jobName: string) => {
     const successCount = successesByJobName[jobName] ?? 0;
-    const failureCount = Object.values(failuresByTypes[jobName]).reduce((a, b) => a + b, 0);
+    const failureCount = Object.values(failuresByTypes[jobName]).reduce(
+      (a, b) => a + b,
+      0
+    );
     const totalCount = successCount + failureCount;
 
     Object.keys(failuresByTypes[jobName]).forEach((failure: string) => {
-      failuresByTypes[jobName][failure] = (failuresByTypes[jobName][failure] / totalCount) * 100;
+      failuresByTypes[jobName][failure] =
+        (failuresByTypes[jobName][failure] / totalCount) * 100;
     });
   });
 

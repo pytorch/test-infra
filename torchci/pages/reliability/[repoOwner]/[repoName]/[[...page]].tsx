@@ -28,9 +28,13 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { GridRenderCellParams, GridCellParams, GridValueFormatterParams } from "@mui/x-data-grid";
+import {
+  GridRenderCellParams,
+  GridCellParams,
+  GridValueFormatterParams,
+} from "@mui/x-data-grid";
 import styles from "components/hud.module.css";
-import { approximateFailureByTypePercent } from 'lib/metricUtils';
+import { approximateFailureByTypePercent } from "lib/metricUtils";
 import { JobAnnotation } from "lib/types";
 
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
@@ -44,7 +48,7 @@ const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 function fetchData(
   queryName: string,
   queryCollection: string,
-  queryParams: any,
+  queryParams: any
 ) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -71,20 +75,12 @@ function GroupReliabilityPanel({
   metricName: string;
   filter: any;
 }) {
-  const data = fetchData(
-    "top_reds",
-    "metrics",
-    queryParams,
-  );
+  const data = fetchData("top_reds", "metrics", queryParams);
 
-  const failures = fetchData(
-    "master_commit_red_jobs",
-    "commons",
-    queryParams,
-  );
+  const failures = fetchData("master_commit_red_jobs", "commons", queryParams);
 
   if (data === undefined || failures === undefined) {
-    return (<Skeleton variant={"rectangular"} height={"100%"} />);
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
   const failuresByTypes = approximateFailureByTypePercent(failures);
@@ -97,9 +93,12 @@ function GroupReliabilityPanel({
 
     const jobName = row["name"];
     if (jobName in failuresByTypes) {
-      row[JobAnnotation.BROKEN_TRUNK] = failuresByTypes[jobName][JobAnnotation.BROKEN_TRUNK];
-      row[JobAnnotation.INFRA_BROKEN] = failuresByTypes[jobName][JobAnnotation.INFRA_BROKEN];
-      row[JobAnnotation.TEST_FLAKE] = failuresByTypes[jobName][JobAnnotation.TEST_FLAKE];
+      row[JobAnnotation.BROKEN_TRUNK] =
+        failuresByTypes[jobName][JobAnnotation.BROKEN_TRUNK];
+      row[JobAnnotation.INFRA_BROKEN] =
+        failuresByTypes[jobName][JobAnnotation.INFRA_BROKEN];
+      row[JobAnnotation.TEST_FLAKE] =
+        failuresByTypes[jobName][JobAnnotation.TEST_FLAKE];
     }
   });
 
