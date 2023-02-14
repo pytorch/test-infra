@@ -174,10 +174,13 @@ export function approximateFailureByTypePercent(
 
   Object.keys(failuresByTypes).forEach((jobName: string) => {
     const successCount = successesByJobName[jobName] ?? 0;
-    const failureCount = Object.values(failuresByTypes[jobName]).reduce(
-      (a, b) => a + b,
-      0
-    );
+    const failureCount = Object.entries(failuresByTypes[jobName])
+      .filter(item => item[0] === JobAnnotation.BROKEN_TRUNK || item[0] === JobAnnotation.TEST_FLAKE)
+      .map(item => item[1])
+      .reduce(
+        (a, b) => a + b,
+        0
+      );
     const totalCount = successCount + failureCount;
 
     Object.keys(failuresByTypes[jobName]).forEach((failure: string) => {

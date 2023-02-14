@@ -45,11 +45,24 @@ const ROW_HEIGHT = 340;
 const ROW_GAP = 30;
 const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 
-function fetchData(
-  queryName: string,
-  queryCollection: string,
-  queryParams: any
-) {
+// Specialized version of TablePanel for reliability metrics
+function GroupReliabilityPanel({
+  title,
+  queryName,
+  queryCollection,
+  queryParams,
+  metricHeaderName,
+  metricName,
+  filter,
+}: {
+  title: string;
+  queryName: string;
+  queryCollection: string;
+  queryParams: RocksetParam[];
+  metricHeaderName: string;
+  metricName: string;
+  filter: any;
+}) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
@@ -58,59 +71,43 @@ function fetchData(
     refreshInterval: 60 * 60 * 1000,
   });
 
-  return data;
-}
+  // const data = fetchData("top_reds", "metrics", queryParams);
+  // const failures = fetchData("master_commit_red_jobs", "commons", queryParams);
 
-// Specialized version of TablePanel for reliability metrics
-function GroupReliabilityPanel({
-  title,
-  queryParams,
-  metricHeaderName,
-  metricName,
-  filter,
-}: {
-  title: string;
-  queryParams: RocksetParam[];
-  metricHeaderName: string;
-  metricName: string;
-  filter: any;
-}) {
-  const data = fetchData("top_reds", "metrics", queryParams);
-
-  const failures = fetchData("master_commit_red_jobs", "commons", queryParams);
-
-  if (data === undefined || failures === undefined) {
+  if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const failuresByTypes = approximateFailureByTypePercent(failures);
-  // Include the failure approximation in different categories
-  data.forEach((row: any) => {
-    // Initialize the categories of broken trunk, flaky, and outage failures
-    row[JobAnnotation.BROKEN_TRUNK] = 0;
-    row[JobAnnotation.INFRA_BROKEN] = 0;
-    row[JobAnnotation.TEST_FLAKE] = 0;
+  // const displayFailures: { [jobName: string]: number } = {}
+  const failuresByTypes = Object.entries(approximateFailureByTypePercent(data))
+    .map(item => {
+      const jobName = item[0];
+      const brokenTrunk = item[1][JobAnnotation.BROKEN_TRUNK];
+      const infraBroken = item[1][JobAnnotation.INFRA_BROKEN];
+      const testFlake = item[1][JobAnnotation.TEST_FLAKE];
 
-    const jobName = row["name"];
-    if (jobName in failuresByTypes) {
-      row[JobAnnotation.BROKEN_TRUNK] =
-        failuresByTypes[jobName][JobAnnotation.BROKEN_TRUNK];
-      row[JobAnnotation.INFRA_BROKEN] =
-        failuresByTypes[jobName][JobAnnotation.INFRA_BROKEN];
-      row[JobAnnotation.TEST_FLAKE] =
-        failuresByTypes[jobName][JobAnnotation.TEST_FLAKE];
-    }
-  });
+      return {
+        "name": jobName,
+        [metricName]: brokenTrunk + testFlake,
+        [JobAnnotation.BROKEN_TRUNK]: brokenTrunk,
+        [JobAnnotation.INFRA_BROKEN]: infraBroken,
+        [JobAnnotation.TEST_FLAKE]: testFlake,
+      };
+    })
+    .sort((a, b) => b[metricName] - a[metricName]);
 
   return (
     <TablePanelWithData
       title={title}
-      data={data}
+      data={failuresByTypes}
       columns={[
         {
           field: metricName,
           headerName: metricHeaderName,
           flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<any>) => {
+            return Number(params.value).toFixed(2);
+          },
         },
         {
           field: JobAnnotation.BROKEN_TRUNK,
@@ -430,6 +427,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
+            queryName="master_commit_red_jobs"
+            queryCollection="commons"
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -446,6 +445,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
+            queryName="master_commit_red_jobs"
+            queryCollection="commons"
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -462,6 +463,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={"Unstable jobs"}
+            queryName="master_commit_red_jobs"
+            queryCollection="commons"
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
