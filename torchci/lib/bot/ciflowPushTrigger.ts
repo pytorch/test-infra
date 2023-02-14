@@ -136,8 +136,8 @@ async function handleLabelEvent(
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const config = await tracker.loadConfig(context);
-  const valid_labels = config !== null ? config["ciflow_push_tags"] : null;
+  const config: any = await tracker.loadConfig(context);
+  const valid_labels: Array<string> = config !== null ? config["ciflow_push_tags"] : null;
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
@@ -150,7 +150,7 @@ async function handleLabelEvent(
 
   if (!valid_labels.includes(label)) {
     let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
-    valid_labels.forEach((l) => {
+    valid_labels.forEach((l: string) => {
       body += ` - \`${l}\`\n`;
     });
     await context.octokit.issues.createComment(
