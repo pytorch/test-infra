@@ -319,13 +319,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "90047",
-    "https://github.com/pytorch/pytorch/issues/90047",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "91143",
     "https://github.com/pytorch/pytorch/issues/91143",
@@ -911,13 +904,6 @@
       "dynamo"
     ]
   ],
-  "test_fs_sharing (__main__.TestMultiprocessing)": [
-    "67002",
-    "https://github.com/pytorch/pytorch/issues/67002",
-    [
-      "rocm"
-    ]
-  ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
     "84046",
     "https://github.com/pytorch/pytorch/issues/84046",
@@ -1080,13 +1066,6 @@
   "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94215",
     "https://github.com/pytorch/pytorch/issues/94215",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93418",
-    "https://github.com/pytorch/pytorch/issues/93418",
     [
       "linux"
     ]
@@ -1445,13 +1424,6 @@
     "https://github.com/pytorch/pytorch/issues/65521",
     []
   ],
-  "test_profiler (test_jit.TestJit)": [
-    "81626",
-    "https://github.com/pytorch/pytorch/issues/81626",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "82499",
     "https://github.com/pytorch/pytorch/issues/82499",
@@ -1647,13 +1619,6 @@
       "linux"
     ]
   ],
-  "test_stack (test_jit.TestScript)": [
-    "91483",
-    "https://github.com/pytorch/pytorch/issues/91483",
-    [
-      "linux"
-    ]
-  ],
   "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
     "94880",
     "https://github.com/pytorch/pytorch/issues/94880",
@@ -1695,6 +1660,13 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
+    ]
+  ],
+  "test_tiny_half_norm_ (__main__.TestCuda)": [
+    "94897",
+    "https://github.com/pytorch/pytorch/issues/94897",
+    [
+      "rocm"
     ]
   ],
   "test_torch_tensor_dtype (test_jit.TestScript)": [
