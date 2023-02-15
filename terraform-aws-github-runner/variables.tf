@@ -19,6 +19,11 @@ variable "vpc_sgs" {
   type        = list(map(string))
 }
 
+variable "scale_infra_subnet_ids" {
+  description = "The subnet ids for elastic cache, lambda and other resources"
+  type        = list(string)
+}
+
 variable "subnet_vpc_ids" {
   description = "The relation between subnet and vpcs. keys; 'vpc' 'subnet'"
   type        = list(map(string))
