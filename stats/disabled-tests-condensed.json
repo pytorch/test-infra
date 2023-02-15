@@ -613,13 +613,6 @@
       "linux"
     ]
   ],
-  "test_dlpack_conversion_with_streams_cuda_uint8 (__main__.TestTorchDlPackCUDA)": [
-    "86696",
-    "https://github.com/pytorch/pytorch/issues/86696",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_empty_like_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "93844",
     "https://github.com/pytorch/pytorch/issues/93844",
@@ -834,13 +827,6 @@
     "https://github.com/pytorch/pytorch/issues/94487",
     [
       "linux"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "93045",
-    "https://github.com/pytorch/pytorch/issues/93045",
-    [
-      "rocm"
     ]
   ],
   "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
