@@ -14,5 +14,9 @@
   { 
     "name": "bazel",
     "captures": ["Process completed with exit code 2."]
+  },
+  { 
+    "name": "distributed/_tensor/test_dtensor_ops",
+    "captures": ["RuntimeError: distributed/_tensor/test_dtensor_ops failed! Received signal: SIGSEGV"]
   }
 ]
