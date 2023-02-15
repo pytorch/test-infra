@@ -482,6 +482,9 @@ def check_for_recurrently_failing_jobs_alert(
     repo: str, branch: str, job_name_regex: str, dry_run: bool
 ):
     job_names, sha_grid = fetch_hud_data(repo=repo, branch=branch)
+    print(f"Found {len(job_names)} jobs for {repo} {branch} branch:")
+    print("\n".join(job_names))
+
     filtered_job_names = set(filter_job_names(job_names, job_name_regex))
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(
         job_names, sha_grid, filtered_job_names

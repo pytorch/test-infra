@@ -155,6 +155,20 @@ class TestGitHubPR(TestCase):
             msg="malformed regex should throw exception",
         )
 
+    def test_builder_job_filter(self):
+        job_names = [
+            "cron / nightly / win / wheel-py3_8-cuda11_8 / wheel-py3_8-cuda11_8",
+            "cron / release / linux / conda-py3_10-cpu / conda-py3_10-cpu",
+            "Validate Nightly PyPI Wheel Binary Size / nightly-pypi-binary-size-validation",
+            "Build libtorch docker images / build-docker-cuda (11.8)"
+            "Validate binaries / linux",
+        ]
+        self.assertListEqual(
+            filter_job_names(job_names, ".*nightly.pypi.binary.size.validation|cron / release /"), [
+                "cron / release / linux / conda-py3_10-cpu / conda-py3_10-cpu",
+                "Validate Nightly PyPI Wheel Binary Size / nightly-pypi-binary-size-validation",
+            ])
+
     def mock_fetch_alerts(*args, **kwargs):
         """
         Return the mock JSON response when trying to fetch all existing alerts
