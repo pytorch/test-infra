@@ -136,8 +136,9 @@ async function handleLabelEvent(
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const config:any = await tracker.loadConfig(context);
-  const valid_labels: Array<string> = config !== null ? config["ciflow_push_tags"] : null;
+  const config: any = await tracker.loadConfig(context);
+  const valid_labels: Array<string> =
+    config !== null ? config["ciflow_push_tags"] : null;
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({

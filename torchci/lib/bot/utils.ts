@@ -1,7 +1,9 @@
 import { Context, Probot } from "probot";
 import urllib from "urllib";
 
-export function repoKey(context: Context | Context<"pull_request.labeled">): string {
+export function repoKey(
+  context: Context | Context<"pull_request.labeled">
+): string {
   const repo = context.repo();
   return `${repo.owner}/${repo.repo}`;
 }
@@ -28,7 +30,10 @@ export class CachedConfigTracker {
     });
   }
 
-  async loadConfig(context: Context | Context<"pull_request.labeled">, force = false): Promise<object> {
+  async loadConfig(
+    context: Context | Context<"pull_request.labeled">,
+    force = false
+  ): Promise<object> {
     const key = repoKey(context);
     if (!(key in this.repoConfigs) || force) {
       context.log({ key }, "loadConfig");
