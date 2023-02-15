@@ -264,13 +264,6 @@
       "linux"
     ]
   ],
-  "test_cat (test_jit.TestScript)": [
-    "91491",
-    "https://github.com/pytorch/pytorch/issues/91491",
-    [
-      "linux"
-    ]
-  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -1174,13 +1167,6 @@
     "https://github.com/pytorch/pytorch/issues/77026",
     []
   ],
-  "test_mm_batching (test_jit.TestScript)": [
-    "91496",
-    "https://github.com/pytorch/pytorch/issues/91496",
-    [
-      "linux"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -1314,20 +1300,6 @@
       "linux"
     ]
   ],
-  "test_optional_list (test_jit.TestScript)": [
-    "91484",
-    "https://github.com/pytorch/pytorch/issues/91484",
-    [
-      "linux"
-    ]
-  ],
-  "test_optional_tensor (test_jit.TestScript)": [
-    "91494",
-    "https://github.com/pytorch/pytorch/issues/91494",
-    [
-      "linux"
-    ]
-  ],
   "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
     "89545",
     "https://github.com/pytorch/pytorch/issues/89545",
@@ -1412,13 +1384,6 @@
       "linux"
     ]
   ],
-  "test_prim_grad_undefined (test_jit.TestScript)": [
-    "91493",
-    "https://github.com/pytorch/pytorch/issues/91493",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler (__main__.TestJit)": [
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
@@ -1482,13 +1447,6 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
-  "test_rand (test_jit.TestScript)": [
-    "91495",
-    "https://github.com/pytorch/pytorch/issues/91495",
-    [
-      "linux"
-    ]
-  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
     "https://github.com/pytorch/pytorch/issues/84937",
@@ -1535,20 +1493,6 @@
   "test_repro_graph_breaks_in__get_item_by_idx_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "92475",
     "https://github.com/pytorch/pytorch/issues/92475",
-    [
-      "linux"
-    ]
-  ],
-  "test_request_bailout (test_jit.TestScript)": [
-    "91490",
-    "https://github.com/pytorch/pytorch/issues/91490",
-    [
-      "linux"
-    ]
-  ],
-  "test_requires_grad_loop (test_jit.TestScript)": [
-    "91492",
-    "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
     ]
@@ -1640,13 +1584,6 @@
       "linux"
     ]
   ],
-  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
-    "91482",
-    "https://github.com/pytorch/pytorch/issues/91482",
-    [
-      "linux"
-    ]
-  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
@@ -1667,13 +1604,6 @@
     "https://github.com/pytorch/pytorch/issues/94897",
     [
       "rocm"
-    ]
-  ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
-    [
-      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
