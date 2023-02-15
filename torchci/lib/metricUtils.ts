@@ -23,7 +23,7 @@ function getFailureByJobName(
   return failures[jobName];
 }
 
-function incrementBrokenInfraCount(
+function increaseBrokenInfraCount(
   jobName: string,
   count: number,
   failures: { [jobName: string]: { [t: string]: number } }
@@ -36,7 +36,7 @@ function incrementBrokenInfraCount(
   failure[JobAnnotation.INFRA_BROKEN] += count;
 }
 
-function incrementFailureCount(
+function increaseFailureCount(
   jobName: string,
   count: number,
   failures: { [jobName: string]: { [t: string]: number } },
@@ -97,39 +97,37 @@ export function approximateFailureByType(
 
   // Keeps track of failure streaks, where multiple commits failed the same job
   // The key is the failing job's name, and the value is the length of the current streak we're seeing
-  const numSequentialCommitsWithFailures: { [failure: string]: number } = {};
+  const sequentialFailuresCount: { [failure: string]: number } = {};
   data.forEach((commit: JobsPerCommitData) => {
     const failuresInThisCommit = new Set(
-      commit.failures.filter(
-        (n) => n && n.length > 0
-      )
+      commit.failures.filter((n) => n && n.length > 0)
     );
 
     // Iterate though all the failures in the commit and aggregate them by name
-    failures.forEach((failure: string) => {
-      if (!(failure in failuresCount)) {
+    failuresInThisCommit.forEach((failure: string) => {
+      if (!(failure in sequentialFailuresCount)) {
         // Make sure the dict is initialized
-        failuresCount[failure] = 0;
+        sequentialFailuresCount[failure] = 0;
       }
 
-      failuresCount[failure] += 1;
+      sequentialFailuresCount[failure] += 1;
     });
 
     // Check if the job still fail in this commit
-    Object.keys(failuresCount).forEach((previouslyOngoingFailure: string) => {
-      if (failures.has(failure)) {
+    Object.keys(sequentialFailuresCount).forEach((failure: string) => {
+      if (failuresInThisCommit.has(failure)) {
         // Count the commit as part of an outage
-        if (failures.size >= outage_threshold) {
-          updateBrokenInfraCount(failure, 1, failuresByTypes);
+        if (failuresInThisCommit.size >= outage_threshold) {
+          increaseBrokenInfraCount(failure, 1, failuresByTypes);
         }
 
         // Still failing, its counter has already been updated
         return;
       }
 
-      const count = failuresCount[failure];
+      const count = sequentialFailuresCount[failure];
       // Reaching here means that the job starts to fail on the commit after this
-      updateFailureCount(
+      increaseFailureCount(
         failure,
         count,
         failuresByTypes,
@@ -137,14 +135,14 @@ export function approximateFailureByType(
       );
 
       // Reset the count
-      failuresCount[failure] = 0;
+      sequentialFailuresCount[failure] = 0;
     });
   });
 
-  Object.keys(failuresCount).forEach((failure: string) => {
-    const count = failuresCount[failure];
+  Object.keys(sequentialFailuresCount).forEach((failure: string) => {
+    const count = sequentialFailuresCount[failure];
     // Aggregate all remaining jobs
-    updateFailureCount(
+    increaseFailureCount(
       failure,
       count,
       failuresByTypes,
