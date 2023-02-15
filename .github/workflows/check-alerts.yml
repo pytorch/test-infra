@@ -19,13 +19,20 @@ jobs:
           - repo: pytorch/pytorch
             branch: master
             with_flaky_test_alerting: YES
+            job_filter_regex: ""
           - repo: pytorch/pytorch
             branch: nightly
             with_flaky_test_alerting: NO
+            job_filter_regex: ""
+          - repo: pytorch/builder
+            branch: main
+            with_flaky_test_alerting: NO
+            job_filter_regex: "nightly.pypi.binary.size.validation"
     env:
       REPO_TO_CHECK: ${{ matrix.repo }}
       BRANCH_TO_CHECK: ${{ matrix.branch }}
       WITH_FLAKY_TEST_ALERT: ${{ matrix.with_flaky_test_alerting }}
+      JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
     runs-on: ubuntu-18.04

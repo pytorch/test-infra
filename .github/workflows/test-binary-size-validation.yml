@@ -1,0 +1,21 @@
+name: Test binary size validation script
+on:
+  pull_request:
+    paths:
+      - .github/workflows/binary-size-validation.yml
+      - tools/binary_size_validation/test_binary_size_validation.py
+      - tools/binary_size_validation/binary_size_validation.py
+  workflow_dispatch:
+
+jobs:
+  test-binary-size-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install requirements
+        run: |
+          pip3 install -r tools/binary_size_validation/requirements.txt
+      - name: Run pytest
+        run: |
+          pytest tools/binary_size_validation/test_binary_size_validation.py

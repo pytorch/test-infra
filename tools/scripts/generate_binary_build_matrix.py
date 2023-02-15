@@ -31,7 +31,7 @@ CUDA_ARCHES_DICT = {
     "release": ["11.6", "11.7"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["5.2", "5.3"],
+    "nightly": ["5.3", "5.4.2"],
     "test": ["5.1.1", "5.2"],
     "release": ["5.1.1", "5.2"],
 }
@@ -61,7 +61,6 @@ MACOS_M1_RUNNER = "macos-m1-12"
 MACOS_RUNNER = "macos-12"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
-PACKAGES_TO_INSTALL_WHL_TORCHONLY = "torch"
 
 PACKAGES_TO_INSTALL_CONDA = "pytorch torchvision torchaudio"
 CONDA_INSTALL_BASE = f"conda install {PACKAGES_TO_INSTALL_CONDA}"
@@ -200,15 +199,14 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
     if channel == RELEASE and ((gpu_arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos"))):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
-        packages_to_install = PACKAGES_TO_INSTALL_WHL_TORCHONLY if python_version == "3.11" else PACKAGES_TO_INSTALL_WHL
-        whl_install_command = f"{WHL_INSTALL_BASE} --pre {packages_to_install}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {packages_to_install}"
+        whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         index_arg = "--index-url" if channel == "nightly" else "--extra-index-url"
         return f"{whl_install_command} {index_arg} {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
-    python_versions = PYTHON_ARCHES_DICT[channel]
+    python_versions = list(mod.PYTHON_ARCHES)
 
     # Excluding Python 3.11 from conda builds for now due to package
     # incompatibility issues with key dependencies.
@@ -277,8 +275,7 @@ def generate_libtorch_matrix(
                 arches += mod.CUDA_ARCHES
                 arches += mod.ROCM_ARCHES
             elif os == "windows":
-                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+                arches += mod.CUDA_ARCHES
 
     if abi_versions is None:
         if os == "windows":
@@ -346,7 +343,6 @@ def generate_wheels_matrix(
     os: str,
     channel: str,
     with_cuda: str,
-    with_py311: str,
     limit_win_builds: str,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
@@ -355,15 +351,13 @@ def generate_wheels_matrix(
 
     if python_versions is None:
         # Define default python version
-        python_versions = list(PYTHON_ARCHES_DICT[channel])
+        python_versions = list(mod.PYTHON_ARCHES)
         if os == "macos-arm64":
             python_versions = list_without(python_versions, ["3.7"])
 
     if os == "linux":
         # NOTE: We only build manywheel packages for linux
         package_type = "manywheel"
-        if with_py311 == ENABLE and channel != "release":
-            python_versions += ["3.11"]
 
     upload_to_base_bucket = "yes"
     if arches is None:
@@ -375,8 +369,7 @@ def generate_wheels_matrix(
             if os == "linux":
                 arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
             elif os == "windows":
-                # We don't build CUDA 10.2 for window see https://github.com/pytorch/pytorch/issues/65648
-                arches += list_without(mod.CUDA_ARCHES, ["10.2"])
+                arches += mod.CUDA_ARCHES
 
     if (os == "windows" and limit_win_builds == ENABLE):
         python_versions = [ python_versions[0] ]
@@ -446,13 +439,6 @@ def main(args) -> None:
         default=os.getenv("WITH_CUDA", ENABLE),
     )
     parser.add_argument(
-        "--with-py311",
-        help="Include Python 3.11 builds",
-        type=str,
-        choices=[ENABLE, DISABLE],
-        default=os.getenv("WITH_PY311", DISABLE),
-    )
-    parser.add_argument(
         "--limit-win-builds",
         help="Limit windows builds to single python/cuda config",
         type=str,
@@ -479,7 +465,6 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.with_py311,
                                                                 options.limit_win_builds)
                     )
             else:
