@@ -109,7 +109,7 @@ function GroupReliabilityPanel({
         },
         {
           field: JobAnnotation.BROKEN_TRUNK,
-          headerName: "Approx. Broken Trunk %",
+          headerName: "~Broken Trunk %",
           flex: 1,
           valueFormatter: (params: GridValueFormatterParams<any>) => {
             return Number(params.value).toFixed(2);
@@ -117,7 +117,7 @@ function GroupReliabilityPanel({
         },
         {
           field: JobAnnotation.TEST_FLAKE,
-          headerName: "Approx. Flaky %",
+          headerName: "~Flaky %",
           flex: 1,
           valueFormatter: (params: GridValueFormatterParams<any>) => {
             return Number(params.value).toFixed(2);
@@ -125,7 +125,7 @@ function GroupReliabilityPanel({
         },
         {
           field: JobAnnotation.INFRA_BROKEN,
-          headerName: "Approx. Outage %",
+          headerName: "~Outage %",
           flex: 1,
           valueFormatter: (params: GridValueFormatterParams<any>) => {
             return Number(params.value).toFixed(2);

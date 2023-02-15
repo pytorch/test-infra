@@ -106,7 +106,7 @@ export function approximateFailureByType(
     // Iterate though all the failures in the commit and aggregate them by name
     failures.forEach((failure: string) => {
       if (!(failure in failuresCount)) {
-        // Start the count
+        // Make sure the dict is initialized
         failuresCount[failure] = 0;
       }
 
