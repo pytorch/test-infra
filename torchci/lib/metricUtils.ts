@@ -72,7 +72,7 @@ export function approximateSuccessByJobName(
     // Iterate though all the successes in the commit and aggregate them by name
     successes.forEach((success: string) => {
       if (!(success in successesByJobName)) {
-        // Start the count
+        // Make sure the dict is initialized
         successesByJobName[success] = 0;
       }
 
@@ -168,7 +168,7 @@ export function approximateFailureByTypePercent(
     return failuresByTypes;
   }
 
-  // Get the number of times the job successes too, so we can calculate the %
+  // Get the number of times the job succeeds too, so we can calculate the %
   const successesByJobName = approximateSuccessByJobName(data);
 
   Object.keys(failuresByTypes).forEach((jobName: string) => {
