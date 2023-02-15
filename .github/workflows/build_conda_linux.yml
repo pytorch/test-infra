@@ -203,7 +203,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          conda create --yes -n upload_env python="${PYTHON_VERSION}"
+          conda create --yes -n upload_env python="3.8"
           conda run -n upload_env conda install -yq anaconda-client
           conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
