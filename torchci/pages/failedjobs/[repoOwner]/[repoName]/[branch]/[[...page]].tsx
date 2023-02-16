@@ -8,10 +8,8 @@ import React, { useState } from "react";
 import JobSummary from "components/JobSummary";
 import JobLinks from "components/JobLinks";
 import LogViewer from "components/LogViewer";
-import JobAnnotationToggle, {
-  JobAnnotation,
-} from "components/JobAnnotationToggle";
-import { JobData } from "lib/types";
+import JobAnnotationToggle from "components/JobAnnotationToggle";
+import { JobData, JobAnnotation } from "lib/types";
 import { TimeRangePicker } from "pages/metrics";
 import dayjs from "dayjs";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";

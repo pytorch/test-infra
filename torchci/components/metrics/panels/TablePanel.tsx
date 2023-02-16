@@ -34,6 +34,31 @@ export default function TablePanel({
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });
 
+  return (
+    <TablePanelWithData
+      title={title}
+      data={data}
+      columns={columns}
+      dataGridProps={dataGridProps}
+    />
+  );
+}
+
+export function TablePanelWithData({
+  // Human-readable title for this panel.
+  title,
+  // The raw data to display in the table
+  data,
+  // Column definitions for the data grid.
+  columns,
+  // Props to propagate to the data grid.
+  dataGridProps,
+}: {
+  title: string;
+  data: any;
+  columns: GridColDef[];
+  dataGridProps: any;
+}) {
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }

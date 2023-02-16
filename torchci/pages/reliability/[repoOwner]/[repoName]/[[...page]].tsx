@@ -27,9 +27,15 @@ import {
 import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
-import TablePanel from "components/metrics/panels/TablePanel";
-import { GridRenderCellParams, GridCellParams } from "@mui/x-data-grid";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import {
+  GridRenderCellParams,
+  GridCellParams,
+  GridValueFormatterParams,
+} from "@mui/x-data-grid";
 import styles from "components/hud.module.css";
+import { approximateFailureByTypePercent } from "lib/metricUtils";
+import { JobAnnotation } from "lib/types";
 
 const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
@@ -43,6 +49,7 @@ const URL_PREFIX = `/reliability/pytorch/pytorch?jobName=`;
 function GroupReliabilityPanel({
   title,
   queryName,
+  queryCollection,
   queryParams,
   metricHeaderName,
   metricName,
@@ -50,21 +57,79 @@ function GroupReliabilityPanel({
 }: {
   title: string;
   queryName: string;
+  queryCollection: string;
   queryParams: RocksetParam[];
   metricHeaderName: string;
   metricName: string;
   filter: any;
 }) {
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000,
+  });
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  const failuresByTypes = Object.entries(approximateFailureByTypePercent(data))
+    .map((item) => {
+      const jobName = item[0];
+      const percent = item[1];
+
+      const brokenTrunk = percent[JobAnnotation.BROKEN_TRUNK];
+      const infraBroken = percent[JobAnnotation.INFRA_BROKEN];
+      const testFlake = percent[JobAnnotation.TEST_FLAKE];
+
+      return {
+        name: jobName,
+        [metricName]: brokenTrunk + testFlake,
+        [JobAnnotation.BROKEN_TRUNK]: brokenTrunk,
+        [JobAnnotation.INFRA_BROKEN]: infraBroken,
+        [JobAnnotation.TEST_FLAKE]: testFlake,
+      };
+    })
+    .sort((a, b) => Number(b[metricName]) - Number(a[metricName]));
+
   return (
-    <TablePanel
+    <TablePanelWithData
       title={title}
-      queryName={queryName}
-      queryParams={queryParams}
+      data={failuresByTypes}
       columns={[
         {
           field: metricName,
           headerName: metricHeaderName,
           flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<any>) => {
+            return Number(params.value).toFixed(2);
+          },
+        },
+        {
+          field: JobAnnotation.BROKEN_TRUNK,
+          headerName: "~Broken Trunk %",
+          flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<any>) => {
+            return Number(params.value).toFixed(2);
+          },
+        },
+        {
+          field: JobAnnotation.TEST_FLAKE,
+          headerName: "~Flaky %",
+          flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<any>) => {
+            return Number(params.value).toFixed(2);
+          },
+        },
+        {
+          field: JobAnnotation.INFRA_BROKEN,
+          headerName: "~Outage %",
+          flex: 1,
+          valueFormatter: (params: GridValueFormatterParams<any>) => {
+            return Number(params.value).toFixed(2);
+          },
         },
         {
           field: "name",
@@ -321,6 +386,11 @@ export default function Page() {
     }
   }, [jobName]);
 
+  const queryName = "master_commit_red_jobs";
+  const queryCollection = "commons";
+  const metricName = "red";
+  const metricHeaderName = "Failures %";
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -360,7 +430,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
-            queryName={"top_reds"}
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -368,8 +439,8 @@ export default function Page() {
                 value: PRIMARY_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
@@ -377,7 +448,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
-            queryName={"top_reds"}
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -385,8 +457,8 @@ export default function Page() {
                 value: SECONDARY_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
@@ -394,7 +466,8 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={"Unstable jobs"}
-            queryName={"top_reds"}
+            queryName={queryName}
+            queryCollection={queryCollection}
             queryParams={queryParams.concat([
               {
                 name: "workflowNames",
@@ -402,8 +475,8 @@ export default function Page() {
                 value: UNSTABLE_WORKFLOWS.join(","),
               },
             ])}
-            metricName={"red"}
-            metricHeaderName={"Failures %"}
+            metricName={metricName}
+            metricHeaderName={metricHeaderName}
             filter={filter}
           />
         </Grid>
