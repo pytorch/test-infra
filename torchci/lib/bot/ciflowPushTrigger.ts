@@ -142,7 +142,9 @@ async function handleLabelEvent(
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
-        body: "No ciflow labels are configured for this repo.",
+        body: "No ciflow labels are configured for this repo.\n" +
+              "For information on how to enable CIFlow bot see " +
+              "this [wiki]( https://github.com/pytorch/test-infra/wiki/PyTorch-bot#ciflow-bot)",
         issue_number: context.payload.pull_request.number,
       })
     );
