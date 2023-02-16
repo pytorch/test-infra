@@ -1641,6 +1641,13 @@
       "rocm"
     ]
   ],
+  "test_to_non_blocking (__main__.TestCuda)": [
+    "94967",
+    "https://github.com/pytorch/pytorch/issues/94967",
+    [
+      "rocm"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
