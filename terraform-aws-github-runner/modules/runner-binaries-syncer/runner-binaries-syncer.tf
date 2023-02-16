@@ -23,14 +23,7 @@ resource "aws_lambda_function" "syncer" {
       GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES = var.runner_allow_prerelease_binaries
     }
   }
-  dynamic "vpc_config" {
-    for_each = var.lambda_subnet_ids != null && var.lambda_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.lambda_security_group_ids
-      subnet_ids         = var.lambda_subnet_ids
-    }
-  }
-
+  
   tags = var.tags
 }
 

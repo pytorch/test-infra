@@ -44,14 +44,6 @@ resource "aws_lambda_function" "scale_down" {
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
     }
   }
-
-  dynamic "vpc_config" {
-    for_each = var.lambda_subnet_ids != null && var.lambda_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.lambda_security_group_ids
-      subnet_ids         = var.lambda_subnet_ids
-    }
-  }
 }
 
 resource "aws_cloudwatch_log_group" "scale_down" {

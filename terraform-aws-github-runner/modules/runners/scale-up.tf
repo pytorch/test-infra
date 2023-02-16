@@ -88,12 +88,12 @@ resource "aws_lambda_function" "scale_up" {
     }
   }
 
-  dynamic "vpc_config" {
-    for_each = var.lambda_subnet_ids != null && var.lambda_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.lambda_security_group_ids
-      subnet_ids         = var.lambda_subnet_ids
-    }
+  vpc_config {
+    security_group_ids = concat(
+      var.lambda_security_group_ids,
+      [aws_security_group.runners_sg[0].id]
+    )
+    subnet_ids         = var.lambda_subnet_ids
   }
 }
 
