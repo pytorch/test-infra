@@ -22,17 +22,17 @@ mod = sys.modules[__name__]
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.8", "3.9", "3.10", "3.11"],
-    "test": ["3.7", "3.8", "3.9", "3.10"],
+    "test": ["3.8", "3.9", "3.10", "3.11"],
     "release": ["3.7", "3.8", "3.9", "3.10"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.7", "11.8"],
-    "test": ["11.6", "11.7"],
+    "test": ["11.7", "11.8"],
     "release": ["11.6", "11.7"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.3", "5.4.2"],
-    "test": ["5.1.1", "5.2"],
+    "test": ["5.3", "5.4.2"],
     "release": ["5.1.1", "5.2"],
 }
 
@@ -44,7 +44,7 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_CANDIDATE_VERSION = "1.13.1"
+CURRENT_CANDIDATE_VERSION = "2.0.0"
 CURRENT_STABLE_VERSION = "1.13.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -207,11 +207,6 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_build
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
-
-    # Excluding Python 3.11 from conda builds for now due to package
-    # incompatibility issues with key dependencies.
-    if "3.11" in python_versions and os != "linux":
-        python_versions.remove("3.11")
 
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
