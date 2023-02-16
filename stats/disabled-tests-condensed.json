@@ -627,6 +627,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_op_db_linalg_tensorsolve_cpu_float32 (__main__. TestDTensorOpsCPU)": [
+    "94954",
+    "https://github.com/pytorch/pytorch/issues/94954",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
@@ -1552,6 +1559,13 @@
   "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
     "90817",
     "https://github.com/pytorch/pytorch/issues/90817",
+    [
+      "linux"
+    ]
+  ],
+  "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
+    "94953",
+    "https://github.com/pytorch/pytorch/issues/94953",
     [
       "linux"
     ]
