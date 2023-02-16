@@ -117,7 +117,7 @@ def main():
         )
 
     if options.platform == "darwin":
-        variables.extend(get_macos_variables(options.arch_name))
+        variables.extend(get_macos_variables(options.arch_name, options.python_version))
 
     variables.extend(
         get_cuda_variables(
