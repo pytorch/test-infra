@@ -218,15 +218,15 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          conda create --yes -n upload_env python="${PYTHON_VERSION}"
-          conda run -n upload_env conda install -yq anaconda-client
+
+          ${CONDA_RUN} conda install -yq anaconda-client
           arch_name="$(uname -m)"
           if [ "${arch_name}" = "arm64" ]; then
             export ARCH_NAME="osx-arm64"
           else
             export ARCH_NAME="osx-64"
           fi
-          conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "distr/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "dist/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
