@@ -199,7 +199,7 @@ jobs:
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
-          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-nightly -c "${CONDA_LOCAL_CHANNEL}" -c malfet distr::"${PACKAGE_NAME}"
+          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" -c malfet distr::"${PACKAGE_NAME}"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
