@@ -147,6 +147,13 @@
       "rocm"
     ]
   ],
+  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "86434",
+    "https://github.com/pytorch/pytorch/issues/86434",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_masked_cumprod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "94476",
     "https://github.com/pytorch/pytorch/issues/94476",
