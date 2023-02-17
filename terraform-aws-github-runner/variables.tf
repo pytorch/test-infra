@@ -10,7 +10,12 @@ variable "aws_region_instances" {
 }
 
 variable "vpc_ids" {
-  description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
+  description = "The list of vpc_id for aws_region. keys: 'vpc' 'region'"
+  type        = list(map(string))
+}
+
+variable "vpc_cidrs" {
+  description = "The list of CIDR for vpcs. Keys 'vpc', 'cidr'"
   type        = list(map(string))
 }
 

@@ -136,6 +136,16 @@ variable "sqs_build_queue" {
   })
 }
 
+variable "redis_endpoint" {
+  description = "Redis endpoint"
+  type        = string
+}
+
+variable "redis_login" {
+  description = "Redis password"
+  type        = string
+}
+
 variable "sqs_build_queue_retry" {
   description = "SQS queue to forward messages to retry requests"
   type = object({

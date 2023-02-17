@@ -26,6 +26,8 @@ export class Config {
   readonly minAvailableRunners: number;
   readonly minimumRunningTimeInMinutes: number;
   readonly mustHaveIssuesLabels: string[];
+  readonly redisEndpoint: string;
+  readonly redisLogin: string;
   readonly retryScaleUpRecordDelayS: number;
   readonly retryScaleUpRecordJitterPct: number;
   readonly retryScaleUpRecordQueueUrl: string | undefined;
@@ -74,6 +76,10 @@ export class Config {
     this.minimumRunningTimeInMinutes = mnRunMin > 0 ? mnRunMin : 1;
     /* istanbul ignore next */
     this.mustHaveIssuesLabels = process.env.MUST_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
+    /* istanbul ignore next */
+    this.redisEndpoint = process.env.REDIS_ENDPOINT || '';
+    /* istanbul ignore next */
+    this.redisLogin = process.env.REDIS_LOGIN || '';
     /* istanbul ignore next */
     this.retryScaleUpRecordDelayS = Number(process.env.RETRY_SCALE_UP_RECORD_DELAY_S || '0');
     /* istanbul ignore next */

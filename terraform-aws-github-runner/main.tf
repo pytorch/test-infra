@@ -111,6 +111,9 @@ module "runners" {
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels
 
+  redis_endpoint = aws_elasticache_replication_group.es.primary_endpoint_address
+  redis_login    = "${aws_elasticache_user.scale_lambda.user_name}:${random_password.es_password.result}"
+
   instance_type         = var.instance_type
   block_device_mappings = var.block_device_mappings
 
