@@ -193,7 +193,7 @@ def main() -> None:
     dump_json(
         condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
     )
-    dump_json(condense_disable_jobs(disable_job_issues), "disabled-jobs-condensed.json")
+    dump_json(condense_disable_jobs(disable_job_issues), "disabled-jobs.json")
 
 
 if __name__ == "__main__":
