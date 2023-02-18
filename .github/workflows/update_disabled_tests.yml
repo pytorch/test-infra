@@ -30,6 +30,7 @@ jobs:
           cat disabled-jobs.json
 
       - name: Push disable tests to test-infra repository
+        if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
@@ -43,6 +44,7 @@ jobs:
           commit_message: "Updating condensed disabled tests stats"
 
       - name: Push disable jobs to test-infra repository
+        if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
@@ -56,6 +58,7 @@ jobs:
           commit_message: "Updating disabled jobs"
 
       - name: Upload file to s3
+        if: github.event_name != 'pull_request'
         run: |
           python3 -mpip install awscli==1.27.69
 
