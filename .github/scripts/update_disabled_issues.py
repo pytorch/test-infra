@@ -52,7 +52,7 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
     issues_json["incomplete_results"] |= more_issues["incomplete_results"]
 
 
-# @lru_cache()
+@lru_cache()
 def get_disable_issues() -> Dict[Any, Any]:
     prefix = (
         "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&"
