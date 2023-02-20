@@ -124,16 +124,27 @@ runs:
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
 
           if [[ "${PYTHON_VERSION}" = "3.11" ]]; then
-            # conda-build not available for Python 3.11
-            conda create \
-              --yes \
-              --prefix "${CONDA_ENV}" \
-              "python=3.8" \
-              cmake=3.22 \
-              conda-build=3.21 \
-              ninja=1.10 \
-              pkg-config=0.29 \
-              wheel=0.37
+
+            if [[ "${PACKAGE_TYPE:-}" == "conda" ]]; then
+              conda create \
+                --yes \
+                --prefix "${CONDA_ENV}" \
+                "python=3.8" \
+                cmake=3.22 \
+                conda-build=3.21 \
+                ninja=1.10 \
+                pkg-config=0.29 \
+                wheel=0.37
+            else
+              conda create \
+                --yes \
+                --prefix "${CONDA_ENV}" \
+                "python=${PYTHON_VERSION}" \
+                cmake=3.22 \
+                ninja=1.10 \
+                pkg-config=0.29 \
+                wheel=0.37
+            fi
           else
             conda create \
               --yes \
