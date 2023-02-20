@@ -45,6 +45,12 @@ describe("Push trigger integration tests", () => {
 
     nock("https://api.github.com")
       .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
+      .get(
         `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
           `tags/${label}/${prNum}`
         )}`
@@ -80,6 +86,12 @@ describe("Push trigger integration tests", () => {
     const prNum = payload.pull_request.number;
 
     nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
       .get(
         `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
           `tags/${label}/${prNum}`
@@ -239,27 +251,48 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
-  test("old/invalid CIFlow label creates comment", async () => {
+  test("Unconfigured CIFlow label creates comment", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
 
     payload.label.name = "ciflow/test";
     nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(404, { message: "There is nothing here" });
+    nock("https://api.github.com")
+      .get(
+        `/repos/suo/.github/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(404, { message: "There is nothing here" })
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
         expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ciflow/test` is no longer in use."
+          "No ciflow labels are configured for this repo."
         );
         return true;
       })
       .reply(200);
     await probot.receive({ name: "pull_request", id: "123", payload });
+  });
 
-    payload.label.name = "ci/test";
+  test("Invalid CIFlow label creates comment", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/test";
     nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "We have recently simplified the CIFlow labels and `ci/test` is no longer in use."
-        );
+        expect(body.body).toContain("Unknown label `ciflow/test`.");
         return true;
       })
       .reply(200);

@@ -3,7 +3,7 @@ SELECT
 FROM
     commons.issue_comment
 WHERE
-    issue_comment.body LIKE '%pytorchbot merge -f%'
+    REGEXP_LIKE(issue_comment.body, '@pytorch(merge)?bot merge -f')
     AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
     AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
     AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'

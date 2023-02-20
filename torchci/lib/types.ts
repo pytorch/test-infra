@@ -53,7 +53,7 @@ export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
-  nameToJobs?: Map<string, JobData>
+  nameToJobs?: Map<string, JobData>;
 }
 
 export interface HudData {
@@ -132,6 +132,25 @@ export interface TTSChange {
   absoluteChangeString: string;
 }
 
+export interface JobsPerCommitData {
+  sha: string;
+  author: string;
+  body?: string;
+  time: string;
+  failures: string[];
+  successes: string[];
+}
+
+export enum JobAnnotation {
+  NULL = "None",
+  BROKEN_TRUNK = "Broken Trunk",
+  TEST_FLAKE = "Test Flake",
+  INFRA_BROKEN = "Broken Infra",
+  INFRA_FLAKE = "Infra Flake",
+  NETWORK = "Network Error",
+  OTHER = "Other",
+}
+
 export function packHudParams(input: any) {
   return {
     repoOwner: input.repoOwner as string,
@@ -140,8 +159,8 @@ export function packHudParams(input: any) {
     page: parseInt((input.page as string) ?? 1),
     per_page: parseInt((input.per_page as string) ?? 50),
     nameFilter: input.name_filter as string | undefined,
-    filter_reruns: input.filter_reruns ?? false as boolean,
-    filter_unstable: input.filter_unstable ?? false as boolean,
+    filter_reruns: input.filter_reruns ?? (false as boolean),
+    filter_unstable: input.filter_unstable ?? (false as boolean),
   };
 }
 
@@ -171,11 +190,11 @@ function formatHudURL(
   base += `?per_page=${params.per_page}`;
 
   if (params.filter_reruns) {
-    base += `&filter_reruns=true`
+    base += `&filter_reruns=true`;
   }
 
   if (params.filter_unstable) {
-    base += `&filter_unstable=true`
+    base += `&filter_unstable=true`;
   }
 
   if (params.nameFilter != null && keepFilter) {

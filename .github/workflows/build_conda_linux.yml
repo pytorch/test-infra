@@ -203,9 +203,8 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          conda create --yes -n upload_env python="${PYTHON_VERSION}"
-          conda run -n upload_env conda install -yq anaconda-client
-          conda run -n upload_env anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} conda install -yq anaconda-client
+          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

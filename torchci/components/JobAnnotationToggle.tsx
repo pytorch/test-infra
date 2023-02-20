@@ -1,17 +1,7 @@
 import React from "react";
-import { JobData } from "../lib/types";
+import { JobData, JobAnnotation } from "../lib/types";
 import { ToggleButtonGroup, ToggleButton } from "@mui/material";
 import { useSession } from "next-auth/react";
-
-export enum JobAnnotation {
-  NULL = "None",
-  BROKEN_TRUNK = "Broken Trunk",
-  TEST_FLAKE = "Test Flake",
-  INFRA_BROKEN = "Broken Infra",
-  INFRA_FLAKE = "Infra Flake",
-  NETWORK = "Network Error",
-  OTHER = "Other"
-}
 
 export default function JobAnnotationToggle({
   job,
