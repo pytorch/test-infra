@@ -326,13 +326,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "91143",
-    "https://github.com/pytorch/pytorch/issues/91143",
-    [
-      "linux"
-    ]
-  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
@@ -1168,13 +1161,6 @@
     "https://github.com/pytorch/pytorch/issues/95172",
     [
       "rocm"
-    ]
-  ],
-  "test_memory_format_nn_RNN_train_mode_cuda_float64 (__main__.TestModuleCUDA)": [
-    "86635",
-    "https://github.com/pytorch/pytorch/issues/86635",
-    [
-      "linux"
     ]
   ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
