@@ -1580,13 +1580,6 @@
       "linux"
     ]
   ],
-  "test_restore_graphstate_internals_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92480",
-    "https://github.com/pytorch/pytorch/issues/92480",
-    [
-      "linux"
-    ]
-  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
@@ -1684,6 +1677,13 @@
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
+    ]
+  ],
+  "test_tensor_item_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95239",
+    "https://github.com/pytorch/pytorch/issues/95239",
     [
       "linux"
     ]
