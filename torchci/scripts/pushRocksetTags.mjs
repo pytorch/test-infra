@@ -7,12 +7,18 @@ async function readJSON(path) {
 }
 
 async function pushProdTag(client, workspace, queryName, version) {
-  const currentRocksetVersion = await client.queryLambdas.getQueryLambdaTagVersion(
-    workspace,
-    queryName,
-    "prod"
-  );
-  if (currentRocksetVersion.data.version.version == version) {
+  let currentRocksetVersion = null;
+  try {
+    currentRocksetVersion = await client.queryLambdas.getQueryLambdaTagVersion(
+      workspace,
+      queryName,
+      "prod"
+    );
+  } catch (error) {
+    console.log(error);
+  }
+
+  if (currentRocksetVersion?.data.version.version == version) {
     console.log(
       `${workspace}.${queryName}:${version} already tagged as 'prod'`
     );
