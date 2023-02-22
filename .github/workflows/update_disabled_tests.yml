@@ -19,7 +19,7 @@ jobs:
 
       - name: Generate new disabled tests and jobs jsons
         env:
-          # The token is used to confirm issue creator's admin permission before
+          # The token is used to confirm issue creator's write permission before
           # allowing them to disable jobs
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         run: |
