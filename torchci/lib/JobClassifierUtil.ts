@@ -193,7 +193,7 @@ export function getGroupConclusionChar(conclusion?: GroupedJobStatus): string {
     case GroupedJobStatus.Pending:
       return "?";
     case GroupedJobStatus.AllNull:
-      return "O";
+      return "~";
     case GroupedJobStatus.Classified:
       return "X";
     case GroupedJobStatus.Flaky:
@@ -243,7 +243,7 @@ export function getConclusionChar(
     case JobStatus.Pending:
       return "?";
     case undefined:
-      return "O";
+      return "~";
     default:
       return "U";
   }
