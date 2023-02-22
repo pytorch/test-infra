@@ -9,11 +9,10 @@ import argparse
 import json
 import os
 import re
+import urllib
 from functools import lru_cache
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.request import Request, urlopen
-
-from octokit import Octokit
 
 
 DISABLED_PREFIX = "DISABLED"
@@ -31,8 +30,12 @@ def _read_url(url: Any) -> Any:
         return r.headers, r.read().decode(r.headers.get_content_charset("utf-8"))
 
 
-def request_for_labels(url: str) -> Any:
+def github_api_request(url: str, token: Optional[str] = "") -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
+
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
     return _read_url(Request(url, headers=headers))
 
 
@@ -66,14 +69,14 @@ def get_disable_issues() -> Dict[Any, Any]:
         f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+DISABLED&"
         "&per_page=100"
     )
-    header, info = request_for_labels(prefix + "&page=1")
+    header, info = github_api_request(prefix + "&page=1")
     issues_json = json.loads(info)
     last_page = get_last_page(header)
     assert (
         last_page > 0
     ), "Error reading header info to determine total number of pages of labels"
     for page_number in range(2, last_page + 1):  # skip page 1
-        _, info = request_for_labels(prefix + f"&page={page_number}")
+        _, info = github_api_request(prefix + f"&page={page_number}")
         update_issues(issues_json, info)
 
     return issues_json
@@ -116,16 +119,22 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
     return disable_test_issues, disable_job_issues
 
 
+@lru_cache()
 def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
     token = os.getenv("API_TOKEN_GITHUB", "")
-    r = Octokit(auth="token", token=token).repos.get_collaborator_permission_level(
-        owner=owner, repo=repo, username=username
-    )
-    return (
-        r
-        and r.json
-        and r.json.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
-    )
+    url = f"https://api.github.com/repos/{owner}/{repo}/collaborators/{username}/permission"
+
+    try:
+        _, r = github_api_request(url=url, token=token)
+    except urllib.error.HTTPError as error:
+        print(f"Failed to get {owner}/{repo} permission for {username}: {error}")
+        return False
+
+    if not r:
+        return False
+    perm = json.loads(r)
+
+    return perm and perm.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
 
 
 def condense_disable_tests(

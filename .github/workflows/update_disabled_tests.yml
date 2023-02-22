@@ -19,11 +19,10 @@ jobs:
 
       - name: Generate new disabled tests and jobs jsons
         env:
+          # The token is used to confirm issue creator's admin permission before
+          # allowing them to disable jobs
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Octokit is used to confirm issue creator's admin permission before
-          # allowing them to disable jobs
-          python3 -mpip install octokitpy==0.15.0
           python3 .github/scripts/update_disabled_issues.py
 
       - name: Print the list of disabled tests
