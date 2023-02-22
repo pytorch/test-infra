@@ -328,6 +328,13 @@
       "linux"
     ]
   ],
+  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "91143",
+    "https://github.com/pytorch/pytorch/issues/91143",
+    [
+      "linux"
+    ]
+  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
@@ -1571,6 +1578,13 @@
   "test_restore_graphstate_internals_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95279",
     "https://github.com/pytorch/pytorch/issues/95279",
+    [
+      "linux"
+    ]
+  ],
+  "test_return_nested_function (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95316",
+    "https://github.com/pytorch/pytorch/issues/95316",
     [
       "linux"
     ]
