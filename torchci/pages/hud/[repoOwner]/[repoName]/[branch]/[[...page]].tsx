@@ -12,6 +12,7 @@ import TooltipTarget from "components/TooltipTarget";
 import {
   getGroupingData,
   groups,
+  sortGroupNamesForHUD,
   isPersistentGroup,
   isUnstableGroup,
 } from "lib/JobClassifierUtil";
@@ -443,7 +444,7 @@ function GroupedHudTable({
   const [hideUnstable, setHideUnstable] = useState<boolean>(true);
 
   const groupNames = Array.from(groupNameMapping.keys());
-  let names = groupNames;
+  let names = sortGroupNamesForHUD(groupNames);
 
   if (hideUnstable) {
     names = names.filter((name) => !isUnstableGroup(name));
