@@ -103,6 +103,7 @@ export default function HudGroupedCell({
                   ? styles["classified"]
                   : styles[conclusion ?? "none"]
               }
+              style={{ border: "1px solid gainsboro" , padding: "0 1px"}}
             >
               {getGroupConclusionChar(conclusion)}
             </span>
