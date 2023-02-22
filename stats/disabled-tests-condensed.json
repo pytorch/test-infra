@@ -1582,6 +1582,13 @@
       "linux"
     ]
   ],
+  "test_restore_graphstate_internals_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95279",
+    "https://github.com/pytorch/pytorch/issues/95279",
+    [
+      "linux"
+    ]
+  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
