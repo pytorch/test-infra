@@ -7,15 +7,23 @@ Query for the DISABLED issues and check:
 
 import argparse
 import json
+import os
 import re
 from functools import lru_cache
 from typing import Any, Dict, List, Tuple
 from urllib.request import Request, urlopen
 
+from octokit import Octokit
+
 
 DISABLED_PREFIX = "DISABLED"
 DISABLED_TEST_ISSUE_TITLE = re.compile(r"DISABLED\s*test_.+\s*\(.+\)")
 JOB_NAME_MAXSPLIT = 2
+
+OWNER = "pytorch"
+REPO = "pytorch"
+
+PERMISSIONS_TO_DISABLE_JOBS = {"admin"}
 
 
 def _read_url(url: Any) -> Any:
@@ -55,7 +63,7 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
 @lru_cache()
 def get_disable_issues() -> Dict[Any, Any]:
     prefix = (
-        "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&"
+        f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+DISABLED&"
         "&per_page=100"
     )
     header, info = request_for_labels(prefix + "&page=1")
@@ -108,6 +116,18 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
     return disable_test_issues, disable_job_issues
 
 
+def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
+    token = os.getenv("API_TOKEN_GITHUB", "")
+    r = Octokit(auth="token", token=token).repos.get_collaborator_permission_level(
+        owner=owner, repo=repo, username=username
+    )
+    return (
+        r
+        and r.json
+        and r.json.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
+    )
+
+
 def condense_disable_tests(
     disable_issues: List[Any],
 ) -> Dict[str, Tuple]:
@@ -142,6 +162,8 @@ def condense_disable_tests(
 
 def condense_disable_jobs(
     disable_issues: List[Any],
+    owner: str,
+    repo: str,
 ) -> Dict[str, Tuple]:
     disabled_job_from_issues = {}
     for item in disable_issues:
@@ -154,6 +176,14 @@ def condense_disable_jobs(
         if not job_name:
             continue
 
+        username = item.get("user", {}).get("login", "")
+        # To keep the CI safe, we will only allow author with admin permission
+        # to the repo to disable jobs
+        if not username or not can_disable_jobs(
+            owner=owner, repo=repo, username=username
+        ):
+            continue
+
         parts = job_name.split("/", JOB_NAME_MAXSPLIT)
         # Split the job name into workflow, platform, and configuration names
         # For example, pull / linux-bionic-py3.8-clang9 / test (dynamo) name
@@ -164,6 +194,7 @@ def condense_disable_jobs(
         config_name = parts[2].strip() if len(parts) >= 3 else ""
 
         disabled_job_from_issues[job_name] = (
+            username,
             issue_number,
             issue_url,
             workflow_name,
@@ -181,6 +212,16 @@ def dump_json(data: Dict[str, Any], filename: str):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Update the list of disabled tests")
+    parser.add_argument(
+        "--owner",
+        default=OWNER,
+        help="Set the repo owner to query the issues from",
+    )
+    parser.add_argument(
+        "--repo",
+        default=REPO,
+        help="Set the repo to query the issues from",
+    )
     args = parser.parse_args()
 
     # Get the list of disabled issues and sort them
@@ -193,7 +234,10 @@ def main() -> None:
     dump_json(
         condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
     )
-    dump_json(condense_disable_jobs(disable_job_issues), "disabled-jobs.json")
+    dump_json(
+        condense_disable_jobs(disable_job_issues, args.owner, args.repo),
+        "disabled-jobs.json",
+    )
 
 
 if __name__ == "__main__":
