@@ -23,7 +23,7 @@ JOB_NAME_MAXSPLIT = 2
 OWNER = "pytorch"
 REPO = "pytorch"
 
-PERMISSIONS_TO_DISABLE_JOBS = {"admin"}
+PERMISSIONS_TO_DISABLE_JOBS = {"admin", "write"}
 
 
 def _read_url(url: Any) -> Any:
