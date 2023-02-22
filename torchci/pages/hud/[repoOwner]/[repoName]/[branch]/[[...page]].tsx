@@ -443,8 +443,8 @@ function GroupedHudTable({
   );
   const [hideUnstable, setHideUnstable] = useState<boolean>(true);
 
-  const groupNames = Array.from(groupNameMapping.keys())
-  let names = sortGroupNamesForHUD(groupNames)
+  const groupNames = Array.from(groupNameMapping.keys());
+  let names = sortGroupNamesForHUD(groupNames);
 
   if (hideUnstable) {
     names = names.filter((name) => !isUnstableGroup(name));
