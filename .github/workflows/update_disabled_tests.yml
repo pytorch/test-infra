@@ -6,6 +6,9 @@ on:
     - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/scripts/update_disabled_issues.py
 
 jobs:
   update-disabled-tests:
@@ -14,22 +17,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install some python dependencies
+      - name: Generate new disabled tests and jobs jsons
         run: |
-          python3 -mpip install rockset==1.0.3
+          python3 .github/scripts/update_disabled_issues.py
 
-      - name: Generate new disabled test json
-        env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
-        run: |
-          # TODO: Run this in dry-run mode until we can automatically close non flaky disabled tests
-          python3 .github/scripts/update_disabled_tests.py --dry-run
-
-      - name: Print file
+      - name: Print the list of disabled tests
         run: |
           cat disabled-tests-condensed.json
 
-      - name: Push file to test-infra repository
+      - name: Print the list of disabled jobs
+        run: |
+          cat disabled-jobs.json
+
+      - name: Push disable tests to test-infra repository
+        if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
@@ -42,10 +43,27 @@ jobs:
           user_name: "Pytorch Test Infra"
           commit_message: "Updating condensed disabled tests stats"
 
+      - name: Push disable jobs to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "disabled-jobs.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating disabled jobs"
+
       - name: Upload file to s3
+        if: github.event_name != 'pull_request'
         run: |
           python3 -mpip install awscli==1.27.69
-          aws s3 cp "disabled-tests-condensed.json" s3://ossci-metrics/disabled-tests-condensed.json
+
+          aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
+          aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
