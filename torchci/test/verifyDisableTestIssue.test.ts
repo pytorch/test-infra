@@ -1,4 +1,3 @@
-import nock from "nock";
 import { Probot } from "probot";
 import * as utils from "./utils";
 import myProbotApp, * as bot from "../lib/bot/verifyDisableTestIssueBot";
