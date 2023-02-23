@@ -35,7 +35,7 @@ jobs:
       JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v3
