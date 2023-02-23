@@ -157,13 +157,13 @@ export async function formJobValidationComment(
   body += `* Credential: \`${username}\`\n\n`;
 
   if (!authorized) {
-    body +=
-      "<b>ERROR!</b> Your credential does not have the permission to disable the above job.\n\n";
+    body += `<b>ERROR!</b> Your credential (${username}) does not have the permission to disable ${jobName}.\n\n`;
   } else {
     body += `Within ~15 minutes, \`${jobName}\` and all of its dependants will be disabled in PyTorch CI. `;
     body +=
       "Please verify that the job name looks correct. With great power comes great responsibility.\n\n";
   }
+  body += "</body>";
 
   return validationCommentStart + body + validationCommentEnd;
 }
