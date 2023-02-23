@@ -34,7 +34,7 @@ def github_api_request(url: str, token: Optional[str] = "") -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
 
     return _read_url(Request(url, headers=headers))
 
