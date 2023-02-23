@@ -75,6 +75,7 @@ export default function FilteredJobList({
       <ul>
         {filteredJobs.map((job) => (
           <FailedJobInfo
+            key={job.id}
             job={job}
             showClassification={showClassification}
             annotation={
