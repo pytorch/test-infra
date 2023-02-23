@@ -186,7 +186,7 @@ def condense_disable_jobs(
             continue
 
         username = item.get("user", {}).get("login", "")
-        # To keep the CI safe, we will only allow author with admin permission
+        # To keep the CI safe, we will only allow author with write permission
         # to the repo to disable jobs
         if not username or not can_disable_jobs(
             owner=owner, repo=repo, username=username
