@@ -218,7 +218,7 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
       comment.includes(
-        "Your credential (mock-user) does not have the permission"
+        "You (mock-user) don't have permission to disable"
       )
     ).toBeTruthy();
     expect(comment.includes("ERROR")).toBeTruthy();
