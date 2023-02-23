@@ -1,8 +1,11 @@
 import { Context, Probot } from "probot";
+import { hasWritePermissions } from "./utils";
 
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
 const disabledKey = "DISABLED ";
+const disabledTestIssueTitle = new RegExp("DISABLED\\s*test.+\\s*\\(.+\\)");
+
 export const supportedPlatforms = new Set([
   "asan",
   "linux",
@@ -139,6 +142,36 @@ export function formValidationComment(
   return validationCommentStart + body + validationCommentEnd;
 }
 
+export async function formJobValidationComment(
+  context: any,
+  username: string,
+  jobName: string
+): Promise<string> {
+  const authorized = await hasWritePermissions(context, username);
+
+  let body =
+    "<body>Hello there! From the DISABLED prefix in this issue title, ";
+  body += "it looks like you are attempting to disable a job in PyTorch CI. ";
+  body += "The information I have parsed is below:\n\n";
+  body += `* Job name: \`${jobName}\`\n`;
+  body += `* Credential: \`${username}\`\n\n`;
+
+  if (!authorized) {
+    body += `<b>ERROR!</b> You (${username}) don't have permission to disable ${jobName}.\n\n`;
+  } else {
+    body += `Within ~15 minutes, \`${jobName}\` and all of its dependants will be disabled in PyTorch CI. `;
+    body +=
+      "Please verify that the job name looks correct. With great power comes great responsibility.\n\n";
+  }
+  body += "</body>";
+
+  return validationCommentStart + body + validationCommentEnd;
+}
+
+export function isDisabledTest(title: string): boolean {
+  return disabledTestIssueTitle.test(title);
+}
+
 export default function verifyDisableTestIssueBot(app: Probot): void {
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const state = context.payload["issue"]["state"];
@@ -161,9 +194,13 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const existingValidationCommentID = existingValidationCommentData[0];
     const existingValidationComment = existingValidationCommentData[1];
 
-    const testName = parseTitle(title);
+    const target = parseTitle(title);
     const platforms = parseBody(body!);
-    const validationComment = formValidationComment(testName, platforms);
+    const username = context.payload["issue"]["user"]["login"];
+
+    const validationComment = isDisabledTest(title)
+      ? formValidationComment(target, platforms)
+      : await formJobValidationComment(context, username, target);
 
     if (existingValidationComment === validationComment) {
       return;
