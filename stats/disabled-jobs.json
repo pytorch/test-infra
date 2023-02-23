@@ -1,1 +1,10 @@
-{}
+{
+  "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
+    "huydhn",
+    "94861",
+    "https://github.com/pytorch/pytorch/issues/94861",
+    "pull",
+    "linux-bionic-py3.8-clang9",
+    "test (dynamo)"
+  ]
+}
