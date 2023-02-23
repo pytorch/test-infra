@@ -144,7 +144,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const failedJobName = failedA.name;
 
@@ -228,7 +229,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -275,6 +277,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         pr_1001.head_sha,
         "random sha"
+        "hudlink"
       );
       const comment = formDrciComment(
         1001,
@@ -311,6 +314,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         pr_1001.head_sha,
         "random sha"
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
@@ -344,6 +348,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         pr_1001.head_sha,
         "random sha"
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
@@ -375,6 +380,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [failedC],
         "random head sha",
         "random base sha"
+        "hudlink"
       );
       const expectToContain = [
         "3 Failures, 1 Pending",
