@@ -151,9 +151,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
       expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
       expect(failureInfo.includes(failedJobName)).toBeTruthy();
-      const expectedFailureOrder = `* [Lint](a)
-* [something](a)
-* [z-docs / build-docs (cpp)](a)`;
+      const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
+* [something](hudlink#1) ([gh](a))
+* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))`;
       expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
     });
 
@@ -276,7 +276,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
         "hudlink"
       );
       const comment = formDrciComment(
@@ -313,7 +313,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
         "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
@@ -347,7 +347,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
         "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
@@ -379,7 +379,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [failedB],
         [failedC],
         "random head sha",
-        "random base sha"
+        "random base sha",
         "hudlink"
       );
       const expectToContain = [
