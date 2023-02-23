@@ -1596,6 +1596,13 @@
       "linux"
     ]
   ],
+  "test_return_nested_function_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "92477",
+    "https://github.com/pytorch/pytorch/issues/92477",
+    [
+      "linux"
+    ]
+  ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
