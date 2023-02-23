@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """
-DEBUG
-
 Query for the DISABLED issues and check:
   * if they are still flaky for disabled tests
   * if they are to disable workflow jobs
@@ -36,7 +34,7 @@ def github_api_request(url: str, token: Optional[str] = "") -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
 
     return _read_url(Request(url, headers=headers))
 
