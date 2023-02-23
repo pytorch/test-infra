@@ -34,7 +34,7 @@ def github_api_request(url: str, token: Optional[str] = "") -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = f"token {token}"
 
     return _read_url(Request(url, headers=headers))
 
@@ -121,7 +121,7 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
 
 @lru_cache()
 def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
-    token = os.getenv("API_TOKEN_GITHUB", "")
+    token = os.getenv("GH_PYTORCHBOT_TOKEN", "")
     url = f"https://api.github.com/repos/{owner}/{repo}/collaborators/{username}/permission"
 
     try:
