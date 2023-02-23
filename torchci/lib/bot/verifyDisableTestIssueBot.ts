@@ -4,7 +4,7 @@ import { hasWritePermissions } from "./utils";
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
 const disabledKey = "DISABLED ";
-const disabledTestIssueTitle = new RegExp("DISABLEDs*test_.+s*(.+)");
+const disabledTestIssueTitle = new RegExp("DISABLED\\s*test.+\\s*\\(.+\\)");
 
 export const supportedPlatforms = new Set([
   "asan",
@@ -168,7 +168,7 @@ export async function formJobValidationComment(
   return validationCommentStart + body + validationCommentEnd;
 }
 
-function isDisabledTest(title: string): boolean {
+export function isDisabledTest(title: string): boolean {
   return disabledTestIssueTitle.test(title);
 }
 
@@ -201,6 +201,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const validationComment = isDisabledTest(title)
       ? formValidationComment(target, platforms)
       : await formJobValidationComment(context, username, target);
+
     if (existingValidationComment === validationComment) {
       return;
     }
