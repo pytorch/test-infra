@@ -21,7 +21,7 @@ jobs:
         env:
           # The token is used to confirm issue creator's write permission before
           # allowing them to disable jobs
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+          API_TOKEN_GITHUB: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
         run: |
           python3 .github/scripts/update_disabled_issues.py
 
