@@ -36,6 +36,7 @@ def github_api_request(url: str, token: Optional[str] = "") -> Any:
     if token:
         headers["Authorization"] = f"token {token}"
 
+    print(json.dumps(headers))
     return _read_url(Request(url, headers=headers))
 
 
