@@ -122,7 +122,7 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
 
 @lru_cache()
 def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
-    token = os.getenv("API_TOKEN_GITHUB", "")
+    token = os.getenv("GH_PYTORCHBOT_TOKEN", "")
     url = f"https://api.github.com/repos/{owner}/{repo}/collaborators/{username}/permission"
 
     try:
