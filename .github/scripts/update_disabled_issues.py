@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+DEBUG
+
 Query for the DISABLED issues and check:
   * if they are still flaky for disabled tests
   * if they are to disable workflow jobs
