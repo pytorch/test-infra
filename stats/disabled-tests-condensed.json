@@ -939,23 +939,9 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93049",
-    "https://github.com/pytorch/pytorch/issues/93049",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
     "94531",
     "https://github.com/pytorch/pytorch/issues/94531",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
     [
       "linux"
     ]
@@ -1488,13 +1474,6 @@
   "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
     "77598",
     "https://github.com/pytorch/pytorch/issues/77598",
-    [
-      "linux"
-    ]
-  ],
-  "test_pytorch_np (__main__.TestTensorBoardPyTorchNumpy)": [
-    "93840",
-    "https://github.com/pytorch/pytorch/issues/93840",
     [
       "linux"
     ]
