@@ -157,7 +157,7 @@ export async function formJobValidationComment(
   body += `* Credential: \`${username}\`\n\n`;
 
   if (!authorized) {
-    body += `<b>ERROR!</b> Your credential (${username}) does not have the permission to disable ${jobName}.\n\n`;
+    body += `<b>ERROR!</b> You (${username}) don't have permission to disable ${jobName}.\n\n`;
   } else {
     body += `Within ~15 minutes, \`${jobName}\` and all of its dependants will be disabled in PyTorch CI. `;
     body +=
