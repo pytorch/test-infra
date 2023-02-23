@@ -643,6 +643,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_op_db_empty_permuted_cpu_float32 (__main__.TestDTensorOpsCPU)": [
+    "95395",
+    "https://github.com/pytorch/pytorch/issues/95395",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_op_db_linalg_solve_ex_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "94559",
     "https://github.com/pytorch/pytorch/issues/94559",
