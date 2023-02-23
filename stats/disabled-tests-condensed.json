@@ -608,6 +608,13 @@
       "linux"
     ]
   ],
+  "test_dispatch_symbolic_meta_outplace_all_strides_fft_fft_cuda_float32 (__main__.TestMetaCUDA)": [
+    "95385",
+    "https://github.com/pytorch/pytorch/issues/95385",
+    [
+      "linux"
+    ]
+  ],
   "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
     "77318",
     "https://github.com/pytorch/pytorch/issues/77318",
