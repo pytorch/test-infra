@@ -5,6 +5,8 @@ from update_disabled_issues import (
     condense_disable_tests,
     filter_disable_issues,
     get_disable_issues,
+    OWNER,
+    REPO,
     validate_and_sort,
 )
 
@@ -32,24 +34,33 @@ MOCK_DATA = {
             "url": "https://api.github.com/repos/pytorch/pytorch/issues/94861",
             "number": 94861,
             "title": "DISABLED pull / linux-bionic-py3.8-clang9 / test (dynamo)",
+            "user": {
+                "login": "mock-user",
+            },
         },
         {
             "html_url": "https://github.com/pytorch/pytorch/issues/42345",
             "url": "https://api.github.com/repos/pytorch/pytorch/issues/42345",
             "number": 42345,
             "title": "DISABLED pull / linux-bionic-py3.8-clang9",
+            "user": {
+                "login": "mock-user",
+            },
         },
         {
             "html_url": "https://github.com/pytorch/pytorch/issues/32132",
             "url": "https://api.github.com/repos/pytorch/pytorch/issues/32132",
             "number": 32132,
             "title": "DISABLED pull",
+            "user": {
+                "login": "mock-user",
+            },
         },
         {
             "html_url": "https://github.com/pytorch/pytorch/issues/53457",
             "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
             "number": 53457,
-            "title": "Not a DISABLED issue, but has the disbaled keywork",
+            "title": "Not a DISABLED issue, but has the disabled keyword",
         },
     ],
 }
@@ -117,11 +128,19 @@ class TestUpdateDisabledIssues(TestCase):
         validate_and_sort(disabled_issues)
 
         _, disabled_jobs = filter_disable_issues(disabled_issues)
-        results = condense_disable_jobs(disabled_jobs)
+
+        with mock.patch(
+            "update_disabled_issues.can_disable_jobs"
+        ) as mock_can_disable_jobs:
+            mock_can_disable_jobs.return_value = True
+            results = condense_disable_jobs(
+                disable_issues=disabled_jobs, owner=OWNER, repo=REPO
+            )
 
         self.assertDictEqual(
             {
                 "pull": (
+                    "mock-user",
                     "32132",
                     "https://github.com/pytorch/pytorch/issues/32132",
                     "pull",
@@ -129,6 +148,7 @@ class TestUpdateDisabledIssues(TestCase):
                     "",
                 ),
                 "pull / linux-bionic-py3.8-clang9": (
+                    "mock-user",
                     "42345",
                     "https://github.com/pytorch/pytorch/issues/42345",
                     "pull",
@@ -136,6 +156,7 @@ class TestUpdateDisabledIssues(TestCase):
                     "",
                 ),
                 "pull / linux-bionic-py3.8-clang9 / test (dynamo)": (
+                    "mock-user",
                     "94861",
                     "https://github.com/pytorch/pytorch/issues/94861",
                     "pull",
@@ -145,6 +166,25 @@ class TestUpdateDisabledIssues(TestCase):
             },
             results,
         )
+
+    def test_unauthorized_condense_disable_jobs(self, mock_get_disable_issues):
+        mock_get_disable_issues.return_value = MOCK_DATA
+
+        disabled_issues = get_disable_issues()
+        validate_and_sort(disabled_issues)
+
+        _, disabled_jobs = filter_disable_issues(disabled_issues)
+
+        with mock.patch(
+            "update_disabled_issues.can_disable_jobs"
+        ) as mock_can_disable_jobs:
+            mock_can_disable_jobs.return_value = False
+            results = condense_disable_jobs(
+                disable_issues=disabled_jobs, owner=OWNER, repo=REPO
+            )
+
+        # Nothing should be disabled here because of the lack of permission
+        self.assertFalse(results)
 
 
 if __name__ == "__main__":

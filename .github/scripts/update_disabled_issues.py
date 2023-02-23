@@ -7,9 +7,11 @@ Query for the DISABLED issues and check:
 
 import argparse
 import json
+import os
 import re
+import urllib
 from functools import lru_cache
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.request import Request, urlopen
 
 
@@ -17,14 +19,23 @@ DISABLED_PREFIX = "DISABLED"
 DISABLED_TEST_ISSUE_TITLE = re.compile(r"DISABLED\s*test_.+\s*\(.+\)")
 JOB_NAME_MAXSPLIT = 2
 
+OWNER = "pytorch"
+REPO = "pytorch"
+
+PERMISSIONS_TO_DISABLE_JOBS = {"admin", "write"}
+
 
 def _read_url(url: Any) -> Any:
     with urlopen(url) as r:
         return r.headers, r.read().decode(r.headers.get_content_charset("utf-8"))
 
 
-def request_for_labels(url: str) -> Any:
+def github_api_request(url: str, token: Optional[str] = "") -> Any:
     headers = {"Accept": "application/vnd.github.v3+json"}
+
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
     return _read_url(Request(url, headers=headers))
 
 
@@ -55,17 +66,17 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
 @lru_cache()
 def get_disable_issues() -> Dict[Any, Any]:
     prefix = (
-        "https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:pytorch/pytorch+in%3Atitle+DISABLED&"
+        f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+DISABLED&"
         "&per_page=100"
     )
-    header, info = request_for_labels(prefix + "&page=1")
+    header, info = github_api_request(prefix + "&page=1")
     issues_json = json.loads(info)
     last_page = get_last_page(header)
     assert (
         last_page > 0
     ), "Error reading header info to determine total number of pages of labels"
     for page_number in range(2, last_page + 1):  # skip page 1
-        _, info = request_for_labels(prefix + f"&page={page_number}")
+        _, info = github_api_request(prefix + f"&page={page_number}")
         update_issues(issues_json, info)
 
     return issues_json
@@ -108,6 +119,24 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
     return disable_test_issues, disable_job_issues
 
 
+@lru_cache()
+def can_disable_jobs(owner: str, repo: str, username: str) -> bool:
+    token = os.getenv("API_TOKEN_GITHUB", "")
+    url = f"https://api.github.com/repos/{owner}/{repo}/collaborators/{username}/permission"
+
+    try:
+        _, r = github_api_request(url=url, token=token)
+    except urllib.error.HTTPError as error:
+        print(f"Failed to get {owner}/{repo} permission for {username}: {error}")
+        return False
+
+    if not r:
+        return False
+    perm = json.loads(r)
+
+    return perm and perm.get("permission", "").lower() in PERMISSIONS_TO_DISABLE_JOBS
+
+
 def condense_disable_tests(
     disable_issues: List[Any],
 ) -> Dict[str, Tuple]:
@@ -142,6 +171,8 @@ def condense_disable_tests(
 
 def condense_disable_jobs(
     disable_issues: List[Any],
+    owner: str,
+    repo: str,
 ) -> Dict[str, Tuple]:
     disabled_job_from_issues = {}
     for item in disable_issues:
@@ -154,6 +185,14 @@ def condense_disable_jobs(
         if not job_name:
             continue
 
+        username = item.get("user", {}).get("login", "")
+        # To keep the CI safe, we will only allow author with write permission
+        # to the repo to disable jobs
+        if not username or not can_disable_jobs(
+            owner=owner, repo=repo, username=username
+        ):
+            continue
+
         parts = job_name.split("/", JOB_NAME_MAXSPLIT)
         # Split the job name into workflow, platform, and configuration names
         # For example, pull / linux-bionic-py3.8-clang9 / test (dynamo) name
@@ -164,6 +203,7 @@ def condense_disable_jobs(
         config_name = parts[2].strip() if len(parts) >= 3 else ""
 
         disabled_job_from_issues[job_name] = (
+            username,
             issue_number,
             issue_url,
             workflow_name,
@@ -181,6 +221,16 @@ def dump_json(data: Dict[str, Any], filename: str):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Update the list of disabled tests")
+    parser.add_argument(
+        "--owner",
+        default=OWNER,
+        help="Set the repo owner to query the issues from",
+    )
+    parser.add_argument(
+        "--repo",
+        default=REPO,
+        help="Set the repo to query the issues from",
+    )
     args = parser.parse_args()
 
     # Get the list of disabled issues and sort them
@@ -193,7 +243,10 @@ def main() -> None:
     dump_json(
         condense_disable_tests(disable_test_issues), "disabled-tests-condensed.json"
     )
-    dump_json(condense_disable_jobs(disable_job_issues), "disabled-jobs.json")
+    dump_json(
+        condense_disable_jobs(disable_job_issues, args.owner, args.repo),
+        "disabled-jobs.json",
+    )
 
 
 if __name__ == "__main__":
