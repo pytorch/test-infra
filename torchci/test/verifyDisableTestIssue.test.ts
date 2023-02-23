@@ -200,7 +200,7 @@ describe("verify-disable-test-issue", () => {
 
     const spy = jest.spyOn(botUtils, "hasWritePermissions");
 
-    spy.mockReturnValue(true);
+    spy.mockReturnValue(Promise.resolve(true));
     let comment = await bot.formJobValidationComment(
       "context",
       "mock-user",
@@ -210,7 +210,7 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
 
-    spy.mockReturnValue(false);
+    spy.mockReturnValue(Promise.resolve(false));
     comment = await bot.formJobValidationComment(
       "context",
       "mock-user",
