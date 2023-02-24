@@ -342,6 +342,14 @@
       "linux"
     ]
   ],
+  "test_cond_export_single_arg_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95430",
+    "https://github.com/pytorch/pytorch/issues/95430",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_conv_after_fork (__main__.TestConvAfterFork)": [
     "75492",
     "https://github.com/pytorch/pytorch/issues/75492",
@@ -963,6 +971,13 @@
   "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93049",
+    "https://github.com/pytorch/pytorch/issues/93049",
     [
       "linux"
     ]
