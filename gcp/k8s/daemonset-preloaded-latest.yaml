@@ -101,7 +101,9 @@ spec:
           mountPath: /root
         - name: cos-tools
           mountPath: /build/cos-tools
-        command: ['/cos-gpu-installer', 'install', '--version=510.47.03']
+        # Use the NVIDIA driver version hardcoded at
+        # https://github.com/pytorch/test-infra/blob/main/.github/actions/setup-nvidia/action.yml#L10
+        command: ['/cos-gpu-installer', 'install', '--version=515.76']
       containers:
       - image: "gcr.io/google-containers/pause:2.0"
         name: pause
