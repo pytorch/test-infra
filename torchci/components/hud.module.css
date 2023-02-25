@@ -8,25 +8,35 @@
 /* Fix the width of these columns to avoid layout shift when loading the HUD
  table. */
 .colTime {
-  width: 12ch;
+  width: 7.5rem;
+  left: 0;
 }
 .colSha {
-  width: 8ch;
+  width: 5rem;
+  left: 7.5rem;
 }
 .colCommit {
-  width: 40ch;
+  width: 25rem;
+  left: 12.5rem
 }
 .colPr {
-  width: 8ch;
-}
-.colJob {
-  width: 1.3ch;
+  width: 5rem;
+  left: 37.5rem;
 }
 .colAuthor {
-  width: 12ch;
+  width: 7.5rem;
+  left: 42.5rem;
+}
+.colJob {
+  width: .8rem;
 }
 .tooltip-target-no-click {
   cursor: default;
+}
+.sticky {
+  background-color: white;
+  position: sticky;
+  z-index: 99;
 }
 
 /* code to roatate the workflow name headers */
@@ -59,7 +69,7 @@
   width: auto;
   height: 20px;
   min-width: 0;
-  max-width: 37ch;
+  max-width: 23rem;
   display: inline-block;
   overflow: clip;
   text-overflow: ellipsis;
@@ -71,7 +81,7 @@
   width: auto;
   height: 20px;
   min-width: 0;
-  max-width: 12ch;
+  max-width: 7.5rem;
   display: inline-block;
   overflow: clip;
   text-overflow: ellipsis;

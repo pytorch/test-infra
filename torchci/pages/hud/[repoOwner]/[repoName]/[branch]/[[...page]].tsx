@@ -67,26 +67,34 @@ function HudRow({
   rowData,
   expandedGroups,
   names,
+  useStickyColumns,
 }: {
   rowData: RowData;
   expandedGroups: Set<string>;
   names: string[];
+  useStickyColumns: boolean;
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
   const sha = rowData.sha;
 
-  const { repoOwner, repoName } = router.query;
+  function getStyle(style: string) {
+    let s = `${style} ${styles.jobMetadata}`
+    if (useStickyColumns) {
+      return `${s} ${styles.sticky}`;
+    }
+    return s;
+  }
 
   return (
     <tr>
-      <td className={styles.jobMetadata}>
+      <td className={getStyle(styles.colTime)}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
-      <td className={styles.jobMetadata}>
+      <td className={getStyle(styles.colSha)}>
         <a href={rowData.commitUrl}>{sha.substring(0, 7)}</a>
       </td>
-      <td className={styles.jobMetadata}>
+      <td className={getStyle(styles.colCommit)}>
         <div className={styles.jobMetadataTruncated}>
           {/* here, we purposefully do not use Link/. The prefetch behavior
           (even with prefetch disabled) spams our backend).*/}
@@ -95,7 +103,7 @@ function HudRow({
           </a>
         </div>
       </td>
-      <td className={styles.jobMetadata}>
+      <td className={getStyle(styles.colPr)}>
         {rowData.prNum !== null && (
           <a
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
@@ -110,7 +118,7 @@ function HudRow({
           </a>
         )}
       </td>
-      <td className={styles.jobMetadata}>
+      <td className={getStyle(styles.colAuthor)}>
         <div className={styles.jobMetadataTruncatedAuthor}>
           {rowData.authorUrl !== null ? (
             <a href={rowData.authorUrl}>{rowData.author}</a>
@@ -176,10 +184,12 @@ function HudTableBody({
   shaGrid,
   expandedGroups = new Set(),
   names,
+  useStickyColumns,
 }: {
   shaGrid: RowData[];
   expandedGroups?: Set<string>;
   names: string[];
+  useStickyColumns: boolean;
 }) {
   return (
     <tbody>
@@ -189,6 +199,7 @@ function HudTableBody({
           rowData={row}
           expandedGroups={expandedGroups}
           names={names}
+          useStickyColumns={useStickyColumns}
         />
       ))}
     </tbody>
@@ -206,6 +217,8 @@ function GroupFilterableHudTable({
   setUseGrouping,
   hideUnstable,
   setHideUnstable,
+  useStickyColumns,
+  setUseStickyColumns,
 }: {
   params: HudParams;
   groupNameMapping: Map<string, string[]>;
@@ -217,6 +230,8 @@ function GroupFilterableHudTable({
   setUseGrouping: any;
   hideUnstable: boolean;
   setHideUnstable: any;
+  useStickyColumns: boolean;
+  setUseStickyColumns: any;
 }) {
   const { jobFilter, handleSubmit, handleInput, normalizedJobFilter } =
     useTableFilter(params);
@@ -231,13 +246,23 @@ function GroupFilterableHudTable({
           setUseGrouping(false);
         }}
       />
-      <GroupViewCheckBox
-        useGrouping={useGrouping}
-        setUseGrouping={setUseGrouping}
+      <CheckBox
+        state={useGrouping}
+        setState={setUseGrouping}
+        inputName={"groupView"}
+        textDisplay={"Use grouped view"}
       />
-      <UnstableCheckBox
-        hideUnstable={hideUnstable}
-        setHideUnstable={setHideUnstable}
+      <CheckBox
+        state={hideUnstable}
+        setState={setHideUnstable}
+        inputName={"hideUnstable"}
+        textDisplay={"Hide unstable jobs"}
+      />
+      <CheckBox
+        state={useStickyColumns}
+        setState={setUseStickyColumns}
+        inputName={"useStickyColumns"}
+        textDisplay={"Use sticky columns"}
       />
       <table className={styles.hudTable}>
         <GroupHudTableColumns
@@ -251,6 +276,7 @@ function GroupFilterableHudTable({
           expandedGroups={expandedGroups}
           setExpandedGroups={setExpandedGroups}
           groupNameMapping={groupNameMapping}
+          useStickyColumns={useStickyColumns}
         />
         {children}
       </table>
@@ -258,43 +284,26 @@ function GroupFilterableHudTable({
   );
 }
 
-function GroupViewCheckBox({
-  useGrouping,
-  setUseGrouping,
+function CheckBox({
+  state,
+  setState,
+  inputName,
+  textDisplay,
 }: {
-  useGrouping: boolean;
-  setUseGrouping: any;
+  state: boolean;
+  setState: any;
+  inputName: string;
+  textDisplay: string;
 }) {
   return (
     <>
       <div
         onClick={() => {
-          setUseGrouping(!useGrouping);
+          setState(!state);
         }}
       >
-        <input type="checkbox" name="groupView" checked={useGrouping} />
-        <label htmlFor="groupView"> Use grouped view</label>
-      </div>
-    </>
-  );
-}
-
-function UnstableCheckBox({
-  hideUnstable,
-  setHideUnstable,
-}: {
-  hideUnstable: boolean;
-  setHideUnstable: any;
-}) {
-  return (
-    <>
-      <div
-        onClick={() => {
-          setHideUnstable(!hideUnstable);
-        }}
-      >
-        <input type="checkbox" name="hideUnstable" checked={hideUnstable} />
-        <label htmlFor="hideUnstable"> Hide unstable jobs</label>
+        <input type="checkbox" name={inputName} checked={state} />
+        <label htmlFor={inputName}> {textDisplay}</label>
       </div>
     </>
   );
@@ -442,6 +451,7 @@ function GroupedHudTable({
     params.nameFilter != null && params.nameFilter !== ""
   );
   const [hideUnstable, setHideUnstable] = useState<boolean>(true);
+  const [useStickyColumns, setUseStickyColumns] = useState<boolean>(false);
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = sortGroupNamesForHUD(groupNames);
@@ -489,11 +499,14 @@ function GroupedHudTable({
       setUseGrouping={setUseGrouping}
       hideUnstable={hideUnstable}
       setHideUnstable={setHideUnstable}
+      useStickyColumns={useStickyColumns}
+      setUseStickyColumns={setUseStickyColumns}
     >
       <HudTableBody
         shaGrid={shaGrid}
         expandedGroups={expandedGroups}
         names={names}
+        useStickyColumns={useStickyColumns}
       />
     </GroupFilterableHudTable>
   );

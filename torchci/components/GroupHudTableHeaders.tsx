@@ -57,22 +57,33 @@ export function GroupHudTableHeader({
   expandedGroups,
   setExpandedGroups,
   groupNameMapping,
+  useStickyColumns,
 }: {
   names: string[];
   filter: string | null;
   expandedGroups: Set<string>;
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   groupNameMapping: Map<string, string[]>;
+  useStickyColumns: boolean;
 }) {
   const groupNames = new Set(groupNameMapping.keys());
+
+  function getStyle(style: string) {
+    let s = `${style} ${styles.regularHeader}`
+    if (useStickyColumns) {
+      return `${s} ${styles.sticky}`;
+    }
+    return s;
+  }
+
   return (
     <thead>
       <tr>
-        <th className={styles.regularHeader}>Time</th>
-        <th className={styles.regularHeader}>SHA</th>
-        <th className={styles.regularHeader}>Commit</th>
-        <th className={styles.regularHeader}>PR</th>
-        <th className={styles.regularHeader}>Author</th>
+        <th className={getStyle(styles.colTime)}>Time</th>
+        <th className={getStyle(styles.colSha)}>SHA</th>
+        <th className={getStyle(styles.colCommit)}>Commit</th>
+        <th className={getStyle(styles.colPr)}>PR</th>
+        <th className={getStyle(styles.colAuthor)}>Author</th>
         {names.map((name) => {
           const isGroup = groupNames.has(name);
           const style = passesGroupFilter(filter, name, groupNameMapping)
