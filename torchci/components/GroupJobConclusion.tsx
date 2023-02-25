@@ -1,6 +1,7 @@
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import { GroupData, JobData } from "lib/types";
 import styles from "./JobConclusion.module.css";
+import hudStyles from "./hud.module.css";
 import TooltipTarget from "components/TooltipTarget";
 import { useContext } from "react";
 import {
@@ -44,6 +45,9 @@ export default function HudGroupedCell({
   isExpanded: boolean;
   isClassified: boolean;
 }) {
+  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const style = pinnedId.name == groupData.groupName ? hudStyles.pinned : "";
+
   const erroredJobs = [];
   const warningOnlyJobs = [];
   const pendingJobs = [];
@@ -78,12 +82,12 @@ export default function HudGroupedCell({
     conclusion = GroupedJobStatus.AllNull;
   }
 
-  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   return (
     <>
-      <td>
+      <td className={style}>
         <TooltipTarget
-          id={`${sha}-${groupData.groupName}`}
+          sha={sha}
+          name={groupData.groupName}
           pinnedId={pinnedId}
           setPinnedId={setPinnedId}
           tooltipContent={
@@ -103,7 +107,7 @@ export default function HudGroupedCell({
                   ? styles["classified"]
                   : styles[conclusion ?? "none"]
               }
-              style={{ border: "1px solid gainsboro" , padding: "0 1px"}}
+              style={{ border: "1px solid gainsboro", padding: "0 1px" }}
             >
               {getGroupConclusionChar(conclusion)}
             </span>
