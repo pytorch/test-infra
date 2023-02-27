@@ -81,11 +81,19 @@ function HudRow({
   const params = packHudParams(router.query);
   const sha = rowData.sha;
 
-  const [pinnedId, _] = useContext(PinnedTooltipContext);
+  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const style = pinnedId.sha == sha ? styles.pinned : "";
 
+  function clickCommit(e: React.MouseEvent) {
+    if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
+      return;
+    }
+    e.stopPropagation();
+    setPinnedId({ sha: rowData.sha, name: undefined });
+  }
+
   return (
-    <tr className={style}>
+    <tr className={style} onClick={(e) => clickCommit(e)}>
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>

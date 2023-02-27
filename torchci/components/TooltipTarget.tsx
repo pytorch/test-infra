@@ -20,10 +20,9 @@ export default function TooltipTarget({
   const [visible, setVisible] = useState(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
   const isPinned = pinnedId.sha == sha && pinnedId.name == name;
-  const isInteractive = pinnedId.sha !== undefined;
 
   function handleMouseOver() {
-    if (isInteractive) {
+    if (pinnedId.sha !== undefined && pinnedId.name !== undefined) {
       return;
     }
     clearTimeout(timeoutId.current!);
@@ -38,7 +37,7 @@ export default function TooltipTarget({
     }
   }
   function handleClick(e: React.MouseEvent) {
-    if (isInteractive) {
+    if (pinnedId.sha !== undefined || pinnedId.name !== undefined) {
       return;
     }
     // Capture this click to avoid it being propagated to the global click
