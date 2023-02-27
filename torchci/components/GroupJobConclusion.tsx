@@ -46,7 +46,7 @@ export default function HudGroupedCell({
   isClassified: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == groupData.groupName ? hudStyles.pinned : "";
+  const style = pinnedId.name == groupData.groupName ? hudStyles.highlight : "";
 
   const erroredJobs = [];
   const warningOnlyJobs = [];

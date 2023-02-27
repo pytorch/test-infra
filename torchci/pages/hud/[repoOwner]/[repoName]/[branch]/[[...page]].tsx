@@ -42,7 +42,7 @@ import { fetcher } from "lib/GeneralUtils";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == job.name ? styles.pinned : "";
+  const style = pinnedId.name == job.name ? styles.highlight : "";
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
       <TooltipTarget
@@ -82,7 +82,7 @@ function HudRow({
   const sha = rowData.sha;
 
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.sha == sha ? styles.pinned : "";
+  const style = pinnedId.sha == sha ? styles.highlight : "";
 
   function clickCommit(e: React.MouseEvent) {
     if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {

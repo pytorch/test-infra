@@ -78,8 +78,7 @@ export function GroupHudTableHeader({
         <th className={styles.regularHeader}>Author</th>
         {names.map((name) => {
           const isGroup = groupNames.has(name);
-          const pinnedStyle =
-            pinnedId.name == name ? { background: "#ffa" } : {};
+          const pinnedStyle = pinnedId.name == name ? styles.highlight : "";
           const style = passesGroupFilter(filter, name, groupNameMapping)
             ? {}
             : { visibility: "collapse" as any };
@@ -106,7 +105,7 @@ export function GroupHudTableHeader({
               }}
             >
               <div className={styles.jobHeaderName} style={headerStyle}>
-                <span style={pinnedStyle}>
+                <span className={pinnedStyle}>
                   {name}{" "}
                   {isGroup ? (
                     expandedGroups.has(name) ? (
