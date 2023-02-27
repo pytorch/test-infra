@@ -149,13 +149,6 @@
       "linux"
     ]
   ],
-  "test_backward_masked_cumprod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94476",
-    "https://github.com/pytorch/pytorch/issues/94476",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -778,13 +771,6 @@
       "linux"
     ]
   ],
-  "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93044",
-    "https://github.com/pytorch/pytorch/issues/93044",
-    [
-      "rocm"
-    ]
-  ],
   "test_fn_grad_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86943",
     "https://github.com/pytorch/pytorch/issues/86943",
@@ -867,23 +853,9 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93048",
-    "https://github.com/pytorch/pytorch/issues/93048",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_triangular_solve_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94770",
     "https://github.com/pytorch/pytorch/issues/94770",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
     [
       "linux"
     ]
@@ -1003,6 +975,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93063",
+    "https://github.com/pytorch/pytorch/issues/93063",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1094,23 +1073,9 @@
       "linux"
     ]
   ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95344",
     "https://github.com/pytorch/pytorch/issues/95344",
-    [
-      "linux"
-    ]
-  ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
     [
       "linux"
     ]
