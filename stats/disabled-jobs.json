@@ -14,5 +14,13 @@
     "pull",
     "linux-bionic-py3.8-clang9",
     "test (dynamo)"
+  ],
+  "pull / linux-bionic-py3_8-clang8-xla / build": [
+    "huydhn",
+    "95656",
+    "https://github.com/pytorch/pytorch/issues/95656",
+    "pull",
+    "linux-bionic-py3_8-clang8-xla",
+    "build"
   ]
 }
