@@ -764,13 +764,6 @@
       "linux"
     ]
   ],
-  "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93047",
-    "https://github.com/pytorch/pytorch/issues/93047",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93044",
     "https://github.com/pytorch/pytorch/issues/93044",
@@ -996,13 +989,6 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94625",
-    "https://github.com/pytorch/pytorch/issues/94625",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -1097,13 +1083,6 @@
   "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95148",
     "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93046",
-    "https://github.com/pytorch/pytorch/issues/93046",
     [
       "linux"
     ]
@@ -1396,13 +1375,6 @@
   "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
     "89545",
     "https://github.com/pytorch/pytorch/issues/89545",
-    [
-      "linux"
-    ]
-  ],
-  "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
-    "87190",
-    "https://github.com/pytorch/pytorch/issues/87190",
     [
       "linux"
     ]
@@ -1826,13 +1798,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_complex64 (__main__.TestJitCUDA)": [
-    "86887",
-    "https://github.com/pytorch/pytorch/issues/86887",
-    [
-      "linux"
     ]
   ],
   "test_versioned_div_tensor_inplace (jit.test_save_load_for_op_version.TestSaveLoadForOpVersion)": [
