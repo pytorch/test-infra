@@ -1,4 +1,12 @@
 {
+  "pull / linux-bionic-cuda11.7-py3.10-gcc7-sm86 / test": [
+    "huydhn",
+    "95642",
+    "https://github.com/pytorch/pytorch/issues/95642",
+    "pull",
+    "linux-bionic-cuda11.7-py3.10-gcc7-sm86",
+    "test"
+  ],
   "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
     "huydhn",
     "94861",
