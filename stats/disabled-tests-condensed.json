@@ -693,6 +693,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_shapes_right_side_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95598",
+    "https://github.com/pytorch/pytorch/issues/95598",
+    [
+      "linux"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -760,6 +767,13 @@
   "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95147",
     "https://github.com/pytorch/pytorch/issues/95147",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "93047",
+    "https://github.com/pytorch/pytorch/issues/93047",
     [
       "linux"
     ]
@@ -978,6 +992,13 @@
   "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94508",
     "https://github.com/pytorch/pytorch/issues/94508",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94625",
+    "https://github.com/pytorch/pytorch/issues/94625",
     [
       "linux"
     ]
