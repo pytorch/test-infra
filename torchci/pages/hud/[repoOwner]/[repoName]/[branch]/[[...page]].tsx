@@ -18,6 +18,7 @@ import {
 } from "lib/JobClassifierUtil";
 import {
   formatHudUrlForRoute,
+  Highlight,
   HudData,
   HudParams,
   JobData,
@@ -41,23 +42,27 @@ import { fetcher } from "lib/GeneralUtils";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const style = pinnedId.name == job.name ? styles.highlight : "";
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
       <TooltipTarget
-        id={`${sha}-${job.name}`}
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
         tooltipContent={<JobTooltip job={job} />}
+        sha={sha as string}
+        name={job.name as string}
       >
-        <JobConclusion
-          conclusion={job.conclusion}
-          failedPreviousRun={job.failedPreviousRun}
-          classified={job.failureAnnotation != null}
-          warningOnly={
-            isFailedJob(job) &&
-            (isRerunDisabledTestsJob(job) || isUnstableJob(job))
-          }
-        />
+        <div className={`${styles.center} ${style}`}>
+          <JobConclusion
+            conclusion={job.conclusion}
+            failedPreviousRun={job.failedPreviousRun}
+            classified={job.failureAnnotation != null}
+            warningOnly={
+              isFailedJob(job) &&
+              (isRerunDisabledTestsJob(job) || isUnstableJob(job))
+            }
+          />
+        </div>
       </TooltipTarget>
     </td>
   );
@@ -76,10 +81,19 @@ function HudRow({
   const params = packHudParams(router.query);
   const sha = rowData.sha;
 
-  const { repoOwner, repoName } = router.query;
+  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+  const style = pinnedId.sha == sha ? styles.highlight : "";
+
+  function clickCommit(e: React.MouseEvent) {
+    if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
+      return;
+    }
+    e.stopPropagation();
+    setPinnedId({ sha: rowData.sha, name: undefined });
+  }
 
   return (
-    <tr>
+    <tr className={style} onClick={(e) => clickCommit(e)}>
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
@@ -366,8 +380,8 @@ function HudHeader({ params }: { params: HudParams }) {
   );
 }
 
-export const PinnedTooltipContext = createContext<[null | string, any]>([
-  null,
+export const PinnedTooltipContext = createContext<[Highlight, any]>([
+  { sha: undefined, name: undefined },
   null,
 ]);
 
@@ -382,14 +396,17 @@ export default function Hud() {
   // This state needs to be set up at this level because we want to capture all
   // clicks.
 
-  const [pinnedTooltip, setPinnedTooltip] = useState<string | null>(null);
+  const [pinnedTooltip, setPinnedTooltip] = useState<Highlight>({
+    sha: undefined,
+    name: undefined,
+  });
   function handleClick() {
-    setPinnedTooltip(null);
+    setPinnedTooltip({  sha: undefined, name: undefined  });
   }
   useEffect(() => {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
-        setPinnedTooltip(null);
+        setPinnedTooltip({  sha: undefined, name: undefined });
       }
     });
   }, []);

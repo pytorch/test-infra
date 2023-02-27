@@ -49,6 +49,11 @@ export interface CommitData {
   authorUrl: string | null;
 }
 
+export interface Highlight {
+  sha?: string;
+  name?: string;
+}
+
 export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs?: Map<string, GroupData>;

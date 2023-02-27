@@ -1,26 +1,28 @@
+import { Highlight } from "lib/types";
 import { useRef, useState } from "react";
 import styles from "./TooltipTarget.module.css";
 
 export default function TooltipTarget({
-  id,
+  sha,
+  name,
   pinnedId,
   setPinnedId,
   tooltipContent,
   children,
 }: {
-  id: string;
-  pinnedId: string | null;
+  sha: string;
+  name: string;
+  pinnedId: Highlight;
   setPinnedId: any;
   tooltipContent: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
-  const isInteractive = pinnedId !== null;
-  const isPinned = pinnedId === id;
+  const isPinned = pinnedId.sha == sha && pinnedId.name == name;
 
   function handleMouseOver() {
-    if (isInteractive) {
+    if (pinnedId.sha !== undefined && pinnedId.name !== undefined) {
       return;
     }
     clearTimeout(timeoutId.current!);
@@ -35,13 +37,13 @@ export default function TooltipTarget({
     }
   }
   function handleClick(e: React.MouseEvent) {
-    if (isInteractive) {
+    if (pinnedId.sha !== undefined || pinnedId.name !== undefined) {
       return;
     }
     // Capture this click to avoid it being propagated to the global click
     // handler, which we use to reset the pinned id.
     e.stopPropagation();
-    setPinnedId(id);
+    setPinnedId({ sha: sha, name: name });
   }
 
   const content =
