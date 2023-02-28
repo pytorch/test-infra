@@ -860,13 +860,6 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_triangular_solve_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "94770",
-    "https://github.com/pytorch/pytorch/issues/94770",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1351,13 +1344,6 @@
       "linux"
     ]
   ],
-  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
-    "89545",
-    "https://github.com/pytorch/pytorch/issues/89545",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
@@ -1611,13 +1597,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_sparse_triangular_solve_cuda_complex64 (__main__.TestSparseCSRCUDA)": [
-    "90817",
-    "https://github.com/pytorch/pytorch/issues/90817",
-    [
-      "linux"
     ]
   ],
   "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
