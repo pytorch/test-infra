@@ -1676,6 +1676,13 @@
       "linux"
     ]
   ],
+  "test_tensor_split_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95697",
+    "https://github.com/pytorch/pytorch/issues/95697",
+    [
+      "linux"
+    ]
+  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
