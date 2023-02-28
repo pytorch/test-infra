@@ -83,7 +83,7 @@ jobs:
         run: echo "$RUNNER_CONTEXT"
 
       - name: Setup SSH
-        if: runner.arch == 'X86'
+        if: runner.arch == 'X64'
         uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
