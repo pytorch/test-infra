@@ -196,7 +196,7 @@ jobs:
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
       - name: Upload package to conda
-        if: ${{ inputs.trigger-event == 'push' }}
+        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
         env:
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
