@@ -77,6 +77,11 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+      - name: Dump runner context
+        env:
+          RUNNER_CONTEXT: ${{ toJSON(runner) }}
+        run: echo "$RUNNER_CONTEXT"
+
       - name: Setup SSH
         if: runner.arch == 'X86'
         uses: ./test-infra/.github/actions/setup-ssh
