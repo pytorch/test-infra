@@ -73,7 +73,7 @@ runs:
             echo "CHANNEL=test" >> "${GITHUB_ENV}"
           fi
       - name: Set Release CHANNEL for release
-        if: ${{ (github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release') }}
+        if: ${{ contains(github.base_ref, 'release') || startsWith(github.ref, 'refs/heads/release') }}
         shell: bash -l {0}
         run: |
           set -euxo pipefail
