@@ -857,6 +857,31 @@ export default function Page() {
             }}
           />
         </Grid>
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"External PR Count"}
+            queryName={"external_contribution_stats"}
+            queryParams={[...timeParams]}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"pr_count"}
+            yAxisRenderer={(value) => value}
+            additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Unique External Contributor Count"}
+            queryName={"external_contribution_stats"}
+            queryParams={[...timeParams]}
+            granularity={"day"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"user_count"}
+            yAxisRenderer={(value) => value}
+            additionalOptions={{ yAxis: { scale: true } }}
+          />
+        </Grid>
       </Grid>
     </div>
   );
