@@ -397,7 +397,7 @@ def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
     return -1
 
 
-def clear_alerts(alerts: List[Any]) -> bool:
+def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
     cleared_alerts = 0
     for alert in alerts:
         r = requests.patch(
@@ -525,7 +525,7 @@ def check_for_recurrently_failing_jobs_alert(
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
         print(f"Didn't find anything to alert on for {repo} {branch}")
-        clear_alerts(existing_alerts)
+        clear_alerts(existing_alerts, dry_run=dry_run)
         return
 
     # In the current design, there should be at most one alert issue per repo and branch
