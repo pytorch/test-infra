@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import os
@@ -94,7 +96,7 @@ class JobStatus:
         self.job_statuses = job_statuses
 
         self.filtered_statuses = list(
-            filter(is_job_not_pending_or_skipped, job_statuses)
+            filter(lambda j: not is_job_skipped(j), job_statuses)
         )
         self.current_status = self.get_current_status()
         self.failure_chain = self.get_most_recent_failure_chain()
@@ -122,7 +124,7 @@ class JobStatus:
                         failures[failure].append(job)
                         found_similar_failure = True
                         break
-                if found_similar_failure == False:
+                if not found_similar_failure:
                     failures[failureCaptures] = [job]
 
         return failures
@@ -147,17 +149,17 @@ class JobStatus:
         found_most_recent_failure = False
 
         for job in self.filtered_statuses:
-            if job["conclusion"] != "success":
+            if is_job_failed(job):
                 failures.append(job)
                 found_most_recent_failure = True
-            if found_most_recent_failure and job["conclusion"] == "success":
+            if found_most_recent_failure and not is_job_failed(job):
                 break
 
         return failures
 
     def should_alert(self) -> bool:
         return (
-            self.current_status != None
+            self.current_status is not None
             and self.current_status["conclusion"] != "success"
             and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
             and all(
@@ -186,14 +188,13 @@ def fetch_alerts(
 
         data = json.loads(r.text)
         # Return only alert belonging to the target repo and branch
-        return [
-            item
-            for item in filter(
+        return list(
+            filter(
                 lambda alert: f"Recurrently Failing Jobs on {repo} {branch}"
                 in alert["title"],
                 data["data"]["repository"]["issues"]["nodes"],
             )
-        ]
+        )
     except Exception as e:
         raise RuntimeError("Error fetching alerts", e)
 
@@ -282,7 +283,8 @@ def generate_no_flaky_tests_issue() -> Any:
         "title"
     ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
     issue["body"] = (
-        f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
+        f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for "
+        f"the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}.\n"
         "This can be an indication that the flaky test bot has stopped filing tests."
     )
     issue["labels"] = [NO_FLAKY_TESTS_LABEL]
@@ -295,7 +297,7 @@ def update_issue(
 ) -> None:
     print(f"Updating issue {issue} with content:{os.linesep}{update_comment}")
     if dry_run:
-        print(f"NOTE: Dry run, not doing any real work")
+        print("NOTE: Dry run, not doing any real work")
         return
     r = requests.patch(
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
@@ -312,7 +314,7 @@ def update_issue(
 def create_issue(issue: Dict, dry_run: bool) -> Dict:
     print(f"Creating issue with content:{os.linesep}{issue}")
     if dry_run:
-        print(f"NOTE: Dry run activated, not doing any real work")
+        print("NOTE: Dry run activated, not doing any real work")
         return
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
@@ -340,14 +342,14 @@ def map_job_data(jobNames: Any, shaGrid: Any) -> Dict[str, Any]:
     return jobData
 
 
-def is_job_not_pending_or_skipped(job: Any) -> bool:
+def is_job_failed(job: Any) -> bool:
     conclusion = job["conclusion"] if "conclusion" in job else None
-    return not (
-        conclusion is None
-        or conclusion == PENDING
-        or conclusion == NEUTRAL
-        or conclusion == SKIPPED
-    )
+    return conclusion is not None and conclusion != SUCCESS and conclusion != PENDING
+
+
+def is_job_skipped(job: Any) -> bool:
+    conclusion = job["conclusion"] if "conclusion" in job else None
+    return conclusion is None or conclusion == NEUTRAL or conclusion == SKIPPED
 
 
 def get_failed_jobs(job_data: List[Any]) -> List[Any]:

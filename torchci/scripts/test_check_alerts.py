@@ -16,11 +16,11 @@ from check_alerts import (
 
 
 job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
-disabled_job_names = [
+DISABLED_JOB_NAMES = [
     "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
     "unstable / linux-bionic-py3_7-clang8-xla / test (xla, 1, 1, linux.4xlarge)",
 ]
-test_data = [
+MOCK_TEST_DATA = [
     {
         "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
         "id": 7819529276,
@@ -50,33 +50,87 @@ test_data = [
 ]
 
 
+def mock_fetch_alerts(*args, **kwargs):
+    """
+    Return the mock JSON response when trying to fetch all existing alerts
+    """
+
+    class MockResponse:
+        def __init__(self, json_data, status_code):
+            self.text = json_data
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            pass
+
+    response = {
+        "data": {
+            "repository": {
+                "issues": {
+                    "nodes": [
+                        {
+                            "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
+                            "closed": False,
+                            "number": 3763,
+                            "body": "",
+                            "comments": {"nodes": []},
+                        },
+                        {
+                            "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch nightly",
+                            "closed": False,
+                            "number": 3764,
+                            "body": "",
+                            "comments": {"nodes": []},
+                        },
+                    ]
+                }
+            }
+        }
+    }
+    return MockResponse(json.dumps(response), 200)
+
+
 class TestGitHubPR(TestCase):
     # Should fail when jobs are ? ? Fail Fail
     def test_alert(self) -> None:
-        status = JobStatus(job_name, [{}] + [{}] + test_data)
+        status = JobStatus(job_name, [{}] + [{}] + MOCK_TEST_DATA)
         self.assertTrue(status.should_alert())
 
     # Shouldn't alert when jobs are Success ? Fail Fail
     def test_no_alert_when_cleared(self) -> None:
-        status = JobStatus(job_name, [{"conclusion": "success"}] + [{}] + test_data)
+        status = JobStatus(
+            job_name, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA
+        )
         self.assertFalse(status.should_alert())
 
     # Shouldn't alert when jobs are Fail Success Fail
     def test_no_alert_when_not_consecutive(self) -> None:
         status = JobStatus(
-            job_name, [test_data[0]] + [{"conclusion": "success"}] + [test_data[1]]
+            job_name,
+            [MOCK_TEST_DATA[0]] + [{"conclusion": "success"}] + [MOCK_TEST_DATA[1]],
+        )
+        self.assertFalse(status.should_alert())
+
+    # Shouldn't alert when the middle job is not yet done Fail ? Fail
+    def test_no_alert_when_pending_job(self) -> None:
+        status = JobStatus(
+            job_name,
+            [MOCK_TEST_DATA[0]] + [{"conclusion": "pending"}] + [MOCK_TEST_DATA[1]],
         )
         self.assertFalse(status.should_alert())
 
     # No need to send alerts for some jobs
     def test_disabled_alert(self) -> None:
-        for job_name in disabled_job_names:
-            status = JobStatus(job_name, [{}] + [{}] + test_data)
+        for job_name in DISABLED_JOB_NAMES:
+            status = JobStatus(job_name, [{}] + [{}] + MOCK_TEST_DATA)
             self.assertFalse(status.should_alert())
 
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        body = (
+            "- [job1](a) failed consecutively starting with commit []()\n"
+            "- [job2](a) failed consecutively starting with commit []()"
+        )
         update_comment = gen_update_comment(body, jobs)
         self.assertFalse(update_comment)
 
@@ -87,7 +141,10 @@ class TestGitHubPR(TestCase):
         self.assertTrue("job2" in update_comment)
 
         jobs = [JobStatus("job1", [{}])]
-        body = "- [job1](a) failed consecutively starting with commit []()\n- [job2](a) failed consecutively starting with commit []()"
+        body = (
+            "- [job1](a) failed consecutively starting with commit []()\n"
+            "- [job2](a) failed consecutively starting with commit []()"
+        )
         update_comment = gen_update_comment(body, jobs)
         self.assertTrue("stopped failing" in update_comment)
         self.assertTrue("job2" in update_comment)
@@ -164,49 +221,14 @@ class TestGitHubPR(TestCase):
             "Validate binaries / linux",
         ]
         self.assertListEqual(
-            filter_job_names(job_names, ".*nightly.pypi.binary.size.validation|cron / release /"), [
+            filter_job_names(
+                job_names, ".*nightly.pypi.binary.size.validation|cron / release /"
+            ),
+            [
                 "cron / release / linux / conda-py3_10-cpu / conda-py3_10-cpu",
                 "Validate Nightly PyPI Wheel Binary Size / nightly-pypi-binary-size-validation",
-            ])
-
-    def mock_fetch_alerts(*args, **kwargs):
-        """
-        Return the mock JSON response when trying to fetch all existing alerts
-        """
-
-        class MockResponse:
-            def __init__(self, json_data, status_code):
-                self.text = json_data
-                self.status_code = status_code
-
-            def raise_for_status(self):
-                pass
-
-        response = {
-            "data": {
-                "repository": {
-                    "issues": {
-                        "nodes": [
-                            {
-                                "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
-                                "closed": False,
-                                "number": 3763,
-                                "body": "",
-                                "comments": {"nodes": []},
-                            },
-                            {
-                                "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch nightly",
-                                "closed": False,
-                                "number": 3764,
-                                "body": "",
-                                "comments": {"nodes": []},
-                            },
-                        ]
-                    }
-                }
-            }
-        }
-        return MockResponse(json.dumps(response), 200)
+            ],
+        )
 
     @patch("requests.post", side_effect=mock_fetch_alerts)
     def test_fetch_alert(self, mocked_alerts):
