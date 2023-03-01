@@ -1,1 +1,10 @@
-{}
+{
+  "trunk / android-emulator-build-test / build-and-test": [
+    "huydhn",
+    "95746",
+    "https://github.com/pytorch/pytorch/issues/95746",
+    "trunk",
+    "android-emulator-build-test",
+    "build-and-test"
+  ]
+}
