@@ -398,6 +398,9 @@ def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
 
 
 def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
+    if dry_run:
+        print("NOTE: Dry run, not doing any real work")
+        return
     cleared_alerts = 0
     for alert in alerts:
         r = requests.patch(
