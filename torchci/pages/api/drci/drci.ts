@@ -137,17 +137,24 @@ async function getBaseCommitJobs(
 function constructResultsJobsSections(
   header: string,
   description: string,
-  jobs: RecentWorkflowsData[]
+  jobs: RecentWorkflowsData[],
+  suggestion?: string,
 ): string {
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary><p>\n\n`;
+  let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary>`;
+
+  if (suggestion) {
+    output += `<p>👉 <b>${suggestion}</b></p>`
+  }
+
+  output += "<p>\n\n" // Two newlines are needed for bullts below to be formattec correctly
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
     output += `* [${job.name}](${job.html_url})\n`;
   }
-  output += "<p></details>";
+  output += "</p></details>";
   return output;
 }
 
@@ -196,7 +203,7 @@ export function constructResultsComment(
         output += constructResultsJobsSections(
           "NEW FAILURES",
           "The following jobs have failed",
-          failedJobs
+          failedJobs,
         );
     }
     output += constructResultsJobsSections(
@@ -207,7 +214,8 @@ export function constructResultsComment(
     output += constructResultsJobsSections(
       "BROKEN TRUNK",
       `The following jobs failed but were present on the merge base ${merge_base}`,
-      brokenTrunkJobs
+      brokenTrunkJobs,
+      "Rebase onto the `viable/strict` branch to avoid these failures"
     );
     return output;
 }
