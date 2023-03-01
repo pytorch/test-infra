@@ -998,6 +998,13 @@
       "linux"
     ]
   ],
+  "test_hf_model_output (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
+    "95777",
+    "https://github.com/pytorch/pytorch/issues/95777",
+    [
+      "linux"
+    ]
+  ],
   "test_huge_index (__main__.TestCuda)": [
     "90063",
     "https://github.com/pytorch/pytorch/issues/90063",
