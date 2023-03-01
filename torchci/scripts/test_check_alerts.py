@@ -15,7 +15,7 @@ from check_alerts import (
 )
 
 
-job_name = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
+JOB_NAME = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
 DISABLED_JOB_NAMES = [
     "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
     "unstable / linux-bionic-py3_7-clang8-xla / test (xla, 1, 1, linux.4xlarge)",
@@ -93,20 +93,20 @@ def mock_fetch_alerts(*args, **kwargs):
 class TestGitHubPR(TestCase):
     # Should fail when jobs are ? ? Fail Fail
     def test_alert(self) -> None:
-        status = JobStatus(job_name, [{}] + [{}] + MOCK_TEST_DATA)
+        status = JobStatus(JOB_NAME, [{}] + [{}] + MOCK_TEST_DATA)
         self.assertTrue(status.should_alert())
 
     # Shouldn't alert when jobs are Success ? Fail Fail
     def test_no_alert_when_cleared(self) -> None:
         status = JobStatus(
-            job_name, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA
+            JOB_NAME, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA
         )
         self.assertFalse(status.should_alert())
 
     # Shouldn't alert when jobs are Fail Success Fail
     def test_no_alert_when_not_consecutive(self) -> None:
         status = JobStatus(
-            job_name,
+            JOB_NAME,
             [MOCK_TEST_DATA[0]] + [{"conclusion": "success"}] + [MOCK_TEST_DATA[1]],
         )
         self.assertFalse(status.should_alert())
@@ -114,7 +114,7 @@ class TestGitHubPR(TestCase):
     # Shouldn't alert when the middle job is not yet done Fail ? Fail
     def test_no_alert_when_pending_job(self) -> None:
         status = JobStatus(
-            job_name,
+            JOB_NAME,
             [MOCK_TEST_DATA[0]] + [{"conclusion": "pending"}] + [MOCK_TEST_DATA[1]],
         )
         self.assertFalse(status.should_alert())
