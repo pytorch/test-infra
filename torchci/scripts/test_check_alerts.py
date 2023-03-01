@@ -48,6 +48,21 @@ MOCK_TEST_DATA = [
         "repo": "pytorch/pytorch",
     },
 ]
+ANOTHER_MOCK_TEST_DATA = [
+    {
+        "sha": "2936c8b9ce4ef4d81cc3fe6e43531cb440209c61",
+        "id": 4364234624,
+        "conclusion": "failure",
+        "htmlUrl": "https://github.com/pytorch/pytorch/runs/4364234624?check_suite_focus=true",
+        "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/4364234624",
+        "durationS": 14342,
+        "failureLine": "##[error]An unique error here.",
+        "failureContext": "",
+        "failureCaptures": ["##[error]An unique error here."],
+        "failureLineNumber": 12345,
+        "repo": "pytorch/pytorch",
+    },
+]
 
 
 def mock_fetch_alerts(*args, **kwargs):
@@ -116,6 +131,13 @@ class TestGitHubPR(TestCase):
         status = JobStatus(
             JOB_NAME,
             [MOCK_TEST_DATA[0]] + [{"conclusion": "pending"}] + [MOCK_TEST_DATA[1]],
+        )
+        self.assertFalse(status.should_alert())
+
+    # Shouldn't alert when failures are different ? Fail (1) Fail (2)
+    def test_no_alert_when_different_failures(self) -> None:
+        status = JobStatus(
+            JOB_NAME, [{}] + [MOCK_TEST_DATA[0]] + ANOTHER_MOCK_TEST_DATA
         )
         self.assertFalse(status.should_alert())
 

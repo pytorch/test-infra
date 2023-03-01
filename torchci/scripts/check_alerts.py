@@ -105,10 +105,12 @@ class JobStatus:
     def get_current_status(self) -> Any:
         return self.filtered_statuses[0] if len(self.filtered_statuses) > 0 else None
 
-    # Returns a dict of failureCaptures -> List[Jobs]
-    def get_unique_failures(self) -> Dict[str, List[Any]]:
+    def get_unique_failures(self, jobs: List[Any]) -> Dict[str, List[Any]]:
+        """
+        Returns list of jobs grouped by failureCaptures from the input list
+        """
         failures = defaultdict(list)
-        for job in self.filtered_statuses:
+        for job in jobs:
             if job["conclusion"] == "failure":
                 found_similar_failure = False
                 if "failureCaptures" not in job:
@@ -131,7 +133,7 @@ class JobStatus:
 
     # A flaky job is if it's the only job that has that failureCapture and is not the most recent job
     def get_flaky_jobs(self) -> List[Any]:
-        unique_failures = self.get_unique_failures()
+        unique_failures = self.get_unique_failures(self.filtered_statuses)
         flaky_jobs = []
         for failure in unique_failures:
             failure_list = unique_failures[failure]
@@ -158,10 +160,20 @@ class JobStatus:
         return failures
 
     def should_alert(self) -> bool:
+        # Group jobs by their failures. The length of the failure chain is used
+        # to raise the alert, so we can do a simple tweak here to use the length
+        # of the longest unique chain
+        unique_failures = self.get_unique_failures(self.failure_chain)
+
         return (
             self.current_status is not None
             and self.current_status["conclusion"] != "success"
-            and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
+            and any(
+                [
+                    len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
+                    for failure_chain in unique_failures.values()
+                ]
+            )
             and all(
                 [
                     disabled_alert not in self.job_name
