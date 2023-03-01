@@ -190,7 +190,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: pmeier/pytest-summary-action@node-action
+        uses: ./test-infra/.github/actions/upload-test-results
         with:
           junit-xml: ${{ runner.temp }}/artifacts/test-results.xml
 
