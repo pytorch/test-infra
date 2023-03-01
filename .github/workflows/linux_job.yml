@@ -203,6 +203,11 @@ jobs:
           # Set to fail upload step if there are no files for upload and expected files for upload
           echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
 
+      - name: Upload test results
+        uses: pmeier/pytest-summary-action@node-action
+        with:
+          junit-xml: ${{ runner.temp }}/artifacts/test-results.xml
+
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
         if: ${{ inputs.upload-artifact != '' }}
