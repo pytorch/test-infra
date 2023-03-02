@@ -66,6 +66,7 @@ runs:
             Windows-X64)
               MINICONDA_ARCH="Windows-x86_64"
               MINICONDA_SUFFIX=".exe"
+              ;;
             *)
             echo "::error::Platform ${RUNNER_OS}-${RUNNER_ARCH} currently unsupported using this action"
               exit 1
