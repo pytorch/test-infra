@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.7] - 2023-03-02
+
+### Bug Fixes
+
+- Run clippy and rustfmt; fix issues ([#34](https://github.com/suo/lintrunner/issues/34)) ([b0e8be2](https://github.com/suo/lintrunner/commit/b0e8be295e5a0e959f36ea740b95780a9abe7400))
+- Fix and enable rustfmt linter ([#35](https://github.com/suo/lintrunner/issues/35)) ([507d273](https://github.com/suo/lintrunner/commit/507d27314283fd5c6acede4e75800766921e358d))
+
+### Features
+
+- Enable setting default --merge-base-with values ([75ea9c0](https://github.com/suo/lintrunner/commit/75ea9c09cd6904e6e53170af0661fd3dcb39c9e9))
+
 ## [0.10.5] - 2023-01-19
 
 ### Bug Fixes
