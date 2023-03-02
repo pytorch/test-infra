@@ -55,6 +55,13 @@
       "linux"
     ]
   ],
+  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
+    "81029",
+    "https://github.com/pytorch/pytorch/issues/81029",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
     "81023",
     "https://github.com/pytorch/pytorch/issues/81023",
@@ -1681,6 +1688,13 @@
     [
       "win",
       "windows"
+    ]
+  ],
+  "test_versioned_div_tensor_inplace (jit.test_save_load_for_op_version.TestSaveLoadForOpVersion)": [
+    "88719",
+    "https://github.com/pytorch/pytorch/issues/88719",
+    [
+      "dynamo"
     ]
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
