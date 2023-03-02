@@ -38,7 +38,6 @@ for result in response.results:
 
     name = result["name"]
 
-    # only consider the root job name, as opposed to the build/test shards.
     name = name.split("/", 1)[1].strip()
     if name not in pivot[head_sha]:
         pivot[head_sha][name] = 1
