@@ -1,5 +1,11 @@
 {
   "sql_path": "__sql/correlation_matrix.sql",
-  "default_parameters": [],
+  "default_parameters": [
+    {
+      "name": "workflowNames",
+      "type": "string",
+      "value": "pull,trunk,periodic"
+    }
+  ],
   "description": ""
 }
