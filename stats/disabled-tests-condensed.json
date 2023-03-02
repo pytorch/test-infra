@@ -1601,13 +1601,6 @@
       "win"
     ]
   ],
-  "test_stack (test_jit.TestScript)": [
-    "91483",
-    "https://github.com/pytorch/pytorch/issues/91483",
-    [
-      "linux"
-    ]
-  ],
   "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
     "94880",
     "https://github.com/pytorch/pytorch/issues/94880",
