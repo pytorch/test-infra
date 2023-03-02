@@ -14,6 +14,7 @@ import {
   getActiveSEVs,
   formDrciSevBody,
   FLAKY_RULES_JSON,
+  HUD_URL,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
@@ -72,7 +73,8 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         flakyJobs,
         brokenTrunkJobs,
         pr_info.head_sha,
-        pr_info.merge_base
+        pr_info.merge_base,
+        `${HUD_URL}${pr_info.pr_number}`
       );
       const comment = formDrciComment(
         pr_info.pr_number,
@@ -135,6 +137,7 @@ async function getBaseCommitJobs(
 }
 
 function constructResultsJobsSections(
+  hud_pr_url: string,
   header: string,
   description: string,
   jobs: RecentWorkflowsData[]
@@ -145,7 +148,7 @@ function constructResultsJobsSections(
   let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary><p>\n\n`;
   const jobsSorted = jobs.sort((a, b) => a.name.localeCompare(b.name));
   for (const job of jobsSorted) {
-    output += `* [${job.name}](${job.html_url})\n`;
+    output += `* [${job.name}](${hud_pr_url}#${job.id}) ([gh](${job.html_url}))\n`;
   }
   output += "<p></details>";
   return output;
@@ -158,6 +161,7 @@ export function constructResultsComment(
     brokenTrunkJobs: RecentWorkflowsData[],
     sha: string,
     merge_base: string,
+    hud_pr_url: string,
 ): string {
     let output = `\n`;
     const failing = failedJobs.length + flakyJobs.length + brokenTrunkJobs.length;
@@ -194,17 +198,20 @@ export function constructResultsComment(
         }
         output += `\nAs of commit ${sha}:`;
         output += constructResultsJobsSections(
+          hud_pr_url,
           "NEW FAILURES",
           "The following jobs have failed",
           failedJobs
         );
     }
     output += constructResultsJobsSections(
+      hud_pr_url,
       "FLAKY",
       "The following jobs failed but were likely due to flakiness present on master",
       flakyJobs
     );
     output += constructResultsJobsSections(
+      hud_pr_url,
       "BROKEN TRUNK",
       `The following jobs failed but were present on the merge base ${merge_base}`,
       brokenTrunkJobs

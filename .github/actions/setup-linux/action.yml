@@ -63,7 +63,7 @@ runs:
         if lspci -v | grep -e 'controller.*NVIDIA' >/dev/null 2>/dev/null; then
           needs=1
         fi
-        echo "::set-output name=does::${needs}"
+        echo "does=${needs}" >> $GITHUB_OUTPUT
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
       uses: ./test-infra/.github/actions/setup-nvidia

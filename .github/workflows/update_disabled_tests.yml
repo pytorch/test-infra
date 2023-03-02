@@ -20,8 +20,10 @@ jobs:
       - name: Generate new disabled tests and jobs jsons
         env:
           # The token is used to confirm issue creator's write permission before
-          # allowing them to disable jobs
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+          # allowing them to disable jobs. Note that the token needs to have access
+          # to the target repo, i.e. pytorch/pytorch instead of test-infra. Using
+          # PyTorch bot token is the most obvious choice.
+          GH_PYTORCHBOT_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
         run: |
           python3 .github/scripts/update_disabled_issues.py
 

@@ -1,6 +1,7 @@
 import styles from "components/hud.module.css";
 import { includesCaseInsensitive } from "lib/GeneralUtils";
-import React from "react";
+import { PinnedTooltipContext } from "pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import React, { useContext } from "react";
 import { BsFillCaretDownFill, BsFillCaretRightFill } from "react-icons/bs";
 
 function groupingIncludesJobFilter(jobNames: string[], filter: string) {
@@ -64,6 +65,8 @@ export function GroupHudTableHeader({
   setExpandedGroups: React.Dispatch<React.SetStateAction<Set<string>>>;
   groupNameMapping: Map<string, string[]>;
 }) {
+  const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
+
   const groupNames = new Set(groupNameMapping.keys());
   return (
     <thead>
@@ -75,6 +78,7 @@ export function GroupHudTableHeader({
         <th className={styles.regularHeader}>Author</th>
         {names.map((name) => {
           const isGroup = groupNames.has(name);
+          const pinnedStyle = pinnedId.name == name ? styles.highlight : "";
           const style = passesGroupFilter(filter, name, groupNameMapping)
             ? {}
             : { visibility: "collapse" as any };
@@ -85,7 +89,10 @@ export function GroupHudTableHeader({
               className={styles.jobHeader}
               key={name}
               style={{ ...style, ...jobStyle }}
-              onClick={() => {
+              onClick={(e: React.MouseEvent) => {
+                if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
+                  return;
+                }
                 if (expandedGroups.has(name)) {
                   expandedGroups.delete(name);
                   setExpandedGroups(new Set(expandedGroups));
@@ -93,17 +100,21 @@ export function GroupHudTableHeader({
                   expandedGroups.add(name);
                   setExpandedGroups(new Set(expandedGroups));
                 }
+                e.stopPropagation();
+                setPinnedId({ sha: undefined, name: name });
               }}
             >
               <div className={styles.jobHeaderName} style={headerStyle}>
-                {name}{" "}
-                {isGroup ? (
-                  expandedGroups.has(name) ? (
-                    <BsFillCaretDownFill />
-                  ) : (
-                    <BsFillCaretRightFill />
-                  )
-                ) : null}
+                <span className={pinnedStyle}>
+                  {name}{" "}
+                  {isGroup ? (
+                    expandedGroups.has(name) ? (
+                      <BsFillCaretDownFill />
+                    ) : (
+                      <BsFillCaretRightFill />
+                    )
+                  ) : null}
+                </span>
               </div>
             </th>
           );

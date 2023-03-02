@@ -144,15 +144,16 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const failedJobName = failedA.name;
 
       expect(failureInfo.includes("3 Failures, 1 Pending")).toBeTruthy();
       expect(failureInfo.includes(failedJobName)).toBeTruthy();
-      const expectedFailureOrder = `* [Lint](a)
-* [something](a)
-* [z-docs / build-docs (cpp)](a)`;
+      const expectedFailureOrder = `* [Lint](hudlink#1) ([gh](a))
+* [something](hudlink#1) ([gh](a))
+* [z-docs / build-docs (cpp)](hudlink#1) ([gh](a))`;
       expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
     });
 
@@ -228,7 +229,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
@@ -274,7 +276,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const comment = formDrciComment(
         1001,
@@ -310,7 +313,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
@@ -343,7 +347,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [],
         [],
         pr_1001.head_sha,
-        "random sha"
+        "random sha",
+        "hudlink"
       );
       const comment = formDrciComment(1001, failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
@@ -374,7 +379,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         [failedB],
         [failedC],
         "random head sha",
-        "random base sha"
+        "random base sha",
+        "hudlink"
       );
       const expectToContain = [
         "3 Failures, 1 Pending",

@@ -31,9 +31,10 @@
     "strict_lag_historical": "d2a09d13caf8b76a"
   },
   "metrics": {
-    "correlation_matrix": "4960260cbb0c5b48",
+    "correlation_matrix": "d2ed6c1941a799c7",
     "disabled_test_historical": "daa2413a4750aa87",
     "disabled_test_total": "da5f834a6501fc63",
+    "external_contribution_stats": "d86b6f01367c3d6f",
     "job_duration_avg": "10a88ea2ebb80647",
     "job_duration_percentile": "96507ed62db7a3a8",
     "last_branch_push": "3d995ac2143586dc",
@@ -53,7 +54,7 @@
     "reverts": "f5bc84a10c4065a3",
     "top_reds": "7758f826e610aab2",
     "tts_avg": "2dd4a04e091c58aa",
-    "tts_percentile": "cc993e55cc1804f0",
+    "tts_percentile": "912c8ad61a1772a4",
     "tts_duration_historical": "67a356d17b37f6fb",
     "tts_duration_historical_percentile": "f6824cbe03e1b6d8",
     "strict_lag_sec": "f9523e8c8c3a3311",
