@@ -74,6 +74,9 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
 
+      - name: Setup miniconda
+        uses: ./test-infra/.github/actions/setup-miniconda
+
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
         uses: actions/checkout@v3
         with:
