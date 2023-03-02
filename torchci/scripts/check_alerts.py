@@ -172,8 +172,6 @@ class JobStatus:
         # of the longest unique chain
         unique_failures = self.get_unique_failures(self.failure_chain)
 
-        print(self.current_status)
-
         return (
             self.current_status is not None
             and self.current_status["conclusion"] != SUCCESS
