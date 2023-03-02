@@ -17,7 +17,7 @@ export interface GithubCredentials {
   github_app_client_secret: string;
 }
 
-const secretCache = new LRU({ maxAge: 5 * 60 * 1000 });
+const secretCache = new LRU({ maxAge: 10 * 60 * 1000 });
 
 export function resetSecretCache() {
   secretCache.reset();

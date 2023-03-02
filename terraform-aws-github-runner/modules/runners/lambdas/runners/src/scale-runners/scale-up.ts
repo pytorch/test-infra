@@ -1,4 +1,3 @@
-import { createClient } from 'redis';
 
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey } from './utils';
@@ -32,28 +31,11 @@ export class RetryableScalingError extends Error {
   }
 }
 
-async function testRedis(): Promise<void> {
-  const url = `redis://${Config.Instance.redisEndpoint}:6379`;
-  console.log(`The REDIS URL is ${url}`);
-  const client = createClient({ url: url });
-
-  client.on('error', err => console.log('Redis Client Error', err));
-
-  await client.connect();
-
-  await client.set('key', 'value');
-  const value = await client.get('key');
-  console.log(`conencted, set, read, success! ${value}`);
-  await client.disconnect();
-}
-
 export async function scaleUp(
   eventSource: string,
   payload: ActionRequestMessage,
   metrics: ScaleUpMetrics,
 ): Promise<void> {
-  await testRedis();
-
   if (eventSource !== 'aws:sqs') {
     throw Error('Cannot handle non-SQS events!');
   }
