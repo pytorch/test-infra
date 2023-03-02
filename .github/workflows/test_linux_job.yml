@@ -19,7 +19,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        conda create -y -n test python=3.8
+        conda create --yes --quiet -n test python=3.8
         conda activate test
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -38,7 +38,7 @@ jobs:
       gpu-arch-version: "11.6"
       timeout: 60
       script: |
-        conda create -y -n test python=3.8
+        conda create --yes --quiet -n test python=3.8
         conda activate test
         python3 -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
         # Can import pytorch, cuda is available
@@ -88,6 +88,6 @@ jobs:
       script: |
         set -x
         PYTHON_VERSION="${{ matrix.python_version }}"
-        conda create -y -n test python="${PYTHON_VERSION}"
+        conda create --yes --quiet -n test python="${PYTHON_VERSION}"
         conda activate test
         python --version | grep "${PYTHON_VERSION}"

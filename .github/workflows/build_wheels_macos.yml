@@ -191,7 +191,7 @@ jobs:
             export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
             echo $DYLD_FALLBACK_LIBRARY_PATH
 
-            ${CONDA_RUN} conda install ffmpeg
+            ${CONDA_RUN} conda install --yes --quiet ffmpeg
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org

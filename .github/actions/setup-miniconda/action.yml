@@ -116,7 +116,7 @@ runs:
           fi
 
           conda create \
-            --yes \
+            --yes --quiet \
             --prefix "${CONDA_BASE_ENV}" \
             ${ENV_FILE_FLAG} \
             python="${PYTHON_VERSION}" \
@@ -140,7 +140,7 @@ runs:
         run: |
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           conda create \
-            --yes \
+            --yes --quiet \
             --prefix "${CONDA_ENV}" \
             --clone "${CONDA_BASE_ENV}"
 
@@ -148,7 +148,7 @@ runs:
           echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
           if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
             # TODO: Remove me, when more packages will be available on default channel
-            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
           else
-            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           fi

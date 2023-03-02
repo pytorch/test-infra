@@ -16,7 +16,7 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       job-name: "win-py3.8-cpu"
       script: |
-        conda create -y -n test python=3.8
+        conda create --yes --quiet -n test python=3.8
         conda activate test
         python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -30,7 +30,7 @@ jobs:
       job-name: "win-py3.8-cu116"
       timeout: 60
       script: |
-        conda create -y -n test python=3.8
+        conda create --yes --quiet -n test python=3.8
         conda activate test
         python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
         # Can import pytorch, cuda is available
