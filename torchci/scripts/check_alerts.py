@@ -180,10 +180,8 @@ class JobStatus:
                 for failure_chain in unique_failures.values()
             )
             and all(
-                [
-                    disabled_alert not in self.job_name
-                    for disabled_alert in DISABLED_ALERTS
-                ]
+                disabled_alert not in self.job_name
+                for disabled_alert in DISABLED_ALERTS
             )
         )
 
