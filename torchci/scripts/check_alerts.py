@@ -176,10 +176,8 @@ class JobStatus:
             self.current_status is not None
             and self.current_status["conclusion"] != SUCCESS
             and any(
-                [
-                    len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
-                    for failure_chain in unique_failures.values()
-                ]
+                len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
+                for failure_chain in unique_failures.values()
             )
             and all(
                 [
