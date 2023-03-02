@@ -136,7 +136,7 @@ runs:
                 conda-build=3.21 \
                 ninja=1.10 \
                 pkg-config=0.29 \
-                wheel=0.37 libpng libjpeg
+                wheel=0.37 libpng jpeg
             else
               echo 1.2
               conda create \
@@ -146,7 +146,7 @@ runs:
                 cmake=3.22 \
                 ninja=1.10 \
                 pkg-config=0.29 \
-                wheel=0.37 libpng libjpeg
+                wheel=0.37 libpng jpeg
             fi
           else
             echo 2
@@ -158,7 +158,7 @@ runs:
               conda-build=3.21 \
               ninja=1.10 \
               pkg-config=0.29 \
-              wheel=0.37 libpng libjpeg
+              wheel=0.37 libpng jpeg
           fi
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
