@@ -113,10 +113,17 @@ class TestGitHubPR(TestCase):
 
     # Shouldn't alert when jobs are Success ? Fail Fail
     def test_no_alert_when_cleared(self) -> None:
-        status = JobStatus(
-            JOB_NAME, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA
-        )
-        self.assertFalse(status.should_alert())
+        cases = [
+            JobStatus(JOB_NAME, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA),
+            JobStatus(
+                JOB_NAME,
+                [{"conclusion": "pending"}]
+                + [{"conclusion": "success"}]
+                + MOCK_TEST_DATA,
+            ),
+        ]
+        for case in cases:
+            self.assertFalse(case.should_alert())
 
     # Shouldn't alert when jobs are Fail Success Fail
     def test_no_alert_when_not_consecutive(self) -> None:

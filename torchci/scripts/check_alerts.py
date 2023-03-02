@@ -103,7 +103,14 @@ class JobStatus:
         self.flaky_jobs = self.get_flaky_jobs()
 
     def get_current_status(self) -> Any:
-        return self.filtered_statuses[0] if len(self.filtered_statuses) > 0 else None
+        """
+        When getting the current status, we want the latest status which is not pending,
+        be it success or failure
+        """
+        for status in self.filtered_statuses:
+            if status["conclusion"] != PENDING:
+                return status
+        return None
 
     def get_unique_failures(self, jobs: List[Any]) -> Dict[str, List[Any]]:
         """
@@ -165,9 +172,11 @@ class JobStatus:
         # of the longest unique chain
         unique_failures = self.get_unique_failures(self.failure_chain)
 
+        print(self.current_status)
+
         return (
             self.current_status is not None
-            and self.current_status["conclusion"] != "success"
+            and self.current_status["conclusion"] != SUCCESS
             and any(
                 [
                     len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
