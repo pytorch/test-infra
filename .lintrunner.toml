@@ -1,3 +1,5 @@
+merge_base_with="main"
+
 [[linter]]
 code = 'RUSTFMT'
 include_patterns = ['**/*.rs']

@@ -47,6 +47,7 @@ fn temp_config_returning_msg(lint_message: LintMessage) -> Result<tempfile::Name
     let serialized = serde_json::to_string(&lint_message)?;
     let config = temp_config(&format!(
         "\
+            merge_base = \"some_base\"
             [[linter]]
             code = 'TESTLINTER'
             include_patterns = ['**']

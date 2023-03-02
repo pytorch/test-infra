@@ -82,6 +82,8 @@ file, conventionally named `.lintrunner.toml`.
 Here is an example linter configuration:
 
 ```toml
+merge_base_with = 'main'
+
 [[linter]]
 name = 'FLAKE8'
 include_patterns = [

@@ -212,6 +212,13 @@ fn do_main() -> Result<i32> {
         RevisionOpt::Revision(revision)
     } else if let Some(merge_base_with) = args.merge_base_with {
         RevisionOpt::MergeBaseWith(merge_base_with)
+    } else if lint_runner_config.merge_base_with.is_some() {
+        RevisionOpt::MergeBaseWith(
+            lint_runner_config
+                .merge_base_with
+                .clone()
+                .expect("Merge base should be defined"),
+        )
     } else {
         RevisionOpt::Head
     };
