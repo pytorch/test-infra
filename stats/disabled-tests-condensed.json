@@ -1332,13 +1332,6 @@
       "linux"
     ]
   ],
-  "test_optional_list (test_jit.TestScript)": [
-    "91484",
-    "https://github.com/pytorch/pytorch/issues/91484",
-    [
-      "linux"
-    ]
-  ],
   "test_optional_tensor (test_jit.TestScript)": [
     "91494",
     "https://github.com/pytorch/pytorch/issues/91494",
@@ -1402,13 +1395,6 @@
       "linux"
     ]
   ],
-  "test_prim_grad_undefined (test_jit.TestScript)": [
-    "91493",
-    "https://github.com/pytorch/pytorch/issues/91493",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler (__main__.TestJit)": [
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
@@ -1457,13 +1443,6 @@
     "https://github.com/pytorch/pytorch/issues/32644",
     []
   ],
-  "test_rand (test_jit.TestScript)": [
-    "91495",
-    "https://github.com/pytorch/pytorch/issues/91495",
-    [
-      "linux"
-    ]
-  ],
   "test_random_seed (__main__.TestDataLoaderUtils)": [
     "84937",
     "https://github.com/pytorch/pytorch/issues/84937",
@@ -1505,13 +1484,6 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_request_bailout (test_jit.TestScript)": [
-    "91490",
-    "https://github.com/pytorch/pytorch/issues/91490",
-    [
-      "linux"
     ]
   ],
   "test_requires_grad_loop (test_jit.TestScript)": [
