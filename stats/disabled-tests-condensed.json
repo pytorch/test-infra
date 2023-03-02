@@ -855,13 +855,6 @@
       "linux"
     ]
   ],
-  "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "93045",
-    "https://github.com/pytorch/pytorch/issues/93045",
-    [
-      "rocm"
-    ]
-  ],
   "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86680",
     "https://github.com/pytorch/pytorch/issues/86680",
@@ -1606,13 +1599,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
-    "94953",
-    "https://github.com/pytorch/pytorch/issues/94953",
-    [
-      "linux"
     ]
   ],
   "test_stack (test_jit.TestScript)": [
