@@ -42,7 +42,8 @@ runs:
           path: ${{ runner.temp }}/miniconda
           key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
 
-      - name: Install miniconda (${{ inputs.miniconda-version }})
+      - name: Download miniconda (${{ inputs.miniconda-version }})
+        id: miniconda-download
         if: steps.miniconda-cache.outputs.cache-hit != 'true'
         env:
           MINICONDA_VERSION: ${{ inputs.miniconda-version }}
@@ -50,6 +51,7 @@ runs:
         run: |
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
           mkdir -p "${MINICONDA_INSTALL_PATH}"
+
           case ${RUNNER_OS}-${RUNNER_ARCH} in
             Linux-X64)
               MINICONDA_ARCH="Linux-x86_64"
@@ -72,98 +74,117 @@ runs:
               exit 1
               ;;
           esac
+
           MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py39_${MINICONDA_VERSION}-${MINICONDA_ARCH}${MINICONDA_SUFFIX}"
-          MINICONDA_INSTALLER="${MINICONDA_INSTALL_PATH}/miniconda${MINICONDA_SUFFIX}"
-          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALLER}"
+          MINICONDA_INSTALLER_PATH="${MINICONDA_INSTALL_PATH}/miniconda${MINICONDA_SUFFIX}"
+          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALLER_PATH}"
+          
+          echo "install_path=${MINICONDA_INSTALL_PATH}" >> $GITHUB_OUTPUT
+          echo "installer_path=${MINICONDA_INSTALLER_PATH}" >> $GITHUB_OUTPUT
 
-          case "${MINCONDA_SUFFIX}" in
-            .sh)
-              bash "${MINICONDA_INSTALL_PATH}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH}"
-              ;;
-            .exe)
-#              "${MINICONDA_INSTALLER}" /InstallationType=JustMe /RegisterPython=0 /S /D="${MINICONDA_INSTALL_PATH}"
-              ;;
-#          rm -rf "${MINICONDA_INSTALLER}"
+      - name: Debug
+        shell: bash
+        run: sleep 7200
 
-#      - name: Update GitHub path to include miniconda install
-#        shell: bash
-#        run: |
-#          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
-#          echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
-#
-#      # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
-#      # function will return an empty string without failing the step. This works out nicely and we can have a various
-#      # combination of cache key such as:
-#      # - Both are missing or invalid: miniconda-env-macOS-ARM64-20221022d--
-#      # - Both are set: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-HASH(pip-requirements-file)
-#      # - The first one is missing or invalid: miniconda-env-macOS-ARM64-20221022d--HASH(pip-requirements-file)
-#      # - The second one is missing or invalid: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-
-#      #
-#      # There is no need to skip or run actions/cache with complicated logic
-#      - name: Setup miniconda env cache
-#        id: miniconda-env-cache
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-#          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
-#
-#      - name: Setup conda environment with python (v${{ inputs.python-version }})
-#        if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
-#        shell: bash
-#        env:
-#          PYTHON_VERSION: ${{ inputs.python-version }}
-#          ENV_FILE: ${{ inputs.environment-file }}
-#          PIP_REQUIREMENTS_FILE: ${{ inputs.pip-requirements-file }}
-#        run: |
-#          set -x
-#
-#          CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
-#          ENV_FILE_FLAG=""
-#          if [[ -f "${ENV_FILE}" ]]; then
-#            ENV_FILE_FLAG="--file ${ENV_FILE}"
-#          elif [[ -n "${ENV_FILE}" ]]; then
-#            echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
-#          fi
-#
-#          CONDA_EXTRA_FLAGS=""
-#          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
-#            CONDA_EXTRA_FLAGS=" -c pytorch-nightly"
-#          fi
-#
-#          conda create \
-#            --yes \
-#            --prefix "${CONDA_BASE_ENV}" \
-#            ${ENV_FILE_FLAG} \
-#            python="${PYTHON_VERSION}" \
-#            cmake=3.22 \
-#            ninja=1.10 \
-#            pkg-config=0.29 \
-#            wheel=0.37 \
-#            ${CONDA_EXTRA_FLAGS}
-#
-#          if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
-#            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
-#          elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
-#            echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
-#          fi
-#
-#      - name: Clone the base conda environment and update GitHub env
-#        shell: bash
-#        env:
-#          PYTHON_VERSION: ${{ inputs.python-version }}
-#          CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-#        run: |
-#          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-#          conda create \
-#            --yes \
-#            --prefix "${CONDA_ENV}" \
-#            --clone "${CONDA_BASE_ENV}"
-#
-#          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-#          echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
-#          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
-#            # TODO: Remove me, when more packages will be available on default channel
-#            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
-#          else
-#            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
-#          fi
+      - name: Install miniconda (${{ inputs.miniconda-version }})
+        if: steps.miniconda-download.outcome != 'skipped' && endsWith(steps.miniconda-download.outputs.installer_path, '.sh')
+        shell: bash -l {0}
+        env:
+          MINICONDA_INSTALL_PATH: ${{ steps.miniconda-download.outputs.install_path }}
+          MINICONDA_INSTALLER_PATH: ${{ steps.miniconda-download.outputs.installer_path }}
+        run:
+          bash "${MINICONDA_INSTALLER_PATH}" -b -u -p "${MINICONDA_INSTALL_PATH}"
+          rm -rf "${MINICONDA_INSTALLER_PATH}"
+
+      - name: Install miniconda (${{ inputs.miniconda-version }})
+        if: steps.miniconda-download.outcome != 'skipped' && endsWith(steps.miniconda-download.outputs.installer_path, '.exe')
+        shell: cmd
+        env:
+          MINICONDA_INSTALL_PATH: ${{ steps.miniconda-download.outputs.install_path }}
+          MINICONDA_INSTALLER_PATH: ${{ steps.miniconda-download.outputs.installer_path }}
+        run:
+          start /wait "" %MINICONDA_INSTALLER_PATH% /InstallationType=JustMe /RegisterPython=0 /S /D=%MINICONDA_INSTALL_PATH%
+          rm -rf "${MINICONDA_INSTALLER}"
+
+      - name: Update GitHub path to include miniconda install
+        shell: bash
+        run: |
+          MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
+          echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
+
+      # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
+      # function will return an empty string without failing the step. This works out nicely and we can have a various
+      # combination of cache key such as:
+      # - Both are missing or invalid: miniconda-env-macOS-ARM64-20221022d--
+      # - Both are set: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-HASH(pip-requirements-file)
+      # - The first one is missing or invalid: miniconda-env-macOS-ARM64-20221022d--HASH(pip-requirements-file)
+      # - The second one is missing or invalid: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-
+      #
+      # There is no need to skip or run actions/cache with complicated logic
+      - name: Setup miniconda env cache
+        id: miniconda-env-cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
+          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
+
+      - name: Setup conda environment with python (v${{ inputs.python-version }})
+        if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          ENV_FILE: ${{ inputs.environment-file }}
+          PIP_REQUIREMENTS_FILE: ${{ inputs.pip-requirements-file }}
+        run: |
+          set -x
+
+          CONDA_BASE_ENV="${RUNNER_TEMP}/conda-python-${PYTHON_VERSION}"
+          ENV_FILE_FLAG=""
+          if [[ -f "${ENV_FILE}" ]]; then
+            ENV_FILE_FLAG="--file ${ENV_FILE}"
+          elif [[ -n "${ENV_FILE}" ]]; then
+            echo "::warning::Specified env file (${ENV_FILE}) not found, not going to include it"
+          fi
+
+          CONDA_EXTRA_FLAGS=""
+          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
+            CONDA_EXTRA_FLAGS=" -c pytorch-nightly"
+          fi
+
+          conda create \
+            --yes \
+            --prefix "${CONDA_BASE_ENV}" \
+            ${ENV_FILE_FLAG} \
+            python="${PYTHON_VERSION}" \
+            cmake=3.22 \
+            ninja=1.10 \
+            pkg-config=0.29 \
+            wheel=0.37 \
+            ${CONDA_EXTRA_FLAGS}
+
+          if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
+            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
+          elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
+            echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
+          fi
+
+      - name: Clone the base conda environment and update GitHub env
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
+        run: |
+          CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
+          conda create \
+            --yes \
+            --prefix "${CONDA_ENV}" \
+            --clone "${CONDA_BASE_ENV}"
+
+          echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
+          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
+            # TODO: Remove me, when more packages will be available on default channel
+            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
+          else
+            echo "CONDA_INSTALL=conda install -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          fi
