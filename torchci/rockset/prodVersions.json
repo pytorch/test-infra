@@ -1,7 +1,7 @@
 {
   "commons": {
     "annotated_flaky_jobs": "1e7bd01a839ae4d1",
-    "hud_query": "bf634305df7c3129",
+    "hud_query": "ae178387db09b145",
     "commit_jobs_query": "442a6f64bd44f351",
     "disabled_non_flaky_tests": "f909abf9eec15b56",
     "commit_failed_jobs": "7e5b39f3ec22b89f",
@@ -34,7 +34,7 @@
     "correlation_matrix": "d2ed6c1941a799c7",
     "disabled_test_historical": "daa2413a4750aa87",
     "disabled_test_total": "da5f834a6501fc63",
-    "external_contribution_stats": "d86b6f01367c3d6f",
+    "external_contribution_stats": "f0b640aebc4a5b74",
     "job_duration_avg": "10a88ea2ebb80647",
     "job_duration_percentile": "96507ed62db7a3a8",
     "last_branch_push": "3d995ac2143586dc",

@@ -111,12 +111,12 @@ export default function Kpis() {
             </Grid>
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"External PR Count"}
+                    title={"External PR Count (7 day moving average)"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...timeParams]}
                     granularity={"day"}
                     timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"pr_count"}
+                    yAxisFieldName={"weekly_moving_average_pr_count"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
@@ -124,12 +124,12 @@ export default function Kpis() {
 
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Unique External Contributor Count"}
+                    title={"Unique External Contributor Count (7 day moving average)"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...timeParams]}
                     granularity={"day"}
                     timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"user_count"}
+                    yAxisFieldName={"weekly_moving_average_user_count"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
