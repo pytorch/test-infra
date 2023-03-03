@@ -40,6 +40,14 @@ describe('locallyCached', () => {
     expect(fn).toBeCalledTimes(1);
   });
 
+  it('clear cache, nothing local, calls function, throws exception', async () => {
+    const rejectMsg = 'the reject msg';
+    const fn = jest.fn().mockRejectedValue(new Error(rejectMsg));
+
+    await expect(locallyCached('namespace', 'key', 0.1, fn)).rejects.toThrow(rejectMsg);
+    expect(fn).toBeCalledTimes(1);
+  });
+
   it('makes sure different namespaces are respected', async () => {
     const returnValue1 = 'return value A - 1';
     const returnValue2 = 'return value A - 2';
@@ -112,6 +120,37 @@ describe('redisCached', () => {
     clearLocalCache();
   });
 
+  it('nothing local or remote, acquires lock first time, calls function, throws exception', async () => {
+    const rejectMsg = 'the reject msg';
+    const fn = jest.fn().mockRejectedValue(new Error(rejectMsg));
+    const uuid = 'AGDGADUWG113';
+
+    jest
+      .spyOn(global.Date, 'now')
+      .mockImplementationOnce(() =>
+        new Date('2019-06-29T11:01:58.135Z').valueOf()
+      );
+    mockedRedisPool.get.mockResolvedValueOnce(undefined);
+    (uuidv4 as jest.Mock).mockReturnValue(uuid);
+    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
+
+    await expect(redisCached('namespace', 'key', 0.5, 1.0, fn)).rejects.toThrow(rejectMsg);
+
+    expect(mockedRedisPool.get).toBeCalledTimes(1);
+    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
+    expect(mockedRedisPool.sendCommand).toBeCalledTimes(2);
+    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', ['LOCK.namespace-key', uuid, 'NX', 'PX', '20000']);
+    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('EVAL', [
+      'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end',
+      '1',
+      'LOCK.namespace-key',
+      uuid,
+    ]);
+    expect(mockedRedisPool.set).toBeCalledTimes(0);
+    expect(fn).toBeCalledTimes(1);
+  });
+
   it('nothing local or remote, acquires lock first time, calls function', async () => {
     const returnValue = 'TheReturn VALUE A';
     const uuid = 'AGDGADUWG113';
@@ -148,6 +187,7 @@ describe('redisCached', () => {
     );
     expect(fn).toBeCalledTimes(1);
   });
+
 
   it('nothing local, data on remote, less than ttl', async () => {
     const returnValue = 'TheReturn VALUE A';

@@ -26,7 +26,7 @@ export async function getRepoIssuesWithLabel(
   return await redisCached(
     'ghIssues',
     key,
-    60 * 1000,
+    10 * 60,
     1.0,
     async () => {
       try {

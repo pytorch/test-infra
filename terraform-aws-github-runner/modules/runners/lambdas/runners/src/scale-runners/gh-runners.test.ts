@@ -20,6 +20,7 @@ import { ScaleUpMetrics } from './metrics';
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
 import { mocked } from 'ts-jest/utils';
+import { locallyCached } from './cache';
 import nock from 'nock';
 
 const mockEC2 = {
@@ -40,6 +41,14 @@ jest.mock('aws-sdk', () => ({
 }));
 
 jest.mock('./gh-auth');
+jest.mock('./cache', () => ({
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ...(jest.requireActual('./cache') as any),
+  redisCached: jest.fn()
+    .mockImplementation(async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
+      return await locallyCached(ns, k, t, fn);
+    }),
+}));
 
 const metrics = new ScaleUpMetrics();
 
@@ -129,7 +138,7 @@ describe('createGitHubClientForRunner variants', () => {
       });
 
       resetGHRunnersCaches();
-      expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
+      await expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
 
     it('getRepoInstallation fails', async () => {
@@ -145,7 +154,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateOctoClient.mockReturnValue(expectedReturn as unknown as Octokit);
 
       resetGHRunnersCaches();
-      expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
+      await expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
 
     it('runs twice and check if cached', async () => {
@@ -227,7 +236,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateOctoClient.mockReturnValueOnce(expectedReturn as unknown as Octokit);
 
       resetGHRunnersCaches();
-      expect(createGitHubClientForRunnerOrg(org, metrics)).rejects.toThrowError(errMsg);
+      await expect(createGitHubClientForRunnerOrg(org, metrics)).rejects.toThrowError(errMsg);
     });
   });
 
@@ -266,7 +275,7 @@ describe('createGitHubClientForRunner variants', () => {
       });
 
       resetGHRunnersCaches();
-      expect(createGitHubClientForRunnerInstallId(installId, metrics)).rejects.toThrowError(errMsg);
+      await expect(createGitHubClientForRunnerInstallId(installId, metrics)).rejects.toThrowError(errMsg);
     });
   });
 });
@@ -331,7 +340,7 @@ describe('listGithubRunners', () => {
       mockCreateOctoClient.mockReturnValue(mockedOctokit as unknown as Octokit);
 
       resetGHRunnersCaches();
-      expect(listGithubRunnersRepo(repo, metrics)).rejects.toThrowError(errMsg);
+      await expect(listGithubRunnersRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
   });
 
@@ -383,7 +392,7 @@ describe('listGithubRunners', () => {
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
       resetGHRunnersCaches();
-      expect(listGithubRunnersOrg(org, metrics)).rejects.toThrowError(errMsg);
+      await expect(listGithubRunnersOrg(org, metrics)).rejects.toThrowError(errMsg);
     });
   });
 });

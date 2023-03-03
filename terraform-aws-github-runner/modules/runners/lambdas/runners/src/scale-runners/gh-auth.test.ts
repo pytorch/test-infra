@@ -18,6 +18,14 @@ const secretString = JSON.stringify({
 
 jest.mock('./kms');
 jest.mock('@octokit/auth-app');
+jest.mock('./cache', () => ({
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ...(jest.requireActual('./cache') as any),
+  redisCached: jest.fn()
+    .mockImplementation(<T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
+      return fn();
+    }),
+}));
 
 const mockSMgetSecretValuePromise = jest.fn();
 const mockSMgetSecretValue = jest.fn();
@@ -39,6 +47,8 @@ beforeEach(() => {
   jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
     return;
   });
+
+  resetSecretCache();
 });
 
 describe('Test createOctoClient', () => {
@@ -191,7 +201,6 @@ describe('Test createGithubAuth', () => {
 
         mockedRequestInterface = mock<RequestInterface>();
         mockedDefaults.mockImplementation(() => {
-          console.error('mockedDefaults.mockImplementation -> mockedRequestInterface.defaults');
           return mockedRequestInterface.defaults({ baseUrl: githubServerUrl });
         });
 
