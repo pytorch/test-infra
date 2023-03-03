@@ -72,11 +72,19 @@ runs:
               exit 1
               ;;
           esac
-          MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py39_${MINICONDA_VERSION}-${MINICONDA_ARCH}.${MINICONDA_SUFFIX}"
-#          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALL_PATH}/miniconda.MINICONDA_SUFFIX"
-#          bash "${MINICONDA_INSTALL_PATH}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH}"
-#          rm -rf "${MINICONDA_INSTALL_PATH}/miniconda.sh"
-#
+          MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-py39_${MINICONDA_VERSION}-${MINICONDA_ARCH}${MINICONDA_SUFFIX}"
+          MINICONDA_INSTALLER="${MINICONDA_INSTALL_PATH}/miniconda${MINICONDA_SUFFIX}"
+          curl -fsSL "${MINICONDA_URL}" -o "${MINICONDA_INSTALLER}"
+
+          case "${MINCONDA_SUFFIX}" in
+            .sh)
+              bash "${MINICONDA_INSTALL_PATH}/miniconda.sh" -b -u -p "${MINICONDA_INSTALL_PATH}"
+              ;;
+            .exe)
+#              "${MINICONDA_INSTALLER}" /InstallationType=JustMe /RegisterPython=0 /S /D="${MINICONDA_INSTALL_PATH}"
+              ;;
+#          rm -rf "${MINICONDA_INSTALLER}"
+
 #      - name: Update GitHub path to include miniconda install
 #        shell: bash
 #        run: |
