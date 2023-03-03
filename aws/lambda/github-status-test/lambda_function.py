@@ -57,7 +57,7 @@ def lambda_handler(event, context):
         and body["action"] == "completed"
     ):
         try:
-            full_name = body["respitory"]["full_name"]
+            full_name = body["repository"]["full_name"]
             conclusion = body[event_type]["conclusion"]
             job_id = body[event_type]["id"]
             download_log(full_name, conclusion, job_id)
