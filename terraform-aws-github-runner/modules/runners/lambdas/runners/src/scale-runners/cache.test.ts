@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import nock from 'nock';
 import redisPoolFactory from 'redis-connection-pool';
 import { RedisConnectionPool } from 'redis-connection-pool';
-// import { Mock } from 'jest';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),
@@ -91,7 +90,7 @@ describe('locallyCached', () => {
 
     expect(await locallyCached('namespace', 'key', 0.1, fn)).toEqual(returnValue);
     expect(await locallyCached('namespace', 'key', 0.1, fn)).toEqual(returnValue);
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 200));
     expect(await locallyCached('namespace', 'key', 0.1, fn)).toEqual(returnValue);
     expect(await locallyCached('namespace', 'key', 0.1, fn)).toEqual(returnValue);
     expect(fn).toBeCalledTimes(2);
@@ -100,7 +99,7 @@ describe('locallyCached', () => {
   it('clear cache, make two concurrent asks for cache, calls only once', async () => {
     const returnValue = 'return value D';
     const fn = jest.fn().mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
       return returnValue;
     });
 
@@ -125,11 +124,7 @@ describe('redisCached', () => {
     const fn = jest.fn().mockRejectedValue(new Error(rejectMsg));
     const uuid = 'AGDGADUWG113';
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      );
+    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     mockedRedisPool.get.mockResolvedValueOnce(undefined);
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
     mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
@@ -156,11 +151,7 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      );
+    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     mockedRedisPool.get.mockResolvedValueOnce(undefined);
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
     mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
@@ -183,21 +174,16 @@ describe('redisCached', () => {
     expect(mockedRedisPool.set).toBeCalledWith(
       'CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806118.635}`,
-      1
+      1,
     );
     expect(fn).toBeCalledTimes(1);
   });
-
 
   it('nothing local, data on remote, less than ttl', async () => {
     const returnValue = 'TheReturn VALUE A';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      );
+    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     mockedRedisPool.get.mockResolvedValueOnce(`{"data":"${returnValue}","ttl":1561806218.635}`);
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
@@ -213,14 +199,8 @@ describe('redisCached', () => {
     const returnValue = 'TheReturn VALUE A';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      );
-    jest
-      .spyOn(global.Math, 'random')
-      .mockReturnValueOnce(1.0);
+    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
     mockedRedisPool.get.mockResolvedValueOnce(`{"data":"${returnValue}","ttl":1561806117.9}`);
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
@@ -239,15 +219,9 @@ describe('redisCached', () => {
 
     jest
       .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      )
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:59.135Z').valueOf()
-      );
-    jest
-      .spyOn(global.Math, 'random')
-      .mockReturnValueOnce(0.1);
+      .mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf())
+      .mockImplementationOnce(() => new Date('2019-06-29T11:01:59.135Z').valueOf());
+    jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.1);
 
     mockedRedisPool.get.mockResolvedValueOnce(`{"data":"${returnValue}","ttl":1561806117.9}`);
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
@@ -271,7 +245,7 @@ describe('redisCached', () => {
     expect(mockedRedisPool.set).toBeCalledWith(
       'CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806119.635}`,
-      1
+      1,
     );
     expect(fn).toBeCalledTimes(1);
   });
@@ -281,11 +255,7 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() =>
-        new Date('2019-06-29T11:01:58.135Z').valueOf()
-      );
+    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     mockedRedisPool.get.mockResolvedValueOnce(undefined);
     mockedRedisPool.get.mockResolvedValueOnce(undefined);
     mockedRedisPool.get.mockResolvedValueOnce(undefined);

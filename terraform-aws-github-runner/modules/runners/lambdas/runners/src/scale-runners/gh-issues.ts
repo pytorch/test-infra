@@ -1,6 +1,5 @@
 import { Repo, getRepoKey } from './utils';
 
-import LRU from 'lru-cache';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { createGitHubClientForRunnerRepo } from './gh-runners';
@@ -23,12 +22,8 @@ export async function getRepoIssuesWithLabel(
   const repoKey = getRepoKey(repo);
   const key = `${repoKey}|${label}`;
 
-  return await redisCached(
-    'ghIssues',
-    key,
-    10 * 60,
-    1.0,
-    async () => {
+  return (
+    (await redisCached('ghIssues', key, 10 * 60, 1.0, async () => {
       try {
         const localGithubClient = (await createGitHubClientForRunnerRepo(repo, metrics)) as Octokit;
         const issueResponse = await metrics.trackRequest(
@@ -47,6 +42,6 @@ export async function getRepoIssuesWithLabel(
         console.error(`[getRepoIssuesWithLabel] ${e}`);
         throw e;
       }
-    }
-  ) || [];
+    })) || []
+  );
 }

@@ -17,10 +17,11 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
-  mocked(redisCached)
-    .mockImplementation(async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
+  mocked(redisCached).mockImplementation(
+    async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
       return await fn();
-    });
+    },
+  );
 });
 
 describe('getRepoIssuesWithLabel', () => {

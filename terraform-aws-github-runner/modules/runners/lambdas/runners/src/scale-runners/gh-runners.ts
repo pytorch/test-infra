@@ -55,7 +55,7 @@ export async function createGitHubClientForRunnerRepo(repo: Repo, metrics: Metri
                 },
               );
             });
-          }
+          },
         );
       } catch (e) {
         console.error(`[createGitHubClientForRunnerRepo <anonymous>]: ${e}`);
@@ -88,7 +88,7 @@ export async function createGitHubClientForRunnerOrg(organization: string, metri
                 },
               );
             });
-          }
+          },
         );
       } catch (e) {
         console.error(`[createGitHubClientForRunnerOrg <anonymous>]: ${e}`);
@@ -194,27 +194,21 @@ export async function removeGithubRunnerOrg(ghRunnerId: number, org: string, met
 export async function listGithubRunnersRepo(repo: Repo, metrics: Metrics): Promise<GhRunners> {
   try {
     try {
-      return await redisCached(
-        'ghRunners',
-        `listGithubRunnersRepo-${repo.owner}-${repo.repo}`,
-        60,
-        0.5,
-        async () => {
-          const client = await createGitHubClientForRunnerRepo(repo, metrics);
-          return await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.listSelfHostedRunnersForRepoGHCallSuccess,
-              metrics.listSelfHostedRunnersForRepoGHCallFailure,
-              () => {
-                return client.paginate(client.actions.listSelfHostedRunnersForRepo, {
-                  ...repo,
-                  per_page: 100,
-                });
-              },
-            );
-          });
-        }
-      );
+      return await redisCached('ghRunners', `listGithubRunnersRepo-${repo.owner}-${repo.repo}`, 60, 0.5, async () => {
+        const client = await createGitHubClientForRunnerRepo(repo, metrics);
+        return await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.listSelfHostedRunnersForRepoGHCallSuccess,
+            metrics.listSelfHostedRunnersForRepoGHCallFailure,
+            () => {
+              return client.paginate(client.actions.listSelfHostedRunnersForRepo, {
+                ...repo,
+                per_page: 100,
+              });
+            },
+          );
+        });
+      });
     } catch (e) {
       console.error(`[listGithubRunnersRepo <anonymous>]: ${e}`);
       throw e;
@@ -228,27 +222,21 @@ export async function listGithubRunnersRepo(repo: Repo, metrics: Metrics): Promi
 export async function listGithubRunnersOrg(org: string, metrics: Metrics): Promise<GhRunners> {
   try {
     try {
-      return await redisCached(
-        'ghRunners',
-        `listGithubRunnersOrg-${org}`,
-        60,
-        0.5,
-        async () => {
-          const client = await createGitHubClientForRunnerOrg(org, metrics);
-          return await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.listSelfHostedRunnersForOrgGHCallSuccess,
-              metrics.listSelfHostedRunnersForOrgGHCallFailure,
-              () => {
-                return client.paginate(client.actions.listSelfHostedRunnersForOrg, {
-                  org: org,
-                  per_page: 100,
-                });
-              },
-            );
-          });
-        }
-      );
+      return await redisCached('ghRunners', `listGithubRunnersOrg-${org}`, 60, 0.5, async () => {
+        const client = await createGitHubClientForRunnerOrg(org, metrics);
+        return await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.listSelfHostedRunnersForOrgGHCallSuccess,
+            metrics.listSelfHostedRunnersForOrgGHCallFailure,
+            () => {
+              return client.paginate(client.actions.listSelfHostedRunnersForOrg, {
+                org: org,
+                per_page: 100,
+              });
+            },
+          );
+        });
+      });
     } catch (e) {
       console.error(`[listGithubRunnersOrg <anonymous>]: ${e}`);
       throw e;
@@ -263,28 +251,23 @@ export type GhRunner = UnboxPromise<ReturnType<Octokit['actions']['getSelfHosted
 
 export async function getRunnerRepo(repo: Repo, runnerID: string, metrics: Metrics): Promise<GhRunner | undefined> {
   try {
-    return await locallyCached(
-      'ghRunners',
-      `getRunnerRepo-${repo.owner}.${repo.repo}-${runnerID}`,
-      60,
-      async () => {
-        const client = await createGitHubClientForRunnerRepo(repo, metrics);
-        return (
-          await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.getSelfHostedRunnerForRepoGHCallSuccess,
-              metrics.getSelfHostedRunnerForRepoGHCallFailure,
-              () => {
-                return client.actions.getSelfHostedRunnerForRepo({
-                  ...repo,
-                  runner_id: runnerID as unknown as number,
-                });
-              },
-            );
-          })
-        ).data;
-      }
-    );
+    return await locallyCached('ghRunners', `getRunnerRepo-${repo.owner}.${repo.repo}-${runnerID}`, 60, async () => {
+      const client = await createGitHubClientForRunnerRepo(repo, metrics);
+      return (
+        await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.getSelfHostedRunnerForRepoGHCallSuccess,
+            metrics.getSelfHostedRunnerForRepoGHCallFailure,
+            () => {
+              return client.actions.getSelfHostedRunnerForRepo({
+                ...repo,
+                runner_id: runnerID as unknown as number,
+              });
+            },
+          );
+        })
+      ).data;
+    });
   } catch (e) {
     console.warn(`[getRunnerRepo <inner try>]: ${e}`);
     return undefined;
@@ -295,27 +278,22 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
   const client = await createGitHubClientForRunnerOrg(org, metrics);
 
   try {
-    return await locallyCached(
-      'ghRunners',
-      `getRunnerOrg-${org}-${runnerID}`,
-      60,
-      async () => {
-        return (
-          await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.getSelfHostedRunnerForOrgGHCallSuccess,
-              metrics.getSelfHostedRunnerForOrgGHCallFailure,
-              () => {
-                return client.actions.getSelfHostedRunnerForOrg({
-                  org: org,
-                  runner_id: runnerID as unknown as number,
-                });
-              },
-            );
-          })
-        ).data;
-      }
-    );
+    return await locallyCached('ghRunners', `getRunnerOrg-${org}-${runnerID}`, 60, async () => {
+      return (
+        await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.getSelfHostedRunnerForOrgGHCallSuccess,
+            metrics.getSelfHostedRunnerForOrgGHCallFailure,
+            () => {
+              return client.actions.getSelfHostedRunnerForOrg({
+                org: org,
+                runner_id: runnerID as unknown as number,
+              });
+            },
+          );
+        })
+      ).data;
+    });
   } catch (e) {
     console.warn(`[getRunnerOrg <inner try>]: ${e}`);
     return undefined;
@@ -327,78 +305,69 @@ export async function getRunnerTypes(
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
-  return await redisCached(
-    'ghRunners',
-    `getRunnerTypes-${repo.owner}.${repo.repo}`,
-    10 * 60,
-    0.5,
-    async () => {
-      let status = 'noRun';
-      try {
-        status = 'doRun';
-        /* istanbul ignore next */
-        const githubAppClient = Config.Instance.enableOrganizationRunners
-          ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
-          : await createGitHubClientForRunnerRepo(repo, metrics);
+  return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
+    let status = 'noRun';
+    try {
+      status = 'doRun';
+      /* istanbul ignore next */
+      const githubAppClient = Config.Instance.enableOrganizationRunners
+        ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
+        : await createGitHubClientForRunnerRepo(repo, metrics);
 
-        const response = await expBackOff(() => {
-          return metrics.trackRequest(
-            metrics.reposGetContentGHCallSuccess,
-            metrics.reposGetContentGHCallFailure,
-            () => {
-              return githubAppClient.repos.getContent({
-                ...repo,
-                path: filepath,
-              });
+      const response = await expBackOff(() => {
+        return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
+          return githubAppClient.repos.getContent({
+            ...repo,
+            path: filepath,
           });
         });
+      });
 
-        /* istanbul ignore next */
-        const { content } = { ...(response?.data || {}) };
+      /* istanbul ignore next */
+      const { content } = { ...(response?.data || {}) };
 
-        /* istanbul ignore next */
-        if (response?.status != 200 || !content) {
-          throw Error(
-            `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
-          );
-        }
-
-        const buff = Buffer.from(content, 'base64');
-        const configYml = buff.toString('ascii');
-
-        console.debug(`'${filepath}' contents: ${configYml}`);
-
-        const config = YAML.parse(configYml);
-        const result: Map<string, RunnerType> = new Map(
-          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-          (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
-            prop,
-            {
-              runnerTypeName: prop,
-              instance_type: runner_type.instance_type,
-              os: runner_type.os,
-              max_available: runner_type.max_available,
-              disk_size: runner_type.disk_size,
-              /* istanbul ignore next */
-              is_ephemeral: runner_type.is_ephemeral || false,
-            },
-          ]),
+      /* istanbul ignore next */
+      if (response?.status != 200 || !content) {
+        throw Error(
+          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
         );
+      }
 
-        status = 'success';
-        return result;
-      } catch (e) {
-        console.error(`[getRunnerTypes]: ${e}`);
-        throw e;
-      } finally {
-        if (status == 'doRun') {
-          metrics.getRunnerTypesFailure();
-        } else if (status == 'success') {
-          metrics.getRunnerTypesSuccess();
-        }
+      const buff = Buffer.from(content, 'base64');
+      const configYml = buff.toString('ascii');
+
+      console.debug(`'${filepath}' contents: ${configYml}`);
+
+      const config = YAML.parse(configYml);
+      const result: Map<string, RunnerType> = new Map(
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
+          prop,
+          {
+            runnerTypeName: prop,
+            instance_type: runner_type.instance_type,
+            os: runner_type.os,
+            max_available: runner_type.max_available,
+            disk_size: runner_type.disk_size,
+            /* istanbul ignore next */
+            is_ephemeral: runner_type.is_ephemeral || false,
+          },
+        ]),
+      );
+
+      status = 'success';
+      return result;
+    } catch (e) {
+      console.error(`[getRunnerTypes]: ${e}`);
+      throw e;
+    } finally {
+      if (status == 'doRun') {
+        metrics.getRunnerTypesFailure();
+      } else if (status == 'success') {
+        metrics.getRunnerTypesSuccess();
       }
     }
-  );
+  });
 }
 
 export async function createRegistrationTokenRepo(
@@ -407,39 +376,34 @@ export async function createRegistrationTokenRepo(
   installationId?: number,
 ): Promise<string> {
   try {
-    return await locallyCached(
-      'ghRunners',
-      `createRegistrationTokenRepo-${repo.owner}.${repo.repo}`,
-      60,
-      async () => {
-        try {
-          const githubInstallationClient = installationId
-            ? await createGitHubClientForRunnerInstallId(installationId, metrics)
-            : await createGitHubClientForRunnerRepo(repo, metrics);
-          const response = await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.createRegistrationTokenForRepoGHCallSuccess,
-              metrics.createRegistrationTokenForRepoGHCallFailure,
-              () => {
-                return githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
-              },
-            );
-          });
+    return await locallyCached('ghRunners', `createRegistrationTokenRepo-${repo.owner}.${repo.repo}`, 60, async () => {
+      try {
+        const githubInstallationClient = installationId
+          ? await createGitHubClientForRunnerInstallId(installationId, metrics)
+          : await createGitHubClientForRunnerRepo(repo, metrics);
+        const response = await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.createRegistrationTokenForRepoGHCallSuccess,
+            metrics.createRegistrationTokenForRepoGHCallFailure,
+            () => {
+              return githubInstallationClient.actions.createRegistrationTokenForRepo({ ...repo });
+            },
+          );
+        });
 
-          /* istanbul ignore next */
-          if (response?.status != 201 || !response.data?.token) {
-            throw Error(
-              `[createRegistrationTokenRepo] Issue (${response.status}) retrieving registration token ` +
-                `for https://github.com/${repo.owner}/${repo.repo}/`,
-            );
-          }
-          return response.data.token;
-        } catch (e) {
-          console.error(`[createRegistrationTokenRepo <anonymous>]: ${e}`);
-          throw e;
+        /* istanbul ignore next */
+        if (response?.status != 201 || !response.data?.token) {
+          throw Error(
+            `[createRegistrationTokenRepo] Issue (${response.status}) retrieving registration token ` +
+              `for https://github.com/${repo.owner}/${repo.repo}/`,
+          );
         }
+        return response.data.token;
+      } catch (e) {
+        console.error(`[createRegistrationTokenRepo <anonymous>]: ${e}`);
+        throw e;
       }
-    );
+    });
   } catch (e) {
     console.error(`[createRegistrationTokenRepo]: ${e}`);
     throw e;
@@ -452,38 +416,33 @@ export async function createRegistrationTokenOrg(
   installationId?: number,
 ): Promise<string> {
   try {
-    return await locallyCached(
-      'ghRunners',
-      `createRegistrationTokenOrg-${org}`,
-      60,
-      async () => {
-        try {
-          const githubInstallationClient = installationId
-            ? await createGitHubClientForRunnerInstallId(installationId, metrics)
-            : await createGitHubClientForRunnerOrg(org, metrics);
-          const response = await expBackOff(() => {
-            return metrics.trackRequest(
-              metrics.createRegistrationTokenForOrgGHCallSuccess,
-              metrics.createRegistrationTokenForOrgGHCallFailure,
-              () => {
-                return githubInstallationClient.actions.createRegistrationTokenForOrg({ org: org });
-              },
-            );
-          });
-          /* istanbul ignore next */
-          if (response?.status != 201 || !response.data?.token) {
-            throw Error(
-              `[createRegistrationTokenOrg] Issue (${response.status}) retrieving registration token ` +
-                `for https://github.com/${org}/`,
-            );
-          }
-          return response.data.token;
-        } catch (e) {
-          console.error(`[createRegistrationTokenOrg <anonymous>]: ${e}`);
-          throw e;
+    return await locallyCached('ghRunners', `createRegistrationTokenOrg-${org}`, 60, async () => {
+      try {
+        const githubInstallationClient = installationId
+          ? await createGitHubClientForRunnerInstallId(installationId, metrics)
+          : await createGitHubClientForRunnerOrg(org, metrics);
+        const response = await expBackOff(() => {
+          return metrics.trackRequest(
+            metrics.createRegistrationTokenForOrgGHCallSuccess,
+            metrics.createRegistrationTokenForOrgGHCallFailure,
+            () => {
+              return githubInstallationClient.actions.createRegistrationTokenForOrg({ org: org });
+            },
+          );
+        });
+        /* istanbul ignore next */
+        if (response?.status != 201 || !response.data?.token) {
+          throw Error(
+            `[createRegistrationTokenOrg] Issue (${response.status}) retrieving registration token ` +
+              `for https://github.com/${org}/`,
+          );
         }
+        return response.data.token;
+      } catch (e) {
+        console.error(`[createRegistrationTokenOrg <anonymous>]: ${e}`);
+        throw e;
       }
-    );
+    });
   } catch (e) {
     console.error(`[createRegistrationTokenOrg]: ${e}`);
     throw e;

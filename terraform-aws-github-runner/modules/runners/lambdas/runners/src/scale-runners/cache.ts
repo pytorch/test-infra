@@ -21,7 +21,7 @@ export async function shutdownRedisPool() {
   if (redisPool !== undefined) {
     console.info('Shutdown redis pool');
 
-    try{
+    try {
       await redisPool.shutdown();
     } catch (e) {
       console.error(`Error shutting down reddis pool ${e}`);
@@ -39,7 +39,7 @@ async function onSigterm() {
   await shutdownRedisPool();
 
   console.info('[runtime] Waiting 2 seconds');
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   console.info('[runtime] exiting');
   process.exit(0);
@@ -47,20 +47,17 @@ async function onSigterm() {
 
 async function startupRedisPool() {
   if (redisPool === undefined) {
-    console.info("Starting up redis pool");
-    redisPool = await redisPoolFactory(
-      'scaleRunnersCache',
-      {
-        max_clients: 5,
-        redis: {
-          url: `redis://${Config.Instance.redisEndpoint}:6379`
-        }
-      }
-    );
+    console.info('Starting up redis pool');
+    redisPool = await redisPoolFactory('scaleRunnersCache', {
+      max_clients: 5,
+      redis: {
+        url: `redis://${Config.Instance.redisEndpoint}:6379`,
+      },
+    });
 
-    console.info("Setting up shutdown for redis pool");
+    console.info('Setting up shutdown for redis pool');
     process.on('SIGTERM', onSigterm);
-    console.info("Redis set up");
+    console.info('Redis set up');
   }
 }
 
@@ -77,7 +74,7 @@ export async function locallyCached<T>(
   nameSpace: string,
   key: string,
   ttlSec: number,
-  callback: () => Promise<T>
+  callback: () => Promise<T>,
 ): Promise<T> {
   if (!localCache.has(nameSpace)) {
     localCache.set(nameSpace, new LRU({ maxAge: ttlSec * 0.2 * 1000 }));
@@ -128,7 +125,7 @@ export async function locallyCached<T>(
 
 async function redisAcquireLock(lockKey: string, ttlS: number): Promise<string | undefined> {
   const uid = uuidv4();
-  const result = await redisPool?.sendCommand('SET', [lockKey, uid, 'NX', 'PX', `${(ttlS * 1000).toFixed()}`, ]);
+  const result = await redisPool?.sendCommand('SET', [lockKey, uid, 'NX', 'PX', `${(ttlS * 1000).toFixed()}`]);
   if (result !== 'OK') {
     return undefined;
   }
@@ -137,7 +134,7 @@ async function redisAcquireLock(lockKey: string, ttlS: number): Promise<string |
 
 async function redisReleaseLock(lockKey: string, lockUUID: string) {
   const script = 'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end';
-  await redisPool?.sendCommand('EVAL', [script, '1', lockKey, lockUUID, ]);
+  await redisPool?.sendCommand('EVAL', [script, '1', lockKey, lockUUID]);
 }
 
 export async function redisCached<T>(
@@ -146,7 +143,7 @@ export async function redisCached<T>(
   ttlSec: number,
   jitterPct: number,
   callback: () => Promise<T>,
-  lockTimeoutS = 20
+  lockTimeoutS = 20,
 ): Promise<T> {
   return locallyCached(nameSpace, key, ttlSec, async (): Promise<T> => {
     const queryKey = `CACHE.${nameSpace}-${key}`;
@@ -155,13 +152,14 @@ export async function redisCached<T>(
     await startupRedisPool();
 
     let cached: T | undefined = undefined;
+    /* eslint-disable-next-line no-constant-condition */
     while (true) {
       const redisResponse: string | undefined | null = await redisPool?.get(queryKey);
 
       if (redisResponse !== undefined && redisResponse !== null) {
         const redisData = JSON.parse(redisResponse) as RedisStore;
 
-        const jitterDiff = ((Date.now() / 1000) - redisData.ttl) / (ttlSec * jitterPct);
+        const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
         if (Math.random() > jitterDiff) {
           console.debug(`Using redis cache for ${queryKey}...`);
           return redisData.data as T;
@@ -179,7 +177,7 @@ export async function redisCached<T>(
           cached = await callback();
           const newDt: RedisStore = {
             data: cached,
-            ttl: (Date.now() / 1000) + ttlSec,
+            ttl: Date.now() / 1000 + ttlSec,
           };
           redisPool?.set(queryKey, JSON.stringify(newDt), ttlSec * (1 + jitterPct));
           break;
@@ -192,7 +190,7 @@ export async function redisCached<T>(
           if (redisPool?.get(lockKey)) {
             break;
           }
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     }
