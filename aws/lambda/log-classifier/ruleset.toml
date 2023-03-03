@@ -102,7 +102,7 @@ pattern = '^ERROR .*.py::.*::test_.*$'
 
 [[rule]]
 name = 'inductor model failure'
-pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation)$'
+pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
 
 [[rule]]
 name = 'failed to download github artifacts'

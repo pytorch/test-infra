@@ -48,11 +48,8 @@ const client = rockset.default(process.env.ROCKSET_API_KEY);
 const dClient = getDynamoClient();
 const octokit = await getOctokit("pytorch", "pytorch");
 
-async function backfillWorkflowJob(id, repo_name, owner, skipBackfill) {
+async function backfillWorkflowJob(id, repo_name, owner, dynamo_key, skipBackfill) {
   console.log(`Checking job ${id}`);
-  // There is the chance that job ids from different repos could collide. To
-  // prevent this, prefix the object key with the repo that they come from.
-  const key_prefix = "pytorch/pytorch/";
 
   let job = await octokit.rest.actions.getJobForWorkflowRun({
     owner: owner,
@@ -66,14 +63,13 @@ async function backfillWorkflowJob(id, repo_name, owner, skipBackfill) {
     return;
   }
 
-  const key = `${key_prefix}${job.id}`;
   const payload = job;
   const table = "torchci-workflow-job";
 
   const thing = {
     TableName: table,
     Item: {
-      dynamoKey: key,
+      dynamoKey: dynamo_key,
       ...payload,
     },
   };
@@ -89,7 +85,8 @@ const jobsWithNoConclusion = await client.queries.query({
 SELECT
     j.id,
     w.repository.name as repo_name,
-    w.repository.owner.login as owner
+    w.repository.owner.login as owner,
+    j.dynamoKey as dynamo_key
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -97,7 +94,7 @@ WHERE
     j.conclusion IS NULL
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 3 HOUR)
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) > (CURRENT_TIMESTAMP() - INTERVAL 1 DAY)
-    AND w.head_repository.owner.login = 'pytorch'
+    AND w.repository.name = 'pytorch'
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -110,10 +107,10 @@ LIMIT 10000
 // get rate limited while trying to backfill. Since backfilling is not
 // latency-sensitive, it's fine to just processed them serially to ensure we
 // make forward progress.
-for (const { id, repo_name, owner} of jobsWithNoConclusion.results) {
+for (const { id, repo_name, owner, dynamo_key } of jobsWithNoConclusion.results) {
   // Some jobs just never get marked completed due to bugs in the GHA backend.
   // Just skip them.
-  await backfillWorkflowJob(id, repo_name, owner, (job) => job.conclusion === null);
+  await backfillWorkflowJob(id, repo_name, owner, dynamo_key, (job) => job.conclusion === null);
 }
 console.log("::endgroup::");
 
@@ -126,7 +123,8 @@ const queuedJobs = await client.queries.query({
 SELECT
     j.id,
     w.repository.name as repo_name,
-    w.repository.owner.login as owner
+    w.repository.owner.login as owner,
+    w.dynamoKey as dynamo_key
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
@@ -134,7 +132,7 @@ WHERE
     j.status = 'queued'
     AND w.status != 'completed'
     AND PARSE_TIMESTAMP_ISO8601(j.started_at) < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-    AND w.head_repository.owner.login = 'pytorch'
+    AND w.repository.name = 'pytorch'
 ORDER BY
     j._event_time DESC
 LIMIT 10000
@@ -143,11 +141,12 @@ LIMIT 10000
 });
 
 // See above for why we're awaiting in a loop.
-for (const {id, repo_name, owner} of queuedJobs.results) {
+for (const {id, repo_name, owner, dynamo_key } of queuedJobs.results) {
   await backfillWorkflowJob(
     id,
     repo_name,
     owner,
+    dynamo_key,
     (job) => job.status === "queued" && job.steps.length === 0
   );
 }

@@ -6,10 +6,19 @@ WITH job AS (
         job.id,
         job.conclusion,
         job.html_url as html_url,
-        CONCAT(
-            'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-            CAST(job.id as string)
-        ) as log_url,
+        IF(
+          :repo = 'pytorch/pytorch',
+          CONCAT(
+              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
+              CAST(job.id as string)
+            ),
+          CONCAT(
+              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
+              :repo,
+              '/',
+              CAST(job.id as string)
+            )
+          ) as log_url,
         DATE_DIFF(
             'SECOND',
             PARSE_TIMESTAMP_ISO8601(job.started_at),

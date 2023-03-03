@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import os
@@ -94,19 +96,28 @@ class JobStatus:
         self.job_statuses = job_statuses
 
         self.filtered_statuses = list(
-            filter(is_job_not_pending_or_skipped, job_statuses)
+            filter(lambda j: not is_job_skipped(j), job_statuses)
         )
         self.current_status = self.get_current_status()
         self.failure_chain = self.get_most_recent_failure_chain()
         self.flaky_jobs = self.get_flaky_jobs()
 
     def get_current_status(self) -> Any:
-        return self.filtered_statuses[0] if len(self.filtered_statuses) > 0 else None
+        """
+        When getting the current status, we want the latest status which is not pending,
+        be it success or failure
+        """
+        for status in self.filtered_statuses:
+            if status["conclusion"] != PENDING:
+                return status
+        return None
 
-    # Returns a dict of failureCaptures -> List[Jobs]
-    def get_unique_failures(self) -> Dict[str, List[Any]]:
+    def get_unique_failures(self, jobs: List[Any]) -> Dict[str, List[Any]]:
+        """
+        Returns list of jobs grouped by failureCaptures from the input list
+        """
         failures = defaultdict(list)
-        for job in self.filtered_statuses:
+        for job in jobs:
             if job["conclusion"] == "failure":
                 found_similar_failure = False
                 if "failureCaptures" not in job:
@@ -122,14 +133,14 @@ class JobStatus:
                         failures[failure].append(job)
                         found_similar_failure = True
                         break
-                if found_similar_failure == False:
+                if not found_similar_failure:
                     failures[failureCaptures] = [job]
 
         return failures
 
     # A flaky job is if it's the only job that has that failureCapture and is not the most recent job
     def get_flaky_jobs(self) -> List[Any]:
-        unique_failures = self.get_unique_failures()
+        unique_failures = self.get_unique_failures(self.filtered_statuses)
         flaky_jobs = []
         for failure in unique_failures:
             failure_list = unique_failures[failure]
@@ -147,24 +158,30 @@ class JobStatus:
         found_most_recent_failure = False
 
         for job in self.filtered_statuses:
-            if job["conclusion"] != "success":
+            if is_job_failed(job):
                 failures.append(job)
                 found_most_recent_failure = True
-            if found_most_recent_failure and job["conclusion"] == "success":
+            if found_most_recent_failure and not is_job_failed(job):
                 break
 
         return failures
 
     def should_alert(self) -> bool:
+        # Group jobs by their failures. The length of the failure chain is used
+        # to raise the alert, so we can do a simple tweak here to use the length
+        # of the longest unique chain
+        unique_failures = self.get_unique_failures(self.failure_chain)
+
         return (
-            self.current_status != None
-            and self.current_status["conclusion"] != "success"
-            and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
+            self.current_status is not None
+            and self.current_status["conclusion"] != SUCCESS
+            and any(
+                len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
+                for failure_chain in unique_failures.values()
+            )
             and all(
-                [
-                    disabled_alert not in self.job_name
-                    for disabled_alert in DISABLED_ALERTS
-                ]
+                disabled_alert not in self.job_name
+                for disabled_alert in DISABLED_ALERTS
             )
         )
 
@@ -186,14 +203,13 @@ def fetch_alerts(
 
         data = json.loads(r.text)
         # Return only alert belonging to the target repo and branch
-        return [
-            item
-            for item in filter(
+        return list(
+            filter(
                 lambda alert: f"Recurrently Failing Jobs on {repo} {branch}"
                 in alert["title"],
                 data["data"]["repository"]["issues"]["nodes"],
             )
-        ]
+        )
     except Exception as e:
         raise RuntimeError("Error fetching alerts", e)
 
@@ -282,7 +298,8 @@ def generate_no_flaky_tests_issue() -> Any:
         "title"
     ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
     issue["body"] = (
-        f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}. \n"
+        f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for "
+        f"the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}.\n"
         "This can be an indication that the flaky test bot has stopped filing tests."
     )
     issue["labels"] = [NO_FLAKY_TESTS_LABEL]
@@ -295,7 +312,7 @@ def update_issue(
 ) -> None:
     print(f"Updating issue {issue} with content:{os.linesep}{update_comment}")
     if dry_run:
-        print(f"NOTE: Dry run, not doing any real work")
+        print("NOTE: Dry run, not doing any real work")
         return
     r = requests.patch(
         UPDATE_ISSUE_URL + str(old_issue["number"]), json=issue, headers=headers
@@ -312,7 +329,7 @@ def update_issue(
 def create_issue(issue: Dict, dry_run: bool) -> Dict:
     print(f"Creating issue with content:{os.linesep}{issue}")
     if dry_run:
-        print(f"NOTE: Dry run activated, not doing any real work")
+        print("NOTE: Dry run activated, not doing any real work")
         return
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
@@ -340,14 +357,14 @@ def map_job_data(jobNames: Any, shaGrid: Any) -> Dict[str, Any]:
     return jobData
 
 
-def is_job_not_pending_or_skipped(job: Any) -> bool:
+def is_job_failed(job: Any) -> bool:
     conclusion = job["conclusion"] if "conclusion" in job else None
-    return not (
-        conclusion is None
-        or conclusion == PENDING
-        or conclusion == NEUTRAL
-        or conclusion == SKIPPED
-    )
+    return conclusion is not None and conclusion != SUCCESS and conclusion != PENDING
+
+
+def is_job_skipped(job: Any) -> bool:
+    conclusion = job["conclusion"] if "conclusion" in job else None
+    return conclusion is None or conclusion == NEUTRAL or conclusion == SKIPPED
 
 
 def get_failed_jobs(job_data: List[Any]) -> List[Any]:
@@ -383,7 +400,10 @@ def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
     return -1
 
 
-def clear_alerts(alerts: List[Any]) -> bool:
+def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
+    if dry_run:
+        print("NOTE: Dry run, not doing any real work")
+        return
     cleared_alerts = 0
     for alert in alerts:
         r = requests.patch(
@@ -511,7 +531,7 @@ def check_for_recurrently_failing_jobs_alert(
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
         print(f"Didn't find anything to alert on for {repo} {branch}")
-        clear_alerts(existing_alerts)
+        clear_alerts(existing_alerts, dry_run=dry_run)
         return
 
     # In the current design, there should be at most one alert issue per repo and branch
