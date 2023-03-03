@@ -392,6 +392,13 @@
       "linux"
     ]
   ],
+  "test_cycle_lr_removed_after_out_of_scope (__main__.TestLRScheduler)": [
+    "87748",
+    "https://github.com/pytorch/pytorch/issues/87748",
+    [
+      "dynamo"
+    ]
+  ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
     "78641",
     "https://github.com/pytorch/pytorch/issues/78641",
@@ -858,6 +865,13 @@
   "test_fn_gradgrad_nn_functional_binary_cross_entropy_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95156",
     "https://github.com/pytorch/pytorch/issues/95156",
+    [
+      "linux"
+    ]
+  ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
     [
       "linux"
     ]
