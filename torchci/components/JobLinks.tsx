@@ -17,7 +17,7 @@ export default function JobLinks({ job }: { job: JobData }) {
 
   const queueTimeS =
     job.queueTimeS != null ? (
-      <span>{` | Queued: ${durationHuman(job.queueTimeS!)}`}</span>
+      <span>{` | Queued: ${durationHuman(Math.max(job.queueTimeS!, 0))}`}</span>
     ) : null;
 
   const durationS =
