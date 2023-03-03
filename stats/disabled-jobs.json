@@ -1,18 +1,1 @@
-{
-  "Mac MPS / macos-13-py3-arm64-mps / test": [
-    "huydhn",
-    "95752",
-    "https://github.com/pytorch/pytorch/issues/95752",
-    "Mac MPS",
-    "macos-13-py3-arm64-mps",
-    "test"
-  ],
-  "trunk / android-emulator-build-test / build-and-test": [
-    "huydhn",
-    "95746",
-    "https://github.com/pytorch/pytorch/issues/95746",
-    "trunk",
-    "android-emulator-build-test",
-    "build-and-test"
-  ]
-}
+{}
