@@ -1758,6 +1758,13 @@
       "linux"
     ]
   ],
+  "test_tensor_split_dynamic_shapes_unspec (torch._dynamo.testing.UnspecDynamicShapesReproTests)": [
+    "96083",
+    "https://github.com/pytorch/pytorch/issues/96083",
+    [
+      "linux"
+    ]
+  ],
   "test_tensorboard_trace_handler (__main__.TestProfiler)": [
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
