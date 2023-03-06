@@ -13,7 +13,7 @@ export function isPyTorchOrg(owner: string): boolean {
 }
 
 export function isPyTorchPyTorch(owner: string, repo: string): boolean {
-  return isPyTorchOrg(owner) && repo === "pytorch";
+  return isPyTorchOrg(owner) && ["pytorch", "vision"].includes(repo);
 }
 
 export class CachedConfigTracker {
