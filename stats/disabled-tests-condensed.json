@@ -954,6 +954,11 @@
       "rocm"
     ]
   ],
+  "test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo)": [
+    "71183",
+    "https://github.com/pytorch/pytorch/issues/71183",
+    []
+  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
