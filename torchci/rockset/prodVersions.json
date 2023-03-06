@@ -9,7 +9,8 @@
     "issue_query": "f29a1afe94563601",
     "failure_samples_query": "2961636418a148c2",
     "recent_pr_workflows_query": "4e03cb13e8372050",
-    "unclassified": "df744380711131d9"
+    "unclassified": "df744380711131d9",
+    "issues_created_weekly": "c986ae4bef9a927c"
   },
   "pytorch_dev_infra_kpis": {
     "num_reverts": "dd2bac0ff36ea47f",
