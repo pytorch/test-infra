@@ -1744,6 +1744,13 @@
       "linux"
     ]
   ],
+  "test_tensor_split_dynamic_shapes (torch._dynamo.testing.DynamicShapesReproTests)": [
+    "96114",
+    "https://github.com/pytorch/pytorch/issues/96114",
+    [
+      "linux"
+    ]
+  ],
   "test_tensor_split_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95413",
     "https://github.com/pytorch/pytorch/issues/95413",
