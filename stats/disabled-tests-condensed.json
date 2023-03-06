@@ -1313,6 +1313,13 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
+  "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
+    "96088",
+    "https://github.com/pytorch/pytorch/issues/96088",
+    [
+      "linux"
+    ]
+  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
