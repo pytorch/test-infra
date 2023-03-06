@@ -82,7 +82,10 @@ jobs:
           path: test-infra
 
       - name: Setup miniconda
-        uses: ./test-infra/.github/actions/setup-miniconda
+        uses: conda-incubator/setup-miniconda@v2.1.1
+        with:
+          miniconda-version: "py39_4.12.0"
+          python-version: 3.9
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
