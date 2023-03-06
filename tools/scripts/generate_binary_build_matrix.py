@@ -53,7 +53,7 @@ mod.CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
 mod.ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
-LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
+LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"

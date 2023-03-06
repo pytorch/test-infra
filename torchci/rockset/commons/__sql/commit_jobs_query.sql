@@ -9,9 +9,18 @@ WITH job as (
         workflow.artifacts_url as github_artifact_url,
         job.conclusion,
         job.html_url,
-        CONCAT(
-            'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-            CAST(job.id as string)
+        IF(
+          :repo = 'pytorch/pytorch',
+          CONCAT(
+              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
+              CAST(job.id as string)
+            ),
+          CONCAT(
+              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
+              :repo,
+              '/',
+              CAST(job.id as string)
+            )
         ) as log_url,
         DATE_DIFF(
             'SECOND',
@@ -56,7 +65,9 @@ WITH job as (
         END as conclusion,
         -- cirleci doesn't provide a url, piece one together out of the info we have
         CONCAT(
-            'https://app.circleci.com/pipelines/github/pytorch/pytorch/',
+            'https://app.circleci.com/pipelines/github/',
+            :repo,
+            '/',
             CAST(job.pipeline.number as string),
             '/workflows/',
             job.workflow.id,
