@@ -13,7 +13,7 @@ on:
 
 jobs:
   get-tutorials-stats:
-    if: ${{ github.repository == 'pytorch/pytorch' }}
+    if: ${{ github.repository == 'pytorch/test-infra' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the tutorials repo
@@ -22,12 +22,10 @@ jobs:
           repository: 'pytorch/tutorials'
           path: './tutorials'
           fetch-depth: 0
-      - name: Checkout the PyTorch repo
-        uses: malfet/checkout@silent-checkout
+      - name: Checkout the test-infra repo
+        uses: actions/checkout@v3
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          submodules: recursive
-          path: pytorch
+          path: test-infra
       - name: Install dependancies
         run: |
           python3 -m pip install boto3==1.26.69 typing==3.7.4.3
@@ -39,4 +37,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TORCHCI_TUTORIAL_DYNAMODB_READ_WRITE_AWS_SECRET_ACCESS_KEY }}
         run: |
           set -x
-          python3 pytorch/.github/scripts/get_tutorials_stats.py
+          python3 test-infra/.github/scripts/get_tutorials_stats.py
