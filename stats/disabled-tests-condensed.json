@@ -1646,13 +1646,6 @@
     "https://github.com/pytorch/pytorch/issues/61670",
     []
   ],
-  "test_smoke (__main__.TestCollectEnv)": [
-    "77345",
-    "https://github.com/pytorch/pytorch/issues/77345",
-    [
-      "linux"
-    ]
-  ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
     "73145",
     "https://github.com/pytorch/pytorch/issues/73145",
