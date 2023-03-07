@@ -23,9 +23,9 @@ on:
       ROCKSET_API_KEY:
         required: true
         description: 'API key for ROCKSET.'
-      GITHUB_ACCESS_TOKEN:
+      GITHUB_DEPLOY_KEY:
         required: true
-        description: 'GitHub token'
+        description: 'GitHub deploy key'
 
 
 jobs:
@@ -43,8 +43,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
+          ssh-key: ${{ secrets.GITHUB_DEPLOY_KEY }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_ACCESS_TOKEN }}
           path: ${{ inputs.repository }}
 
       - name: Setup Python
@@ -72,8 +72,6 @@ jobs:
 
       - name: Push SHA to viable/strict branch
         if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_ACCESS_TOKEN }}
         run: |
           cd ${{ inputs.repository }}
 

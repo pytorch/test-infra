@@ -21,4 +21,4 @@ jobs:
       required_checks: "Build Linux,Build M1,Build Macos,Unit-tests on Linux,Unit-tests on M1"
     secrets:
       ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
-      GITHUB_ACCESS_TOKEN : ${{ secrets.TMP_GITHUB_TOKEN }}
+      GITHUB_DEPLOY_KEY: ${{ secrets.GITHUB_DEPLOY_KEY }}
