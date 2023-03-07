@@ -54,6 +54,7 @@ jobs:
           fetch-depth: 0
 #          token: ${{ secrets.GITHUB_ACCESS_TOKEN }}
           path: ${{ inputs.repository }}
+          ssh-key: ${{ secrets.GITHUB_DEPLOY_KEY }}
 
       - name: Setup Python
         uses: actions/setup-python@v4
