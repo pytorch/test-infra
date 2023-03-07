@@ -700,6 +700,13 @@
       "linux"
     ]
   ],
+  "test_dynamic_shapes_right_side_dynamic_shapes (torch._dynamo.testing.DynamicShapesReproTests)": [
+    "96222",
+    "https://github.com/pytorch/pytorch/issues/96222",
+    [
+      "linux"
+    ]
+  ],
   "test_dynamic_shapes_right_side_dynamic_shapes_static_default (torch._dynamo.testing.StaticDefaultDynamicShapesReproTests)": [
     "95908",
     "https://github.com/pytorch/pytorch/issues/95908",
