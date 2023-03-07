@@ -753,6 +753,11 @@
       "windows"
     ]
   ],
+  "test_fd_pool (__main__.TestMultiprocessing)": [
+    "69660",
+    "https://github.com/pytorch/pytorch/issues/69660",
+    []
+  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -1710,6 +1715,13 @@
   "test_tagging_tensors_mix_used_unused_structure_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95855",
     "https://github.com/pytorch/pytorch/issues/95855",
+    [
+      "linux"
+    ]
+  ],
+  "test_tagging_tensors_simple (__main__.MiscTests)": [
+    "96167",
+    "https://github.com/pytorch/pytorch/issues/96167",
     [
       "linux"
     ]
