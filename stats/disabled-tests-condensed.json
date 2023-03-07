@@ -1358,6 +1358,13 @@
       "linux"
     ]
   ],
+  "test_nn_sequential_invocation_dynamic_shapes_static_default (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
+    "96209",
+    "https://github.com/pytorch/pytorch/issues/96209",
+    [
+      "linux"
+    ]
+  ],
   "test_nn_sequential_invocation_reposition_indices_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96175",
     "https://github.com/pytorch/pytorch/issues/96175",
