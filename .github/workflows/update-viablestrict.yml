@@ -23,9 +23,6 @@ on:
       ROCKSET_API_KEY:
         required: true
         description: 'API key for ROCKSET.'
-#      GITHUB_ACCESS_TOKEN:
-#        required: true
-#        description: 'GitHub token'
       GITHUB_DEPLOY_KEY:
         required: true
         description: 'GitHub deploy key'
@@ -47,7 +44,6 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           fetch-depth: 0
-#          token: ${{ secrets.GITHUB_ACCESS_TOKEN }}
           path: ${{ inputs.repository }}
           ssh-key: ${{ secrets.GITHUB_DEPLOY_KEY }}
 
@@ -76,8 +72,6 @@ jobs:
 
       - name: Push SHA to viable/strict branch
 #        if: steps.get-latest-commit.outputs.latest_viable_sha != 'None'
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_ACCESS_TOKEN }}
         run: |
           cd ${{ inputs.repository }}
 
@@ -88,4 +82,4 @@ jobs:
           # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
           # to ignore because we already have the later green commit in viable/strict
           # git push origin "${{ steps.get-latest-commit.outputs.latest_viable_sha }}":viable/strict
-          git push origin "276ee2ae4307a1e43175724ebc99e38abb1e3163":viable/strict
+          git push origin "25960493bc0673b95567fa041f018da0b861de66":viable/strict
