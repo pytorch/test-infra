@@ -42,11 +42,6 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
-      - uses: webfactory/ssh-agent@v0.5.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.GITHUB_DEPLOY_KEY }}
-
       - name: Checkout ${{ inputs.repository }} repo
         uses: actions/checkout@v3
         with:
