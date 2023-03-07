@@ -814,6 +814,13 @@
       "linux"
     ]
   ],
+  "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94216",
+    "https://github.com/pytorch/pytorch/issues/94216",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93044",
     "https://github.com/pytorch/pytorch/issues/93044",
@@ -1133,6 +1140,13 @@
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93046",
     "https://github.com/pytorch/pytorch/issues/93046",
+    [
+      "linux"
+    ]
+  ],
+  "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94215",
+    "https://github.com/pytorch/pytorch/issues/94215",
     [
       "linux"
     ]
