@@ -1762,13 +1762,6 @@
       "linux"
     ]
   ],
-  "test_tagging_tensors_simple_dynamic_shapes_static_default (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "95257",
-    "https://github.com/pytorch/pytorch/issues/95257",
-    [
-      "linux"
-    ]
-  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
