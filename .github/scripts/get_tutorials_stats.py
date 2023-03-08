@@ -215,7 +215,7 @@ def main() -> None:
         create_table(table_name_history)
     if not table_exists(table_name_filenames):
         create_table2(table_name_filenames)
-    print("Uploading data to {table_name_history}")
+    print(f"Uploading data to {table_name_history}")
     for i in get_history_log:
         table_history.put_item(Item={
             'commit_id': i[0],
