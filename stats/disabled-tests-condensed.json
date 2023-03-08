@@ -1674,6 +1674,13 @@
       "linux"
     ]
   ],
+  "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
+    "96282",
+    "https://github.com/pytorch/pytorch/issues/96282",
+    [
+      "linux"
+    ]
+  ],
   "test_schema_correctness_fft_fft_cuda_bool (__main__.TestSchemaCheckModeOpInfoCUDA)": [
     "95749",
     "https://github.com/pytorch/pytorch/issues/95749",
