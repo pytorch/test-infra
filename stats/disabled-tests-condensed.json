@@ -342,13 +342,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_single_arg_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "91143",
-    "https://github.com/pytorch/pytorch/issues/91143",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_export_single_arg_dynamic_shapes_static_default (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
     "95950",
     "https://github.com/pytorch/pytorch/issues/95950",
