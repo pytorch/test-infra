@@ -124,7 +124,7 @@ SELECT
     j.id,
     w.repository.name as repo_name,
     w.repository.owner.login as owner,
-    w.dynamoKey as dynamo_key
+    j.dynamoKey as dynamo_key
 FROM
     workflow_job j
     INNER JOIN workflow_run w on j.run_id = w.id
