@@ -232,7 +232,7 @@ def main() -> None:
         items = convert_to_dict(entry)
         for item in items:
             table_filenames.put_item(Item=item)
-    print("Finished uploading data to {table_name_filenames}")
+    print(f"Finished uploading data to {table_name_filenames}")
     print("Success!")
 
 if __name__ == "__main__":
