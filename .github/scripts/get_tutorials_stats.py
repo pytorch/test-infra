@@ -227,7 +227,7 @@ def main() -> None:
             'lines_deleted': int(i[6])
         })
     print(f"Finished uploading data to {table_name_history}")
-    print("Uploading data to {table_name_filenames}")
+    print(f"Uploading data to {table_name_filenames}")
     for entry in commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
