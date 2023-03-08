@@ -324,7 +324,8 @@ def generate_libtorch_matrix(
                         "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(
                             ".", "_"
                         ),
-                        "validation_runner": validation_runner(gpu_arch_type, os),
+                        # Please noe since libtorch validations are minimal, we use CPU runners
+                        "validation_runner": validation_runner("cpu", os),
                         "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
                         "channel": channel,
                         "stable_version": mod.CURRENT_VERSION
