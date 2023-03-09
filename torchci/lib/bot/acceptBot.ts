@@ -6,7 +6,6 @@ function containsLabel(labels: Label[], labelName: string) {
   return labels.filter((label) => label.name === labelName).length > 0;
 }
 
-export const ACCEPT_2_RUN = "accept2run";
 export const ACCEPT_2_SHIP = "accept2ship";
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
@@ -26,18 +25,9 @@ function acceptBot(app: Probot): void {
       const repo = ctx.payload.repository.name;
       const issue_number = ctx.payload.pull_request.number;
 
-      const hasAcceptToRun = containsLabel(labels, ACCEPT_2_RUN);
       const hasAcceptToShip = containsLabel(labels, ACCEPT_2_SHIP);
 
-      if (hasAcceptToRun) {
-        await addLabels(ctx, [CIFLOW_TRUNK_LABEL]);
-        await ctx.octokit.issues.removeLabel({
-          owner,
-          repo,
-          issue_number,
-          name: ACCEPT_2_RUN,
-        });
-      } else if (hasAcceptToShip) {
+      if (hasAcceptToShip) {
         await ctx.octokit.issues.createComment({
           owner,
           repo,
@@ -71,17 +61,7 @@ function acceptBot(app: Probot): void {
       return isApproved;
     }
 
-    if (ctx.payload.label.name === ACCEPT_2_RUN) {
-      if (await isApproved()) {
-        await addLabels(ctx, [CIFLOW_TRUNK_LABEL]);
-        await ctx.octokit.issues.removeLabel({
-          owner,
-          repo,
-          issue_number,
-          name: ACCEPT_2_RUN,
-        });
-      }
-    } else if (ctx.payload.label.name === ACCEPT_2_SHIP) {
+    if (ctx.payload.label.name === ACCEPT_2_SHIP) {
       if (await isApproved()) {
         await ctx.octokit.issues.createComment({
           owner,
