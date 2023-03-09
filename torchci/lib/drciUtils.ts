@@ -24,7 +24,7 @@ export const FLAKY_RULES_JSON =
 
 export function formDrciHeader(owner: string, repo: string, prNum: number): string {
     // For PyTorch only
-    if (repo === REPO) {
+    if (isPyTorchPyTorch(owner, repo)) {
         return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${prNum}${PYTHON_DOCS_URL})
