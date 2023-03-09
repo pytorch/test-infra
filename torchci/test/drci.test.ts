@@ -232,7 +232,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
       expect(comment.includes("Helpful Links")).toBeTruthy();
       expect(
@@ -281,6 +281,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       );
       const comment = formDrciComment(
         1001,
+        'pytorch',
+        'pytorch',
         failureInfo,
         formDrciSevBody(getActiveSEVs([sev, mergeBlockingSev]))
       );
@@ -316,7 +318,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(
         comment.includes("## :hourglass_flowing_sand: No Failures, 1 Pending")
@@ -350,7 +352,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
     });
