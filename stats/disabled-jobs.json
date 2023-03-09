@@ -1,10 +1,1 @@
-{
-  "pull / linux-focal-py3.9-clang7-asan / test (default)": [
-    "huydhn",
-    "96378",
-    "https://github.com/pytorch/pytorch/issues/96378",
-    "pull",
-    "linux-focal-py3.9-clang7-asan",
-    "test (default)"
-  ]
-}
+{}
