@@ -405,7 +405,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         expect(header.includes("bot commands wiki")).toBeTruthy();
     })
 
-    test("test formDrciHeader for domains (pytorch/vision)", async () => {
+    test("test formDrciHeader for pytorch/vision", async () => {
         const header = formDrciHeader("pytorch", "vision", 42)
 
         expect(header.includes("hud.pytorch.org/pr/pytorch/vision/42")).toBeTruthy();
