@@ -703,6 +703,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_op_db_linalg_diagonal_cpu_float32 (__main__.TestDTensorOpsCPU)": [
+    "96454",
+    "https://github.com/pytorch/pytorch/issues/96454",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_op_db_linalg_solve_ex_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "94559",
     "https://github.com/pytorch/pytorch/issues/94559",
