@@ -22,7 +22,7 @@ export const BOT_COMMANDS_WIKI_URL =
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
 
-export function formDrciHeader(prNum: number, owner: string, repo: string): string {
+export function formDrciHeader(owner: string, repo: string, prNum: number): string {
     // For PyTorch only
     if (repo === REPO) {
         return `## :link: Helpful Links
