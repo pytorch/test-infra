@@ -62,13 +62,6 @@
       "linux"
     ]
   ],
-  "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
-    "81023",
-    "https://github.com/pytorch/pytorch/issues/81023",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
