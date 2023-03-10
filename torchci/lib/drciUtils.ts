@@ -2,7 +2,7 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
-import { isDrCIEnabled } from "./bot/utils";
+import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
