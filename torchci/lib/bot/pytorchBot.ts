@@ -1,5 +1,4 @@
 import { Probot } from "probot";
-import { ACCEPT_MESSAGE_PREFIX } from "./acceptBot";
 import { getInputArgs } from "./cliParser";
 import PytorchBotHandler from "./pytorchBotHandler";
 
@@ -28,8 +27,7 @@ function pytorchBot(app: Probot): void {
       97764156, // pytorchmergebot
     ];
     if (
-      skipUsers.includes(ctx.payload.comment.user.id) &&
-      !ctx.payload.comment.body.includes(ACCEPT_MESSAGE_PREFIX)
+      skipUsers.includes(ctx.payload.comment.user.id)
     ) {
       // This comment was made by this bot, ignore it.
       return;
