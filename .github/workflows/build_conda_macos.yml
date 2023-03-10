@@ -150,7 +150,6 @@ jobs:
           else
             ${CONDA_RUN} conda build \
               -c defaults \
-              -c conda-forge \
               -c nvidia \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
