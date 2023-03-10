@@ -76,8 +76,11 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
         pr_info.merge_base,
         `${HUD_URL}${pr_info.pr_number}`
       );
+
       const comment = formDrciComment(
         pr_info.pr_number,
+        OWNER,
+        REPO,
         failureInfo,
         formDrciSevBody(sevs)
       );
