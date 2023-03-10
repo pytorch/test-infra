@@ -15,9 +15,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
+import { GridValueFormatterParams } from "@mui/x-data-grid";
 import React from "react";
 import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
@@ -66,7 +64,7 @@ function GranularityPicker({
 }
 
 function getPassModels(data: any) {
-  const passModels: { [k: string]: any; } = {};
+  const passModels: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -100,13 +98,20 @@ function getPassModels(data: any) {
   return passModels;
 }
 
-function isPass(bucket: string, workflowId: number, suite: string, compiler: string, model: string, passModels: { [k: string]: any; }) {
+function isPass(
+  bucket: string,
+  workflowId: number,
+  suite: string,
+  compiler: string,
+  model: string,
+  passModels: { [k: string]: any }
+) {
   return passModels[bucket][workflowId][suite][compiler].has(model);
 }
 
-function computePassrate(data: any, passModels: { [k: string]: any; }) {
-  const totalCount: { [k: string]: any; } = {};
-  const passCount: { [k: string]: any; } = {};
+function computePassrate(data: any, passModels: { [k: string]: any }) {
+  const totalCount: { [k: string]: any } = {};
+  const passCount: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -142,7 +147,7 @@ function computePassrate(data: any, passModels: { [k: string]: any; }) {
     totalCount[bucket][workflowId][suite][compiler] += 1;
   });
 
-  const passrateBySuite: { [k: string]: any; } = {};
+  const passrateBySuite: { [k: string]: any } = {};
 
   Object.keys(totalCount).forEach((bucket: string) => {
     Object.keys(totalCount[bucket]).forEach((workflowId: string) => {
@@ -180,12 +185,14 @@ function geomean(data: number[]) {
   }
 
   var gm = 1.0;
-  data.forEach((v) => { gm *= v; });
+  data.forEach((v) => {
+    gm *= v;
+  });
   return Math.pow(gm, 1.0 / data.length).toFixed(2);
 }
 
-function computeGeomean(data: any, passModels: { [k: string]: any; }) {
-  const speedup: { [k: string]: any; } = {};
+function computeGeomean(data: any, passModels: { [k: string]: any }) {
+  const speedup: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -210,12 +217,15 @@ function computeGeomean(data: any, passModels: { [k: string]: any; }) {
       speedup[bucket][workflowId][suite][compiler] = [];
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passModels) && record.speedup !== 0.0) {
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      record.speedup !== 0.0
+    ) {
       speedup[bucket][workflowId][suite][compiler].push(record.speedup);
     }
   });
 
-  const geomeanBySuite: { [k: string]: any; } = {};
+  const geomeanBySuite: { [k: string]: any } = {};
 
   Object.keys(speedup).forEach((bucket: string) => {
     Object.keys(speedup[bucket]).forEach((workflowId: string) => {
@@ -243,8 +253,8 @@ function computeGeomean(data: any, passModels: { [k: string]: any; }) {
   return geomeanBySuite;
 }
 
-function computeCompilationTime(data: any, passModels: { [k: string]: any; }) {
-  const compTime: { [k: string]: any; } = {};
+function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
+  const compTime: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -270,12 +280,15 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any; }) {
       compTime[bucket][workflowId][suite][compiler] = [];
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passModels) && compLatency !== 0.0) {
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      compLatency !== 0.0
+    ) {
       compTime[bucket][workflowId][suite][compiler].push(compLatency);
     }
   });
 
-  const compTimeBySuite: { [k: string]: any; } = {};
+  const compTimeBySuite: { [k: string]: any } = {};
 
   Object.keys(compTime).forEach((bucket: string) => {
     Object.keys(compTime[bucket]).forEach((workflowId: string) => {
@@ -283,7 +296,11 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any; }) {
         Object.keys(compTime[bucket][workflowId][suite]).forEach(
           (compiler: string) => {
             const l = compTime[bucket][workflowId][suite][compiler].length;
-            const m = compTime[bucket][workflowId][suite][compiler].reduce((total: number, v: number) => total + v, 0) / l;
+            const m =
+              compTime[bucket][workflowId][suite][compiler].reduce(
+                (total: number, v: number) => total + v,
+                0
+              ) / l;
 
             if (!(suite in compTimeBySuite)) {
               compTimeBySuite[suite] = [];
@@ -304,8 +321,11 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any; }) {
   return compTimeBySuite;
 }
 
-function computeMemoryCompressionRatio(data: any, passModels: { [k: string]: any; }) {
-  const memory: { [k: string]: any; } = {};
+function computeMemoryCompressionRatio(
+  data: any,
+  passModels: { [k: string]: any }
+) {
+  const memory: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -331,12 +351,15 @@ function computeMemoryCompressionRatio(data: any, passModels: { [k: string]: any
       memory[bucket][workflowId][suite][compiler] = [];
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passModels) && compRatio !== 0.0) {
+    if (
+      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      compRatio !== 0.0
+    ) {
       memory[bucket][workflowId][suite][compiler].push(compRatio);
     }
   });
 
-  const memoryBySuite: { [k: string]: any; } = {};
+  const memoryBySuite: { [k: string]: any } = {};
 
   Object.keys(memory).forEach((bucket: string) => {
     Object.keys(memory[bucket]).forEach((workflowId: string) => {
@@ -344,7 +367,11 @@ function computeMemoryCompressionRatio(data: any, passModels: { [k: string]: any
         Object.keys(memory[bucket][workflowId][suite]).forEach(
           (compiler: string) => {
             const l = memory[bucket][workflowId][suite][compiler].length;
-            const m = memory[bucket][workflowId][suite][compiler].reduce((total: number, v: number) => total + v, 0) / l;
+            const m =
+              memory[bucket][workflowId][suite][compiler].reduce(
+                (total: number, v: number) => total + v,
+                0
+              ) / l;
 
             if (!(suite in memoryBySuite)) {
               memoryBySuite[suite] = [];
@@ -371,22 +398,24 @@ function SummaryPanel({
   compTimeBySuite,
   memoryBySuite,
 }: {
-  passrateBySuite: { [k: string]: any; };
-  geomeanBySuite: { [k: string]: any; };
-  compTimeBySuite: { [k: string]: any; };
-  memoryBySuite: { [k: string]: any; };
+  passrateBySuite: { [k: string]: any };
+  geomeanBySuite: { [k: string]: any };
+  compTimeBySuite: { [k: string]: any };
+  memoryBySuite: { [k: string]: any };
 }) {
-  const lastestPassrateByCompiler: { [k: string]: any; } = {};
+  const lastestPassrateByCompiler: { [k: string]: any } = {};
   let latestPassrateBucket: string = "";
   Object.keys(passrateBySuite).forEach((k) => {
-    const buckets = passrateBySuite[k].map((v: any) => v["granularity_bucket"]).sort();
+    const buckets = passrateBySuite[k]
+      .map((v: any) => v["granularity_bucket"])
+      .sort();
     latestPassrateBucket = buckets[buckets.length - 1];
 
     passrateBySuite[k].forEach((r: any) => {
       const compiler = r["compiler"];
       if (!(compiler in lastestPassrateByCompiler)) {
         lastestPassrateByCompiler[compiler] = {
-          "compiler": compiler,
+          compiler: compiler,
         };
       }
 
@@ -397,17 +426,19 @@ function SummaryPanel({
     });
   });
 
-  const lastestGeomeanByCompiler: { [k: string]: any; } = {};
+  const lastestGeomeanByCompiler: { [k: string]: any } = {};
   let latestGeomeanBucket: string = "";
   Object.keys(geomeanBySuite).forEach((k) => {
-    const buckets = geomeanBySuite[k].map((v: any) => v["granularity_bucket"]).sort();
+    const buckets = geomeanBySuite[k]
+      .map((v: any) => v["granularity_bucket"])
+      .sort();
     latestGeomeanBucket = buckets[buckets.length - 1];
 
     geomeanBySuite[k].forEach((r: any) => {
       const compiler = r["compiler"];
       if (!(compiler in lastestGeomeanByCompiler)) {
         lastestGeomeanByCompiler[compiler] = {
-          "compiler": compiler,
+          compiler: compiler,
         };
       }
 
@@ -418,17 +449,19 @@ function SummaryPanel({
     });
   });
 
-  const lastestCompTimeByCompiler: { [k: string]: any; } = {};
+  const lastestCompTimeByCompiler: { [k: string]: any } = {};
   let latestCompTimeBucket: string = "";
   Object.keys(compTimeBySuite).forEach((k) => {
-    const buckets = compTimeBySuite[k].map((v: any) => v["granularity_bucket"]).sort();
+    const buckets = compTimeBySuite[k]
+      .map((v: any) => v["granularity_bucket"])
+      .sort();
     latestCompTimeBucket = buckets[buckets.length - 1];
 
     compTimeBySuite[k].forEach((r: any) => {
       const compiler = r["compiler"];
       if (!(compiler in lastestCompTimeByCompiler)) {
         lastestCompTimeByCompiler[compiler] = {
-          "compiler": compiler,
+          compiler: compiler,
         };
       }
 
@@ -439,17 +472,19 @@ function SummaryPanel({
     });
   });
 
-  const lastestMemoryByCompiler: { [k: string]: any; } = {};
+  const lastestMemoryByCompiler: { [k: string]: any } = {};
   let latestMemoryBucket: string = "";
   Object.keys(memoryBySuite).forEach((k) => {
-    const buckets = memoryBySuite[k].map((v: any) => v["granularity_bucket"]).sort();
+    const buckets = memoryBySuite[k]
+      .map((v: any) => v["granularity_bucket"])
+      .sort();
     latestMemoryBucket = buckets[buckets.length - 1];
 
     memoryBySuite[k].forEach((r: any) => {
       const compiler = r["compiler"];
       if (!(compiler in lastestMemoryByCompiler)) {
         lastestMemoryByCompiler[compiler] = {
-          "compiler": compiler,
+          compiler: compiler,
         };
       }
 
@@ -464,8 +499,12 @@ function SummaryPanel({
     <Grid container spacing={2} height={ROW_HEIGHT + ROW_GAP}>
       <Grid item xs={12} lg={3}>
         <TablePanelWithData
-          title={`Passrate - ${dayjs(latestPassrateBucket).format("YYYY/MM/DD")}`}
-          data={Object.values(lastestPassrateByCompiler).sort((a: any, b: any) => a["compiler"].localeCompare(b["compiler"]))}
+          title={`Passrate - ${dayjs(latestPassrateBucket).format(
+            "YYYY/MM/DD"
+          )}`}
+          data={Object.values(lastestPassrateByCompiler).sort(
+            (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
+          )}
           columns={[
             {
               field: "compiler",
@@ -503,8 +542,12 @@ function SummaryPanel({
 
       <Grid item xs={12} lg={3}>
         <TablePanelWithData
-          title={`Geometric mean speedup - ${dayjs(latestGeomeanBucket).format("YYYY/MM/DD")}`}
-          data={Object.values(lastestGeomeanByCompiler).sort((a: any, b: any) => a["compiler"].localeCompare(b["compiler"]))}
+          title={`Geometric mean speedup - ${dayjs(latestGeomeanBucket).format(
+            "YYYY/MM/DD"
+          )}`}
+          data={Object.values(lastestGeomeanByCompiler).sort((a: any, b: any) =>
+            a["compiler"].localeCompare(b["compiler"])
+          )}
           columns={[
             {
               field: "compiler",
@@ -542,8 +585,12 @@ function SummaryPanel({
 
       <Grid item xs={12} lg={3}>
         <TablePanelWithData
-          title={`Mean compilation time (seconds) - ${dayjs(latestCompTimeBucket).format("YYYY/MM/DD")}`}
-          data={Object.values(lastestCompTimeByCompiler).sort((a: any, b: any) => a["compiler"].localeCompare(b["compiler"]))}
+          title={`Mean compilation time (seconds) - ${dayjs(
+            latestCompTimeBucket
+          ).format("YYYY/MM/DD")}`}
+          data={Object.values(lastestCompTimeByCompiler).sort(
+            (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
+          )}
           columns={[
             {
               field: "compiler",
@@ -581,8 +628,12 @@ function SummaryPanel({
 
       <Grid item xs={12} lg={3}>
         <TablePanelWithData
-          title={`Peak memory footprint compression ratio (higher is better) - ${dayjs(latestMemoryBucket).format("YYYY/MM/DD")}`}
-          data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) => a["compiler"].localeCompare(b["compiler"]))}
+          title={`Peak memory footprint compression ratio (higher is better) - ${dayjs(
+            latestMemoryBucket
+          ).format("YYYY/MM/DD")}`}
+          data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) =>
+            a["compiler"].localeCompare(b["compiler"])
+          )}
           columns={[
             {
               field: "compiler",
@@ -630,10 +681,10 @@ function PerformanceGraphs({
   stopTime,
   granularity,
 }: {
-  passrateBySuite: { [k: string]: any; };
-  geomeanBySuite: { [k: string]: any; };
-  compTimeBySuite: { [k: string]: any; };
-  memoryBySuite: { [k: string]: any; };
+  passrateBySuite: { [k: string]: any };
+  geomeanBySuite: { [k: string]: any };
+  compTimeBySuite: { [k: string]: any };
+  memoryBySuite: { [k: string]: any };
   startTime: Dayjs;
   stopTime: Dayjs;
   granularity: Granularity;
@@ -641,7 +692,7 @@ function PerformanceGraphs({
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "compiler";
 
-  const passrateSeries: { [k: string]: any; } = {};
+  const passrateSeries: { [k: string]: any } = {};
   Object.keys(passrateBySuite).forEach((key) => {
     passrateSeries[key] = seriesWithInterpolatedTimes(
       passrateBySuite[key],
@@ -654,7 +705,7 @@ function PerformanceGraphs({
     );
   });
 
-  const geomeanSeries: { [k: string]: any; } = {};
+  const geomeanSeries: { [k: string]: any } = {};
   Object.keys(geomeanBySuite).forEach((key) => {
     geomeanSeries[key] = seriesWithInterpolatedTimes(
       geomeanBySuite[key],
@@ -667,7 +718,7 @@ function PerformanceGraphs({
     );
   });
 
-  const compTimeSeries: { [k: string]: any; } = {};
+  const compTimeSeries: { [k: string]: any } = {};
   Object.keys(compTimeBySuite).forEach((key) => {
     compTimeSeries[key] = seriesWithInterpolatedTimes(
       compTimeBySuite[key],
@@ -680,7 +731,7 @@ function PerformanceGraphs({
     );
   });
 
-  const memorySeries: { [k: string]: any; } = {};
+  const memorySeries: { [k: string]: any } = {};
   Object.keys(memoryBySuite).forEach((key) => {
     memorySeries[key] = seriesWithInterpolatedTimes(
       memoryBySuite[key],
@@ -975,10 +1026,7 @@ export default function Page() {
       </Stack>
 
       <Grid item xs={6}>
-        <Report
-          queryParams={queryParams}
-          granularity={granularity}
-        />
+        <Report queryParams={queryParams} granularity={granularity} />
       </Grid>
     </div>
   );
