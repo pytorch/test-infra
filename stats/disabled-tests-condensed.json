@@ -1355,13 +1355,6 @@
       "rocm"
     ]
   ],
-  "test_nccl_high_priority_stream (__main__.TestDistBackendWithSpawn)": [
-    "81022",
-    "https://github.com/pytorch/pytorch/issues/81022",
-    [
-      "linux"
-    ]
-  ],
   "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
     "93865",
     "https://github.com/pytorch/pytorch/issues/93865",
