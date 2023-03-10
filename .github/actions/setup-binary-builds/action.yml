@@ -98,6 +98,11 @@ runs:
         run: |
           set -euxo pipefail
           conda clean --all --quiet --yes
+      - name: Reset channel priority
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          conda config --set channel_priority false
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
         shell: bash -l {0}
