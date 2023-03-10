@@ -140,7 +140,6 @@ jobs:
             ${CONDA_RUN} conda build \
               -c defaults \
               -c "malfet" \
-              -c nvidia \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \
@@ -150,8 +149,6 @@ jobs:
           else
             ${CONDA_RUN} conda build \
               -c defaults \
-              -c conda-forge \
-              -c nvidia \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \
