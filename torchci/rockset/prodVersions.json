@@ -62,5 +62,8 @@
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
     "workflow_load": "eff394d8e0b76436"
+  },
+  "inductor": {
+    "compilers_benchmark_performance": "b33099e6bbcc6e9a"
   }
 }

@@ -70,7 +70,9 @@ export function seriesWithInterpolatedTimes(
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  return _.map(byGroup, (value, key) => {
+  const sortedData = [];
+  Object.keys(byGroup).sort().forEach((key) => {
+    const value = byGroup[key];
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
@@ -91,7 +93,7 @@ export function seriesWithInterpolatedTimes(
       })
       .filter((t) => t !== undefined);
 
-    return {
+    sortedData.push({
       name: key,
       type: "line",
       symbol: "circle",
@@ -101,8 +103,9 @@ export function seriesWithInterpolatedTimes(
         focus: "series",
       },
       smooth: true,
-    };
+    });
   });
+  return sortedData;
 }
 
 export function TimeSeriesPanelWithData({
@@ -131,7 +134,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions?: EChartsOption;
 }) {
   // Add extra padding when the legend is active
-  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
+  const legend_padding = groupByFieldName !== undefined ? 300 : 48;
   const title_padding = yAxisLabel ? 65 : 48;
   const options: EChartsOption = _.merge(
     {
