@@ -1,4 +1,9 @@
 import { Context, Probot } from "probot";
+import { Octokit } from "https://cdn.pika.dev/@octokit/core";
+import {
+  config,
+  composeConfigGet,
+} from "https://cdn.pika.dev/@probot/octokit-plugin-config";
 import urllib from "urllib";
 
 export function repoKey(
@@ -38,6 +43,19 @@ export class CachedConfigTracker {
     context: Context | Context<"pull_request.labeled">,
     force = false
   ): Promise<object> {
+    if (repoKey(context) == "pytorch/pytorch-canary"){
+      if (context instanceof Context<"pull_request.labeled">){
+        const { config } = await Octokit.config.get({
+          owner: `${context.repo().owner}`,
+          repo: `${context.repo().repo}`,
+          path: ".github/pytorch-probot.yml",
+          branch: `${context.payload.ref}`,
+        });
+        return config;
+      }
+    }
+
+
     const key = repoKey(context);
     if (!(key in this.repoConfigs) || force) {
       context.log({ key }, "loadConfig");
