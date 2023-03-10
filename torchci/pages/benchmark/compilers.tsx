@@ -28,8 +28,11 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 
 const LAST_WEEK = 7;
-const ROW_HEIGHT = 340;
+const ROW_HEIGHT = 240;
 const ROW_GAP = 30;
+
+const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
+const SUITES = ["torchbench", "huggingface", "timm_models"];
 
 function GranularityPicker({
   granularity,
@@ -64,32 +67,37 @@ function getPassModels(data: any) {
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
-    const testName = `${record.suite} / ${record.compiler}`;
-    const modelName = record.name;
+    const suite = record.suite;
+    const compiler = record.compiler;
+    const model = record.name;
     const accuracy = record.accuracy;
 
     if (!(bucket in passModels)) {
-      passModels[bucket] = {}
+      passModels[bucket] = {};
     }
 
     if (!(workflowId in passModels[bucket])) {
-      passModels[bucket][workflowId] = {}
+      passModels[bucket][workflowId] = {};
     }
 
-    if (!(testName in passModels[bucket][workflowId])) {
-      passModels[bucket][workflowId][testName] = new Set<string>();
+    if (!(suite in passModels[bucket][workflowId])) {
+      passModels[bucket][workflowId][suite] = {};
+    }
+
+    if (!(compiler in passModels[bucket][workflowId][suite])) {
+      passModels[bucket][workflowId][suite][compiler] = new Set<string>();
     }
 
     if (accuracy === "pass" || accuracy === "pass_due_to_skip") {
-      passModels[bucket][workflowId][testName].add(modelName);
+      passModels[bucket][workflowId][suite][compiler].add(model);
     }
   });
 
   return passModels;
 }
 
-function isPass(bucket, workflowId, testName, modelName, passModels) {
-  return passModels[bucket][workflowId][testName].has(modelName);
+function isPass(bucket, workflowId, suite, compiler, model, passModels) {
+  return passModels[bucket][workflowId][suite][compiler].has(model);
 }
 
 function computePassrate(data: any, passModels) {
@@ -99,8 +107,9 @@ function computePassrate(data: any, passModels) {
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
-    const testName = `${record.suite} / ${record.compiler}`;
-    const modelName = record.name;
+    const suite = record.suite;
+    const compiler = record.compiler;
+    const model = record.name;
 
     if (!(bucket in totalCount)) {
       totalCount[bucket] = {};
@@ -112,35 +121,50 @@ function computePassrate(data: any, passModels) {
       passCount[bucket][workflowId] = {};
     }
 
-    if (!(testName in totalCount[bucket][workflowId])) {
-      totalCount[bucket][workflowId][testName] = 0;
-      passCount[bucket][workflowId][testName] = 0;
+    if (!(suite in totalCount[bucket][workflowId])) {
+      totalCount[bucket][workflowId][suite] = {};
+      passCount[bucket][workflowId][suite] = {};
     }
 
-    if (isPass(bucket, workflowId, testName, modelName, passModels)) {
-      passCount[bucket][workflowId][testName] += 1;
+    if (!(compiler in totalCount[bucket][workflowId][suite])) {
+      totalCount[bucket][workflowId][suite][compiler] = 0;
+      passCount[bucket][workflowId][suite][compiler] = 0;
     }
 
-    totalCount[bucket][workflowId][testName] += 1;
+    if (isPass(bucket, workflowId, suite, compiler, model, passModels)) {
+      passCount[bucket][workflowId][suite][compiler] += 1;
+    }
+
+    totalCount[bucket][workflowId][suite][compiler] += 1;
   });
 
-  const passrate = [];
+  const passrateBySuite = {};
 
   Object.keys(totalCount).forEach((bucket: string) => {
     Object.keys(totalCount[bucket]).forEach((workflowId: string) => {
-      Object.keys(totalCount[bucket][workflowId]).forEach((testName: string) => {
-        const p = passCount[bucket][workflowId][testName] / totalCount[bucket][workflowId][testName];
-        passrate.push({
-          "granularity_bucket": bucket,
-          "workflow_id": workflowId,
-          "test_name": testName,
-          "passrate": p,
-        });
-      })
-    })
+      Object.keys(totalCount[bucket][workflowId]).forEach((suite: string) => {
+        Object.keys(totalCount[bucket][workflowId][suite]).forEach(
+          (compiler: string) => {
+            const p =
+              passCount[bucket][workflowId][suite][compiler] /
+              totalCount[bucket][workflowId][suite][compiler];
+
+            if (!(suite in passrateBySuite)) {
+              passrateBySuite[suite] = [];
+            }
+
+            passrateBySuite[suite].push({
+              granularity_bucket: bucket,
+              compiler: compiler,
+              passrate: p,
+            });
+          }
+        );
+      });
+    });
   });
 
-  return passrate;
+  return passrateBySuite;
 }
 
 function PerformanceGraphs({
@@ -184,31 +208,78 @@ function PerformanceGraphs({
   const passModels = getPassModels(data);
 
   const timeFieldName = "granularity_bucket";
-  const groupByFieldName = "test_name";
+  const groupByFieldName = "compiler";
 
-  const passrate = computePassrate(data, passModels);
-  const series = seriesWithInterpolatedTimes(
-    passrate,
-    startTime,
-    stopTime,
-    granularity,
-    groupByFieldName,
-    timeFieldName,
-    "passrate",
-  );
+  const passrateBySuite = computePassrate(data, passModels);
+  const seriesBySuite = {};
+  Object.keys(passrateBySuite).forEach((key) => {
+    seriesBySuite[key] = seriesWithInterpolatedTimes(
+      passrateBySuite[key],
+      startTime,
+      stopTime,
+      granularity,
+      groupByFieldName,
+      timeFieldName,
+      "passrate"
+    );
+  });
 
   return (
-    <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-      <TimeSeriesPanelWithData
-        data={passrate}
-        series={series}
-        title={"Passrate"}
-        yAxisLabel={"%"}
-        groupByFieldName={groupByFieldName}
-        yAxisRenderer={(unit) => {
-          return `${unit * 100} %`;
-        }}
-      />
+    <Grid container spacing={2}>
+      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={passrateBySuite["torchbench"]}
+          series={seriesBySuite["torchbench"]}
+          title={`Passrate / Torchbench`}
+          yAxisLabel={"%"}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${(unit * 100).toFixed(0)} %`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              min: 0.6,
+              max: 1.0,
+            },
+          }}
+        />
+      </Grid>
+      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={passrateBySuite["huggingface"]}
+          series={seriesBySuite["huggingface"]}
+          title={`Passrate / Huggingface`}
+          yAxisLabel={"%"}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${(unit * 100).toFixed(0)} %`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              min: 0.6,
+              max: 1.0,
+            },
+          }}
+        />
+      </Grid>
+      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={passrateBySuite["timm_models"]}
+          series={seriesBySuite["timm_models"]}
+          title={`Passrate / TIMM Models`}
+          yAxisLabel={"%"}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${(unit * 100).toFixed(0)} %`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              min: 0.6,
+              max: 1.0,
+            },
+          }}
+        />
+      </Grid>
     </Grid>
   );
 }
@@ -238,6 +309,11 @@ export default function Page() {
       name: "granularity",
       type: "string",
       value: granularity,
+    },
+    {
+      name: "dtypes",
+      type: "string",
+      value: "amp",
     },
   ];
 
