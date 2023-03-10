@@ -70,8 +70,7 @@ export function seriesWithInterpolatedTimes(
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  const sortedData = [];
-  Object.keys(byGroup).sort().forEach((key) => {
+  return _.map(Object.keys(byGroup).sort(), (key) => {
     const value = byGroup[key];
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
@@ -93,7 +92,7 @@ export function seriesWithInterpolatedTimes(
       })
       .filter((t) => t !== undefined);
 
-    sortedData.push({
+    return {
       name: key,
       type: "line",
       symbol: "circle",
@@ -103,9 +102,8 @@ export function seriesWithInterpolatedTimes(
         focus: "series",
       },
       smooth: true,
-    });
+    };
   });
-  return sortedData;
 }
 
 export function TimeSeriesPanelWithData({
