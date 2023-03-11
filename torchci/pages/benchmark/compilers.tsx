@@ -34,7 +34,11 @@ const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 
 const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
-const SUITES = ["torchbench", "huggingface", "timm_models"];
+const SUITES = {
+  torchbench: "Torchbench",
+  huggingface: "Huggingface",
+  timm_models: "TIMM models",
+};
 
 function GranularityPicker({
   granularity,
@@ -392,6 +396,37 @@ function computeMemoryCompressionRatio(
   return memoryBySuite;
 }
 
+function getLatestRecordByCompiler(
+  dataBySuite: { [k: string]: any },
+  dataFieldName: string
+) {
+  const timeFieldName = "granularity_bucket";
+
+  const lastestRecordByCompiler: { [k: string]: any } = {};
+  let latestBucket: string = "";
+
+  Object.keys(dataBySuite).forEach((k) => {
+    const buckets = dataBySuite[k].map((v: any) => v[timeFieldName]).sort();
+    latestBucket = buckets[buckets.length - 1];
+
+    dataBySuite[k].forEach((r: any) => {
+      const compiler = r["compiler"];
+      if (!(compiler in lastestRecordByCompiler)) {
+        lastestRecordByCompiler[compiler] = {
+          compiler: compiler,
+        };
+      }
+
+      if (r[timeFieldName] === latestBucket) {
+        const suite = r["suite"];
+        lastestRecordByCompiler[compiler][suite] = r[dataFieldName];
+      }
+    });
+  });
+
+  return [lastestRecordByCompiler, latestBucket];
+}
+
 function SummaryPanel({
   passrateBySuite,
   geomeanBySuite,
@@ -403,97 +438,22 @@ function SummaryPanel({
   compTimeBySuite: { [k: string]: any };
   memoryBySuite: { [k: string]: any };
 }) {
-  const lastestPassrateByCompiler: { [k: string]: any } = {};
-  let latestPassrateBucket: string = "";
-  Object.keys(passrateBySuite).forEach((k) => {
-    const buckets = passrateBySuite[k]
-      .map((v: any) => v["granularity_bucket"])
-      .sort();
-    latestPassrateBucket = buckets[buckets.length - 1];
+  const [lastestPassrateByCompiler, latestPassrateBucket] =
+    getLatestRecordByCompiler(passrateBySuite, "passrate");
+  const [lastestGeomeanByCompiler, latestGeomeanBucket] =
+    getLatestRecordByCompiler(geomeanBySuite, "geomean");
+  const [lastestCompTimeByCompiler, latestCompTimeBucket] =
+    getLatestRecordByCompiler(compTimeBySuite, "compilation_latency");
+  const [lastestMemoryByCompiler, latestMemoryBucket] =
+    getLatestRecordByCompiler(memoryBySuite, "compression_ratio");
 
-    passrateBySuite[k].forEach((r: any) => {
-      const compiler = r["compiler"];
-      if (!(compiler in lastestPassrateByCompiler)) {
-        lastestPassrateByCompiler[compiler] = {
-          compiler: compiler,
-        };
-      }
-
-      if (r["granularity_bucket"] === latestPassrateBucket) {
-        const suite = r["suite"];
-        lastestPassrateByCompiler[compiler][suite] = r["passrate"];
-      }
-    });
-  });
-
-  const lastestGeomeanByCompiler: { [k: string]: any } = {};
-  let latestGeomeanBucket: string = "";
-  Object.keys(geomeanBySuite).forEach((k) => {
-    const buckets = geomeanBySuite[k]
-      .map((v: any) => v["granularity_bucket"])
-      .sort();
-    latestGeomeanBucket = buckets[buckets.length - 1];
-
-    geomeanBySuite[k].forEach((r: any) => {
-      const compiler = r["compiler"];
-      if (!(compiler in lastestGeomeanByCompiler)) {
-        lastestGeomeanByCompiler[compiler] = {
-          compiler: compiler,
-        };
-      }
-
-      if (r["granularity_bucket"] === latestGeomeanBucket) {
-        const suite = r["suite"];
-        lastestGeomeanByCompiler[compiler][suite] = r["geomean"];
-      }
-    });
-  });
-
-  const lastestCompTimeByCompiler: { [k: string]: any } = {};
-  let latestCompTimeBucket: string = "";
-  Object.keys(compTimeBySuite).forEach((k) => {
-    const buckets = compTimeBySuite[k]
-      .map((v: any) => v["granularity_bucket"])
-      .sort();
-    latestCompTimeBucket = buckets[buckets.length - 1];
-
-    compTimeBySuite[k].forEach((r: any) => {
-      const compiler = r["compiler"];
-      if (!(compiler in lastestCompTimeByCompiler)) {
-        lastestCompTimeByCompiler[compiler] = {
-          compiler: compiler,
-        };
-      }
-
-      if (r["granularity_bucket"] === latestCompTimeBucket) {
-        const suite = r["suite"];
-        lastestCompTimeByCompiler[compiler][suite] = r["compilation_latency"];
-      }
-    });
-  });
-
-  const lastestMemoryByCompiler: { [k: string]: any } = {};
-  let latestMemoryBucket: string = "";
-  Object.keys(memoryBySuite).forEach((k) => {
-    const buckets = memoryBySuite[k]
-      .map((v: any) => v["granularity_bucket"])
-      .sort();
-    latestMemoryBucket = buckets[buckets.length - 1];
-
-    memoryBySuite[k].forEach((r: any) => {
-      const compiler = r["compiler"];
-      if (!(compiler in lastestMemoryByCompiler)) {
-        lastestMemoryByCompiler[compiler] = {
-          compiler: compiler,
-        };
-      }
-
-      if (r["granularity_bucket"] === latestMemoryBucket) {
-        const suite = r["suite"];
-        lastestMemoryByCompiler[compiler][suite] = r["compression_ratio"];
-      }
-    });
-  });
+  const columns = [
+    {
+      field: "compiler",
+      headerName: "Compiler",
+      flex: 1,
+    },
+  ];
 
   return (
     <Grid container spacing={2} height={ROW_HEIGHT + ROW_GAP}>
@@ -505,37 +465,18 @@ function SummaryPanel({
           data={Object.values(lastestPassrateByCompiler).sort(
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
-          columns={[
-            {
-              field: "compiler",
-              headerName: "Compiler",
-              flex: 1,
-            },
-            {
-              field: "torchbench",
-              headerName: "Torchbench",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value * 100).toFixed(0)}%`;
-              },
-            },
-            {
-              field: "huggingface",
-              headerName: "Huggingface",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value * 100).toFixed(0)}%`;
-              },
-            },
-            {
-              field: "timm_models",
-              headerName: "TIMM models",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value * 100).toFixed(0)}%`;
-              },
-            },
-          ]}
+          columns={columns.concat(
+            Object.keys(SUITES).map((suite) => {
+              return {
+                field: suite,
+                headerName: SUITES[suite],
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<any>) => {
+                  return `${Number(params.value * 100).toFixed(0)}%`;
+                },
+              };
+            })
+          )}
           dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
         />
       </Grid>
@@ -548,37 +489,18 @@ function SummaryPanel({
           data={Object.values(lastestGeomeanByCompiler).sort((a: any, b: any) =>
             a["compiler"].localeCompare(b["compiler"])
           )}
-          columns={[
-            {
-              field: "compiler",
-              headerName: "Compiler",
-              flex: 1,
-            },
-            {
-              field: "torchbench",
-              headerName: "Torchbench",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}s`;
-              },
-            },
-            {
-              field: "huggingface",
-              headerName: "Huggingface",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}x`;
-              },
-            },
-            {
-              field: "timm_models",
-              headerName: "TIMM models",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}x`;
-              },
-            },
-          ]}
+          columns={columns.concat(
+            Object.keys(SUITES).map((suite) => {
+              return {
+                field: suite,
+                headerName: SUITES[suite],
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<any>) => {
+                  return `${Number(params.value).toFixed(2)}x`;
+                },
+              };
+            })
+          )}
           dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
         />
       </Grid>
@@ -591,37 +513,18 @@ function SummaryPanel({
           data={Object.values(lastestCompTimeByCompiler).sort(
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
-          columns={[
-            {
-              field: "compiler",
-              headerName: "Compiler",
-              flex: 1,
-            },
-            {
-              field: "torchbench",
-              headerName: "Torchbench",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}s`;
-              },
-            },
-            {
-              field: "huggingface",
-              headerName: "Huggingface",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}s`;
-              },
-            },
-            {
-              field: "timm_models",
-              headerName: "TIMM models",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}s`;
-              },
-            },
-          ]}
+          columns={columns.concat(
+            Object.keys(SUITES).map((suite) => {
+              return {
+                field: suite,
+                headerName: SUITES[suite],
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<any>) => {
+                  return `${Number(params.value).toFixed(2)}s`;
+                },
+              };
+            })
+          )}
           dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
         />
       </Grid>
@@ -634,42 +537,49 @@ function SummaryPanel({
           data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) =>
             a["compiler"].localeCompare(b["compiler"])
           )}
-          columns={[
-            {
-              field: "compiler",
-              headerName: "Compiler",
-              flex: 1,
-            },
-            {
-              field: "torchbench",
-              headerName: "Torchbench",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}x`;
-              },
-            },
-            {
-              field: "huggingface",
-              headerName: "Huggingface",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}x`;
-              },
-            },
-            {
-              field: "timm_models",
-              headerName: "TIMM models",
-              flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}x`;
-              },
-            },
-          ]}
+          columns={columns.concat(
+            Object.keys(SUITES).map((suite) => {
+              return {
+                field: suite,
+                headerName: SUITES[suite],
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<any>) => {
+                  return `${Number(params.value).toFixed(2)}x`;
+                },
+              };
+            })
+          )}
           dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
         />
       </Grid>
     </Grid>
   );
+}
+
+function generateChartSeries(
+  dataBySuite: { [k: string]: any },
+  dataFieldName: string,
+  groupByFieldName: string,
+  startTime: Dayjs,
+  stopTime: Dayjs,
+  granularity: Granularity
+) {
+  const timeFieldName = "granularity_bucket";
+
+  const chartSeries: { [k: string]: any } = {};
+  Object.keys(dataBySuite).forEach((key) => {
+    chartSeries[key] = seriesWithInterpolatedTimes(
+      dataBySuite[key],
+      startTime,
+      stopTime,
+      granularity,
+      groupByFieldName,
+      timeFieldName,
+      dataFieldName
+    );
+  });
+
+  return chartSeries;
 }
 
 function PerformanceGraphs({
@@ -689,221 +599,106 @@ function PerformanceGraphs({
   stopTime: Dayjs;
   granularity: Granularity;
 }) {
-  const timeFieldName = "granularity_bucket";
   const groupByFieldName = "compiler";
 
-  const passrateSeries: { [k: string]: any } = {};
-  Object.keys(passrateBySuite).forEach((key) => {
-    passrateSeries[key] = seriesWithInterpolatedTimes(
-      passrateBySuite[key],
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      timeFieldName,
-      "passrate"
-    );
-  });
-
-  const geomeanSeries: { [k: string]: any } = {};
-  Object.keys(geomeanBySuite).forEach((key) => {
-    geomeanSeries[key] = seriesWithInterpolatedTimes(
-      geomeanBySuite[key],
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      timeFieldName,
-      "geomean"
-    );
-  });
-
-  const compTimeSeries: { [k: string]: any } = {};
-  Object.keys(compTimeBySuite).forEach((key) => {
-    compTimeSeries[key] = seriesWithInterpolatedTimes(
-      compTimeBySuite[key],
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      timeFieldName,
-      "compilation_latency"
-    );
-  });
-
-  const memorySeries: { [k: string]: any } = {};
-  Object.keys(memoryBySuite).forEach((key) => {
-    memorySeries[key] = seriesWithInterpolatedTimes(
-      memoryBySuite[key],
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      timeFieldName,
-      "compression_ratio"
-    );
-  });
+  const passrateSeries = generateChartSeries(
+    passrateBySuite,
+    "passrate",
+    groupByFieldName,
+    startTime,
+    stopTime,
+    granularity
+  );
+  const geomeanSeries = generateChartSeries(
+    geomeanBySuite,
+    "geomean",
+    groupByFieldName,
+    startTime,
+    stopTime,
+    granularity
+  );
+  const compTimeSeries = generateChartSeries(
+    compTimeBySuite,
+    "compilation_latency",
+    groupByFieldName,
+    startTime,
+    stopTime,
+    granularity
+  );
+  const memorySeries = generateChartSeries(
+    memoryBySuite,
+    "compression_ratio",
+    groupByFieldName,
+    startTime,
+    stopTime,
+    granularity
+  );
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={passrateBySuite["torchbench"]}
-          series={passrateSeries["torchbench"]}
-          title={`Passrate / Torchbench`}
-          yAxisLabel={"%"}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${(unit * 100).toFixed(0)} %`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              min: 0.6,
-              max: 1.0,
-            },
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={passrateBySuite["huggingface"]}
-          series={passrateSeries["huggingface"]}
-          title={`Passrate / Huggingface`}
-          yAxisLabel={"%"}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${(unit * 100).toFixed(0)} %`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              min: 0.6,
-              max: 1.0,
-            },
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={passrateBySuite["timm_models"]}
-          series={passrateSeries["timm_models"]}
-          title={`Passrate / TIMM Models`}
-          yAxisLabel={"%"}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${(unit * 100).toFixed(0)} %`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              min: 0.6,
-              max: 1.0,
-            },
-          }}
-        />
-      </Grid>
+      {Object.keys(SUITES).map((suite) => (
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={passrateBySuite[suite]}
+            series={passrateSeries[suite]}
+            title={`Passrate / ${SUITES[suite]}`}
+            yAxisLabel={"%"}
+            groupByFieldName={groupByFieldName}
+            yAxisRenderer={(unit) => {
+              return `${(unit * 100).toFixed(0)} %`;
+            }}
+            additionalOptions={{
+              yAxis: {
+                min: 0.6,
+                max: 1.0,
+              },
+            }}
+          />
+        </Grid>
+      ))}
 
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={geomeanBySuite["torchbench"]}
-          series={geomeanSeries["torchbench"]}
-          title={`Geomean / Torchbench`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={geomeanBySuite["huggingface"]}
-          series={geomeanSeries["huggingface"]}
-          title={`Geomean / Huggingface`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={geomeanBySuite["timm_models"]}
-          series={geomeanSeries["timm_models"]}
-          title={`Geomean / TIMM Models`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
+      {Object.keys(SUITES).map((suite) => (
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={geomeanBySuite[suite]}
+            series={geomeanSeries[suite]}
+            title={`Geomean / ${SUITES[suite]}`}
+            groupByFieldName={groupByFieldName}
+            yAxisRenderer={(unit) => {
+              return `${unit}`;
+            }}
+          />
+        </Grid>
+      ))}
 
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={compTimeBySuite["torchbench"]}
-          series={compTimeSeries["torchbench"]}
-          title={`Mean compilation time / Torchbench`}
-          groupByFieldName={groupByFieldName}
-          yAxisLabel={"second"}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={compTimeBySuite["huggingface"]}
-          series={compTimeSeries["huggingface"]}
-          title={`Mean compilation time / Huggingface`}
-          groupByFieldName={groupByFieldName}
-          yAxisLabel={"second"}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={compTimeBySuite["timm_models"]}
-          series={compTimeSeries["timm_models"]}
-          title={`Mean compilation time / TIMM Models`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
+      {Object.keys(SUITES).map((suite) => (
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={compTimeBySuite[suite]}
+            series={compTimeSeries[suite]}
+            title={`Mean compilation time / ${SUITES[suite]}`}
+            groupByFieldName={groupByFieldName}
+            yAxisLabel={"second"}
+            yAxisRenderer={(unit) => {
+              return `${unit}`;
+            }}
+          />
+        </Grid>
+      ))}
 
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={memoryBySuite["torchbench"]}
-          series={memorySeries["torchbench"]}
-          title={`Peak memory footprint compression ratio / Torchbench`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={memoryBySuite["huggingface"]}
-          series={memorySeries["huggingface"]}
-          title={`Peak memory footprint compression ratio / Huggingface`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
-      <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={memoryBySuite["timm_models"]}
-          series={memorySeries["timm_models"]}
-          title={`Peak memory footprint compression ratio / TIMM Models`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit}`;
-          }}
-        />
-      </Grid>
+      {Object.keys(SUITES).map((suite) => (
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+          <TimeSeriesPanelWithData
+            data={memoryBySuite[suite]}
+            series={memorySeries[suite]}
+            title={`Peak memory footprint compression ratio / ${SUITES[suite]}`}
+            groupByFieldName={groupByFieldName}
+            yAxisRenderer={(unit) => {
+              return `${unit}`;
+            }}
+          />
+        </Grid>
+      ))}
     </Grid>
   );
 }
