@@ -9,7 +9,7 @@
     {
       "name": "dtypes",
       "type": "string",
-      "value": "float32"
+      "value": "amp"
     },
     {
       "name": "granularity",

@@ -792,11 +792,6 @@ export default function Page() {
       type: "string",
       value: granularity,
     },
-    {
-      name: "dtypes",
-      type: "string",
-      value: "amp",
-    },
   ];
 
   return (
