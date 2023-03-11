@@ -132,7 +132,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions?: EChartsOption;
 }) {
   // Add extra padding when the legend is active
-  const legend_padding = groupByFieldName !== undefined ? 300 : 48;
+  const legend_padding = groupByFieldName !== undefined ? 200 : 48;
   const title_padding = yAxisLabel ? 65 : 48;
   const options: EChartsOption = _.merge(
     {
