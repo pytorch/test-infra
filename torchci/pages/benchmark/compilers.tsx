@@ -158,9 +158,9 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
       Object.keys(totalCount[bucket][workflowId]).forEach((suite: string) => {
         Object.keys(totalCount[bucket][workflowId][suite]).forEach(
           (compiler: string) => {
-            const p =
-              passCount[bucket][workflowId][suite][compiler] /
-              totalCount[bucket][workflowId][suite][compiler];
+            const pc = passCount[bucket][workflowId][suite][compiler];
+            const tc = totalCount[bucket][workflowId][suite][compiler];
+            const p = pc / tc;
 
             if (!(suite in passrateBySuite)) {
               passrateBySuite[suite] = [];
@@ -171,8 +171,9 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
               suite: suite,
               compiler: compiler,
               passrate: p,
-              pass_count: passCount[bucket][workflowId][suite][compiler],
-              total_count: totalCount[bucket][workflowId][suite][compiler],
+              pass_count: pc,
+              total_count: tc,
+              passrate_display: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
             });
           }
         );
@@ -439,7 +440,7 @@ function SummaryPanel({
   memoryBySuite: { [k: string]: any };
 }) {
   const [lastestPassrateByCompiler, latestPassrateBucket] =
-    getLatestRecordByCompiler(passrateBySuite, "passrate");
+    getLatestRecordByCompiler(passrateBySuite, "passrate_display");
   const [lastestGeomeanByCompiler, latestGeomeanBucket] =
     getLatestRecordByCompiler(geomeanBySuite, "geomean");
   const [lastestCompTimeByCompiler, latestCompTimeBucket] =
@@ -471,9 +472,6 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<any>) => {
-                  return `${Number(params.value * 100).toFixed(0)}%`;
-                },
               };
             })
           )}
