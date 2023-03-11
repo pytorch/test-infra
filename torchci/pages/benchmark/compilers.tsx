@@ -637,7 +637,7 @@ function PerformanceGraphs({
   return (
     <Grid container spacing={2}>
       {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
           <TimeSeriesPanelWithData
             data={passrateBySuite[suite]}
             series={passrateSeries[suite]}
@@ -658,7 +658,7 @@ function PerformanceGraphs({
       ))}
 
       {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
           <TimeSeriesPanelWithData
             data={geomeanBySuite[suite]}
             series={geomeanSeries[suite]}
@@ -672,7 +672,7 @@ function PerformanceGraphs({
       ))}
 
       {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
           <TimeSeriesPanelWithData
             data={compTimeBySuite[suite]}
             series={compTimeSeries[suite]}
@@ -687,7 +687,7 @@ function PerformanceGraphs({
       ))}
 
       {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
+        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
           <TimeSeriesPanelWithData
             data={memoryBySuite[suite]}
             series={memorySeries[suite]}
