@@ -34,7 +34,7 @@ const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 
 const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
-const SUITES = {
+const SUITES: { [k: string]: string }= {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
@@ -399,7 +399,7 @@ function computeMemoryCompressionRatio(
 function getLatestRecordByCompiler(
   dataBySuite: { [k: string]: any },
   dataFieldName: string
-) {
+): [{ [k: string]: any }, string] {
   const timeFieldName = "granularity_bucket";
 
   const lastestRecordByCompiler: { [k: string]: any } = {};
@@ -466,7 +466,7 @@ function SummaryPanel({
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
           columns={columns.concat(
-            Object.keys(SUITES).map((suite) => {
+            Object.keys(SUITES).map((suite: string) => {
               return {
                 field: suite,
                 headerName: SUITES[suite],
@@ -490,7 +490,7 @@ function SummaryPanel({
             a["compiler"].localeCompare(b["compiler"])
           )}
           columns={columns.concat(
-            Object.keys(SUITES).map((suite) => {
+            Object.keys(SUITES).map((suite: string) => {
               return {
                 field: suite,
                 headerName: SUITES[suite],
@@ -514,7 +514,7 @@ function SummaryPanel({
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
           columns={columns.concat(
-            Object.keys(SUITES).map((suite) => {
+            Object.keys(SUITES).map((suite: string) => {
               return {
                 field: suite,
                 headerName: SUITES[suite],
@@ -538,7 +538,7 @@ function SummaryPanel({
             a["compiler"].localeCompare(b["compiler"])
           )}
           columns={columns.concat(
-            Object.keys(SUITES).map((suite) => {
+            Object.keys(SUITES).map((suite: string) => {
               return {
                 field: suite,
                 headerName: SUITES[suite],
@@ -636,7 +636,7 @@ function PerformanceGraphs({
 
   return (
     <Grid container spacing={2}>
-      {Object.keys(SUITES).map((suite) => (
+      {Object.keys(SUITES).map((suite: string) => (
         <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
           <TimeSeriesPanelWithData
             data={passrateBySuite[suite]}
@@ -657,7 +657,7 @@ function PerformanceGraphs({
         </Grid>
       ))}
 
-      {Object.keys(SUITES).map((suite) => (
+      {Object.keys(SUITES).map((suite: string) => (
         <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
           <TimeSeriesPanelWithData
             data={geomeanBySuite[suite]}
@@ -671,7 +671,7 @@ function PerformanceGraphs({
         </Grid>
       ))}
 
-      {Object.keys(SUITES).map((suite) => (
+      {Object.keys(SUITES).map((suite: string) => (
         <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
           <TimeSeriesPanelWithData
             data={compTimeBySuite[suite]}
@@ -686,7 +686,7 @@ function PerformanceGraphs({
         </Grid>
       ))}
 
-      {Object.keys(SUITES).map((suite) => (
+      {Object.keys(SUITES).map((suite: string) => (
         <Grid item xs={12} lg={4} height={ROW_HEIGHT}>
           <TimeSeriesPanelWithData
             data={memoryBySuite[suite]}
