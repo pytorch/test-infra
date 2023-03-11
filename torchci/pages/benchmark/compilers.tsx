@@ -34,7 +34,7 @@ const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 
 const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
-const SUITES: { [k: string]: string }= {
+const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
