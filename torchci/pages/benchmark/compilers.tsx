@@ -488,7 +488,11 @@ function SummaryPanel({
                   }
 
                   const p = Number(m[1]);
-                  return p >= WARNING_THRESHOLD ? "" : (p >= ERROR_THRESHOLD ? styles.warning : styles.error)
+                  return p >= WARNING_THRESHOLD
+                    ? ""
+                    : p >= ERROR_THRESHOLD
+                    ? styles.warning
+                    : styles.error;
                 },
               };
             })
