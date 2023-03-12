@@ -15,7 +15,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { GridValueFormatterParams } from "@mui/x-data-grid";
+import { GridValueFormatterParams, GridCellParams } from "@mui/x-data-grid";
 import React from "react";
 import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
@@ -28,6 +28,7 @@ import {
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
+import styles from "components/metrics.module.css";
 
 const LAST_WEEK = 7;
 const ROW_HEIGHT = 245;
@@ -39,6 +40,9 @@ const SUITES: { [k: string]: string } = {
   huggingface: "Huggingface",
   timm_models: "TIMM models",
 };
+const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
+const WARNING_THRESHOLD = 90.0;
+const ERROR_THRESHOLD = 80.0;
 
 function GranularityPicker({
   granularity,
@@ -472,6 +476,20 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
+                cellClassName: (params: GridCellParams<string>) => {
+                  const v = params.value;
+                  if (v === undefined) {
+                    return "";
+                  }
+
+                  const m = v.match(PASSRATE_DISPLAY_NAME_REGEX);
+                  if (m === null) {
+                    return "";
+                  }
+
+                  const p = Number(m[1]);
+                  return p >= WARNING_THRESHOLD ? "" : (p >= ERROR_THRESHOLD ? styles.warning : styles.error)
+                },
               };
             })
           )}
