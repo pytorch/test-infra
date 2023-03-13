@@ -178,6 +178,13 @@ jobs:
           )
           docker exec -t "${container_name}" bash /exec
 
+      - name: Surface failing tests
+        if: always()
+        uses: pmeier/pytest-results-action@v0.3.0
+        with:
+          path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
+          fail-on-empty: false
+
       - name: Chown repository directory
         if: ${{ always() }}
         uses: ./test-infra/.github/actions/chown-directory
@@ -189,13 +196,6 @@ jobs:
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ env.RUNNER_ARTIFACT_DIR }}
-
-      - name: Surface failing tests
-        if: always()
-        uses: pmeier/pytest-results-action@v0.3.0
-        with:
-          path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
-          fail-on-empty: false
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         working-directory: ${{ inputs.repository }}
