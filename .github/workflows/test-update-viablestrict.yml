@@ -18,6 +18,7 @@ jobs:
     uses: ./.github/workflows/update-viablestrict.yml
     with:
       repository: pytorch/vision
+      viable_strict_branch: test_strict
       required_checks: "Build Linux,Build M1,Build Macos,Unit-tests on Linux,Unit-tests on M1"
     secrets:
       ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
