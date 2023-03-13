@@ -20,13 +20,6 @@ class WorkflowCheck(NamedTuple):
     conclusion: str
 
 
-# git log -n 1 --pretty=format:%H origin/viable/strict
-# git rev-list cb5f7835ebd88c501a258a2888732e439c8bffeb^..HEAD --remotes=origin/master
-# git rev-list ^..HEAD --remotes=origin/master
-
-# git rev-parse HEAD
-# git commit-tree -p FETCH_HEAD HEAD^{tree} -m "2023-02-20 nightly release (a192c95)"
-
 def get_latest_commits(viable_strict_branch: str) -> List[str]:
     latest_viable_commit = check_output(
         [
