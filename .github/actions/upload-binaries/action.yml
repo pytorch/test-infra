@@ -1,0 +1,98 @@
+name: Upload Binaries
+
+description: Upload built binaries to pytorch.org/Anaconda during the Release Pipeline
+
+inputs:
+  repository:
+    description: If set to any value, don't use sudo to clean the workspace
+    required: false
+    type: string
+    default: ""
+  binary-directory:
+    description: Directory that the built binary is located in
+    required: false
+    type: string
+    default: dist
+  package-type:
+    description: Is the binary a wheel or conda package?
+    required: true
+    type: string
+  os:
+    description: Operating System this binary is built for
+    required: true
+    type: string
+  trigger-event:
+    description: Type of event this build is triggered on
+    required: true
+    type: string
+  CONDA_PYTORCHBOT_TOKEN:
+    description: "Access Token needed to upload binaries to anaconda"
+    required: false
+  AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
+    description: "AWS Access Key passed from caller workflow"
+    required: false
+  AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY:
+    description: "AWS Secret Access Ket passed from caller workflow"
+    required: false
+
+runs:
+  using: composite
+  steps:
+      - name: Upload Wheel Binary to pytorch.org
+        if: ${{ inputs.package-type == 'wheel' && ((inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ inputs.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }} 
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+
+          ${CONDA_RUN} pip install awscli
+          for pkg in "${{ inputs.binary-drectory }}"/*; do
+            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
+          done
+      - name: Upload Conda Binary to Anaconda
+        if: ${{ inputs.package-type == 'conda' && ((inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
+        working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
+        env:
+          CONDA_PYTORCHBOT_TOKEN: ${{ inputs.CONDA_PYTORCHBOT_TOKEN }}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+
+          case "${{ inputs.os }}" in
+
+            linux)
+              ARCH_NAME="linux-64"
+              ;;
+
+            windows | win)
+              ARCH_NAME="win-64"
+              ;;
+
+            macos | mac)
+              arch="$(uname -m)"
+              if [ "${arch}" = "arm64" ]; then
+                ARCH_NAME="osx-arm64"
+              else
+                ARCH_NAME="osx-64"
+              fi
+              ;;
+
+            *)
+              echo "Invalid OS-type"
+              ;;
+          esac
+
+          ${CONDA_RUN} conda install -yq anaconda-client
+          ${CONDA_RUN} anaconda \
+              -t "${CONDA_PYTORCHBOT_TOKEN}" \
+              upload \
+              "${{ inputs.binary-directory}}/${ARCH_NAME}"/*.tar.bz2 \
+              -u "pytorch-${CHANNEL}" \
+              --label main \
+              --no-progress \
+              --force

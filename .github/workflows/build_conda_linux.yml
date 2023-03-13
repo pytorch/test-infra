@@ -195,16 +195,14 @@ jobs:
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
-      - name: Upload package to conda
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        working-directory: ${{ inputs.repository }}
-        env:
+      - uses: ./test-infra/.github/actions/upload-binaries
+        with:
+          repository: ${{ inputs.repository }}
+          binary-directory: distr
+          package-type: conda
+          os: linux
+          trigger-event: ${{ inputs.trigger-event }}
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
-          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
