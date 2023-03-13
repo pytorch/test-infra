@@ -148,7 +148,8 @@ async function handleLabelEvent(
     branch: context.payload.pull_request.head.ref,
   });
   const valid_labels: Array<string> =
-  full_config !== null ? full_config["ciflow_push_tags"] : null;
+  full_config !== null ? full_config["config"]["ciflow_push_tags"] : null;
+  console.log(`full config - ${full_config}}`)
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
