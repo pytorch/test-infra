@@ -7,6 +7,8 @@ from pprint import pprint
 import shlex
 from subprocess import check_output
 
+TABLE_NAME_HISTORY = "torchci-tutorials-metadata"
+TABLE_NAME_FILENAMES = "torchci-tutorials-filenames"
 dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
 
 def run_command(cmd: str, cwd: Optional[str] = None) -> str:
@@ -35,13 +37,13 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
         cwd=cwd,
     ).split("\n")
 
-    def parse_string(line: str) -> str:
+    def standardize_format(line: str) -> str:
         """
-        Parse strings that missing deletions or insertions and add them where needed.
+        Parse strings and match all them the following format: x files changed, x insertions(+), x deletions(-).
         Args:
             line: Line to parse
         Returns:
-            A string with missing insertion or deletion info.
+            A string in the following format: x files changed, x insertions(+), x deletions(-).
         """
         # Add missing deletions info
         if "deletion" not in line:
@@ -79,7 +81,7 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
             title = line.split(";", 3)
         # In the lines with stat, add 0 insertions or 0 deletions to make sure we don't break the table
         elif "files changed" in line.replace("file changed", "files changed"):
-            stats = do_replace(parse_string(line)).split(",")
+            stats = do_replace(standardize_format(line)).split(",")
         elif len(line) == 0:
             rc.append(title + stats)
             title = None
@@ -89,7 +91,7 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
     return rc
 
 def get_file_names(cwd: Optional[str] = None) -> List[Tuple[str, List[Tuple[str, int, int]]]]:
-    lines = run_command('git log --pretty="format:%h" --numstat', cwd=cwd).split("\n")
+    lines = run_command("git log --pretty='format:%h' --numstat", cwd=cwd).split("\n")
     rc = []
     commit_hash = ""
     files: List[Tuple[str, int, int]] = []
@@ -127,7 +129,7 @@ def table_exists(table_name: str) -> bool:
         exists = True
         print("Table exists")
     except ClientError as err:
-        if err.response['Error']['Code'] == 'ResourceNotFoundException':
+        if err.response["Error"]["Code"] == "ResourceNotFoundException":
             exists = False
         else:
             print("Unknown error")
@@ -141,56 +143,49 @@ def delete_table(table_name: str) -> None:
     print(f"Deleting {table.name}...")
     table.wait_until_not_exists()
 
-def create_table(table_name: str) -> None:
+def create_table_history(table_name: str) -> None:
     """
-    Creates a DynamoDB table.
-
-    :param dyn_resource: Either a Boto3 or DAX resource.
-    :return: The newly created table.
+    Creates a history DynamoDB table.
     """
-
     table_name = table_name
     params = {
-        'TableName': table_name,
-        'KeySchema': [
-            {'AttributeName': 'commit_id', 'KeyType': 'HASH'},
-            {'AttributeName': 'date', 'KeyType': 'RANGE'}
+        "TableName": table_name,
+        "KeySchema": [
+            {"AttributeName": "commit_id", "KeyType": "HASH"},
+            {"AttributeName": "date", "KeyType": "RANGE"}
         ],
-        'AttributeDefinitions': [
-            {'AttributeName': 'commit_id', 'AttributeType': 'S'},
-            {'AttributeName': 'date', 'AttributeType': 'S'}
+        "AttributeDefinitions": [
+            {"AttributeName": "commit_id", "AttributeType": "S"},
+            {"AttributeName": "date", "AttributeType": "S"}
         ],
-        'ProvisionedThroughput': {
-            'ReadCapacityUnits': 10,
-            'WriteCapacityUnits': 10
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10
         }
     }
     table = dynamodb.create_table(**params)
     print(f"Creating {table_name}...")
     table.wait_until_exists()
 
-def create_table2(table_name: str) -> None:
+def create_table_filenames(table_name: str) -> None:
     """
-    Creates a DynamoDB table.
-
-    :param dyn_resource: Either a Boto3 or DAX resource.
-    :return: The newly created table.
+    Creates a filenames DynamoDB table.
     """
 
     table_name = table_name
     params = {
-        'TableName': table_name,
-        'KeySchema': [
-            {'AttributeName': 'commit_id', 'KeyType': 'HASH'},
-            {'AttributeName': 'filename', 'KeyType': 'RANGE'}
+        "TableName": table_name,
+        "KeySchema": [
+            {"AttributeName": "commit_id", "KeyType": "HASH"},
+            {"AttributeName": "filename", "KeyType": "RANGE"}
         ],
-        'AttributeDefinitions': [
-            {'AttributeName': 'commit_id', 'AttributeType': 'S'},
-            {'AttributeName': 'filename', 'AttributeType': 'S'}
+        "AttributeDefinitions": [
+            {"AttributeName": "commit_id", "AttributeType": "S"},
+            {"AttributeName": "filename", "AttributeType": "S"}
         ],
-        'ProvisionedThroughput': {
-            'ReadCapacityUnits': 10,
-            'WriteCapacityUnits': 10
+        "ProvisionedThroughput": {
+            "ReadCapacityUnits": 10,
+            "WriteCapacityUnits": 10
         }
     }
     table = dynamodb.create_table(**params)
@@ -199,7 +194,7 @@ def create_table2(table_name: str) -> None:
 
 def convert_to_dict(entry: Tuple[str, List[Tuple[str, int, int]]]) -> List[Dict[str, Union[str, int]]]:
     return [
-        {'commit_id': entry[0], 'filename': i[0], 'lines_added': i[1], 'lines_deleted': i[2]}
+        {"commit_id": entry[0], "filename": i[0], "lines_added": i[1], "lines_deleted": i[2]}
         for i in entry[1]
     ]
 
@@ -207,33 +202,31 @@ def main() -> None:
     tutorials_dir = os.path.expanduser("./tutorials")
     get_history_log = get_history(tutorials_dir)
     commits_to_files = get_file_names(tutorials_dir)
-    table_name_history = 'torchci-tutorial-metadata'
-    table_name_filenames = "torchci-tutorial-filenames"
-    table_history = dynamodb.Table(table_name_history)
-    table_filenames = dynamodb.Table(table_name_filenames)
-    if not table_exists(table_name_history):
-        create_table(table_name_history)
-    if not table_exists(table_name_filenames):
-        create_table2(table_name_filenames)
-    print("Uploading data to {table_name_history}")
+    table_history = dynamodb.Table(TABLE_NAME_HISTORY)
+    table_filenames = dynamodb.Table(TABLE_NAME_FILENAMES)
+    if not table_exists(TABLE_NAME_HISTORY):
+        create_table_history(TABLE_NAME_HISTORY)
+    if not table_exists(TABLE_NAME_FILENAMES):
+        create_table_filenames(TABLE_NAME_FILENAMES)
+    print(f"Uploading data to {TABLE_NAME_HISTORY}")
     for i in get_history_log:
         table_history.put_item(Item={
-            'commit_id': i[0],
-            'author': i[1],
-            'date': i[2],
-            'title': i[3],
-            'number_of_changed_files': int(i[4]),
-            'lines_added': int(i[5]),
-            'lines_deleted': int(i[6])
+            "commit_id": i[0],
+            "author": i[1],
+            "date": i[2],
+            "title": i[3],
+            "number_of_changed_files": int(i[4]),
+            "lines_added": int(i[5]),
+            "lines_deleted": int(i[6])
         })
-    print("Finished uploading data to {table_name_history}")
-    print("Uploading data to {table_name_filenames}")
+    print(f"Finished uploading data to {TABLE_NAME_HISTORY}")
+    print(f"Uploading data to {TABLE_NAME_FILENAMES}")
     for entry in commits_to_files:
         items = convert_to_dict(entry)
         for item in items:
             table_filenames.put_item(Item=item)
-    print("Finished uploading data to {table_name_filenames}")
-    print("Success!")
+    print(f"Finished uploading data to {TABLE_NAME_FILENAMES}")
+    print(f"Success!")
 
 if __name__ == "__main__":
     main()
