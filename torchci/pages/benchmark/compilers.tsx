@@ -33,6 +33,7 @@ import styles from "components/metrics.module.css";
 const LAST_WEEK = 7;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
+const HUD_PREFIX = "/pytorch/pytorch/commit"
 
 const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
 const SUITES: { [k: string]: string } = {
@@ -120,6 +121,7 @@ function isPass(
 function computePassrate(data: any, passModels: { [k: string]: any }) {
   const totalCount: { [k: string]: any } = {};
   const passCount: { [k: string]: any } = {};
+  const shaByBucket: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -127,20 +129,24 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     const suite = record.suite;
     const compiler = record.compiler;
     const model = record.name;
+    const sha = record.head_sha;
 
     if (!(bucket in totalCount)) {
       totalCount[bucket] = {};
       passCount[bucket] = {};
+      shaByBucket[bucket] = {};
     }
 
     if (!(workflowId in totalCount[bucket])) {
       totalCount[bucket][workflowId] = {};
       passCount[bucket][workflowId] = {};
+      shaByBucket[bucket][workflowId] = {};
     }
 
     if (!(suite in totalCount[bucket][workflowId])) {
       totalCount[bucket][workflowId][suite] = {};
       passCount[bucket][workflowId][suite] = {};
+      shaByBucket[bucket][workflowId][suite] = {};
     }
 
     if (!(compiler in totalCount[bucket][workflowId][suite])) {
@@ -153,6 +159,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     }
 
     totalCount[bucket][workflowId][suite][compiler] += 1;
+    shaByBucket[bucket][workflowId][suite][compiler] = sha;
   });
 
   const passrateBySuite: { [k: string]: any } = {};
@@ -172,6 +179,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
 
             passrateBySuite[suite].push({
               granularity_bucket: bucket,
+              head_sha: shaByBucket[bucket][workflowId][suite][compiler],
               suite: suite,
               compiler: compiler,
               passrate: p,
@@ -723,6 +731,28 @@ function PerformanceGraphs({
   );
 }
 
+function BuildFootnote({
+  passrateBySuite,
+}: {
+  passrateBySuite: { [k: string]: any };
+}) {
+  const [lastestShaByCompiler, latestShaBucket] =
+    getLatestRecordByCompiler(passrateBySuite, "head_sha");
+
+  const suite = "torchbench";
+  // Just need the sha of the latest report, all records have the same value
+  const latestSha = Object.values(lastestShaByCompiler)[0][suite];
+
+  return (
+    <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+      <Typography fontSize={"1rem"} fontStyle={"italic"}>
+        **This report was last generated
+        by <a href={`${HUD_PREFIX}/${latestSha}`}>{latestSha.substring(0, 7)}</a>.
+      </Typography>
+    </Stack>
+  );
+}
+
 function Report({
   queryParams,
   granularity,
@@ -784,6 +814,9 @@ function Report({
         stopTime={stopTime}
         granularity={granularity}
       />
+      <BuildFootnote
+        passrateBySuite={passrateBySuite}
+      />
     </div>
   );
 }
@@ -835,7 +868,7 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid item xs={6}>
+      <Grid item xs={12}>
         <Report queryParams={queryParams} granularity={granularity} />
       </Grid>
     </div>
