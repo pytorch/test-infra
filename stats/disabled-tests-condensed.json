@@ -55,13 +55,6 @@
       "linux"
     ]
   ],
-  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
-    "81029",
-    "https://github.com/pytorch/pytorch/issues/81029",
-    [
-      "linux"
-    ]
-  ],
   "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
     "81023",
     "https://github.com/pytorch/pytorch/issues/81023",
@@ -240,13 +233,6 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_canonicalize_tensor_iterator (jit.test_tracer.TestTracer)": [
-    "91487",
-    "https://github.com/pytorch/pytorch/issues/91487",
-    [
-      "linux"
-    ]
-  ],
   "test_cat (test_jit.TestScript)": [
     "91491",
     "https://github.com/pytorch/pytorch/issues/91491",
@@ -326,13 +312,6 @@
   "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "80248",
     "https://github.com/pytorch/pytorch/issues/80248",
-    [
-      "linux"
-    ]
-  ],
-  "test_conv_dim_folding (jit.test_peephole.TestPeephole)": [
-    "91480",
-    "https://github.com/pytorch/pytorch/issues/91480",
     [
       "linux"
     ]
@@ -1023,13 +1002,6 @@
       "macos"
     ]
   ],
-  "test_inplace_check (jit.test_tracer.TestTracer)": [
-    "91457",
-    "https://github.com/pytorch/pytorch/issues/91457",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95148",
     "https://github.com/pytorch/pytorch/issues/95148",
@@ -1350,13 +1322,6 @@
       "linux"
     ]
   ],
-  "test_partial_eval_stitching (jit.test_symbolic_shape_analysis.TestSymbolicShapeAnalysis)": [
-    "91479",
-    "https://github.com/pytorch/pytorch/issues/91479",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
@@ -1509,13 +1474,6 @@
     [
       "win",
       "windows"
-    ]
-  ],
-  "test_refinement_through_graph_stitching (jit.test_symbolic_shape_analysis.TestSymbolicShapeAnalysis)": [
-    "91478",
-    "https://github.com/pytorch/pytorch/issues/91478",
-    [
-      "linux"
     ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
