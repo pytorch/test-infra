@@ -146,7 +146,7 @@ async function handleLabelEvent(
       owner: `${context.repo().owner}`,
       repo: `${context.repo().repo}`,
       path: ".github/pytorch-probot.yml",
-      branch: `${context.payload.ref}`,
+      branch: context.payload.pull_request.head.ref,
     });
   }else{
     const config: any = await tracker.loadConfig(context);
