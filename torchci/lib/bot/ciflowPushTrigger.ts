@@ -1,10 +1,10 @@
 import { Context, Probot } from "probot";
 import { CachedConfigTracker, isPyTorchPyTorch, repoKey } from "./utils";
-import { Octokit } from "https://cdn.pika.dev/@octokit/core";
+import { Octokit } from "@octokit/core";
 import {
   config,
   composeConfigGet,
-} from "https://cdn.pika.dev/@probot/octokit-plugin-config";
+} from "@probot/octokit-plugin-config";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
@@ -141,18 +141,14 @@ async function handleLabelEvent(
   if (!isCIFlowLabel(label)) {
     return;
   }
-  if (repoKey(context) == "pytorch/pytorch-canary"){
-    const config: any =  await Octokit.config.get({
-      owner: `${context.repo().owner}`,
-      repo: `${context.repo().repo}`,
-      path: ".github/pytorch-probot.yml",
-      branch: context.payload.pull_request.head.ref,
-    });
-  }else{
-    const config: any = await tracker.loadConfig(context);
-  }  
+  const full_config: any =  await context.octokit.config.get({
+    owner: `${context.repo().owner}`,
+    repo: `${context.repo().repo}`,
+    path: ".github/pytorch-probot.yml",
+    branch: context.payload.pull_request.head.ref,
+  });
   const valid_labels: Array<string> =
-    config !== null ? config["ciflow_push_tags"] : null;
+  full_config !== null ? full_config["ciflow_push_tags"] : null;
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
