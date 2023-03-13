@@ -55,6 +55,13 @@
       "linux"
     ]
   ],
+  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
+    "81029",
+    "https://github.com/pytorch/pytorch/issues/81029",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
     "81023",
     "https://github.com/pytorch/pytorch/issues/81023",
@@ -561,13 +568,6 @@
       "linux"
     ]
   ],
-  "test_dispatch_symbolic_meta_outplace_all_strides_fft_fft_cuda_float32 (__main__.TestMetaCUDA)": [
-    "95385",
-    "https://github.com/pytorch/pytorch/issues/95385",
-    [
-      "linux"
-    ]
-  ],
   "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
     "77318",
     "https://github.com/pytorch/pytorch/issues/77318",
@@ -1019,13 +1019,6 @@
   "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94215",
     "https://github.com/pytorch/pytorch/issues/94215",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95344",
-    "https://github.com/pytorch/pytorch/issues/95344",
     [
       "linux"
     ]
