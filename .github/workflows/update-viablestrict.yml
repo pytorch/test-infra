@@ -16,13 +16,17 @@ on:
         default: ""
         type: string
       required_checks:
-        description: 'A comma-separated string of workflows to be completed  successfully.'
+        description: "A comma-separated string of workflows to be completed successfully"
         required: true
+        type: string
+      viable_strict_branch:
+        description: "The name of the viable/strict branch."
+        default: "viable/strict"
         type: string
     secrets:
       ROCKSET_API_KEY:
         required: true
-        description: 'API key for ROCKSET.'
+        description: 'API key for ROCKSET'
       GITHUB_DEPLOY_KEY:
         required: true
         description: 'GitHub deploy key'
@@ -66,7 +70,7 @@ jobs:
           cd ${{ inputs.repository }}
 
           export PYTHONPATH=$PYTHONPATH:../../test-infra
-          output=$(python3 ../../test-infra/tools/scripts/fetch_latest_green_commit.py "${{ inputs.required_checks }}")
+          output=$(python3 ../../test-infra/tools/scripts/fetch_latest_green_commit.py "${{ inputs.required_checks }}" "${{ inputs.viable_strict_branch }}")
           echo "latest_viable_sha=$output" >> "${GITHUB_OUTPUT}"
         id: get-latest-commit
 
@@ -81,4 +85,4 @@ jobs:
           echo "Set the latest sha variable to be  ${{ steps.get-latest-commit.outputs.latest_viable_sha }}"
           # Pushing an older green commit here will fail because it's non-fast-forward, which is ok
           # to ignore because we already have the later green commit in viable/strict
-          git push origin "${{ steps.get-latest-commit.outputs.latest_viable_sha }}":viable/strict
+          git push origin "${{ steps.get-latest-commit.outputs.latest_viable_sha }}":${{ inputs.viable_strict_branch }}

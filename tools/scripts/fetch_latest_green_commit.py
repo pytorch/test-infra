@@ -27,7 +27,7 @@ class WorkflowCheck(NamedTuple):
 # git rev-parse HEAD
 # git commit-tree -p FETCH_HEAD HEAD^{tree} -m "2023-02-20 nightly release (a192c95)"
 
-def get_latest_commits() -> List[str]:
+def get_latest_commits(viable_strict_branch: str) -> List[str]:
     latest_viable_commit = check_output(
         [
             "git",
@@ -35,7 +35,7 @@ def get_latest_commits() -> List[str]:
             "-n",
             "1",
             "--pretty=format:%H",
-            "origin/viable/strict",
+            f"origin/{viable_strict_branch}",
         ],
         encoding="ascii",
     )
@@ -129,6 +129,7 @@ def get_latest_green_commit(commits: List[str], results: List[Dict[str, Any]], r
 def _arg_parser() -> Any:
     parser = ArgumentParser()
     parser.add_argument("required_checks", type=str)
+    parser.add_argument("viable_strict_branch", type=str)
 
     return parser.parse_args()
 
@@ -136,7 +137,7 @@ def _arg_parser() -> Any:
 def main() -> None:
     args = _arg_parser()
 
-    commits = get_latest_commits()
+    commits = get_latest_commits(args.viable_strict_branch)
     results = query_commits(commits)
 
     latest_viable_commit = get_latest_green_commit(commits, results, args.required_checks)
