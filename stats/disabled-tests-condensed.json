@@ -737,13 +737,6 @@
       "linux"
     ]
   ],
-  "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93044",
-    "https://github.com/pytorch/pytorch/issues/93044",
-    [
-      "rocm"
-    ]
-  ],
   "test_fn_grad_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86943",
     "https://github.com/pytorch/pytorch/issues/86943",
@@ -914,13 +907,6 @@
   "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
