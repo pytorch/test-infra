@@ -11,8 +11,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  set-channel:
-    uses: ./test-infra/.github/actions/set-channel
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
