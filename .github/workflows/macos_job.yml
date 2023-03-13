@@ -98,7 +98,11 @@ jobs:
         run: |
           RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${RUNNER_ARTIFACT_DIR}"
-          echo "RUNNER_ARTIFACT_DIR=${RUNNER_TEMP}/artifacts" >> "${GITHUB_ENV}"
+          echo "RUNNER_ARTIFACT_DIR=${RUNNER_ARTIFACT_DIR}" >> "${GITHUB_ENV}"
+          
+          RUNNER_TEST_RESULTS_DIR="${RUNNER_TEMP}/test-results"
+          mkdir -p "${RUNNER_TEST_RESULTS_DIR}"
+          echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
@@ -130,6 +134,13 @@ jobs:
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
+
+      - name: Surface failing tests
+        if: always()
+        uses: pmeier/pytest-results-action@support-multi
+        with:
+          path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
+          fail-on-empty: false
 
       - name: Check if there are potential artifacts and move them to the correct artifact location
         shell: bash -l {0}
