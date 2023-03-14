@@ -123,6 +123,7 @@ def table_exists(table_name: str) -> bool:
     Determines whether a table exists. As a side effect, stores the table in
     a member variable.
     """
+    exists = None
     try:
         table = dynamodb.Table(table_name)
         table.load()
