@@ -180,20 +180,15 @@ jobs:
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
-      - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
-        shell: bash -l {0}
-        working-directory: ${{ inputs.repository }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
-        run: |
-          source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} pip install awscli
-          for pkg in dist/*; do
-            # PYTORCH_S3_BUCKET_PATH derived from pkg-helpers
-            ${CONDA_RUN} aws s3 cp "$pkg" "${PYTORCH_S3_BUCKET_PATH}" --acl public-read
-          done
+      - uses: ./test-infra/.github/actions/upload-binaries
+        with:
+          repository: ${{ inputs.repository }}
+          binary-directory: dist
+          package-type: wheel
+          os: windows
+          trigger-event: ${{ inputs.trigger-event }}
+          AWS_ACCESS_KEY_ID: ${{ inputs.AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_PYTORCH_UPLOADER_SECRET_ACCESS_KEY }}
       - uses: ./test-infra/.github/actions/teardown-windows
         if: always()
         name: Teardown Windows
