@@ -7,8 +7,8 @@ from pprint import pprint
 import shlex
 from subprocess import check_output
 
-TABLE_NAME_HISTORY = "torchci-tutorials-metadata"
-TABLE_NAME_FILENAMES = "torchci-tutorials-filenames"
+TABLE_NAME_HISTORY = "torchci-tutorial-metadata"
+TABLE_NAME_FILENAMES = "torchci-tutorial-filenames"
 dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
 
 def run_command(cmd: str, cwd: Optional[str] = None) -> str:
