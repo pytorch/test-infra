@@ -18,13 +18,16 @@ def get_pytorch_pip_install_command(
     channel: str,
 ) -> List[str]:
     torch_pkg = "torch"
+    rc: List[str] = []
     if pytorch_version != "":
         torch_pkg += f"=={pytorch_version}"
+        rc.append(f"export PYTORCH_VERSION=${pytorch_version}")
     pip_install = f"pip install {torch_pkg}"
     if channel == "nightly":
         pip_install += " --pre"
     extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
-    return [f"export PIP_INSTALL_TORCH='{pip_install} --extra-index-url {extra_index}'"]
+    rc.append(f"export PIP_INSTALL_TORCH='{pip_install} --extra-index-url {extra_index}'")
+    return rc
 
 
 def get_pytorch_s3_bucket_path(
