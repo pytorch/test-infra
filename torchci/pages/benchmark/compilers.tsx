@@ -4,20 +4,19 @@ import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
 import {
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
-  SelectChangeEvent,
   Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
-import { GridValueFormatterParams, GridCellParams } from "@mui/x-data-grid";
+import {
+  GridValueFormatterParams,
+  GridCellParams,
+  GridRenderCellParams,
+} from "@mui/x-data-grid";
 import React from "react";
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -26,6 +25,7 @@ import {
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import GranularityPicker from "components/GranularityPicker";
 import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -42,35 +42,11 @@ const SUITES: { [k: string]: string } = {
   timm_models: "TIMM models",
 };
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
-const WARNING_THRESHOLD = 90.0;
-const ERROR_THRESHOLD = 80.0;
 
-function GranularityPicker({
-  granularity,
-  setGranularity,
-}: {
-  granularity: string;
-  setGranularity: any;
-}) {
-  function handleChange(e: SelectChangeEvent<string>) {
-    setGranularity(e.target.value);
-  }
-  return (
-    <FormControl>
-      <InputLabel id="granularity-select-label">Granularity</InputLabel>
-      <Select
-        value={granularity}
-        label="Granularity"
-        labelId="granularity-select-label"
-        onChange={handleChange}
-      >
-        <MenuItem value={"month"}>month</MenuItem>
-        <MenuItem value={"week"}>week</MenuItem>
-        <MenuItem value={"day"}>day</MenuItem>
-      </Select>
-    </FormControl>
-  );
-}
+const ACCURACY_THRESHOLD = 80.0;
+const SPEEDUP_THRESHOLD = 0.95;
+const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
+const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 function getPassModels(data: any) {
   const passModels: { [k: string]: any } = {};
@@ -474,7 +450,7 @@ function SummaryPanel({
         <TablePanelWithData
           title={`Passrate - ${dayjs(latestPassrateBucket).format(
             "YYYY/MM/DD"
-          )}`}
+          )} (threshold = ${ACCURACY_THRESHOLD}%)`}
           data={Object.values(lastestPassrateByCompiler).sort(
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
@@ -484,6 +460,10 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
+                renderCell: (params: GridRenderCellParams<string>) => {
+                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  return <a href={url}>{params.value}</a>;
+                },
                 cellClassName: (params: GridCellParams<string>) => {
                   const v = params.value;
                   if (v === undefined) {
@@ -496,11 +476,7 @@ function SummaryPanel({
                   }
 
                   const p = Number(m[1]);
-                  return p >= WARNING_THRESHOLD
-                    ? ""
-                    : p >= ERROR_THRESHOLD
-                    ? styles.warning
-                    : styles.error;
+                  return p > ACCURACY_THRESHOLD ? "" : styles.error;
                 },
               };
             })
@@ -513,7 +489,7 @@ function SummaryPanel({
         <TablePanelWithData
           title={`Geometric mean speedup - ${dayjs(latestGeomeanBucket).format(
             "YYYY/MM/DD"
-          )}`}
+          )} (threshold = ${SPEEDUP_THRESHOLD}x)`}
           data={Object.values(lastestGeomeanByCompiler).sort((a: any, b: any) =>
             a["compiler"].localeCompare(b["compiler"])
           )}
@@ -523,8 +499,17 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<any>) => {
-                  return `${Number(params.value).toFixed(2)}x`;
+                renderCell: (params: GridRenderCellParams<string>) => {
+                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
+                },
+                cellClassName: (params: GridCellParams<string>) => {
+                  const v = params.value;
+                  if (v === undefined) {
+                    return "";
+                  }
+
+                  return Number(v) > SPEEDUP_THRESHOLD ? "" : styles.error;
                 },
               };
             })
@@ -537,7 +522,7 @@ function SummaryPanel({
         <TablePanelWithData
           title={`Mean compilation time (seconds) - ${dayjs(
             latestCompTimeBucket
-          ).format("YYYY/MM/DD")}`}
+          ).format("YYYY/MM/DD")} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
           data={Object.values(lastestCompTimeByCompiler).sort(
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
@@ -547,8 +532,17 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<any>) => {
-                  return `${Number(params.value).toFixed(2)}s`;
+                renderCell: (params: GridRenderCellParams<string>) => {
+                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
+                },
+                cellClassName: (params: GridCellParams<string>) => {
+                  const v = params.value;
+                  if (v === undefined) {
+                    return "";
+                  }
+
+                  return Number(v) < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS ? "" : styles.warning;
                 },
               };
             })
@@ -559,9 +553,9 @@ function SummaryPanel({
 
       <Grid item xs={12} lg={3}>
         <TablePanelWithData
-          title={`Peak memory footprint compression ratio (higher is better) - ${dayjs(
+          title={`Peak memory footprint compression ratio - ${dayjs(
             latestMemoryBucket
-          ).format("YYYY/MM/DD")}`}
+          ).format("YYYY/MM/DD")} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
           data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) =>
             a["compiler"].localeCompare(b["compiler"])
           )}
@@ -571,8 +565,16 @@ function SummaryPanel({
                 field: suite,
                 headerName: SUITES[suite],
                 flex: 1,
-                valueFormatter: (params: GridValueFormatterParams<any>) => {
-                  return `${Number(params.value).toFixed(2)}x`;
+                renderCell: (params: GridRenderCellParams<string>) => {
+                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
+                },
+                cellClassName: (params: GridCellParams<string>) => {
+                  const v = params.value;
+                  if (v === undefined) {
+                    return "";
+                  }
+                  return Number(v) > COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 },
               };
             })
@@ -731,7 +733,7 @@ function PerformanceGraphs({
   );
 }
 
-function BuildFootnote({
+function BuildSummary({
   passrateBySuite,
 }: {
   passrateBySuite: { [k: string]: any };
@@ -748,7 +750,7 @@ function BuildFootnote({
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        **This report was last generated by{" "}
+        *This report was last generated by{" "}
         <a href={`${HUD_PREFIX}/${latestSha}`}>{latestSha.substring(0, 7)}</a>.
       </Typography>
     </Stack>
@@ -801,6 +803,7 @@ function Report({
 
   return (
     <div>
+      <BuildSummary passrateBySuite={passrateBySuite} />
       <SummaryPanel
         passrateBySuite={passrateBySuite}
         geomeanBySuite={geomeanBySuite}
@@ -816,7 +819,6 @@ function Report({
         stopTime={stopTime}
         granularity={granularity}
       />
-      <BuildFootnote passrateBySuite={passrateBySuite} />
     </div>
   );
 }

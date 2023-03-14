@@ -5,3 +5,7 @@
 .error {
   background-color: lightpink;
 }
+
+.name {
+  font-weight: bold;
+}

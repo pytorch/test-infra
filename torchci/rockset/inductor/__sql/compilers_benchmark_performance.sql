@@ -96,5 +96,11 @@ SELECT
   w.head_sha
 FROM
   results LEFT JOIN commons.workflow_run w ON results.workflow_id = w.id
+WHERE
+  ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
+  AND ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler))
 ORDER BY
-  granularity_bucket DESC
+  granularity_bucket DESC,
+  suite ASC,
+  compiler ASC,
+  name ASC
