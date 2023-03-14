@@ -207,6 +207,10 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_build
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
+    # temporarily remove python 3.11 from conda matrix for release validation
+    if(channel == RELEASE)
+        python_versions = list_without(python_versions, ["3.11"])
+
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
 
