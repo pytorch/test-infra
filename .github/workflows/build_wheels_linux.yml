@@ -132,9 +132,9 @@ jobs:
           if [[ "$CU_VERSION" == "cpu" ]]; then
           # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
           # in this case
-            export PYTORCH_VERSION="$(pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
           else
-            export PYTORCH_VERSION="$(pip show torch | grep ^Version: | sed 's/Version:  *//')"
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           fi
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
