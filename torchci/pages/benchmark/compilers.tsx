@@ -3,13 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import {
-  Grid,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import {
   GridValueFormatterParams,
   GridCellParams,
@@ -522,7 +516,9 @@ function SummaryPanel({
         <TablePanelWithData
           title={`Mean compilation time (seconds) - ${dayjs(
             latestCompTimeBucket
-          ).format("YYYY/MM/DD")} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
+          ).format(
+            "YYYY/MM/DD"
+          )} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
           data={Object.values(lastestCompTimeByCompiler).sort(
             (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
           )}
@@ -542,7 +538,9 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS ? "" : styles.warning;
+                  return Number(v) < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                    ? ""
+                    : styles.warning;
                 },
               };
             })
@@ -555,7 +553,9 @@ function SummaryPanel({
         <TablePanelWithData
           title={`Peak memory footprint compression ratio - ${dayjs(
             latestMemoryBucket
-          ).format("YYYY/MM/DD")} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
+          ).format(
+            "YYYY/MM/DD"
+          )} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
           data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) =>
             a["compiler"].localeCompare(b["compiler"])
           )}
@@ -575,7 +575,9 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) > COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
+                  return Number(v) > COMPRESSION_RATIO_THRESHOLD
+                    ? ""
+                    : styles.warning;
                 },
               };
             })
