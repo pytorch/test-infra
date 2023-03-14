@@ -139,7 +139,7 @@ jobs:
             export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
-
+          export PYTORCH_VERSION="$(pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
