@@ -43,7 +43,7 @@ const SUITES: { [k: string]: string } = {
 };
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
-const ACCURACY_THRESHOLD = 80.0;
+const ACCURACY_THRESHOLD = 90.0;
 const SPEEDUP_THRESHOLD = 0.95;
 const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 const COMPRESSION_RATIO_THRESHOLD = 0.9;
@@ -509,7 +509,7 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) > SPEEDUP_THRESHOLD ? "" : styles.error;
+                  return Number(v) > SPEEDUP_THRESHOLD ? "" : styles.warning;
                 },
               };
             })
@@ -574,6 +574,7 @@ function SummaryPanel({
                   if (v === undefined) {
                     return "";
                   }
+
                   return Number(v) > COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 },
               };

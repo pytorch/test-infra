@@ -9,3 +9,8 @@
 .name {
   font-weight: bold;
 }
+
+.selectedRow {
+  background-color: lightblue;
+  font-weight: bold;
+}
