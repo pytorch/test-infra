@@ -103,4 +103,8 @@ class TestPrintCommits(TestCase):
 
 
 if __name__ == "__main__":
+    """
+    The tests were migrated from the pytorch/pytorch repo -
+    https://github.com/pytorch/pytorch/blob/master/.github/scripts/test_fetch_latest_green_commit.py
+    """
     main()

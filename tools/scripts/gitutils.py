@@ -4,6 +4,10 @@ from typing import List
 
 
 def check_output(items: List[str], encoding: str = "utf-8") -> str:
+    """
+    The logic was taken from the pytorch/pytroch repo -
+    https://github.com/pytorch/pytorch/blob/master/.github/scripts/gitutils.py
+    """
     from subprocess import check_output, CalledProcessError, STDOUT
     try:
         return check_output(items, stderr=STDOUT).decode(encoding)

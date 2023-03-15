@@ -138,4 +138,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    """
+    The basic logic was taken from the pytorch/pytorch repo -
+    https://github.com/pytorch/pytorch/blob/master/.github/scripts/fetch_latest_green_commit.py
+    """
     main()

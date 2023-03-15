@@ -1,8 +1,6 @@
 name: Test the update viable/strict
 
 on:
-#  schedule:
-#    - cron: 17,47 * * * *
   pull_request:
     paths:
       - .github/workflows/update-viablestrict.yml
