@@ -1734,6 +1734,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_addcdiv_cpu_float32 (__main__.TestJitCPU)": [
+    "96872",
+    "https://github.com/pytorch/pytorch/issues/96872",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_addcmul_cpu_complex64 (__main__.TestJitCPU)": [
     "96828",
     "https://github.com/pytorch/pytorch/issues/96828",
@@ -1753,6 +1761,14 @@
   "test_variant_consistency_jit_addmm_cuda_float32 (__main__.TestJitCUDA)": [
     "96820",
     "https://github.com/pytorch/pytorch/issues/96820",
+    [
+      "win",
+      "windows"
+    ]
+  ],
+  "test_variant_consistency_jit_as_strided_scatter_cpu_complex64 (__main__.TestJitCPU)": [
+    "96867",
+    "https://github.com/pytorch/pytorch/issues/96867",
     [
       "win",
       "windows"
@@ -1822,6 +1838,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_constant_pad_nd_cpu_complex64 (__main__.TestJitCPU)": [
+    "96868",
+    "https://github.com/pytorch/pytorch/issues/96868",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_cumprod_cpu_complex64 (__main__.TestJitCPU)": [
     "96817",
     "https://github.com/pytorch/pytorch/issues/96817",
@@ -1841,6 +1865,14 @@
   "test_variant_consistency_jit_cumprod_cuda_complex64 (__main__.TestJitCUDA)": [
     "96840",
     "https://github.com/pytorch/pytorch/issues/96840",
+    [
+      "win",
+      "windows"
+    ]
+  ],
+  "test_variant_consistency_jit_cumprod_cuda_float32 (__main__.TestJitCUDA)": [
+    "96871",
+    "https://github.com/pytorch/pytorch/issues/96871",
     [
       "win",
       "windows"
@@ -1878,9 +1910,32 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_dist_cpu_complex64 (__main__.TestJitCPU)": [
+    "68847",
+    "https://github.com/pytorch/pytorch/issues/68847",
+    [
+      "win"
+    ]
+  ],
+  "test_variant_consistency_jit_expand_cuda_complex64 (__main__.TestJitCUDA)": [
+    "96873",
+    "https://github.com/pytorch/pytorch/issues/96873",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_fft_hfft_cpu_complex64 (__main__.TestJitCPU)": [
     "96837",
     "https://github.com/pytorch/pytorch/issues/96837",
+    [
+      "win",
+      "windows"
+    ]
+  ],
+  "test_variant_consistency_jit_fft_ifft_cuda_float32 (__main__.TestJitCUDA)": [
+    "96869",
+    "https://github.com/pytorch/pytorch/issues/96869",
     [
       "win",
       "windows"
@@ -1983,6 +2038,14 @@
   "test_variant_consistency_jit_linalg_vector_norm_cuda_complex64 (__main__.TestJitCUDA)": [
     "96833",
     "https://github.com/pytorch/pytorch/issues/96833",
+    [
+      "win",
+      "windows"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_vector_norm_cuda_float32 (__main__.TestJitCUDA)": [
+    "96870",
+    "https://github.com/pytorch/pytorch/issues/96870",
     [
       "win",
       "windows"
