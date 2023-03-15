@@ -222,6 +222,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async handleMerge(
     forceMessage: string,
+    ignore_current: boolean,
     rebase: string | boolean
   ) {
     const extra_data = {
@@ -278,6 +279,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await this.dispatchEvent("try-merge", {
       force: forceRequested,
       rebase: rebase,
+      ignore_current: ignore_current,
     });
     await this.ackComment();
   }
@@ -400,6 +402,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       case "merge":
         return await this.handleMerge(
           args.force,
+          args.ignore_current,
           args.rebase
         );
       case "rebase": {

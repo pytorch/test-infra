@@ -45,6 +45,12 @@ mergeOption.add_argument("-f", "--force", {
   help: `Merge without checking anything. This requires a reason for auditting purpose, for example:
 @pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`,
 });
+mergeOption.add_argument("-ic", "--ignore-current", {
+  action: "store_true",
+  help:
+    "Merge while ignore the currently failing jobs.  If there are no pending checks, use -f/--force " +
+    "since this will fail.",
+});
 merge.add_argument("-r", "--rebase", {
   help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
   "will default to viable/strict if not specified.",
