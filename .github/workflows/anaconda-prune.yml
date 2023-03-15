@@ -26,6 +26,7 @@ jobs:
   anaconda-prune-pytorch-test:
     name: anaconda-prune-pytorch-test
     uses: ./.github/workflows/_prune-anaconda-packages.yml
+    needs: anaconda-prune-pytorch-nightly
     with:
       packages: "pytorch torchvision torchaudio torchtext torchdata ignite torchcsprng"
       channel: pytorch-test
