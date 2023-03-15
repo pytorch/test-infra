@@ -197,6 +197,13 @@
       "mac"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_uint8 (__main__.TestForeachCUDA)": [
+    "96792",
+    "https://github.com/pytorch/pytorch/issues/96792",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -259,6 +266,13 @@
     "71349",
     "https://github.com/pytorch/pytorch/issues/71349",
     []
+  ],
+  "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
+    "79510",
+    "https://github.com/pytorch/pytorch/issues/79510",
+    [
+      "linux"
+    ]
   ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
