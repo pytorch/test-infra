@@ -1830,6 +1830,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_cumprod_cpu_float32 (__main__.TestJitCPU)": [
+    "96851",
+    "https://github.com/pytorch/pytorch/issues/96851",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_cumprod_cuda_complex64 (__main__.TestJitCUDA)": [
     "96840",
     "https://github.com/pytorch/pytorch/issues/96840",
