@@ -27,7 +27,7 @@ function CommitInfo({
     }
   );
   if (error != null) {
-    return <div>Error occured</div>;
+    return <div>Error occurred</div>;
   }
 
   if (data === undefined) {
@@ -58,7 +58,7 @@ function CommitHeader({
         value={selectedSha}
         onChange={(e) => {
           router.push(
-            `/${repoName}/${repoOwner}/pull/${pr}?sha=${e.target.value}`
+            `/${repoOwner}/${repoName}/pull/${pr}?sha=${e.target.value}`
           );
         }}
       >
