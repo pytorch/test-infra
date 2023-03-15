@@ -1,10 +1,5 @@
 import { Context, Probot } from "probot";
 import { CachedConfigTracker, isPyTorchPyTorch, repoKey } from "./utils";
-import { Octokit } from "@octokit/core";
-import {
-  config,
-  composeConfigGet,
-} from "@probot/octokit-plugin-config";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
