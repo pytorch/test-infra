@@ -278,8 +278,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     await this.dispatchEvent("try-merge", {
       force: forceRequested,
-      rebase: rebase,
       ignore_current: ignore_current,
+      rebase: rebase,
     });
     await this.ackComment();
   }
