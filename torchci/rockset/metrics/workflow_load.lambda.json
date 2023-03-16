@@ -7,6 +7,11 @@
       "value": "hour"
     },
     {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
+    },
+    {
       "name": "startTime",
       "type": "string",
       "value": "2022-05-13T00:06:32.839Z"
