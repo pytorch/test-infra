@@ -1855,14 +1855,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_broadcast_to_cpu_complex64 (__main__.TestJitCPU)": [
-    "96831",
-    "https://github.com/pytorch/pytorch/issues/96831",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_cat_cpu_float32 (__main__.TestJitCPU)": [
     "96839",
     "https://github.com/pytorch/pytorch/issues/96839",
