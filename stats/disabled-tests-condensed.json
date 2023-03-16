@@ -1973,14 +1973,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_diag_embed_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96832",
-    "https://github.com/pytorch/pytorch/issues/96832",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_diag_embed_cuda_float32 (__main__.TestJitCUDA)": [
     "96891",
     "https://github.com/pytorch/pytorch/issues/96891",
