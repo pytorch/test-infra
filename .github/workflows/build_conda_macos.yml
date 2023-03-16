@@ -147,7 +147,17 @@ jobs:
               --no-test \
               "${CONDA_PACKAGE_DIRECTORY}"
           else
-            ${CONDA_RUN} conda build \
+            arch_name="$(uname -m)"
+            if [ "${arch_name}" = "arm64" ]; then
+              ${CONDA_RUN} conda build \
+              -c defaults \
+              -c "pytorch-${CHANNEL}" \
+              --no-anaconda-upload \
+              --python "${PYTHON_VERSION}" \
+              --output-folder distr/ \
+              "${CONDA_PACKAGE_DIRECTORY}"
+            else
+              ${CONDA_RUN} conda build \
               -c defaults \
               -c conda-forge \
               -c "pytorch-${CHANNEL}" \
@@ -155,6 +165,7 @@ jobs:
               --python "${PYTHON_VERSION}" \
               --output-folder distr/ \
               "${CONDA_PACKAGE_DIRECTORY}"
+            fi
           fi
       - name: Upload artifact to GitHub
         continue-on-error: true
