@@ -24,6 +24,20 @@ export default function Kpis() {
         },
     ];
 
+    // deprecate this in Q3 2023
+    const contributionTimeParams: RocksetParam[] = [
+        {
+        name: "startTime",
+        type: "string",
+        value: "2022-07-03T00:00:00.000Z",
+        },
+        {
+        name: "stopTime",
+        type: "string",
+        value: stopTime,
+        },
+    ];
+
     return (
         <Grid container spacing={2}>
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
@@ -111,12 +125,12 @@ export default function Kpis() {
             </Grid>
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"External PR Count (7 day moving average)"}
+                    title={"Weekly External PR Count (4 week moving average))"}
                     queryName={"external_contribution_stats"}
-                    queryParams={[...timeParams]}
-                    granularity={"day"}
+                    queryParams={[...contributionTimeParams]}
+                    granularity={"week"}
                     timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"weekly_moving_average_pr_count"}
+                    yAxisFieldName={"weekly_pr_count_rolling_average"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
@@ -124,12 +138,12 @@ export default function Kpis() {
 
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Unique External Contributor Count (7 day moving average)"}
+                    title={"Weekly Unique External Contributor Count (4 week moving average)"}
                     queryName={"external_contribution_stats"}
-                    queryParams={[...timeParams]}
-                    granularity={"day"}
+                    queryParams={[...contributionTimeParams]}
+                    granularity={"week"}
                     timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"weekly_moving_average_user_count"}
+                    yAxisFieldName={"weekly_user_count_rolling_average"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
