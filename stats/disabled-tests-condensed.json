@@ -870,13 +870,6 @@
       "linux"
     ]
   ],
-  "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "93045",
-    "https://github.com/pytorch/pytorch/issues/93045",
-    [
-      "rocm"
-    ]
-  ],
   "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86680",
     "https://github.com/pytorch/pytorch/issues/86680",
@@ -1383,13 +1376,6 @@
   "test_optional_tensor (test_jit.TestScript)": [
     "91494",
     "https://github.com/pytorch/pytorch/issues/91494",
-    [
-      "linux"
-    ]
-  ],
-  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
-    "89545",
-    "https://github.com/pytorch/pytorch/issues/89545",
     [
       "linux"
     ]
@@ -1968,14 +1954,6 @@
   "test_variant_consistency_jit_diag_embed_cpu_float32 (__main__.TestJitCPU)": [
     "96836",
     "https://github.com/pytorch/pytorch/issues/96836",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_diag_embed_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96832",
-    "https://github.com/pytorch/pytorch/issues/96832",
     [
       "win",
       "windows"
