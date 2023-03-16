@@ -1277,6 +1277,14 @@
       "windows"
     ]
   ],
+  "test_nn_ConvTranspose1d (__main__.TestJitGeneratedModule)": [
+    "96950",
+    "https://github.com/pytorch/pytorch/issues/96950",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_nn_HuberLoss_no_batch_dim_mean (__main__.TestJitGeneratedModule)": [
     "96920",
     "https://github.com/pytorch/pytorch/issues/96920",
