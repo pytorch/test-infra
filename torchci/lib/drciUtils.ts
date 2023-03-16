@@ -37,7 +37,7 @@ Note: Links to docs will display an error until the docs builds have been comple
     // For domain libraries
     return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${owner}/${repo}/${prNum}](${HUD_URL}${owner}/${repo}/${prNum})
-* :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${owner}/${repo}/${prNum}${PYTHON_DOCS_URL})
+* :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${owner}/${prNum}${PYTHON_DOCS_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
 }
