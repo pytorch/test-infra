@@ -149,6 +149,7 @@ jobs:
           else
             ${CONDA_RUN} conda build \
               -c defaults \
+              -c conda-forge \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \
