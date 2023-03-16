@@ -6,6 +6,6 @@ def get_macos_variables(arch_name: str, python_version: str = "3.8") -> list:
     ]
 
     if arch_name != "arm64" and python_version != "3.11":
-        variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT='- mkl<=2021.2.0'")
+        variables.append("export CONDA_EXTRA_BUILD_CONSTRAINT='- mkl<=2023.0.0'")
 
     return variables
