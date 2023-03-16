@@ -133,7 +133,6 @@ jobs:
             export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
-
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           if [[ "${PYTHON_VERSION}" = "3.11" ]]; then
