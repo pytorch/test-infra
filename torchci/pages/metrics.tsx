@@ -757,6 +757,11 @@ export default function Page() {
                 type: "string",
                 value: Intl.DateTimeFormat().resolvedOptions().timeZone,
               },
+              {
+                name: "repo",
+                type: "string",
+                value: "pytorch/%",
+              },
               ...timeParams,
             ]}
             granularity={"hour"}
