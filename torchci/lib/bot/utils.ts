@@ -16,6 +16,10 @@ export function isPyTorchPyTorch(owner: string, repo: string): boolean {
   return isPyTorchOrg(owner) && repo === "pytorch";
 }
 
+export function isDrCIEnabled(owner: string, repo: string): boolean {
+  return isPyTorchOrg(owner) && ["pytorch", "vision"].includes(repo);
+}
+
 export class CachedConfigTracker {
   repoConfigs: any = {};
 

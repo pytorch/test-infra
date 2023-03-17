@@ -23,17 +23,17 @@ mod = sys.modules[__name__]
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.8", "3.9", "3.10", "3.11"],
     "test": ["3.8", "3.9", "3.10", "3.11"],
-    "release": ["3.7", "3.8", "3.9", "3.10"],
+    "release": ["3.8", "3.9", "3.10", "3.11"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["11.7", "11.8"],
     "test": ["11.7", "11.8"],
-    "release": ["11.6", "11.7"],
+    "release": ["11.7", "11.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.3", "5.4.2"],
     "test": ["5.3", "5.4.2"],
-    "release": ["5.1.1", "5.2"],
+    "release": ["5.3", "5.4.2"],
 }
 
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
@@ -45,7 +45,7 @@ NIGHTLY = "nightly"
 TEST = "test"
 
 CURRENT_CANDIDATE_VERSION = "2.0.0"
-CURRENT_STABLE_VERSION = "1.13.1"
+CURRENT_STABLE_VERSION = "2.0.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -53,7 +53,7 @@ mod.CUDA_ARCHES = CUDA_ARCHES_DICT[NIGHTLY]
 mod.ROCM_ARCHES = ROCM_ARCHES_DICT[NIGHTLY]
 mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
-LINUX_GPU_RUNNER = "linux.4xlarge.nvidia.gpu"
+LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
@@ -200,19 +200,19 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
-        index_arg = "--index-url" if channel == "nightly" else "--extra-index-url"
-        return f"{whl_install_command} {index_arg} {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
 def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
+    # temporarily remove python 3.11 from conda matrix for release validation
+    if(channel == RELEASE):
+        python_versions = list_without(python_versions, ["3.11"])
+
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
-
-    if os == "macos-arm64":
-        python_versions = list_without(python_versions, ["3.7"])
 
     if os == "windows" and limit_win_builds == ENABLE:
         python_versions = [ python_versions[0] ]
@@ -325,7 +325,8 @@ def generate_libtorch_matrix(
                         "build_name": f"libtorch-{gpu_arch_type}{gpu_arch_version}-{libtorch_variant}-{abi_version}".replace(
                             ".", "_"
                         ),
-                        "validation_runner": validation_runner(gpu_arch_type, os),
+                        # Please noe since libtorch validations are minimal, we use CPU runners
+                        "validation_runner": validation_runner("cpu", os),
                         "installation": get_libtorch_install_command(os, channel, gpu_arch_type, libtorch_variant, devtoolset, desired_cuda, libtorch_config),
                         "channel": channel,
                         "stable_version": mod.CURRENT_VERSION
@@ -347,8 +348,6 @@ def generate_wheels_matrix(
     if python_versions is None:
         # Define default python version
         python_versions = list(mod.PYTHON_ARCHES)
-        if os == "macos-arm64":
-            python_versions = list_without(python_versions, ["3.7"])
 
     if os == "linux":
         # NOTE: We only build manywheel packages for linux

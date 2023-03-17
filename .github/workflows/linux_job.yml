@@ -155,6 +155,7 @@ jobs:
           # shellcheck disable=SC2086,SC2090
           container_name=$(docker run \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
+            -e RUNNER_TEST_RESULTS_DIR=/test-results \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
             `# It is unknown why the container sees a different value for this.` \
             --env=GITHUB_STEP_SUMMARY \
@@ -169,12 +170,20 @@ jobs:
             -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
             -v "${GITHUB_WORKSPACE}/test-infra:/test-infra" \
             -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
+            -v "${RUNNER_TEST_RESULTS_DIR}:/test-results" \
             -v "${RUNNER_TEMP}/exec_script:/exec" \
             -v "${GITHUB_STEP_SUMMARY}":"${GITHUB_STEP_SUMMARY}" \
             -w /work \
             "${DOCKER_IMAGE}"
           )
           docker exec -t "${container_name}" bash /exec
+
+      - name: Surface failing tests
+        if: always()
+        uses: pmeier/pytest-results-action@v0.3.0
+        with:
+          path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
+          fail-on-empty: false
 
       - name: Chown repository directory
         if: ${{ always() }}

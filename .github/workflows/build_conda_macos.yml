@@ -133,14 +133,12 @@ jobs:
             export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
-
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           if [[ "${PYTHON_VERSION}" = "3.11" ]]; then
             ${CONDA_RUN} conda build \
               -c defaults \
               -c "malfet" \
-              -c nvidia \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \
@@ -150,8 +148,6 @@ jobs:
           else
             ${CONDA_RUN} conda build \
               -c defaults \
-              -c conda-forge \
-              -c nvidia \
               -c "pytorch-${CHANNEL}" \
               --no-anaconda-upload \
               --python "${PYTHON_VERSION}" \

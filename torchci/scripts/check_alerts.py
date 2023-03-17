@@ -103,12 +103,21 @@ class JobStatus:
         self.flaky_jobs = self.get_flaky_jobs()
 
     def get_current_status(self) -> Any:
-        return self.filtered_statuses[0] if len(self.filtered_statuses) > 0 else None
+        """
+        When getting the current status, we want the latest status which is not pending,
+        be it success or failure
+        """
+        for status in self.filtered_statuses:
+            if status["conclusion"] != PENDING:
+                return status
+        return None
 
-    # Returns a dict of failureCaptures -> List[Jobs]
-    def get_unique_failures(self) -> Dict[str, List[Any]]:
+    def get_unique_failures(self, jobs: List[Any]) -> Dict[str, List[Any]]:
+        """
+        Returns list of jobs grouped by failureCaptures from the input list
+        """
         failures = defaultdict(list)
-        for job in self.filtered_statuses:
+        for job in jobs:
             if job["conclusion"] == "failure":
                 found_similar_failure = False
                 if "failureCaptures" not in job:
@@ -131,7 +140,7 @@ class JobStatus:
 
     # A flaky job is if it's the only job that has that failureCapture and is not the most recent job
     def get_flaky_jobs(self) -> List[Any]:
-        unique_failures = self.get_unique_failures()
+        unique_failures = self.get_unique_failures(self.filtered_statuses)
         flaky_jobs = []
         for failure in unique_failures:
             failure_list = unique_failures[failure]
@@ -158,15 +167,21 @@ class JobStatus:
         return failures
 
     def should_alert(self) -> bool:
+        # Group jobs by their failures. The length of the failure chain is used
+        # to raise the alert, so we can do a simple tweak here to use the length
+        # of the longest unique chain
+        unique_failures = self.get_unique_failures(self.failure_chain)
+
         return (
             self.current_status is not None
-            and self.current_status["conclusion"] != "success"
-            and len(self.failure_chain) >= FAILURE_CHAIN_THRESHOLD
+            and self.current_status["conclusion"] != SUCCESS
+            and any(
+                len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
+                for failure_chain in unique_failures.values()
+            )
             and all(
-                [
-                    disabled_alert not in self.job_name
-                    for disabled_alert in DISABLED_ALERTS
-                ]
+                disabled_alert not in self.job_name
+                for disabled_alert in DISABLED_ALERTS
             )
         )
 
@@ -385,7 +400,10 @@ def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
     return -1
 
 
-def clear_alerts(alerts: List[Any]) -> bool:
+def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
+    if dry_run:
+        print("NOTE: Dry run, not doing any real work")
+        return
     cleared_alerts = 0
     for alert in alerts:
         r = requests.patch(
@@ -513,7 +531,7 @@ def check_for_recurrently_failing_jobs_alert(
     # Auto-clear any existing alerts if the current status is green
     if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
         print(f"Didn't find anything to alert on for {repo} {branch}")
-        clear_alerts(existing_alerts)
+        clear_alerts(existing_alerts, dry_run=dry_run)
         return
 
     # In the current design, there should be at most one alert issue per repo and branch

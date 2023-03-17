@@ -32,14 +32,22 @@ function getWorkflowJobSummary(job: JobData) {
 
   var separator = (queueTimeInfo && durationInfo) ? ", ": ""
 
-  return <>
-    <JobSummary job={job} />
-    <br/>
-    <small>
-      &nbsp;&nbsp;&nbsp;&nbsp;
-      {queueTimeInfo}{separator}{durationInfo}<TestInsightsLink job={job} separator={", "} />
-    </small>
-  </>;
+  return (
+    <>
+      <JobSummary job={job} />
+      <br />
+      <small>
+        &nbsp;&nbsp;&nbsp;&nbsp;
+        {queueTimeInfo}
+        {separator}
+        {durationInfo}
+        <TestInsightsLink job={job} separator={", "} />,{" "}
+        <a target="_blank" rel="noreferrer" href={job.logUrl}>
+          Raw logs
+        </a>
+      </small>
+    </>
+  );
 }
 
 export default function WorkflowBox({

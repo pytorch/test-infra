@@ -2,7 +2,7 @@ import _ from "lodash";
 import { Octokit } from "octokit";
 import { IssueData } from "./types";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
-import { isPyTorchPyTorch } from "./bot/utils";
+import { isDrCIEnabled, isPyTorchPyTorch } from "./bot/utils";
 
 export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
@@ -22,22 +22,34 @@ export const BOT_COMMANDS_WIKI_URL =
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
 
-export function formDrciHeader(prNum: number): string {
-    return `## :link: Helpful Links
+export function formDrciHeader(owner: string, repo: string, prNum: number): string {
+    // For PyTorch only
+    if (isPyTorchPyTorch(owner, repo)) {
+        return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${prNum}${PYTHON_DOCS_URL})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}${prNum}${CPP_DOCS_URL})
 * :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL}) or our [office hours](${OH_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
+    }
+
+    // For domain libraries
+    return `## :link: Helpful Links
+### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${owner}/${repo}/${prNum}](${HUD_URL}${owner}/${repo}/${prNum})
+* :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}${repo}/${prNum}${PYTHON_DOCS_URL})
+
+Note: Links to docs will display an error until the docs builds have been completed.`;
 }
 
 export function formDrciComment(
   pr_num: number,
+  owner: string = OWNER,
+  repo: string = REPO,
   pr_results: string = "",
   sevs: string = ""
 ): string {
-  const header = formDrciHeader(pr_num);
+  const header = formDrciHeader(owner, repo, pr_num);
   const comment = `${DRCI_COMMENT_START}
 ${header}
 ${sevs}
@@ -116,8 +128,8 @@ ${sev_list}\n
 // The context here is the context from probot.
 // Today we only use probot for upserts, but this could later be split into logger
 export async function upsertDrCiComment(owner: string, repo: string, prNum: number, context: any, prUrl: string) {
-  // Dr.CI only supports pytorch/pytorch at the moment
-  if (!isPyTorchPyTorch(owner,repo)) {
+  // Dr.CI only supports [pytorch/pytorch, pytorch/vision] at the moment
+  if (!isDrCIEnabled(owner, repo)) {
     context.log(`Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`);
     return;
   }
@@ -132,7 +144,7 @@ export async function upsertDrCiComment(owner: string, repo: string, prNum: numb
   const existingDrciID = existingDrciData.id;
   const existingDrciComment = existingDrciData.body;
   const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-  const drciComment = formDrciComment(prNum, "", formDrciSevBody(sev));
+  const drciComment = formDrciComment(prNum, owner, repo, "", formDrciSevBody(sev));
 
   if (existingDrciComment === drciComment) {
     return;

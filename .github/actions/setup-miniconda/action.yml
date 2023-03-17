@@ -152,3 +152,8 @@ runs:
           else
             echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           fi
+      - name: Reset channel priority
+        shell: bash -l {0}
+        run: |
+          set -euxo pipefail
+          conda config --set channel_priority false

@@ -18,8 +18,8 @@ def json_dumps(obj):
     return json.dumps(obj, sort_keys=True, indent=4, separators=(",", ": "))
 
 
-def download_log(conclusion, id):
-    url = f"https://api.github.com/repos/pytorch/pytorch/actions/jobs/{id}/logs"
+def download_log(full_name, conclusion, job_id):
+    url = f"https://api.github.com/repos/{full_name}/actions/jobs/{job_id}/logs"
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -27,9 +27,12 @@ def download_log(conclusion, id):
     with urlopen(Request(url, headers=headers)) as data:
         log_data = data.read()
 
+    object_path = f"log/{job_id}"
+    if full_name != "pytorch/pytorch":
+        object_path = f"log/{full_name}/{job_id}"
     # Note: brotli would compress better, but is annoying to add as a dep
     # If space becomes a problem it's roughly ~2x better in TEXT_MODE
-    s3.Object(BUCKET_NAME, f"log/{id}").put(
+    s3.Object(BUCKET_NAME, object_path).put(
         Body=gzip.compress(log_data),
         ContentType="text/plain",
         ContentEncoding="gzip",
@@ -37,9 +40,10 @@ def download_log(conclusion, id):
     )
 
     # Fire off to the `log_classifier` lambda
-    urlopen(
-        f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={id}"
-    )
+    if full_name == "pytorch/pytorch":
+        urlopen(
+            f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={job_id}"
+        )
 
 
 # See this page for webhook info:
@@ -51,10 +55,12 @@ def lambda_handler(event, context):
     if (
         event_type == "workflow_job"
         and body["action"] == "completed"
-        and body["repository"]["full_name"] == "pytorch/pytorch"
     ):
         try:
-            download_log(body[event_type]["conclusion"], body[event_type]["id"])
+            full_name = body["repository"]["full_name"]
+            conclusion = body[event_type]["conclusion"]
+            job_id = body[event_type]["id"]
+            download_log(full_name, conclusion, job_id)
         except HTTPError as err:
             # Just eat the error as logs are optional.
             print("ERROR", err)
