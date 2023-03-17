@@ -1270,6 +1270,14 @@
       "windows"
     ]
   ],
+  "test_nn_Conv3d_stride (__main__.TestJitGeneratedModule)": [
+    "96999",
+    "https://github.com/pytorch/pytorch/issues/96999",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_nn_ConvTranspose1d (__main__.TestJitGeneratedModule)": [
     "96950",
     "https://github.com/pytorch/pytorch/issues/96950",
