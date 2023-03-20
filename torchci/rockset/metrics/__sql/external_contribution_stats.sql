@@ -1,16 +1,26 @@
-SELECT
+WITH rolling_average_table as (
+  SELECT
     FORMAT_ISO8601(
         CAST(date as date)
     ) AS granularity_bucket,
-    pr_count as pr_count,
-    user_count as user_count,
-    TRUNC(AVG(pr_count)
-           OVER(ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW),2)
-           AS weekly_moving_average_pr_count,
-    TRUNC(AVG(user_count)
-           OVER(ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW),2)
-           AS weekly_moving_average_user_count,
+    -- weekly granularity with a 4 week rolling average
+    TRUNC(SUM(pr_count)
+           OVER(ORDER BY date ROWS 27 PRECEDING),1)/4
+           AS weekly_pr_count_rolling_average,
+    TRUNC(SUM(user_count)
+           OVER(ORDER BY date ROWS 27 PRECEDING),1)/4
+           AS weekly_user_count_rolling_average,
 FROM
     metrics.external_contribution_stats
-    WHERE CAST(date as date) >= PARSE_DATETIME_ISO8601(:startTime)
+    WHERE CAST(date as date) >= PARSE_DATETIME_ISO8601(:startTime) - DAYS(28)
     AND CAST(date as date) < PARSE_DATETIME_ISO8601(:stopTime)
+)
+SELECT
+granularity_bucket,
+weekly_pr_count_rolling_average,
+weekly_user_count_rolling_average
+FROM
+rolling_average_table
+WHERE CAST(granularity_bucket as date) >= PARSE_DATETIME_ISO8601(:startTime)
+    AND CAST(granularity_bucket as date) < PARSE_DATETIME_ISO8601(:stopTime)
+    AND (DATE_DIFF('DAY', CAST(granularity_bucket as date), CAST(PARSE_DATETIME_ISO8601(:startTime) as date)) % 7) = 0
