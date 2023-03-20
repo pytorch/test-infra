@@ -45,7 +45,7 @@ for platform in ${PLATFORMS}; do
             (
                 set -x
                 anaconda remove --force "${CHANNEL}/${PKG}/${version}/${platform}/${PKG}-${version}-${spec}.tar.bz2"
-                sleep 1
+                sleep 10
             )
         fi
         done
