@@ -33,5 +33,5 @@ jobs:
           ANACONDA_API_TOKEN: ${{ secrets.conda-pytorchbot-token }}
         run: |
             set -ex
-            conda install -yq anaconda-client
+            conda install --yes --quiet anaconda-client
             bash ./.github/scripts/anaconda-prune/run.sh

@@ -1,9 +1,9 @@
-conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
+conda create --yes --quiet -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
 conda activate ${ENV_NAME}
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchvision}"
 export MATRIX_INSTALLATION="${MATRIX_INSTALLATION/torchaudio}"
 if [[ ${MATRIX_PACKAGE_TYPE} = "conda" ]]; then
-    export MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
+    export MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install --yes --quiet"}
     if [[ ${MATRIX_PYTHON_VERSION} = "3.11" ]]; then
         export MATRIX_INSTALLATION=${MATRIX_INSTALLATION/"-c pytorch"/" -c malfet -c pytorch"}
     fi

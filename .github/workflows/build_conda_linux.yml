@@ -175,7 +175,7 @@ jobs:
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
-          conda create --yes --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           if [[ "${GPU_ARCH}" = "cuda" ]]; then
@@ -191,7 +191,7 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
-            conda install 'ffmpeg<5'
+            conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
@@ -203,7 +203,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda install -yq anaconda-client
+          ${CONDA_RUN} conda install --yes --quiet anaconda-client
           ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:

@@ -191,7 +191,7 @@ jobs:
           fi
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
-          conda create --yes --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
@@ -215,7 +215,7 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
 
-          ${CONDA_RUN} conda install -yq anaconda-client
+          ${CONDA_RUN} conda install --yes --quiet anaconda-client
           arch_name="$(uname -m)"
           if [ "${arch_name}" = "arm64" ]; then
             export ARCH_NAME="osx-arm64"
