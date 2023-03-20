@@ -136,9 +136,15 @@ async function handleLabelEvent(
   if (!isCIFlowLabel(label)) {
     return;
   }
-  const config: any = await tracker.loadConfig(context);
+  const full_config: any =  await context.octokit.config.get({
+    owner: `${context.repo().owner}`,
+    repo: `${context.repo().repo}`,
+    path: ".github/pytorch-probot.yml",
+    branch: context.payload.pull_request.head.ref,
+  });
   const valid_labels: Array<string> =
-    config !== null ? config["ciflow_push_tags"] : null;
+  full_config !== null ? full_config["config"]["ciflow_push_tags"] : null;
+  console.log(`full config - ${full_config}}`)
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
