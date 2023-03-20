@@ -353,6 +353,13 @@
       "linux"
     ]
   ],
+  "test_cpp_wrapper_cpu (__main__.CpuTests)": [
+    "97194",
+    "https://github.com/pytorch/pytorch/issues/97194",
+    [
+      "macos"
+    ]
+  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
