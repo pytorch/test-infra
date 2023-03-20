@@ -42,11 +42,12 @@ describe("Push trigger integration tests", () => {
     payload.label.name = "ciflow/trunk";
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
+
     nock("https://api.github.com")
       .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
-        )}?ref=suo-patch-1`
+        )}`
       )
       .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
       .get(
@@ -88,7 +89,7 @@ describe("Push trigger integration tests", () => {
       .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
-        )}?ref=suo-patch-1`
+        )}`
       )
       .reply(200, '{ ciflow_push_tags: ["ciflow/trunk" ]}')
       .get(
@@ -259,7 +260,7 @@ describe("Push trigger integration tests", () => {
       .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
-        )}?ref=suo-patch-1`
+        )}`
       )
       .reply(404, { message: "There is nothing here" });
     nock("https://api.github.com")
@@ -287,7 +288,7 @@ describe("Push trigger integration tests", () => {
       .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
-        )}?ref=suo-patch-1`
+        )}`
       )
       .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
