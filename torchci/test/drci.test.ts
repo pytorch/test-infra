@@ -1,6 +1,6 @@
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
-import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
+import { OH_URL, DOCS_URL, DRCI_COMMENT_START, formDrciComment, formDrciHeader, getActiveSEVs, formDrciSevBody } from "lib/drciUtils";
 import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
@@ -232,7 +232,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("1 Failures, 1 Pending")).toBeTruthy();
       expect(comment.includes("Helpful Links")).toBeTruthy();
       expect(
@@ -281,6 +281,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       );
       const comment = formDrciComment(
         1001,
+        'pytorch',
+        'pytorch',
         failureInfo,
         formDrciSevBody(getActiveSEVs([sev, mergeBlockingSev]))
       );
@@ -316,7 +318,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(
         comment.includes("## :hourglass_flowing_sand: No Failures, 1 Pending")
@@ -350,7 +352,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         "random sha",
         "hudlink"
       );
-      const comment = formDrciComment(1001, failureInfo);
+      const comment = formDrciComment(1001, 'pytorch', 'pytorch', failureInfo);
       expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
       expect(comment.includes("## :x: 1 Failures, 1 Pending")).toBeTruthy();
     });
@@ -393,4 +395,22 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       ];
       expect(expectToContain.every((s) => failureInfoComment.includes(s))).toBeTruthy();;
     });
+
+    test("test formDrciHeader for pytorch/pytorch", async () => {
+        const header = formDrciHeader("pytorch", "pytorch", 42)
+
+        expect(header.includes("hud.pytorch.org/pr/42")).toBeTruthy();
+        expect(header.includes("Python docs built from this PR")).toBeTruthy();
+        expect(header.includes("C++ docs built from this PR")).toBeTruthy();
+        expect(header.includes("bot commands wiki")).toBeTruthy();
+    })
+
+    test("test formDrciHeader for pytorch/vision", async () => {
+        const header = formDrciHeader("pytorch", "vision", 42)
+
+        expect(header.includes("hud.pytorch.org/pr/pytorch/vision/42")).toBeTruthy();
+        expect(header.includes("Python docs built from this PR")).toBeTruthy();
+        expect(header.includes("C++ docs built from this PR")).toBeFalsy();
+        expect(header.includes("bot commands wiki")).toBeFalsy();
+    })
 });

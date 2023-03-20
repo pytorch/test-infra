@@ -40,23 +40,16 @@ const merge = commands.add_parser("merge", {
   add_help: false,
 });
 const mergeOption = merge.add_mutually_exclusive_group();
-mergeOption.add_argument("-g", "--green", {
-  action: "store_true",
-  help: "Merge when all status checks running on the PR pass. To add status checks, use labels like `ciflow/trunk`.",
-});
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
   help: `Merge without checking anything. This requires a reason for auditting purpose, for example:
 @pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`,
 });
-mergeOption.add_argument("-l", "--land-checks", {
+mergeOption.add_argument("-ic", "--ignore-current", {
   action: "store_true",
   help:
-    "[Deprecated - your PR instead now gets the `ciflow/trunk` label on approval] Merge with land " +
-    "time checks. This will create a new branch with your changes rebased " +
-    "on viable/strict and run a majority of trunk tests _before_ landing to increase trunk " +
-    "reliability and decrease risk of revert. The tests added are: pull, Lint and trunk. Note " +
-    "that periodic is excluded.",
+    "Merge while ignore the currently failing jobs.  If there are no pending checks, use -f/--force " +
+    "since this will fail.",
 });
 merge.add_argument("-r", "--rebase", {
   help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
@@ -121,7 +114,7 @@ label.add_argument("labels", {
 const drCi = commands.add_parser("drci", {
   help: "Update Dr. CI",
   description:
-    "Update Dr. CI. Updates the Dr. CI comment on the PR in case it's gotten out of sync " + 
+    "Update Dr. CI. Updates the Dr. CI comment on the PR in case it's gotten out of sync " +
     "with actual CI results.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,

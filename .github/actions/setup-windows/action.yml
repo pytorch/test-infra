@@ -43,4 +43,8 @@ runs:
       run: |
         RUNNER_ARTIFACT_DIR="$(cygpath ${RUNNER_TEMP})/artifacts"
         mkdir -p "${RUNNER_ARTIFACT_DIR}"
-        echo "RUNNER_ARTIFACT_DIR=$(cygpath ${RUNNER_TEMP})/artifacts" >> "${GITHUB_ENV}"
+        echo "RUNNER_ARTIFACT_DIR=${RUNNER_ARTIFACT_DIR}" >> "${GITHUB_ENV}"
+
+        RUNNER_TEST_RESULTS_DIR="${RUNNER_TEMP}/test-results"
+        mkdir -p "${RUNNER_TEST_RESULTS_DIR}"
+        echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"

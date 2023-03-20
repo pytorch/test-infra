@@ -1,0 +1,34 @@
+name: Tests
+
+on:
+  pull_request:
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
+  push:
+    branches:
+      - main
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
+
+jobs:
+  test-tools:
+    name: Test tools
+    if: ${{ github.repository == 'pytorch/test-infra' }}
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
+      script: |
+        # Environment setup
+        echo ::group::setup Python environment
+        python -m venv .venv/
+        source .venv/bin/activate
+        pip install pip==23.0.1 pytest==7.2.0 rockset==1.0.3
+        echo ::endgroup::
+        
+        # Test tools
+        python3 -m unittest discover -vs tools/tests -p 'test_*.py'

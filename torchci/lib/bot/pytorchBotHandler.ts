@@ -222,14 +222,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async handleMerge(
     forceMessage: string,
-    mergeOnGreen: boolean,
-    landChecks: boolean,
+    ignore_current: boolean,
     rebase: string | boolean
   ) {
     const extra_data = {
       forceMessage,
-      mergeOnGreen,
-      landChecks,
       rebase,
     };
     const forceRequested = forceMessage != undefined;
@@ -281,8 +278,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     await this.dispatchEvent("try-merge", {
       force: forceRequested,
-      on_green: mergeOnGreen,
-      land_checks: landChecks,
+      ignore_current: ignore_current,
       rebase: rebase,
     });
     await this.ackComment();
@@ -406,8 +402,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       case "merge":
         return await this.handleMerge(
           args.force,
-          args.green,
-          args.land_checks,
+          args.ignore_current,
           args.rebase
         );
       case "rebase": {
