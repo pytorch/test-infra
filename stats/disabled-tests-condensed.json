@@ -142,13 +142,6 @@
       "rocm"
     ]
   ],
-  "test_backward_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "86434",
-    "https://github.com/pytorch/pytorch/issues/86434",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -1049,13 +1042,6 @@
   "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
     "93070",
     "https://github.com/pytorch/pytorch/issues/93070",
-    [
-      "linux"
-    ]
-  ],
-  "test_issue_1785 (__main__.TestCudaFuser)": [
-    "95959",
-    "https://github.com/pytorch/pytorch/issues/95959",
     [
       "linux"
     ]
