@@ -122,3 +122,25 @@ export function getDelayWithJitter(delayBase: number, jitter: number) {
 export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
   return getDelayWithJitter(Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount)), jitter);
 }
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReplacer(key: string, value: any) {
+  if (value instanceof Map) {
+    return {
+      dataType: 'Map',
+      value: Array.from(value.entries()),
+    };
+  } else {
+    return value;
+  }
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReviver(key: string, value: any) {
+  if (typeof value === 'object' && value !== null) {
+    if (value.dataType === 'Map') {
+      return new Map(value.value);
+    }
+  }
+  return value;
+}

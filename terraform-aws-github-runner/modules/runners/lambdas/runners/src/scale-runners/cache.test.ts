@@ -9,10 +9,17 @@ jest.mock('uuid', () => ({
   v4: jest.fn(),
 }));
 
+const mockedRedisClient = {
+  eval: jest.fn().mockResolvedValue('OK'),
+};
 const mockedRedisPool = {
   get: jest.fn(),
   set: jest.fn(),
   sendCommand: jest.fn(),
+  pool: {
+    acquire: jest.fn().mockResolvedValue(mockedRedisClient),
+    release: jest.fn(),
+  },
 };
 
 jest.mock('redis-connection-pool');
@@ -133,15 +140,22 @@ describe('redisCached', () => {
     await expect(redisCached('namespace', 'key', 0.5, 1.0, fn)).rejects.toThrow(rejectMsg);
 
     expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(2);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', ['LOCK.namespace-key', uuid, 'NX', 'PX', '20000']);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('EVAL', [
-      'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end',
-      '1',
-      'LOCK.namespace-key',
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+      'gh-ci.undefined.LOCK.namespace-key',
       uuid,
+      'NX',
+      'PX',
+      '20000',
     ]);
+    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledWith(
+      `if redis.call("get","gh-ci.undefined.LOCK.namespace-key") == "${uuid}" then ` +
+        `return redis.call("del","gh-ci.undefined.LOCK.namespace-key") else return 0 end`,
+    );
+    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
     expect(mockedRedisPool.set).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(1);
   });
@@ -161,18 +175,25 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(2);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', ['LOCK.namespace-key', uuid, 'NX', 'PX', '20000']);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('EVAL', [
-      'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end',
-      '1',
-      'LOCK.namespace-key',
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+      'gh-ci.undefined.LOCK.namespace-key',
       uuid,
+      'NX',
+      'PX',
+      '20000',
     ]);
+    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledWith(
+      `if redis.call("get","gh-ci.undefined.LOCK.namespace-key") == ${uuid} then ` +
+        `return redis.call("del","gh-ci.undefined.LOCK.namespace-key") else return 0 end`,
+    );
+    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
     expect(mockedRedisPool.set).toBeCalledTimes(1);
     expect(mockedRedisPool.set).toBeCalledWith(
-      'CACHE.namespace-key',
+      'gh-ci.CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806118.635}`,
       1,
     );
@@ -189,9 +210,12 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
     expect(mockedRedisPool.set).toBeCalledTimes(0);
     expect(mockedRedisPool.sendCommand).toBeCalledTimes(0);
+    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(0);
+    expect(mockedRedisPool.pool.release).toBeCalledTimes(0);
+    expect(mockedRedisClient.eval).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(0);
   });
 
@@ -206,9 +230,12 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
     expect(mockedRedisPool.set).toBeCalledTimes(0);
     expect(mockedRedisPool.sendCommand).toBeCalledTimes(0);
+    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(0);
+    expect(mockedRedisPool.pool.release).toBeCalledTimes(0);
+    expect(mockedRedisClient.eval).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(0);
   });
 
@@ -232,18 +259,25 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(2);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', ['LOCK.namespace-key', uuid, 'NX', 'PX', '20000']);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('EVAL', [
-      'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end',
-      '1',
-      'LOCK.namespace-key',
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+      'gh-ci.undefined.LOCK.namespace-key',
       uuid,
+      'NX',
+      'PX',
+      '20000',
     ]);
+    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledTimes(1);
+    expect(mockedRedisClient.eval).toBeCalledWith(
+      `if redis.call("get","gh-ci.undefined.LOCK.namespace-key") == ${uuid} then ` +
+        `return redis.call("del","gh-ci.undefined.LOCK.namespace-key") else return 0 end`,
+    );
+    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
     expect(mockedRedisPool.set).toBeCalledTimes(1);
     expect(mockedRedisPool.set).toBeCalledWith(
-      'CACHE.namespace-key',
+      'gh-ci.CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806119.635}`,
       1,
     );
@@ -269,8 +303,8 @@ describe('redisCached', () => {
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
     expect(mockedRedisPool.get).toBeCalledTimes(5);
-    expect(mockedRedisPool.get).toBeCalledWith('CACHE.namespace-key');
-    expect(mockedRedisPool.get).toBeCalledWith('LOCK.namespace-key');
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.undefined.LOCK.namespace-key');
     expect(fn).toBeCalledTimes(0);
   });
 });

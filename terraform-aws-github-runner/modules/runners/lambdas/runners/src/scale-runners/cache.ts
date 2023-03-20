@@ -4,10 +4,12 @@ import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
 import { RedisConnectionPool } from 'redis-connection-pool';
 import { v4 as uuidv4 } from 'uuid';
 import redisPoolFactory from 'redis-connection-pool';
+import { mapReviver, mapReplacer } from './utils';
 
 interface RedisStore {
   ttl: number;
   data: unknown;
+  version?: string;
 }
 
 let redisPool: RedisConnectionPool | undefined = undefined;
@@ -133,8 +135,16 @@ async function redisAcquireLock(lockKey: string, ttlS: number): Promise<string |
 }
 
 async function redisReleaseLock(lockKey: string, lockUUID: string) {
-  const script = 'if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end';
-  await redisPool?.sendCommand('EVAL', [script, '1', lockKey, lockUUID]);
+  if (!redisPool) return;
+  const script =
+    `if redis.call("get","${lockKey}") == "${lockUUID}" ` +
+    `then return redis.call("del","${lockKey}") else return 0 end`;
+  const client = await redisPool.pool.acquire();
+  try {
+    await client.eval(script);
+  } finally {
+    redisPool.pool.release(client);
+  }
 }
 
 export async function redisCached<T>(
@@ -146,8 +156,8 @@ export async function redisCached<T>(
   lockTimeoutS = 20,
 ): Promise<T> {
   return locallyCached(nameSpace, key, ttlSec, async (): Promise<T> => {
-    const queryKey = `CACHE.${nameSpace}-${key}`;
-    const lockKey = `LOCK.${nameSpace}-${key}`;
+    const queryKey = `${Config.Instance.environment}.CACHE.${nameSpace}-${key}`;
+    const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
 
     await startupRedisPool();
 
@@ -157,10 +167,10 @@ export async function redisCached<T>(
       const redisResponse: string | undefined | null = await redisPool?.get(queryKey);
 
       if (redisResponse !== undefined && redisResponse !== null) {
-        const redisData = JSON.parse(redisResponse) as RedisStore;
+        const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
 
         const jitterDiff = (Date.now() / 1000 - redisData.ttl) / (ttlSec * jitterPct);
-        if (Math.random() > jitterDiff) {
+        if (Math.random() > jitterDiff && redisData.version === Config.Instance.datetimeDeploy) {
           console.debug(`Using redis cache for ${queryKey}...`);
           return redisData.data as T;
         }
@@ -173,13 +183,14 @@ export async function redisCached<T>(
       const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
       if (lockUUID !== undefined) {
         try {
-          console.debug(`Getting calling callback for ${queryKey}`);
+          console.debug(`Calling callback for ${queryKey}`);
           cached = await callback();
           const newDt: RedisStore = {
             data: cached,
             ttl: Date.now() / 1000 + ttlSec,
+            version: Config.Instance.datetimeDeploy,
           };
-          redisPool?.set(queryKey, JSON.stringify(newDt), ttlSec * (1 + jitterPct));
+          redisPool?.set(queryKey, JSON.stringify(newDt, mapReplacer), ttlSec * (1 + jitterPct));
           break;
         } finally {
           redisReleaseLock(lockKey, lockUUID);
