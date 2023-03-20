@@ -29,8 +29,20 @@ const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
 
-const COMPILERS = ["eager", "aot_eager", "inductor", "inductor_no_cudagraphs"];
-const SUITES: { [k: string]: string } = {
+export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
+  eager: "dynamo_eager",
+  aot_eager: "aot_eager",
+  inductor: "inductor_with_cudagraph",
+  inductor_no_cudagraphs: "inductor_default",
+  inductor_with_cudagraph: "inductor_with_cudagraph",
+};
+export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
+  dynamo_eager: "eager",
+  aot_eager: "aot_eager",
+  inductor_with_cudagraph: "inductor",
+  inductor_default: "inductor_no_cudagraphs",
+};
+export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
@@ -49,9 +61,11 @@ function getPassModels(data: any) {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
     const suite = record.suite;
-    const compiler = record.compiler;
     const model = record.name;
     const accuracy = record.accuracy;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler];
 
     if (!(bucket in passModels)) {
       passModels[bucket] = {};
@@ -97,9 +111,11 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
     const suite = record.suite;
-    const compiler = record.compiler;
     const model = record.name;
     const sha = record.head_sha;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler];
 
     if (!(bucket in totalCount)) {
       totalCount[bucket] = {};
@@ -185,8 +201,10 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
     const suite = record.suite;
-    const compiler = record.compiler;
     const model = record.name;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler];
 
     if (!(bucket in speedup)) {
       speedup[bucket] = {};
@@ -247,9 +265,11 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
     const suite = record.suite;
-    const compiler = record.compiler;
     const model = record.name;
     const compLatency = record.compilation_latency;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler];
 
     if (!(bucket in compTime)) {
       compTime[bucket] = {};
@@ -318,9 +338,11 @@ function computeMemoryCompressionRatio(
     const bucket = record.granularity_bucket;
     const workflowId = record.workflow_id;
     const suite = record.suite;
-    const compiler = record.compiler;
     const model = record.name;
     const compRatio = record.compression_ratio;
+
+    // Use clear compiler name to avoid confusion about what they do
+    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler];
 
     if (!(bucket in memory)) {
       memory[bucket] = {};
@@ -455,7 +477,9 @@ function SummaryPanel({
                 headerName: SUITES[suite],
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  const url = `/benchmark/${suite}/${
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
+                  }`;
                   return <a href={url}>{params.value}</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -470,7 +494,7 @@ function SummaryPanel({
                   }
 
                   const p = Number(m[1]);
-                  return p > ACCURACY_THRESHOLD ? "" : styles.error;
+                  return p < ACCURACY_THRESHOLD ? styles.warning : "";
                 },
               };
             })
@@ -494,7 +518,9 @@ function SummaryPanel({
                 headerName: SUITES[suite],
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  const url = `/benchmark/${suite}/${
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
+                  }`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -503,7 +529,7 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) > SPEEDUP_THRESHOLD ? "" : styles.warning;
+                  return Number(v) < SPEEDUP_THRESHOLD ? styles.warning : "";
                 },
               };
             })
@@ -529,7 +555,9 @@ function SummaryPanel({
                 headerName: SUITES[suite],
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  const url = `/benchmark/${suite}/${
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
+                  }`;
                   return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -538,9 +566,9 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                    ? ""
-                    : styles.warning;
+                  return Number(v) > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                    ? styles.warning
+                    : "";
                 },
               };
             })
@@ -566,7 +594,9 @@ function SummaryPanel({
                 headerName: SUITES[suite],
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${params.row.compiler}`;
+                  const url = `/benchmark/${suite}/${
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
+                  }`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -575,9 +605,9 @@ function SummaryPanel({
                     return "";
                   }
 
-                  return Number(v) > COMPRESSION_RATIO_THRESHOLD
-                    ? ""
-                    : styles.warning;
+                  return Number(v) < COMPRESSION_RATIO_THRESHOLD
+                    ? styles.warning
+                    : "";
                 },
               };
             })
@@ -851,6 +881,11 @@ export default function Page() {
       name: "granularity",
       type: "string",
       value: granularity,
+    },
+    {
+      name: "compilers",
+      type: "string",
+      value: Object.keys(COMPILER_NAMES_TO_DISPLAY_NAMES).join(","),
     },
   ];
 

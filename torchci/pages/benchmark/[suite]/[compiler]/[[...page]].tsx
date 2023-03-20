@@ -22,6 +22,7 @@ import {
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import GranularityPicker from "components/GranularityPicker";
 import { TimeRangePicker } from "../../../metrics";
+import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
@@ -404,7 +405,8 @@ export default function Page() {
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
-          TorchDynamo Performance DashBoard ({suite}, {compiler})
+          TorchDynamo Performance DashBoard ({suite},{" "}
+          {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler]})
         </Typography>
         <TimeRangePicker
           startTime={startTime}
