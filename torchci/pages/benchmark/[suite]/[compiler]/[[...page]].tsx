@@ -31,6 +31,7 @@ const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
+const TIME_FIELD_NAME = "granularity_bucket";
 
 const SPEEDUP_THRESHOLD = 0.95;
 const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
@@ -44,8 +45,8 @@ const OK_ACCURACY = new Set<string>([
 
 function BuildSummary({ records }: { records: any }) {
   // Just need the sha of the latest report, all records have the same value
-  const latestSha = records[0]["head_sha"];
-  const latestDate = records[0]["granularity_bucket"];
+  const latestSha = records[0].head_sha;
+  const latestDate = records[0].granularity_bucket;
 
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -58,20 +59,18 @@ function BuildSummary({ records }: { records: any }) {
   );
 }
 
-function selectRecordsByIndex(data: any, bucketIndex: number) {
-  const timeFieldName = "granularity_bucket";
-  const buckets = new Set<string>(
-    data.map((record: any) => record[timeFieldName])
-  );
+function selectRecordsByIndex(data: any, index: number) {
+  const fieldName = "workflow_id";
+  const ids = new Set<string>(data.map((record: any) => record[fieldName]));
 
-  if (bucketIndex >= buckets.size) {
+  if (index >= ids.size) {
     return data;
   }
 
-  const selectBucket = Array.from(buckets).sort((a: string, b: string) =>
+  const selectId = Array.from(ids).sort((a: string, b: string) =>
     a > b ? -1 : 1
-  )[bucketIndex];
-  return data.filter((record: any) => record[timeFieldName] === selectBucket);
+  )[index];
+  return data.filter((record: any) => record[fieldName] === selectId);
 }
 
 function ModelsPanel({
@@ -207,19 +206,18 @@ function GraphPanel({
     return <></>;
   }
 
-  const timeFieldName = "granularity_bucket";
   const groupByFieldName = "name";
-
   const chartData = records.filter(
     (record: any) => record["name"] == modelName
   );
+
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
     startTime,
     stopTime,
     granularity,
     groupByFieldName,
-    timeFieldName,
+    TIME_FIELD_NAME,
     "speedup"
   );
   const compTimeSeries = seriesWithInterpolatedTimes(
@@ -228,7 +226,7 @@ function GraphPanel({
     stopTime,
     granularity,
     groupByFieldName,
-    timeFieldName,
+    TIME_FIELD_NAME,
     "compilation_latency"
   );
   const memorySeries = seriesWithInterpolatedTimes(
@@ -237,7 +235,7 @@ function GraphPanel({
     stopTime,
     granularity,
     groupByFieldName,
-    timeFieldName,
+    TIME_FIELD_NAME,
     "compression_ratio"
   );
 

@@ -28,6 +28,7 @@ const LAST_WEEK = 7;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
+const TIME_FIELD_NAME = "granularity_bucket";
 
 export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
   eager: "dynamo_eager",
@@ -165,6 +166,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
 
             passrateBySuite[suite].push({
               granularity_bucket: bucket,
+              workflow_id: workflowId,
               head_sha: shaByBucket[bucket][workflowId][suite][compiler],
               suite: suite,
               compiler: compiler,
@@ -245,6 +247,7 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
 
             geomeanBySuite[suite].push({
               granularity_bucket: bucket,
+              workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
               geomean: gm,
@@ -315,6 +318,7 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
 
             compTimeBySuite[suite].push({
               granularity_bucket: bucket,
+              workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
               compilation_latency: m.toFixed(2),
@@ -388,6 +392,7 @@ function computeMemoryCompressionRatio(
 
             memoryBySuite[suite].push({
               granularity_bucket: bucket,
+              workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
               compression_ratio: m.toFixed(2),
@@ -405,14 +410,15 @@ function getLatestRecordByCompiler(
   dataBySuite: { [k: string]: any },
   dataFieldName: string
 ): [{ [k: string]: any }, string] {
-  const timeFieldName = "granularity_bucket";
-
+  const fieldName = "workflow_id";
   const lastestRecordByCompiler: { [k: string]: any } = {};
+
+  let latestId: string = "";
   let latestBucket: string = "";
 
   Object.keys(dataBySuite).forEach((k) => {
-    const buckets = dataBySuite[k].map((v: any) => v[timeFieldName]).sort();
-    latestBucket = buckets[buckets.length - 1];
+    const ids = dataBySuite[k].map((v: any) => v[fieldName]).sort();
+    latestId = ids[ids.length - 1];
 
     dataBySuite[k].forEach((r: any) => {
       const compiler = r["compiler"];
@@ -422,9 +428,10 @@ function getLatestRecordByCompiler(
         };
       }
 
-      if (r[timeFieldName] === latestBucket) {
+      if (r[fieldName] === latestId) {
         const suite = r["suite"];
         lastestRecordByCompiler[compiler][suite] = r[dataFieldName];
+        latestBucket = r.granularity_bucket;
       }
     });
   });
@@ -627,8 +634,6 @@ function generateChartSeries(
   stopTime: Dayjs,
   granularity: Granularity
 ) {
-  const timeFieldName = "granularity_bucket";
-
   const chartSeries: { [k: string]: any } = {};
   Object.keys(dataBySuite).forEach((key) => {
     chartSeries[key] = seriesWithInterpolatedTimes(
@@ -637,7 +642,7 @@ function generateChartSeries(
       stopTime,
       granularity,
       groupByFieldName,
-      timeFieldName,
+      TIME_FIELD_NAME,
       dataFieldName
     );
   });
