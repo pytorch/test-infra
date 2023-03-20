@@ -156,7 +156,6 @@ runs:
               --prefix "${CONDA_ENV}" \
               "python=${PYTHON_VERSION}" \
               cmake=3.22 \
-              numpy=1.23.4 \
               conda-build=3.21 \
               ninja=1.10 \
               pkg-config=0.29 \
