@@ -1,5 +1,5 @@
 import { Context, Probot } from "probot";
-import { CachedConfigTracker, isPyTorchPyTorch, repoKey } from "./utils";
+import { CachedConfigTracker, isPyTorchPyTorch } from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
