@@ -1598,13 +1598,6 @@
       "linux"
     ]
   ],
-  "test_schema_correctness_fft_fft_cuda_bool (__main__.TestSchemaCheckModeOpInfoCUDA)": [
-    "95749",
-    "https://github.com/pytorch/pytorch/issues/95749",
-    [
-      "linux"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
