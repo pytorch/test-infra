@@ -357,7 +357,8 @@
     "97194",
     "https://github.com/pytorch/pytorch/issues/97194",
     [
-      "macos"
+      "macos",
+      "mac"
     ]
   ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
