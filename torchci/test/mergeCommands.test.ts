@@ -329,10 +329,10 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
-  test("merge -g command on pull request triggers dispatch and like", async () => {
+  test("merge -ic command on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -g";
+    event.payload.comment.body = "@pytorchbot merge -ic";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -349,7 +349,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"ignore_current":true}}`
         );
         return true;
       })
@@ -601,7 +601,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -g -f '[MINOR] Fix lint'";
+    event.payload.comment.body = "@pytorchbot merge -ic -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -610,7 +610,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -g/--green"
+          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -ic/--ignore-current"
         );
         return true;
       })
@@ -624,7 +624,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options without force merge reason", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -g -f";
+    event.payload.comment.body = "@pytorchbot merge -ic -f";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -802,10 +802,10 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
-  test("merge on green using CLI", async () => {
+  test("merge with ignore current flag using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchmergebot merge -g";
+    event.payload.comment.body = "@pytorchmergebot merge -ic";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -822,7 +822,7 @@ describe("merge-bot", () => {
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"on_green":true}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"ignore_current":true}}`
         );
         return true;
       })
