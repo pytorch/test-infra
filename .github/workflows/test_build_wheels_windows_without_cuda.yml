@@ -9,7 +9,6 @@ on:
       - .github/workflows/generate_binary_build_matrix.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
-
 jobs:
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -35,7 +34,7 @@ jobs:
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: main
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}

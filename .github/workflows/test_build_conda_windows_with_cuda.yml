@@ -1,11 +1,11 @@
-name: Test Build Windows Wheels with CUDA
+name: Test Build Windows Conda with CUDA
 
 on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_wheels_windows_with_cuda.yml
-      - .github/workflows/build_wheels_windows.yml
+      - .github/workflows/test_build_conda_windows_with_cuda.yml
+      - .github/workflows/build_conda_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
@@ -14,7 +14,7 @@ jobs:
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
-      package-type: wheel
+      package-type: conda
       os: windows
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -31,7 +31,13 @@ jobs:
             post-script: ""
             smoke-test-script: ""
             package-name: torchaudio
-    uses: ./.github/workflows/build_wheels_windows.yml
+          # - repository: pytorch/vision
+          #   pre-script: packaging/pre_build_script.sh
+          #   env-script: packaging/windows/internal/vc_env_helper.bat
+          #   post-script: packaging/post_build_script.sh
+          #   smoke-test-script: test/smoke_test.py
+          #   package-name: torchvision
+    uses: ./.github/workflows/build_conda_windows.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
