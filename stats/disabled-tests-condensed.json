@@ -1615,6 +1615,13 @@
       "mac"
     ]
   ],
+  "test_sharded_embedding_colwise (__main__.TestEmbeddingOp)": [
+    "97242",
+    "https://github.com/pytorch/pytorch/issues/97242",
+    [
+      "linux"
+    ]
+  ],
   "test_shuffle (__main__.TestDataLoader2)": [
     "74390",
     "https://github.com/pytorch/pytorch/issues/74390",
