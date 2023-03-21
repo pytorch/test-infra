@@ -1,6 +1,6 @@
 name: Set Channel for Build Matrix Generation/Binary Build Step
 
-description: Add CHANNEL to GITHUB_ENV prior to matrix generation to handle nightly-specific behavior
+description: Add CHANNEL to GITHUB_ENV
 
 
 runs:
