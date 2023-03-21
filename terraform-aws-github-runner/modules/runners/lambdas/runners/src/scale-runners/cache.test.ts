@@ -221,7 +221,7 @@ describe('redisCached', () => {
 
     jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     mockedRedisPool.get.mockResolvedValueOnce(
-      `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`
+      `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`,
     );
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
@@ -243,7 +243,7 @@ describe('redisCached', () => {
     jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
     mockedRedisPool.get.mockResolvedValueOnce(
-      `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`
+      `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`,
     );
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
@@ -270,7 +270,7 @@ describe('redisCached', () => {
     jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.1);
 
     mockedRedisPool.get.mockResolvedValueOnce(
-      `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`
+      `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`,
     );
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
     mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
@@ -306,7 +306,6 @@ describe('redisCached', () => {
   });
 
   it('nothing on local and remote, but cant acquire lock, after retrying gets data from remote', async () => {
-    console.debug("************************************************************************************ BEGIN");
     const returnValue = 'TheReturn VALUE A';
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
@@ -317,7 +316,7 @@ describe('redisCached', () => {
     mockedRedisPool.get.mockResolvedValueOnce(undefined);
     mockedRedisPool.get.mockResolvedValueOnce('asdfasdfasdf');
     mockedRedisPool.get.mockResolvedValueOnce(
-      `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`
+      `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`,
     );
 
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
@@ -330,6 +329,5 @@ describe('redisCached', () => {
     expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
     expect(mockedRedisPool.get).toBeCalledWith('gh-ci.20230310191716.LOCK.namespace-key');
     expect(fn).toBeCalledTimes(0);
-    console.debug("************************************************************************************ END");
   });
 });
