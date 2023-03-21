@@ -2104,14 +2104,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_linalg_eigvals_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96888",
-    "https://github.com/pytorch/pytorch/issues/96888",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_linalg_inv_cpu_complex64 (__main__.TestJitCPU)": [
     "96914",
     "https://github.com/pytorch/pytorch/issues/96914",
@@ -2296,6 +2288,13 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
+    ]
+  ],
+  "test_vmapjvpvjp_linalg_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "97256",
+    "https://github.com/pytorch/pytorch/issues/97256",
+    [
+      "rocm"
     ]
   ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
