@@ -143,7 +143,7 @@ async function redisReleaseLock(lockKey: string, lockUUID: string) {
   try {
     await client.eval(script);
   } finally {
-    redisPool.pool.release(client);
+    await redisPool.pool.release(client);
   }
 }
 
@@ -155,7 +155,7 @@ export async function redisCached<T>(
   callback: () => Promise<T>,
   lockTimeoutS = 20,
 ): Promise<T> {
-  return locallyCached(nameSpace, key, ttlSec, async (): Promise<T> => {
+  return await locallyCached(nameSpace, key, ttlSec, async (): Promise<T> => {
     const queryKey = `${Config.Instance.environment}.CACHE.${nameSpace}-${key}`;
     const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
 
@@ -190,16 +190,20 @@ export async function redisCached<T>(
             ttl: Date.now() / 1000 + ttlSec,
             version: Config.Instance.datetimeDeploy,
           };
-          redisPool?.set(queryKey, JSON.stringify(newDt, mapReplacer), ttlSec * (1 + jitterPct));
+          await redisPool?.set(queryKey, JSON.stringify(newDt, mapReplacer), ttlSec * (1 + jitterPct));
           break;
         } finally {
-          redisReleaseLock(lockKey, lockUUID);
+          await redisReleaseLock(lockKey, lockUUID);
         }
       } else {
         console.debug('Failed to acquire redis lock...');
         for (let i = 0; i < lockTimeoutS; i++) {
-          if (redisPool?.get(lockKey)) {
+          const lockStatus: string | undefined | null = await redisPool?.get(lockKey);
+          if (lockStatus !== undefined && lockStatus !== null) {
+            console.debug(`redis lock is now available... ${lockStatus}`);
             break;
+          } else {
+            console.debug('redis lock is still in use...');
           }
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
