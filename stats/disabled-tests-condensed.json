@@ -1681,14 +1681,6 @@
       "linux"
     ]
   ],
-  "test_tensorboard_trace_handler (__main__.TestProfiler)": [
-    "82915",
-    "https://github.com/pytorch/pytorch/issues/82915",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_tensorpipe_set_default_timeout (__main__.TensorPipeTensorPipeAgentRpcTest)": [
     "70546",
     "https://github.com/pytorch/pytorch/issues/70546",
