@@ -30,17 +30,19 @@ const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
 const TIME_FIELD_NAME = "granularity_bucket";
 
+// After https://github.com/pytorch/pytorch/pull/96986, there is no perf data
+// for eager and aot_eager because they are not run anymore (not needed)
 export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
-  eager: "dynamo_eager",
-  aot_eager: "aot_eager",
-  inductor: "inductor_with_cudagraph",
+  // eager: "dynamo_eager",
+  // aot_eager: "aot_eager",
+  inductor: "inductor_with_cudagraphs",
   inductor_no_cudagraphs: "inductor_default",
-  inductor_with_cudagraph: "inductor_with_cudagraph",
+  inductor_with_cudagraphs: "inductor_with_cudagraphs",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
-  dynamo_eager: "eager",
-  aot_eager: "aot_eager",
-  inductor_with_cudagraph: "inductor",
+  // dynamo_eager: "eager",
+  // aot_eager: "aot_eager",
+  inductor_with_cudagraphs: "inductor_with_cudagraphs",
   inductor_default: "inductor_no_cudagraphs",
 };
 export const SUITES: { [k: string]: string } = {
