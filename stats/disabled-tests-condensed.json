@@ -777,6 +777,13 @@
       "linux"
     ]
   ],
+  "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94216",
+    "https://github.com/pytorch/pytorch/issues/94216",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93044",
     "https://github.com/pytorch/pytorch/issues/93044",
