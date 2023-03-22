@@ -205,6 +205,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
           ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+    retry:
+      max-runs: 2
+      when:
+        job-status: failed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
