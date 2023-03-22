@@ -58,26 +58,6 @@ runs:
           echo "${{ github.event.ref }}"
           echo "${{ github.ref }}"
           echo "${{ github.base_ref }}"
-      - name: Set default CHANNEL
-        shell: bash -l {0}
-        run: |
-          echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
-      - name: Set CHANNEL for tagged pushes
-        if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/') }}
-        shell: bash -l {0}
-        run: |
-          # Use GITHUB_EVENT_NAME or trigger-event above?
-          set -euxo pipefail
-          # reference ends with an RC suffix
-          if [[ ${GITHUB_REF_NAME} = *-rc[0-9]* ]]; then
-            echo "CHANNEL=test" >> "${GITHUB_ENV}"
-          fi
-      - name: Set Release CHANNEL for release
-        if: ${{ (github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release') }}
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          echo "CHANNEL=test" >> "$GITHUB_ENV"
       - name: Set artifact name
         shell: bash -l {0}
         env:
