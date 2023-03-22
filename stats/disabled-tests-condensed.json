@@ -2089,14 +2089,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_linalg_eigvals_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96888",
-    "https://github.com/pytorch/pytorch/issues/96888",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_linalg_inv_cpu_complex64 (__main__.TestJitCPU)": [
     "96914",
     "https://github.com/pytorch/pytorch/issues/96914",
@@ -2286,6 +2278,13 @@
   "test_vmapjvpvjp_linalg_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "97256",
     "https://github.com/pytorch/pytorch/issues/97256",
+    [
+      "rocm"
+    ]
+  ],
+  "test_vmapjvpvjp_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "97366",
+    "https://github.com/pytorch/pytorch/issues/97366",
     [
       "rocm"
     ]
