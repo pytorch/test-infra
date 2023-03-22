@@ -79,7 +79,7 @@ export async function locallyCached<T>(
   callback: () => Promise<T>,
 ): Promise<T> {
   if (!localCache.has(nameSpace)) {
-    localCache.set(nameSpace, new LRU({ maxAge: ttlSec * 0.2 * 1000 }));
+    localCache.set(nameSpace, new LRU({ maxAge: ttlSec * 0.3 * 1000 }));
   }
   let cached: T | undefined | null = undefined;
 
@@ -95,6 +95,7 @@ export async function locallyCached<T>(
     // the double check is just a optimization, avoiding the overhead of acquiring lock when there is no need
     // the second check, inside the runExclusive must be performed to avoid race conditions
     if (!localLocks.get(nameSpace)?.has(key)) {
+      console.debug(`Getting local mutex for localLocksMutex`);
       await localLocksMutex.runExclusive(async () => {
         if (!localLocks.has(nameSpace)) {
           localLocks.set(nameSpace, new Map());
@@ -103,20 +104,27 @@ export async function locallyCached<T>(
           localLocks.get(nameSpace)?.set(key, new Mutex());
         }
       });
+      console.debug(`Released local mutex for localLocksMutex`);
     }
 
     const mutex = localLocks.get(nameSpace)?.get(key) as Mutex;
     try {
+      console.debug(`Starting tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
       await tryAcquire(mutex).runExclusive(async () => {
         cached = await callback();
         localCache.get(nameSpace)?.set(key, cached);
         tryGetLocalOrLock = false;
       });
+      console.debug(`Successfully tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
     } catch (e) {
       if (e !== E_ALREADY_LOCKED) {
+        console.warn(`unknown exception for tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
         throw e;
       } else {
-        console.debug('could not get local lock, waiting for unlock and get data from cache...');
+        console.debug(
+          `could not get local lock, waiting for unlock and get data from cache... ` +
+            `mutex.waitForUnlock() for ${nameSpace} ${key}`,
+        );
         await mutex.waitForUnlock();
       }
     }
@@ -127,10 +135,13 @@ export async function locallyCached<T>(
 
 async function redisAcquireLock(lockKey: string, ttlS: number): Promise<string | undefined> {
   const uid = uuidv4();
+  console.debug(`Trying to acquire Redis lock ${lockKey}`);
   const result = await redisPool?.sendCommand('SET', [lockKey, uid, 'NX', 'PX', `${(ttlS * 1000).toFixed()}`]);
   if (result !== 'OK') {
+    console.debug(`Redis lock ${lockKey} - not acquired`);
     return undefined;
   }
+  console.debug(`Redis lock ${lockKey} - acquired with id ${uid}`);
   return uid;
 }
 
@@ -139,11 +150,20 @@ async function redisReleaseLock(lockKey: string, lockUUID: string) {
   const script =
     `if redis.call("get","${lockKey}") == "${lockUUID}" ` +
     `then return redis.call("del","${lockKey}") else return 0 end`;
+  console.debug('Calling redisPool.pool.acquire()');
   const client = await redisPool.pool.acquire();
+  console.debug('Called redisPool.pool.acquire()');
   try {
-    await client.eval(script);
+    console.debug(`Trying to release Redis lock ${lockKey} with ${lockUUID}`);
+    const lockReleaseResponse = await client.eval(script);
+    if (!lockReleaseResponse) {
+      throw new Error(`Could not release Redis lock ${lockKey} with ${lockUUID} - Received "${lockReleaseResponse}"`);
+    }
+    console.debug(`Redis lock ${lockKey} with ${lockUUID} - released`);
   } finally {
+    console.debug('Calling redisPool.pool.release()');
     await redisPool.pool.release(client);
+    console.debug('Called redisPool.pool.release()');
   }
 }
 
@@ -191,6 +211,7 @@ export async function redisCached<T>(
             version: Config.Instance.datetimeDeploy,
           };
           await redisPool?.set(queryKey, JSON.stringify(newDt, mapReplacer), ttlSec * (1 + jitterPct));
+          console.debug(`Registered query response in Redis for ${queryKey}`);
           break;
         } finally {
           await redisReleaseLock(lockKey, lockUUID);

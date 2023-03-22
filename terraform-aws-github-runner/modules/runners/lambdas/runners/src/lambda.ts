@@ -50,6 +50,9 @@ async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean]>, metrics: 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleUp(event: SQSEvent, context: Context, callback: any) {
+  // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
+  context.callbackWaitsForEmptyEventLoop = false;
+
   let success = false;
   const metrics = new ScaleUpMetrics();
 
@@ -118,17 +121,20 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
     } catch (e) {
       console.error(`Error sending metrics: ${e}`);
     }
+  }
 
-    if (success) {
-      callback(null);
-    } else {
-      callback('Failed handling SQS event');
-    }
+  if (success) {
+    callback(null);
+  } else {
+    callback('Failed handling SQS event');
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleDown(event: ScheduledEvent, context: Context, callback: any) {
+  // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
+  context.callbackWaitsForEmptyEventLoop = false;
+
   try {
     await scaleDownR();
     return callback(null);
