@@ -1,1 +1,10 @@
-{}
+{
+  "pull / linux-bionic-cpu-py3.10-gcc7-bazel-test / build-and-test": [
+    "huydhn",
+    "97411",
+    "https://github.com/pytorch/pytorch/issues/97411",
+    "pull",
+    "linux-bionic-cpu-py3.10-gcc7-bazel-test",
+    "build-and-test"
+  ]
+}
