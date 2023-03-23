@@ -641,27 +641,6 @@
       "linux"
     ]
   ],
-  "test_dlpack_conversion_with_streams_cuda_float16 (__main__.TestTorchDlPackCUDA)": [
-    "96392",
-    "https://github.com/pytorch/pytorch/issues/96392",
-    [
-      "linux"
-    ]
-  ],
-  "test_dlpack_conversion_with_streams_cuda_int16 (__main__.TestTorchDlPackCUDA)": [
-    "96394",
-    "https://github.com/pytorch/pytorch/issues/96394",
-    [
-      "linux"
-    ]
-  ],
-  "test_dlpack_conversion_with_streams_cuda_int8 (__main__.TestTorchDlPackCUDA)": [
-    "96393",
-    "https://github.com/pytorch/pytorch/issues/96393",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_empty_like_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "93844",
     "https://github.com/pytorch/pytorch/issues/93844",
