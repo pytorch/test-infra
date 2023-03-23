@@ -274,6 +274,13 @@
     "https://github.com/pytorch/pytorch/issues/71349",
     []
   ],
+  "test_checkpoint_trigger (__main__.TestCheckpoint)": [
+    "97402",
+    "https://github.com/pytorch/pytorch/issues/97402",
+    [
+      "dynamo"
+    ]
+  ],
   "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
     "79510",
     "https://github.com/pytorch/pytorch/issues/79510",
