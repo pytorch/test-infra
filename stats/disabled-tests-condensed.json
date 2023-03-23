@@ -2016,6 +2016,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_diagonal_scatter_cuda_float32 (__main__.TestJitCUDA)": [
+    "96912",
+    "https://github.com/pytorch/pytorch/issues/96912",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_diff_cpu_complex64 (__main__.TestJitCPU)": [
     "96916",
     "https://github.com/pytorch/pytorch/issues/96916",
