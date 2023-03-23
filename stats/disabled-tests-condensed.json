@@ -1676,14 +1676,6 @@
       "linux"
     ]
   ],
-  "test_tensorboard_trace_handler (__main__.TestProfiler)": [
-    "82915",
-    "https://github.com/pytorch/pytorch/issues/82915",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_tensorpipe_set_default_timeout (__main__.TensorPipeTensorPipeAgentRpcTest)": [
     "70546",
     "https://github.com/pytorch/pytorch/issues/70546",
@@ -2157,14 +2149,6 @@
   "test_variant_consistency_jit_linalg_lu_solve_cuda_float32 (__main__.TestJitCUDA)": [
     "96918",
     "https://github.com/pytorch/pytorch/issues/96918",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_matrix_power_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96889",
-    "https://github.com/pytorch/pytorch/issues/96889",
     [
       "win",
       "windows"
