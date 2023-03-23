@@ -33,7 +33,7 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
         List of commit hashes
     """
     lines = run_command(
-        "git log --date=short --pretty=format:" '%h;"%an";%ad;"%s"' " --shortstat",
+        'git log --date=short --pretty=format:%h;"%an";%ad;"%s" --shortstat',
         cwd=cwd,
     ).split("\n")
 
