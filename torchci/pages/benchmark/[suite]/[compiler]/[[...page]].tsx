@@ -22,7 +22,7 @@ import {
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import GranularityPicker from "components/GranularityPicker";
 import { TimeRangePicker } from "../../../metrics";
-import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "../../compilers";
+import { COMPILER_NAMES_TO_DISPLAY_NAMES, DTypePicker } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
@@ -361,6 +361,7 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [dtypes, setDTypes] = useState<string>("amp");
 
   if (suite === undefined || compiler === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -397,6 +398,11 @@ export default function Page() {
       type: "string",
       value: compiler,
     },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtypes,
+    },
   ];
 
   return (
@@ -417,6 +423,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
       </Stack>
 
       <Grid item xs={12}>

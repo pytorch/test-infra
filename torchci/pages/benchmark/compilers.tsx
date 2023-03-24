@@ -3,7 +3,18 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Grid,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
+} from "@mui/material";
 import {
   GridValueFormatterParams,
   GridCellParams,
@@ -441,6 +452,35 @@ function getLatestRecordByCompiler(
   return [lastestRecordByCompiler, latestBucket];
 }
 
+export function DTypePicker({
+  dtypes,
+  setDTypes,
+}: {
+  dtypes: string;
+  setDTypes: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setDTypes(e.target.value);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="dtypes-picker-select-label">Precision</InputLabel>
+        <Select
+          defaultValue={dtypes}
+          label="Precision"
+          labelId="dtypes-picker-select-label"
+          onChange={handleChange}
+        >
+          <MenuItem value={"amp"}>amp</MenuItem>
+          <MenuItem value={"float32"}>float32</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
 function SummaryPanel({
   passrateBySuite,
   geomeanBySuite,
@@ -867,6 +907,7 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [dtypes, setDTypes] = useState<string>("amp");
 
   const queryParams: RocksetParam[] = [
     {
@@ -894,6 +935,11 @@ export default function Page() {
       type: "string",
       value: Object.keys(COMPILER_NAMES_TO_DISPLAY_NAMES).join(","),
     },
+    {
+      name: "dtypes",
+      type: "string",
+      value: dtypes,
+    },
   ];
 
   return (
@@ -913,6 +959,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
       </Stack>
 
       <Grid item xs={12}>
