@@ -76,11 +76,13 @@ function selectRecordsByIndex(data: any, index: number) {
 function ModelsPanel({
   suite,
   compiler,
+  dtypes,
   modelName,
   records,
 }: {
   suite: string;
   compiler: string;
+  dtypes: string;
   modelName: string;
   records: any;
 }) {
@@ -107,7 +109,7 @@ function ModelsPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?modelName=${encodedName}`;
+                const url = `/benchmark/${suite}/${compiler}?modelName=${encodedName}&dtypes=${dtypes}`;
                 return <a href={url}>{name}</a>;
               },
             },
@@ -284,12 +286,14 @@ function GraphPanel({
 function Report({
   suite,
   compiler,
+  dtypes,
   modelName,
   queryParams,
   granularity,
 }: {
   suite: string;
   compiler: string;
+  dtypes: string;
   modelName: string;
   queryParams: RocksetParam[];
   granularity: Granularity;
@@ -343,6 +347,7 @@ function Report({
       <ModelsPanel
         suite={suite}
         compiler={compiler}
+        dtypes={dtypes}
         modelName={modelName}
         records={selectRecords}
       />
@@ -438,6 +443,7 @@ export default function Page() {
         <Report
           suite={suite}
           compiler={compiler}
+          dtypes={dtypes}
           modelName={modelName}
           queryParams={queryParams}
           granularity={granularity}
