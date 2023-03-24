@@ -25,7 +25,7 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            pre-script: ""
+            pre-script: packaging/ffmpeg/build.bat
             env-script: packaging/vc_env_helper.bat
             wheel-build-params: "--plat-name win_amd64"
             post-script: ""
