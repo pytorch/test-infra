@@ -219,6 +219,14 @@
       "macos"
     ]
   ],
+  "test_block_addmv_block_size_3_int32_noncontiguous_True_cpu_complex128 (__main__.TestSparseCSRCPU)": [
+    "97563",
+    "https://github.com/pytorch/pytorch/issues/97563",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -1029,6 +1037,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95148",
+    "https://github.com/pytorch/pytorch/issues/95148",
+    [
+      "linux"
     ]
   ],
   "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
