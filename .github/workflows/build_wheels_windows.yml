@@ -98,6 +98,7 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
+      - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}

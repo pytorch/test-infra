@@ -93,6 +93,7 @@ jobs:
           path: test-infra
       - name: Set env variable for architecture name
         run: echo "ARCH_NAME=$(uname -m)" >> "${GITHUB_ENV}"
+      - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
