@@ -1096,6 +1096,11 @@
       "rocm"
     ]
   ],
+  "test_memory_snapshot (__main__.TestCudaComm)": [
+    "97560",
+    "https://github.com/pytorch/pytorch/issues/97560",
+    []
+  ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
