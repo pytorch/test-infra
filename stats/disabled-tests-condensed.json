@@ -749,13 +749,6 @@
       "linux"
     ]
   ],
-  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95147",
-    "https://github.com/pytorch/pytorch/issues/95147",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94216",
     "https://github.com/pytorch/pytorch/issues/94216",
@@ -1287,13 +1280,6 @@
       "linux"
     ]
   ],
-  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
-    "93325",
-    "https://github.com/pytorch/pytorch/issues/93325",
-    [
-      "linux"
-    ]
-  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
@@ -1666,6 +1652,8 @@
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
     [
+      "mac",
+      "macos",
       "win",
       "windows"
     ]
