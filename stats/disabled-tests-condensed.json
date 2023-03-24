@@ -2081,14 +2081,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_linalg_eigvals_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96888",
-    "https://github.com/pytorch/pytorch/issues/96888",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_linalg_inv_cpu_complex64 (__main__.TestJitCPU)": [
     "96914",
     "https://github.com/pytorch/pytorch/issues/96914",
