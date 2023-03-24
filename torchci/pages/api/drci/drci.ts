@@ -38,17 +38,21 @@ export default async function handler(
     res: NextApiResponse<void>
 ) {
     const authorization = req.headers.authorization;
+
     if (authorization === process.env.DRCI_BOT_KEY) {
-        const { prNumber } = req.query;
-        const octokit = await getOctokit(OWNER, REPO);
-        updateDrciComments(octokit, prNumber as string);
+        const { prNumber, repo } = req.query;
+        const octokit = await getOctokit(OWNER, repo);
+
+        updateDrciComments(octokit, prNumber as string, repo);
+
         res.status(200).end();
     }
     res.status(403).end();
 }
 
-export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
+export async function updateDrciComments(octokit: Octokit, prNumber?: string, repo: string) {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
+        repo,
         prNumber,
         NUM_MINUTES + ""
     );
@@ -80,12 +84,12 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
       const comment = formDrciComment(
         pr_info.pr_number,
         OWNER,
-        REPO,
+        repo,
         failureInfo,
         formDrciSevBody(sevs)
       );
 
-      await updateCommentWithWorkflow(octokit, pr_info, comment);
+      await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
     });
 }
 
@@ -152,7 +156,7 @@ function constructResultsJobsSections(
   let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary>`;
 
   if (suggestion) {
-    output += `<p>👉 <b>${suggestion}</b></p>`
+    output += <p>👉 <b>${suggestion}</b></p>"
   }
 
   output += "<p>\n\n" // Two newlines are needed for bullts below to be formattec correctly
@@ -200,8 +204,7 @@ export function constructResultsComment(
 
         output += `\nAs of commit ${sha}:`;
         output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
-    }
-    else {
+    } else {
         output += someFailing;
         if (hasPending) {
             output += somePending;
@@ -319,9 +322,10 @@ export async function updateCommentWithWorkflow(
     octokit: Octokit,
     pr_info: PRandJobs,
     comment: string,
+    repo: string,
 ): Promise<void> {
     const { pr_number } = pr_info;
-    const { id, body } = await getDrciComment(octokit, OWNER, REPO, pr_number!);
+    const { id, body } = await getDrciComment(octokit, OWNER, repo, pr_number!);
 
     if (id === 0 || body === comment) {
         return;
@@ -330,7 +334,7 @@ export async function updateCommentWithWorkflow(
     await octokit.rest.issues.updateComment({
         body: comment,
         owner: OWNER,
-        repo: REPO,
+        repo: repo,
         comment_id: id,
     });
 }

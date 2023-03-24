@@ -4,6 +4,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 import { RecentWorkflowsData } from "./types";
 
 export async function fetchRecentWorkflows(
+  repo: string = "pytorch",
   prNumber: string = "0",
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
@@ -23,6 +24,11 @@ export async function fetchRecentWorkflows(
           name: "prNumber",
           type: "int",
           value: prNumber,
+        },
+        {
+          name: "repo",
+          type: "string",
+          value: repo,
         },
       ],
     }
