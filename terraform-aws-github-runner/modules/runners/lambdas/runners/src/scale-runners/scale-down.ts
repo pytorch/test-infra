@@ -29,7 +29,7 @@ export async function scaleDown(): Promise<void> {
   try {
     // Ensure a clean cache before attempting each scale down event
     resetRunnersCaches();
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     resetSecretCache();
 
     metrics.run();

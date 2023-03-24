@@ -2,8 +2,7 @@ import { locallyCached, redisCached, clearLocalCache, shutdownRedisPool } from '
 import { mocked } from 'ts-jest/utils';
 import { v4 as uuidv4 } from 'uuid';
 import nock from 'nock';
-import redisPoolFactory from 'redis-connection-pool';
-import { RedisConnectionPool } from 'redis-connection-pool';
+import { RedisClientType, createClient } from 'redis';
 import { Config } from './config';
 
 jest.mock('uuid', () => ({
@@ -11,22 +10,18 @@ jest.mock('uuid', () => ({
 }));
 
 const mockedRedisClient = {
-  eval: jest.fn(),
-};
-const mockedRedisPool = {
   get: jest.fn(),
   set: jest.fn(),
   sendCommand: jest.fn(),
-  pool: {
-    acquire: jest.fn(),
-    release: jest.fn(),
-  },
+  eval: jest.fn(),
+  on: jest.fn(),
+  connect: jest.fn(),
 };
 
-function produceMockedRedisPool() {
+function produceMockedRedis(): RedisClientType {
   mockedRedisClient.eval.mockResolvedValue('OK');
-  mockedRedisPool.pool.acquire.mockResolvedValue(mockedRedisClient);
-  return mockedRedisPool;
+  mockedRedisClient.set.mockResolvedValue('OK');
+  return mockedRedisClient as unknown as RedisClientType;
 }
 
 const config = {
@@ -34,7 +29,7 @@ const config = {
   environment: 'gh-ci',
 };
 
-jest.mock('redis-connection-pool');
+jest.mock('redis');
 
 beforeEach(() => {
   jest.resetModules();
@@ -43,7 +38,7 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
-  mocked(redisPoolFactory).mockResolvedValue(produceMockedRedisPool() as unknown as RedisConnectionPool);
+  mocked(createClient).mockImplementation(produceMockedRedis);
 
   jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
 });
@@ -147,31 +142,30 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
 
     jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
-    mockedRedisPool.get.mockResolvedValueOnce(undefined);
+    mockedRedisClient.get.mockResolvedValueOnce(undefined);
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
 
     await expect(redisCached('namespace', 'key', 0.5, 1.0, fn)).rejects.toThrow(rejectMsg);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+    expect(mockedRedisClient.get).toBeCalledTimes(1);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
+      'SET',
       'gh-ci.20230310191716.LOCK.namespace-key',
       uuid,
       'NX',
       'PX',
       '20000',
     ]);
-    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledWith(
       `if redis.call("get","gh-ci.20230310191716.LOCK.namespace-key") == "${uuid}" then ` +
         `return redis.call("del","gh-ci.20230310191716.LOCK.namespace-key") else return 0 end`,
     );
-    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
-    expect(mockedRedisPool.set).toBeCalledTimes(0);
+    expect(mockedRedisClient.set).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(1);
   });
 
@@ -180,37 +174,36 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
-    mockedRedisPool.get.mockResolvedValueOnce(undefined);
+    jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
+    mockedRedisClient.get.mockResolvedValueOnce(undefined);
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
-    mockedRedisPool.set.mockResolvedValueOnce('OK');
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.set.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+    expect(mockedRedisClient.get).toBeCalledTimes(1);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
+      'SET',
       'gh-ci.20230310191716.LOCK.namespace-key',
       uuid,
       'NX',
       'PX',
       '20000',
     ]);
-    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledWith(
       `if redis.call("get","gh-ci.20230310191716.LOCK.namespace-key") == "${uuid}" then ` +
         `return redis.call("del","gh-ci.20230310191716.LOCK.namespace-key") else return 0 end`,
     );
-    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
-    expect(mockedRedisPool.set).toBeCalledTimes(1);
-    expect(mockedRedisPool.set).toBeCalledWith(
+    expect(mockedRedisClient.set).toBeCalledTimes(1);
+    expect(mockedRedisClient.set).toBeCalledWith(
       'gh-ci.CACHE.namespace-key',
       `{"data":"${returnValue}","ttl":1561806118.635,"version":"20230310191716"}`,
-      1,
+      { EX: 1 },
     );
     expect(fn).toBeCalledTimes(1);
   });
@@ -219,19 +212,17 @@ describe('redisCached', () => {
     const returnValue = 'TheReturn VALUE A';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
-    mockedRedisPool.get.mockResolvedValueOnce(
+    jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
+    mockedRedisClient.get.mockResolvedValueOnce(
       `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`,
     );
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.set).toBeCalledTimes(0);
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(0);
-    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(0);
-    expect(mockedRedisPool.pool.release).toBeCalledTimes(0);
+    expect(mockedRedisClient.get).toBeCalledTimes(1);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.set).toBeCalledTimes(0);
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(0);
     expect(mockedRedisClient.eval).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(0);
   });
@@ -240,20 +231,18 @@ describe('redisCached', () => {
     const returnValue = 'TheReturn VALUE A';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
+    jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
     jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
-    mockedRedisPool.get.mockResolvedValueOnce(
+    mockedRedisClient.get.mockResolvedValueOnce(
       `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`,
     );
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.set).toBeCalledTimes(0);
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(0);
-    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(0);
-    expect(mockedRedisPool.pool.release).toBeCalledTimes(0);
+    expect(mockedRedisClient.get).toBeCalledTimes(1);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.set).toBeCalledTimes(0);
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(0);
     expect(mockedRedisClient.eval).toBeCalledTimes(0);
     expect(fn).toBeCalledTimes(0);
   });
@@ -263,45 +252,35 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest
-      .spyOn(global.Date, 'now')
-      .mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf())
-      .mockImplementationOnce(() => new Date('2019-06-29T11:01:59.135Z').valueOf());
     jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.1);
 
-    mockedRedisPool.get.mockResolvedValueOnce(
+    mockedRedisClient.get.mockResolvedValueOnce(
       `{"data":"${returnValue}","ttl":1561806117.9,"version":"20230310191716"}`,
     );
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
-    mockedRedisPool.set.mockResolvedValueOnce('OK');
-    mockedRedisPool.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
+    mockedRedisClient.set.mockResolvedValueOnce('OK');
+    mockedRedisClient.sendCommand.mockResolvedValueOnce('OK');
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(1);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.sendCommand).toBeCalledTimes(1);
-    expect(mockedRedisPool.sendCommand).toHaveBeenCalledWith('SET', [
+    expect(mockedRedisClient.get).toBeCalledTimes(1);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.sendCommand).toBeCalledTimes(1);
+    expect(mockedRedisClient.sendCommand).toHaveBeenCalledWith([
+      'SET',
       'gh-ci.20230310191716.LOCK.namespace-key',
       uuid,
       'NX',
       'PX',
       '20000',
     ]);
-    expect(mockedRedisPool.pool.acquire).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledTimes(1);
     expect(mockedRedisClient.eval).toBeCalledWith(
       `if redis.call("get","gh-ci.20230310191716.LOCK.namespace-key") == "${uuid}" then ` +
         `return redis.call("del","gh-ci.20230310191716.LOCK.namespace-key") else return 0 end`,
     );
-    expect(mockedRedisPool.pool.release).toBeCalledTimes(1);
-    expect(mockedRedisPool.set).toBeCalledTimes(1);
-    expect(mockedRedisPool.set).toBeCalledWith(
-      'gh-ci.CACHE.namespace-key',
-      `{"data":"${returnValue}","ttl":1561806119.635,"version":"20230310191716"}`,
-      1,
-    );
+    expect(mockedRedisClient.set).toBeCalledTimes(1);
     expect(fn).toBeCalledTimes(1);
   });
 
@@ -310,24 +289,24 @@ describe('redisCached', () => {
     const uuid = 'AGDGADUWG113';
     const fn = jest.fn().mockResolvedValue(returnValue);
 
-    jest.spyOn(global.Date, 'now').mockImplementationOnce(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
-    mockedRedisPool.get.mockResolvedValueOnce(undefined);
-    mockedRedisPool.get.mockResolvedValueOnce(undefined);
-    mockedRedisPool.get.mockResolvedValueOnce(undefined);
-    mockedRedisPool.get.mockResolvedValueOnce('asdfasdfasdf');
-    mockedRedisPool.get.mockResolvedValueOnce(
+    jest.spyOn(global.Date, 'now').mockImplementation(() => new Date('2019-06-29T11:01:58.135Z').valueOf());
+    mockedRedisClient.get.mockResolvedValueOnce(undefined);
+    mockedRedisClient.get.mockResolvedValueOnce(undefined);
+    mockedRedisClient.get.mockResolvedValueOnce(undefined);
+    mockedRedisClient.get.mockResolvedValueOnce('asdfasdfasdf');
+    mockedRedisClient.get.mockResolvedValueOnce(
       `{"data":"${returnValue}","ttl":1561806218.635,"version":"20230310191716"}`,
     );
 
     (uuidv4 as jest.Mock).mockReturnValue(uuid);
 
-    mockedRedisPool.sendCommand.mockResolvedValueOnce(undefined);
+    mockedRedisClient.sendCommand.mockResolvedValueOnce(undefined);
 
     expect(await redisCached('namespace', 'key', 0.5, 1.0, fn)).toEqual(returnValue);
 
-    expect(mockedRedisPool.get).toBeCalledTimes(5);
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
-    expect(mockedRedisPool.get).toBeCalledWith('gh-ci.20230310191716.LOCK.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledTimes(5);
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.CACHE.namespace-key');
+    expect(mockedRedisClient.get).toBeCalledWith('gh-ci.20230310191716.LOCK.namespace-key');
     expect(fn).toBeCalledTimes(0);
   });
 });

@@ -1,10 +1,11 @@
+import { Mutex } from 'async-mutex';
+import { Pool, createPool } from 'generic-pool';
+import { RedisClientType, createClient } from 'redis';
+import { mapReplacer, mapReviver } from './utils';
+
 import { Config } from './config';
 import LRU from 'lru-cache';
-import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
-import { RedisConnectionPool } from 'redis-connection-pool';
 import { v4 as uuidv4 } from 'uuid';
-import redisPoolFactory from 'redis-connection-pool';
-import { mapReviver, mapReplacer } from './utils';
 
 interface RedisStore {
   ttl: number;
@@ -12,7 +13,7 @@ interface RedisStore {
   version?: string;
 }
 
-let redisPool: RedisConnectionPool | undefined = undefined;
+let redisPool: Pool<RedisClientType> | undefined = undefined;
 
 const localLocksMutex = new Mutex();
 
@@ -21,10 +22,11 @@ const localLocks = new Map<string, Map<string, Mutex>>();
 
 export async function shutdownRedisPool() {
   if (redisPool !== undefined) {
-    console.info('Shutdown redis pool');
-
     try {
-      await redisPool.shutdown();
+      console.info('Draining redis pool');
+      await redisPool.drain();
+      console.info('Shutdown redis pool');
+      await redisPool.clear();
     } catch (e) {
       console.error(`Error shutting down reddis pool ${e}`);
     }
@@ -50,12 +52,34 @@ async function onSigterm() {
 async function startupRedisPool() {
   if (redisPool === undefined) {
     console.info('Starting up redis pool');
-    redisPool = await redisPoolFactory('scaleRunnersCache', {
-      max_clients: 5,
-      redis: {
-        url: `redis://${Config.Instance.redisEndpoint}:6379`,
+    redisPool = createPool(
+      {
+        create: async () => {
+          console.debug('Creating redis client');
+          const client = createClient({
+            url: `redis://${Config.Instance.redisEndpoint}:6379`,
+          });
+          client.on('error', (err) => {
+            throw new Error(err);
+          });
+          client.on('ready', () => {
+            console.debug('Redis client ready');
+          });
+          console.debug('Redis client connecting');
+          await client.connect();
+          console.debug('Redis client connected');
+          return client as RedisClientType;
+        },
+        destroy: async (client) => {
+          console.debug('Redis client destroy');
+          await client.quit();
+        },
       },
-    });
+      {
+        max: 5,
+        min: 1,
+      },
+    );
 
     console.info('Setting up shutdown for redis pool');
     process.on('SIGTERM', onSigterm);
@@ -79,7 +103,7 @@ export async function locallyCached<T>(
   callback: () => Promise<T>,
 ): Promise<T> {
   if (!localCache.has(nameSpace)) {
-    localCache.set(nameSpace, new LRU({ maxAge: ttlSec * 0.3 * 1000 }));
+    localCache.set(nameSpace, new LRU({ maxAge: ttlSec * 1000 }));
   }
   let cached: T | undefined | null = undefined;
 
@@ -108,25 +132,20 @@ export async function locallyCached<T>(
     }
 
     const mutex = localLocks.get(nameSpace)?.get(key) as Mutex;
-    try {
-      console.debug(`Starting tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
-      await tryAcquire(mutex).runExclusive(async () => {
+    if (mutex.isLocked()) {
+      console.debug(
+        `could not get local lock, waiting for unlock and get data from cache... ` +
+          `mutex.waitForUnlock() for ${nameSpace} ${key}`,
+      );
+      await mutex.waitForUnlock();
+    } else {
+      await mutex.runExclusive(async () => {
+        console.debug(`Obtained mutex.runExclusive for ${nameSpace} ${key}`);
         cached = await callback();
         localCache.get(nameSpace)?.set(key, cached);
         tryGetLocalOrLock = false;
       });
-      console.debug(`Successfully tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
-    } catch (e) {
-      if (e !== E_ALREADY_LOCKED) {
-        console.warn(`unknown exception for tryAcquire(mutex).runExclusive for ${nameSpace} ${key}`);
-        throw e;
-      } else {
-        console.debug(
-          `could not get local lock, waiting for unlock and get data from cache... ` +
-            `mutex.waitForUnlock() for ${nameSpace} ${key}`,
-        );
-        await mutex.waitForUnlock();
-      }
+      console.debug(`Successfully mutex.runExclusive for ${nameSpace} ${key}`);
     }
   }
 
@@ -134,36 +153,66 @@ export async function locallyCached<T>(
 }
 
 async function redisAcquireLock(lockKey: string, ttlS: number): Promise<string | undefined> {
+  if (!redisPool) throw Error('Redis should be initialized!');
+
   const uid = uuidv4();
-  console.debug(`Trying to acquire Redis lock ${lockKey}`);
-  const result = await redisPool?.sendCommand('SET', [lockKey, uid, 'NX', 'PX', `${(ttlS * 1000).toFixed()}`]);
+
+  const result = await redisPool.use(async (client: RedisClientType) => {
+    return await client.sendCommand(['SET', lockKey, uid, 'NX', 'PX', `${(ttlS * 1000).toFixed()}`]);
+  });
+
   if (result !== 'OK') {
     console.debug(`Redis lock ${lockKey} - not acquired`);
     return undefined;
   }
+
   console.debug(`Redis lock ${lockKey} - acquired with id ${uid}`);
   return uid;
 }
 
 async function redisReleaseLock(lockKey: string, lockUUID: string) {
-  if (!redisPool) return;
+  if (!redisPool) throw Error('Redis should be initialized!');
+
   const script =
     `if redis.call("get","${lockKey}") == "${lockUUID}" ` +
     `then return redis.call("del","${lockKey}") else return 0 end`;
-  console.debug('Calling redisPool.pool.acquire()');
-  const client = await redisPool.pool.acquire();
-  console.debug('Called redisPool.pool.acquire()');
+
+  const lockReleaseResponse = await redisPool.use(async (client: RedisClientType) => {
+    return await client.eval(script);
+  });
+
+  if (!lockReleaseResponse) {
+    throw new Error(`Could not release Redis lock ${lockKey} with ${lockUUID} - Received "${lockReleaseResponse}"`);
+  }
+}
+
+export async function redisClearCacheKeyPattern(namespace: string, key: string) {
+  const queryKey = `${Config.Instance.environment}.CACHE.${namespace}-${key}`;
+
+  await startupRedisPool();
+  if (!redisPool) throw Error('Redis should be initialized!');
+
+  console.warn(`Cleaning Redis Cache for pattern ${queryKey}`);
+  const client = await redisPool.acquire();
+  console.debug(`Cleaning Redis Cache for pattern ${queryKey} - acquired client`);
   try {
-    console.debug(`Trying to release Redis lock ${lockKey} with ${lockUUID}`);
-    const lockReleaseResponse = await client.eval(script);
-    if (!lockReleaseResponse) {
-      throw new Error(`Could not release Redis lock ${lockKey} with ${lockUUID} - Received "${lockReleaseResponse}"`);
+    const keys = [];
+    console.debug(`Cleaning Redis Cache for pattern ${queryKey} - running SCAN`);
+    for await (const key of client.scanIterator({ MATCH: `${queryKey}*`, COUNT: 1000 })) {
+      keys.push(key);
     }
-    console.debug(`Redis lock ${lockKey} with ${lockUUID} - released`);
-  } finally {
-    console.debug('Calling redisPool.pool.release()');
-    await redisPool.pool.release(client);
-    console.debug('Called redisPool.pool.release()');
+
+    console.debug(`Cleaning Redis Cache for pattern ${queryKey} - found ${keys.length} keys to cleanup`);
+
+    for (const key of keys) {
+      await client.sendCommand(['UNLINK', key]);
+    }
+
+    console.debug(`Cleaning Redis Cache for pattern ${queryKey} - All ${keys.length} UNLINKed`);
+    await redisPool.release(client);
+  } catch (e) {
+    redisPool.destroy(client);
+    console.debug(`Cleaning Redis Cache for pattern ${queryKey} - released client`);
   }
 }
 
@@ -175,16 +224,22 @@ export async function redisCached<T>(
   callback: () => Promise<T>,
   lockTimeoutS = 20,
 ): Promise<T> {
-  return await locallyCached(nameSpace, key, ttlSec, async (): Promise<T> => {
+  await startupRedisPool();
+
+  return await locallyCached(nameSpace, key, ttlSec * 0.3, async (): Promise<T> => {
     const queryKey = `${Config.Instance.environment}.CACHE.${nameSpace}-${key}`;
     const lockKey = `${Config.Instance.environment}.${Config.Instance.datetimeDeploy}.LOCK.${nameSpace}-${key}`;
 
-    await startupRedisPool();
+    if (!redisPool) throw Error('Redis should be initialized!');
 
     let cached: T | undefined = undefined;
     /* eslint-disable-next-line no-constant-condition */
     while (true) {
-      const redisResponse: string | undefined | null = await redisPool?.get(queryKey);
+      console.debug(`Trying to get a redis client ${queryKey}`);
+      const redisResponse: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+        console.debug(`Redis client obtained, running get ${queryKey}`);
+        return await client.get(queryKey);
+      });
 
       if (redisResponse !== undefined && redisResponse !== null) {
         const redisData = JSON.parse(redisResponse, mapReviver) as RedisStore;
@@ -200,6 +255,7 @@ export async function redisCached<T>(
         console.debug(`Could not find ${queryKey} in redis`);
       }
 
+      console.debug(`Trying to acquire redis lock ${lockKey} ${lockTimeoutS}`);
       const lockUUID = await redisAcquireLock(lockKey, lockTimeoutS);
       if (lockUUID !== undefined) {
         try {
@@ -210,7 +266,10 @@ export async function redisCached<T>(
             ttl: Date.now() / 1000 + ttlSec,
             version: Config.Instance.datetimeDeploy,
           };
-          await redisPool?.set(queryKey, JSON.stringify(newDt, mapReplacer), ttlSec * (1 + jitterPct));
+          await redisPool.use(async (client: RedisClientType) => {
+            return await client.set(queryKey, JSON.stringify(newDt, mapReplacer), { EX: ttlSec * (1 + jitterPct) });
+          });
+
           console.debug(`Registered query response in Redis for ${queryKey}`);
           break;
         } finally {
@@ -219,7 +278,10 @@ export async function redisCached<T>(
       } else {
         console.debug('Failed to acquire redis lock...');
         for (let i = 0; i < lockTimeoutS; i++) {
-          const lockStatus: string | undefined | null = await redisPool?.get(lockKey);
+          const lockStatus: string | undefined | null = await redisPool.use(async (client: RedisClientType) => {
+            return await client.get(lockKey);
+          });
+
           if (lockStatus !== undefined && lockStatus !== null) {
             console.debug(`redis lock is now available... ${lockStatus}`);
             break;

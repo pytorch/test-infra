@@ -40,9 +40,20 @@ resource "aws_lambda_function" "scale_down" {
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
+      REDIS_ENDPOINT                  = var.redis_endpoint
+      REDIS_LOGIN                     = var.redis_login
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
+
     }
+  }
+
+  vpc_config {
+    security_group_ids = concat(
+      var.lambda_security_group_ids,
+      [aws_security_group.runners_sg[0].id]
+    )
+    subnet_ids         = var.lambda_subnet_ids
   }
 }
 

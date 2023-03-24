@@ -1,7 +1,7 @@
 import { Repo, getRepoKey, expBackOff } from './utils';
 import { RunnerType } from './runners';
 import { createGithubAuth, createOctoClient } from './gh-auth';
-import { locallyCached, redisCached, clearLocalCacheNamespace } from './cache';
+import { locallyCached, redisCached, clearLocalCacheNamespace, redisClearCacheKeyPattern } from './cache';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -12,7 +12,8 @@ import YAML from 'yaml';
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
 
-export function resetGHRunnersCaches() {
+export async function resetGHRunnersCaches() {
+  await redisClearCacheKeyPattern('ghRunners', '');
   clearLocalCacheNamespace('ghRunners');
   ghClientCache.reset();
   ghMainClientCache.reset();

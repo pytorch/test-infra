@@ -44,6 +44,7 @@ jest.mock('./gh-auth');
 jest.mock('./cache', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./cache') as any),
+  redisClearCacheKeyPattern: jest.fn(),
   redisCached: jest
     .fn()
     .mockImplementation(async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
@@ -103,11 +104,11 @@ describe('resetGHRunnersCaches', () => {
       mockCreateOctoClient.mockReturnValue(expectedReturn as unknown as Octokit);
     }
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     expect(await listGithubRunnersRepo(repo, metrics)).toEqual(irrelevantRunner);
     expect(await createGitHubClientForRunnerRepo(repo, metrics)).toEqual(expectedReturn);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     expect(await listGithubRunnersRepo(repo, metrics)).toEqual(irrelevantRunner);
     expect(await createGitHubClientForRunnerRepo(repo, metrics)).toEqual(expectedReturn);
 
@@ -138,7 +139,7 @@ describe('createGitHubClientForRunner variants', () => {
         throw Error(errMsg);
       });
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
 
@@ -154,7 +155,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockReturnValue(expectedReturn as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createGitHubClientForRunnerRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
 
@@ -176,7 +177,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(expectedReturn as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createGitHubClientForRunnerRepo(repo, metrics)).toEqual(expectedReturn);
       expect(await createGitHubClientForRunnerRepo(repo, metrics)).toEqual(expectedReturn);
 
@@ -210,7 +211,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(expectedReturn as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createGitHubClientForRunnerOrg(org, metrics)).toEqual(expectedReturn);
       expect(await createGitHubClientForRunnerOrg(org, metrics)).toEqual(expectedReturn);
 
@@ -236,7 +237,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockReturnValueOnce(expectedReturn as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createGitHubClientForRunnerOrg(org, metrics)).rejects.toThrowError(errMsg);
     });
   });
@@ -253,7 +254,7 @@ describe('createGitHubClientForRunner variants', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(expectedReturn as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createGitHubClientForRunnerInstallId(installId, metrics)).toEqual(expectedReturn);
       expect(await createGitHubClientForRunnerInstallId(installId, metrics)).toEqual(expectedReturn);
 
@@ -275,7 +276,7 @@ describe('createGitHubClientForRunner variants', () => {
         throw Error(errMsg);
       });
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createGitHubClientForRunnerInstallId(installId, metrics)).rejects.toThrowError(errMsg);
     });
   });
@@ -312,7 +313,7 @@ describe('listGithubRunners', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await listGithubRunnersRepo(repo, metrics)).toEqual(irrelevantRunner);
       expect(await listGithubRunnersRepo(repo, metrics)).toEqual(irrelevantRunner);
 
@@ -340,7 +341,7 @@ describe('listGithubRunners', () => {
       mockCreateGithubAuth.mockResolvedValue('token1');
       mockCreateOctoClient.mockReturnValue(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(listGithubRunnersRepo(repo, metrics)).rejects.toThrowError(errMsg);
     });
   });
@@ -364,7 +365,7 @@ describe('listGithubRunners', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await listGithubRunnersOrg(org, metrics)).toEqual(irrelevantRunner);
       expect(await listGithubRunnersOrg(org, metrics)).toEqual(irrelevantRunner);
 
@@ -392,7 +393,7 @@ describe('listGithubRunners', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(listGithubRunnersOrg(org, metrics)).rejects.toThrowError(errMsg);
     });
   });
@@ -421,7 +422,7 @@ describe('removeGithubRunnerRepo', () => {
     mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     await removeGithubRunnerRepo(runnerId, repo, metrics);
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
@@ -453,7 +454,7 @@ describe('removeGithubRunnerRepo', () => {
     mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     await expect(removeGithubRunnerRepo(runnerId, repo, metrics)).rejects.toThrow();
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromRepo).toBeCalledWith({
@@ -488,7 +489,7 @@ describe('removeGithubRunnerOrg', () => {
     mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     await removeGithubRunnerOrg(runnerId, org, metrics);
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
@@ -519,7 +520,7 @@ describe('removeGithubRunnerOrg', () => {
     mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     await expect(removeGithubRunnerOrg(runnerId, org, metrics)).rejects.toThrow();
 
     expect(mockedOctokit.actions.deleteSelfHostedRunnerFromOrg).toBeCalledWith({
@@ -564,7 +565,7 @@ describe('getRunner', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await getRunnerRepo(repo, '1234', metrics)).toEqual(irrelevantRunner);
 
       expect(mockedOctokit.actions.getSelfHostedRunnerForRepo).toBeCalledWith({
@@ -595,7 +596,7 @@ describe('getRunner', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await getRunnerRepo({ owner: 'owner', repo: 'repo' }, '1234', metrics)).toEqual(undefined);
     });
   });
@@ -622,7 +623,7 @@ describe('getRunner', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await getRunnerOrg(org, '1234', metrics)).toEqual(irrelevantRunner);
 
       expect(mockedOctokit.actions.getSelfHostedRunnerForOrg).toBeCalledWith({
@@ -654,7 +655,7 @@ describe('getRunner', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await getRunnerOrg(org, '1234', metrics)).toEqual(undefined);
     });
   });
@@ -695,7 +696,7 @@ runner_types:
     mockCreateGithubAuth.mockResolvedValueOnce(token2);
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     expect(await getRunnerTypes(repo, metrics)).toEqual(
       new Map([
         [
@@ -767,7 +768,7 @@ runner_types:
     mockCreateGithubAuth.mockResolvedValueOnce('token2');
     mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     await expect(getRunnerTypes(repo, metrics)).rejects.toThrow(Error);
   });
 });
@@ -797,7 +798,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createRegistrationTokenRepo(repo, metrics)).toEqual(testToken);
       expect(await createRegistrationTokenRepo(repo, metrics)).toEqual(testToken);
       expect(mockCreateGithubAuth).toBeCalledTimes(2);
@@ -828,7 +829,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createRegistrationTokenRepo(repo, metrics, installationId)).toEqual(testToken);
       expect(await createRegistrationTokenRepo(repo, metrics, installationId)).toEqual(testToken);
       expect(mockCreateGithubAuth).toBeCalledTimes(1);
@@ -860,7 +861,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createRegistrationTokenRepo(repo, metrics)).rejects.toThrow(Error);
       expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledTimes(1);
       expect(mockedOctokit.actions.createRegistrationTokenForRepo).toBeCalledWith(repo);
@@ -891,7 +892,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createRegistrationTokenOrg(org, metrics)).toEqual(testToken);
       expect(await createRegistrationTokenOrg(org, metrics)).toEqual(testToken);
       expect(mockCreateGithubAuth).toBeCalledTimes(2);
@@ -922,7 +923,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       expect(await createRegistrationTokenOrg(org, metrics, installationId)).toEqual(testToken);
       expect(await createRegistrationTokenOrg(org, metrics, installationId)).toEqual(testToken);
       expect(mockCreateGithubAuth).toBeCalledTimes(1);
@@ -954,7 +955,7 @@ describe('createRegistrationToken', () => {
       mockCreateGithubAuth.mockResolvedValueOnce('token2');
       mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
 
-      resetGHRunnersCaches();
+      await resetGHRunnersCaches();
       await expect(createRegistrationTokenOrg(org, metrics)).rejects.toThrow(Error);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledTimes(1);
       expect(mockedOctokit.actions.createRegistrationTokenForOrg).toBeCalledWith({ org: org });
