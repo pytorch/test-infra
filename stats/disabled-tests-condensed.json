@@ -576,6 +576,14 @@
       "rocm"
     ]
   ],
+  "test_delayed_reduce_scatter_offload_false_shard_grad_op (__main__.TestParityWithDDP)": [
+    "82398",
+    "https://github.com/pytorch/pytorch/issues/82398",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_delayed_reduce_scatter_offload_true_none (__main__.TestParityWithDDP)": [
     "82399",
     "https://github.com/pytorch/pytorch/issues/82399",
@@ -2138,6 +2146,14 @@
   "test_variant_consistency_jit_linalg_lu_solve_cuda_float32 (__main__.TestJitCUDA)": [
     "96918",
     "https://github.com/pytorch/pytorch/issues/96918",
+    [
+      "win",
+      "windows"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_matrix_power_cuda_complex64 (__main__.TestJitCUDA)": [
+    "96889",
+    "https://github.com/pytorch/pytorch/issues/96889",
     [
       "win",
       "windows"
