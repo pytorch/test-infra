@@ -12,7 +12,7 @@ jobs:
   build:
     name: "Run tests for runners lambda"
     runs-on: ubuntu-latest
-    container: node:12
+    container: node:14
     defaults:
       run:
         working-directory: terraform-aws-github-runner/modules/runners/lambdas/runners

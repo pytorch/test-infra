@@ -12,7 +12,7 @@ jobs:
   release-lambdas:
     name: Upload Release for runners lambdas
     runs-on: ubuntu-latest
-    container: node:12
+    container: node:14
     env:
       REF: ${{ inputs.tag }}
     steps:
