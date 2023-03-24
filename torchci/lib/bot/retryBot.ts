@@ -6,7 +6,7 @@ function retryBot(app: Probot): void {
   app.on("workflow_run.completed", async (ctx) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
-    const defaultBranch = ctx.payload.workflow_run.repository.default_branch;
+    const defaultBranch = ctx.payload.repository.default_branch;
     const allowedWorkflowPrefixes = [
       "lint",
       "pull",
