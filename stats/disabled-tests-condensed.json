@@ -2151,6 +2151,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_linalg_matrix_power_cuda_complex64 (__main__.TestJitCUDA)": [
+    "96889",
+    "https://github.com/pytorch/pytorch/issues/96889",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_norm_subgradients_at_zero_cuda_complex64 (__main__.TestJitCUDA)": [
     "96843",
     "https://github.com/pytorch/pytorch/issues/96843",
