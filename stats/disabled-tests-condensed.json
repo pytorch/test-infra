@@ -211,6 +211,14 @@
       "rocm"
     ]
   ],
+  "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_complex128 (__main__.TestSparseCSRCPU)": [
+    "97512",
+    "https://github.com/pytorch/pytorch/issues/97512",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -749,6 +757,13 @@
       "linux"
     ]
   ],
+  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95147",
+    "https://github.com/pytorch/pytorch/issues/95147",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94216",
     "https://github.com/pytorch/pytorch/issues/94216",
@@ -1016,13 +1031,6 @@
       "macos"
     ]
   ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
   "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
     "93070",
     "https://github.com/pytorch/pytorch/issues/93070",
@@ -1059,13 +1067,6 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
-    [
-      "linux"
-    ]
-  ],
-  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93064",
-    "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
     ]
@@ -1283,6 +1284,13 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
+    [
+      "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
+    "93325",
+    "https://github.com/pytorch/pytorch/issues/93325",
     [
       "linux"
     ]
