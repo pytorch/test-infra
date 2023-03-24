@@ -21,7 +21,7 @@ import {
   GridRenderCellParams,
 } from "@mui/x-data-grid";
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -468,10 +468,11 @@ export function DTypePicker({
       <FormControl>
         <InputLabel id="dtypes-picker-select-label">Precision</InputLabel>
         <Select
-          defaultValue={dtypes}
+          value={dtypes}
           label="Precision"
           labelId="dtypes-picker-select-label"
           onChange={handleChange}
+          id="dtypes-picker-select"
         >
           <MenuItem value={"amp"}>amp</MenuItem>
           <MenuItem value={"float32"}>float32</MenuItem>
@@ -486,11 +487,13 @@ function SummaryPanel({
   geomeanBySuite,
   compTimeBySuite,
   memoryBySuite,
+  dtypes,
 }: {
   passrateBySuite: { [k: string]: any };
   geomeanBySuite: { [k: string]: any };
   compTimeBySuite: { [k: string]: any };
   memoryBySuite: { [k: string]: any };
+  dtypes: string;
 }) {
   const [lastestPassrateByCompiler, latestPassrateBucket] =
     getLatestRecordByCompiler(passrateBySuite, "passrate_display");
@@ -528,7 +531,7 @@ function SummaryPanel({
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
                     DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
-                  }`;
+                  }?dtypes=${dtypes}`;
                   return <a href={url}>{params.value}</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -569,7 +572,7 @@ function SummaryPanel({
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
                     DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
-                  }`;
+                  }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -606,7 +609,7 @@ function SummaryPanel({
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
                     DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
-                  }`;
+                  }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -645,7 +648,7 @@ function SummaryPanel({
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
                     DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler]
-                  }`;
+                  }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
                 cellClassName: (params: GridCellParams<string>) => {
@@ -840,9 +843,11 @@ function BuildSummary({
 function Report({
   queryParams,
   granularity,
+  dtypes,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
+  dtypes: string;
 }) {
   const queryName = "compilers_benchmark_performance";
   const queryCollection = "inductor";
@@ -889,6 +894,7 @@ function Report({
         geomeanBySuite={geomeanBySuite}
         compTimeBySuite={compTimeBySuite}
         memoryBySuite={memoryBySuite}
+        dtypes={dtypes}
       />
       <PerformanceGraphs
         passrateBySuite={passrateBySuite}
@@ -963,7 +969,11 @@ export default function Page() {
       </Stack>
 
       <Grid item xs={12}>
-        <Report queryParams={queryParams} granularity={granularity} />
+        <Report
+          queryParams={queryParams}
+          granularity={granularity}
+          dtypes={dtypes}
+        />
       </Grid>
     </div>
   );

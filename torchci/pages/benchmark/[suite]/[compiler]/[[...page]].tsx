@@ -11,7 +11,7 @@ import {
   GridCellParams,
 } from "@mui/x-data-grid";
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -362,6 +362,14 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [dtypes, setDTypes] = useState<string>("amp");
+
+  // Set the dropdown value what is in the param
+  useEffect(() => {
+    const param: string = (router.query.dtypes as string) ?? undefined;
+    if (param !== undefined) {
+      setDTypes(param);
+    }
+  }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
