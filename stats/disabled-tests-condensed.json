@@ -743,6 +743,13 @@
       "linux"
     ]
   ],
+  "test_find_unused_parameters_kwarg_grad_is_view_debug_info (__main__.DistributedDataParallelTest)": [
+    "82400",
+    "https://github.com/pytorch/pytorch/issues/82400",
+    [
+      "linux"
+    ]
+  ],
   "test_find_unused_parameters_kwarg_grad_is_view_debug_off (__main__.DistributedDataParallelTest)": [
     "82500",
     "https://github.com/pytorch/pytorch/issues/82500",
@@ -2139,14 +2146,6 @@
   "test_variant_consistency_jit_linalg_lu_solve_cuda_float32 (__main__.TestJitCUDA)": [
     "96918",
     "https://github.com/pytorch/pytorch/issues/96918",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_matrix_power_cuda_complex64 (__main__.TestJitCUDA)": [
-    "96889",
-    "https://github.com/pytorch/pytorch/issues/96889",
     [
       "win",
       "windows"
