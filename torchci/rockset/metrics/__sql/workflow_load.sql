@@ -12,7 +12,7 @@ FROM
 WHERE
     PARSE_TIMESTAMP_ISO8601(workflow.created_at) >= PARSE_DATETIME_ISO8601(:startTime)
     AND PARSE_TIMESTAMP_ISO8601(workflow.created_at) < PARSE_DATETIME_ISO8601(:stopTime)
-    AND workflow.name IN ('pull', 'trunk', 'nightly', 'periodic')
+    AND workflow.name IN ('pull', 'trunk', 'nightly', 'periodic', 'inductor')
     AND workflow.repository.full_name like :repo
 GROUP BY
     granularity_bucket,
