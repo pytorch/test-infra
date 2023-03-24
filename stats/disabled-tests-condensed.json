@@ -1666,8 +1666,8 @@
     "82915",
     "https://github.com/pytorch/pytorch/issues/82915",
     [
-      "mac",
-      "macos"
+      "win",
+      "windows"
     ]
   ],
   "test_tensorpipe_set_default_timeout (__main__.TensorPipeTensorPipeAgentRpcTest)": [
