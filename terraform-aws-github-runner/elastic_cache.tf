@@ -47,7 +47,6 @@ resource "aws_elasticache_replication_group" "es" {
   engine                        = "redis"
   node_type                     = "cache.m4.large"
   num_node_groups               = 1
-  parameter_group_name          = "default.redis7"
   port                          = 6379
   replicas_per_node_group       = 1
   replication_group_id          = "${var.environment}-scale-runners-rep-group"
