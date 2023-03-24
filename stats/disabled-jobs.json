@@ -1,1 +1,10 @@
-{}
+{
+  "trunk / linux-focal-rocm5.4.2-py3.8 / test (default)": [
+    "clee2000",
+    "97561",
+    "https://github.com/pytorch/pytorch/issues/97561",
+    "trunk",
+    "linux-focal-rocm5.4.2-py3.8",
+    "test (default)"
+  ]
+}
