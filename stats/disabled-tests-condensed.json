@@ -211,6 +211,14 @@
       "rocm"
     ]
   ],
+  "test_block_addmv_block_size_2_int32_noncontiguous_False_cpu_float64 (__main__.TestSparseCSRCPU)": [
+    "97589",
+    "https://github.com/pytorch/pytorch/issues/97589",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_complex128 (__main__.TestSparseCSRCPU)": [
     "97512",
     "https://github.com/pytorch/pytorch/issues/97512",
