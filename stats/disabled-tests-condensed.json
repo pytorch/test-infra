@@ -2117,6 +2117,14 @@
       "windows"
     ]
   ],
+  "test_variant_consistency_jit_linalg_inv_cpu_complex64 (__main__.TestJitCPU)": [
+    "96914",
+    "https://github.com/pytorch/pytorch/issues/96914",
+    [
+      "win",
+      "windows"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
     "95412",
     "https://github.com/pytorch/pytorch/issues/95412",
