@@ -219,6 +219,16 @@
       "macos"
     ]
   ],
+  "test_block_addmv_block_size_2_int64_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
+    "97629",
+    "https://github.com/pytorch/pytorch/issues/97629",
+    [
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
   "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_complex128 (__main__.TestSparseCSRCPU)": [
     "97512",
     "https://github.com/pytorch/pytorch/issues/97512",
