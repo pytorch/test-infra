@@ -102,6 +102,10 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         run: |
           source "${BUILD_ENV_FILE}"
+          call activate.bat ${CONDA_ENV}
+          python --version
+          python3 --version
+
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
