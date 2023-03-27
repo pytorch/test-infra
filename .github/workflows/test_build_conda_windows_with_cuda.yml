@@ -41,16 +41,13 @@ jobs:
     uses: ./.github/workflows/build_conda_windows.yml
     name: ${{ matrix.repository }}
     with:
+      conda-package-directory: ${{ matrix.conda-package-directory }}
       repository: ${{ matrix.repository }}
       ref: main
       test-infra-repository: ${{ github.repository }}
-      conda-package-directory: ${{ matrix.conda-package-directory }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
-      env-script: ${{ matrix.env-script }}
-      wheel-build-params: ${{ matrix.wheel-build-params }}
       post-script: ${{ matrix.post-script }}
-      smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
