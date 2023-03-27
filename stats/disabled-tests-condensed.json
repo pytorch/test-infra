@@ -1765,13 +1765,6 @@
       "dynamo"
     ]
   ],
-  "test_typed_storage_deprecation_warning (__main__.TestTorch)": [
-    "97630",
-    "https://github.com/pytorch/pytorch/issues/97630",
-    [
-      "linux"
-    ]
-  ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
