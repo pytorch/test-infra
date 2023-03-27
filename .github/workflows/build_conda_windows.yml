@@ -102,7 +102,7 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         run: |
           source "${BUILD_ENV_FILE}"
-          call activate.bat ${CONDA_ENV}
+          C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
           python --version
           python3 --version
 
