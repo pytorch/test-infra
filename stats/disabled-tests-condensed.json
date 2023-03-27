@@ -245,6 +245,14 @@
       "macos"
     ]
   ],
+  "test_block_addmv_block_size_3_int64_noncontiguous_True_cpu_complex128 (__main__.TestSparseCSRCPU)": [
+    "97710",
+    "https://github.com/pytorch/pytorch/issues/97710",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
