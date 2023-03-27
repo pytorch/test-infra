@@ -27,10 +27,6 @@ on:
         description: "Pre script to run prior to build"
         default: ""
         type: string
-      cuda-install-script:
-        description: "Pre script to run prior to build"
-        default: ""
-        type: string
       env-script:
         description: "Script to setup environment variables for the build"
         default: ""
@@ -157,7 +153,7 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.ARTIFACT_NAME }}_${{ matrix.desired_cuda }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}

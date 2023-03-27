@@ -35,7 +35,7 @@ jobs:
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: main
+      ref: nightly
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
