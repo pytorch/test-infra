@@ -97,7 +97,11 @@ jobs:
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+            if [[ ${PRE_SCRIPT} == *.bat ]]; then
+              ${PRE_SCRIPT}
+            else
+              bash ${PRE_SCRIPT}
+            fi
           fi
       - name: Setup base environment variables
         run: |

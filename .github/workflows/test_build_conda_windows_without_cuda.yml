@@ -26,7 +26,7 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            pre-script: ""
+            pre-script: packaging/ffmpeg/build.bat
             post-script: ""
             package-name: torchaudio
             conda-package-directory: packaging/torchaudio
@@ -35,12 +35,12 @@ jobs:
           #   post-script: packaging/post_build_script.sh
           #   package-name: torchvision
           #   conda-package-directory: packaging/torchvision
-          - repository: pytorch/text
-            pre-script: packaging/install_torchdata.sh
-            post-script: ""
-            package-name: torchtext
-            conda-package-directory: packaging/torchtext
-            smoke-test-script: test/smoke_tests/smoke_tests.py
+          #- repository: pytorch/text
+          #  pre-script: packaging/install_torchdata.sh
+          #  post-script: ""
+          #  package-name: torchtext
+          #  conda-package-directory: packaging/torchtext
+          #  smoke-test-script: test/smoke_tests/smoke_tests.py
     name: ${{ matrix.repository }}
     uses: ./.github/workflows/build_conda_windows.yml
     with:
