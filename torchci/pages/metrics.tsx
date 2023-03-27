@@ -26,7 +26,9 @@ import { useEffect, useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
-import ScalarPanel, { ScalarPanelWithValue } from "components/metrics/panels/ScalarPanel";
+import ScalarPanel, {
+  ScalarPanelWithValue,
+} from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
@@ -472,7 +474,7 @@ function getCommitRedMetrics(queryParams: RocksetParam[]) {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });
 
-  if (data === undefined ||  data.length === 0) {
+  if (data === undefined || data.length === 0) {
     return [undefined, undefined];
   }
 
