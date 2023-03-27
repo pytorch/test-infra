@@ -1,5 +1,5 @@
 {
-  "sql_path": "__sql/master_commit_red_avg.sql",
+  "sql_path": "__sql/force_merge_red_avg.sql",
   "default_parameters": [
     {
       "name": "startTime",
@@ -10,11 +10,6 @@
       "name": "stopTime",
       "type": "string",
       "value": "2022-10-12T00:06:32.839Z"
-    },
-    {
-      "name": "workflowNames",
-      "type": "string",
-      "value": "lint,pull,trunk"
     }
   ],
   "description": ""

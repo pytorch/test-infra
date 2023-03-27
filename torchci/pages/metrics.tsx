@@ -26,7 +26,7 @@ import { useEffect, useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
-import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import ScalarPanel, { ScalarPanelWithValue } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
@@ -459,6 +459,29 @@ function JobsDuration({
 
 const ROW_HEIGHT = 340;
 
+function getCommitRedMetrics(queryParams: RocksetParam[]) {
+  const queryCollection = "metrics";
+  const queryName = "master_commit_red_avg";
+
+  // Query both broken trunk and flaky red % in one query
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  });
+
+  if (data === undefined ||  data.length === 0) {
+    return [undefined, undefined];
+  }
+
+  const brokenTrunkMetric = "broken_trunk_red";
+  const flakyMetric = "flaky_red";
+
+  return [data[0][brokenTrunkMetric], data[0][flakyMetric]];
+}
+
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
@@ -489,6 +512,9 @@ export default function Page() {
     maximumFractionDigits: 1,
   });
 
+  // Split the aggregated red % into broken trunk and flaky red %
+  const [brokenTrunkRed, flakyRed] = getCommitRedMetrics(timeParams);
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -514,9 +540,9 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"% commits red on master, aggregate"}
-              queryName={"master_commit_red_avg"}
-              metricName={"red"}
+              title={"% force merges due to failed PR checks"}
+              queryName={"force_merge_red_avg"}
+              metricName={"force_merges_red"}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
               queryParams={timeParams}
               badThreshold={(value) => value > 0.2}
@@ -535,19 +561,10 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"% commits red on master, after retries"}
-              queryName={"master_commit_red_avg"}
-              metricName={"red"}
+            <ScalarPanelWithValue
+              title={"% commits red on master (broken trunk)"}
+              value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-              queryParams={[
-                {
-                  name: "useRetryConclusion",
-                  type: "bool",
-                  value: true,
-                },
-                ...timeParams,
-              ]}
               badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
@@ -563,18 +580,16 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
+            <ScalarPanelWithValue
+              title={"% commits red on master (flaky)"}
+              value={flakyRed}
+              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              badThreshold={(value) => value > 0.2}
+            />
             <WorkflowDuration
               percentileParam={percentileParam}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
-            />
-            <ScalarPanel
-              title={"# force merges"}
-              queryName={"number_of_force_pushes"}
-              metricName={"count"}
-              valueRenderer={(value: string) => value}
-              queryParams={timeParams}
-              badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
           </Stack>
         </Grid>

@@ -3,10 +3,7 @@ WITH all_jobs AS (
         push._event_time AS time,
         job.conclusion AS conclusion,
         push.head_commit.id AS sha,
-        IF(:useRetryConclusion,
-            ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC),
-            ''
-        ) AS attempt
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS attempt,
     FROM
         commons.workflow_job job
         JOIN commons.workflow_run workflow ON workflow.id = job.run_id
@@ -35,10 +32,7 @@ WITH all_jobs AS (
             ELSE job.job.status
         END AS conclusion,
         push.head_commit.id AS sha,
-        IF(:useRetryConclusion,
-            ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC),
-            ''
-        ) AS attempt
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS attempt
     FROM
         circleci.job job
         JOIN push ON job.pipeline.vcs.revision = push.head_commit.id
@@ -49,7 +43,7 @@ WITH all_jobs AS (
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
 ),
-reds AS (
+all_reds AS (
     SELECT
         time,
         sha,
@@ -63,21 +57,43 @@ reds AS (
                 END
             ) > 0 AS int
         ) AS any_red,
-        COUNT(*)
     FROM
         all_jobs
-    WHERE
-        all_jobs.attempt = IF(:useRetryConclusion, 1, '')
     GROUP BY
         time,
         sha
     HAVING
-        COUNT(*) > 10 -- Filter out jobs that didn't run anything.
+        COUNT(sha) > 10 -- Filter out jobs that didn't run anything.
         AND SUM(IF(conclusion IS NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
-    ORDER BY
-        time DESC
+),
+broken_trunk_reds AS (
+    SELECT
+        time,
+        sha,
+        CAST(
+            SUM(
+                CASE
+                    WHEN conclusion = 'failure' THEN 1
+                    WHEN conclusion = 'timed_out' THEN 1
+                    WHEN conclusion = 'cancelled' THEN 1
+                    ELSE 0
+                END
+            ) > 0 AS int
+        ) AS any_red,
+    FROM
+        all_jobs
+    WHERE
+        -- If a job still fail after a retry, it will be counted as a broken trunk failure
+        all_jobs.attempt = 1
+    GROUP BY
+        time,
+        sha
+    HAVING
+        COUNT(sha) > 10 -- Filter out jobs that didn't run anything.
+        AND SUM(IF(conclusion IS NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
 )
 SELECT
-    AVG(any_red) AS red
+    AVG(broken_trunk_reds.any_red) AS broken_trunk_red,
+    AVG(all_reds.any_red) - AVG(broken_trunk_reds.any_red) AS flaky_red,
 FROM
-    reds
+    all_reds, broken_trunk_reds

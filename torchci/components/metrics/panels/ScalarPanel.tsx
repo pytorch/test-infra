@@ -7,6 +7,53 @@ import { Box, Paper, Typography, Skeleton } from "@mui/material";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 
+export function ScalarPanelWithValue({
+  // Human-readable title of the panel.
+  title,
+  // The value to display in the panel
+  value,
+  // Callback to render the scalar value in some nice way.
+  valueRenderer,
+  // Callback to decide whether the scalar value is "bad" and should be displayed red.
+  badThreshold,
+}: {
+  title: string;
+  value: any;
+  valueRenderer: (value: any) => string;
+  badThreshold: (value: any) => boolean;
+}) {
+  if (value === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  let fontColor = badThreshold(value) ? "#ee6666" : "black";
+
+  return (
+    <Paper sx={{ p: 2 }} elevation={3}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+          {title}
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "4rem",
+            my: "auto",
+            alignSelf: "center",
+            color: fontColor,
+          }}
+        >
+          {valueRenderer(value)}
+        </Typography>
+      </Box>
+    </Paper>
+  );
+}
+
 export default function ScalarPanel({
   // Human-readable title of the panel.
   title,
@@ -44,30 +91,12 @@ export default function ScalarPanel({
   }
 
   const value = data.length > 0 ? data[0][metricName] : undefined;
-  let fontColor = badThreshold(value) ? "#ee6666" : "black";
-
   return (
-    <Paper sx={{ p: 2 }} elevation={3}>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
-          {title}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "4rem",
-            my: "auto",
-            alignSelf: "center",
-            color: fontColor,
-          }}
-        >
-          {valueRenderer(value)}
-        </Typography>
-      </Box>
-    </Paper>
+    <ScalarPanelWithValue
+      title={title}
+      value={value}
+      valueRenderer={valueRenderer}
+      badThreshold={badThreshold}
+    />
   );
 }
