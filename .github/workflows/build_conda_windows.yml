@@ -98,9 +98,9 @@ jobs:
             exit 1
           else
             if [[ ${PRE_SCRIPT} == *.bat ]]; then
-              ${PRE_SCRIPT}
+              ${CONDA_RUN} ${PRE_SCRIPT}
             else
-              bash ${PRE_SCRIPT}
+              ${CONDA_RUN} bash ${PRE_SCRIPT}
             fi
           fi
       - name: Setup base environment variables
