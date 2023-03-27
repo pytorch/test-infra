@@ -125,6 +125,8 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
 
           conda build \
             -c defaults \
