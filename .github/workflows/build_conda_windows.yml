@@ -84,7 +84,7 @@ jobs:
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
@@ -98,9 +98,9 @@ jobs:
             exit 1
           else
             if [[ ${PRE_SCRIPT} == *.bat ]]; then
-              ${CONDA_RUN} ${PRE_SCRIPT}
+              ${PRE_SCRIPT}
             else
-              ${CONDA_RUN} bash ${PRE_SCRIPT}
+              bash ${PRE_SCRIPT}
             fi
           fi
       - name: Setup base environment variables
@@ -116,7 +116,7 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
+          conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
@@ -160,7 +160,7 @@ jobs:
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
+            bash "${POST_SCRIPT}"
           fi
       - name: Upload package to conda
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
@@ -171,7 +171,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
           set -x
-          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
+          ANACONDA_PATH=$(conda info --base)/bin
           set ANACONDA_PATH
           echo "$ANACONDA_PATH"
           "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
