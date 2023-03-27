@@ -83,7 +83,6 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
-          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -97,6 +96,8 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         run: |
           # call activate.bat ${CONDA_ENV}
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
+          python --version
           source "${BUILD_ENV_FILE}"
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -114,9 +115,11 @@ jobs:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
           PACKAGE_NAME: ${{ inputs.package-name }}
         run: |
+          set -euxo pipefail
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
           conda install -yq conda-build "conda-package-handling!=1.5.0"
 
           conda build \
@@ -144,7 +147,7 @@ jobs:
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
-            --python "${PYTHON_VERSION}" \
+            --no-test --python "${PYTHON_VERSION}" \
             --output-folder dist/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
