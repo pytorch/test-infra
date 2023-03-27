@@ -65,7 +65,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ inputs.runner-type }}
+    runs-on: ${{ matrix.validation_runner }}
     defaults:
       run:
         shell: bash -l {0}
