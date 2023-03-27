@@ -24,13 +24,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio
-            pre-script: packaging/ffmpeg/build.bat
-            env-script: packaging/vc_env_helper.bat
-            wheel-build-params: "--plat-name win_amd64"
-            post-script: ""
-            smoke-test-script: ""
-            package-name: torchaudio
+          #- repository: pytorch/audio
+          #  pre-script: packaging/ffmpeg/build.bat
+          #  env-script: packaging/vc_env_helper.bat
+          #  wheel-build-params: "--plat-name win_amd64"
+          #  post-script: ""
+          #  smoke-test-script: ""
+          #  package-name: torchaudio
+        - repository: pytorch/vision
+          pre-script: packaging/pre_build_script.sh
+          env-script: packaging/windows/internal/vc_env_helper.bat
+          post-script: packaging/post_build_script.sh
+          smoke-test-script: test/smoke_test.py
+          package-name: torchvision
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
