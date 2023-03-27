@@ -83,6 +83,7 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -119,7 +120,6 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
-          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
           conda install -yq conda-build "conda-package-handling!=1.5.0"
 
           conda build \
