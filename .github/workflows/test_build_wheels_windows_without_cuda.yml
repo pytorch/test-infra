@@ -1,13 +1,12 @@
-name: Test Build Linux Wheels without CUDA
+name: Test Build Windows Wheels without CUDA
 
 on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_wheels_linux.yml
-      - .github/workflows/build_wheels_linux.yml
+      - .github/workflows/test_build_wheels_windows_without_cuda.yml
+      - .github/workflows/build_wheels_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
-      - .github/workflows/test_build_wheels_linux_without_cuda.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
@@ -16,7 +15,7 @@ jobs:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel
-      os: linux
+      os: windows
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       with-cuda: disable
@@ -28,10 +27,11 @@ jobs:
         include:
           - repository: pytorch/text
             pre-script: packaging/install_torchdata.sh
+            env-script: packaging/vc_env_helper.bat
             post-script: ""
             smoke-test-script: test/smoke_tests/smoke_tests.py
             package-name: torchtext
-    uses: ./.github/workflows/build_wheels_linux.yml
+    uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
@@ -40,6 +40,8 @@ jobs:
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
+      env-script: ${{ matrix.env-script }}
+      wheel-build-params: ${{ matrix.wheel-build-params }}
       post-script: ${{ matrix.post-script }}
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
