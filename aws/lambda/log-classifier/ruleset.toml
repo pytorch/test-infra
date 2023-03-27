@@ -73,10 +73,6 @@ name = 'npm error'
 pattern = '^npm ERR! code .*'
 
 [[rule]]
-name = 'NVIDIA installation failure'
-pattern = '^ERROR: Installation has failed.*?nvidia'
-
-[[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
@@ -103,6 +99,10 @@ pattern = '^ERROR (\S*.py::\S*::test_\S*)'
 [[rule]]
 name = 'inductor model failure'
 pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
+
+[[rule]]
+name = 'NVIDIA installation failure'
+pattern = '^ERROR: Installation has failed.*?nvidia'
 
 [[rule]]
 name = 'failed to download github artifacts'
