@@ -80,6 +80,9 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - name: Add Conda scripts to GitHub path
+        run: |
+          echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -116,6 +119,9 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
+
           conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
@@ -130,6 +136,7 @@ jobs:
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
+          set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
           source "${BUILD_ENV_FILE}"
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
