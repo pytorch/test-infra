@@ -31,6 +31,7 @@ jobs:
             post-script: ""
             smoke-test-script: ""
             package-name: torchaudio
+            conda-package-directory: packaging/torchaudio
           # - repository: pytorch/vision
           #   pre-script: packaging/pre_build_script.sh
           #   env-script: packaging/windows/internal/vc_env_helper.bat
