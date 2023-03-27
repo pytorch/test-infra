@@ -44,6 +44,7 @@ jobs:
       repository: ${{ matrix.repository }}
       ref: main
       test-infra-repository: ${{ github.repository }}
+      conda-package-directory: ${{ matrix.conda-package-directory }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
       pre-script: ${{ matrix.pre-script }}
