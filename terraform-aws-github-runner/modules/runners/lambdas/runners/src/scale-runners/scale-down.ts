@@ -179,7 +179,7 @@ export async function scaleDown(): Promise<void> {
     clearTimeout(sndMetricsTimout.setTimeout);
     sndMetricsTimout.metrics = undefined;
     sndMetricsTimout.setTimeout = undefined;
-    metrics.sendMetrics();
+    await metrics.sendMetrics();
   }
 }
 
