@@ -6,7 +6,10 @@
       "Action": [
         "ec2:DescribeInstances",
         "ec2:DescribeTags",
-        "ec2:RunInstances"
+        "ec2:RunInstances",
+        "ec2:CreateNetworkInterface",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DeleteNetworkInterface"
       ],
       "Resource": ["*"]
     },
@@ -35,11 +38,23 @@
     {
       "Effect": "Allow",
       "Action": [
-        "sqs:ReceiveMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
         "sqs:GetQueueAttributes",
-        "sqs:DeleteMessage"
+        "sqs:ReceiveMessage"
       ],
       "Resource": "${sqs_arn}"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:ReceiveMessage",
+        "sqs:SendMessage"
+      ],
+      "Resource": "${sqs_retry_arn}"
     }
   ]
 }

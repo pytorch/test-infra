@@ -5,15 +5,23 @@ import { createGitHubClientForRunnerRepo } from './gh-runners';
 import { mocked } from 'ts-jest/utils';
 import nock from 'nock';
 import { ScaleUpMetrics } from './metrics';
+import { redisCached } from './cache';
 
 jest.mock('./runners');
 jest.mock('./gh-runners');
+jest.mock('./cache');
 
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();
   nock.disableNetConnect();
+
+  mocked(redisCached).mockImplementation(
+    async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
+      return await fn();
+    },
+  );
 });
 
 describe('getRepoIssuesWithLabel', () => {

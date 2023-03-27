@@ -19,88 +19,104 @@ export interface ActionRequestMessage {
   repositoryOwner: string;
   installationId?: number;
   runnerLabels?: string[];
+  retryCount?: number;
+  delaySeconds?: number;
 }
 
-export async function scaleUp(eventSource: string, payload: ActionRequestMessage): Promise<void> {
-  if (eventSource !== 'aws:sqs') throw Error('Cannot handle non-SQS events!');
+export class RetryableScalingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RetryableScalingError';
+  }
+}
 
-  const metrics = new ScaleUpMetrics();
+export async function scaleUp(
+  eventSource: string,
+  payload: ActionRequestMessage,
+  metrics: ScaleUpMetrics,
+): Promise<void> {
+  if (eventSource !== 'aws:sqs') {
+    throw Error('Cannot handle non-SQS events!');
+  }
 
   const repo: Repo = {
     owner: payload.repositoryOwner,
     repo: payload.repositoryName,
   };
 
-  try {
-    if (await shouldSkipForRepo(repo, metrics)) {
-      metrics.skipRepo(repo);
-      return;
+  const errors = [];
+
+  if (await shouldSkipForRepo(repo, metrics)) {
+    metrics.skipRepo(repo);
+    return;
+  }
+
+  metrics.runRepo(repo);
+  metrics.run();
+
+  const runnerTypes = await getRunnerTypes(
+    {
+      owner: repo.owner,
+      repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
+    },
+    metrics,
+  );
+  /* istanbul ignore next */
+  const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
+
+  // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
+  // if no labels are found this should just be a no-op
+  for (const runnerLabel of runnerLabels) {
+    const runnerType = runnerTypes.get(runnerLabel);
+    if (runnerType === undefined) {
+      console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
+      continue;
     }
-
-    metrics.runRepo(repo);
-
-    const runnerTypes = await getRunnerTypes(
-      {
-        owner: repo.owner,
-        repo: Config.Instance.enableOrganizationRunners ? Config.Instance.scaleConfigRepo : repo.repo,
-      },
-      metrics,
-    );
-    /* istanbul ignore next */
-    const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
-
-    // ideally we should only have one label specfied but loop so we can go through them all if there are multiple
-    // if no labels are found this should just be a no-op
-    for (const runnerLabel of runnerLabels) {
-      const runnerType = runnerTypes.get(runnerLabel);
-      if (runnerType === undefined) {
-        console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
-        continue;
-      }
-      if (
-        await allRunnersBusy(
-          runnerType.runnerTypeName,
-          repo,
-          runnerType.is_ephemeral,
-          runnerType.max_available,
-          metrics,
-        )
-      ) {
-        try {
-          const createRunnerParams: RunnerInputParameters = {
-            environment: Config.Instance.environment,
-            runnerConfig: (awsRegion: string) => {
-              return createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics, awsRegion);
-            },
-            runnerType: runnerType,
-          };
-          if (Config.Instance.enableOrganizationRunners) {
-            createRunnerParams.orgName = repo.owner;
-          } else {
-            createRunnerParams.repoName = getRepoKey(repo);
-          }
-          const awsRegion = await createRunner(createRunnerParams, metrics);
-          if (Config.Instance.enableOrganizationRunners) {
-            metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName, awsRegion);
-          } else {
-            metrics.runnersRepoCreate(repo, runnerType.runnerTypeName, awsRegion);
-          }
-        } catch (e) {
-          /* istanbul ignore next */
-          if (Config.Instance.enableOrganizationRunners) {
-            metrics.runnersOrgCreateFail(repo.owner, runnerType.runnerTypeName);
-          } else {
-            metrics.runnersRepoCreateFail(repo, runnerType.runnerTypeName);
-          }
-          /* istanbul ignore next */
-          console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
+    if (
+      await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available, metrics)
+    ) {
+      try {
+        const createRunnerParams: RunnerInputParameters = {
+          environment: Config.Instance.environment,
+          runnerConfig: (awsRegion: string) => {
+            return createRunnerConfigArgument(runnerType, repo, payload.installationId, metrics, awsRegion);
+          },
+          runnerType: runnerType,
+        };
+        if (Config.Instance.enableOrganizationRunners) {
+          createRunnerParams.orgName = repo.owner;
+        } else {
+          createRunnerParams.repoName = getRepoKey(repo);
         }
-      } else {
-        console.info('There are available runners, no new runners will be created');
+        const awsRegion = await createRunner(createRunnerParams, metrics);
+        if (Config.Instance.enableOrganizationRunners) {
+          metrics.runnersOrgCreate(repo.owner, runnerType.runnerTypeName, awsRegion);
+        } else {
+          metrics.runnersRepoCreate(repo, runnerType.runnerTypeName, awsRegion);
+        }
+      } catch (e) {
+        errors.push(e);
+
+        /* istanbul ignore next */
+        if (Config.Instance.enableOrganizationRunners) {
+          metrics.runnersOrgCreateFail(repo.owner, runnerType.runnerTypeName);
+        } else {
+          metrics.runnersRepoCreateFail(repo, runnerType.runnerTypeName);
+        }
+        /* istanbul ignore next */
+        console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
       }
+    } else {
+      console.info('There are available runners, no new runners will be created');
     }
-  } finally {
-    metrics.sendMetrics();
+  }
+
+  if (errors.length > 0) {
+    const msg =
+      `Thrown ${errors.length} exceptions during scaleup when creating runners, ` +
+      'will fail this batch so it can be retried';
+    console.warn(msg);
+    throw new RetryableScalingError(msg);
   }
 }
 
