@@ -107,9 +107,9 @@ jobs:
             exit 1
           else
             if [[ ${PRE_SCRIPT} == *.bat ]]; then
-              ${CONDA_RUN} ${PRE_SCRIPT}
+              ${PRE_SCRIPT}
             else
-              ${CONDA_RUN} bash ${PRE_SCRIPT}
+              bash ${PRE_SCRIPT}
             fi
           fi
       - name: Setup base environment variables
@@ -126,14 +126,14 @@ jobs:
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
 
-          #${CONDA_RUN} conda build \
-          #  -c defaults \
-          #  -c "${CUDATOOLKIT_CHANNEL}" \
-          #  -c "pytorch-${CHANNEL}" \
-          #  --no-anaconda-upload \
-          #  --python "${PYTHON_VERSION}" \
-          #  packaging/$VSTOOLCHAIN_PACKAGE
-          # cp packaging/$VSTOOLCHAIN_PACKAGE/conda_build_config.yaml packaging/$PACKAGE_NAME/conda_build_config.yaml
+          conda build \
+            -c defaults \
+            -c "${CUDATOOLKIT_CHANNEL}" \
+            -c "pytorch-${CHANNEL}" \
+            --no-anaconda-upload \
+            --python "${PYTHON_VERSION}" \
+            packaging/$VSTOOLCHAIN_PACKAGE
+          cp packaging/$VSTOOLCHAIN_PACKAGE/conda_build_config.yaml packaging/$PACKAGE_NAME/conda_build_config.yaml
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
@@ -145,18 +145,18 @@ jobs:
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
 
-          conda install -yq conda-build "conda-package-handling!=1.5.0"
-          bash packaging/build_conda.sh
+          #conda install -yq conda-build "conda-package-handling!=1.5.0"
+          #bash packaging/build_conda.sh
 
 
-          #${CONDA_RUN} conda build \
-          #  -c defaults \
-          #  -c "${CUDATOOLKIT_CHANNEL}" \
-          #  -c "pytorch-${CHANNEL}" \
-          #  --no-anaconda-upload \
-          #  --no-test  --python "${PYTHON_VERSION}" \
-          #  --output-folder dist/ \
-          #  "${CONDA_PACKAGE_DIRECTORY}"
+          conda build \
+            -c defaults \
+            -c "${CUDATOOLKIT_CHANNEL}" \
+            -c "pytorch-${CHANNEL}" \
+            --no-anaconda-upload \
+            --no-test  --python "${PYTHON_VERSION}" \
+            --output-folder dist/ \
+            "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
