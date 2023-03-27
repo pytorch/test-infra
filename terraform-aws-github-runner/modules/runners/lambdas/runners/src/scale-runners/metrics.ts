@@ -213,10 +213,20 @@ export class Metrics {
       });
     });
 
-    for (const metricsReq of awsMetrics.values()) {
-      await expBackOff(() => {
-        return this.cloudwatch.putMetricData(metricsReq).promise();
-      });
+    for (const [i, metricsReq] of awsMetrics.entries()) {
+      try {
+        console.info(
+          `Sending metrics with cloudwatch.putMetricData [LEN: ${metricsReq.MetricData.length} ` +
+            `NS: ${metricsReq.Namespace}] (${i} of ${awsMetrics.length})`,
+        );
+        await expBackOff(async () => {
+          return await this.cloudwatch.putMetricData(metricsReq).promise();
+        });
+        console.info(`Success sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length})`);
+      } catch (e) {
+        console.error(`Error sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length}): ${e}`);
+        throw e;
+      }
     }
   }
 

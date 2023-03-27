@@ -117,7 +117,7 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
       clearTimeout(sndMetricsTimout.setTimeout);
       sndMetricsTimout.metrics = undefined;
       sndMetricsTimout.setTimeout = undefined;
-      metrics.sendMetrics();
+      await metrics.sendMetrics();
     } catch (e) {
       console.error(`Error sending metrics: ${e}`);
     }
