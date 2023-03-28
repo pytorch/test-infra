@@ -108,7 +108,11 @@ jobs:
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            source ${PRE_SCRIPT}
+            if [[ ${PRE_SCRIPT} == *.bat ]]; then
+              ${PRE_SCRIPT}
+            else
+              source ${PRE_SCRIPT}
+            fi
           fi
       - name: Setup base environment variables
         run: |
