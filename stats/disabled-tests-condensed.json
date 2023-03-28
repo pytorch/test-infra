@@ -270,6 +270,14 @@
       "macos"
     ]
   ],
+  "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
+    "97828",
+    "https://github.com/pytorch/pytorch/issues/97828",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_block_addmv_block_size_3_int32_noncontiguous_True_cpu_complex128 (__main__.TestSparseCSRCPU)": [
     "97563",
     "https://github.com/pytorch/pytorch/issues/97563",
@@ -1454,13 +1462,6 @@
     "https://github.com/pytorch/pytorch/issues/94541",
     [
       "linux"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "96760",
-    "https://github.com/pytorch/pytorch/issues/96760",
-    [
-      "rocm"
     ]
   ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
