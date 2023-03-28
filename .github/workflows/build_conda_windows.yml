@@ -101,10 +101,10 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         if: ${{ inputs.pre-script != '' }}
         run: |
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
           ${CONDA_RUN} python --version
-          conda install -yq python
 
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
@@ -113,7 +113,7 @@ jobs:
             if [[ ${PRE_SCRIPT} == *.bat ]]; then
               ${PRE_SCRIPT}
             else
-              ${PRE_SCRIPT}
+              source ${PRE_SCRIPT}
             fi
           fi
       - name: Setup base environment variables
