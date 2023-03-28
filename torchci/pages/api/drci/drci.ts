@@ -58,7 +58,7 @@ export default async function handler(
     res.status(403).end();
 }
 
-export async function updateDrciComments(octokit: Octokit, prNumber?: string, repo: string) {
+export async function updateDrciComments(octokit: Octokit, repo: string = "pytorch", prNumber?: string) {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
         repo,
         prNumber,
