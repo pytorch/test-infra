@@ -461,28 +461,7 @@ function JobsDuration({
 
 const ROW_HEIGHT = 340;
 
-function getCommitRedMetrics(queryParams: RocksetParam[]) {
-  const queryCollection = "metrics";
-  const queryName = "master_commit_red_avg";
-
-  // Query both broken trunk and flaky red % in one query
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
-  )}`;
-
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined || data.length === 0) {
-    return [undefined, undefined];
-  }
-
-  const brokenTrunkMetric = "broken_trunk_red";
-  const flakyMetric = "flaky_red";
-
-  return [data[0][brokenTrunkMetric], data[0][flakyMetric]];
-}
+function getCommitRedMetrics(queryParams: RocksetParam[]) {}
 
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
@@ -515,7 +494,25 @@ export default function Page() {
   });
 
   // Split the aggregated red % into broken trunk and flaky red %
-  const [brokenTrunkRed, flakyRed] = getCommitRedMetrics(timeParams);
+  const queryCollection = "metrics";
+  const queryName = "master_commit_red_avg";
+
+  // Query both broken trunk and flaky red % in one query to some
+  // save CPU usage. This query is quite expensive to run
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(timeParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  });
+
+  const brokenTrunkRed =
+    data === undefined || data.length === 0
+      ? undefined
+      : data[0]["broken_trunk_red"];
+  const flakyMetric =
+    data === undefined || data.length === 0 ? undefined : data[0]["flaky_red"];
 
   return (
     <div>
