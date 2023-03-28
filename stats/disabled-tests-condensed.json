@@ -1474,13 +1474,6 @@
       "rocm"
     ]
   ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "96732",
-    "https://github.com/pytorch/pytorch/issues/96732",
-    [
-      "rocm"
-    ]
-  ],
   "test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)": [
     "77123",
     "https://github.com/pytorch/pytorch/issues/77123",
