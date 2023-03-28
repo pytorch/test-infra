@@ -229,5 +229,13 @@ name = 'Out of space error'
 pattern = 'no space left on device'
 
 [[rule]]
+name = 'New graph breaks'
+pattern = 'FAIL:\s+graph_breaks='
+
+[[rule]]
+name = 'Improved graph breaks'
+pattern = 'IMPROVED:\s+graph_breaks='
+
+[[rule]]
 name = 'GHA error'
 pattern = '^##\[error\](.*)'
