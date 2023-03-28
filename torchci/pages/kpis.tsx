@@ -57,7 +57,7 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"# of force merges (Weekly)"}
+          title={"# of force merges (Weekly) - To be removed"}
           queryName={"number_of_force_pushes_historical"}
           queryCollection={"pytorch_dev_infra_kpis"}
           queryParams={[...timeParams]}
@@ -76,10 +76,11 @@ export default function Kpis() {
           queryParams={[...timeParams]}
           granularity={"week"}
           timeFieldName={"granularity_bucket"}
-          yAxisFieldName={"total_red"}
+          yAxisFieldName={"metric"}
           yAxisRenderer={(unit) => {
             return `${unit * 100} %`;
           }}
+          groupByFieldName={"name"}
         />
       </Grid>
 
@@ -133,6 +134,7 @@ export default function Kpis() {
           additionalOptions={{ yAxis: { max: 7 } }}
         />
       </Grid>
+
       <Grid item xs={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
           title={"Weekly external PR count (4 week moving average))"}

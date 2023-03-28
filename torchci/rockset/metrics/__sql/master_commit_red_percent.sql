@@ -56,15 +56,24 @@ any_red AS (
     HAVING
         count(sha) > 10 -- Filter out jobs that didn't run anything.
         AND SUM(IF(conclusion is NULL, 1, 0)) = 0 -- Filter out commits that still have pending jobs.
+),
+classified_red AS (
+    SELECT
+        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+        ARRAY_CREATE(
+            ARRAY_CREATE('Broken trunk', AVG(broken_trunk_red)),
+            ARRAY_CREATE('Flaky', AVG(any_red) - AVG(broken_trunk_red)),
+            ARRAY_CREATE('Total', AVG(any_red))
+        ) AS metrics,
+    FROM
+        any_red
+    GROUP BY
+        granularity_bucket
 )
 SELECT
-    FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
-    AVG(any_red) AS total_red,
-    AVG(broken_trunk_red) AS broken_trunk_red,
-    AVG(any_red) - AVG(broken_trunk_red) AS flaky_red,
+    classified_red.granularity_bucket,
+    ELEMENT_AT(metrics.metric, 1) AS name,
+    ELEMENT_AT(metrics.metric, 2) AS metric,
 FROM
-    any_red
-GROUP BY
-    granularity_bucket
-ORDER BY
-    granularity_bucket ASC
+    classified_red
+    CROSS JOIN UNNEST(classified_red.metrics AS metric) AS metrics
