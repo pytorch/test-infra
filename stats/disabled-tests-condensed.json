@@ -197,6 +197,13 @@
       "mac"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
+    "97753",
+    "https://github.com/pytorch/pytorch/issues/97753",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
     "96893",
     "https://github.com/pytorch/pytorch/issues/96893",
@@ -209,6 +216,14 @@
     "https://github.com/pytorch/pytorch/issues/96792",
     [
       "rocm"
+    ]
+  ],
+  "test_block_addmv_block_size_2_int32_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
+    "97751",
+    "https://github.com/pytorch/pytorch/issues/97751",
+    [
+      "win",
+      "windows"
     ]
   ],
   "test_block_addmv_block_size_2_int32_noncontiguous_False_cpu_float64 (__main__.TestSparseCSRCPU)": [
@@ -240,6 +255,16 @@
   "test_block_addmv_block_size_2_int64_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
     "97629",
     "https://github.com/pytorch/pytorch/issues/97629",
+    [
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_block_addmv_block_size_2_int64_noncontiguous_True_cpu_float32 (__main__.TestSparseCSRCPU)": [
+    "97752",
+    "https://github.com/pytorch/pytorch/issues/97752",
     [
       "mac",
       "macos",
@@ -767,6 +792,11 @@
       "windows"
     ]
   ],
+  "test_fd_pool (__main__.TestMultiprocessing)": [
+    "69660",
+    "https://github.com/pytorch/pytorch/issues/69660",
+    []
+  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -995,13 +1025,6 @@
   "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
