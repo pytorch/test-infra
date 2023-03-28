@@ -46,12 +46,8 @@ export default async function handler(
     if (authorization === process.env.DRCI_BOT_KEY) {
         const { prNumber } = req.query;
         const { repo }: UpdateCommentBody = req.body;
-        console.log(`The repo parameter is: ${repo}`);
-
         const octokit = await getOctokit(OWNER, repo);
-        console.log(`The octokit value: ${octokit}`);
-
-        updateDrciComments(octokit, prNumber as string, repo);
+        updateDrciComments(octokit, repo, prNumber as string);
 
         res.status(200).end();
     }
