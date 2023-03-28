@@ -1090,14 +1090,6 @@
       "dynamo"
     ]
   ],
-  "test_index_select_scalar (__main__.TestNLLLoss)": [
-    "94162",
-    "https://github.com/pytorch/pytorch/issues/94162",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
