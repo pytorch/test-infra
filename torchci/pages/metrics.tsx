@@ -561,8 +561,8 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
-              title={"% commits red on master (broken trunk)"}
-              value={brokenTrunkRed}
+              title={"% commits red on master (flaky)"}
+              value={flakyRed}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
               badThreshold={(value) => value > 0.2}
             />
@@ -580,8 +580,8 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
-              title={"% commits red on master (flaky)"}
-              value={flakyRed}
+              title={"% commits red on master (broken trunk)"}
+              value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
               badThreshold={(value) => value > 0.2}
             />
