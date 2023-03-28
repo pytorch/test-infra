@@ -57,19 +57,6 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"# of force merges (Weekly) - To be removed"}
-          queryName={"number_of_force_pushes_historical"}
-          queryCollection={"pytorch_dev_infra_kpis"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"bucket"}
-          yAxisFieldName={"count"}
-          yAxisRenderer={(unit) => `${unit}`}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
           title={"% of commits red on trunk (Weekly)"}
           queryName={"master_commit_red_percent"}
           queryCollection={"metrics"}
@@ -81,6 +68,19 @@ export default function Kpis() {
             return `${unit * 100} %`;
           }}
           groupByFieldName={"name"}
+        />
+      </Grid>
+
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"# of force merges (Weekly)"}
+          queryName={"number_of_force_pushes_historical"}
+          queryCollection={"pytorch_dev_infra_kpis"}
+          queryParams={[...timeParams]}
+          granularity={"week"}
+          timeFieldName={"bucket"}
+          yAxisFieldName={"count"}
+          yAxisRenderer={(unit) => `${unit}`}
         />
       </Grid>
 
