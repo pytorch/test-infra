@@ -120,7 +120,9 @@ jobs:
             --python "${PYTHON_VERSION}" \
             packaging/$VSTOOLCHAIN_PACKAGE
           cp packaging/$VSTOOLCHAIN_PACKAGE/conda_build_config.yaml packaging/$PACKAGE_NAME/conda_build_config.yaml
-
+      - name: Display conda channel priority
+        run: |
+          ${CONDA_RUN} conda config --describe channel_priority
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:

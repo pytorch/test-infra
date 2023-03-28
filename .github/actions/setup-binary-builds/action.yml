@@ -139,6 +139,7 @@ runs:
               conda-build=3.21 \
               ninja=1.10 \
               pkg-config=0.29 \
+              blas=*=openblas \
               wheel=0.37
           fi
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
