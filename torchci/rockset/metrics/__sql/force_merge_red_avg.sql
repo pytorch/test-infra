@@ -1,16 +1,14 @@
 WITH all_merges AS (
   SELECT
-    author,
-    is_failed,
-    pr_num,
     skip_mandatory_checks,
     LENGTH(failed_checks) AS failed_checks_count,
-    merge_commit_sha,
   FROM
     commons.merges
   WHERE
     _event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND owner = :owner
+    AND project = :project
 ),
 force_merges_with_failed_checks AS (
   SELECT
