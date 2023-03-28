@@ -42,7 +42,56 @@ export default function Kpis() {
         <Grid container spacing={2}>
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"Avg Time To Signal - E2E (Weekly)"}
+                title={"% of force merges with failures (Weekly)"}
+                queryName={"force_merge_red_percent"}
+                queryCollection={"metrics"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"force_merges_red"}
+                yAxisRenderer={(unit) => {
+                    return `${unit * 100} %`;
+                }}
+                />
+            </Grid>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"# of force merges (Weekly)"}
+                queryName={"number_of_force_pushes_historical"}
+                queryCollection={"pytorch_dev_infra_kpis"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"bucket"}
+                yAxisFieldName={"count"}
+                yAxisRenderer={(unit) => `${unit}`}
+                />
+            </Grid>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"% of commits red on trunk (Weekly)"}
+                queryName={"master_commit_red_percent"}
+                queryCollection={"metrics"}
+                queryParams={[
+                    ...timeParams,
+                ]}
+                granularity={"week"}
+                timeFieldName={"granularity_bucket"}
+                yAxisFieldName={"total_red"}
+                yAxisRenderer={(unit) => {
+                    return `${unit * 100} %`;
+                }}
+                />
+            </Grid>
+
+            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+                <TimeSeriesPanel
+                title={"Avg time-to-signal - E2E (Weekly)"}
                 queryName={"time_to_signal"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[
@@ -63,7 +112,7 @@ export default function Kpis() {
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"# of Reverts (Weekly)"}
+                title={"# of reverts (Weekly)"}
                 queryName={"num_reverts"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[
@@ -78,39 +127,8 @@ export default function Kpis() {
             </Grid>
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-                <TimeSeriesPanel
-                title={"% of Commits Red on Trunk (Weekly)"}
-                queryName={"master_commit_red_percent"}
-                queryCollection={"metrics"}
-                queryParams={[
-                    ...timeParams,
-                ]}
-                granularity={"week"}
-                timeFieldName={"granularity_bucket"}
-                yAxisFieldName={"red"}
-                yAxisRenderer={(unit) => {
-                    return `${unit * 100} %`;
-                }}
-                />
-            </Grid>
-
-            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-                <TimeSeriesPanel
-                title={"# of Force Merges (Weekly)"}
-                queryName={"number_of_force_pushes_historical"}
-                queryCollection={"pytorch_dev_infra_kpis"}
-                queryParams={[
-                    ...timeParams,
-                ]}
-                granularity={"week"}
-                timeFieldName={"bucket"}
-                yAxisFieldName={"count"}
-                yAxisRenderer={(unit) => `${unit}`}
-                />
-            </Grid>
-            <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
               <TimeSeriesPanel
-                title={"viable/strict Lag (Daily)"}
+                title={"viable/strict lag (Daily)"}
                 queryName={"strict_lag_historical"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[...timeParams]}
@@ -125,7 +143,7 @@ export default function Kpis() {
             </Grid>
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Weekly External PR Count (4 week moving average))"}
+                    title={"Weekly external PR count (4 week moving average))"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...contributionTimeParams]}
                     granularity={"week"}
@@ -138,7 +156,7 @@ export default function Kpis() {
 
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Weekly Unique External Contributor Count (4 week moving average)"}
+                    title={"Weekly unique external contributor count (4 week moving average)"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...contributionTimeParams]}
                     granularity={"week"}

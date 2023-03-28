@@ -1,6 +1,11 @@
 {
-  "sql_path": "__sql/force_merge_red_avg.sql",
+  "sql_path": "__sql/force_merge_red_percent.sql",
   "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "week"
+    },
     {
       "name": "owner",
       "type": "string",
@@ -24,3 +29,4 @@
   ],
   "description": ""
 }
+
