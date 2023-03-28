@@ -33,6 +33,10 @@ export interface FlakyRule {
   captures: string[];
 }
 
+export interface UpdateCommentBody {
+    repo: string;
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse<void>
@@ -40,10 +44,14 @@ export default async function handler(
     const authorization = req.headers.authorization;
 
     if (authorization === process.env.DRCI_BOT_KEY) {
-        const { prNumber, repo } = req.query;
-        const octokit = await getOctokit(OWNER, repo);
+        const { prNumber } = req.query;
+        const { repo }: UpdateCommentBody = req.body;
+        console.log(`The repo parameter is: ${repo}`);
 
-        updateDrciComments(octokit, prNumber as string, repo);
+        const octokit = await getOctokit(OWNER, repo);
+        console.log(`The octokit value: ${octokit}`);
+
+//         updateDrciComments(octokit, prNumber as string, repo);
 
         res.status(200).end();
     }

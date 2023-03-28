@@ -17,9 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Retrieve rockset query results and update Dr. CI comments
+      - name: Retrieve rockset query results and update Dr. CI comments for the Vision repo
         run: |
           curl --request POST \
           --url 'https://www.torch-ci.com/api/drci/drci' \
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-          -d 'repo=myRepo'
+          --data 'repo=vision'
