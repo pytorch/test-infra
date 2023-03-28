@@ -226,14 +226,6 @@
       "windows"
     ]
   ],
-  "test_block_addmv_block_size_2_int32_noncontiguous_False_cpu_float64 (__main__.TestSparseCSRCPU)": [
-    "97589",
-    "https://github.com/pytorch/pytorch/issues/97589",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_block_addmv_block_size_2_int32_noncontiguous_True_cpu_float32 (__main__.TestSparseCSRCPU)": [
     "97733",
     "https://github.com/pytorch/pytorch/issues/97733",
@@ -273,14 +265,6 @@
   "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
     "97828",
     "https://github.com/pytorch/pytorch/issues/97828",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_block_addmv_block_size_3_int32_noncontiguous_True_cpu_complex128 (__main__.TestSparseCSRCPU)": [
-    "97563",
-    "https://github.com/pytorch/pytorch/issues/97563",
     [
       "mac",
       "macos"
