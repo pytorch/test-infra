@@ -511,7 +511,7 @@ export default function Page() {
     data === undefined || data.length === 0
       ? undefined
       : data[0]["broken_trunk_red"];
-  const flakyMetric =
+  const flakyRed =
     data === undefined || data.length === 0 ? undefined : data[0]["flaky_red"];
 
   return (
