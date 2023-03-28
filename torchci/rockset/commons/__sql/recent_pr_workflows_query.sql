@@ -13,7 +13,7 @@ WITH recent_shas as (
             )
             or :prNumber = p.number
         )
-        and p.base.repo.full_name = 'pytorch/pytorch'
+        and p.base.repo.full_name = :repo
 )
 SELECT
     w.id as workflow_id,

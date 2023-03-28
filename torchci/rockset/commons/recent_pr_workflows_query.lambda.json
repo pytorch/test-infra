@@ -10,6 +10,11 @@
       "name": "prNumber",
       "type": "int",
       "value": "0"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch/pytorch"
     }
   ],
   "description": "retrieve the CI check results in the past N minutes, as well as the other workflows from the same PRs that were previously run/pending"
