@@ -219,6 +219,24 @@
       "macos"
     ]
   ],
+  "test_block_addmv_block_size_2_int32_noncontiguous_True_cpu_float32 (__main__.TestSparseCSRCPU)": [
+    "97733",
+    "https://github.com/pytorch/pytorch/issues/97733",
+    [
+      "mac",
+      "macos",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_block_addmv_block_size_2_int64_noncontiguous_False_cpu_complex64 (__main__.TestSparseCSRCPU)": [
+    "97735",
+    "https://github.com/pytorch/pytorch/issues/97735",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_block_addmv_block_size_2_int64_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
     "97629",
     "https://github.com/pytorch/pytorch/issues/97629",
@@ -2305,6 +2323,13 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
+    ]
+  ],
+  "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "97734",
+    "https://github.com/pytorch/pytorch/issues/97734",
+    [
+      "rocm"
     ]
   ],
   "test_vmapjvpvjp_linalg_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
