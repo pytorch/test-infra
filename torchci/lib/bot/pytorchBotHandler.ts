@@ -371,10 +371,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   async handleDrCI() {
     await this.logger.log("Dr. CI");
-    const { ctx, prNum } = this;
+    const { ctx, prNum, repo } = this;
 
     await this.ackComment();
-    await updateDrciComments(ctx.octokit, prNum.toString());
+    await updateDrciComments(ctx.octokit, repo, prNum.toString());
   }
 
   async handlePytorchCommands(inputArgs: string) {
