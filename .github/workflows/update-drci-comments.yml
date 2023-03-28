@@ -1,12 +1,9 @@
 name: Update Dr. CI comments
 
 on:
-#  schedule:
+  schedule:
     # Run every 15 minutes
-#    - cron: "*/15 * * * *"
-  pull_request:
-    path:
-      - .github/workflows/update-drci-comments.yml
+    - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API (temporary)
   workflow_dispatch:
 
@@ -16,6 +13,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Retrieve rockset query results and update Dr. CI comments for the PyTorch repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=pytorch'
 
       - name: Retrieve rockset query results and update Dr. CI comments for the Vision repo
         run: |
