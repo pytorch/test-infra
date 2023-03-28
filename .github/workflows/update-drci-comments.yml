@@ -1,9 +1,12 @@
 name: Update Dr. CI comments
 
 on:
-  schedule:
+#  schedule:
     # Run every 15 minutes
-    - cron: "*/15 * * * *"
+#    - cron: "*/15 * * * *"
+  pull_request:
+    path:
+      - .github/workflows/update-drci-comments.yml
   # Have the ability to trigger this job manually through the API (temporary)
   workflow_dispatch:
 
@@ -18,4 +21,5 @@ jobs:
         run: |
           curl --request POST \
           --url 'https://www.torch-ci.com/api/drci/drci' \
-          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}'
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          -d 'repo=myRepo'

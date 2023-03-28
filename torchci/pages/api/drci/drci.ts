@@ -156,7 +156,7 @@ function constructResultsJobsSections(
   let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary>`;
 
   if (suggestion) {
-    output += <p>👉 <b>${suggestion}</b></p>"
+    output += "<p>👉 <b>${suggestion}</b></p>"
   }
 
   output += "<p>\n\n" // Two newlines are needed for bullts below to be formattec correctly
