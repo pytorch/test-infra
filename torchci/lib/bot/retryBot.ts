@@ -11,7 +11,7 @@ function retryBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
 
-    const allowedWorkflowPrefixes = {
+    const allowedWorkflowPrefixes: { [key: string]: string[] } = {
         "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
         "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
     }
