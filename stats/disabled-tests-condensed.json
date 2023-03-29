@@ -218,66 +218,6 @@
       "rocm"
     ]
   ],
-  "test_block_addmv_block_size_2_int32_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
-    "97751",
-    "https://github.com/pytorch/pytorch/issues/97751",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_block_addmv_block_size_2_int32_noncontiguous_True_cpu_float32 (__main__.TestSparseCSRCPU)": [
-    "97733",
-    "https://github.com/pytorch/pytorch/issues/97733",
-    [
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
-  "test_block_addmv_block_size_2_int64_noncontiguous_False_cpu_complex64 (__main__.TestSparseCSRCPU)": [
-    "97735",
-    "https://github.com/pytorch/pytorch/issues/97735",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_block_addmv_block_size_2_int64_noncontiguous_True_cpu_float32 (__main__.TestSparseCSRCPU)": [
-    "97752",
-    "https://github.com/pytorch/pytorch/issues/97752",
-    [
-      "mac",
-      "macos",
-      "win",
-      "windows"
-    ]
-  ],
-  "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_complex128 (__main__.TestSparseCSRCPU)": [
-    "97512",
-    "https://github.com/pytorch/pytorch/issues/97512",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_block_addmv_block_size_3_int32_noncontiguous_False_cpu_float32 (__main__.TestSparseCSRCPU)": [
-    "97828",
-    "https://github.com/pytorch/pytorch/issues/97828",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_block_addmv_block_size_3_int64_noncontiguous_True_cpu_complex128 (__main__.TestSparseCSRCPU)": [
-    "97710",
-    "https://github.com/pytorch/pytorch/issues/97710",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -1070,6 +1010,14 @@
     "https://github.com/pytorch/pytorch/issues/88472",
     [
       "dynamo"
+    ]
+  ],
+  "test_index_select_scalar (__main__.TestNLLLoss)": [
+    "94162",
+    "https://github.com/pytorch/pytorch/issues/94162",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
