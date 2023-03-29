@@ -889,7 +889,7 @@ function Report({
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
-        results with your choice of time range and granularity? {error}
+        results with your choice of time range and granularity?
       </div>
     );
   }

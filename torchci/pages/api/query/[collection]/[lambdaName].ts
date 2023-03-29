@@ -3,6 +3,14 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import getRocksetClient, { RocksetParam } from "lib/rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
+export const config = {
+  api: {
+    // TODO: Choose a higher limit than the 4mb default for compilers_benchmark_performance
+    // and then try to figure out how to make the result smaller later
+    responseLimit: "8mb",
+  },
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
