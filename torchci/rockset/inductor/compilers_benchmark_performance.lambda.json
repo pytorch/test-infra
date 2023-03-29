@@ -2,11 +2,6 @@
   "sql_path": "__sql/compilers_benchmark_performance.sql",
   "default_parameters": [
     {
-      "name": "compilers",
-      "type": "string",
-      "value": "aot_eager,eager,inductor,inductor_no_cudagraphs"
-    },
-    {
       "name": "device",
       "type": "string",
       "value": "cuda"
@@ -20,6 +15,11 @@
       "name": "granularity",
       "type": "string",
       "value": "day"
+    },
+    {
+      "name": "head",
+      "type": "string",
+      "value": "master"
     },
     {
       "name": "mode",

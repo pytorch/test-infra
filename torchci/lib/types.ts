@@ -157,6 +157,7 @@ export interface CompilerPerformanceData {
   suite: string;
   workflow_id: number;
   head_sha: string;
+  head_branch: string;
 }
 
 export enum JobAnnotation {

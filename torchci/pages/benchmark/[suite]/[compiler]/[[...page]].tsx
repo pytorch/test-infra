@@ -423,7 +423,7 @@ export default function Page() {
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           TorchDynamo Performance DashBoard ({suite},{" "}
-          {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler]})
+          {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <TimeRangePicker
           startTime={startTime}

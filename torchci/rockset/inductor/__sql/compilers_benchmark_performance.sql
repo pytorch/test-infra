@@ -93,12 +93,13 @@ results AS (
 )
 SELECT
   results.*,
-  w.head_sha
+  w.head_sha,
+  w.head_branch
 FROM
   results LEFT JOIN commons.workflow_run w ON results.workflow_id = w.id
 WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
-  AND ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler))
+  AND head_branch LIKE :head
 ORDER BY
   granularity_bucket DESC,
   suite ASC,
