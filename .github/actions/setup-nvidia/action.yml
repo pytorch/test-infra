@@ -7,7 +7,7 @@ inputs:
     description: which driver version to install
     required: false
     type: string
-    default: "515.76"
+    default: "525.89.02"
 
 runs:
   using: composite

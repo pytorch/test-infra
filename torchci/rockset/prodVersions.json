@@ -61,7 +61,7 @@
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
-    "workflow_load": "0e49684324faabdc"
+    "workflow_load": "48428f8a7c541b76"
   },
   "inductor": {
     "compilers_benchmark_performance": "0233e514e0d20e9d"

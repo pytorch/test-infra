@@ -7,13 +7,15 @@ function retryBot(app: Probot): void {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
     const defaultBranch = ctx.payload.repository.default_branch;
-    const allowedWorkflowPrefixes = [
-      "lint",
-      "pull",
-      "trunk",
-      "linux-binary",
-      "windows-binary"
-    ]
+    const owner = ctx.payload.repository.owner.login;
+    const repo = ctx.payload.repository.name;
+    const runId = ctx.payload.workflow_run.id;
+
+    const allowedWorkflowPrefixes: { [key: string]: string[] } = {
+        "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
+        "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
+    }
+    const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
@@ -22,15 +24,12 @@ function retryBot(app: Probot): void {
         ctx.payload.workflow_run.head_branch !== defaultBranch
       ) ||
       attemptNumber > 1 ||
-      allowedWorkflowPrefixes.every(
-        allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow)
+      allowedRepoPrefixes.every(
+        allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
       )
     ) {
       return;
     }
-    const owner = ctx.payload.repository.owner.login;
-    const repo = ctx.payload.repository.name;
-    const runId = ctx.payload.workflow_run.id;
 
     let workflowJobs = [];
     let total_count = 1;
