@@ -50,10 +50,7 @@ export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
 };
-export const BLOCKLIST_COMPILERS = [
-  "aot_eager",
-  "eager",
-];
+export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
 export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
@@ -77,7 +74,8 @@ function getPassModels(data: any) {
     const accuracy = record.accuracy;
 
     // Use clear compiler name to avoid confusion about what they do
-    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
     if (BLOCKLIST_COMPILERS.includes(compiler)) {
       return;
     }
@@ -131,7 +129,8 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     const head = record.head_branch;
 
     // Use clear compiler name to avoid confusion about what they do
-    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
     if (BLOCKLIST_COMPILERS.includes(compiler)) {
       return;
     }
@@ -186,7 +185,8 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
               granularity_bucket: bucket,
               workflow_id: workflowId,
               head_sha: headByBucket[bucket][workflowId][suite][compiler][0],
-              head_breanch: headByBucket[bucket][workflowId][suite][compiler][1],
+              head_breanch:
+                headByBucket[bucket][workflowId][suite][compiler][1],
               suite: suite,
               compiler: compiler,
               passrate: p,
@@ -225,7 +225,8 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
     const model = record.name;
 
     // Use clear compiler name to avoid confusion about what they do
-    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
     if (BLOCKLIST_COMPILERS.includes(compiler)) {
       return;
     }
@@ -294,7 +295,8 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
     const compLatency = record.compilation_latency;
 
     // Use clear compiler name to avoid confusion about what they do
-    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
     if (BLOCKLIST_COMPILERS.includes(compiler)) {
       return;
     }
@@ -371,7 +373,8 @@ function computeMemoryCompressionRatio(
     const compRatio = record.compression_ratio;
 
     // Use clear compiler name to avoid confusion about what they do
-    const compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
+    const compiler =
+      COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
     if (BLOCKLIST_COMPILERS.includes(compiler)) {
       return;
     }
@@ -545,7 +548,8 @@ function SummaryPanel({
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ?? params.row.compiler
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                    params.row.compiler
                   }?dtypes=${dtypes}`;
                   return <a href={url}>{params.value}</a>;
                 },
@@ -586,7 +590,8 @@ function SummaryPanel({
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ?? params.row.compiler
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                    params.row.compiler
                   }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
@@ -623,7 +628,8 @@ function SummaryPanel({
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ?? params.row.compiler
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                    params.row.compiler
                   }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
                 },
@@ -662,7 +668,8 @@ function SummaryPanel({
                 flex: 1,
                 renderCell: (params: GridRenderCellParams<string>) => {
                   const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ?? params.row.compiler
+                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                    params.row.compiler
                   }?dtypes=${dtypes}`;
                   return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                 },
@@ -848,7 +855,12 @@ function BuildSummary({
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        *This report was last generated by CI running on PyTorch main branch at commit <a href={`${HUD_PREFIX}/${latestSha}#inductor-a100-perf-nightly`}>{latestSha.substring(0, 7)}</a>.
+        *This report was last generated by CI running on PyTorch main branch at
+        commit{" "}
+        <a href={`${HUD_PREFIX}/${latestSha}#inductor-a100-perf-nightly`}>
+          {latestSha.substring(0, 7)}
+        </a>
+        .
       </Typography>
     </Stack>
   );
