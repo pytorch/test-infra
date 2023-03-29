@@ -35,7 +35,7 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_WEEK = 7;
+const LAST_N_DAYS = 3;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
@@ -886,7 +886,6 @@ function Report({
   });
 
   if (error !== undefined) {
-    console.log(error);
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
@@ -937,7 +936,7 @@ function Report({
 }
 
 export default function Page() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
+  const [startTime, setStartTime] = useState(dayjs().subtract(3, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [dtypes, setDTypes] = useState<string>("amp");
@@ -986,7 +985,7 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_WEEK}
+          defaultValue={LAST_N_DAYS}
         />
         <GranularityPicker
           granularity={granularity}
