@@ -34,7 +34,7 @@ jobs:
         - repository: pytorch/vision
           pre-script: packaging/windows/internal/vc_install_helper.sh
           env-script: packaging/windows/internal/vc_env_helper.bat
-          post-script: packaging/post_build_script.sh
+          post-script: "python packaging/wheel/relocate.py"
           smoke-test-script: test/smoke_test.py
           package-name: torchvision
     uses: ./.github/workflows/build_wheels_windows.yml

@@ -166,7 +166,7 @@ jobs:
             echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} ${ENV_SCRIPT} bash "${POST_SCRIPT}"
+            ${CONDA_RUN} ${ENV_SCRIPT} "${POST_SCRIPT}"
           fi
       - name: Smoke Test
         env:
