@@ -159,8 +159,10 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           POST_SCRIPT: ${{ inputs.post-script }}
+          ENV_SCRIPT: ${{ inputs.env-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
       - name: Smoke Test
