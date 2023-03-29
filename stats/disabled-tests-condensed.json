@@ -218,6 +218,11 @@
       "rocm"
     ]
   ],
+  "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
+    "68433",
+    "https://github.com/pytorch/pytorch/issues/68433",
+    []
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -1038,13 +1043,6 @@
   "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95148",
     "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
     [
       "linux"
     ]
@@ -2103,13 +2101,6 @@
   "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
     "87070",
     "https://github.com/pytorch/pytorch/issues/87070",
-    [
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
-    "86711",
-    "https://github.com/pytorch/pytorch/issues/86711",
     [
       "linux"
     ]
