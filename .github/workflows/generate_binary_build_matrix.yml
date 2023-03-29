@@ -50,6 +50,7 @@ jobs:
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
+      - uses: ./.github/actions/set-channel
       - name: Generate test matrix
         id: generate
         env:

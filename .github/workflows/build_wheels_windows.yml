@@ -47,10 +47,6 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
-      runner-type:
-        description: "Runner environment specified."
-        default: ""
-        type: string
       trigger-event:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
@@ -73,9 +69,10 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ inputs.runner-type }}
+    runs-on: ${{ matrix.validation_runner }}
     defaults:
       run:
         shell: bash -l {0}
@@ -98,6 +95,7 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: |
           echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
+      - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -120,7 +118,11 @@ jobs:
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+            if [[ ${PRE_SCRIPT} == *.bat ]]; then
+              ${CONDA_RUN} ${PRE_SCRIPT}
+            else
+              ${CONDA_RUN} bash ${PRE_SCRIPT}
+            fi
           fi
       - name: Build clean
         working-directory: ${{ inputs.repository }}
@@ -134,6 +136,9 @@ jobs:
           BUILD_PARAMS: ${{ inputs.wheel-build-params }}
         run: |
           source "${BUILD_ENV_FILE}"
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
+
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} python setup.py bdist_wheel
           else

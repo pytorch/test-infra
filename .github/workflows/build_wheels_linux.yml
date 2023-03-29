@@ -75,12 +75,20 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
+      - name: Clean workspace
+        run: |
+          set -euxo pipefail
+          echo "::group::Cleanup debug output"
+          rm -rfv "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          echo "::endgroup::"
       - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -166,7 +174,7 @@ jobs:
           # Checking that we have a pinned version of torch in our dependency tree
           (
             pushd "${RUNNER_TEMP}"
-            unzip "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
+            unzip -o "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )

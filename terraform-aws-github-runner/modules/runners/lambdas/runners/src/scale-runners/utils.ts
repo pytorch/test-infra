@@ -114,3 +114,33 @@ export function groupBy<T, V>(lst: T[], keyGetter: (itm: T) => V): Map<V, Array<
   }
   return map;
 }
+
+export function getDelayWithJitter(delayBase: number, jitter: number) {
+  return Math.max(0, delayBase) * (1 + Math.random() * Math.max(0, jitter));
+}
+
+export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
+  return getDelayWithJitter(Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount)), jitter);
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReplacer(key: string, value: any) {
+  if (value instanceof Map) {
+    return {
+      dataType: 'Map',
+      value: Array.from(value.entries()),
+    };
+  } else {
+    return value;
+  }
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReviver(key: string, value: any) {
+  if (typeof value === 'object' && value !== null) {
+    if (value.dataType === 'Map') {
+      return new Map(value.value);
+    }
+  }
+  return value;
+}

@@ -6,6 +6,7 @@ function retryBot(app: Probot): void {
   app.on("workflow_run.completed", async (ctx) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
+    const defaultBranch = ctx.payload.repository.default_branch;
     const allowedWorkflowPrefixes = [
       "lint",
       "pull",
@@ -18,7 +19,7 @@ function retryBot(app: Probot): void {
       ctx.payload.workflow_run.conclusion === "success" ||
       (
         ctx.payload.workflow_run.conclusion === "cancelled" &&
-        ctx.payload.workflow_run.head_branch !== "master"
+        ctx.payload.workflow_run.head_branch !== defaultBranch
       ) ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
@@ -95,7 +96,6 @@ function retryBot(app: Probot): void {
       // if no test steps failed, can rerun
       return !doesLookLikeUserFailure(job, step => step.name.toLowerCase().includes("test"))
     });
-    
     if (shouldRetry.length === 0) {
       return;
     }
@@ -107,7 +107,7 @@ function retryBot(app: Probot): void {
         job_id: shouldRetry[0].id,
       });
     }
-    // if multiple jobs need to be rerun, rerun everyting that failed
+    // if multiple jobs need to be rerun, rerun everything that failed
     return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
       owner,
       repo,

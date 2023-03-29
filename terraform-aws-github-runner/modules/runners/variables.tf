@@ -132,6 +132,25 @@ variable "sqs_build_queue" {
   description = "SQS queue to consume accepted build events."
   type = object({
     arn = string
+    url = string
+  })
+}
+
+variable "redis_endpoint" {
+  description = "Redis endpoint"
+  type        = string
+}
+
+variable "redis_login" {
+  description = "Redis password"
+  type        = string
+}
+
+variable "sqs_build_queue_retry" {
+  description = "SQS queue to forward messages to retry requests"
+  type = object({
+    arn = string
+    url = string
   })
 }
 

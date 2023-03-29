@@ -88,6 +88,7 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
@@ -182,7 +183,7 @@ jobs:
           # Checking that we have a pinned version of torch in our dependency tree
           (
             pushd "${RUNNER_TEMP}"
-            unzip "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
+            unzip -o "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )

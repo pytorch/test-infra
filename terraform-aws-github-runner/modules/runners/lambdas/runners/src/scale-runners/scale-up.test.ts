@@ -17,7 +17,6 @@ import * as MetricsModule from './metrics';
 jest.mock('./runners');
 jest.mock('./gh-runners');
 jest.mock('./gh-issues');
-jest.mock('./metrics');
 
 beforeEach(() => {
   jest.resetModules();
@@ -30,6 +29,7 @@ const baseCfg = {
   awsRegion: 'us-east-1',
   cantHaveIssuesLabels: [],
   mustHaveIssuesLabels: [],
+  lambdaTimeout: 600,
 } as unknown as Config;
 
 const metrics = new MetricsModule.ScaleUpMetrics();
@@ -50,7 +50,7 @@ describe('scaleUp', () => {
       installationId: 2,
       runnerLabels: [],
     };
-    await expect(scaleUp('other', payload)).rejects.toThrow('Cannot handle non-SQS events!');
+    await expect(scaleUp('other', payload, metrics)).rejects.toThrow('Cannot handle non-SQS events!');
   });
 
   it('provides runnerLabels that aren`t present on runnerTypes', async () => {
@@ -80,7 +80,7 @@ describe('scaleUp', () => {
     );
     const mockedListGithubRunners = mocked(listGithubRunnersRepo);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
     expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' }, metrics);
@@ -189,7 +189,7 @@ describe('scaleUp', () => {
     ]);
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
     expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
@@ -261,7 +261,7 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForOrg = mocked(createRegistrationTokenOrg).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -344,7 +344,7 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
@@ -426,7 +426,7 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
@@ -508,7 +508,7 @@ describe('scaleUp', () => {
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedCreateRunner).toBeCalledTimes(1);
     expect(mockedCreateRunner).toBeCalledWith(
@@ -573,7 +573,7 @@ describe('scaleUp', () => {
     ]);
     const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
   });
@@ -623,7 +623,7 @@ describe('scaleUp', () => {
     mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     const mockedCreateRunner = mocked(createRunner);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
 
     expect(mockedCreateRunner).toBeCalledWith(
       {
@@ -668,7 +668,7 @@ describe('scaleUp', () => {
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).not.toBeCalled();
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.mustHaveIssuesLabels[0], metrics);
@@ -701,7 +701,7 @@ describe('scaleUp', () => {
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
 
-    await scaleUp('aws:sqs', payload);
+    await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).not.toBeCalled();
     expect(mockedGetRepoIssuesWithLabel).toBeCalledTimes(2);
     expect(mockedGetRepoIssuesWithLabel).toBeCalledWith(repo, config.cantHaveIssuesLabels[0], metrics);

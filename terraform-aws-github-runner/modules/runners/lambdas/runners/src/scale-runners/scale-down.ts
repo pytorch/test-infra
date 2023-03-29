@@ -29,7 +29,7 @@ export async function scaleDown(): Promise<void> {
   try {
     // Ensure a clean cache before attempting each scale down event
     resetRunnersCaches();
-    resetGHRunnersCaches();
+    await resetGHRunnersCaches();
     resetSecretCache();
 
     metrics.run();
@@ -179,7 +179,7 @@ export async function scaleDown(): Promise<void> {
     clearTimeout(sndMetricsTimout.setTimeout);
     sndMetricsTimout.metrics = undefined;
     sndMetricsTimout.setTimeout = undefined;
-    metrics.sendMetrics();
+    await metrics.sendMetrics();
   }
 }
 
