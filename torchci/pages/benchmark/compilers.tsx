@@ -886,6 +886,7 @@ function Report({
   });
 
   if (error !== undefined) {
+    console.log(error);
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
