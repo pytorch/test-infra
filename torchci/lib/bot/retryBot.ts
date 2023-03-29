@@ -15,6 +15,7 @@ function retryBot(app: Probot): void {
         "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
         "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
     }
+    const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
@@ -23,7 +24,7 @@ function retryBot(app: Probot): void {
         ctx.payload.workflow_run.head_branch !== defaultBranch
       ) ||
       attemptNumber > 1 ||
-      allowedWorkflowPrefixes[repo].every(
+      allowedRepoPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
       )
     ) {

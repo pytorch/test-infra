@@ -152,6 +152,7 @@ describe("retry-bot", () => {
     handleScope(scope);
   });
 
+
   test("get more pages of workflow_jobs", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "Lint";
