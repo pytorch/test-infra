@@ -580,14 +580,6 @@
       "rocm"
     ]
   ],
-  "test_delayed_reduce_scatter_offload_false_shard_grad_op (__main__.TestParityWithDDP)": [
-    "82398",
-    "https://github.com/pytorch/pytorch/issues/82398",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_delayed_reduce_scatter_offload_true_none (__main__.TestParityWithDDP)": [
     "82399",
     "https://github.com/pytorch/pytorch/issues/82399",
