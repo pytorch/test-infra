@@ -517,7 +517,7 @@ export default function Page() {
               title={"% commits red on master, aggregate"}
               queryName={"master_commit_red_avg"}
               metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               queryParams={timeParams}
               badThreshold={(value) => value > 0.2}
             />
@@ -539,7 +539,7 @@ export default function Page() {
               title={"% commits red on master, after retries"}
               queryName={"master_commit_red_avg"}
               metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               queryParams={[
                 {
                   name: "useRetryConclusion",
