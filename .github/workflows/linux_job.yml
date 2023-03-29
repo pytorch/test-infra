@@ -159,6 +159,8 @@ jobs:
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
           python3 <<EOF
+            import json
+            all_secrets = json.loads(os.environ['ALL_SECRETS'])
             secrets_names = [x for x in '${{ inputs.secrets-env }}'.split('') if x]
             secrets_u_names = [
               f'SECRET_{x.upper()}'
@@ -167,7 +169,7 @@ jobs:
 
             for sname, senv in zip(secrets_names, secrets_u_names):
               try:
-                os.environ[senv] = os.environ[sname]
+                os.environ[senv] = all_secrets[sname]
               except:
                 print(f'Could not set {senv} from secret {sname}')
 
