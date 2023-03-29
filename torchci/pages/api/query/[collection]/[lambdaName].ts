@@ -6,7 +6,7 @@ import rocksetVersions from "rockset/prodVersions.json";
 export const config = {
   api: {
     // TODO: Choose a higher limit than the 4mb default for compilers_benchmark_performance
-    // and then try to figure out how to make the result smaller later
+    // and then try to figure out how to make the results smaller later
     responseLimit: "8mb",
   },
 }
