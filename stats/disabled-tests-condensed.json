@@ -1224,25 +1224,9 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
-  "test_nn_AdaptiveAvgPool3d_tuple (__main__.TestJitGeneratedModule)": [
-    "96846",
-    "https://github.com/pytorch/pytorch/issues/96846",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_nn_Conv3d (__main__.TestJitGeneratedModule)": [
     "96921",
     "https://github.com/pytorch/pytorch/issues/96921",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_nn_Conv3d_dilated (__main__.TestJitGeneratedModule)": [
-    "96845",
-    "https://github.com/pytorch/pytorch/issues/96845",
     [
       "win",
       "windows"
