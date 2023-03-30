@@ -162,6 +162,8 @@ jobs:
             import json
             all_secrets = json.loads(os.environ['ALL_SECRETS'])
             secrets_names = [x for x in '${{ inputs.secrets-env }}'.split(' ') if x]
+            if not secrets_names:
+              secrets_names = [x for x in all_secrets.keys()]
             secrets_u_names = [
               re.sub(r'[^a-zA-Z0-9_]', '', f'SECRET_{x.upper()}'.replace('-', '_'))
               for x in secrets_names
