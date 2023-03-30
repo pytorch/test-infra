@@ -33,7 +33,7 @@ import {
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_N_DAYS = 7;
+const LAST_N_DAYS = 3;
 const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
