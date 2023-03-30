@@ -62,7 +62,8 @@ export async function updateDrciComments(octokit: Octokit, repo: string = "pytor
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
-    await addMergeBaseCommits(octokit, workflowsByPR);
+    const head = get_head_branch(repo);
+    await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
     const flakyRules: FlakyRule[] = await fetchJSON(FLAKY_RULES_JSON) || [];
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
@@ -105,17 +106,24 @@ async function forAllPRs(workflowsByPR: Map<number, PRandJobs>, func: CallableFu
   );
 }
 
+function get_head_branch(repo: string) {
+    return repo === REPO ? "master" : "main";
+}
+
 async function addMergeBaseCommits(
   octokit: Octokit,
+  repo: string,
+  head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const diff = await octokit.rest.repos.compareCommits({
       owner: OWNER,
-      repo: REPO,
+      repo: repo,
       base: pr_info.head_sha,
-      head: "master",
+      head: head,
     });
+
     pr_info.merge_base = diff.data.merge_base_commit.sha;
   });
 }
