@@ -165,9 +165,9 @@ jobs:
           def run_cmd_or_die(cmd):
             print(f'Running command: {cmd}')
             p = subprocess.Popen("/bin/sh", stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-            p.stdin.write('set -ex\n')
+            p.stdin.write('set -ex\n'.encode('utf-8'))
             p.stdin.write(cmd.encode('utf-8'))
-            p.stdin.write('\nexit $?\n')
+            p.stdin.write('\nexit $?\n'.encode('utf-8'))
             exit_code = p.wait()
             result = p.stdout.read().decode('utf-8')
             print(result)
