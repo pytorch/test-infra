@@ -14,7 +14,7 @@ import {
 } from './gh-runners';
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
 import { listRunners, resetRunnersCaches, terminateRunner } from './runners';
-import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError } from './utils';
+import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
 
 export async function scaleDown(): Promise<void> {
   const metrics = new ScaleDownMetrics();
@@ -47,7 +47,7 @@ export async function scaleDown(): Promise<void> {
       return;
     }
 
-    for (const [runnerType, runners] of runnersDict.entries()) {
+    for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
 
       const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> = [];
