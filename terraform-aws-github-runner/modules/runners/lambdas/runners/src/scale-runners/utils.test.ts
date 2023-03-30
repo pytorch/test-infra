@@ -1,12 +1,11 @@
 import {
-  expBackOff,
   getBoolean,
+  getRepoKey,
+  expBackOff,
+  getRepo,
+  groupBy,
   getDelayWithJitter,
   getDelayWithJitterRetryCount,
-  getRepo,
-  getRepoKey,
-  groupBy,
-  shuffleArrayInPlace,
 } from './utils';
 import nock from 'nock';
 
@@ -243,20 +242,5 @@ describe('./utils', () => {
         expect(r).toBeGreaterThanOrEqual(1000);
       }
     });
-  });
-});
-
-describe('shuffleArrayInPlace', () => {
-  it('empty array, is empty', () => {
-    expect(shuffleArrayInPlace([])).toEqual([]);
-  });
-
-  it('expects the array to be randomized, contain all items and be returned', () => {
-    const arr = Array.from(Array(10).keys());
-    const arrResult = shuffleArrayInPlace(arr);
-    expect(arrResult).toBe(arr);
-    for (const number of Array(10).keys()) {
-      expect(arr).toContain(number);
-    }
   });
 });
