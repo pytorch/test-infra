@@ -116,6 +116,9 @@ jobs:
           binary-matrix: ${{ inputs.binary-matrix }}
           target-os: "windows"
 
+      - name: Debug
+        run: sleep 3600
+
       - name: Run script
         shell: bash -l {0}
         continue-on-error: ${{ inputs.continue-on-error }}
