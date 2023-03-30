@@ -97,7 +97,7 @@ SELECT
         SUM(num) OVER(
             PARTITION BY code
             ORDER BY
-                bucket ROWS 2 PRECEDING
+                bucket ROWS 1 PRECEDING
         )
     ) / 2.0 AS num,
     code,
@@ -105,4 +105,3 @@ FROM
     weekly_results
 ORDER BY
     bucket DESC, code
-   
