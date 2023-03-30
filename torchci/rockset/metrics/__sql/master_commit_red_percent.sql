@@ -3,7 +3,7 @@ WITH all_jobs AS (
         push._event_time as time,
         job.conclusion AS conclusion,
         push.head_commit.id AS sha,
-        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS attempt,
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
     FROM
         push
         JOIN commons.workflow_run workflow ON workflow.head_commit.id = push.head_commit.id
@@ -23,10 +23,29 @@ WITH all_jobs AS (
         AND push.repository.name = 'pytorch'
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    UNION ALL
+    SELECT
+        push._event_time as time,
+        CASE
+            WHEN job.job.status = 'failed' then 'failure'
+            WHEN job.job.status = 'canceled' then 'cancelled'
+            ELSE job.job.status
+        END AS conclusion,
+        push.head_commit.id AS sha,
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
+    FROM
+        circleci.job job
+        JOIN push ON job.pipeline.vcs.revision = push.head_commit.id
+    WHERE
+        push.ref IN ('refs/heads/master', 'refs/heads/main')
+        AND push.repository.owner.name = 'pytorch'
+        AND push.repository.name = 'pytorch'
+        AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+        AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
 ),
 any_red AS (
     SELECT
-        time,
+        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
         sha,
         CAST(
             SUM(
@@ -37,13 +56,13 @@ any_red AS (
                     ELSE 0
                 END
             ) > 0 AS int
-        ) AS any_red,
+        ) AS all_red,
         CAST(
             SUM(
                 CASE
-                    WHEN conclusion = 'failure' AND attempt = 1 THEN 1
-                    WHEN conclusion = 'timed_out' AND attempt = 1 THEN 1
-                    WHEN conclusion = 'cancelled' AND attempt = 1 THEN 1
+                    WHEN conclusion = 'failure' AND row_num = 1 THEN 1
+                    WHEN conclusion = 'timed_out' AND row_num = 1 THEN 1
+                    WHEN conclusion = 'cancelled' AND row_num = 1 THEN 1
                     ELSE 0
                 END
             ) > 0 AS int
@@ -51,7 +70,7 @@ any_red AS (
     FROM
         all_jobs
     GROUP BY
-        time,
+        granularity_bucket,
         sha
     HAVING
         count(sha) > 10 -- Filter out jobs that didn't run anything.
@@ -59,21 +78,38 @@ any_red AS (
 ),
 classified_red AS (
     SELECT
-        FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, time)) AS granularity_bucket,
+        granularity_bucket,
         ARRAY_CREATE(
             ARRAY_CREATE('Broken trunk', AVG(broken_trunk_red)),
-            ARRAY_CREATE('Flaky', AVG(any_red) - AVG(broken_trunk_red)),
-            ARRAY_CREATE('Total', AVG(any_red))
+            ARRAY_CREATE('Flaky', AVG(all_red) - AVG(broken_trunk_red)),
+            ARRAY_CREATE('Total', AVG(all_red))
         ) AS metrics,
     FROM
         any_red
     GROUP BY
         granularity_bucket
+),
+avg_red AS (
+    SELECT
+        classified_red.granularity_bucket,
+        ELEMENT_AT(metrics.metric, 1) AS name,
+        ELEMENT_AT(metrics.metric, 2) AS metric,
+    FROM
+        classified_red
+        CROSS JOIN UNNEST(classified_red.metrics AS metric) AS metrics
 )
 SELECT
-    classified_red.granularity_bucket,
-    ELEMENT_AT(metrics.metric, 1) AS name,
-    ELEMENT_AT(metrics.metric, 2) AS metric,
+    granularity_bucket,
+    name,
+    -- 2 week rolling average
+    (
+        SUM(metric) OVER(
+            PARTITION BY name
+            ORDER BY
+                granularity_bucket ROWS 2 PRECEDING
+        )
+    ) / 2.0 AS metric,    
 FROM
-    classified_red
-    CROSS JOIN UNNEST(classified_red.metrics AS metric) AS metrics
+    avg_red
+ORDER BY
+    granularity_bucket DESC

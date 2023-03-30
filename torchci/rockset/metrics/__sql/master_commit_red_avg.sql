@@ -2,10 +2,10 @@ WITH all_jobs AS (
     SELECT
         job.conclusion AS conclusion,
         push.head_commit.id AS sha,
-        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS attempt,
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
     FROM
         push
-        JOIN commons.workflow_run workflow ON push.head_commit.id = workflow.head_commit.id
+        JOIN commons.workflow_run workflow ON workflow.head_commit.id = push.head_commit.id
         JOIN commons.workflow_job job ON workflow.id = job.run_id
     WHERE
         job.name != 'ciflow_should_run'
@@ -16,8 +16,27 @@ WITH all_jobs AS (
             OR workflow.name like 'windows-binary%'
         )
         AND job.name NOT LIKE '%rerun_disabled_tests%'
+        AND job.name NOT LIKE '%mem_leak_check%'
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         AND push.ref IN ('refs/heads/master', 'refs/heads/main')
+        AND push.repository.owner.name = 'pytorch'
+        AND push.repository.name = 'pytorch'
+        AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
+        AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    UNION ALL
+    SELECT
+        CASE
+            WHEN job.job.status = 'failed' then 'failure'
+            WHEN job.job.status = 'canceled' then 'cancelled'
+            ELSE job.job.status
+        END AS conclusion,
+        push.head_commit.id AS sha,
+        ROW_NUMBER() OVER(PARTITION BY job.name, push.head_commit.id ORDER BY job.run_attempt DESC) AS row_num,
+    FROM
+        circleci.job job
+        JOIN push ON job.pipeline.vcs.revision = push.head_commit.id
+    WHERE
+        push.ref IN ('refs/heads/master', 'refs/heads/main')
         AND push.repository.owner.name = 'pytorch'
         AND push.repository.name = 'pytorch'
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
@@ -38,9 +57,9 @@ all_reds AS (
         CAST(
             SUM(
                 CASE
-                    WHEN conclusion = 'failure' AND attempt = 1 THEN 1
-                    WHEN conclusion = 'timed_out' AND attempt = 1 THEN 1
-                    WHEN conclusion = 'cancelled' AND attempt = 1 THEN 1
+                    WHEN conclusion = 'failure' AND row_num = 1 THEN 1
+                    WHEN conclusion = 'timed_out' AND row_num = 1 THEN 1
+                    WHEN conclusion = 'cancelled' AND row_num = 1 THEN 1
                     ELSE 0
                 END
             ) > 0 AS int
