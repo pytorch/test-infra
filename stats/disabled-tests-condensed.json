@@ -1225,22 +1225,6 @@
       "windows"
     ]
   ],
-  "test_nn_MaxPool2d_return_indices (__main__.TestJitGeneratedModule)": [
-    "96946",
-    "https://github.com/pytorch/pytorch/issues/96946",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_nn_TransformerEncoderLayer_relu_activation (__main__.TestJitGeneratedModule)": [
-    "96945",
-    "https://github.com/pytorch/pytorch/issues/96945",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96088",
     "https://github.com/pytorch/pytorch/issues/96088",
