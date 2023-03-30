@@ -1,6 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import { RunnerInfo, expBackOff, shuffleArrayInPlace } from './utils';
+import { RunnerInfo, expBackOff } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -313,7 +313,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     const errors: Array<[string, unknown]> = [];
 
     const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
-    for (const [awsRegionIdx, awsRegion] of shuffleArrayInPlace(Array.from(shuffledAwsRegionInstances.entries()))) {
+    for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
       const ec2 = new EC2({ region: awsRegion });
       const ssm = new SSM({ region: awsRegion });
       const shuffledVPCsForAwsRegion = Config.Instance.shuffledVPCsForAwsRegion(awsRegion);
