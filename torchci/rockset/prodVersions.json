@@ -65,6 +65,7 @@
   },
   "inductor": {
     "compilers_benchmark_performance": "9920a1be037a52a7",
-    "compilers_benchmark_performance_latest_runs": "08ba31fd81c49bc7"
+    "compilers_benchmark_performance_branches": "6498d7b3dc1f46b9",
+    "compilers_benchmark_performance_latest_runs": "35ffcb57027b6e59"
   }
 }

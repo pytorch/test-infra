@@ -508,10 +508,36 @@ export function SuitePicker({
 export function BranchPicker({
   branch,
   setBranch,
+  queryParams,
 }: {
   branch: string;
   setBranch: any;
+  queryParams: RocksetParam[];
 }) {
+  const queryName = "compilers_benchmark_performance_branches";
+  const queryCollection = "inductor";
+
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (error !== undefined) {
+    return (
+      <div>
+        An error occurred while fetching data, perhaps there are too many
+        results with your choice of time range and granularity?
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
   function handleChange(e: SelectChangeEvent<string>) {
     setBranch(e.target.value);
   }
@@ -528,6 +554,11 @@ export function BranchPicker({
           id="branch-picker-select"
         >
           <MenuItem value={"master"}>main</MenuItem>
+          {data.map((b) => (
+            <MenuItem key={b["head_branch"]} value={b["head_branch"]}>
+              {b["head_branch"]}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -1120,7 +1151,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <BranchPicker branch={branch} setBranch={setBranch} />
+        <BranchPicker branch={branch} setBranch={setBranch} queryParams={queryParams} />
         <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
       </Stack>
