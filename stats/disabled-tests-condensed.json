@@ -1337,6 +1337,13 @@
       "rocm"
     ]
   ],
+  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
+    "98026",
+    "https://github.com/pytorch/pytorch/issues/98026",
+    [
+      "rocm"
+    ]
+  ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "96550",
     "https://github.com/pytorch/pytorch/issues/96550",
@@ -1347,6 +1354,13 @@
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96375",
     "https://github.com/pytorch/pytorch/issues/96375",
+    [
+      "rocm"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
+    "98025",
+    "https://github.com/pytorch/pytorch/issues/98025",
     [
       "rocm"
     ]
@@ -1474,6 +1488,13 @@
     "https://github.com/pytorch/pytorch/issues/75168",
     [
       "mac"
+    ]
+  ],
+  "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
+    "98024",
+    "https://github.com/pytorch/pytorch/issues/98024",
+    [
+      "linux"
     ]
   ],
   "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
