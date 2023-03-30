@@ -9,19 +9,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-secrets-explicit:
-    uses: ./.github/workflows/linux_job.yml
-    secrets:
-      NOT_A_SECRET_USED_FOR_TESTING: "${{ secrets.NOT_A_SECRET_USED_FOR_TESTING }}"
-    with:
-      job-name: "test-secrets-explicit"
-      runner: linux.2xlarge
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      gpu-arch-type: cpu
-      gpu-arch-version: ""
-      script: |
-        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "${{ secrets.NOT_A_SECRET_USED_FOR_TESTING }}" ]] || exit 1
   test-secrets-filter-var:
     uses: ./.github/workflows/linux_job.yml
     secrets:
