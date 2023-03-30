@@ -14,7 +14,6 @@ jobs:
     with:
       job-name: "test-secrets-filter-var"
       runner: linux.2xlarge
-      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cpu
