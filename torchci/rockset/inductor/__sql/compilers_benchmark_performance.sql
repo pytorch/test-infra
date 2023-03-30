@@ -94,9 +94,7 @@ results AS (
     AND performance_results.workflow_id = accuracy_results.workflow_id
 )
 SELECT
-  results.*,
-  w.head_sha,
-  w.head_branch
+  results.*
 FROM
   results LEFT JOIN commons.workflow_run w ON results.workflow_id = w.id
 WHERE
