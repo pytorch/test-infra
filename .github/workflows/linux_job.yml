@@ -158,6 +158,7 @@ jobs:
           chmod +x "${RUNNER_TEMP}/exec_script"
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
+
           python3 <<EOF
           import json, os, re
           all_secrets = json.loads(os.environ['ALL_SECRETS'])
@@ -200,11 +201,12 @@ jobs:
               -w /work \
               "{ os.environ.get('DOCKER_IMAGE', '') }" \
             )
-            docker exec -t "{ os.environ.get('container_name', '') }" bash /exec
+            docker exec -t "\${container_name}" bash /exec
           '''
 
           print(output_cmds)
           os.system(output_cmds)
+
           EOF
 
       - name: Surface failing tests
