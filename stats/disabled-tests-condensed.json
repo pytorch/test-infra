@@ -1209,14 +1209,6 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
-  "test_nn_Conv3d (__main__.TestJitGeneratedModule)": [
-    "96921",
-    "https://github.com/pytorch/pytorch/issues/96921",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_nn_Conv3d_stride (__main__.TestJitGeneratedModule)": [
     "96999",
     "https://github.com/pytorch/pytorch/issues/96999",
@@ -1228,14 +1220,6 @@
   "test_nn_ConvTranspose1d (__main__.TestJitGeneratedModule)": [
     "96950",
     "https://github.com/pytorch/pytorch/issues/96950",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_nn_HuberLoss_no_batch_dim_mean (__main__.TestJitGeneratedModule)": [
-    "96920",
-    "https://github.com/pytorch/pytorch/issues/96920",
     [
       "win",
       "windows"
@@ -1361,6 +1345,13 @@
     "https://github.com/pytorch/pytorch/issues/94541",
     [
       "linux"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
+    "97940",
+    "https://github.com/pytorch/pytorch/issues/97940",
+    [
+      "rocm"
     ]
   ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
