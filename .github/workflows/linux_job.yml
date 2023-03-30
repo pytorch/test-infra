@@ -161,7 +161,7 @@ jobs:
           python3 <<EOF
             import json
             all_secrets = json.loads(os.environ['ALL_SECRETS'])
-            secrets_names = [x for x in '${{ inputs.secrets-env }}'.split('') if x]
+            secrets_names = [x for x in '${{ inputs.secrets-env }}'.split(' ') if x]
             secrets_u_names = [
               f'SECRET_{x.upper()}'
               for x in secrets_names
@@ -169,7 +169,7 @@ jobs:
 
             for sname, senv in zip(secrets_names, secrets_u_names):
               try:
-                os.environ[senv] = all_secrets[sname]
+                os.environ[senv] = str(all_secrets[sname])
               except KeyError:
                 print(f'Could not set {senv} from secret {sname}')
 
@@ -196,7 +196,7 @@ jobs:
                 -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
                 -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
                 -w /work \
-                "{ os.environ.get('DOCKER_IMAGE', '') }"
+                "{ os.environ.get('DOCKER_IMAGE', '') }" \
               )
               docker exec -t "{ os.environ.get('container_name', '') }" bash /exec
             ''')
