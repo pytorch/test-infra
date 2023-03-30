@@ -1,4 +1,4 @@
-import { getBoolean } from './utils';
+import { getBoolean, shuffleArrayInPlace } from './utils';
 
 export class Config {
   private static _instance: Config | undefined;
@@ -105,12 +105,12 @@ export class Config {
 
   shuffledVPCsForAwsRegion(awsRegion: string): Array<string> {
     const arr = Array.from(this.awsRegionsToVpcIds.get(awsRegion) || []);
-    return this.shuffleInPlace(arr);
+    return shuffleArrayInPlace(arr);
   }
 
   shuffledSubnetsForVpcId(vpcId: string): Array<string> {
     const arr = Array.from(this.vpcIdToSubnetIds.get(vpcId) || []);
-    return this.shuffleInPlace(arr);
+    return shuffleArrayInPlace(arr);
   }
 
   get shuffledAwsRegionInstances(): string[] {
@@ -120,7 +120,7 @@ export class Config {
     } else {
       arr = [...this.awsRegionInstances];
     }
-    return this.shuffleInPlace(arr);
+    return shuffleArrayInPlace(arr);
   }
 
   get ghesUrlApi(): undefined | string {
@@ -131,14 +131,6 @@ export class Config {
   get ghesUrlHost(): string {
     /* istanbul ignore next */
     return this.ghesUrl ?? 'https://github.com';
-  }
-
-  protected shuffleInPlace<T>(arr: T[]): T[] {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
   }
 
   protected getMapFromFlatEnv(envVar: string | undefined): Map<string, Array<string>> {

@@ -125,7 +125,7 @@ export default function Kpis() {
             </Grid>
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Weekly External PR Count (4 week moving average))"}
+                    title={"Weekly External PR Count (4 week moving average)"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...contributionTimeParams]}
                     granularity={"week"}
