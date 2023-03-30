@@ -35,7 +35,7 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_N_DAYS = 3;
+const LAST_N_DAYS = 7;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
