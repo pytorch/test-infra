@@ -93,6 +93,18 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
 
+      - name: Debug cmd.exe
+        shell: cmd.exe
+        run: echo %PATH%
+
+      - name: Debug bash (default)
+        shell: bash
+        run: echo $PATH
+
+      - name: Debug bash (custom)
+        shell: bash -l {0}
+        run: echo $PATH
+
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
