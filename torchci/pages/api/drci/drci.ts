@@ -62,7 +62,7 @@ export async function updateDrciComments(octokit: Octokit, repo: string = "pytor
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
-    const head = get_head_branch(repo);
+    const head = await get_head_branch(repo);
     await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
     const flakyRules: FlakyRule[] = await fetchJSON(FLAKY_RULES_JSON) || [];
