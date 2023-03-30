@@ -35,7 +35,7 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_N_DAYS = 3;
+const LAST_N_DAYS = 7;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const HUD_PREFIX = "/pytorch/pytorch/commit";
@@ -56,6 +56,7 @@ export const SUITES: { [k: string]: string } = {
   huggingface: "Huggingface",
   timm_models: "TIMM models",
 };
+export const DTYPES = ["amp", "float32"];
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
 const ACCURACY_THRESHOLD = 90.0;
@@ -119,6 +120,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
   const totalCount: { [k: string]: any } = {};
   const passCount: { [k: string]: any } = {};
   const headByBucket: { [k: string]: any } = {};
+  const passrate: any[] = [];
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -166,8 +168,6 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     headByBucket[bucket][workflowId][suite][compiler] = [sha, head];
   });
 
-  const passrateBySuite: { [k: string]: any } = {};
-
   Object.keys(totalCount).forEach((bucket: string) => {
     Object.keys(totalCount[bucket]).forEach((workflowId: string) => {
       Object.keys(totalCount[bucket][workflowId]).forEach((suite: string) => {
@@ -177,11 +177,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
             const tc = totalCount[bucket][workflowId][suite][compiler];
             const p = pc / tc;
 
-            if (!(suite in passrateBySuite)) {
-              passrateBySuite[suite] = [];
-            }
-
-            passrateBySuite[suite].push({
+            passrate.push({
               granularity_bucket: bucket,
               workflow_id: workflowId,
               head_sha: headByBucket[bucket][workflowId][suite][compiler][0],
@@ -200,7 +196,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
     });
   });
 
-  return passrateBySuite;
+  return passrate;
 }
 
 function geomean(data: number[]) {
@@ -217,6 +213,7 @@ function geomean(data: number[]) {
 
 function computeGeomean(data: any, passModels: { [k: string]: any }) {
   const speedup: { [k: string]: any } = {};
+  const returnedGeomean: any[] = [];
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -255,8 +252,6 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
     }
   });
 
-  const geomeanBySuite: { [k: string]: any } = {};
-
   Object.keys(speedup).forEach((bucket: string) => {
     Object.keys(speedup[bucket]).forEach((workflowId: string) => {
       Object.keys(speedup[bucket][workflowId]).forEach((suite: string) => {
@@ -264,11 +259,7 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
           (compiler: string) => {
             const gm = geomean(speedup[bucket][workflowId][suite][compiler]);
 
-            if (!(suite in geomeanBySuite)) {
-              geomeanBySuite[suite] = [];
-            }
-
-            geomeanBySuite[suite].push({
+            returnedGeomean.push({
               granularity_bucket: bucket,
               workflow_id: workflowId,
               suite: suite,
@@ -281,11 +272,12 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
     });
   });
 
-  return geomeanBySuite;
+  return returnedGeomean;
 }
 
 function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
   const compTime: { [k: string]: any } = {};
+  const returnedCompTime: any[] = [];
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -325,8 +317,6 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
     }
   });
 
-  const compTimeBySuite: { [k: string]: any } = {};
-
   Object.keys(compTime).forEach((bucket: string) => {
     Object.keys(compTime[bucket]).forEach((workflowId: string) => {
       Object.keys(compTime[bucket][workflowId]).forEach((suite: string) => {
@@ -339,11 +329,7 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
                 0
               ) / l;
 
-            if (!(suite in compTimeBySuite)) {
-              compTimeBySuite[suite] = [];
-            }
-
-            compTimeBySuite[suite].push({
+            returnedCompTime.push({
               granularity_bucket: bucket,
               workflow_id: workflowId,
               suite: suite,
@@ -356,7 +342,7 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
     });
   });
 
-  return compTimeBySuite;
+  return returnedCompTime;
 }
 
 function computeMemoryCompressionRatio(
@@ -364,6 +350,7 @@ function computeMemoryCompressionRatio(
   passModels: { [k: string]: any }
 ) {
   const memory: { [k: string]: any } = {};
+  const returnedMemory: any[] = [];
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -403,8 +390,6 @@ function computeMemoryCompressionRatio(
     }
   });
 
-  const memoryBySuite: { [k: string]: any } = {};
-
   Object.keys(memory).forEach((bucket: string) => {
     Object.keys(memory[bucket]).forEach((workflowId: string) => {
       Object.keys(memory[bucket][workflowId]).forEach((suite: string) => {
@@ -417,11 +402,7 @@ function computeMemoryCompressionRatio(
                 0
               ) / l;
 
-            if (!(suite in memoryBySuite)) {
-              memoryBySuite[suite] = [];
-            }
-
-            memoryBySuite[suite].push({
+            returnedMemory.push({
               granularity_bucket: bucket,
               workflow_id: workflowId,
               suite: suite,
@@ -434,37 +415,28 @@ function computeMemoryCompressionRatio(
     });
   });
 
-  return memoryBySuite;
+  return returnedMemory;
 }
 
-function getLatestRecordByCompiler(
-  dataBySuite: { [k: string]: any },
-  dataFieldName: string
+function getRecordByFieldName(
+  data: any[],
+  fieldName: string,
 ): [{ [k: string]: any }, string] {
-  const fieldName = "workflow_id";
+  let latestBucket: string = "";
   const lastestRecordByCompiler: { [k: string]: any } = {};
 
-  let latestId: string = "";
-  let latestBucket: string = "";
+  data.forEach((r: any) => {
+    const compiler = r["compiler"];
+    const suite = r["suite"];
 
-  Object.keys(dataBySuite).forEach((k) => {
-    const ids = dataBySuite[k].map((v: any) => v[fieldName]).sort();
-    latestId = ids[ids.length - 1];
+    if (!(compiler in lastestRecordByCompiler)) {
+      lastestRecordByCompiler[compiler] = {
+        compiler: compiler,
+      };
+    }
 
-    dataBySuite[k].forEach((r: any) => {
-      const compiler = r["compiler"];
-      if (!(compiler in lastestRecordByCompiler)) {
-        lastestRecordByCompiler[compiler] = {
-          compiler: compiler,
-        };
-      }
-
-      if (r[fieldName] === latestId) {
-        const suite = r["suite"];
-        lastestRecordByCompiler[compiler][suite] = r[dataFieldName];
-        latestBucket = r.granularity_bucket;
-      }
-    });
+    lastestRecordByCompiler[compiler][suite] = r[fieldName];
+    latestBucket = r.granularity_bucket;
   });
 
   return [lastestRecordByCompiler, latestBucket];
@@ -484,7 +456,7 @@ export function DTypePicker({
   return (
     <>
       <FormControl>
-        <InputLabel id="dtypes-picker-select-label">Precision</InputLabel>
+        <InputLabel id="dtypes-picker-input-label">Precision</InputLabel>
         <Select
           value={dtypes}
           label="Precision"
@@ -500,27 +472,131 @@ export function DTypePicker({
   );
 }
 
-function SummaryPanel({
-  passrateBySuite,
-  geomeanBySuite,
-  compTimeBySuite,
-  memoryBySuite,
-  dtypes,
+export function SuitePicker({
+  suite,
+  setSuite,
 }: {
-  passrateBySuite: { [k: string]: any };
-  geomeanBySuite: { [k: string]: any };
-  compTimeBySuite: { [k: string]: any };
-  memoryBySuite: { [k: string]: any };
-  dtypes: string;
+  suite: string;
+  setSuite: any;
 }) {
-  const [lastestPassrateByCompiler, latestPassrateBucket] =
-    getLatestRecordByCompiler(passrateBySuite, "passrate_display");
-  const [lastestGeomeanByCompiler, latestGeomeanBucket] =
-    getLatestRecordByCompiler(geomeanBySuite, "geomean");
-  const [lastestCompTimeByCompiler, latestCompTimeBucket] =
-    getLatestRecordByCompiler(compTimeBySuite, "compilation_latency");
-  const [lastestMemoryByCompiler, latestMemoryBucket] =
-    getLatestRecordByCompiler(memoryBySuite, "compression_ratio");
+  function handleChange(e: SelectChangeEvent<string>) {
+    setSuite(e.target.value);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="suite-picker-input-label">Suite</InputLabel>
+        <Select
+          value={suite}
+          label="Suite"
+          labelId="suite-picker-select-label"
+          onChange={handleChange}
+          id="suite-picker-select"
+        >
+          {Object.keys(SUITES).map((suite) => (<MenuItem key={suite} value={suite}>{SUITES[suite]}</MenuItem>))}
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
+export function BranchPicker({
+  branch,
+  setBranch,
+}: {
+  branch: string;
+  setBranch: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setBranch(e.target.value);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="branch-picker-input-label">Branch</InputLabel>
+        <Select
+          value={branch}
+          label="Branch"
+          labelId="branch-picker-select-label"
+          onChange={handleChange}
+          id="branch-picker-select"
+        >
+          <MenuItem value={"master"}>main</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
+function SummaryPanel({
+  queryParams,
+  workflowId,
+  dtypes,
+  branch,
+  startTime,
+  stopTime,
+}: {
+  queryParams: RocksetParam[];
+  workflowId: number;
+  dtypes: string;
+  branch: string;
+  startTime: Dayjs;
+  stopTime: Dayjs;
+}) {
+  const queryName = "compilers_benchmark_performance";
+  const queryCollection = "inductor";
+
+  const queryParamsWithID: RocksetParam[] = [
+    {
+      name: "suite",
+      type: "string",
+      value: Object.keys(SUITES).join(","),
+    },
+    {
+      name: "workflowId",
+      type: "int",
+      value: workflowId,
+    },
+    ...queryParams,
+  ];
+
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithID)
+  )}`;
+
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (error !== undefined) {
+    return (
+      <div>
+        An error occurred while fetching data, perhaps there are too many
+        results with your choice of time range and granularity?
+      </div>
+    );
+  }
+
+  if (data === undefined) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  const passModels = getPassModels(data);
+  const passrate = computePassrate(data, passModels);
+  const geomean = computeGeomean(data, passModels);
+  const compTime = computeCompilationTime(data, passModels);
+  const memory = computeMemoryCompressionRatio(data, passModels);
+
+  const [passrateByCompiler, passrateBucket] =
+    getRecordByFieldName(passrate, "passrate_display");
+  const [geomeanByCompiler, geomeanBucket] =
+    getRecordByFieldName(geomean, "geomean");
+  const [compTimeByCompiler, compTimeBucket] =
+    getRecordByFieldName(compTime, "compilation_latency");
+  const [memoryByCompiler, memoryBucket] =
+    getRecordByFieldName(memory, "compression_ratio");
 
   const columns = [
     {
@@ -531,205 +607,205 @@ function SummaryPanel({
   ];
 
   return (
-    <Grid container spacing={2} height={ROW_HEIGHT + ROW_GAP}>
-      <Grid item xs={12} lg={3}>
-        <TablePanelWithData
-          title={`Passrate - ${dayjs(latestPassrateBucket).format(
-            "YYYY/MM/DD"
-          )} (threshold = ${ACCURACY_THRESHOLD}%)`}
-          data={Object.values(lastestPassrateByCompiler).sort(
-            (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
-          )}
-          columns={columns.concat(
-            Object.keys(SUITES).map((suite: string) => {
-              return {
-                field: suite,
-                headerName: SUITES[suite],
-                flex: 1,
-                renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                    params.row.compiler
-                  }?dtypes=${dtypes}`;
-                  return <a href={url}>{params.value}</a>;
-                },
-                cellClassName: (params: GridCellParams<string>) => {
-                  const v = params.value;
-                  if (v === undefined) {
-                    return "";
-                  }
+    <div>
+      <BuildSummary branch={branch} passrate={passrate} />
+      <Grid container spacing={2}>
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={`Passrate - ${dayjs(passrateBucket).format(
+              "YYYY/MM/DD"
+            )} (threshold = ${ACCURACY_THRESHOLD}%)`}
+            data={Object.values(passrateByCompiler).sort(
+              (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              Object.keys(SUITES).map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<string>) => {
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&branch=${branch}`;
+                    return <a href={url}>{params.value}</a>;
+                  },
+                  cellClassName: (params: GridCellParams<string>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
 
-                  const m = v.match(PASSRATE_DISPLAY_NAME_REGEX);
-                  if (m === null) {
-                    return "";
-                  }
+                    const m = v.match(PASSRATE_DISPLAY_NAME_REGEX);
+                    if (m === null) {
+                      return "";
+                    }
 
-                  const p = Number(m[1]);
-                  return p < ACCURACY_THRESHOLD ? styles.warning : "";
-                },
-              };
-            })
-          )}
-          dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-        />
+                    const p = Number(m[1]);
+                    return p < ACCURACY_THRESHOLD ? styles.warning : "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={`Geometric mean speedup - ${dayjs(geomeanBucket).format(
+              "YYYY/MM/DD"
+            )} (threshold = ${SPEEDUP_THRESHOLD}x)`}
+            data={Object.values(geomeanByCompiler).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              Object.keys(SUITES).map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<string>) => {
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&branch=${branch}`;
+                    return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
+                  },
+                  cellClassName: (params: GridCellParams<string>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    return Number(v) < SPEEDUP_THRESHOLD ? styles.warning : "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={`Mean compilation time (seconds) - ${dayjs(
+              compTimeBucket
+            ).format(
+              "YYYY/MM/DD"
+            )} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
+            data={Object.values(compTimeByCompiler).sort(
+              (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              Object.keys(SUITES).map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<string>) => {
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&branch=${branch}`;
+                    return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
+                  },
+                  cellClassName: (params: GridCellParams<string>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    return Number(v) > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                      ? styles.warning
+                      : "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={`Peak memory footprint compression ratio - ${dayjs(
+              memoryBucket
+            ).format(
+              "YYYY/MM/DD"
+            )} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
+            data={Object.values(memoryByCompiler).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              Object.keys(SUITES).map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<string>) => {
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&branch=${branch}`;
+                    return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
+                  },
+                  cellClassName: (params: GridCellParams<string>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    return Number(v) < COMPRESSION_RATIO_THRESHOLD
+                      ? styles.warning
+                      : "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
       </Grid>
-
-      <Grid item xs={12} lg={3}>
-        <TablePanelWithData
-          title={`Geometric mean speedup - ${dayjs(latestGeomeanBucket).format(
-            "YYYY/MM/DD"
-          )} (threshold = ${SPEEDUP_THRESHOLD}x)`}
-          data={Object.values(lastestGeomeanByCompiler).sort((a: any, b: any) =>
-            a["compiler"].localeCompare(b["compiler"])
-          )}
-          columns={columns.concat(
-            Object.keys(SUITES).map((suite: string) => {
-              return {
-                field: suite,
-                headerName: SUITES[suite],
-                flex: 1,
-                renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                    params.row.compiler
-                  }?dtypes=${dtypes}`;
-                  return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
-                },
-                cellClassName: (params: GridCellParams<string>) => {
-                  const v = params.value;
-                  if (v === undefined) {
-                    return "";
-                  }
-
-                  return Number(v) < SPEEDUP_THRESHOLD ? styles.warning : "";
-                },
-              };
-            })
-          )}
-          dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={3}>
-        <TablePanelWithData
-          title={`Mean compilation time (seconds) - ${dayjs(
-            latestCompTimeBucket
-          ).format(
-            "YYYY/MM/DD"
-          )} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
-          data={Object.values(lastestCompTimeByCompiler).sort(
-            (a: any, b: any) => a["compiler"].localeCompare(b["compiler"])
-          )}
-          columns={columns.concat(
-            Object.keys(SUITES).map((suite: string) => {
-              return {
-                field: suite,
-                headerName: SUITES[suite],
-                flex: 1,
-                renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                    params.row.compiler
-                  }?dtypes=${dtypes}`;
-                  return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
-                },
-                cellClassName: (params: GridCellParams<string>) => {
-                  const v = params.value;
-                  if (v === undefined) {
-                    return "";
-                  }
-
-                  return Number(v) > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                    ? styles.warning
-                    : "";
-                },
-              };
-            })
-          )}
-          dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={3}>
-        <TablePanelWithData
-          title={`Peak memory footprint compression ratio - ${dayjs(
-            latestMemoryBucket
-          ).format(
-            "YYYY/MM/DD"
-          )} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
-          data={Object.values(lastestMemoryByCompiler).sort((a: any, b: any) =>
-            a["compiler"].localeCompare(b["compiler"])
-          )}
-          columns={columns.concat(
-            Object.keys(SUITES).map((suite: string) => {
-              return {
-                field: suite,
-                headerName: SUITES[suite],
-                flex: 1,
-                renderCell: (params: GridRenderCellParams<string>) => {
-                  const url = `/benchmark/${suite}/${
-                    DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                    params.row.compiler
-                  }?dtypes=${dtypes}`;
-                  return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
-                },
-                cellClassName: (params: GridCellParams<string>) => {
-                  const v = params.value;
-                  if (v === undefined) {
-                    return "";
-                  }
-
-                  return Number(v) < COMPRESSION_RATIO_THRESHOLD
-                    ? styles.warning
-                    : "";
-                },
-              };
-            })
-          )}
-          dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-        />
-      </Grid>
-    </Grid>
+    </div>
   );
 }
 
 function generateChartSeries(
-  dataBySuite: { [k: string]: any },
+  data: any[],
   dataFieldName: string,
   groupByFieldName: string,
   startTime: Dayjs,
   stopTime: Dayjs,
   granularity: Granularity
 ) {
-  const chartSeries: { [k: string]: any } = {};
-  Object.keys(dataBySuite).forEach((key) => {
-    chartSeries[key] = seriesWithInterpolatedTimes(
-      dataBySuite[key],
-      startTime,
-      stopTime,
-      granularity,
-      groupByFieldName,
-      TIME_FIELD_NAME,
-      dataFieldName
-    );
-  });
-
-  return chartSeries;
+  return seriesWithInterpolatedTimes(
+    data,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    dataFieldName
+  );
 }
 
 function PerformanceGraphs({
-  passrateBySuite,
-  geomeanBySuite,
-  compTimeBySuite,
-  memoryBySuite,
+  suite,
+  passrate,
+  geomean,
+  compTime,
+  memory,
   startTime,
   stopTime,
   granularity,
 }: {
-  passrateBySuite: { [k: string]: any };
-  geomeanBySuite: { [k: string]: any };
-  compTimeBySuite: { [k: string]: any };
-  memoryBySuite: { [k: string]: any };
+  suite: string;
+  passrate: any[];
+  geomean: any[];
+  compTime: any[];
+  memory: any[];
   startTime: Dayjs;
   stopTime: Dayjs;
   granularity: Granularity;
@@ -737,7 +813,7 @@ function PerformanceGraphs({
   const groupByFieldName = "compiler";
 
   const passrateSeries = generateChartSeries(
-    passrateBySuite,
+    passrate,
     "passrate",
     groupByFieldName,
     startTime,
@@ -745,7 +821,7 @@ function PerformanceGraphs({
     granularity
   );
   const geomeanSeries = generateChartSeries(
-    geomeanBySuite,
+    geomean,
     "geomean",
     groupByFieldName,
     startTime,
@@ -753,7 +829,7 @@ function PerformanceGraphs({
     granularity
   );
   const compTimeSeries = generateChartSeries(
-    compTimeBySuite,
+    compTime,
     "compilation_latency",
     groupByFieldName,
     startTime,
@@ -761,7 +837,7 @@ function PerformanceGraphs({
     granularity
   );
   const memorySeries = generateChartSeries(
-    memoryBySuite,
+    memory,
     "compression_ratio",
     groupByFieldName,
     startTime,
@@ -771,91 +847,93 @@ function PerformanceGraphs({
 
   return (
     <Grid container spacing={2}>
-      {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
-          <TimeSeriesPanelWithData
-            data={passrateBySuite[suite]}
-            series={passrateSeries[suite]}
-            title={`Passrate / ${SUITES[suite]}`}
-            yAxisLabel={"%"}
-            groupByFieldName={groupByFieldName}
-            yAxisRenderer={(unit) => {
-              return `${(unit * 100).toFixed(0)} %`;
-            }}
-            additionalOptions={{
-              yAxis: {
-                min: 0.6,
-                max: 1.0,
-              },
-            }}
-          />
-        </Grid>
-      ))}
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={passrate}
+          series={passrateSeries}
+          title={`Passrate / ${SUITES[suite]}`}
+          yAxisLabel={"%"}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${(unit * 100).toFixed(0)} %`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+          }}
+        />
+      </Grid>
 
-      {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
-          <TimeSeriesPanelWithData
-            data={geomeanBySuite[suite]}
-            series={geomeanSeries[suite]}
-            title={`Geomean / ${SUITES[suite]}`}
-            groupByFieldName={groupByFieldName}
-            yAxisRenderer={(unit) => {
-              return `${unit}`;
-            }}
-          />
-        </Grid>
-      ))}
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={geomean}
+          series={geomeanSeries}
+          title={`Geomean / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+          }}
+        />
+      </Grid>
 
-      {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
-          <TimeSeriesPanelWithData
-            data={compTimeBySuite[suite]}
-            series={compTimeSeries[suite]}
-            title={`Mean compilation time / ${SUITES[suite]}`}
-            groupByFieldName={groupByFieldName}
-            yAxisLabel={"second"}
-            yAxisRenderer={(unit) => {
-              return `${unit}`;
-            }}
-          />
-        </Grid>
-      ))}
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={compTime}
+          series={compTimeSeries}
+          title={`Mean compilation time / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisLabel={"second"}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+          }}
+        />
+      </Grid>
 
-      {Object.keys(SUITES).map((suite: string) => (
-        <Grid item xs={12} lg={4} height={ROW_HEIGHT} key={suite}>
-          <TimeSeriesPanelWithData
-            data={memoryBySuite[suite]}
-            series={memorySeries[suite]}
-            title={`Peak memory footprint compression ratio / ${SUITES[suite]}`}
-            groupByFieldName={groupByFieldName}
-            yAxisRenderer={(unit) => {
-              return `${unit}`;
-            }}
-          />
-        </Grid>
-      ))}
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanelWithData
+          data={memory}
+          series={memorySeries}
+          title={`Peak memory footprint compression ratio / ${SUITES[suite]}`}
+          groupByFieldName={groupByFieldName}
+          yAxisRenderer={(unit) => {
+            return `${unit}`;
+          }}
+          additionalOptions={{
+            yAxis: {
+              scale: true,
+            },
+          }}
+        />
+      </Grid>
     </Grid>
   );
 }
 
 function BuildSummary({
-  passrateBySuite,
+  branch,
+  passrate,
 }: {
-  passrateBySuite: { [k: string]: any };
+  branch: string,
+  passrate: any[];
 }) {
-  const [lastestShaByCompiler, latestShaBucket] = getLatestRecordByCompiler(
-    passrateBySuite,
-    "head_sha"
-  );
-
-  const suite = "torchbench";
   // Just need the sha of the latest report, all records have the same value
-  const latestSha = Object.values(lastestShaByCompiler)[0][suite];
+  const latestSha = passrate[0]["head_sha"];
 
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        *This report was last generated by CI running on PyTorch main branch at
+        *This report was last generated by CI running on PyTorch {branch} branch at
         commit{" "}
         <a href={`${HUD_PREFIX}/${latestSha}#inductor-a100-perf-nightly`}>
           {latestSha.substring(0, 7)}
@@ -869,23 +947,53 @@ function BuildSummary({
 function Report({
   queryParams,
   granularity,
+  suite,
   dtypes,
+  branch,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
+  suite: string;
   dtypes: string;
+  branch: string;
 }) {
-  const queryName = "compilers_benchmark_performance";
   const queryCollection = "inductor";
+  const queryParamsWithSuite: RocksetParam[] = [
+    {
+      name: "suite",
+      type: "string",
+      value: suite,
+    },
+    ...queryParams,
+  ];
 
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
+  let queryName = "compilers_benchmark_performance";
+  // NB: Querying data for all the suites blows up the response from Rockset over
+  // the lambda reponse body limit of 6MB. So I need to split up the query here
+  // into multiple smaller ones to keep them under the limit
+  //
+  // See more:
+  // * https://nextjs.org/docs/messages/api-routes-body-size-limit
+  // * https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
+  let url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithSuite)
   )}`;
-  const { data, error } = useSWR(url, fetcher, {
+
+  const { data: historicalData, error: historicalError } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
-  if (error !== undefined) {
+  // Get the latest workflow ID for the summary table
+  queryName = "compilers_benchmark_performance_latest_runs";
+  url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithSuite)
+  )}`;
+
+  const { data: workflowData, error: workflowError } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (historicalError !== undefined || workflowError !== undefined) {
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
@@ -893,10 +1001,18 @@ function Report({
       </div>
     );
   }
-  if (data === undefined) {
+
+  if (historicalData === undefined || workflowData === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  const passModels = getPassModels(historicalData);
+  const passrate = computePassrate(historicalData, passModels);
+  const geomean = computeGeomean(historicalData, passModels);
+  const compTime = computeCompilationTime(historicalData, passModels);
+  const memory = computeMemoryCompressionRatio(historicalData, passModels);
+
+  const latestWorkflowId = workflowData[0]["workflow_id"];
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset
   const startTime = dayjs(
@@ -906,27 +1022,22 @@ function Report({
     queryParams.find((p) => p.name === "stopTime")?.value
   ).startOf(granularity);
 
-  const passModels = getPassModels(data);
-  const passrateBySuite = computePassrate(data, passModels);
-  const geomeanBySuite = computeGeomean(data, passModels);
-  const compTimeBySuite = computeCompilationTime(data, passModels);
-  const memoryBySuite = computeMemoryCompressionRatio(data, passModels);
-
   return (
     <div>
-      <BuildSummary passrateBySuite={passrateBySuite} />
       <SummaryPanel
-        passrateBySuite={passrateBySuite}
-        geomeanBySuite={geomeanBySuite}
-        compTimeBySuite={compTimeBySuite}
-        memoryBySuite={memoryBySuite}
+        queryParams={queryParams}
+        workflowId={latestWorkflowId}
         dtypes={dtypes}
+        branch={branch}
+        startTime={startTime}
+        stopTime={stopTime}
       />
       <PerformanceGraphs
-        passrateBySuite={passrateBySuite}
-        geomeanBySuite={geomeanBySuite}
-        compTimeBySuite={compTimeBySuite}
-        memoryBySuite={memoryBySuite}
+        suite={suite}
+        passrate={passrate}
+        geomean={geomean}
+        compTime={compTime}
+        memory={memory}
         startTime={startTime}
         stopTime={stopTime}
         granularity={granularity}
@@ -939,7 +1050,9 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(3, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
-  const [dtypes, setDTypes] = useState<string>("amp");
+  const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
+  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
+  const [branch, setBranch] = useState<string>("master");
 
   const queryParams: RocksetParam[] = [
     {
@@ -968,9 +1081,9 @@ export default function Page() {
       value: dtypes,
     },
     {
-      name: "head",
+      name: "branch",
       type: "string",
-      value: "master",
+      value: branch,
     },
   ];
 
@@ -991,6 +1104,8 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
+        <BranchPicker branch={branch} setBranch={setBranch} />
+        <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
       </Stack>
 
@@ -998,7 +1113,9 @@ export default function Page() {
         <Report
           queryParams={queryParams}
           granularity={granularity}
+          suite={suite}
           dtypes={dtypes}
+          branch={branch}
         />
       </Grid>
     </div>

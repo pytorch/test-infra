@@ -1,15 +1,10 @@
 {
-  "sql_path": "__sql/compilers_benchmark_performance.sql",
+  "sql_path": "__sql/compilers_benchmark_performance_latest_runs.sql",
   "default_parameters": [
     {
       "name": "branch",
       "type": "string",
       "value": "master"
-    },
-    {
-      "name": "compilers",
-      "type": "string",
-      "value": ""
     },
     {
       "name": "device",
@@ -22,9 +17,9 @@
       "value": "amp"
     },
     {
-      "name": "granularity",
-      "type": "string",
-      "value": "day"
+      "name": "limit",
+      "type": "int",
+      "value": "1"
     },
     {
       "name": "mode",
@@ -45,17 +40,7 @@
       "name": "suites",
       "type": "string",
       "value": "torchbench,huggingface,timm_models"
-    },
-    {
-      "name": "timezone",
-      "type": "string",
-      "value": "America/Los_Angeles"
-    },
-    {
-      "name": "workflowId",
-      "type": "int",
-      "value": "0"
     }
   ],
-  "description": "Gather the benchmark performance of different PyTorch compilers"
+  "description": "Get the N latest performance runs"
 }

@@ -22,6 +22,7 @@ WITH performance_results AS (
     )
     AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND (workflow_id = :workflowId OR :workflowId = 0)
 ),
 accuracy_results AS (
   SELECT
@@ -48,6 +49,7 @@ accuracy_results AS (
     )
     AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    AND (workflow_id = :workflowId OR :workflowId = 0)
 ),
 results AS (
   SELECT
@@ -99,7 +101,8 @@ FROM
   results LEFT JOIN commons.workflow_run w ON results.workflow_id = w.id
 WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
-  AND head_branch LIKE :head
+  AND (ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler)) OR :compilers = '')
+  AND head_branch LIKE :branch
 ORDER BY
   granularity_bucket DESC,
   suite ASC,
