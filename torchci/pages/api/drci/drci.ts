@@ -33,28 +33,37 @@ export interface FlakyRule {
   captures: string[];
 }
 
+export interface UpdateCommentBody {
+    repo: string;
+}
+
 export default async function handler(
     req: NextApiRequest,
     res: NextApiResponse<void>
 ) {
     const authorization = req.headers.authorization;
+
     if (authorization === process.env.DRCI_BOT_KEY) {
         const { prNumber } = req.query;
-        const octokit = await getOctokit(OWNER, REPO);
-        updateDrciComments(octokit, prNumber as string);
+        const { repo }: UpdateCommentBody = req.body;
+        const octokit = await getOctokit(OWNER, repo);
+        updateDrciComments(octokit, repo, prNumber as string);
+
         res.status(200).end();
     }
     res.status(403).end();
 }
 
-export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
+export async function updateDrciComments(octokit: Octokit, repo: string = "pytorch", prNumber?: string) {
     const recentWorkflows: RecentWorkflowsData[] = await fetchRecentWorkflows(
+        `${OWNER}/${repo}`,
         prNumber,
         NUM_MINUTES + ""
     );
 
     const workflowsByPR = reorganizeWorkflows(recentWorkflows);
-    await addMergeBaseCommits(octokit, workflowsByPR);
+    const head = get_head_branch(repo);
+    await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
     const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
     const flakyRules: FlakyRule[] = await fetchJSON(FLAKY_RULES_JSON) || [];
     const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
@@ -80,12 +89,12 @@ export async function updateDrciComments(octokit: Octokit, prNumber?: string) {
       const comment = formDrciComment(
         pr_info.pr_number,
         OWNER,
-        REPO,
+        repo,
         failureInfo,
         formDrciSevBody(sevs)
       );
 
-      await updateCommentWithWorkflow(octokit, pr_info, comment);
+      await updateCommentWithWorkflow(octokit, pr_info, comment, repo);
     });
 }
 
@@ -97,17 +106,24 @@ async function forAllPRs(workflowsByPR: Map<number, PRandJobs>, func: CallableFu
   );
 }
 
+function get_head_branch(repo: string) {
+    return repo === REPO ? "master" : "main";
+}
+
 async function addMergeBaseCommits(
   octokit: Octokit,
+  repo: string,
+  head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const diff = await octokit.rest.repos.compareCommits({
       owner: OWNER,
-      repo: REPO,
+      repo: repo,
       base: pr_info.head_sha,
-      head: "master",
+      head: head,
     });
+
     pr_info.merge_base = diff.data.merge_base_commit.sha;
   });
 }
@@ -200,8 +216,7 @@ export function constructResultsComment(
 
         output += `\nAs of commit ${sha}:`;
         output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
-    }
-    else {
+    } else {
         output += someFailing;
         if (hasPending) {
             output += somePending;
@@ -319,9 +334,10 @@ export async function updateCommentWithWorkflow(
     octokit: Octokit,
     pr_info: PRandJobs,
     comment: string,
+    repo: string,
 ): Promise<void> {
     const { pr_number } = pr_info;
-    const { id, body } = await getDrciComment(octokit, OWNER, REPO, pr_number!);
+    const { id, body } = await getDrciComment(octokit, OWNER, repo, pr_number!);
 
     if (id === 0 || body === comment) {
         return;
@@ -330,7 +346,7 @@ export async function updateCommentWithWorkflow(
     await octokit.rest.issues.updateComment({
         body: comment,
         owner: OWNER,
-        repo: REPO,
+        repo: repo,
         comment_id: id,
     });
 }

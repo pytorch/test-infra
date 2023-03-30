@@ -34,6 +34,11 @@ jest.mock('aws-sdk', () => ({
   SSM: jest.fn().mockImplementation(() => mockSSM),
   CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
+jest.mock('./utils', () => ({
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ...(jest.requireActual('./utils') as any),
+  shuffleArrayInPlace: <T>(a: Array<T>) => a,
+}));
 
 jest.mock('./gh-auth');
 

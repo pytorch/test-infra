@@ -65,7 +65,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ inputs.runner-type }}
+    runs-on: ${{ matrix.validation_runner }}
     defaults:
       run:
         shell: bash -l {0}
@@ -80,11 +80,20 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - uses: ./test-infra/.github/actions/setup-ssh
+        name: Setup SSH
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
+      - name: Add Conda scripts to GitHub path
+        run: |
+          echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
@@ -93,11 +102,17 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         run: |
           source "${BUILD_ENV_FILE}"
+          C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
+
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+            if [[ ${PRE_SCRIPT} == *.bat ]]; then
+              ${PRE_SCRIPT}
+            else
+              source ${PRE_SCRIPT}
+            fi
           fi
       - name: Setup base environment variables
         run: |
@@ -112,7 +127,10 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
+
+          conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
@@ -120,20 +138,27 @@ jobs:
             --python "${PYTHON_VERSION}" \
             packaging/$VSTOOLCHAIN_PACKAGE
           cp packaging/$VSTOOLCHAIN_PACKAGE/conda_build_config.yaml packaging/$PACKAGE_NAME/conda_build_config.yaml
-
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
+          set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
+
+          #conda install -yq conda-build "conda-package-handling!=1.5.0"
+          #bash packaging/build_conda.sh
+
+
+          conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
-            --python "${PYTHON_VERSION}" \
+            --no-test  --python "${PYTHON_VERSION}" \
             --output-folder dist/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub

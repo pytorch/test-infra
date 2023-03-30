@@ -70,7 +70,7 @@ export function seriesWithInterpolatedTimes(
     byGroup = _.groupBy(data, (d) => d[groupByFieldName]);
   }
 
-  return _.map(byGroup, (value, key) => {
+  const series = _.map(byGroup, (value, key) => {
     const byTime = _.keyBy(value, timeFieldName);
     // Roundtrip each timestamp to make the format uniform.
     const byTimeNormalized = _.mapKeys(byTime, (_, k) =>
@@ -103,6 +103,7 @@ export function seriesWithInterpolatedTimes(
       smooth: true,
     };
   });
+  return _.sortBy(series, (x) => x.name);
 }
 
 export function TimeSeriesPanelWithData({

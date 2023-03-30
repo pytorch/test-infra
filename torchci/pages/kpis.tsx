@@ -7,8 +7,8 @@ import { useState } from "react";
 const ROW_HEIGHT = 240;
 
 export default function Kpis() {
-  // Looking at data from the past year
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "year"));
+  // Looking at data from the past six months
+  const [startTime, setStartTime] = useState(dayjs().subtract(6, 'month'));
   const [stopTime, setStopTime] = useState(dayjs());
 
   const timeParams: RocksetParam[] = [
@@ -107,7 +107,7 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"# of reverts (Weekly)"}
+          title={"# of reverts (2 week moving avg)"}
           queryName={"num_reverts"}
           queryCollection={"pytorch_dev_infra_kpis"}
           queryParams={[...timeParams]}
