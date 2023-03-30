@@ -32,7 +32,7 @@ jobs:
           #  smoke-test-script: ""
           #  package-name: torchaudio
         - repository: pytorch/vision
-          pre-script: packaging/windows/internal/vc_install_helper.sh
+          pre-script: packaging/pre_build_script.sh
           env-script: packaging/windows/internal/vc_env_helper.bat
           post-script: "python packaging/wheel/relocate.py"
           smoke-test-script: test/smoke_test.py
