@@ -955,13 +955,7 @@ function PerformanceGraphs({
   );
 }
 
-function BuildSummary({
-  branch,
-  sha,
-}: {
-  branch: string;
-  sha: string;
-}) {
+function BuildSummary({ branch, sha }: { branch: string; sha: string }) {
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
@@ -1038,7 +1032,12 @@ function Report({
     );
   }
 
-  if (historicalData === undefined || workflowData === undefined || historicalData.length === 0 || workflowData.length === 0) {
+  if (
+    historicalData === undefined ||
+    workflowData === undefined ||
+    historicalData.length === 0 ||
+    workflowData.length === 0
+  ) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 

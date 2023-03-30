@@ -50,7 +50,15 @@ const OK_ACCURACY = new Set<string>([
   "eager_variation",
 ]);
 
-function BuildSummary({ branch, sha, date  }: { branch: string; sha: string, date: string }) {
+function BuildSummary({
+  branch,
+  sha,
+  date,
+}: {
+  branch: string;
+  sha: string;
+  date: string;
+}) {
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
@@ -320,9 +328,13 @@ function Report({
   let url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
-  const { data: historicalData, error: historicalError } = useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
-  });
+  const { data: historicalData, error: historicalError } = useSWR(
+    url,
+    fetcher,
+    {
+      refreshInterval: 60 * 60 * 1000, // refresh every hour
+    }
+  );
 
   // Get the latest workflow ID for the summary table
   queryName = "compilers_benchmark_performance_latest_runs";
@@ -330,13 +342,9 @@ function Report({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data: workflowData, error: workflowError } = useSWR(
-    url,
-    fetcher,
-    {
-      refreshInterval: 60 * 60 * 1000, // refresh every hour
-    }
-  );
+  const { data: workflowData, error: workflowError } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
 
   if (historicalError !== undefined || workflowError !== undefined) {
     return (
@@ -347,7 +355,12 @@ function Report({
     );
   }
 
-  if (historicalData === undefined || workflowData === undefined || historicalData.length === 0 || workflowData.length === 0) {
+  if (
+    historicalData === undefined ||
+    workflowData === undefined ||
+    historicalData.length === 0 ||
+    workflowData.length === 0
+  ) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
