@@ -170,7 +170,7 @@ jobs:
             for sname, senv in zip(secrets_names, secrets_u_names):
               try:
                 os.environ[senv] = all_secrets[sname]
-              except:
+              except KeyError:
                 print(f'Could not set {senv} from secret {sname}')
 
             os.system(f'''
