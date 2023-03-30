@@ -1217,14 +1217,6 @@
       "windows"
     ]
   ],
-  "test_nn_ConvTranspose1d (__main__.TestJitGeneratedModule)": [
-    "96950",
-    "https://github.com/pytorch/pytorch/issues/96950",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96088",
     "https://github.com/pytorch/pytorch/issues/96088",
