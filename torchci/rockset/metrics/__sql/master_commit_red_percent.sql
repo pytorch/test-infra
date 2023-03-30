@@ -97,6 +97,8 @@ avg_red AS (
     FROM
         classified_red
         CROSS JOIN UNNEST(classified_red.metrics AS metric) AS metrics
+    ORDER BY
+        granularity_bucket DESC
 )
 SELECT
     granularity_bucket,
@@ -106,10 +108,8 @@ SELECT
         SUM(metric) OVER(
             PARTITION BY name
             ORDER BY
-                granularity_bucket ROWS 2 PRECEDING
+                granularity_bucket ROWS 1 PRECEDING
         )
     ) / 2.0 AS metric,    
 FROM
     avg_red
-ORDER BY
-    granularity_bucket DESC
