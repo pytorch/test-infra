@@ -14,12 +14,13 @@ jobs:
     with:
       job-name: "test-secrets-filter-var"
       runner: linux.2xlarge
+      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        echo "SUCCESS"
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "${{ secrets.NOT_A_SECRET_USED_FOR_TESTING }}" ]] || exit 1
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
