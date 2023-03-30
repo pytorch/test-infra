@@ -160,7 +160,19 @@ jobs:
           # shellcheck disable=SC2086,SC2090
 
           python3 <<EOF
-          import json, os, re
+          import json, os, re, subprocess
+
+          def run_cmd_or_die(cmd):
+            print(f'Running command: {cmd}')
+            p = subprocess.Popen("/bin/sh", stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+            p.stdin.write(cmd.encode('utf-8'))
+            exit_code = p.wait()
+            result = p.stdout.read().decode('utf-8')
+            print(result)
+            if exit_code != 0:
+              raise RuntimeError(f'Command {cmd} failed with exit code {exit_code}')
+            return result
+
           all_secrets = json.loads(os.environ['ALL_SECRETS'])
           secrets_names = [x for x in '${{ inputs.secrets-env }}'.split(' ') if x]
           if not secrets_names:
@@ -176,8 +188,8 @@ jobs:
             except KeyError:
               print(f'Could not set {senv} from secret {sname}')
 
-          output_cmds = f'''
-            container_name=\$(docker run \
+          container_name = run_cmd_or_die(f'''
+            docker run \
               -e RUNNER_ARTIFACT_DIR=/artifacts \
               -e RUNNER_TEST_RESULTS_DIR=/test-results \
               --env-file="{ os.environ.get('RUNNER_TEMP', '') }/github_env_{ os.environ.get('GITHUB_RUN_ID', '') }" \
@@ -199,14 +211,9 @@ jobs:
               -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
               -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
               -w /work \
-              "{ os.environ.get('DOCKER_IMAGE', '') }" \
-            )
-            docker exec -t "\$container_name" bash /exec
-          '''
-
-          print(output_cmds)
-          os.system(output_cmds)
-
+              "{ os.environ.get('DOCKER_IMAGE', '') }"
+          ''')
+          run_cmd_or_die(f'docker exec -t {container_name} /exec')
           EOF
 
       - name: Surface failing tests
