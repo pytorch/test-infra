@@ -93,8 +93,8 @@ jobs:
       - name: Add Conda scripts to GitHub path
         run: echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
 
-      - name: Debug cmd.exe
-        shell: cmd.exe
+      - name: Debug cmd
+        shell: cmd
         run: echo %PATH%
 
       - name: Debug bash (default)
