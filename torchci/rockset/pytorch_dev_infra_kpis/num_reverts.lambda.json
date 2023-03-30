@@ -9,13 +9,13 @@
     {
       "name": "startTime",
       "type": "string",
-      "value": "2022-01-01T00:00:00.000Z"
+      "value": "2022-11-01T00:00:00.000Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2023-01-01T00:00:00.000Z"
+      "value": "2023-03-01T00:00:00.000Z"
     }
   ],
-  "description": "accept Revent % instead of Revert %D"
+  "description": "the count of various revert types over time"
 }

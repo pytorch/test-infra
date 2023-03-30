@@ -63,7 +63,7 @@ export default function Kpis() {
 
             <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                title={"# of Reverts (Weekly)"}
+                title={"# of Reverts/week (2 week moving avg)"}
                 queryName={"num_reverts"}
                 queryCollection={"pytorch_dev_infra_kpis"}
                 queryParams={[
