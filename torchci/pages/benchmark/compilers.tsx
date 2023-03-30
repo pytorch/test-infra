@@ -554,7 +554,7 @@ export function BranchPicker({
           id="branch-picker-select"
         >
           <MenuItem value={"master"}>main</MenuItem>
-          {data.map((b) => (
+          {data.map((b: any) => (
             <MenuItem key={b["head_branch"]} value={b["head_branch"]}>
               {b["head_branch"]}
             </MenuItem>
@@ -1094,7 +1094,9 @@ function Report({
 }
 
 export default function Page() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(LAST_N_DAYS, "day"));
+  const [startTime, setStartTime] = useState(
+    dayjs().subtract(LAST_N_DAYS, "day")
+  );
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
@@ -1151,7 +1153,11 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <BranchPicker branch={branch} setBranch={setBranch} queryParams={queryParams} />
+        <BranchPicker
+          branch={branch}
+          setBranch={setBranch}
+          queryParams={queryParams}
+        />
         <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
       </Stack>
