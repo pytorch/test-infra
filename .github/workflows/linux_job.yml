@@ -159,7 +159,7 @@ jobs:
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
           python3 <<EOF
-          import json
+          import json, os, re
           all_secrets = json.loads(os.environ['ALL_SECRETS'])
           secrets_names = [x for x in '${{ inputs.secrets-env }}'.split(' ') if x]
           if not secrets_names:
