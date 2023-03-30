@@ -201,7 +201,7 @@ jobs:
               -w /work \
               "{ os.environ.get('DOCKER_IMAGE', '') }" \
             )
-            docker exec -t "\\\${container_name}" bash /exec
+            docker exec -t "\$container_name" bash /exec
           '''
 
           print(output_cmds)
