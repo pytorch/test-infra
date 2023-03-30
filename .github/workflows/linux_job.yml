@@ -173,7 +173,7 @@ jobs:
               except KeyError:
                 print(f'Could not set {senv} from secret {sname}')
 
-            os.system(f'''
+            output_cmds = f'''
               container_name=$(docker run \
                 -e RUNNER_ARTIFACT_DIR=/artifacts \
                 -e RUNNER_TEST_RESULTS_DIR=/test-results \
@@ -199,7 +199,10 @@ jobs:
                 "{ os.environ.get('DOCKER_IMAGE', '') }" \
               )
               docker exec -t "{ os.environ.get('container_name', '') }" bash /exec
-            ''')
+            '''
+
+            print(output_cmds)
+            os.system(output_cmds)
           EOF
 
       - name: Surface failing tests
