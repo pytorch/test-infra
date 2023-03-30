@@ -8,7 +8,7 @@ const ROW_HEIGHT = 240;
 
 export default function Kpis() {
   // Looking at data from the past six months
-  const [startTime, setStartTime] = useState(dayjs().subtract(6, 'month'));
+  const [startTime, setStartTime] = useState(dayjs().subtract(6, "month"));
   const [stopTime, setStopTime] = useState(dayjs());
 
   const timeParams: RocksetParam[] = [
