@@ -19,7 +19,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "${{ secrets.NOT_A_SECRET_USED_FOR_TESTING }}" ]] || exit 1
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "ASDF" ]] || exit 1
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
