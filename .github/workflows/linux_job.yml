@@ -168,6 +168,7 @@ jobs:
             p.stdin.write('set -ex\n'.encode('utf-8'))
             p.stdin.write(cmd.encode('utf-8'))
             p.stdin.write('\nexit $?\n'.encode('utf-8'))
+            p.stdin.close()
             exit_code = p.wait()
             result = p.stdout.read().decode('utf-8')
             print(result)
