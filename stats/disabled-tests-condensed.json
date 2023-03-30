@@ -204,13 +204,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
-    "96893",
-    "https://github.com/pytorch/pytorch/issues/96893",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_uint8 (__main__.TestForeachCUDA)": [
     "96792",
     "https://github.com/pytorch/pytorch/issues/96792",
@@ -348,14 +341,6 @@
     "https://github.com/pytorch/pytorch/issues/95270",
     [
       "linux"
-    ]
-  ],
-  "test_constant_insertion (__main__.TestJit)": [
-    "96894",
-    "https://github.com/pytorch/pytorch/issues/96894",
-    [
-      "win",
-      "windows"
     ]
   ],
   "test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
@@ -1381,6 +1366,13 @@
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "96550",
     "https://github.com/pytorch/pytorch/issues/96550",
+    [
+      "rocm"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
+    "96375",
+    "https://github.com/pytorch/pytorch/issues/96375",
     [
       "rocm"
     ]
