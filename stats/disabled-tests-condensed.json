@@ -858,6 +858,20 @@
       "windows"
     ]
   ],
+  "test_fn_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "98062",
+    "https://github.com/pytorch/pytorch/issues/98062",
+    [
+      "linux"
+    ]
+  ],
+  "test_fn_gradgrad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93062",
+    "https://github.com/pytorch/pytorch/issues/93062",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "62328",
     "https://github.com/pytorch/pytorch/issues/62328",
@@ -1088,6 +1102,13 @@
       "linux"
     ]
   ],
+  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "93070",
+    "https://github.com/pytorch/pytorch/issues/93070",
+    [
+      "linux"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1264,14 +1285,6 @@
     "67881",
     "https://github.com/pytorch/pytorch/issues/67881",
     []
-  ],
-  "test_nn_Conv3d_stride (__main__.TestJitGeneratedModule)": [
-    "96999",
-    "https://github.com/pytorch/pytorch/issues/96999",
-    [
-      "win",
-      "windows"
-    ]
   ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96088",
