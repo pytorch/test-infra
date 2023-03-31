@@ -23,6 +23,7 @@
     "master_commit_red_jobs": "5e921da7a05fedad"
   },
   "pytorch_dev_infra_kpis": {
+    "monthly_contribution_stats": "c1a8751a22f6b6ce",
     "num_reverts": "f39141336b6ea956",
     "number_of_force_pushes_historical": "6a8bcb873ed6a08e",
     "time_to_merge": "be1c2a28cf75fe32",
@@ -34,7 +35,7 @@
     "correlation_matrix": "35c05e04047123f0",
     "disabled_test_historical": "daa2413a4750aa87",
     "disabled_test_total": "da5f834a6501fc63",
-    "external_contribution_stats": "6ecd4fdee7874867",
+    "external_contribution_stats": "d98863128f502cdb",
     "job_duration_avg": "10a88ea2ebb80647",
     "job_duration_percentile": "96507ed62db7a3a8",
     "last_branch_push": "3d995ac2143586dc",

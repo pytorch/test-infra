@@ -125,12 +125,13 @@ export default function Kpis() {
             </Grid>
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Weekly External PR Count (4 week moving average)"}
+                    title={"External PR Count (Weekly with 4 week moving average)"}
                     queryName={"external_contribution_stats"}
                     queryParams={[...contributionTimeParams]}
+                    queryCollection={"metrics"}
                     granularity={"week"}
                     timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"weekly_pr_count_rolling_average"}
+                    yAxisFieldName={"pr_count"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
@@ -138,12 +139,13 @@ export default function Kpis() {
 
             <Grid item xs={6} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Weekly Unique External Contributor Count (4 week moving average)"}
-                    queryName={"external_contribution_stats"}
+                    title={"Monthly External PR Count"}
+                    queryName={"monthly_contribution_stats"}
+                    queryCollection={"pytorch_dev_infra_kpis"}
                     queryParams={[...contributionTimeParams]}
-                    granularity={"week"}
-                    timeFieldName={"granularity_bucket"}
-                    yAxisFieldName={"weekly_user_count_rolling_average"}
+                    granularity={"month"}
+                    timeFieldName={"year_and_month"}
+                    yAxisFieldName={"pr_count"}
                     yAxisRenderer={(value) => value}
                     additionalOptions={{ yAxis: { scale: true } }}
                 />
