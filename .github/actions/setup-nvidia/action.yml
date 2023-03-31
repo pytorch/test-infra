@@ -7,7 +7,7 @@ inputs:
     description: which driver version to install
     required: false
     type: string
-    default: "525.89.02"
+    default: "525.105.17"   # From https://www.nvidia.com/en-us/drivers/unix
 
 runs:
   using: composite
