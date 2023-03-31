@@ -412,24 +412,24 @@ function getRecordByFieldName(
   data: any[],
   fieldName: string
 ): [{ [k: string]: any }, string] {
-  let latestBucket: string = "";
-  const lastestRecordByCompiler: { [k: string]: any } = {};
+  let bucket: string = "";
+  const recordByCompiler: { [k: string]: any } = {};
 
   data.forEach((r: any) => {
     const compiler = r["compiler"];
     const suite = r["suite"];
 
-    if (!(compiler in lastestRecordByCompiler)) {
-      lastestRecordByCompiler[compiler] = {
+    if (!(compiler in recordByCompiler)) {
+      recordByCompiler[compiler] = {
         compiler: compiler,
       };
     }
 
-    lastestRecordByCompiler[compiler][suite] = r[fieldName];
-    latestBucket = r.granularity_bucket;
+    recordByCompiler[compiler][suite] = r[fieldName];
+    bucket = r.granularity_bucket;
   });
 
-  return [lastestRecordByCompiler, latestBucket];
+  return [recordByCompiler, bucket];
 }
 
 export function DTypePicker({
@@ -495,13 +495,17 @@ export function SuitePicker({
   );
 }
 
-export function BranchPicker({
+export function BranchAndCommitPicker({
   branch,
   setBranch,
+  commit,
+  setCommit,
   queryParams,
 }: {
   branch: string;
   setBranch: any;
+  commit: string;
+  setCommit: any;
   queryParams: RocksetParam[];
 }) {
   const queryName = "compilers_benchmark_performance_branches";
@@ -514,6 +518,14 @@ export function BranchPicker({
   const { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+
+  useEffect(() => {
+    if (data !== undefined && commit === "") {
+      setCommit(
+        data.filter((r: any) => r["head_branch"] === branch)[0]["head_sha"]
+      );
+    }
+  }, [data]);
 
   if (error !== undefined) {
     return (
@@ -528,47 +540,71 @@ export function BranchPicker({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  function handleChange(e: SelectChangeEvent<string>) {
+  function handleBranchChange(e: SelectChangeEvent<string>) {
     setBranch(e.target.value);
   }
 
+  function handleCommitChange(e: SelectChangeEvent<string>) {
+    setCommit(e.target.value);
+  }
+
   return (
-    <>
+    <div>
       <FormControl>
         <InputLabel id="branch-picker-input-label">Branch</InputLabel>
         <Select
           value={branch}
           label="Branch"
           labelId="branch-picker-select-label"
-          onChange={handleChange}
+          onChange={handleBranchChange}
           id="branch-picker-select"
         >
           <MenuItem value={"master"}>main</MenuItem>
-          {data.map((b: any) => (
-            <MenuItem key={b["head_branch"]} value={b["head_branch"]}>
-              {b["head_branch"]}
-            </MenuItem>
-          ))}
+          {data
+            .filter((r: any) => r["head_branch"] !== "master")
+            .map((r: any) => (
+              <MenuItem key={r["head_branch"]} value={r["head_branch"]}>
+                {r["head_branch"]}
+              </MenuItem>
+            ))}
         </Select>
       </FormControl>
-    </>
+
+      <FormControl>
+        <InputLabel id="commit-picker-input-label">Commit</InputLabel>
+        <Select
+          value={commit}
+          label="Commit"
+          labelId="commit-picker-select-label"
+          onChange={handleCommitChange}
+          id="commit-picker-select"
+        >
+          {data
+            .filter((r: any) => r["head_branch"] === branch)
+            .map((r: any) => (
+              <MenuItem key={r["head_sha"]} value={r["head_sha"]}>
+                {r["head_sha"].substring(0, 7)} (
+                {dayjs(r["event_time"]).format("YYYY/MM/DD")})
+              </MenuItem>
+            ))}
+        </Select>
+      </FormControl>
+    </div>
   );
 }
 
 function SummaryPanel({
   queryParams,
-  workflowId,
-  sha,
   dtypes,
   branch,
+  commit,
   startTime,
   stopTime,
 }: {
   queryParams: RocksetParam[];
-  workflowId: number;
-  sha: string;
   dtypes: string;
   branch: string;
+  commit: string;
   startTime: Dayjs;
   stopTime: Dayjs;
 }) {
@@ -582,9 +618,9 @@ function SummaryPanel({
       value: Object.keys(SUITES).join(","),
     },
     {
-      name: "workflowId",
-      type: "int",
-      value: workflowId,
+      name: "commit",
+      type: "string",
+      value: commit,
     },
     ...queryParams,
   ];
@@ -643,7 +679,7 @@ function SummaryPanel({
 
   return (
     <div>
-      <BuildSummary branch={branch} sha={sha} />
+      <BuildSummary branch={branch} commit={commit} />
       <Grid container spacing={2} height={ROW_HEIGHT * 2 + ROW_GAP}>
         <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
           <TablePanelWithData
@@ -663,7 +699,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}`;
+                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
                     return <a href={url}>{params.value}</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -705,7 +741,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}`;
+                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -743,7 +779,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}`;
+                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -783,7 +819,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}`;
+                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -956,14 +992,14 @@ function PerformanceGraphs({
   );
 }
 
-function BuildSummary({ branch, sha }: { branch: string; sha: string }) {
+function BuildSummary({ branch, commit }: { branch: string; commit: string }) {
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        *This report was last generated by CI running on PyTorch {branch} branch
-        at commit{" "}
-        <a href={`${HUD_PREFIX}/${sha}#inductor-a100-perf-nightly`}>
-          {sha.substring(0, 7)}
+        *This report was generated by CI running on PyTorch {branch} branch at
+        commit{" "}
+        <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
+          {commit.substring(0, 7)}
         </a>
         .
       </Typography>
@@ -977,12 +1013,14 @@ function Report({
   suite,
   dtypes,
   branch,
+  commit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   dtypes: string;
   branch: string;
+  commit: string;
 }) {
   const queryCollection = "inductor";
   const queryParamsWithSuite: RocksetParam[] = [
@@ -994,7 +1032,7 @@ function Report({
     ...queryParams,
   ];
 
-  let queryName = "compilers_benchmark_performance";
+  const queryName = "compilers_benchmark_performance";
   // NB: Querying data for all the suites blows up the response from Rockset over
   // the lambda reponse body limit of 6MB. So I need to split up the query here
   // into multiple smaller ones to keep them under the limit
@@ -1002,29 +1040,15 @@ function Report({
   // See more:
   // * https://nextjs.org/docs/messages/api-routes-body-size-limit
   // * https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
-  let url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
-  const { data: historicalData, error: historicalError } = useSWR(
-    url,
-    fetcher,
-    {
-      refreshInterval: 60 * 60 * 1000, // refresh every hour
-    }
-  );
-
-  // Get the latest workflow ID for the summary table
-  queryName = "compilers_benchmark_performance_latest_runs";
-  url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithSuite)
-  )}`;
-
-  const { data: workflowData, error: workflowError } = useSWR(url, fetcher, {
+  const { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
-  if (historicalError !== undefined || workflowError !== undefined) {
+  if (error !== undefined) {
     return (
       <div>
         An error occurred while fetching data, perhaps there are too many
@@ -1033,23 +1057,15 @@ function Report({
     );
   }
 
-  if (
-    historicalData === undefined ||
-    workflowData === undefined ||
-    historicalData.length === 0 ||
-    workflowData.length === 0
-  ) {
+  if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const passModels = getPassModels(historicalData);
-  const passrate = computePassrate(historicalData, passModels);
-  const geomean = computeGeomean(historicalData, passModels);
-  const compTime = computeCompilationTime(historicalData, passModels);
-  const memory = computeMemoryCompressionRatio(historicalData, passModels);
-
-  const latestWorkflowId = workflowData[0]["workflow_id"];
-  const latestSha = workflowData[0]["head_sha"];
+  const passModels = getPassModels(data);
+  const passrate = computePassrate(data, passModels);
+  const geomean = computeGeomean(data, passModels);
+  const compTime = computeCompilationTime(data, passModels);
+  const memory = computeMemoryCompressionRatio(data, passModels);
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from Rockset
@@ -1064,10 +1080,9 @@ function Report({
     <div>
       <SummaryPanel
         queryParams={queryParams}
-        workflowId={latestWorkflowId}
-        sha={latestSha}
         dtypes={dtypes}
         branch={branch}
+        commit={commit}
         startTime={startTime}
         stopTime={stopTime}
       />
@@ -1094,6 +1109,7 @@ export default function Page() {
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [branch, setBranch] = useState<string>("master");
+  let [commit, setCommit] = useState<string>("");
 
   const queryParams: RocksetParam[] = [
     {
@@ -1145,13 +1161,15 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <BranchPicker
-          branch={branch}
-          setBranch={setBranch}
-          queryParams={queryParams}
-        />
         <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
+        <BranchAndCommitPicker
+          branch={branch}
+          setBranch={setBranch}
+          commit={commit}
+          setCommit={setCommit}
+          queryParams={queryParams}
+        />
       </Stack>
 
       <Grid item xs={12}>
@@ -1161,6 +1179,7 @@ export default function Page() {
           suite={suite}
           dtypes={dtypes}
           branch={branch}
+          commit={commit}
         />
       </Grid>
     </div>

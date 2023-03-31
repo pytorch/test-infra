@@ -64,8 +64,8 @@
     "workflow_load": "48428f8a7c541b76"
   },
   "inductor": {
-    "compilers_benchmark_performance": "d4643dd81de3024f",
-    "compilers_benchmark_performance_branches": "6498d7b3dc1f46b9",
+    "compilers_benchmark_performance": "ee71a9095a2ee865",
+    "compilers_benchmark_performance_branches": "2bea08ef6c510f85",
     "compilers_benchmark_performance_latest_runs": "ea73304f42a9316e"
   }
 }

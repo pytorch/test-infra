@@ -11,7 +11,7 @@ WITH performance_results AS (
     ) AS filename,
     compilation_latency,
     compression_ratio,
-    workflow_id,
+    workflow_id,    
   FROM
     inductor.torch_dynamo_perf_stats
   WHERE
@@ -22,7 +22,7 @@ WITH performance_results AS (
     )
     AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
-    AND (workflow_id = :workflowId OR :workflowId = 0)
+    AND (workflow_id = :workflowId OR :workflowId = 0)    
 ),
 accuracy_results AS (
   SELECT
@@ -36,9 +36,6 @@ accuracy_results AS (
       )
     ) AS filename,
     workflow_id,
-    FORMAT_ISO8601(
-      DATE_TRUNC(: granularity, _event_time)
-    ) AS granularity_bucket,
   FROM
     inductor.torch_dynamo_perf_stats
   WHERE
@@ -54,7 +51,6 @@ accuracy_results AS (
 results AS (
   SELECT
     accuracy_results.workflow_id AS workflow_id,
-    granularity_bucket,
     CASE
       WHEN accuracy_results.filename LIKE '%_torchbench' THEN 'torchbench'
       WHEN accuracy_results.filename LIKE '%_timm_models' THEN 'timm_models'
@@ -93,14 +89,25 @@ results AS (
     AND performance_results.filename = accuracy_results.filename
     AND performance_results.workflow_id = accuracy_results.workflow_id
 )
-SELECT
-  results.*
+SELECT DISTINCT
+  results.workflow_id,
+  results.suite,
+  results.compiler,
+  results.name,
+  results.speedup,
+  results.accuracy,
+  results.compilation_latency,
+  results.compression_ratio,
+  FORMAT_ISO8601(
+    DATE_TRUNC(: granularity, w._event_time)
+  ) AS granularity_bucket,
 FROM
   results LEFT JOIN commons.workflow_run w ON results.workflow_id = w.id
 WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
   AND (ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler)) OR :compilers = '')
   AND head_branch LIKE :branch
+  AND (head_sha = :commit OR :commit = '')  
 ORDER BY
   granularity_bucket DESC,
   suite ASC,
