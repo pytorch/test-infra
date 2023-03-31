@@ -83,7 +83,7 @@ export async function updateDrciComments(octokit: Octokit, repo: string = "pytor
         brokenTrunkJobs,
         pr_info.head_sha,
         pr_info.merge_base,
-        `${HUD_URL}${pr_info.pr_number}`
+        `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
       );
 
       const comment = formDrciComment(
