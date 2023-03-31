@@ -218,13 +218,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_uint8 (__main__.TestForeachCUDA)": [
-    "96792",
-    "https://github.com/pytorch/pytorch/issues/96792",
-    [
-      "rocm"
-    ]
-  ],
   "test_bottleneck_cpu_only (__main__.TestBottleneck)": [
     "68433",
     "https://github.com/pytorch/pytorch/issues/68433",
