@@ -1,15 +1,15 @@
 {
-    "sql_path": "__sql/external_contribution_stats.sql",
+    "sql_path": "__sql/monthly_contribution_stats.sql",
     "default_parameters": [
       {
         "name": "granularity",
         "type": "string",
-        "value": "day"
+        "value": "month"
       },
       {
         "name": "startTime",
         "type": "string",
-        "value": "2022-06-01T00:06:32.839Z"
+        "value": "2022-05-01T00:06:32.839Z"
       },
       {
         "name": "stopTime",
