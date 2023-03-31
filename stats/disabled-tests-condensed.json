@@ -1984,14 +1984,6 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_linalg_solve_triangular_cuda_complex64 (__main__.TestJitCUDA)": [
-    "97036",
-    "https://github.com/pytorch/pytorch/issues/97036",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_linalg_svd_cpu_complex64 (__main__.TestJitCPU)": [
     "97038",
     "https://github.com/pytorch/pytorch/issues/97038",
@@ -2008,38 +2000,9 @@
       "windows"
     ]
   ],
-  "test_variant_consistency_jit_logdet_cpu_complex64 (__main__.TestJitCPU)": [
-    "96979",
-    "https://github.com/pytorch/pytorch/issues/96979",
-    [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows.>"
-    ]
-  ],
-  "test_variant_consistency_jit_logdet_cuda_complex64 (__main__.TestJitCUDA)": [
-    "97037",
-    "https://github.com/pytorch/pytorch/issues/97037",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_variant_consistency_jit_nn_functional_max_pool1d_cpu_float32 (__main__.TestJitCPU)": [
     "97039",
     "https://github.com/pytorch/pytorch/issues/97039",
-    [
-      "win",
-      "windows"
-    ]
-  ],
-  "test_variant_consistency_jit_nn_functional_max_pool3d_cuda_float32 (__main__.TestJitCUDA)": [
-    "97035",
-    "https://github.com/pytorch/pytorch/issues/97035",
     [
       "win",
       "windows"
