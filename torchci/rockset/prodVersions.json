@@ -23,7 +23,7 @@
     "master_commit_red_jobs": "5e921da7a05fedad"
   },
   "pytorch_dev_infra_kpis": {
-    "num_reverts": "463d78bc8ace3979",
+    "num_reverts": "1f1ed48105cf1e74",
     "number_of_force_pushes_historical": "6a8bcb873ed6a08e",
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
