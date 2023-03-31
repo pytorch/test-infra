@@ -227,7 +227,8 @@ function GraphPanel({
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    "speedup"
+    "speedup",
+    false
   );
   const compTimeSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -236,7 +237,8 @@ function GraphPanel({
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    "compilation_latency"
+    "compilation_latency",
+    false
   );
   const memorySeries = seriesWithInterpolatedTimes(
     chartData,
@@ -245,7 +247,8 @@ function GraphPanel({
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    "compression_ratio"
+    "compression_ratio",
+    false
   );
 
   return (
@@ -413,7 +416,7 @@ export default function Page() {
     dayjs().subtract(LAST_N_DAYS, "day")
   );
   const [stopTime, setStopTime] = useState(dayjs());
-  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [granularity, setGranularity] = useState<Granularity>("hour");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [branch, setBranch] = useState<string>("master");

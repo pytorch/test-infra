@@ -822,7 +822,8 @@ function generateChartSeries(
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    dataFieldName
+    dataFieldName,
+    false
   );
 }
 
@@ -1089,7 +1090,7 @@ export default function Page() {
     dayjs().subtract(LAST_N_DAYS, "day")
   );
   const [stopTime, setStopTime] = useState(dayjs());
-  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [granularity, setGranularity] = useState<Granularity>("hour");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [branch, setBranch] = useState<string>("master");
