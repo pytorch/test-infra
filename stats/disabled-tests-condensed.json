@@ -666,6 +666,13 @@
       "linux"
     ]
   ],
+  "test_dtensor_api_device_mesh_context_manager (__main__.DTensorMeshTest)": [
+    "98058",
+    "https://github.com/pytorch/pytorch/issues/98058",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_op_db_empty_like_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "93844",
     "https://github.com/pytorch/pytorch/issues/93844",
@@ -1589,6 +1596,13 @@
       "linux"
     ]
   ],
+  "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98059",
+    "https://github.com/pytorch/pytorch/issues/98059",
+    [
+      "linux"
+    ]
+  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
@@ -1929,6 +1943,13 @@
   "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
     "87070",
     "https://github.com/pytorch/pytorch/issues/87070",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
+    "86711",
+    "https://github.com/pytorch/pytorch/issues/86711",
     [
       "linux"
     ]
