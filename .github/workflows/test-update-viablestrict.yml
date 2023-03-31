@@ -17,7 +17,7 @@ jobs:
     with:
       repository: pytorch/vision
       viable_strict_branch: test_strict
-      required_checks: "Build Linux,Build M1,Build Macos,Unit-tests on Linux,Unit-tests on M1"
+      required_checks: "cmake,lint,Build Linux,Build M1,Build Macos,Tests on Linux,Tests on macOS,Docs,Lint"
     secrets:
       ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
       GITHUB_DEPLOY_KEY: ${{ secrets.VISION_GITHUB_DEPLOY_KEY }}

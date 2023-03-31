@@ -87,6 +87,8 @@ def is_green(commit: str, results: List[Dict[str, Any]], required_checks: List[s
     workflow_checks = get_commit_results(commit, results)
     regex = {check: False for check in required_checks}
 
+    print("### regex:", regex)
+
     for check in workflow_checks:
         workflow_name = check["workflowName"]
         conclusion = check["conclusion"]
@@ -106,6 +108,7 @@ def is_green(commit: str, results: List[Dict[str, Any]], required_checks: List[s
 
 def get_latest_green_commit(commits: List[str], results: List[Dict[str, Any]], required_checks: str) -> Any:
     required_checks = required_checks.split(',')
+    print("### required_checks:", required_checks)
 
     for commit in commits:
         eprint(f"Checking {commit}")
