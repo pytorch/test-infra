@@ -34,7 +34,6 @@ import {
   DTypePicker,
   DTYPES,
   BranchAndCommitPicker,
-  SuitePicker,
   SUITES,
   LAST_N_DAYS,
   HUD_PREFIX,
@@ -45,6 +44,8 @@ import {
   COMPRESSION_RATIO_THRESHOLD,
   PASSING_ACCURACY,
   DIFF_HEADER,
+  ModePicker,
+  MODES,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -83,6 +84,7 @@ function CommitPanel({
 
 function ModelPanel({
   suite,
+  mode,
   dtypes,
   compiler,
   model,
@@ -94,6 +96,7 @@ function ModelPanel({
   rData,
 }: {
   suite: string;
+  mode: string;
   dtypes: string;
   compiler: string;
   model: string;
@@ -182,7 +185,7 @@ function ModelPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?model=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
                 return <a href={url}>{name}</a>;
               },
             },
@@ -419,14 +422,12 @@ function ModelPanel({
 function GraphPanel({
   queryParams,
   granularity,
-  suite,
   compiler,
   model,
   branch,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
-  suite: string;
   compiler: string;
   model: string;
   branch: string;
@@ -564,6 +565,7 @@ function Report({
   queryParams,
   granularity,
   suite,
+  mode,
   dtypes,
   compiler,
   model,
@@ -575,6 +577,7 @@ function Report({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
+  mode: string;
   dtypes: string;
   compiler: string;
   model: string;
@@ -647,13 +650,13 @@ function Report({
       <GraphPanel
         queryParams={queryParams}
         granularity={granularity}
-        suite={suite}
         compiler={compiler}
         model={model}
         branch={lBranch}
       />
       <ModelPanel
         suite={suite}
+        mode={mode}
         dtypes={dtypes}
         compiler={compiler}
         model={model}
@@ -672,6 +675,7 @@ export default function Page() {
   const router = useRouter();
 
   // The dimensions to query Rockset
+  const suite: string = (router.query.suite as string) ?? undefined;
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
 
@@ -680,8 +684,8 @@ export default function Page() {
   );
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("hour");
+  const [mode, setMode] = useState<string>(MODES[0]);
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
-  const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -689,14 +693,14 @@ export default function Page() {
 
   // Set the dropdown value what is in the param
   useEffect(() => {
+    const mode: string = (router.query.mode as string) ?? undefined;
+    if (mode !== undefined) {
+      setMode(mode);
+    }
+
     const dtypes: string = (router.query.dtypes as string) ?? undefined;
     if (dtypes !== undefined) {
       setDTypes(dtypes);
-    }
-
-    const suite: string = (router.query.suite as string) ?? undefined;
-    if (suite !== undefined) {
-      setSuite(suite);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -751,6 +755,11 @@ export default function Page() {
       value: suite,
     },
     {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
       name: "compilers",
       type: "string",
       value: compiler,
@@ -780,7 +789,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <SuitePicker suite={suite} setSuite={setSuite} />
+        <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
         <BranchAndCommitPicker
           branch={lBranch}
@@ -806,6 +815,7 @@ export default function Page() {
           queryParams={queryParams}
           granularity={granularity}
           suite={suite}
+          mode={mode}
           dtypes={dtypes}
           compiler={compiler}
           model={model}

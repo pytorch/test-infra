@@ -60,6 +60,7 @@ export const SUITES: { [k: string]: string } = {
   huggingface: "Huggingface",
   timm_models: "TIMM models",
 };
+export const MODES = ["training"];
 export const DTYPES = ["amp", "float32"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
@@ -453,6 +454,30 @@ export function SuitePicker({
   );
 }
 
+export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setMode(e.target.value);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="mode-picker-input-label">Precision</InputLabel>
+        <Select
+          value={mode}
+          label="Mode"
+          labelId="mode-picker-select-label"
+          onChange={handleChange}
+          id="mode-picker-select"
+        >
+          <MenuItem value={"training"}>training</MenuItem>
+          <MenuItem value={"inference"}>inference</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
 export function DTypePicker({
   dtypes,
   setDTypes,
@@ -706,6 +731,7 @@ function extractPercentage(value: string) {
 }
 
 function SummaryPanel({
+  mode,
   dtypes,
   lBranch,
   lCommit,
@@ -714,6 +740,7 @@ function SummaryPanel({
   rCommit,
   rData,
 }: {
+  mode: string;
   dtypes: string;
   lBranch: string;
   lCommit: string;
@@ -806,7 +833,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -885,7 +912,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -956,7 +983,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
@@ -1040,7 +1067,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -1121,7 +1148,7 @@ function GraphPanel({
 
   const queryParamsWithSuite: RocksetParam[] = [
     {
-      name: "suite",
+      name: "suites",
       type: "string",
       value: suite,
     },
@@ -1304,6 +1331,7 @@ function Report({
   queryParams,
   granularity,
   suite,
+  mode,
   dtypes,
   lBranch,
   lCommit,
@@ -1313,6 +1341,7 @@ function Report({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
+  mode: string;
   dtypes: string;
   lBranch: string;
   lCommit: string;
@@ -1324,7 +1353,7 @@ function Report({
 
   const queryParamsWithL: RocksetParam[] = [
     {
-      name: "suite",
+      name: "suites",
       type: "string",
       value: Object.keys(SUITES).join(","),
     },
@@ -1350,7 +1379,7 @@ function Report({
 
   const queryParamsWithR: RocksetParam[] = [
     {
-      name: "suite",
+      name: "suites",
       type: "string",
       value: Object.keys(SUITES).join(","),
     },
@@ -1391,6 +1420,7 @@ function Report({
         date={lData[0].granularity_bucket}
       />
       <SummaryPanel
+        mode={mode}
         dtypes={dtypes}
         lBranch={lBranch}
         lCommit={lCommit}
@@ -1415,8 +1445,9 @@ export default function Page() {
   );
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
+  const [mode, setMode] = useState<string>(MODES[0]);
+  const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -1444,6 +1475,11 @@ export default function Page() {
       value: granularity,
     },
     {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
       name: "dtypes",
       type: "string",
       value: dtypes,
@@ -1468,6 +1504,7 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <SuitePicker suite={suite} setSuite={setSuite} />
+        <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
         <BranchAndCommitPicker
           branch={lBranch}
@@ -1493,6 +1530,7 @@ export default function Page() {
           queryParams={queryParams}
           granularity={granularity}
           suite={suite}
+          mode={mode}
           dtypes={dtypes}
           lBranch={lBranch}
           lCommit={lCommit}
