@@ -14,6 +14,7 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
+  Divider,
 } from "@mui/material";
 import {
   GridValueFormatterParams,
@@ -35,11 +36,14 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_N_DAYS = 7;
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
-const HUD_PREFIX = "/pytorch/pytorch/commit";
-const TIME_FIELD_NAME = "granularity_bucket";
+const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
+
+export const LAST_N_DAYS = 7;
+export const HUD_PREFIX = "/pytorch/pytorch/commit";
+export const TIME_FIELD_NAME = "granularity_bucket";
+export const MAIN_BRANCH = "master";
 
 // After https://github.com/pytorch/pytorch/pull/96986, there is no perf data
 // for eager and aot_eager because they are not run anymore (not needed)
@@ -57,15 +61,23 @@ export const SUITES: { [k: string]: string } = {
   timm_models: "TIMM models",
 };
 export const DTYPES = ["amp", "float32"];
-const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
+export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
-const ACCURACY_THRESHOLD = 90.0;
-const SPEEDUP_THRESHOLD = 0.95;
-const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
-const COMPRESSION_RATIO_THRESHOLD = 0.9;
+// Thresholds
+export const ACCURACY_THRESHOLD = 90.0;
+export const SPEEDUP_THRESHOLD = 0.95;
+export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
+export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
-function getPassModels(data: any) {
-  const passModels: { [k: string]: any } = {};
+// Headers
+export const DIFF_HEADER = "New value (L) ← Old value (R)";
+const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
+const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
+const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+
+function getPassingModels(data: CompilerPerformanceData[]) {
+  const models: { [k: string]: any } = {};
 
   data.forEach((record: CompilerPerformanceData) => {
     const bucket = record.granularity_bucket;
@@ -81,28 +93,28 @@ function getPassModels(data: any) {
       return;
     }
 
-    if (!(bucket in passModels)) {
-      passModels[bucket] = {};
+    if (!(bucket in models)) {
+      models[bucket] = {};
     }
 
-    if (!(workflowId in passModels[bucket])) {
-      passModels[bucket][workflowId] = {};
+    if (!(workflowId in models[bucket])) {
+      models[bucket][workflowId] = {};
     }
 
-    if (!(suite in passModels[bucket][workflowId])) {
-      passModels[bucket][workflowId][suite] = {};
+    if (!(suite in models[bucket][workflowId])) {
+      models[bucket][workflowId][suite] = {};
     }
 
-    if (!(compiler in passModels[bucket][workflowId][suite])) {
-      passModels[bucket][workflowId][suite][compiler] = new Set<string>();
+    if (!(compiler in models[bucket][workflowId][suite])) {
+      models[bucket][workflowId][suite][compiler] = new Set<string>();
     }
 
-    if (accuracy === "pass" || accuracy === "pass_due_to_skip") {
-      passModels[bucket][workflowId][suite][compiler].add(model);
+    if (PASSING_ACCURACY.includes(accuracy)) {
+      models[bucket][workflowId][suite][compiler].add(model);
     }
   });
 
-  return passModels;
+  return models;
 }
 
 function isPass(
@@ -111,9 +123,9 @@ function isPass(
   suite: string,
   compiler: string,
   model: string,
-  passModels: { [k: string]: any }
+  passingModels: { [k: string]: any }
 ) {
-  return passModels[bucket][workflowId][suite][compiler].has(model);
+  return passingModels[bucket][workflowId][suite][compiler].has(model);
 }
 
 function computePassrate(data: any, passModels: { [k: string]: any }) {
@@ -408,60 +420,6 @@ function computeMemoryCompressionRatio(
   return returnedMemory;
 }
 
-function getRecordByFieldName(
-  data: any[],
-  fieldName: string
-): [{ [k: string]: any }, string] {
-  let bucket: string = "";
-  const recordByCompiler: { [k: string]: any } = {};
-
-  data.forEach((r: any) => {
-    const compiler = r["compiler"];
-    const suite = r["suite"];
-
-    if (!(compiler in recordByCompiler)) {
-      recordByCompiler[compiler] = {
-        compiler: compiler,
-      };
-    }
-
-    recordByCompiler[compiler][suite] = r[fieldName];
-    bucket = r.granularity_bucket;
-  });
-
-  return [recordByCompiler, bucket];
-}
-
-export function DTypePicker({
-  dtypes,
-  setDTypes,
-}: {
-  dtypes: string;
-  setDTypes: any;
-}) {
-  function handleChange(e: SelectChangeEvent<string>) {
-    setDTypes(e.target.value);
-  }
-
-  return (
-    <>
-      <FormControl>
-        <InputLabel id="dtypes-picker-input-label">Precision</InputLabel>
-        <Select
-          value={dtypes}
-          label="Precision"
-          labelId="dtypes-picker-select-label"
-          onChange={handleChange}
-          id="dtypes-picker-select"
-        >
-          <MenuItem value={"amp"}>amp</MenuItem>
-          <MenuItem value={"float32"}>float32</MenuItem>
-        </Select>
-      </FormControl>
-    </>
-  );
-}
-
 export function SuitePicker({
   suite,
   setSuite,
@@ -495,18 +453,48 @@ export function SuitePicker({
   );
 }
 
+export function DTypePicker({
+  dtypes,
+  setDTypes,
+}: {
+  dtypes: string;
+  setDTypes: any;
+}) {
+  function handleChange(e: SelectChangeEvent<string>) {
+    setDTypes(e.target.value);
+  }
+
+  return (
+    <>
+      <FormControl>
+        <InputLabel id="dtypes-picker-input-label">Precision</InputLabel>
+        <Select
+          value={dtypes}
+          label="Precision"
+          labelId="dtypes-picker-select-label"
+          onChange={handleChange}
+          id="dtypes-picker-select"
+        >
+          <MenuItem value={"amp"}>amp</MenuItem>
+          <MenuItem value={"float32"}>float32</MenuItem>
+        </Select>
+      </FormControl>
+    </>
+  );
+}
+
 export function BranchAndCommitPicker({
+  queryParams,
   branch,
   setBranch,
   commit,
   setCommit,
-  queryParams,
 }: {
+  queryParams: RocksetParam[];
   branch: string;
   setBranch: any;
   commit: string;
   setCommit: any;
-  queryParams: RocksetParam[];
 }) {
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
@@ -521,9 +509,7 @@ export function BranchAndCommitPicker({
 
   useEffect(() => {
     if (data !== undefined && commit === "") {
-      setCommit(
-        data.filter((r: any) => r["head_branch"] === branch)[0]["head_sha"]
-      );
+      setCommit(data.filter((r: any) => r.head_branch === branch)[0].head_sha);
     }
   }, [data]);
 
@@ -543,9 +529,7 @@ export function BranchAndCommitPicker({
   function handleBranchChange(e: SelectChangeEvent<string>) {
     const branch: string = e.target.value;
     setBranch(branch);
-    setCommit(
-      data.filter((r: any) => r["head_branch"] === branch)[0]["head_sha"]
-    );
+    setCommit(data.filter((r: any) => r.head_branch === branch)[0].head_sha);
   }
 
   function handleCommitChange(e: SelectChangeEvent<string>) {
@@ -565,15 +549,15 @@ export function BranchAndCommitPicker({
           onChange={handleBranchChange}
           id={`branch-picker-select-${commit}`}
         >
-          <MenuItem value={"master"}>main</MenuItem>
+          <MenuItem value={MAIN_BRANCH}>main</MenuItem>
           {data
-            .filter((r: any) => r["head_branch"] !== "master")
+            .filter((r: any) => r.head_branch !== MAIN_BRANCH)
             .map((r: any) => (
               <MenuItem
-                key={`${r["head_branch"]}-${commit}`}
-                value={r["head_branch"]}
+                key={`${r.head_branch}-${commit}`}
+                value={r.head_branch}
               >
-                {r["head_branch"]}
+                {r.head_branch}
               </MenuItem>
             ))}
         </Select>
@@ -591,11 +575,11 @@ export function BranchAndCommitPicker({
           id={`commit-picker-select-${commit}`}
         >
           {data
-            .filter((r: any) => r["head_branch"] === branch)
+            .filter((r: any) => r.head_branch === branch)
             .map((r: any) => (
-              <MenuItem key={r["head_sha"]} value={r["head_sha"]}>
-                {r["head_sha"].substring(0, 7)} (
-                {dayjs(r["event_time"]).format("YYYY/MM/DD")})
+              <MenuItem key={r.head_sha} value={r.head_sha}>
+                {r.head_sha.substring(0, 7)} (
+                {dayjs(r.event_time).format("YYYY/MM/DD")})
               </MenuItem>
             ))}
         </Select>
@@ -604,40 +588,559 @@ export function BranchAndCommitPicker({
   );
 }
 
-function SummaryPanel({
-  queryParams,
-  dtypes,
+function CommitPanel({
   branch,
   commit,
-  startTime,
-  stopTime,
+  date,
 }: {
-  queryParams: RocksetParam[];
-  dtypes: string;
   branch: string;
   commit: string;
-  startTime: Dayjs;
-  stopTime: Dayjs;
+  date: string;
 }) {
-  const queryName = "compilers_benchmark_performance";
-  const queryCollection = "inductor";
+  return (
+    <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+      <Typography fontSize={"1rem"} fontStyle={"italic"}>
+        *This report was generated by CI running on PyTorch {branch} branch at
+        commit{" "}
+        <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
+          {commit.substring(0, 7)}
+        </a>{" "}
+        on {dayjs(date).format("YYYY/MM/DD")}.
+      </Typography>
+    </Stack>
+  );
+}
 
-  const queryParamsWithID: RocksetParam[] = [
+function groupRecords(data: CompilerPerformanceData[], fieldName: string) {
+  const records: { [k: string]: any } = {};
+
+  data.forEach((r: any) => {
+    const compiler = r.compiler;
+    const suite = r.suite;
+
+    if (!(compiler in records)) {
+      records[compiler] = {
+        compiler: compiler,
+      };
+    }
+
+    records[compiler][suite] = r[fieldName];
+  });
+
+  return records;
+}
+
+function processSummaryData(
+  data: CompilerPerformanceData[],
+  fields: { [k: string]: any }
+) {
+  // Compute the metrics for the passing models
+  const models = getPassingModels(data);
+  return Object.keys(fields).map((n: string) =>
+    groupRecords(fields[n](data, models), n)
+  );
+}
+
+function combineLeftAndRight(
+  lCommit: string,
+  lData: { [k: string]: any },
+  rCommit: string,
+  rData: { [k: string]: any },
+  suites: string[]
+) {
+  const data: { [k: string]: any } = {};
+  Object.keys(lData).forEach((compiler: string) => {
+    data[compiler] = {
+      compiler: compiler,
+    };
+    suites.forEach((suite: string) => {
+      data[compiler][suite] = {
+        l: lData[compiler][suite],
+        r: "",
+      };
+    });
+  });
+
+  // Combine with right data
+  if (lCommit !== rCommit) {
+    Object.keys(rData).forEach((compiler: string) => {
+      if (!(compiler in data)) {
+        data[compiler] = {
+          compiler: compiler,
+        };
+        suites.forEach((suite: string) => {
+          data[compiler][suite] = {
+            l: "",
+            r: rData[compiler][suite],
+          };
+        });
+        return;
+      }
+
+      suites.forEach((suite: string) => {
+        if (!(suite in data[compiler])) {
+          data[compiler][suite] = {
+            l: "",
+          };
+        }
+
+        data[compiler][suite]["r"] = rData[compiler][suite];
+      });
+    });
+  }
+
+  return data;
+}
+
+function extractPercentage(value: string) {
+  if (value === undefined) {
+    return;
+  }
+
+  const m = value.match(PASSRATE_DISPLAY_NAME_REGEX);
+  if (m === null) {
+    return;
+  }
+
+  return Number(m[1]);
+}
+
+function SummaryPanel({
+  dtypes,
+  lBranch,
+  lCommit,
+  lData,
+  rBranch,
+  rCommit,
+  rData,
+}: {
+  dtypes: string;
+  lBranch: string;
+  lCommit: string;
+  lData: CompilerPerformanceData[];
+  rBranch: string;
+  rCommit: string;
+  rData: CompilerPerformanceData[];
+}) {
+  const fields: { [k: string]: any } = {
+    passrate_display: computePassrate,
+    geomean: computeGeomean,
+    compilation_latency: computeCompilationTime,
+    compression_ratio: computeMemoryCompressionRatio,
+  };
+  // The left
+  const [lPassrate, lGeomean, lCompTime, lMemory] = processSummaryData(
+    lData,
+    fields
+  );
+  // and the right
+  const [rPassrate, rGeomean, rCompTime, rMemory] = processSummaryData(
+    rData,
+    fields
+  );
+
+  const suites = Object.keys(SUITES);
+  // Combine both sides
+  const passrate = combineLeftAndRight(
+    lCommit,
+    lPassrate,
+    rCommit,
+    rPassrate,
+    suites
+  );
+  const geomean = combineLeftAndRight(
+    lCommit,
+    lGeomean,
+    rCommit,
+    rGeomean,
+    suites
+  );
+  const compTime = combineLeftAndRight(
+    lCommit,
+    lCompTime,
+    rCommit,
+    rCompTime,
+    suites
+  );
+  const memory = combineLeftAndRight(
+    lCommit,
+    lMemory,
+    rCommit,
+    rMemory,
+    suites
+  );
+
+  const columns = [
+    {
+      field: "compiler",
+      headerName: "Compiler",
+      flex: 1,
+    },
+  ];
+
+  return (
+    <div>
+      <Grid container spacing={2} height={ROW_HEIGHT * 2 + ROW_GAP}>
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={
+              lCommit === rCommit
+                ? PASSRATE_HEADER
+                : `${PASSRATE_HEADER} ${DIFF_HEADER}`
+            }
+            data={Object.values(passrate).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              suites.map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                    const l = extractPercentage(v.l);
+                    const r = extractPercentage(v.r);
+
+                    if (l === undefined) {
+                      return "";
+                    }
+
+                    if (lCommit === rCommit) {
+                      return <a href={url}>{v.l}</a>;
+                    } else {
+                      return (
+                        <a href={url}>
+                          {v.l} ← {v.r}{" "}
+                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                        </a>
+                      );
+                    }
+                  },
+                  cellClassName: (params: GridCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const l = extractPercentage(v.l);
+                    const r = extractPercentage(v.r);
+
+                    if (l === undefined) {
+                      return "";
+                    }
+
+                    if (lCommit === rCommit || r === undefined) {
+                      return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
+                    } else {
+                      if (l >= ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
+                        return styles.ok;
+                      }
+
+                      if (l < ACCURACY_THRESHOLD && r >= ACCURACY_THRESHOLD) {
+                        return styles.error;
+                      }
+
+                      if (l < ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
+                        return styles.warning;
+                      }
+                    }
+
+                    return "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={GEOMEAN_HEADER}
+            data={Object.values(geomean).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              suites.map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                    const l = Number(v.l).toFixed(2);
+                    const r = Number(v.r).toFixed(2);
+
+                    if (lCommit === rCommit) {
+                      return <a href={url}>{l}x</a>;
+                    } else {
+                      return (
+                        <a href={url}>
+                          {l}x ← {r}x{" "}
+                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                        </a>
+                      );
+                    }
+                  },
+                  cellClassName: (params: GridCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const l = Number(v.l);
+                    const r = Number(v.r);
+
+                    if (lCommit === rCommit) {
+                      return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
+                    } else {
+                      if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                        return styles.ok;
+                      }
+
+                      if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
+                        return styles.error;
+                      }
+
+                      if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                        return styles.warning;
+                      }
+                    }
+
+                    return "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={COMPILATION_LATENCY_HEADER}
+            data={Object.values(compTime).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              suites.map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                    const l = Number(v.l).toFixed(0);
+                    const r = Number(v.r).toFixed(0);
+
+                    if (lCommit === rCommit) {
+                      return <a href={url}>{l}s</a>;
+                    } else {
+                      return (
+                        <a href={url}>
+                          {l}s ← {r}s{" "}
+                          {Number(l) > Number(r) && Number(r) != 0
+                            ? "\uD83D\uDD3A"
+                            : ""}
+                        </a>
+                      );
+                    }
+                  },
+                  cellClassName: (params: GridCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const l = Number(v.l);
+                    const r = Number(v.r);
+
+                    if (lCommit === rCommit) {
+                      return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                        ? styles.warning
+                        : "";
+                    } else {
+                      if (
+                        l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                      ) {
+                        return styles.ok;
+                      }
+
+                      if (
+                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                        r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                      ) {
+                        return styles.error;
+                      }
+
+                      if (
+                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                      ) {
+                        return styles.warning;
+                      }
+                    }
+
+                    return "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+
+        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+          <TablePanelWithData
+            title={MEMORY_HEADER}
+            data={Object.values(memory).sort((a: any, b: any) =>
+              a["compiler"].localeCompare(b["compiler"])
+            )}
+            columns={columns.concat(
+              suites.map((suite: string) => {
+                return {
+                  field: suite,
+                  headerName: SUITES[suite],
+                  flex: 1,
+                  renderCell: (params: GridRenderCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const url = `/benchmark/${suite}/${
+                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
+                      params.row.compiler
+                    }?dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+
+                    const l = Number(v.l).toFixed(2);
+                    const r = Number(v.r).toFixed(2);
+
+                    if (lCommit === rCommit) {
+                      return <a href={url}>{l}x</a>;
+                    } else {
+                      return (
+                        <a href={url}>
+                          {l}x ← {r}x{" "}
+                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                        </a>
+                      );
+                    }
+                  },
+                  cellClassName: (params: GridCellParams<any>) => {
+                    const v = params.value;
+                    if (v === undefined) {
+                      return "";
+                    }
+
+                    const l = Number(v.l);
+                    const r = Number(v.r);
+
+                    if (lCommit === rCommit) {
+                      return l >= COMPRESSION_RATIO_THRESHOLD
+                        ? ""
+                        : styles.warning;
+                    } else {
+                      if (
+                        l >= COMPRESSION_RATIO_THRESHOLD &&
+                        r < COMPRESSION_RATIO_THRESHOLD
+                      ) {
+                        return styles.ok;
+                      }
+
+                      if (
+                        l < COMPRESSION_RATIO_THRESHOLD &&
+                        r >= COMPRESSION_RATIO_THRESHOLD
+                      ) {
+                        return styles.error;
+                      }
+
+                      if (
+                        l < COMPRESSION_RATIO_THRESHOLD &&
+                        r < COMPRESSION_RATIO_THRESHOLD
+                      ) {
+                        return styles.warning;
+                      }
+                    }
+
+                    return "";
+                  },
+                };
+              })
+            )}
+            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
+          />
+        </Grid>
+      </Grid>
+    </div>
+  );
+}
+
+function GraphPanel({
+  queryParams,
+  granularity,
+  suite,
+  branch,
+}: {
+  queryParams: RocksetParam[];
+  granularity: Granularity;
+  suite: string;
+  branch: string;
+}) {
+  const queryCollection = "inductor";
+  const queryName = "compilers_benchmark_performance";
+
+  const queryParamsWithSuite: RocksetParam[] = [
     {
       name: "suite",
       type: "string",
-      value: Object.keys(SUITES).join(","),
+      value: suite,
     },
     {
-      name: "commits",
+      name: "branch",
       type: "string",
-      value: commit,
+      value: branch,
     },
     ...queryParams,
   ];
-
+  // NB: Querying data for all the suites blows up the response from Rockset over
+  // the lambda reponse body limit of 6MB. So I need to split up the query here
+  // into multiple smaller ones to keep them under the limit
+  //
+  // See more:
+  // * https://nextjs.org/docs/messages/api-routes-body-size-limit
+  // * https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithID)
+    JSON.stringify(queryParamsWithSuite)
   )}`;
 
   const { data, error } = useSWR(url, fetcher, {
@@ -657,275 +1160,69 @@ function SummaryPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const passModels = getPassModels(data);
-  const passrate = computePassrate(data, passModels);
-  const geomean = computeGeomean(data, passModels);
-  const compTime = computeCompilationTime(data, passModels);
-  const memory = computeMemoryCompressionRatio(data, passModels);
+  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
+  // align with the data we get from Rockset
+  const startTime = dayjs(
+    queryParams.find((p) => p.name === "startTime")?.value
+  ).startOf(granularity);
+  const stopTime = dayjs(
+    queryParams.find((p) => p.name === "stopTime")?.value
+  ).startOf(granularity);
 
-  const [passrateByCompiler, passrateBucket] = getRecordByFieldName(
+  // Compute the metrics for all passing models
+  const models = getPassingModels(data);
+  const groupByFieldName = "compiler";
+
+  // Accuracy
+  const passrate = computePassrate(data, models);
+  const passrateSeries = seriesWithInterpolatedTimes(
     passrate,
-    "passrate_display"
-  );
-  const [geomeanByCompiler, geomeanBucket] = getRecordByFieldName(
-    geomean,
-    "geomean"
-  );
-  const [compTimeByCompiler, compTimeBucket] = getRecordByFieldName(
-    compTime,
-    "compilation_latency"
-  );
-  const [memoryByCompiler, memoryBucket] = getRecordByFieldName(
-    memory,
-    "compression_ratio"
-  );
-
-  const columns = [
-    {
-      field: "compiler",
-      headerName: "Compiler",
-      flex: 1,
-    },
-  ];
-
-  return (
-    <div>
-      <BuildSummary branch={branch} commit={commit} />
-      <Grid container spacing={2} height={ROW_HEIGHT * 2 + ROW_GAP}>
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-          <TablePanelWithData
-            title={`Passrate - ${dayjs(passrateBucket).format(
-              "YYYY/MM/DD"
-            )} (threshold = ${ACCURACY_THRESHOLD}%)`}
-            data={Object.values(passrateByCompiler).sort((a: any, b: any) =>
-              a["compiler"].localeCompare(b["compiler"])
-            )}
-            columns={columns.concat(
-              Object.keys(SUITES).map((suite: string) => {
-                return {
-                  field: suite,
-                  headerName: SUITES[suite],
-                  flex: 1,
-                  renderCell: (params: GridRenderCellParams<string>) => {
-                    const url = `/benchmark/${suite}/${
-                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                      params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
-                    return <a href={url}>{params.value}</a>;
-                  },
-                  cellClassName: (params: GridCellParams<string>) => {
-                    const v = params.value;
-                    if (v === undefined) {
-                      return "";
-                    }
-
-                    const m = v.match(PASSRATE_DISPLAY_NAME_REGEX);
-                    if (m === null) {
-                      return "";
-                    }
-
-                    const p = Number(m[1]);
-                    return p < ACCURACY_THRESHOLD ? styles.warning : "";
-                  },
-                };
-              })
-            )}
-            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-          />
-        </Grid>
-
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-          <TablePanelWithData
-            title={`Geometric mean speedup - ${dayjs(geomeanBucket).format(
-              "YYYY/MM/DD"
-            )} (threshold = ${SPEEDUP_THRESHOLD}x)`}
-            data={Object.values(geomeanByCompiler).sort((a: any, b: any) =>
-              a["compiler"].localeCompare(b["compiler"])
-            )}
-            columns={columns.concat(
-              Object.keys(SUITES).map((suite: string) => {
-                return {
-                  field: suite,
-                  headerName: SUITES[suite],
-                  flex: 1,
-                  renderCell: (params: GridRenderCellParams<string>) => {
-                    const url = `/benchmark/${suite}/${
-                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                      params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
-                    return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
-                  },
-                  cellClassName: (params: GridCellParams<string>) => {
-                    const v = params.value;
-                    if (v === undefined) {
-                      return "";
-                    }
-
-                    return Number(v) < SPEEDUP_THRESHOLD ? styles.warning : "";
-                  },
-                };
-              })
-            )}
-            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-          />
-        </Grid>
-
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-          <TablePanelWithData
-            title={`Mean compilation time (seconds) - ${dayjs(
-              compTimeBucket
-            ).format(
-              "YYYY/MM/DD"
-            )} (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`}
-            data={Object.values(compTimeByCompiler).sort((a: any, b: any) =>
-              a["compiler"].localeCompare(b["compiler"])
-            )}
-            columns={columns.concat(
-              Object.keys(SUITES).map((suite: string) => {
-                return {
-                  field: suite,
-                  headerName: SUITES[suite],
-                  flex: 1,
-                  renderCell: (params: GridRenderCellParams<string>) => {
-                    const url = `/benchmark/${suite}/${
-                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                      params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
-                    return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
-                  },
-                  cellClassName: (params: GridCellParams<string>) => {
-                    const v = params.value;
-                    if (v === undefined) {
-                      return "";
-                    }
-
-                    return Number(v) > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ? styles.warning
-                      : "";
-                  },
-                };
-              })
-            )}
-            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-          />
-        </Grid>
-
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-          <TablePanelWithData
-            title={`Peak memory footprint compression ratio - ${dayjs(
-              memoryBucket
-            ).format(
-              "YYYY/MM/DD"
-            )} (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`}
-            data={Object.values(memoryByCompiler).sort((a: any, b: any) =>
-              a["compiler"].localeCompare(b["compiler"])
-            )}
-            columns={columns.concat(
-              Object.keys(SUITES).map((suite: string) => {
-                return {
-                  field: suite,
-                  headerName: SUITES[suite],
-                  flex: 1,
-                  renderCell: (params: GridRenderCellParams<string>) => {
-                    const url = `/benchmark/${suite}/${
-                      DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
-                      params.row.compiler
-                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
-                    return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
-                  },
-                  cellClassName: (params: GridCellParams<string>) => {
-                    const v = params.value;
-                    if (v === undefined) {
-                      return "";
-                    }
-
-                    return Number(v) < COMPRESSION_RATIO_THRESHOLD
-                      ? styles.warning
-                      : "";
-                  },
-                };
-              })
-            )}
-            dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
-          />
-        </Grid>
-      </Grid>
-    </div>
-  );
-}
-
-function generateChartSeries(
-  data: any[],
-  dataFieldName: string,
-  groupByFieldName: string,
-  startTime: Dayjs,
-  stopTime: Dayjs,
-  granularity: Granularity
-) {
-  return seriesWithInterpolatedTimes(
-    data,
     startTime,
     stopTime,
     granularity,
     groupByFieldName,
     TIME_FIELD_NAME,
-    dataFieldName,
+    "passrate",
     false
   );
-}
 
-function PerformanceGraphs({
-  suite,
-  passrate,
-  geomean,
-  compTime,
-  memory,
-  startTime,
-  stopTime,
-  granularity,
-}: {
-  suite: string;
-  passrate: any[];
-  geomean: any[];
-  compTime: any[];
-  memory: any[];
-  startTime: Dayjs;
-  stopTime: Dayjs;
-  granularity: Granularity;
-}) {
-  const groupByFieldName = "compiler";
-
-  const passrateSeries = generateChartSeries(
-    passrate,
-    "passrate",
-    groupByFieldName,
-    startTime,
-    stopTime,
-    granularity
-  );
-  const geomeanSeries = generateChartSeries(
+  // Geomean speedup
+  const geomean = computeGeomean(data, models);
+  const geomeanSeries = seriesWithInterpolatedTimes(
     geomean,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
     "geomean",
-    groupByFieldName,
-    startTime,
-    stopTime,
-    granularity
+    false
   );
-  const compTimeSeries = generateChartSeries(
+
+  // Compilation time
+  const compTime = computeCompilationTime(data, models);
+  const compTimeSeries = seriesWithInterpolatedTimes(
     compTime,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
     "compilation_latency",
-    groupByFieldName,
-    startTime,
-    stopTime,
-    granularity
+    false
   );
-  const memorySeries = generateChartSeries(
+
+  // Memory compression ratio
+  const memory = computeMemoryCompressionRatio(data, models);
+  const memorySeries = seriesWithInterpolatedTimes(
     memory,
-    "compression_ratio",
-    groupByFieldName,
     startTime,
     stopTime,
-    granularity
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "compression_ratio",
+    false
   );
 
   return (
@@ -1003,109 +1300,110 @@ function PerformanceGraphs({
   );
 }
 
-function BuildSummary({ branch, commit }: { branch: string; commit: string }) {
-  return (
-    <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-      <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        *This report was generated by CI running on PyTorch {branch} branch at
-        commit{" "}
-        <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
-          {commit.substring(0, 7)}
-        </a>
-        .
-      </Typography>
-    </Stack>
-  );
-}
-
 function Report({
   queryParams,
   granularity,
   suite,
   dtypes,
-  branch,
-  commit,
+  lBranch,
+  lCommit,
+  rBranch,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   dtypes: string;
-  branch: string;
-  commit: string;
+  lBranch: string;
+  lCommit: string;
+  rBranch: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
-  const queryParamsWithSuite: RocksetParam[] = [
+  const queryName = "compilers_benchmark_performance";
+
+  const queryParamsWithL: RocksetParam[] = [
     {
       name: "suite",
       type: "string",
-      value: suite,
+      value: Object.keys(SUITES).join(","),
+    },
+    {
+      name: "branch",
+      type: "string",
+      value: lBranch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: lCommit,
     },
     ...queryParams,
   ];
-
-  const queryName = "compilers_benchmark_performance";
-  // NB: Querying data for all the suites blows up the response from Rockset over
-  // the lambda reponse body limit of 6MB. So I need to split up the query here
-  // into multiple smaller ones to keep them under the limit
-  //
-  // See more:
-  // * https://nextjs.org/docs/messages/api-routes-body-size-limit
-  // * https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsWithSuite)
+  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
-  if (error !== undefined) {
-    return (
-      <div>
-        An error occurred while fetching data, perhaps there are too many
-        results with your choice of time range and granularity?
-      </div>
-    );
-  }
+  const queryParamsWithR: RocksetParam[] = [
+    {
+      name: "suite",
+      type: "string",
+      value: Object.keys(SUITES).join(","),
+    },
+    {
+      name: "branch",
+      type: "string",
+      value: rBranch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: rCommit,
+    },
+    ...queryParams,
+  ];
+  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithR)
+  )}`;
 
-  if (data === undefined || data.length === 0) {
+  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (
+    lData === undefined ||
+    lData.length === 0 ||
+    rData === undefined ||
+    rData.length === 0
+  ) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const passModels = getPassModels(data);
-  const passrate = computePassrate(data, passModels);
-  const geomean = computeGeomean(data, passModels);
-  const compTime = computeCompilationTime(data, passModels);
-  const memory = computeMemoryCompressionRatio(data, passModels);
-
-  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
-
   return (
     <div>
-      <SummaryPanel
-        queryParams={queryParams}
-        dtypes={dtypes}
-        branch={branch}
-        commit={commit}
-        startTime={startTime}
-        stopTime={stopTime}
+      <CommitPanel
+        branch={lBranch}
+        commit={lCommit}
+        date={lData[0].granularity_bucket}
       />
-      <PerformanceGraphs
-        suite={suite}
-        passrate={passrate}
-        geomean={geomean}
-        compTime={compTime}
-        memory={memory}
-        startTime={startTime}
-        stopTime={stopTime}
+      <SummaryPanel
+        dtypes={dtypes}
+        lBranch={lBranch}
+        lCommit={lCommit}
+        lData={lData}
+        rBranch={rBranch}
+        rCommit={rCommit}
+        rData={rData}
+      />
+      <GraphPanel
+        queryParams={queryParams}
         granularity={granularity}
+        suite={suite}
+        branch={lBranch}
       />
     </div>
   );
@@ -1119,8 +1417,10 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [branch, setBranch] = useState<string>("master");
-  let [commit, setCommit] = useState<string>("");
+  const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
+  const [lCommit, setLCommit] = useState<string>("");
+  const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
+  const [rCommit, setRCommit] = useState<string>("");
 
   const queryParams: RocksetParam[] = [
     {
@@ -1148,11 +1448,6 @@ export default function Page() {
       type: "string",
       value: dtypes,
     },
-    {
-      name: "branch",
-      type: "string",
-      value: branch,
-    },
   ];
 
   return (
@@ -1175,10 +1470,20 @@ export default function Page() {
         <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
         <BranchAndCommitPicker
-          branch={branch}
-          setBranch={setBranch}
-          commit={commit}
-          setCommit={setCommit}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
+          queryParams={queryParams}
+        />
+        <Divider orientation="vertical" flexItem>
+          Diff
+        </Divider>
+        <BranchAndCommitPicker
+          branch={rBranch}
+          setBranch={setRBranch}
+          commit={rCommit}
+          setCommit={setRCommit}
           queryParams={queryParams}
         />
       </Stack>
@@ -1189,8 +1494,10 @@ export default function Page() {
           granularity={granularity}
           suite={suite}
           dtypes={dtypes}
-          branch={branch}
-          commit={commit}
+          lBranch={lBranch}
+          lCommit={lCommit}
+          rBranch={rBranch}
+          rCommit={rCommit}
         />
       </Grid>
     </div>

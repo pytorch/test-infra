@@ -36,24 +36,30 @@ import {
   BranchAndCommitPicker,
   SuitePicker,
   SUITES,
+  LAST_N_DAYS,
+  HUD_PREFIX,
+  TIME_FIELD_NAME,
+  MAIN_BRANCH,
+  SPEEDUP_THRESHOLD,
+  COMPILATION_lATENCY_THRESHOLD_IN_SECONDS,
+  COMPRESSION_RATIO_THRESHOLD,
+  PASSING_ACCURACY,
+  DIFF_HEADER,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 
-const LAST_N_DAYS = 7;
 const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
-const HUD_PREFIX = "/pytorch/pytorch/commit";
-const TIME_FIELD_NAME = "granularity_bucket";
 
-const SPEEDUP_THRESHOLD = 0.95;
-const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
-const COMPRESSION_RATIO_THRESHOLD = 0.9;
+// Headers
+const ACCURACY_HEADER = "Accuracy";
+const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
+const LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
-const OK_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
-
-function BuildSummary({
+function CommitPanel({
   branch,
   commit,
   date,
@@ -75,11 +81,11 @@ function BuildSummary({
   );
 }
 
-function ModelsPanel({
+function ModelPanel({
   suite,
   dtypes,
   compiler,
-  modelName,
+  model,
   lBranch,
   lCommit,
   lData,
@@ -90,7 +96,7 @@ function ModelsPanel({
   suite: string;
   dtypes: string;
   compiler: string;
-  modelName: string;
+  model: string;
   lBranch: string;
   lCommit: string;
   lData: CompilerPerformanceData[];
@@ -153,12 +159,6 @@ function ModelsPanel({
     };
   });
 
-  const accuracyHeader = "Accuracy";
-  const speedupHeader = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-  const latencyHeader = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
-  const memoryHeader = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
-  const diffHeader = "New value (L) ← Old value (R)";
-
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={12} height={TABLE_ROW_HEIGHT + ROW_GAP}>
@@ -171,7 +171,7 @@ function ModelsPanel({
               headerName: "Name",
               flex: 1,
               cellClassName: (params: GridCellParams<string>) => {
-                return modelName !== undefined && params.value === modelName
+                return model !== undefined && params.value === model
                   ? styles.selectedRow
                   : styles.name;
               },
@@ -182,7 +182,7 @@ function ModelsPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?modelName=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?model=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
                 return <a href={url}>{name}</a>;
               },
             },
@@ -190,8 +190,8 @@ function ModelsPanel({
               field: "accuracy",
               headerName:
                 lCommit === rCommit
-                  ? accuracyHeader
-                  : `${accuracyHeader}: ${diffHeader}`,
+                  ? ACCURACY_HEADER
+                  : `${ACCURACY_HEADER}: ${DIFF_HEADER}`,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
@@ -200,19 +200,25 @@ function ModelsPanel({
                 }
 
                 if (lCommit === rCommit) {
-                  return OK_ACCURACY.includes(v.l) ? "" : styles.warning;
+                  return PASSING_ACCURACY.includes(v.l) ? "" : styles.warning;
                 } else {
-                  if (OK_ACCURACY.includes(v.l) && !OK_ACCURACY.includes(v.r)) {
+                  if (
+                    PASSING_ACCURACY.includes(v.l) &&
+                    !PASSING_ACCURACY.includes(v.r)
+                  ) {
                     return styles.ok;
                   }
 
-                  if (!OK_ACCURACY.includes(v.l) && OK_ACCURACY.includes(v.r)) {
+                  if (
+                    !PASSING_ACCURACY.includes(v.l) &&
+                    PASSING_ACCURACY.includes(v.r)
+                  ) {
                     return styles.error;
                   }
 
                   if (
-                    !OK_ACCURACY.includes(v.l) &&
-                    !OK_ACCURACY.includes(v.r)
+                    !PASSING_ACCURACY.includes(v.l) &&
+                    !PASSING_ACCURACY.includes(v.r)
                   ) {
                     return styles.warning;
                   }
@@ -235,7 +241,7 @@ function ModelsPanel({
             },
             {
               field: "speedup",
-              headerName: speedupHeader,
+              headerName: SPEEDUP_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
@@ -247,17 +253,17 @@ function ModelsPanel({
                 const r = Number(v.r);
 
                 if (lCommit === rCommit) {
-                  return l > SPEEDUP_THRESHOLD ? "" : styles.warning;
+                  return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
-                  if (l > SPEEDUP_THRESHOLD && r <= SPEEDUP_THRESHOLD) {
+                  if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
                     return styles.ok;
                   }
 
-                  if (l <= SPEEDUP_THRESHOLD && r > SPEEDUP_THRESHOLD) {
+                  if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
                     return styles.error;
                   }
 
-                  if (l <= SPEEDUP_THRESHOLD && r <= SPEEDUP_THRESHOLD) {
+                  if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
                     return styles.warning;
                   }
                 }
@@ -284,7 +290,7 @@ function ModelsPanel({
             },
             {
               field: "compilation_latency",
-              headerName: latencyHeader,
+              headerName: LATENCY_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
@@ -296,13 +302,13 @@ function ModelsPanel({
                 const r = Number(v.r);
 
                 if (lCommit === rCommit) {
-                  return l < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                    ? ""
-                    : styles.warning;
+                  return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                    ? styles.warning
+                    : "";
                 } else {
                   if (
-                    l < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                    r >= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                    l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                    r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
                   ) {
                     return styles.ok;
                   }
@@ -346,7 +352,7 @@ function ModelsPanel({
             },
             {
               field: "compression_ratio",
-              headerName: memoryHeader,
+              headerName: MEMORY_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
@@ -358,11 +364,11 @@ function ModelsPanel({
                 const r = Number(v.r);
 
                 if (lCommit === rCommit) {
-                  return l > COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
+                  return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 } else {
                   if (
-                    l > COMPRESSION_RATIO_THRESHOLD &&
-                    r <= COMPRESSION_RATIO_THRESHOLD
+                    l >= COMPRESSION_RATIO_THRESHOLD &&
+                    r < COMPRESSION_RATIO_THRESHOLD
                   ) {
                     return styles.ok;
                   }
@@ -415,17 +421,16 @@ function GraphPanel({
   granularity,
   suite,
   compiler,
-  modelName,
+  model,
   branch,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   compiler: string;
-  modelName: string;
+  model: string;
   branch: string;
 }) {
-
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
 
@@ -449,7 +454,7 @@ function GraphPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  if (modelName === undefined) {
+  if (model === undefined) {
     return <></>;
   }
 
@@ -463,7 +468,9 @@ function GraphPanel({
   ).startOf(granularity);
 
   const groupByFieldName = "name";
-  const chartData = data.filter((record: any) => record["name"] == modelName);
+  const chartData = data.filter(
+    (record: CompilerPerformanceData) => record.name == model
+  );
 
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -559,7 +566,7 @@ function Report({
   suite,
   dtypes,
   compiler,
-  modelName,
+  model,
   lBranch,
   lCommit,
   rBranch,
@@ -570,7 +577,7 @@ function Report({
   suite: string;
   dtypes: string;
   compiler: string;
-  modelName: string;
+  model: string;
   lBranch: string;
   lCommit: string;
   rBranch: string;
@@ -592,11 +599,11 @@ function Report({
     },
     ...queryParams,
   ];
-  let url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data: lData, error: lError } = useSWR(url, fetcher, {
+  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
@@ -613,11 +620,11 @@ function Report({
     },
     ...queryParams,
   ];
-  url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+  const rUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  const { data: rData, error: rError } = useSWR(url, fetcher, {
+  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
@@ -632,7 +639,7 @@ function Report({
 
   return (
     <div>
-      <BuildSummary
+      <CommitPanel
         branch={lBranch}
         commit={lCommit}
         date={lData[0].granularity_bucket}
@@ -642,14 +649,14 @@ function Report({
         granularity={granularity}
         suite={suite}
         compiler={compiler}
-        modelName={modelName}
+        model={model}
         branch={lBranch}
       />
-      <ModelsPanel
+      <ModelPanel
         suite={suite}
         dtypes={dtypes}
         compiler={compiler}
-        modelName={modelName}
+        model={model}
         lBranch={lBranch}
         lCommit={lCommit}
         lData={lData}
@@ -666,7 +673,7 @@ export default function Page() {
 
   // The dimensions to query Rockset
   const compiler: string = (router.query.compiler as string) ?? undefined;
-  const modelName: string = (router.query.modelName as string) ?? undefined;
+  const model: string = (router.query.model as string) ?? undefined;
 
   const [startTime, setStartTime] = useState(
     dayjs().subtract(LAST_N_DAYS, "day")
@@ -675,9 +682,9 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [lBranch, setLBranch] = useState<string>("master");
+  const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
-  const [rBranch, setRBranch] = useState<string>("master");
+  const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
 
   // Set the dropdown value what is in the param
@@ -801,7 +808,7 @@ export default function Page() {
           suite={suite}
           dtypes={dtypes}
           compiler={compiler}
-          modelName={modelName}
+          model={model}
           lBranch={lBranch}
           lCommit={lCommit}
           rBranch={rBranch}
