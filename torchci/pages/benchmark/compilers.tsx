@@ -471,7 +471,6 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
           id="mode-picker-select"
         >
           <MenuItem value={"training"}>training</MenuItem>
-          <MenuItem value={"inference"}>inference</MenuItem>
         </Select>
       </FormControl>
     </>
