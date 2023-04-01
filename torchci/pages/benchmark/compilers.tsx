@@ -541,7 +541,11 @@ export function BranchAndCommitPicker({
   }
 
   function handleBranchChange(e: SelectChangeEvent<string>) {
-    setBranch(e.target.value);
+    const branch: string = e.target.value;
+    setBranch(branch);
+    setCommit(
+      data.filter((r: any) => r["head_branch"] === branch)[0]["head_sha"]
+    );
   }
 
   function handleCommitChange(e: SelectChangeEvent<string>) {
@@ -551,19 +555,24 @@ export function BranchAndCommitPicker({
   return (
     <div>
       <FormControl>
-        <InputLabel id="branch-picker-input-label">Branch</InputLabel>
+        <InputLabel id={`branch-picker-input-label-${commit}`}>
+          Branch
+        </InputLabel>
         <Select
           value={branch}
           label="Branch"
-          labelId="branch-picker-select-label"
+          labelId={`branch-picker-select-label-${commit}`}
           onChange={handleBranchChange}
-          id="branch-picker-select"
+          id={`branch-picker-select-${commit}`}
         >
           <MenuItem value={"master"}>main</MenuItem>
           {data
             .filter((r: any) => r["head_branch"] !== "master")
             .map((r: any) => (
-              <MenuItem key={r["head_branch"]} value={r["head_branch"]}>
+              <MenuItem
+                key={`${r["head_branch"]}-${commit}`}
+                value={r["head_branch"]}
+              >
                 {r["head_branch"]}
               </MenuItem>
             ))}
@@ -571,13 +580,15 @@ export function BranchAndCommitPicker({
       </FormControl>
 
       <FormControl>
-        <InputLabel id="commit-picker-input-label">Commit</InputLabel>
+        <InputLabel id={`commit-picker-input-label-${commit}`}>
+          Commit
+        </InputLabel>
         <Select
           value={commit}
           label="Commit"
-          labelId="commit-picker-select-label"
+          labelId={`commit-picker-select-label-${commit}`}
           onChange={handleCommitChange}
-          id="commit-picker-select"
+          id={`commit-picker-select-${commit}`}
         >
           {data
             .filter((r: any) => r["head_branch"] === branch)
@@ -618,7 +629,7 @@ function SummaryPanel({
       value: Object.keys(SUITES).join(","),
     },
     {
-      name: "commit",
+      name: "commits",
       type: "string",
       value: commit,
     },
@@ -699,7 +710,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
+                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
                     return <a href={url}>{params.value}</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -741,7 +752,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
+                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -779,7 +790,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
+                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}s</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {
@@ -819,7 +830,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?dtypes=${dtypes}&branch=${branch}&commit=${commit}`;
+                    }?dtypes=${dtypes}&lBranch=${branch}&lCommit=${commit}&rBranch=${branch}&rCommit=${commit}`;
                     return <a href={url}>{Number(params.value).toFixed(2)}x</a>;
                   },
                   cellClassName: (params: GridCellParams<string>) => {

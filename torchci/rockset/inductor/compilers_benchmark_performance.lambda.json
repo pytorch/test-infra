@@ -7,7 +7,7 @@
       "value": "master"
     },
     {
-      "name": "commit",
+      "name": "commits",
       "type": "string",
       "value": ""
     },

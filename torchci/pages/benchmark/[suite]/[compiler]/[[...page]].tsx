@@ -3,7 +3,14 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Grid,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+  Divider,
+} from "@mui/material";
 import { useRouter } from "next/router";
 import {
   GridValueFormatterParams,
@@ -44,11 +51,7 @@ const SPEEDUP_THRESHOLD = 0.95;
 const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
-const OK_ACCURACY = new Set<string>([
-  "pass",
-  "pass_due_to_skip",
-  "eager_variation",
-]);
+const OK_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 function BuildSummary({
   branch,
@@ -72,33 +75,96 @@ function BuildSummary({
   );
 }
 
-function getLatestRecords(data: any) {
-  const fieldName = "workflow_id";
-  const workflowId = data[0][fieldName];
-  return data.filter((record: any) => record[fieldName] === workflowId);
-}
-
 function ModelsPanel({
-  branch,
   suite,
-  compiler,
   dtypes,
+  compiler,
   modelName,
-  records,
+  lBranch,
+  lCommit,
+  lData,
+  rBranch,
+  rCommit,
+  rData,
 }: {
-  branch: string;
   suite: string;
-  compiler: string;
   dtypes: string;
+  compiler: string;
   modelName: string;
-  records: any;
+  lBranch: string;
+  lCommit: string;
+  lData: CompilerPerformanceData[];
+  rBranch: string;
+  rCommit: string;
+  rData: CompilerPerformanceData[];
 }) {
+  const dataGroupedByModel: { [k: string]: any } = {};
+  lData.forEach((record: CompilerPerformanceData) => {
+    dataGroupedByModel[record.name] = {
+      l: record,
+    };
+  });
+
+  // Combine with right data
+  if (lCommit !== rCommit) {
+    rData.forEach((record: CompilerPerformanceData) => {
+      if (record.name in dataGroupedByModel) {
+        dataGroupedByModel[record.name]["r"] = record;
+      } else {
+        dataGroupedByModel[record.name] = {
+          r: record,
+        };
+      }
+    });
+  }
+
+  // Transform the data into a displayable format
+  const data = Object.keys(dataGroupedByModel).map((name: string) => {
+    const record = dataGroupedByModel[name];
+    const hasL = "l" in record;
+    const hasR = "r" in record;
+
+    return {
+      name: name,
+
+      // Accuracy
+      accuracy: {
+        l: hasL ? record["l"]["accuracy"] : undefined,
+        r: hasR ? record["r"]["accuracy"] : undefined,
+      },
+
+      // Speedup
+      speedup: {
+        l: hasL ? record["l"]["speedup"] : 0,
+        r: hasR ? record["r"]["speedup"] : 0,
+      },
+
+      // Compilation latency
+      compilation_latency: {
+        l: hasL ? record["l"]["compilation_latency"] : 0,
+        r: hasR ? record["r"]["compilation_latency"] : 0,
+      },
+
+      // Compression ratio
+      compression_ratio: {
+        l: hasL ? record["l"]["compression_ratio"] : 0,
+        r: hasR ? record["r"]["compression_ratio"] : 0,
+      },
+    };
+  });
+
+  const accuracyHeader = "Accuracy";
+  const speedupHeader = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
+  const latencyHeader = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+  const memoryHeader = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+  const diffHeader = "New value (L) ← Old value (R)";
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12} lg={12} height={TABLE_ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
-          data={records}
+          data={data}
           columns={[
             {
               field: "name",
@@ -116,74 +182,224 @@ function ModelsPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?modelName=${encodedName}&dtypes=${dtypes}&branch=${branch}`;
+                const url = `/benchmark/${suite}/${compiler}?modelName=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
                 return <a href={url}>{name}</a>;
               },
             },
             {
               field: "accuracy",
-              headerName: "Accuracy",
+              headerName:
+                lCommit === rCommit
+                  ? accuracyHeader
+                  : `${accuracyHeader}: ${diffHeader}`,
               flex: 1,
-              cellClassName: (params: GridCellParams<string>) => {
+              cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
                 if (v === undefined) {
                   return "";
                 }
 
-                return OK_ACCURACY.has(v) ? "" : styles.warning;
+                if (lCommit === rCommit) {
+                  return OK_ACCURACY.includes(v.l) ? "" : styles.warning;
+                } else {
+                  if (OK_ACCURACY.includes(v.l) && !OK_ACCURACY.includes(v.r)) {
+                    return styles.ok;
+                  }
+
+                  if (!OK_ACCURACY.includes(v.l) && OK_ACCURACY.includes(v.r)) {
+                    return styles.error;
+                  }
+
+                  if (
+                    !OK_ACCURACY.includes(v.l) &&
+                    !OK_ACCURACY.includes(v.r)
+                  ) {
+                    return styles.warning;
+                  }
+                }
+
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                if (lCommit === rCommit) {
+                  return v.l;
+                } else {
+                  return `${v.l} ← ${v.r}`;
+                }
               },
             },
             {
               field: "speedup",
-              headerName: `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`,
+              headerName: speedupHeader,
               flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(4)}`;
-              },
-              cellClassName: (params: GridCellParams<string>) => {
+              cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
                 if (v === undefined) {
                   return "";
                 }
 
-                return Number(v) > SPEEDUP_THRESHOLD ? "" : styles.warning;
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return l > SPEEDUP_THRESHOLD ? "" : styles.warning;
+                } else {
+                  if (l > SPEEDUP_THRESHOLD && r <= SPEEDUP_THRESHOLD) {
+                    return styles.ok;
+                  }
+
+                  if (l <= SPEEDUP_THRESHOLD && r > SPEEDUP_THRESHOLD) {
+                    return styles.error;
+                  }
+
+                  if (l <= SPEEDUP_THRESHOLD && r <= SPEEDUP_THRESHOLD) {
+                    return styles.warning;
+                  }
+                }
+
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                const l = Number(v.l).toFixed(2);
+                const r = Number(v.r).toFixed(2);
+
+                if (lCommit === rCommit) {
+                  return l;
+                } else {
+                  return `${l} ← ${r} ${
+                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                  }`;
+                }
               },
             },
             {
               field: "compilation_latency",
-              headerName: `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`,
+              headerName: latencyHeader,
               flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(2)}`;
-              },
-              cellClassName: (params: GridCellParams<string>) => {
+              cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
                 if (v === undefined) {
                   return "";
                 }
 
-                return Number(v) < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                  Number(v) > 0
-                  ? ""
-                  : styles.warning;
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return l < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                    ? ""
+                    : styles.warning;
+                } else {
+                  if (
+                    l < COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                    r >= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                  ) {
+                    return styles.ok;
+                  }
+
+                  if (
+                    l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                    r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                  ) {
+                    return styles.error;
+                  }
+
+                  if (
+                    l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
+                    r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
+                  ) {
+                    return styles.warning;
+                  }
+                }
+
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                const l = Number(v.l).toFixed(0);
+                const r = Number(v.r).toFixed(0);
+
+                if (lCommit === rCommit) {
+                  return l;
+                } else {
+                  return `${l} ← ${r} ${
+                    Number(l) > Number(r) && Number(r) != 0
+                      ? "\uD83D\uDD3A"
+                      : ""
+                  }`;
+                }
               },
             },
             {
               field: "compression_ratio",
-              headerName: `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`,
+              headerName: memoryHeader,
               flex: 1,
-              valueFormatter: (params: GridValueFormatterParams<any>) => {
-                return `${Number(params.value).toFixed(4)}`;
-              },
-              cellClassName: (params: GridCellParams<string>) => {
+              cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
                 if (v === undefined) {
                   return "";
                 }
 
-                return Number(v) > COMPRESSION_RATIO_THRESHOLD
-                  ? ""
-                  : styles.warning;
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return l > COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
+                } else {
+                  if (
+                    l > COMPRESSION_RATIO_THRESHOLD &&
+                    r <= COMPRESSION_RATIO_THRESHOLD
+                  ) {
+                    return styles.ok;
+                  }
+
+                  if (
+                    l < COMPRESSION_RATIO_THRESHOLD &&
+                    r >= COMPRESSION_RATIO_THRESHOLD
+                  ) {
+                    return styles.error;
+                  }
+
+                  if (
+                    l < COMPRESSION_RATIO_THRESHOLD &&
+                    r < COMPRESSION_RATIO_THRESHOLD
+                  ) {
+                    return styles.warning;
+                  }
+                }
+
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                const l = Number(v.l).toFixed(2);
+                const r = Number(v.r).toFixed(2);
+
+                if (lCommit === rCommit) {
+                  return l;
+                } else {
+                  return `${l} ← ${r} ${
+                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                  }`;
+                }
               },
             },
           ]}
@@ -195,30 +411,58 @@ function ModelsPanel({
 }
 
 function GraphPanel({
+  queryParams,
+  granularity,
   suite,
   compiler,
   modelName,
-  records,
-  startTime,
-  stopTime,
-  granularity,
+  branch,
 }: {
+  queryParams: RocksetParam[];
+  granularity: Granularity;
   suite: string;
   compiler: string;
   modelName: string;
-  records: any;
-  startTime: Dayjs;
-  stopTime: Dayjs;
-  granularity: Granularity;
+  branch: string;
 }) {
   if (modelName === undefined) {
     return <></>;
   }
 
+  const queryCollection = "inductor";
+  const queryName = "compilers_benchmark_performance";
+
+  const queryParamsWithBranch: RocksetParam[] = [
+    {
+      name: "branch",
+      type: "string",
+      value: branch,
+    },
+    ...queryParams,
+  ];
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithBranch)
+  )}`;
+
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (data === undefined || data.length === 0) {
+    return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
+  // align with the data we get from Rockset
+  const startTime = dayjs(
+    queryParams.find((p) => p.name === "startTime")?.value
+  ).startOf(granularity);
+  const stopTime = dayjs(
+    queryParams.find((p) => p.name === "stopTime")?.value
+  ).startOf(granularity);
+
   const groupByFieldName = "name";
-  const chartData = records.filter(
-    (record: any) => record["name"] == modelName
-  );
+  const chartData = data.filter((record: any) => record["name"] == modelName);
 
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -315,8 +559,10 @@ function Report({
   dtypes,
   compiler,
   modelName,
-  branch,
-  commit,
+  lBranch,
+  lCommit,
+  rBranch,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
@@ -324,55 +570,91 @@ function Report({
   dtypes: string;
   compiler: string;
   modelName: string;
-  branch: string;
-  commit: string;
+  lBranch: string;
+  lCommit: string;
+  rBranch: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
-
   const queryName = "compilers_benchmark_performance";
-  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
+
+  const queryParamsWithL: RocksetParam[] = [
+    {
+      name: "branch",
+      type: "string",
+      value: lBranch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: lCommit,
+    },
+    ...queryParams,
+  ];
+  let url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithL)
   )}`;
-  const { data, error } = useSWR(url, fetcher, {
+
+  const { data: lData, error: lError } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
-  if (data === undefined || data.length === 0) {
+  const queryParamsWithR: RocksetParam[] = [
+    {
+      name: "branch",
+      type: "string",
+      value: rBranch,
+    },
+    {
+      name: "commits",
+      type: "string",
+      value: rCommit,
+    },
+    ...queryParams,
+  ];
+  url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParamsWithR)
+  )}`;
+
+  const { data: rData, error: rError } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (
+    lData === undefined ||
+    lData.length === 0 ||
+    rData === undefined ||
+    rData.length === 0
+  ) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
-
-  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from Rockset
-  const startTime = dayjs(
-    queryParams.find((p) => p.name === "startTime")?.value
-  ).startOf(granularity);
-  const stopTime = dayjs(
-    queryParams.find((p) => p.name === "stopTime")?.value
-  ).startOf(granularity);
 
   return (
     <div>
       <BuildSummary
-        branch={branch}
-        commit={commit}
-        date={data[0]["granularity_bucket"]}
+        branch={lBranch}
+        commit={lCommit}
+        date={lData[0].granularity_bucket}
       />
       <GraphPanel
+        queryParams={queryParams}
+        granularity={granularity}
         suite={suite}
         compiler={compiler}
         modelName={modelName}
-        records={data}
-        startTime={startTime}
-        stopTime={stopTime}
-        granularity={granularity}
+        branch={lBranch}
       />
       <ModelsPanel
-        branch={branch}
         suite={suite}
-        compiler={compiler}
         dtypes={dtypes}
+        compiler={compiler}
         modelName={modelName}
-        records={getLatestRecords(data)}
+        lBranch={lBranch}
+        lCommit={lCommit}
+        lData={lData}
+        rBranch={rBranch}
+        rCommit={rCommit}
+        rData={rData}
       />
     </div>
   );
@@ -392,8 +674,10 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [branch, setBranch] = useState<string>("master");
-  const [commit, setCommit] = useState<string>("");
+  const [lBranch, setLBranch] = useState<string>("master");
+  const [lCommit, setLCommit] = useState<string>("");
+  const [rBranch, setRBranch] = useState<string>("master");
+  const [rCommit, setRCommit] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -407,14 +691,24 @@ export default function Page() {
       setSuite(suite);
     }
 
-    const branch: string = (router.query.branch as string) ?? undefined;
-    if (branch !== undefined) {
-      setBranch(branch);
+    const lBranch: string = (router.query.lBranch as string) ?? undefined;
+    if (lBranch !== undefined) {
+      setLBranch(lBranch);
     }
 
-    const commit: string = (router.query.commit as string) ?? undefined;
-    if (commit !== undefined) {
-      setCommit(commit);
+    const lCommit: string = (router.query.lCommit as string) ?? undefined;
+    if (lCommit !== undefined) {
+      setLCommit(lCommit);
+    }
+
+    const rBranch: string = (router.query.rBranch as string) ?? undefined;
+    if (rBranch !== undefined) {
+      setRBranch(rBranch);
+    }
+
+    const rCommit: string = (router.query.rCommit as string) ?? undefined;
+    if (rCommit !== undefined) {
+      setRCommit(rCommit);
     }
   }, [router.query]);
 
@@ -458,16 +752,6 @@ export default function Page() {
       type: "string",
       value: dtypes,
     },
-    {
-      name: "branch",
-      type: "string",
-      value: branch,
-    },
-    {
-      name: "commit",
-      type: "string",
-      value: commit,
-    },
   ];
 
   return (
@@ -491,10 +775,20 @@ export default function Page() {
         <SuitePicker suite={suite} setSuite={setSuite} />
         <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
         <BranchAndCommitPicker
-          branch={branch}
-          setBranch={setBranch}
-          commit={commit}
-          setCommit={setCommit}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
+          queryParams={queryParams}
+        />
+        <Divider orientation="vertical" flexItem>
+          Diff
+        </Divider>
+        <BranchAndCommitPicker
+          branch={rBranch}
+          setBranch={setRBranch}
+          commit={rCommit}
+          setCommit={setRCommit}
           queryParams={queryParams}
         />
       </Stack>
@@ -507,8 +801,10 @@ export default function Page() {
           dtypes={dtypes}
           compiler={compiler}
           modelName={modelName}
-          branch={branch}
-          commit={commit}
+          lBranch={lBranch}
+          lCommit={lCommit}
+          rBranch={rBranch}
+          rCommit={rCommit}
         />
       </Grid>
     </div>

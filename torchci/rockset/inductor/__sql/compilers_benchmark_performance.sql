@@ -107,9 +107,10 @@ WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
   AND (ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler)) OR :compilers = '')
   AND head_branch LIKE :branch
-  AND (head_sha = :commit OR :commit = '')  
+  AND (ARRAY_CONTAINS(SPLIT(:commits, ','), head_sha) OR :commits = '')  
 ORDER BY
   granularity_bucket DESC,
+  workflow_id DESC,
   suite ASC,
   compiler ASC,
   name ASC
