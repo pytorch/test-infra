@@ -1,10 +1,1 @@
-{
-  "pull / linux-vulkan-bionic-py3.11-clang9 / test (default)": [
-    "huydhn",
-    "98071",
-    "https://github.com/pytorch/pytorch/issues/98071",
-    "pull",
-    "linux-vulkan-bionic-py3.11-clang9",
-    "test (default)"
-  ]
-}
+{}
