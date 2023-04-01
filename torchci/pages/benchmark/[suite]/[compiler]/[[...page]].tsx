@@ -425,9 +425,6 @@ function GraphPanel({
   modelName: string;
   branch: string;
 }) {
-  if (modelName === undefined) {
-    return <></>;
-  }
 
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
@@ -450,6 +447,10 @@ function GraphPanel({
 
   if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
+  }
+
+  if (modelName === undefined) {
+    return <></>;
   }
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
