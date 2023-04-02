@@ -85,7 +85,7 @@ function CommitPanel({
 function ModelPanel({
   suite,
   mode,
-  dtypes,
+  dtype,
   compiler,
   model,
   lBranch,
@@ -97,7 +97,7 @@ function ModelPanel({
 }: {
   suite: string;
   mode: string;
-  dtypes: string;
+  dtype: string;
   compiler: string;
   model: string;
   lBranch: string;
@@ -185,7 +185,7 @@ function ModelPanel({
                 }
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
                 return <a href={url}>{name}</a>;
               },
             },
@@ -566,7 +566,7 @@ function Report({
   granularity,
   suite,
   mode,
-  dtypes,
+  dtype,
   compiler,
   model,
   lBranch,
@@ -578,7 +578,7 @@ function Report({
   granularity: Granularity;
   suite: string;
   mode: string;
-  dtypes: string;
+  dtype: string;
   compiler: string;
   model: string;
   lBranch: string;
@@ -657,7 +657,7 @@ function Report({
       <ModelPanel
         suite={suite}
         mode={mode}
-        dtypes={dtypes}
+        dtype={dtype}
         compiler={compiler}
         model={model}
         lBranch={lBranch}
@@ -685,7 +685,7 @@ export default function Page() {
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [mode, setMode] = useState<string>(MODES[0]);
-  const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
+  const [dtype, setDType] = useState<string>(DTYPES[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -698,9 +698,9 @@ export default function Page() {
       setMode(mode);
     }
 
-    const dtypes: string = (router.query.dtypes as string) ?? undefined;
-    if (dtypes !== undefined) {
-      setDTypes(dtypes);
+    const dtype: string = (router.query.dtype as string) ?? undefined;
+    if (dtype !== undefined) {
+      setDType(dtype);
     }
 
     const lBranch: string = (router.query.lBranch as string) ?? undefined;
@@ -767,7 +767,7 @@ export default function Page() {
     {
       name: "dtypes",
       type: "string",
-      value: dtypes,
+      value: dtype,
     },
   ];
 
@@ -790,13 +790,14 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <ModePicker mode={mode} setMode={setMode} />
-        <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
+        <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
           setCommit={setLCommit}
           queryParams={queryParams}
+          fallbackIndex={0} // Default to the latest commit
         />
         <Divider orientation="vertical" flexItem>
           Diff
@@ -807,6 +808,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           queryParams={queryParams}
+          fallbackIndex={0} // Default to the latest commit
         />
       </Stack>
 
@@ -816,7 +818,7 @@ export default function Page() {
           granularity={granularity}
           suite={suite}
           mode={mode}
-          dtypes={dtypes}
+          dtype={dtype}
           compiler={compiler}
           model={model}
           lBranch={lBranch}

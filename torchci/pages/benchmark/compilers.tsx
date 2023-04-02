@@ -129,7 +129,10 @@ function isPass(
   return passingModels[bucket][workflowId][suite][compiler].has(model);
 }
 
-function computePassrate(data: any, passModels: { [k: string]: any }) {
+function computePassrate(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
   const totalCount: { [k: string]: any } = {};
   const passCount: { [k: string]: any } = {};
   const passrate: any[] = [];
@@ -167,7 +170,7 @@ function computePassrate(data: any, passModels: { [k: string]: any }) {
       passCount[bucket][workflowId][suite][compiler] = 0;
     }
 
-    if (isPass(bucket, workflowId, suite, compiler, model, passModels)) {
+    if (isPass(bucket, workflowId, suite, compiler, model, passingModels)) {
       passCount[bucket][workflowId][suite][compiler] += 1;
     }
 
@@ -214,7 +217,10 @@ function geomean(data: number[]) {
   return Math.pow(gm, 1.0 / data.length).toFixed(2);
 }
 
-function computeGeomean(data: any, passModels: { [k: string]: any }) {
+function computeGeomean(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
   const speedup: { [k: string]: any } = {};
   const returnedGeomean: any[] = [];
 
@@ -248,7 +254,7 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
     }
 
     if (
-      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       record.speedup !== 0.0
     ) {
       speedup[bucket][workflowId][suite][compiler].push(record.speedup);
@@ -278,7 +284,10 @@ function computeGeomean(data: any, passModels: { [k: string]: any }) {
   return returnedGeomean;
 }
 
-function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
+function computeCompilationTime(
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
+) {
   const compTime: { [k: string]: any } = {};
   const returnedCompTime: any[] = [];
 
@@ -313,7 +322,7 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
     }
 
     if (
-      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       compLatency !== 0.0
     ) {
       compTime[bucket][workflowId][suite][compiler].push(compLatency);
@@ -349,8 +358,8 @@ function computeCompilationTime(data: any, passModels: { [k: string]: any }) {
 }
 
 function computeMemoryCompressionRatio(
-  data: any,
-  passModels: { [k: string]: any }
+  data: CompilerPerformanceData[],
+  passingModels: { [k: string]: any }
 ) {
   const memory: { [k: string]: any } = {};
   const returnedMemory: any[] = [];
@@ -386,7 +395,7 @@ function computeMemoryCompressionRatio(
     }
 
     if (
-      isPass(bucket, workflowId, suite, compiler, model, passModels) &&
+      isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       compRatio !== 0.0
     ) {
       memory[bucket][workflowId][suite][compiler].push(compRatio);
@@ -470,7 +479,11 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
           onChange={handleChange}
           id="mode-picker-select"
         >
-          <MenuItem value={"training"}>training</MenuItem>
+          {MODES.map((mode) => (
+            <MenuItem key={mode} value={mode}>
+              {mode}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -478,29 +491,32 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
 }
 
 export function DTypePicker({
-  dtypes,
-  setDTypes,
+  dtype,
+  setDType,
 }: {
-  dtypes: string;
-  setDTypes: any;
+  dtype: string;
+  setDType: any;
 }) {
   function handleChange(e: SelectChangeEvent<string>) {
-    setDTypes(e.target.value);
+    setDType(e.target.value);
   }
 
   return (
     <>
       <FormControl>
-        <InputLabel id="dtypes-picker-input-label">Precision</InputLabel>
+        <InputLabel id="dtype-picker-input-label">Precision</InputLabel>
         <Select
-          value={dtypes}
+          value={dtype}
           label="Precision"
-          labelId="dtypes-picker-select-label"
+          labelId="dtype-picker-select-label"
           onChange={handleChange}
-          id="dtypes-picker-select"
+          id="dtype-picker-select"
         >
-          <MenuItem value={"amp"}>amp</MenuItem>
-          <MenuItem value={"float32"}>float32</MenuItem>
+          {DTYPES.map((dtype) => (
+            <MenuItem key={dtype} value={dtype}>
+              {dtype}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -513,12 +529,14 @@ export function BranchAndCommitPicker({
   setBranch,
   commit,
   setCommit,
+  fallbackIndex,
 }: {
   queryParams: RocksetParam[];
   branch: string;
   setBranch: any;
   commit: string;
   setCommit: any;
+  fallbackIndex: number;
 }) {
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
@@ -532,8 +550,11 @@ export function BranchAndCommitPicker({
   });
 
   useEffect(() => {
-    if (data !== undefined && commit === "") {
-      setCommit(data.filter((r: any) => r.head_branch === branch)[0].head_sha);
+    if (data !== undefined && (commit === undefined || commit === "")) {
+      setCommit(
+        data.filter((r: any) => r.head_branch === branch)[fallbackIndex]
+          .head_sha
+      );
     }
   }, [data]);
 
@@ -731,7 +752,7 @@ function extractPercentage(value: string) {
 
 function SummaryPanel({
   mode,
-  dtypes,
+  dtype,
   lBranch,
   lCommit,
   lData,
@@ -740,7 +761,7 @@ function SummaryPanel({
   rData,
 }: {
   mode: string;
-  dtypes: string;
+  dtype: string;
   lBranch: string;
   lCommit: string;
   lData: CompilerPerformanceData[];
@@ -832,7 +853,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -911,7 +932,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -982,7 +1003,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
@@ -1066,7 +1087,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtypes=${dtypes}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -1331,7 +1352,7 @@ function Report({
   granularity,
   suite,
   mode,
-  dtypes,
+  dtype,
   lBranch,
   lCommit,
   rBranch,
@@ -1341,7 +1362,7 @@ function Report({
   granularity: Granularity;
   suite: string;
   mode: string;
-  dtypes: string;
+  dtype: string;
   lBranch: string;
   lCommit: string;
   rBranch: string;
@@ -1420,7 +1441,7 @@ function Report({
       />
       <SummaryPanel
         mode={mode}
-        dtypes={dtypes}
+        dtype={dtype}
         lBranch={lBranch}
         lCommit={lCommit}
         lData={lData}
@@ -1446,7 +1467,7 @@ export default function Page() {
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(MODES[0]);
-  const [dtypes, setDTypes] = useState<string>(DTYPES[0]);
+  const [dtype, setDType] = useState<string>(DTYPES[0]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -1481,7 +1502,7 @@ export default function Page() {
     {
       name: "dtypes",
       type: "string",
-      value: dtypes,
+      value: dtype,
     },
   ];
 
@@ -1504,13 +1525,14 @@ export default function Page() {
         />
         <SuitePicker suite={suite} setSuite={setSuite} />
         <ModePicker mode={mode} setMode={setMode} />
-        <DTypePicker dtypes={dtypes} setDTypes={setDTypes} />
+        <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
           setCommit={setLCommit}
           queryParams={queryParams}
+          fallbackIndex={0} // Default to the latest commit
         />
         <Divider orientation="vertical" flexItem>
           Diff
@@ -1521,6 +1543,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           queryParams={queryParams}
+          fallbackIndex={1} // Default to the next to latest commit
         />
       </Stack>
 
@@ -1530,7 +1553,7 @@ export default function Page() {
           granularity={granularity}
           suite={suite}
           mode={mode}
-          dtypes={dtypes}
+          dtype={dtype}
           lBranch={lBranch}
           lCommit={lCommit}
           rBranch={rBranch}
