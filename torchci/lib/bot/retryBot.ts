@@ -15,7 +15,7 @@ function retryBot(app: Probot): void {
     const runId = ctx.payload.workflow_run.id;
 
     const config: any = await tracker.loadConfig(ctx);
-    if config === null {
+    if (config === null) {
         return;
     }
     const allowedWorkflowPrefixes: string[] = config["allowed_workflows"];
