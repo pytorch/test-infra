@@ -136,7 +136,7 @@ function CommitPanel({
           {commit.substring(0, 7)}
         </a>{" "}
         on {dayjs(date).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
-        <LogLinks suite={name} logs={logs} />.
+        <LogLinks key={`log-${name}`} suite={name} logs={logs} />.
       </Typography>
     </Stack>
   );
