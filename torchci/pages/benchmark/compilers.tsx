@@ -475,7 +475,7 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
   return (
     <>
       <FormControl>
-        <InputLabel id="mode-picker-input-label">Precision</InputLabel>
+        <InputLabel id="mode-picker-input-label">Mode</InputLabel>
         <Select
           value={mode}
           label="Mode"
