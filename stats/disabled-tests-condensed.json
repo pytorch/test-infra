@@ -659,6 +659,13 @@
       "linux"
     ]
   ],
+  "test_doc_examples (__main__.TestTypeHints)": [
+    "98259",
+    "https://github.com/pytorch/pytorch/issues/98259",
+    [
+      "linux"
+    ]
+  ],
   "test_dtensor_api_device_mesh_context_manager (__main__.DTensorMeshTest)": [
     "98058",
     "https://github.com/pytorch/pytorch/issues/98058",
