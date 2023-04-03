@@ -637,13 +637,13 @@ export function BranchAndCommitPicker({
   );
 }
 
-export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
+export function LogLinks({ key, suite, logs }: { key: string; suite: string; logs: any }) {
   return (
     <>
       {" "}
       {SUITES[suite]} (
       {logs.map((log: any) => (
-        <a href={log.url}>
+        <a key={`${key}-${log.index}`} href={log.url}>
           #{log.index}
           {log.index === log.total ? "" : ", "}
         </a>
@@ -725,7 +725,7 @@ function CommitPanel({
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
           const name = suite.includes("timm") ? "timm" : suite;
-          return <LogLinks suite={suite} logs={logsBySuite[name]} />;
+          return <LogLinks key={`log-${name}`} suite={suite} logs={logsBySuite[name]} />;
         })}
         .
       </Typography>
