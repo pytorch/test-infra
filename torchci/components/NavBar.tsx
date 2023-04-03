@@ -80,6 +80,11 @@ function NavBar() {
               </Link>
             </li>
             <li>
+              <Link prefetch={false} href="/testing_overhead">
+                Testing Overhead
+              </Link>
+            </li>
+            <li>
               <Link prefetch={false} href="/failedjobs/pytorch/pytorch/master">
                 Failures Classfier
               </Link>
