@@ -1,9 +1,12 @@
 import { Probot } from "probot";
+import { CachedConfigTracker } from "./utils";
 
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
 
 function retryBot(app: Probot): void {
-  app.on("workflow_run.completed", async (ctx) => {
+  const tracker = new CachedConfigTracker(app);
+
+  app.on("workflow_run.completed", async (ctx, tracker) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
     const defaultBranch = ctx.payload.repository.default_branch;
@@ -11,11 +14,17 @@ function retryBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
 
-    const allowedWorkflowPrefixes: { [key: string]: string[] } = {
-        "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
-        "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
+    const config: any = await tracker.loadConfig(ctx);
+    if config === null {
+        return;
     }
-    const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
+    const allowedWorkflowPrefixes: string[] = config["allowed_workflows"];
+
+//     const allowedWorkflowPrefixes: { [key: string]: string[] } = {
+//         "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
+//         "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
+//     }
+//     const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
