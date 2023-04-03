@@ -1,0 +1,66 @@
+{
+  "sql_path": "__sql/compilers_benchmark_performance.sql",
+  "default_parameters": [
+    {
+      "name": "branch",
+      "type": "string",
+      "value": "master"
+    },
+    {
+      "name": "commits",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "compilers",
+      "type": "string",
+      "value": ""
+    },
+    {
+      "name": "device",
+      "type": "string",
+      "value": "cuda"
+    },
+    {
+      "name": "dtypes",
+      "type": "string",
+      "value": "amp"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "value": "training"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-02-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.00Z"
+    },
+    {
+      "name": "suites",
+      "type": "string",
+      "value": "torchbench,huggingface,timm_models"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    },
+    {
+      "name": "workflowId",
+      "type": "int",
+      "value": "0"
+    }
+  ],
+  "description": "Gather the benchmark performance of different PyTorch compilers"
+}
