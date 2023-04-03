@@ -46,6 +46,9 @@ import {
   DIFF_HEADER,
   ModePicker,
   MODES,
+  LogLinks,
+  JOB_NAME_REGEX,
+  LOG_PREFIX,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -61,14 +64,70 @@ const LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATIO
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 function CommitPanel({
+  suite,
   branch,
   commit,
+  workflowId,
   date,
 }: {
+  suite: string;
   branch: string;
   commit: string;
+  workflowId: number;
   date: string;
 }) {
+  const queryCollection = "commons";
+  const queryName = "get_workflow_jobs";
+
+  // Hack alert: The test configuration uses timm instead of timm_model as its output
+  const name = suite.includes("timm") ? "timm" : suite;
+  // Fetch the job ID to generate the link to its CI logs
+  const queryParams: RocksetParam[] = [
+    {
+      name: "workflowId",
+      type: "int",
+      value: workflowId,
+    },
+    {
+      name: "jobName",
+      type: "string",
+      value: `%${name}%`,
+    },
+  ];
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (data === undefined || data.length === 0) {
+    return <></>;
+  }
+
+  const logs = data.map((record: any) => {
+    const id = record.id;
+    const url = `${LOG_PREFIX}/${id}`;
+
+    const name = record.name;
+    // Extract the shard ID
+    const m = name.match(JOB_NAME_REGEX);
+    if (m === null) {
+      return;
+    }
+
+    const suite = m[1];
+    const index = m[2];
+    const total = m[3];
+
+    return {
+      index: index,
+      total: total,
+      url: url,
+    };
+  });
+
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
@@ -76,7 +135,8 @@ function CommitPanel({
         <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
           {commit.substring(0, 7)}
         </a>{" "}
-        on {dayjs(date).format("YYYY/MM/DD")}.
+        on {dayjs(date).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
+        <LogLinks suite={name} logs={logs} />.
       </Typography>
     </Stack>
   );
@@ -643,8 +703,10 @@ function Report({
   return (
     <div>
       <CommitPanel
+        suite={suite}
         branch={lBranch}
         commit={lCommit}
+        workflowId={lData[0].workflow_id}
         date={lData[0].granularity_bucket}
       />
       <GraphPanel

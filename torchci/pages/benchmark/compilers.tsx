@@ -637,11 +637,11 @@ export function BranchAndCommitPicker({
   );
 }
 
-function LogLinks({ suite, logs }: { suite: string; logs: any }) {
+export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
   return (
     <>
       {" "}
-      {suite} (
+      {SUITES[suite]} (
       {logs.map((log: any) => (
         <a href={log.url}>
           #{log.index}
@@ -699,7 +699,7 @@ function CommitPanel({
       return;
     }
 
-    const suite = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    const suite = m[1];
     const index = m[2];
     const total = m[3];
 
@@ -707,7 +707,6 @@ function CommitPanel({
       logsBySuite[suite] = [];
     }
     logsBySuite[suite].push({
-      suite: suite,
       index: index,
       total: total,
       url: url,
@@ -723,9 +722,12 @@ function CommitPanel({
           {commit.substring(0, 7)}
         </a>{" "}
         on {dayjs(date).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
-        {Object.keys(logsBySuite).map((suite: string) => (
-          <LogLinks suite={suite} logs={logsBySuite[suite]} />
-        ))}
+        {Object.keys(SUITES).map((suite: string) => {
+          // Hack alert: The test configuration uses timm instead of timm_model as its output
+          const name = suite.includes("timm") ? "timm" : suite;
+          return <LogLinks suite={suite} logs={logsBySuite[name]} />;
+        })}
+        .
       </Typography>
     </Stack>
   );
