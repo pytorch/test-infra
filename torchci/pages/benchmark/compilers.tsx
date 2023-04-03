@@ -44,6 +44,10 @@ export const LAST_N_DAYS = 7;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
 export const MAIN_BRANCH = "master";
+export const LOG_PREFIX = "https://ossci-raw-job-status.s3.amazonaws.com/log";
+export const JOB_NAME_REGEX = new RegExp(
+  ".+\\s/\\stest\\s\\(inductor_(.+)_perf, ([0-9]+), ([0-9]+), (.+)\\)"
+);
 
 // After https://github.com/pytorch/pytorch/pull/96986, there is no perf data
 // for eager and aot_eager because they are not run anymore (not needed)
@@ -60,7 +64,7 @@ export const SUITES: { [k: string]: string } = {
   huggingface: "Huggingface",
   timm_models: "TIMM models",
 };
-export const MODES = ["training"];
+export const MODES = ["training", "inference"];
 export const DTYPES = ["amp", "float32"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
@@ -633,15 +637,83 @@ export function BranchAndCommitPicker({
   );
 }
 
+function LogLinks({ suite, logs }: { suite: string; logs: any }) {
+  return (
+    <>
+      {" "}
+      {suite} (
+      {logs.map((log: any) => (
+        <a href={log.url}>
+          #{log.index}
+          {log.index === log.total ? "" : ", "}
+        </a>
+      ))}
+      )
+    </>
+  );
+}
+
 function CommitPanel({
   branch,
   commit,
+  workflowId,
   date,
 }: {
   branch: string;
   commit: string;
+  workflowId: number;
   date: string;
 }) {
+  const queryCollection = "commons";
+  const queryName = "get_workflow_jobs";
+
+  // Fetch the job ID to generate the link to its CI logs
+  const queryParams: RocksetParam[] = [
+    {
+      name: "workflowId",
+      type: "int",
+      value: workflowId,
+    },
+  ];
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(queryParams)
+  )}`;
+
+  const { data, error } = useSWR(url, fetcher, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
+
+  if (data === undefined || data.length === 0) {
+    return <></>;
+  }
+
+  const logsBySuite: { [k: string]: any } = {};
+  data.forEach((record: any) => {
+    const id = record.id;
+    const url = `${LOG_PREFIX}/${id}`;
+
+    const name = record.name;
+    // Extract the shard ID
+    const m = name.match(JOB_NAME_REGEX);
+    if (m === null) {
+      return;
+    }
+
+    const suite = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    const index = m[2];
+    const total = m[3];
+
+    if (!(suite in logsBySuite)) {
+      logsBySuite[suite] = [];
+    }
+    logsBySuite[suite].push({
+      suite: suite,
+      index: index,
+      total: total,
+      url: url,
+    });
+  });
+
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
@@ -650,7 +722,10 @@ function CommitPanel({
         <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
           {commit.substring(0, 7)}
         </a>{" "}
-        on {dayjs(date).format("YYYY/MM/DD")}.
+        on {dayjs(date).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
+        {Object.keys(logsBySuite).map((suite: string) => (
+          <LogLinks suite={suite} logs={logsBySuite[suite]} />
+        ))}
       </Typography>
     </Stack>
   );
@@ -1437,6 +1512,7 @@ function Report({
       <CommitPanel
         branch={lBranch}
         commit={lCommit}
+        workflowId={lData[0].workflow_id}
         date={lData[0].granularity_bucket}
       />
       <SummaryPanel
