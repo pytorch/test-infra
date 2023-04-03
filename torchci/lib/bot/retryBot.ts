@@ -6,7 +6,7 @@ const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
 function retryBot(app: Probot): void {
   const tracker = new CachedConfigTracker(app);
 
-  app.on("workflow_run.completed", async (ctx, tracker) => {
+  app.on("workflow_run.completed", async (ctx) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
     const defaultBranch = ctx.payload.repository.default_branch;
@@ -33,7 +33,7 @@ function retryBot(app: Probot): void {
         ctx.payload.workflow_run.head_branch !== defaultBranch
       ) ||
       attemptNumber > 1 ||
-      allowedRepoPrefixes.every(
+      allowedWorkflowPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
       )
     ) {
