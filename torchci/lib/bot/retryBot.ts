@@ -18,13 +18,11 @@ function retryBot(app: Probot): void {
     if (config === null) {
         return;
     }
-    const allowedWorkflowPrefixes: string[] = config["allowed_workflows"];
+    const allowedWorkflowPrefixes: string[] | undefined = config["allowed_workflows"];
 
-//     const allowedWorkflowPrefixes: { [key: string]: string[] } = {
-//         "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
-//         "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
-//     }
-//     const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
+    if (typeof allowedWorkflowPrefixes === "undefined") {
+        return;
+    }
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
