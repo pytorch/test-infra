@@ -1011,6 +1011,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93049",
+    "https://github.com/pytorch/pytorch/issues/93049",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -1813,13 +1820,6 @@
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
     []
-  ],
-  "test_variable_sequence_cuda_float32 (__main__.TestNNDeviceTypeCUDA)": [
-    "92886",
-    "https://github.com/pytorch/pytorch/issues/92886",
-    [
-      "linux"
-    ]
   ],
   "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
     "86655",
