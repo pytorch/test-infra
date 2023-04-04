@@ -997,6 +997,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "98295",
+    "https://github.com/pytorch/pytorch/issues/98295",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
@@ -1152,6 +1159,13 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
+    [
+      "linux"
+    ]
+  ],
+  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93064",
+    "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
     ]
