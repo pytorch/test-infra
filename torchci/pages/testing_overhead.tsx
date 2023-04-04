@@ -1,5 +1,6 @@
 import { Grid } from "@mui/material";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
@@ -37,7 +38,7 @@ export default function TestingOverhead() {
                     timeFieldName={"granularity_bucket"}
                     yAxisFieldName={"time_in_seconds"}
                     yAxisLabel={"Avg test time (s)"}
-                    yAxisRenderer={(unit) => unit}
+                    yAxisRenderer={(unit) => durationDisplay(unit)}
                     groupByFieldName={"workflow_type"}
                     additionalOptions={{ yAxis: { scale: true } }} />
             </Grid>
