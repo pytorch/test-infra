@@ -12,6 +12,7 @@
     "slow_tests": "ef8d035d23aa8ab6",
     "test_time_per_file": "1c8d6289623181d8",
     "test_time_per_file_periodic_jobs": "7e2e8ba4f17a398a",
+    "test_time_per_oncall":"db572a59b5a97731",
     "test_times_per_workflow_type": "292199d2ad5f08fa",
     "issue_query": "276aea6b8186d808",
     "failure_samples_query": "18e7e696b4949f05",

@@ -3,16 +3,17 @@ import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
-
+import { useRouter } from "next/router";
 const ROW_HEIGHT = 240;
-
 export default function TestingOverhead() {
+    const router = useRouter();
+    const { oncall } = router.query;
     // Looking at data from the past six months
     const [startTime, setStartTime] = useState(dayjs().subtract(1, 'month'));
 
     const timeParams: RocksetParam[] = [
         {
-        name: "startTime",
+        name: "startDate",
         type: "string",
         value: startTime,
         }
@@ -22,14 +23,14 @@ export default function TestingOverhead() {
         <><Grid container spacing={1}>
             <Grid item xs={24} lg={12} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
-                    title={"Average Time for Workflow (excluding unstable and inductor)"}
-                    queryName={"test_times_per_workflow_type"}
+                    title={`Average Time for Workflow for ${oncall} jobs`}
+                    queryName={"test_time_per_oncall"}
                     queryCollection={"commons"}
                     queryParams={[
                         {
-                            name: "workflow_type",
+                            name: "oncall",
                             type: "string",
-                            value: "pull",
+                            value: `${oncall}`,
                         },
                         ...timeParams,
                     ]}
