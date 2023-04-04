@@ -990,6 +990,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93051",
+    "https://github.com/pytorch/pytorch/issues/93051",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
