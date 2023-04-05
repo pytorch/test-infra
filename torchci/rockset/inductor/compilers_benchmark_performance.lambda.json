@@ -39,7 +39,7 @@
     {
       "name": "mode",
       "type": "string",
-      "value": "inference"
+      "value": "training"
     },
     {
       "name": "startTime",
