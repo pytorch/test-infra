@@ -76,7 +76,7 @@ function retryBot(app: Probot): void {
       // Would be good to fine tune this further for non-master branches to differentiate between.
       // retryable and nonretryable cancellations
       if (job.conclusion === "cancelled" &&
-          ctx.payload.workflow_run.head_branch === "master") {
+          ctx.payload.workflow_run.head_branch === defaultBranch) {
         return true;
       }
 
