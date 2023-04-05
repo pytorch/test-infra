@@ -34,7 +34,8 @@ export function seriesWithInterpolatedTimes(
   granularity: Granularity,
   groupByFieldName: string | undefined,
   timeFieldName: string,
-  yAxisFieldName: string
+  yAxisFieldName: string,
+  fillMissingData: boolean = true
 ) {
   // We want to interpolate the data, filling any "holes" in our time series
   // with 0.
@@ -82,7 +83,7 @@ export function seriesWithInterpolatedTimes(
       .map((t) => {
         const item = byTimeNormalized[t];
         if (item === undefined && granularity !== "minute") {
-          return [t, 0];
+          return fillMissingData ? [t, 0] : undefined;
         } else if (item === undefined) {
           return undefined;
         } else {

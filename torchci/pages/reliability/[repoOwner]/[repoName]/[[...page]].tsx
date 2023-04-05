@@ -4,13 +4,8 @@ import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
 import {
-  FormControl,
   Grid,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
-  SelectChangeEvent,
   Skeleton,
   Stack,
   Typography,
@@ -28,6 +23,7 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import GranularityPicker from "components/GranularityPicker";
 import {
   GridRenderCellParams,
   GridCellParams,
@@ -303,33 +299,6 @@ function Graphs({
         </div>
       </Grid>
     </Grid>
-  );
-}
-
-function GranularityPicker({
-  granularity,
-  setGranularity,
-}: {
-  granularity: string;
-  setGranularity: any;
-}) {
-  function handleChange(e: SelectChangeEvent<string>) {
-    setGranularity(e.target.value);
-  }
-  return (
-    <FormControl>
-      <InputLabel id="granularity-select-label">Granularity</InputLabel>
-      <Select
-        value={granularity}
-        label="Granularity"
-        labelId="granularity-select-label"
-        onChange={handleChange}
-      >
-        <MenuItem value={"month"}>month</MenuItem>
-        <MenuItem value={"week"}>week</MenuItem>
-        <MenuItem value={"day"}>day</MenuItem>
-      </Select>
-    </FormControl>
   );
 }
 

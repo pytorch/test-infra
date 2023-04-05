@@ -1,0 +1,20 @@
+.ok {
+  background-color: lightgreen;
+}
+
+.warning {
+  background-color: lightyellow;
+}
+
+.error {
+  background-color: lightpink;
+}
+
+.name {
+  font-weight: bold;
+}
+
+.selectedRow {
+  background-color: lightblue;
+  font-weight: bold;
+}
