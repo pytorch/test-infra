@@ -194,7 +194,15 @@ function ModelPanel({
     const hasR = "r" in record;
 
     return {
+      // Keep the name as as the row ID as DataGrid requires it
       name: name,
+
+      // The model name and the logs
+      metadata: {
+        name: name,
+        l: hasL ? record["l"]["job_id"] : undefined,
+        r: hasR ? record["r"]["job_id"] : undefined,
+      },
 
       // Accuracy
       accuracy: {
@@ -230,23 +238,74 @@ function ModelPanel({
           data={data}
           columns={[
             {
-              field: "name",
+              field: "metadata",
               headerName: "Name",
               flex: 1,
-              cellClassName: (params: GridCellParams<string>) => {
-                return model !== undefined && params.value === model
+              cellClassName: (params: GridCellParams<any>) => {
+                const name = params.value.name;
+                if (name === undefined) {
+                  return "";
+                }
+
+                return model !== undefined && name === model
                   ? styles.selectedRow
-                  : styles.name;
+                  : "";
               },
-              renderCell: (params: GridRenderCellParams<string>) => {
-                const name = params.value;
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const name = params.value.name;
                 if (name === undefined) {
                   return `Invalid model name ${name}`;
                 }
 
+                const lLog =
+                  params.value.l !== undefined
+                    ? `${LOG_PREFIX}/${params.value.l}`
+                    : undefined;
+                const rLog =
+                  params.value.r !== undefined
+                    ? `${LOG_PREFIX}/${params.value.r}`
+                    : undefined;
+
                 const encodedName = encodeURIComponent(name);
                 const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
-                return <a href={url}>{name}</a>;
+
+                if (lLog === undefined) {
+                  return (
+                    <a href={url}>
+                      <b>{name}</b>
+                    </a>
+                  );
+                } else if (lLog === rLog) {
+                  return (
+                    <>
+                      <a href={url}>
+                        <b>{name}</b>
+                      </a>
+                      &nbsp;(
+                      <a target="_blank" href={lLog}>
+                        <u>{lCommit.substr(0, 7)}</u>
+                      </a>
+                      )
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    <a href={url}>
+                      <b>{name}</b>
+                    </a>
+                    &nbsp;(
+                    <a target="_blank" href={lLog}>
+                      <u>{lCommit.substr(0, 7)}</u>
+                    </a>{" "}
+                    ←{" "}
+                    <a target="_blank" href={rLog}>
+                      <u>{rCommit.substr(0, 7)}</u>
+                    </a>
+                    )
+                  </>
+                );
               },
             },
             {
@@ -670,6 +729,11 @@ function Report({
       type: "string",
       value: lCommit,
     },
+    {
+      name: "getJobId",
+      type: "bool",
+      value: true,
+    },
     ...queryParams,
   ];
   const lUrl = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
@@ -690,6 +754,11 @@ function Report({
       name: "commits",
       type: "string",
       value: rCommit,
+    },
+    {
+      name: "getJobId",
+      type: "bool",
+      value: true,
     },
     ...queryParams,
   ];

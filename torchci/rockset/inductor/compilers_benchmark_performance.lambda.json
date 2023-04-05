@@ -27,6 +27,11 @@
       "value": "amp"
     },
     {
+      "name": "getJobId",
+      "type": "bool",
+      "value": "false"
+    },
+    {
       "name": "granularity",
       "type": "string",
       "value": "day"
@@ -34,17 +39,17 @@
     {
       "name": "mode",
       "type": "string",
-      "value": "training"
+      "value": "inference"
     },
     {
       "name": "startTime",
       "type": "string",
-      "value": "2023-02-01T00:00:00.00Z"
+      "value": "2023-04-01T00:00:00.00Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2023-04-01T00:00:00.00Z"
+      "value": "2023-04-06T00:00:00.00Z"
     },
     {
       "name": "suites",
