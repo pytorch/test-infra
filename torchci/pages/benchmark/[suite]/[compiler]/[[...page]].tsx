@@ -279,11 +279,8 @@ function ModelPanel({
                     return styles.error;
                   }
 
-                  if (
-                    !PASSING_ACCURACY.includes(v.l) &&
-                    !PASSING_ACCURACY.includes(v.r)
-                  ) {
-                    return styles.warning;
+                  if (v.l === v.r) {
+                    return "";
                   }
                 }
 
@@ -326,8 +323,14 @@ function ModelPanel({
                     return styles.error;
                   }
 
-                  if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
-                    return styles.warning;
+                  if ((l === 0 && r === 0) || l === r) {
+                    return "";
+                  }
+
+                  // If the value decreases more than SPEEDUP_THRESHOLD, this also needs to be marked
+                  // as a regression
+                  if (r * SPEEDUP_THRESHOLD > l) {
+                    return styles.error;
                   }
                 }
 
@@ -381,6 +384,10 @@ function ModelPanel({
                     r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
                   ) {
                     return styles.error;
+                  }
+
+                  if (l === r) {
+                    return "";
                   }
 
                   if (
@@ -443,11 +450,14 @@ function ModelPanel({
                     return styles.error;
                   }
 
-                  if (
-                    l < COMPRESSION_RATIO_THRESHOLD &&
-                    r < COMPRESSION_RATIO_THRESHOLD
-                  ) {
-                    return styles.warning;
+                  if ((l === 0 && r === 0) || l === r) {
+                    return "";
+                  }
+
+                  // If the value decreases more than SPEEDUP_THRESHOLD, this also needs to be marked
+                  // as a regression
+                  if (r * COMPRESSION_RATIO_THRESHOLD > l) {
+                    return styles.error;
                   }
                 }
 
@@ -859,6 +869,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           queryParams={queryParams}
+          titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
         />
         <Divider orientation="vertical" flexItem>
@@ -870,6 +881,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           queryParams={queryParams}
+          titlePrefix={"Base"}
           fallbackIndex={0} // Default to the latest commit
         />
       </Stack>
