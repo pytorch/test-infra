@@ -92,7 +92,7 @@ function retryBot(app: Probot): void {
         // retryable and nonretryable cancellations
         if (
           job.conclusion === "cancelled" &&
-          ctx.payload.workflow_run.head_branch === "master"
+          ctx.payload.workflow_run.head_branch === defaultBranch
         ) {
           return { retry: true, data: job };
         }
