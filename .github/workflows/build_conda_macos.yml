@@ -136,25 +136,14 @@ jobs:
           fi
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
-          if [[ "${PYTHON_VERSION}" = "3.11" ]]; then
-            ${CONDA_RUN} conda build \
-              -c defaults \
-              -c "malfet" \
-              -c "pytorch-${CHANNEL}" \
-              --no-anaconda-upload \
-              --python "${PYTHON_VERSION}" \
-              --output-folder distr/ \
-              --no-test \
-              "${CONDA_PACKAGE_DIRECTORY}"
-          else
-            ${CONDA_RUN} conda build \
-              -c defaults \
-              -c "pytorch-${CHANNEL}" \
-              --no-anaconda-upload \
-              --python "${PYTHON_VERSION}" \
-              --output-folder distr/ \
-              "${CONDA_PACKAGE_DIRECTORY}"
-          fi
+          ${CONDA_RUN} conda build \
+            -c defaults \
+            -c "pytorch-${CHANNEL}" \
+            --no-anaconda-upload \
+            --python "${PYTHON_VERSION}" \
+            --output-folder distr/ \
+            "${CONDA_PACKAGE_DIRECTORY}"
+
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
@@ -196,7 +185,7 @@ jobs:
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
-          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" -c malfet distr::"${PACKAGE_NAME}"
+          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
