@@ -66,9 +66,8 @@ function retryBot(app: Probot): void {
       return;
     }
 
-    // @ts-expect-error - we don't have types for these
-    let doesLookLikeUserFailure = (
-      job,
+    const doesLookLikeUserFailure = (
+      job: any,
       isCodeValiationStep: (step: any) => boolean
     ) => {
       // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
@@ -114,13 +113,20 @@ function retryBot(app: Probot): void {
       }
 
       // if no test steps failed, can rerun
-      return !doesLookLikeUserFailure(job, (step) =>
+      if (!doesLookLikeUserFailure(job, (step) =>
         step.name.toLowerCase().includes("test")
-      );
+      )) {
+        return true;
+      }
+
+      // when the test step fail, check if the job is a flaky failure as flaky ones can be retried
+      return isFlakyJob()
     });
+
     if (shouldRetry.length === 0) {
       return;
     }
+
     if (shouldRetry.length === 1) {
       // if only one should be rerun, just rerun that job
       return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
@@ -129,6 +135,7 @@ function retryBot(app: Probot): void {
         job_id: shouldRetry[0].id,
       });
     }
+
     // if multiple jobs need to be rerun, rerun everything that failed
     return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
       owner,
