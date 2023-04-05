@@ -1302,13 +1302,6 @@
       "macos"
     ]
   ],
-  "test_multi_drop (__main__.TestDataLoaderUtils)": [
-    "82865",
-    "https://github.com/pytorch/pytorch/issues/82865",
-    [
-      "linux"
-    ]
-  ],
   "test_multi_threads (__main__.TestTorchrun)": [
     "83654",
     "https://github.com/pytorch/pytorch/issues/83654",
