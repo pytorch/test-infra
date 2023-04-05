@@ -1,4 +1,5 @@
 import { Probot } from "probot";
+import { isFlaky } from "../jobUtils";
 
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
 
@@ -82,57 +83,69 @@ function retryBot(app: Probot): void {
       );
     };
 
-    const shouldRetry = failedJobs.filter((job) => {
-      // If the job was cancelled on master, it was probably an infra error, so rerun.
-      // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
-      // Would be good to fine tune this further for non-master branches to differentiate between.
-      // retryable and nonretryable cancellations
-      if (
-        job.conclusion === "cancelled" &&
-        ctx.payload.workflow_run.head_branch === "master"
-      ) {
-        return true;
-      }
+    // https://stackoverflow.com/questions/64770970/array-filter-with-async-arrow-function
+    const shouldRetry = await Promise.all(
+      failedJobs.map(async (job) => {
+        // If the job was cancelled on master, it was probably an infra error, so rerun.
+        // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
+        // Would be good to fine tune this further for non-master branches to differentiate between.
+        // retryable and nonretryable cancellations
+        if (
+          job.conclusion === "cancelled" &&
+          ctx.payload.workflow_run.head_branch === "master"
+        ) {
+          return { retry: true, data: job };
+        }
 
-      // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
-      if (workflowName.toLocaleLowerCase() === "lint") {
-        return !doesLookLikeUserFailure(job, (step) =>
-          step.name.toLowerCase().includes("(nonretryable)")
-        );
-      }
+        // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
+        if (workflowName.toLocaleLowerCase() === "lint") {
+          return {
+            retry: !doesLookLikeUserFailure(job, (step) =>
+              step.name.toLowerCase().includes("(nonretryable)")
+            ),
+            data: job,
+          };
+        }
 
-      // for builds, don't rerun if it failed on the actual build step
-      if (
-        job.name.toLocaleLowerCase().startsWith("build") &&
-        doesLookLikeUserFailure(job, (step) =>
-          step.name.toLowerCase().startsWith("build")
-        )
-      ) {
-        // we continue our retry checks even if this test passes in case this is a build-and-test job
-        return false;
-      }
+        // for builds, don't rerun if it failed on the actual build step
+        if (
+          job.name.toLocaleLowerCase().startsWith("build") &&
+          doesLookLikeUserFailure(job, (step) =>
+            step.name.toLowerCase().startsWith("build")
+          )
+        ) {
+          // we continue our retry checks even if this test passes in case this is a build-and-test job
+          return { retry: false, data: job };
+        }
 
-      // if no test steps failed, can rerun
-      if (!doesLookLikeUserFailure(job, (step) =>
-        step.name.toLowerCase().includes("test")
-      )) {
-        return true;
-      }
+        // if no test steps failed, can rerun
+        if (
+          !doesLookLikeUserFailure(job, (step) =>
+            step.name.toLowerCase().includes("test")
+          )
+        ) {
+          return { retry: true, data: job };
+        }
 
-      // when the test step fail, check if the job is a flaky failure as flaky ones can be retried
-      return isFlakyJob()
-    });
+        // when the test step fail, check if the job is a flaky failure as flaky ones can be retried
+        const flaky = await isFlaky(owner, repo, job);
+        return { retry: flaky, data: job };
+      })
+    );
+    const retryJobs = shouldRetry
+      .filter((record) => record.retry)
+      .map((record) => record.data);
 
-    if (shouldRetry.length === 0) {
+    if (retryJobs.length === 0) {
       return;
     }
 
-    if (shouldRetry.length === 1) {
+    if (retryJobs.length === 1) {
       // if only one should be rerun, just rerun that job
       return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
         owner,
         repo,
-        job_id: shouldRetry[0].id,
+        job_id: retryJobs[0].id,
       });
     }
 

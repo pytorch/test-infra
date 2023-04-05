@@ -1,55 +1,65 @@
-with repeats as (
-    select
-        array_agg(j.id) as ids
-    from
-        workflow_job j
-        join workflow_run w on w.id = j.run_id
-    where
-        j._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        and j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-        and w.head_repository.full_name = :repo
-        and w.head_branch = :branch
-        AND w.event != 'workflow_run'
-        AND w.event != 'repository_dispatch'
-    group by
-        j.head_sha,
-        j.name,
-        w.name
-    having
-        count(*) > :count
-        and bool_or(
-            j.conclusion in ('failure', 'cancelled', 'time_out')
-        )
-),
-ids as (
-    select
-        ids.id
-    from
-        repeats,
-        unnest(repeats.ids as id) as ids
-)
-select
-    job.head_sha as sha,
-    CONCAT(w.name, ' / ', job.name) as jobName,
+WITH failed_jobs AS (
+  SELECT
+    FIRST_VALUE(job.conclusion) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp ROWS BETWEEN 1 PRECEDING
+        AND 1 FOLLOWING
+    ) = 'success'
+    AND NTH_VALUE(job.conclusion, 2) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp ROWS BETWEEN 1 PRECEDING
+        AND 1 FOLLOWING
+    ) = 'failure'
+    AND LAST_VALUE(job.conclusion) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp ROWS BETWEEN 1 PRECEDING
+        AND 1 FOLLOWING
+    ) = 'success' AS flaky,
     job.id,
-    job.conclusion,
-    job.html_url as htmlUrl,
-    CONCAT(
-        'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-        CAST(job.id as string)
-    ) as logUrl,
-    DATE_DIFF(
-        'SECOND',
-        PARSE_TIMESTAMP_ISO8601(job.started_at),
-        PARSE_TIMESTAMP_ISO8601(job.completed_at)
-    ) as durationS,
-    w.repository.full_name as repo,
-    job.torchci_classification.line as failureLine,
-    job.torchci_classification.captures as failureCaptures,
-    job.torchci_classification.line_num as failureLineNumber,
-from
-    ids
-    join workflow_job job on job.id = ids.id
-    inner join workflow_run w on w.id = job.run_id
-where
-    job.conclusion in ('failure', 'cancelled', 'time_out')
+    job.name AS jobname,
+    w.id AS workflow_id,
+    w.name AS workflow_name,
+    w.run_attempt AS workflow_run_attempt,
+  FROM
+    commons.workflow_run w
+    JOIN commons.workflow_job job ON w.id = job.run_id HINT(join_strategy = lookup)
+    JOIN push ON push.head_commit.id = w.head_commit.id
+  WHERE
+    (
+      job._event_time >= CURRENT_DATE() - HOURS(: numHours)
+      OR : numHours = 0
+    )
+    AND w.head_repository.full_name = : repo
+    AND w.head_branch = : branch
+    AND ARRAY_CONTAINS(
+      SPLIT(: workflowNames, ','),
+      w.name
+    )
+    AND (
+      w.run_attempt = : attempt
+      OR : attempt = 0
+    )
+    AND job.name NOT LIKE '%mem_leak_check%'
+    AND job.name NOT LIKE '%rerun_disabled_tests%'
+)
+SELECT
+  DISTINCT failed_jobs.*,
+  annotation.annotation
+FROM
+  failed_jobs
+  LEFT JOIN commons.job_annotation annotation on annotation.jobID = failed_jobs.id
+WHERE
+  (
+    (
+      failed_jobs.flaky
+      AND annotation.annotation IS NULL
+    )
+    OR annotation.annotation = 'TEST_FLAKE'
+  )
+  AND (
+    failed_jobs.id = : jobId
+    OR : jobId = 0
+  )

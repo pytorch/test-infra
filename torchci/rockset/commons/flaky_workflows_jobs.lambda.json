@@ -2,14 +2,24 @@
   "sql_path": "__sql/flaky_workflows_jobs.sql",
   "default_parameters": [
     {
+      "name": "attempt",
+      "type": "int",
+      "value": "1"
+    },
+    {
       "name": "branch",
       "type": "string",
       "value": "master"
     },
     {
-      "name": "count",
+      "name": "jobId",
       "type": "int",
-      "value": "1"
+      "value": "0"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "72"
     },
     {
       "name": "repo",
@@ -17,14 +27,9 @@
       "value": "pytorch/pytorch"
     },
     {
-      "name": "startTime",
+      "name": "workflowNames",
       "type": "string",
-      "value": "2022-10-15T00:06:32.839Z"
-    },
-    {
-      "name": "stopTime",
-      "type": "string",
-      "value": "2022-10-19T00:06:32.839Z"
+      "value": "pull,trunk"
     }
   ],
   "description": ""
