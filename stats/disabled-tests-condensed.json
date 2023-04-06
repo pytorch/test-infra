@@ -336,6 +336,13 @@
       "dynamo"
     ]
   ],
+  "test_collective_shape_mismatch_debug_mode (__main__.ProcessGroupGlooWrapperTest)": [
+    "98547",
+    "https://github.com/pytorch/pytorch/issues/98547",
+    [
+      "linux"
+    ]
+  ],
   "test_collectives_op_mismatch_debug_mode (__main__.ProcessGroupGlooWrapperTest)": [
     "98525",
     "https://github.com/pytorch/pytorch/issues/98525",
