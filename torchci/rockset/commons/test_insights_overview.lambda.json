@@ -20,6 +20,16 @@
       "name": "workflowName",
       "type": "string",
       "value": "pull"
+    },
+    {
+      "name": "testClass",
+      "type": "string",
+      "value": "%"
+    },
+    {
+      "name": "testFile",
+      "type": "string",
+      "value": "%"
     }
   ],
   "description": ""

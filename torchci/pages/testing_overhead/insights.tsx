@@ -4,21 +4,14 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  GridRenderCellParams,
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
 import { TimeRangePicker } from "pages/metrics";
-import TablePanel from "components/metrics/panels/TablePanel";
-import { durationDisplay } from "components/TimeUtils";
-import { RocksetParam } from "lib/rockset";
 
 import { useState } from "react";
 import GenerateTestInsightsOverviewTable  from "../../components/metrics/panels/GenerateTestInsightsOverviewTable";
 import { useRouter } from "next/router";
 const THRESHOLD_IN_SECOND = 60;
 
-export default function GatherTestsInfo() {
+export default function individualTestInsights() {
     const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
     const [stopTime, setStopTime] = useState(dayjs());
     const router = useRouter();
@@ -28,7 +21,7 @@ export default function GatherTestsInfo() {
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            Test Insights
+            Test Insights for {testFile}.{testClass}
           </Typography>
           <TimeRangePicker
             startTime={startTime}

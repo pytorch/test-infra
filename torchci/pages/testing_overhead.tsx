@@ -12,13 +12,18 @@ const ROW_HEIGHT = 240;
 export default function TestingOverhead() {
     // Looking at data from the past six months
     const [startTime, setStartTime] = useState(dayjs().subtract(1, 'month'));
-
+    const [stopTime, setStopTime] = useState(dayjs());
     const timeParams: RocksetParam[] = [
         {
         name: "startTime",
         type: "string",
         value: startTime,
-        }
+        },
+        {
+          name: "stopTime",
+          type: "string",
+          value: stopTime,
+        },
     ];
 
 function GenerateOncallTestingOverheadLeaderboard({
@@ -101,7 +106,7 @@ function GenerateOncallTestingOverheadLeaderboard({
 
     return (
         <><><Grid container spacing={1}>
-            <Grid item xs={24} lg={12} height={ROW_HEIGHT}>
+            <Grid item xs={6} lg={12} height={ROW_HEIGHT}>
                 <TimeSeriesPanel
                     title={"Average Time for Workflow (excluding unstable and inductor)"}
                     queryName={"test_times_per_workflow_type"}
@@ -122,6 +127,30 @@ function GenerateOncallTestingOverheadLeaderboard({
                     groupByFieldName={"workflow_type"}
                     additionalOptions={{ yAxis: { scale: true } }} />
             </Grid>
+            <Grid item xs={6} lg={12} height={ROW_HEIGHT}>
+          <TimeSeriesPanel
+            title={"Workflow load"}
+            queryName={"workflow_load"}
+            queryParams={[
+              {
+                name: "timezone",
+                type: "string",
+                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+              {
+                name: "repo",
+                type: "string",
+                value: "pytorch/%",
+              },
+              ...timeParams,
+            ]}
+            granularity={"hour"}
+            groupByFieldName={"name"}
+            timeFieldName={"granularity_bucket"}
+            yAxisFieldName={"count"}
+            yAxisRenderer={(value) => value}
+          />
+        </Grid>
         </Grid></><GenerateOncallTestingOverheadLeaderboard
                 workflowName={"pull"} /><GenerateOncallTestingOverheadLeaderboard
                 workflowName={"trunk"} /><GenerateOncallTestingOverheadLeaderboard
