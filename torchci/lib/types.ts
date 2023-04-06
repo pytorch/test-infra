@@ -156,6 +156,7 @@ export interface CompilerPerformanceData {
   speedup: number;
   suite: string;
   workflow_id: number;
+  job_id?: number;
 }
 
 export enum JobAnnotation {

@@ -11,7 +11,8 @@ WITH performance_results AS (
     ) AS filename,
     compilation_latency,
     compression_ratio,
-    workflow_id,    
+    workflow_id,
+    CAST(job_id AS INT) AS job_id,
   FROM
     inductor.torch_dynamo_perf_stats
   WHERE
@@ -36,6 +37,7 @@ accuracy_results AS (
       )
     ) AS filename,
     workflow_id,
+    CAST(job_id AS INT) AS job_id,
   FROM
     inductor.torch_dynamo_perf_stats
   WHERE
@@ -51,6 +53,7 @@ accuracy_results AS (
 results AS (
   SELECT
     accuracy_results.workflow_id AS workflow_id,
+    accuracy_results.job_id AS job_id,
     CASE
       WHEN accuracy_results.filename LIKE '%_torchbench' THEN 'torchbench'
       WHEN accuracy_results.filename LIKE '%_timm_models' THEN 'timm_models'
@@ -91,6 +94,8 @@ results AS (
 )
 SELECT DISTINCT
   results.workflow_id,
+  -- As the JSON response is pretty big, only return the field if it's needed
+  IF(:getJobId, results.job_id, NULL) AS job_id,
   results.suite,
   results.compiler,
   results.name,
