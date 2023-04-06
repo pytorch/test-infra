@@ -159,7 +159,7 @@ function retryBot(app: Probot): void {
     const allowedWorkflowPrefixes: string[] | undefined =
       config["retryable_workflows"];
 
-    if (typeof allowedWorkflowPrefixes === "undefined") {
+    if (allowedWorkflowPrefixes === undefined) {
       return;
     }
 
