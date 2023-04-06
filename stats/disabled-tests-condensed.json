@@ -1420,20 +1420,6 @@
       "linux"
     ]
   ],
-  "test_out_warning_linalg_lu_cuda (__main__.TestCommonCUDA)": [
-    "89545",
-    "https://github.com/pytorch/pytorch/issues/89545",
-    [
-      "linux"
-    ]
-  ],
-  "test_out_warning_linalg_lu_factor_cuda (__main__.TestCommonCUDA)": [
-    "87190",
-    "https://github.com/pytorch/pytorch/issues/87190",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
