@@ -1,8 +1,11 @@
 import { Probot } from "probot";
+import { CachedConfigTracker } from "./utils";
 
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
 
 function retryBot(app: Probot): void {
+  const tracker = new CachedConfigTracker(app);
+
   app.on("workflow_run.completed", async (ctx) => {
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
@@ -11,11 +14,12 @@ function retryBot(app: Probot): void {
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
 
-    const allowedWorkflowPrefixes: { [key: string]: string[] } = {
-        "pytorch": ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
-        "vision": ["lint", "Build Linux", "Build Macos", "Build M1", "Tests on Linux", "Tests on macOS"]
+    const config: any = await tracker.loadConfig(ctx);
+    const allowedWorkflowPrefixes: string[] | undefined = config["retryable_workflows"];
+
+    if (typeof allowedWorkflowPrefixes === "undefined") {
+        return;
     }
-    const allowedRepoPrefixes = allowedWorkflowPrefixes[repo] ? allowedWorkflowPrefixes[repo] : allowedWorkflowPrefixes["pytorch"];
 
     if (
       ctx.payload.workflow_run.conclusion === "success" ||
@@ -24,7 +28,7 @@ function retryBot(app: Probot): void {
         ctx.payload.workflow_run.head_branch !== defaultBranch
       ) ||
       attemptNumber > 1 ||
-      allowedRepoPrefixes.every(
+      allowedWorkflowPrefixes.every(
         allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
       )
     ) {

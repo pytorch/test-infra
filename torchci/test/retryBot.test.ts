@@ -38,7 +38,9 @@ describe("retry-bot", () => {
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
@@ -63,7 +65,9 @@ describe("retry-bot", () => {
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
@@ -87,7 +91,9 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
@@ -105,12 +111,14 @@ describe("retry-bot", () => {
     const repo = event.payload.repository.name;
     const attempt_number = event.payload.workflow_run.run_attempt;
     const run_id = event.payload.workflow_run.id;
-    
+
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
@@ -135,7 +143,9 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`)
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
@@ -146,12 +156,16 @@ describe("retry-bot", () => {
     event.payload.workflow_run.name = "pull";
     event.payload.workflow_run.run_attempt = 2;
 
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+
     const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     await probot.receive(event);
     handleScope(scope);
   });
-
 
   test("get more pages of workflow_jobs", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
@@ -179,7 +193,25 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs2)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    event.payload.workflow_run.run_attempt = 1;
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{foo: bar}');
 
     await probot.receive(event);
     handleScope(scope);
