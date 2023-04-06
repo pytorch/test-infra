@@ -1,4 +1,12 @@
 {
+  "pull / win-vs2019-cpu-py3": [
+    "huydhn",
+    "98475",
+    "https://github.com/pytorch/pytorch/issues/98475",
+    "pull",
+    "win-vs2019-cpu-py3",
+    ""
+  ],
   "trunk / macos-12-py3-arm64": [
     "huydhn",
     "98468",
