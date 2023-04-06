@@ -38,7 +38,9 @@ describe("retry-bot", () => {
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
@@ -71,7 +73,9 @@ describe("retry-bot", () => {
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
       )
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
@@ -103,7 +107,9 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
@@ -166,6 +172,8 @@ describe("retry-bot", () => {
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun`
       )
@@ -202,6 +210,8 @@ describe("retry-bot", () => {
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
       .post(
         `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
       ) // Retry previous workflow
@@ -240,11 +250,16 @@ describe("retry-bot", () => {
     const prev_run_id = 1;
     const prev_job_id = 1;
 
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
       .post(`/repos/${owner}/${repo}/actions/jobs/${prev_job_id}/rerun`) // Retry previous job
       .reply(200)
       .post(
@@ -302,7 +317,25 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs2)
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
-      .reply(200);
+      .reply(200)
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}');
+
+    await probot.receive(event);
+    handleScope(scope);
+  });
+
+  test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    event.payload.workflow_run.run_attempt = 1;
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/contents/${encodeURIComponent(".github/pytorch-probot.yml")}`)
+      .reply(200, '{foo: bar}');
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")

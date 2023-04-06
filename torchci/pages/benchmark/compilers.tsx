@@ -65,7 +65,7 @@ export const SUITES: { [k: string]: string } = {
   timm_models: "TIMM models",
 };
 export const MODES = ["training", "inference"];
-export const DTYPES = ["amp", "float32"];
+export const DTYPES = ["amp"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 // Thresholds
@@ -75,7 +75,7 @@ export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 // Headers
-export const DIFF_HEADER = "New value (L) ← Old value (R)";
+export const DIFF_HEADER = "New value (L) ← Base value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
@@ -533,6 +533,7 @@ export function BranchAndCommitPicker({
   setBranch,
   commit,
   setCommit,
+  titlePrefix,
   fallbackIndex,
 }: {
   queryParams: RocksetParam[];
@@ -540,6 +541,7 @@ export function BranchAndCommitPicker({
   setBranch: any;
   commit: string;
   setCommit: any;
+  titlePrefix: string;
   fallbackIndex: number;
 }) {
   const queryName = "compilers_benchmark_performance_branches";
@@ -614,7 +616,7 @@ export function BranchAndCommitPicker({
 
       <FormControl>
         <InputLabel id={`commit-picker-input-label-${commit}`}>
-          Commit
+          {titlePrefix} Commit
         </InputLabel>
         <Select
           value={commit}
@@ -637,7 +639,15 @@ export function BranchAndCommitPicker({
   );
 }
 
-export function LogLinks({ key, suite, logs }: { key: string; suite: string; logs: any }) {
+export function LogLinks({
+  key,
+  suite,
+  logs,
+}: {
+  key: string;
+  suite: string;
+  logs: any;
+}) {
   return (
     <>
       {" "}
@@ -725,7 +735,13 @@ function CommitPanel({
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
           const name = suite.includes("timm") ? "timm" : suite;
-          return <LogLinks key={`log-${name}`} suite={suite} logs={logsBySuite[name]} />;
+          return (
+            <LogLinks
+              key={`log-${name}`}
+              suite={suite}
+              logs={logsBySuite[name]}
+            />
+          );
         })}
         .
       </Typography>
@@ -974,6 +990,10 @@ function SummaryPanel({
                         return styles.error;
                       }
 
+                      if (l === r) {
+                        return "";
+                      }
+
                       if (l < ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
                         return styles.warning;
                       }
@@ -1043,6 +1063,10 @@ function SummaryPanel({
 
                       if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
                         return styles.error;
+                      }
+
+                      if (l === r) {
+                        return "";
                       }
 
                       if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
@@ -1126,6 +1150,10 @@ function SummaryPanel({
                         return styles.error;
                       }
 
+                      if (l === r) {
+                        return "";
+                      }
+
                       if (
                         l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
                         r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
@@ -1206,6 +1234,10 @@ function SummaryPanel({
                         r >= COMPRESSION_RATIO_THRESHOLD
                       ) {
                         return styles.error;
+                      }
+
+                      if (l === r) {
+                        return "";
                       }
 
                       if (
@@ -1610,6 +1642,7 @@ export default function Page() {
           commit={lCommit}
           setCommit={setLCommit}
           queryParams={queryParams}
+          titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
         />
         <Divider orientation="vertical" flexItem>
@@ -1621,6 +1654,7 @@ export default function Page() {
           commit={rCommit}
           setCommit={setRCommit}
           queryParams={queryParams}
+          titlePrefix={"Base"}
           fallbackIndex={1} // Default to the next to latest commit
         />
       </Stack>
