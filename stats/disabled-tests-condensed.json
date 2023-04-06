@@ -76,6 +76,13 @@
       "linux"
     ]
   ],
+  "test_all_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
+    "98508",
+    "https://github.com/pytorch/pytorch/issues/98508",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
