@@ -1,18 +1,1 @@
-{
-  "pull / win-vs2019-cpu-py3": [
-    "huydhn",
-    "98475",
-    "https://github.com/pytorch/pytorch/issues/98475",
-    "pull",
-    "win-vs2019-cpu-py3",
-    ""
-  ],
-  "trunk / win-vs2019-cuda11.7-py3": [
-    "huydhn",
-    "98476",
-    "https://github.com/pytorch/pytorch/issues/98476",
-    "trunk",
-    "win-vs2019-cuda11.7-py3",
-    ""
-  ]
-}
+{}
