@@ -16,8 +16,8 @@ function GenerateTestInsightsOverviewTable({
     workflowName: string
   }) {
     const router = useRouter();
-    const { oncall } = router.query;
-    const [startTime, setStartTime] = useState(dayjs().subtract(1, 'day'));
+    const oncall = router.query.oncall as string;
+    const [startTime, setStartTime] = useState(dayjs().subtract(2, 'day'));
     const queryParams: RocksetParam[] = [
       {
         name: "queryDate",
@@ -44,7 +44,7 @@ function GenerateTestInsightsOverviewTable({
     return (
       <Grid item xs={12} height={ROW_HEIGHT}>
         <TablePanel
-          title={`Workflow: ${workflowName}`}
+          title={`Unsharded Testing times for Workflow: ${workflowName} on ${startTime.format("YYYY-MM-DD")}`}
           queryCollection={"commons"}
           queryName={"individual_test_stats_per_workflow_per_oncall"}
           queryParams={queryParams}
@@ -66,7 +66,15 @@ function GenerateTestInsightsOverviewTable({
               field: "test_class",
               headerName: "Test class",
               flex: 1,
-              filterable: false,
+              renderCell: (params: GridRenderCellParams<string>) => {
+                const testFile = params.row.test_file;
+                const testClass = params.value;
+                return (
+                  <a href={`/testing_overhead/insights?testFile=${testFile}&testClass=${testClass}`}>
+                    {testClass}
+                  </a>
+                );
+              }
             },
             {
               field: "max_failures",
@@ -99,9 +107,10 @@ function GenerateTestInsightsOverviewTable({
 
 export default function TestingOverhead() {
     const router = useRouter();
-    const { oncall } = router.query;
+    const oncall = router.query.oncall as string;
     // Looking at data from the past six months
     const [startTime, setStartTime] = useState(dayjs().subtract(1, 'month'));
+    const [endTime, setEndTime] = useState(dayjs());
 
     return (
         <><><Grid container spacing={1}>
@@ -120,7 +129,17 @@ export default function TestingOverhead() {
                             name: "startDate",
                             type: "string",
                             value: startTime,
-                        }
+                        },
+                        {
+                          name: "endDate",
+                          type: "string",
+                          value: endTime,
+                      }, 
+                      {
+                        name: "workflow_type",
+                        type: "string",
+                        value: "%",
+                    }
                     ]}
                     granularity={"day"}
                     timeFieldName={"granularity_bucket"}
