@@ -216,13 +216,7 @@ describe("retry-bot", () => {
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: 1 }],
-      })
-      .post((uri) => true)
-      .reply(200, { results: [] })
-      .post((uri) => true)
-      .reply(200, {
-        results: [{ workflow_id: prev_run_id, job_id: 3 }],
+        results: [{ workflow_id: prev_run_id, job_id: 1 }, { workflow_id: prev_run_id, job_id: 3 }],
       });
 
     await probot.receive(event);
@@ -264,11 +258,7 @@ describe("retry-bot", () => {
       .post((uri) => true)
       .reply(200, {
         results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
-      })
-      .post((uri) => true)
-      .reply(200, { results: [] })
-      .post((uri) => true)
-      .reply(200, { results: [] });
+      });
 
     await probot.receive(event);
 

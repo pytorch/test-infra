@@ -29,20 +29,13 @@ export function isUnstableJob(job: JobData) {
   return isMatchingJobByName(job, "unstable");
 }
 
-export async function getFlakyJobBeforeThisJob(
+export async function getFlakyJobsFromPreviousWorkflow(
   owner: string,
   repo: string,
   branch: string,
   workflowName: string,
-  job: any
+  workflowId: number
 ): Promise<any> {
-  const id = job.id;
-
-  // By default, consider the failure as not flaky
-  if (id === undefined) {
-    return;
-  }
-
   const rocksetClient = getRocksetClient();
   const query = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
@@ -61,9 +54,9 @@ export async function getFlakyJobBeforeThisJob(
           value: workflowName,
         },
         {
-          name: "nextJobId",
+          name: "nextWorkflowId",
           type: "int",
-          value: id, // Query the flaky status of the previous job
+          value: `${workflowId}`, // Query the flaky status of jobs from the previous workflow
         },
         {
           name: "branches",
@@ -73,18 +66,17 @@ export async function getFlakyJobBeforeThisJob(
         {
           name: "attempt",
           type: "int",
-          value: 1, // If the job was retried and still failed, it wasn't flaky
+          value: "1", // If the job was retried and still failed, it wasn't flaky
         },
       ],
     }
   );
 
-  const results = query.results;
-  if (results === undefined || results.length === 0) {
-    return;
+  const flakyJobs = query.results;
+  if (flakyJobs === undefined || flakyJobs.length === 0) {
+    return [];
   }
 
-  // The query returns the previous flaky job. As the job ID is set, there would
-  // be only at most one record
-  return results[0];
+  // The query returns all the flaky jobs from the previous workflow
+  return flakyJobs;
 }

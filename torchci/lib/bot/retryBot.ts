@@ -1,5 +1,5 @@
 import { Probot } from "probot";
-import { getFlakyJobBeforeThisJob } from "../jobUtils";
+import { getFlakyJobsFromPreviousWorkflow } from "../jobUtils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
@@ -14,11 +14,6 @@ const ALLOWED_WORKFLOW_PREFIXES: { [key: string]: string[] } = {
     "Tests on macOS",
   ],
 };
-const DEFAULT_BRANCH = "main";
-const MAIN_BRANCH: { [key: string]: string } = {
-  pytorch: "master",
-  vision: DEFAULT_BRANCH,
-};
 
 async function retryPreviousWorkflow(
   ctx: any,
@@ -26,56 +21,125 @@ async function retryPreviousWorkflow(
   repo: string,
   branch: string,
   workflowName: string,
-  jobs: any[]
+  workflowId: number
 ) {
-  let prevWorkflowId = 0;
-  // When a workflow finishes, we also want to go through all its successful jobs
-  // to check if the previous jobs are flaky with the following green (current),
-  // red (prev job), green (2-job before) pattern.  If this happens, retrying the
-  // previous red job
-  const retryJobs: number[] = [];
-  for (const job of jobs) {
-    const prevFlakyJob = await getFlakyJobBeforeThisJob(
-      owner,
-      repo,
-      branch,
-      workflowName,
-      job
-    );
-    if (
-      prevFlakyJob === undefined ||
-      prevFlakyJob.job_id === undefined ||
-      prevFlakyJob.workflow_id === undefined
-    ) {
-      continue;
-    }
+  const flakyJobs = await getFlakyJobsFromPreviousWorkflow(
+    owner,
+    repo,
+    branch,
+    workflowName,
+    workflowId
+  );
 
-    prevWorkflowId = prevFlakyJob.workflow_id;
-    retryJobs.push(prevFlakyJob.job_id);
-  }
-
-  if (retryJobs.length === 0) {
+  if (flakyJobs === undefined || flakyJobs.length === 0) {
     return;
   }
 
-  if (retryJobs.length === 1) {
+  if (flakyJobs.length === 1) {
     // If only one should be rerun, just rerun that job
     return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
       owner,
       repo,
-      job_id: retryJobs[0],
+      job_id: flakyJobs[0].job_id,
     });
-  }
-
-  if (prevWorkflowId === 0) {
-    return;
   }
 
   // If multiple jobs need to be rerun, rerun everything that failed
   return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
     owner,
     repo,
-    run_id: prevWorkflowId,
+    run_id: flakyJobs[0].workflow_id,
+  });
+}
+
+async function retryCurrentWorkflow(
+  ctx: any,
+  owner: string,
+  repo: string,
+  defaultBranch: string,
+  workflowName: string,
+  workflowJobs: any[],
+  runId: number
+) {
+  const failedJobs = workflowJobs.filter((job) =>
+    FAILURE_CONCLUSIONS.includes(job.conclusion!)
+  );
+  if (failedJobs.length > 5) {
+    // if you have more than 5 failing jobs, its probably either a real failure, a landrace,
+    // or a widespread outage that wouldn't be helped by retries
+    return;
+  }
+
+  const doesLookLikeUserFailure = (
+    job: any,
+    isCodeValiationStep: (step: any) => boolean
+  ) => {
+    // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
+    return (
+      job.steps?.filter(
+        // @ts-expect-error
+        (step) =>
+          step.conclusion !== null &&
+          FAILURE_CONCLUSIONS.includes(step.conclusion) &&
+          isCodeValiationStep(step)
+      ).length > 0
+    );
+  };
+
+  const retryJobs = failedJobs.filter((job) => {
+    // If the job was cancelled on master, it was probably an infra error, so rerun.
+    // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
+    // Would be good to fine tune this further for non-master branches to differentiate between.
+    // retryable and nonretryable cancellations
+    if (
+      job.conclusion === "cancelled" &&
+      ctx.payload.workflow_run.head_branch === defaultBranch
+    ) {
+      return true;
+    }
+
+    // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
+    if (workflowName.toLocaleLowerCase() === "lint") {
+      return !doesLookLikeUserFailure(job, (step) =>
+        step.name.toLowerCase().includes("(nonretryable)")
+      );
+    }
+
+    // for builds, don't rerun if it failed on the actual build step
+    if (
+      job.name.toLocaleLowerCase().startsWith("build") &&
+      doesLookLikeUserFailure(job, (step) =>
+        step.name.toLowerCase().startsWith("build")
+      )
+    ) {
+      // we continue our retry checks even if this test passes in case this is a build-and-test job
+      return false;
+    }
+
+    // if no test steps failed, can rerun
+    return !doesLookLikeUserFailure(job, (step) =>
+      step.name.toLowerCase().includes("test")
+    );
+  });
+
+  if (retryJobs.length === 0) {
+    return;
+  }
+
+  if (retryJobs.length === 1) {
+    // if only one should be rerun, just rerun that job
+    return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
+      owner,
+      repo,
+      job_id: retryJobs[0].id,
+    });
+  }
+
+  // if multiple jobs need to be rerun, rerun everything that failed
+  return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
+    owner,
+    repo,
+    run_id: runId,
   });
 }
 
@@ -123,99 +187,29 @@ function retryBot(app: Probot): void {
       workflowJobs.push(...data.jobs);
     }
 
-    // Check if we need to retry flaky jobs from the previous workflow. Don't
-    // set the branch here as we only want to support this on trunk for now
-    await retryPreviousWorkflow(
+    // Retry jobs from the current workflow
+    await retryCurrentWorkflow(
       ctx,
       owner,
       repo,
-      MAIN_BRANCH[repo] ?? DEFAULT_BRANCH,
+      defaultBranch,
       workflowName,
-      workflowJobs.filter((job) =>
-        SUCCESS_CONCLUSIONS.includes(job.conclusion!)
-      )
+      workflowJobs,
+      runId
     );
 
-    const failedJobs = workflowJobs.filter((job) =>
-      FAILURE_CONCLUSIONS.includes(job.conclusion!)
-    );
-    if (failedJobs.length > 5) {
-      // if you have more than 5 failing jobs, its probably either a real failure, a landrace,
-      // or a widespread outage that wouldn't be helped by retries
-      return;
-    }
-
-    const doesLookLikeUserFailure = (
-      job: any,
-      isCodeValiationStep: (step: any) => boolean
-    ) => {
-      // Ensure if any of the steps that failed are not infra related steps (e.g. they're lint, build or test steps)
-      return (
-        job.steps?.filter(
-          // @ts-expect-error
-          (step) =>
-            step.conclusion !== null &&
-            FAILURE_CONCLUSIONS.includes(step.conclusion) &&
-            isCodeValiationStep(step)
-        ).length > 0
-      );
-    };
-
-    const retryJobs = failedJobs.filter((job) => {
-      // If the job was cancelled on master, it was probably an infra error, so rerun.
-      // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
-      // Would be good to fine tune this further for non-master branches to differentiate between.
-      // retryable and nonretryable cancellations
-      if (
-        job.conclusion === "cancelled" &&
-        ctx.payload.workflow_run.head_branch === defaultBranch
-      ) {
-        return true;
-      }
-
-      // don't rerun if the linter failed on the actual linting steps, which have the nonretryable suffix
-      if (workflowName.toLocaleLowerCase() === "lint") {
-        return !doesLookLikeUserFailure(job, (step) =>
-          step.name.toLowerCase().includes("(nonretryable)")
-        );
-      }
-
-      // for builds, don't rerun if it failed on the actual build step
-      if (
-        job.name.toLocaleLowerCase().startsWith("build") &&
-        doesLookLikeUserFailure(job, (step) =>
-          step.name.toLowerCase().startsWith("build")
-        )
-      ) {
-        // we continue our retry checks even if this test passes in case this is a build-and-test job
-        return false;
-      }
-
-      // if no test steps failed, can rerun
-      return !doesLookLikeUserFailure(job, (step) =>
-        step.name.toLowerCase().includes("test")
-      );
-    });
-
-    if (retryJobs.length === 0) {
-      return;
-    }
-
-    if (retryJobs.length === 1) {
-      // if only one should be rerun, just rerun that job
-      return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
+    // Check if we need to retry flaky jobs from the previous workflow. This is
+    // only supported in trunk
+    if (ctx.payload.workflow_run.head_branch === defaultBranch) {
+      await retryPreviousWorkflow(
+        ctx,
         owner,
         repo,
-        job_id: retryJobs[0].id,
-      });
+        defaultBranch,
+        workflowName,
+        runId
+      );
     }
-
-    // if multiple jobs need to be rerun, rerun everything that failed
-    return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
-      owner,
-      repo,
-      run_id: runId,
-    });
   });
 }
 export default retryBot;

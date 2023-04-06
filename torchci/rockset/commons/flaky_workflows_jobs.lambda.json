@@ -12,24 +12,24 @@
       "value": "master,main"
     },
     {
-      "name": "jobId",
-      "type": "int",
-      "value": "0"
-    },
-    {
-      "name": "nextJobId",
+      "name": "nextWorkflowId",
       "type": "int",
       "value": "0"
     },
     {
       "name": "numHours",
       "type": "int",
-      "value": "24"
+      "value": "48"
     },
     {
       "name": "repo",
       "type": "string",
       "value": "pytorch/pytorch"
+    },
+    {
+      "name": "workflowId",
+      "type": "int",
+      "value": "0"
     },
     {
       "name": "workflowNames",

@@ -68,6 +68,7 @@ SELECT
   flaky_jobs.job_id,
   flaky_jobs.flaky,
   flaky_jobs.workflow_run_attempt AS run_attempt,
+  flaky_jobs.next_workflow_id,
   flaky_jobs.next_job_id,
   annotation.annotation,
 FROM
@@ -82,12 +83,12 @@ WHERE
     OR annotation.annotation = 'TEST_FLAKE'
   )
   AND (
-    flaky_jobs.job_id = : jobId
-    OR : jobId = 0
+    flaky_jobs.workflow_id = : workflowId
+    OR : workflowId = 0
   )
   AND (
-    flaky_jobs.next_job_id = : nextJobId
-    OR : nextJobId = 0
+    flaky_jobs.next_workflow_id = : nextWorkflowId
+    OR : nextWorkflowId = 0
   )
   AND (
     flaky_jobs.workflow_run_attempt = : attempt
