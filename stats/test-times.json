@@ -5110,7 +5110,7 @@
       "inductor/test_minifier": 240.0716666666667,
       "inductor/test_standalone_compile": 9.24,
       "inductor/test_torchinductor": 1143.9613333333332,
-      "inductor/test_torchinductor_dynamic_shapes": 529.3023333333334,
+      "inductor/test_torchinductor_dynamic_shapes": 1029.3023333333334,
       "inductor/test_torchinductor_opinfo": 4453.210999999998,
       "lazy/test_debug_util": 0.6873333333333335,
       "lazy/test_reuse_ir": 2.0513333333333335,
