@@ -69,6 +69,11 @@ export async function getFlakyJobBeforeThisJob(
           type: "int",
           value: 1, // If the job was retried and still failed, it wasn't flaky
         },
+        {
+          name: "numHours",
+          type: "int",
+          value: 4, // Just need to looks back for a few hours for the immediately previous job
+        }
       ],
     }
   );

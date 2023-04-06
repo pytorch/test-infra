@@ -37,14 +37,14 @@ async function retryPreviousWorkflow(
     );
     if (
       prevFlakyJob === undefined ||
-      prevFlakyJob.prev_job_id === undefined ||
-      prevFlakyJob.prev_workflow_id === undefined
+      prevFlakyJob.job_id === undefined ||
+      prevFlakyJob.workflow_id === undefined
     ) {
       continue;
     }
 
-    prevWorkflowId = prevFlakyJob.prev_workflow_id;
-    retryJobs.push(prevFlakyJob.prev_job_id);
+    prevWorkflowId = prevFlakyJob.workflow_id;
+    retryJobs.push(prevFlakyJob.job_id);
   }
 
   if (retryJobs.length === 0) {
@@ -116,7 +116,8 @@ function retryBot(app: Probot): void {
       workflowJobs.push(...data.jobs);
     }
 
-    // Check if we need to retry flaky jobs from the previous workflow
+    // Check if we need to retry flaky jobs from the previous workflow. Don't
+    // set the branch here as we only want to support this on trunk for now
     await retryPreviousWorkflow(
       ctx,
       owner,

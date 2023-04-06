@@ -19,7 +19,12 @@
     {
       "name": "numHours",
       "type": "int",
-      "value": "72"
+      "value": "4"
+    },
+    {
+      "name": "previousJobId",
+      "type": "int",
+      "value": "0"
     },
     {
       "name": "repo",

@@ -1,6 +1,6 @@
 import nock from "nock";
 import * as utils from "./utils";
-import myProbotApp, { FAILURE_CONCLUSIONS } from "../lib/bot/retryBot";
+import myProbotApp from "../lib/bot/retryBot";
 import { handleScope, requireDeepCopy } from "./common";
 import { Probot } from "probot";
 
@@ -216,13 +216,13 @@ describe("retry-bot", () => {
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, {
-        results: [{ prev_workflow_id: prev_run_id, prev_job_id: 1 }],
+        results: [{ workflow_id: prev_run_id, job_id: 1 }],
       })
       .post((uri) => true)
       .reply(200, { results: [] })
       .post((uri) => true)
       .reply(200, {
-        results: [{ prev_workflow_id: prev_run_id, prev_job_id: 3 }],
+        results: [{ workflow_id: prev_run_id, job_id: 3 }],
       });
 
     await probot.receive(event);
@@ -263,7 +263,7 @@ describe("retry-bot", () => {
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
       .reply(200, {
-        results: [{ prev_workflow_id: prev_run_id, prev_job_id: prev_job_id }],
+        results: [{ workflow_id: prev_run_id, job_id: prev_job_id }],
       })
       .post((uri) => true)
       .reply(200, { results: [] })
