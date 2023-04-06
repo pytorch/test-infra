@@ -156,10 +156,11 @@ function retryBot(app: Probot): void {
     const runId = ctx.payload.workflow_run.id;
 
     const config: any = await tracker.loadConfig(ctx);
-    const allowedWorkflowPrefixes: string[] | undefined = config["retryable_workflows"];
+    const allowedWorkflowPrefixes: string[] | undefined =
+      config["retryable_workflows"];
 
     if (typeof allowedWorkflowPrefixes === "undefined") {
-        return;
+      return;
     }
 
     if (
@@ -168,7 +169,8 @@ function retryBot(app: Probot): void {
         ctx.payload.workflow_run.head_branch !== defaultBranch) ||
       attemptNumber > 1 ||
       allowedWorkflowPrefixes.every(
-        allowedWorkflow => !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
+        (allowedWorkflow) =>
+          !workflowName.toLowerCase().includes(allowedWorkflow.toLowerCase())
       )
     ) {
       return;
