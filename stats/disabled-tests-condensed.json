@@ -55,6 +55,13 @@
       "linux"
     ]
   ],
+  "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98480",
+    "https://github.com/pytorch/pytorch/issues/98480",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
     "81029",
     "https://github.com/pytorch/pytorch/issues/81029",
