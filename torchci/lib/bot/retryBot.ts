@@ -1,9 +1,9 @@
 import { Probot } from "probot";
 import { getFlakyJobBeforeThisJob } from "../jobUtils";
 
-export const SUCCESS_CONCLUSIONS = ["success"];
-export const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
-export const ALLOWED_WORKFLOW_PREFIXES: { [key: string]: string[] } = {
+const SUCCESS_CONCLUSIONS = ["success"];
+const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
+const ALLOWED_WORKFLOW_PREFIXES: { [key: string]: string[] } = {
   pytorch: ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
   vision: [
     "lint",
@@ -14,11 +14,17 @@ export const ALLOWED_WORKFLOW_PREFIXES: { [key: string]: string[] } = {
     "Tests on macOS",
   ],
 };
+const DEFAULT_BRANCH = "main";
+const MAIN_BRANCH: { [key: string]: string } = {
+  pytorch: "master",
+  vision: DEFAULT_BRANCH,
+};
 
 async function retryPreviousWorkflow(
   ctx: any,
   owner: string,
   repo: string,
+  branch: string,
   workflowName: string,
   jobs: any[]
 ) {
@@ -32,6 +38,7 @@ async function retryPreviousWorkflow(
     const prevFlakyJob = await getFlakyJobBeforeThisJob(
       owner,
       repo,
+      branch,
       workflowName,
       job
     );
@@ -122,6 +129,7 @@ function retryBot(app: Probot): void {
       ctx,
       owner,
       repo,
+      MAIN_BRANCH[repo] ?? DEFAULT_BRANCH,
       workflowName,
       workflowJobs.filter((job) =>
         SUCCESS_CONCLUSIONS.includes(job.conclusion!)

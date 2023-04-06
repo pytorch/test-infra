@@ -7,9 +7,9 @@
       "value": "1"
     },
     {
-      "name": "branch",
+      "name": "branches",
       "type": "string",
-      "value": "master"
+      "value": "master,main"
     },
     {
       "name": "jobId",
@@ -17,14 +17,14 @@
       "value": "0"
     },
     {
-      "name": "numHours",
-      "type": "int",
-      "value": "4"
-    },
-    {
-      "name": "previousJobId",
+      "name": "nextJobId",
       "type": "int",
       "value": "0"
+    },
+    {
+      "name": "numHours",
+      "type": "int",
+      "value": "24"
     },
     {
       "name": "repo",

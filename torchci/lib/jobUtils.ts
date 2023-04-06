@@ -32,6 +32,7 @@ export function isUnstableJob(job: JobData) {
 export async function getFlakyJobBeforeThisJob(
   owner: string,
   repo: string,
+  branch: string,
   workflowName: string,
   job: any
 ): Promise<any> {
@@ -60,9 +61,14 @@ export async function getFlakyJobBeforeThisJob(
           value: workflowName,
         },
         {
-          name: "jobId",
+          name: "nextJobId",
           type: "int",
-          value: id,
+          value: id, // Query the flaky status of the previous job
+        },
+        {
+          name: "branches",
+          type: "string",
+          value: branch,
         },
         {
           name: "attempt",
@@ -73,7 +79,7 @@ export async function getFlakyJobBeforeThisJob(
           name: "numHours",
           type: "int",
           value: 4, // Just need to looks back for a few hours for the immediately previous job
-        }
+        },
       ],
     }
   );
