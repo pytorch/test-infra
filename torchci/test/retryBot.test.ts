@@ -1,6 +1,6 @@
 import nock from "nock";
 import * as utils from "./utils";
-import myProbotApp from "../lib/bot/retryBot";
+import myProbotApp, { FAILURE_CONCLUSIONS } from "../lib/bot/retryBot";
 import { handleScope, requireDeepCopy } from "./common";
 import { Probot } from "probot";
 
@@ -40,8 +40,16 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((url) => true)
+      .reply(200, { results: [] });
+
     await probot.receive(event);
+
     handleScope(scope);
+    handleScope(rockset);
   });
 
   test("rerun when workflow name starts with a valid prefix", async () => {
@@ -65,8 +73,16 @@ describe("retry-bot", () => {
       )
       .reply(200);
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
     await probot.receive(event);
+
     handleScope(scope);
+    handleScope(rockset);
   });
 
   test("rerun lint if no nonretryable step failed", async () => {
@@ -89,8 +105,16 @@ describe("retry-bot", () => {
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
       .reply(200);
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
     await probot.receive(event);
+
     handleScope(scope);
+    handleScope(rockset);
   });
 
   test("don't rerun lint if nonretryable step failed", async () => {
@@ -112,11 +136,19 @@ describe("retry-bot", () => {
       )
       .reply(200, workflow_jobs);
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
     await probot.receive(event);
+
     handleScope(scope);
+    handleScope(rockset);
   });
 
-  test("dont rerun if failed at test step if test is not flaky", async () => {
+  test("dont rerun if failed at test step", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -141,15 +173,17 @@ describe("retry-bot", () => {
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
     const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
       .post((uri) => true)
       .reply(200, { results: [] });
 
     await probot.receive(event);
+
     handleScope(scope);
     handleScope(rockset);
   });
 
-  test("rerun if failed at test step and test is flaky in trunk", async () => {
+  test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -161,23 +195,85 @@ describe("retry-bot", () => {
     const repo = event.payload.repository.name;
     const attempt_number = event.payload.workflow_run.run_attempt;
     const run_id = event.payload.workflow_run.id;
+    const prev_run_id = 1;
 
     const scope = nock("https://api.github.com")
       .get(
         `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
       )
       .reply(200, workflow_jobs)
-      .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
+      .post(
+        `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
+      ) // Retry previous workflow
+      .reply(200)
+      .post(
+        `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun` // Retry eligible jobs in the current workflow
+      )
       .reply(200);
 
     process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    // 2 out of 3 previous jobs are flaky
     const rockset = nock("https://api.rs2.usw2.rockset.com")
       .post((uri) => true)
-      .reply(200, { results: [{ flaky: true }] });
+      .reply(200, {
+        results: [{ prev_workflow_id: prev_run_id, prev_job_id: 1 }],
+      })
+      .post((uri) => true)
+      .reply(200, { results: [] })
+      .post((uri) => true)
+      .reply(200, {
+        results: [{ prev_workflow_id: prev_run_id, prev_job_id: 3 }],
+      });
 
     await probot.receive(event);
-    handleScope(scope);
+
     handleScope(rockset);
+    handleScope(scope);
+  });
+
+  test("rerun previous job if it is flaky in trunk", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    workflow_jobs.jobs[0].conclusion = "failure";
+    workflow_jobs.jobs[4].conclusion = "failure";
+    workflow_jobs.jobs[4].steps[0].conclusion = "failure";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+    const prev_run_id = 1;
+    const prev_job_id = 1;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
+      .post(`/repos/${owner}/${repo}/actions/jobs/${prev_job_id}/rerun`) // Retry previous job
+      .reply(200)
+      .post(
+        `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun` // Retry eligible jobs in the current workflow
+      )
+      .reply(200);
+
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    // Only the first job are flaky
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .post((uri) => true)
+      .reply(200, {
+        results: [{ prev_workflow_id: prev_run_id, prev_job_id: prev_job_id }],
+      })
+      .post((uri) => true)
+      .reply(200, { results: [] })
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
+    await probot.receive(event);
+
+    handleScope(rockset);
+    handleScope(scope);
   });
 
   test("dont rerun if has already been rerun", async () => {
@@ -218,7 +314,15 @@ describe("retry-bot", () => {
       .post(`/repos/${owner}/${repo}/actions/runs/${run_id}/rerun-failed-jobs`)
       .reply(200);
 
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
     await probot.receive(event);
+
     handleScope(scope);
+    handleScope(rockset);
   });
 });

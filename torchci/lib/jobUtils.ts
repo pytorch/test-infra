@@ -29,16 +29,17 @@ export function isUnstableJob(job: JobData) {
   return isMatchingJobByName(job, "unstable");
 }
 
-export async function isFlaky(
+export async function getFlakyJobBeforeThisJob(
   owner: string,
   repo: string,
-  failedJob: any
-): Promise<boolean> {
-  const id = failedJob.id;
+  workflowName: string,
+  job: any
+): Promise<any> {
+  const id = job.id;
 
   // By default, consider the failure as not flaky
   if (id === undefined) {
-    return false;
+    return;
   }
 
   const rocksetClient = getRocksetClient();
@@ -52,6 +53,11 @@ export async function isFlaky(
           name: "repo",
           type: "string",
           value: `${owner}/${repo}`,
+        },
+        {
+          name: "workflowNames",
+          type: "string",
+          value: workflowName,
         },
         {
           name: "jobId",
@@ -69,10 +75,10 @@ export async function isFlaky(
 
   const results = query.results;
   if (results === undefined || results.length === 0) {
-    return false;
+    return;
   }
 
-  // The query returns only flaky job with the exact job ID. So if it has data,
-  // it means that the job is flaky
-  return true;
+  // The query returns the previous flaky job. As the job ID is set, there would
+  // be only at most one record
+  return results[0];
 }
