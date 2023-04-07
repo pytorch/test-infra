@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/get_workflow_jobs.sql",
+  "default_parameters": [
+    {
+      "name": "jobName",
+      "type": "string",
+      "value": "%test (%"
+    },
+    {
+      "name": "workflowId",
+      "type": "int",
+      "value": "0"
+    }
+  ],
+  "description": "Get jobs workflow ID and names"
+}

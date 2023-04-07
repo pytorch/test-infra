@@ -542,7 +542,7 @@ export default function Page() {
               title={"% force merges due to failed PR checks"}
               queryName={"force_merge_red_avg"}
               metricName={"force_merges_red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               queryParams={timeParams}
               badThreshold={(value) => value > 0.2}
             />
@@ -563,7 +563,7 @@ export default function Page() {
             <ScalarPanelWithValue
               title={"% commits red on master (flaky)"}
               value={flakyRed}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
@@ -582,7 +582,7 @@ export default function Page() {
             <ScalarPanelWithValue
               title={"% commits red on master (broken trunk)"}
               value={brokenTrunkRed}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
             <WorkflowDuration

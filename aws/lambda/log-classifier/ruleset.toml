@@ -86,7 +86,7 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
-pattern = '^FAILED (\S*.py::\S*::test_\S*)'
+pattern = '^FAILED (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'Python unittest error'
@@ -94,7 +94,7 @@ pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest test error'
-pattern = '^ERROR (\S*.py::\S*::test_\S*)'
+pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'inductor model failure'

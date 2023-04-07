@@ -27,11 +27,15 @@ pub async fn get_dynamo_client() -> dynamodb::Client {
 }
 
 /// Download a log for `job_id` from S3.
-pub async fn download_log(client: &s3::Client, job_id: usize) -> Result<String> {
+pub async fn download_log(client: &s3::Client, repo: &str, job_id: usize) -> Result<String> {
+    let key = match repo {
+       "pytorch/pytorch" => format!("log/{}", job_id),
+       _ => format!("log/{}/{}", repo, job_id)
+    };
     let resp = client
         .get_object()
         .bucket(BUCKET_NAME)
-        .key(format!("log/{}", job_id))
+        .key(key)
         .send()
         .await?;
 
@@ -66,6 +70,7 @@ pub async fn upload_classification_s3(
 /// Mutates the DynamoDB object for `job_id` to include the `SerializedMatch`.
 pub async fn upload_classification_dynamo(
     client: &dynamodb::Client,
+    repo: &str,
     job_id: usize,
     best_match: &SerializedMatch,
 ) -> Result<()> {
@@ -78,7 +83,7 @@ pub async fn upload_classification_dynamo(
         .table_name("torchci-workflow-job")
         .key(
             "dynamoKey",
-            to_attribute_value(format!("pytorch/pytorch/{}", job_id))?,
+            to_attribute_value(format!("{}/{}", repo, job_id))?,
         )
         .attribute_updates("torchci_classification", update)
         .send()
