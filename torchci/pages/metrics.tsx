@@ -538,12 +538,10 @@ export default function Page() {
         </Grid>
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"% force merges due to failed PR checks"}
-              queryName={"force_merge_red_avg"}
-              metricName={"force_merges_red"}
+            <ScalarPanelWithValue
+              title={"% commits red on master (broken trunk)"}
+              value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
-              queryParams={timeParams}
               badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
@@ -579,10 +577,12 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanelWithValue
-              title={"% commits red on master (broken trunk)"}
-              value={brokenTrunkRed}
+            <ScalarPanel
+              title={"% force merges due to failed PR checks"}
+              queryName={"force_merge_red_avg"}
+              metricName={"force_merges_red"}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
+              queryParams={timeParams}
               badThreshold={(value) => value > 0.2}
             />
             <WorkflowDuration
