@@ -311,7 +311,9 @@ describe("retry-bot", () => {
         200,
         '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
       )
-      .post(`/repos/${owner}/${repo}/actions/jobs/${prev_job_id}/rerun`) // Retry previous job
+      .post(
+        `/repos/${owner}/${repo}/actions/runs/${prev_run_id}/rerun-failed-jobs`
+      ) // Retry previous workflow
       .reply(200)
       .post(
         `/repos/${owner}/${repo}/actions/jobs/${workflow_jobs.jobs[0].id}/rerun` // Retry eligible jobs in the current workflow

@@ -36,15 +36,6 @@ async function retryPreviousWorkflow(
     return;
   }
 
-  if (flakyJobs.length === 1) {
-    // If only one should be rerun, just rerun that job
-    return await ctx.octokit.rest.actions.reRunJobForWorkflowRun({
-      owner,
-      repo,
-      job_id: flakyJobs[0].job_id,
-    });
-  }
-
   // If multiple jobs need to be rerun, rerun everything that failed
   return await ctx.octokit.rest.actions.reRunWorkflowFailedJobs({
     owner,
