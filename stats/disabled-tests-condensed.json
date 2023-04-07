@@ -1323,6 +1323,13 @@
       "linux"
     ]
   ],
+  "test_mutation (__main__.TestFxToOnnxWithOnnxRuntime)": [
+    "98622",
+    "https://github.com/pytorch/pytorch/issues/98622",
+    [
+      "linux"
+    ]
+  ],
   "test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)": [
     "68319",
     "https://github.com/pytorch/pytorch/issues/68319",
