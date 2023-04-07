@@ -155,7 +155,6 @@ function retryBot(app: Probot): void {
     }
 
     if (
-      ctx.payload.workflow_run.conclusion === "success" ||
       (ctx.payload.workflow_run.conclusion === "cancelled" &&
         ctx.payload.workflow_run.head_branch !== defaultBranch) ||
       attemptNumber > 1 ||
@@ -185,19 +184,22 @@ function retryBot(app: Probot): void {
       workflowJobs.push(...data.jobs);
     }
 
-    // Retry jobs from the current workflow
-    await retryCurrentWorkflow(
-      ctx,
-      owner,
-      repo,
-      defaultBranch,
-      workflowName,
-      workflowJobs,
-      runId
-    );
+    if (ctx.payload.workflow_run.conclusion !== "success") {
+      // Retry jobs from the current workflow only when it fails
+      await retryCurrentWorkflow(
+        ctx,
+        owner,
+        repo,
+        defaultBranch,
+        workflowName,
+        workflowJobs,
+        runId
+      );
+    }
 
     // Check if we need to retry flaky jobs from the previous workflow. This is
-    // only supported in trunk
+    // only supported in trunk. Note that this is run whether the workflow fail
+    // or not as it's about the previous workflow
     if (ctx.payload.workflow_run.head_branch === defaultBranch) {
       await retryPreviousWorkflow(
         ctx,
