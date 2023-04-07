@@ -1830,6 +1830,13 @@
       "dynamo"
     ]
   ],
+  "test_transpose_with_norm (__main__.CPUReproTests)": [
+    "98618",
+    "https://github.com/pytorch/pytorch/issues/98618",
+    [
+      "linux"
+    ]
+  ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
