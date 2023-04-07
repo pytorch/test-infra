@@ -2977,7 +2977,7 @@
       "test_custom_ops": 0.09400000000000001,
       "test_dataloader": 157.181,
       "test_datapipe": 5.961999999999999,
-      "test_decomp": 7604.852666666654,
+      "test_decomp": 8604.852666666654,
       "test_deploy": 0.26433333333333336,
       "test_dispatch": 37.43666666666666,
       "test_dlpack": 0.19866666666666677,
