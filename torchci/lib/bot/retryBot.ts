@@ -166,25 +166,25 @@ function retryBot(app: Probot): void {
       return;
     }
 
-    let workflowJobs = [];
-    let total_count = 1;
-    const jobs_per_page = 100;
-    for (let i = 0; i * jobs_per_page < total_count; i++) {
-      const data = (
-        await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
-          owner,
-          repo,
-          run_id: runId,
-          attempt_number: attemptNumber,
-          page: i + 1,
-          per_page: jobs_per_page,
-        })
-      ).data;
-      total_count = data.total_count;
-      workflowJobs.push(...data.jobs);
-    }
-
     if (ctx.payload.workflow_run.conclusion !== "success") {
+      let workflowJobs = [];
+      let total_count = 1;
+      const jobs_per_page = 100;
+      for (let i = 0; i * jobs_per_page < total_count; i++) {
+        const data = (
+          await ctx.octokit.rest.actions.listJobsForWorkflowRunAttempt({
+            owner,
+            repo,
+            run_id: runId,
+            attempt_number: attemptNumber,
+            page: i + 1,
+            per_page: jobs_per_page,
+          })
+        ).data;
+        total_count = data.total_count;
+        workflowJobs.push(...data.jobs);
+      }
+
       // Retry jobs from the current workflow only when it fails
       await retryCurrentWorkflow(
         ctx,
