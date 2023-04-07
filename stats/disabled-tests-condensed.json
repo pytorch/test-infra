@@ -814,13 +814,6 @@
       "linux"
     ]
   ],
-  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95147",
-    "https://github.com/pytorch/pytorch/issues/95147",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93047",
     "https://github.com/pytorch/pytorch/issues/93047",
@@ -1366,13 +1359,6 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
-    [
-      "linux"
-    ]
-  ],
-  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
-    "93325",
-    "https://github.com/pytorch/pytorch/issues/93325",
     [
       "linux"
     ]
