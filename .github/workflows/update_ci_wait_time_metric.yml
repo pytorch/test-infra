@@ -6,7 +6,7 @@ on:
   # Enable triggering this job manually using the API as well
   push:
     branches:
-      - 'zainr/ci-wait-metric'
+      - 'zainr/kpi-ci-wait'
   workflow_dispatch:
 
 jobs:
