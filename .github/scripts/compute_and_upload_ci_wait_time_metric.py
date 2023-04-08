@@ -381,7 +381,7 @@ def upload_stats(pr_stats):
         #         ':w': row['week'].isoformat(),
         #     },
         #     ReturnValues="UPDATED_NEW"
-        # )
+        # ) 
 
     print(f"Finished uploading data to {TABLE_NAME}")
 
