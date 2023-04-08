@@ -107,8 +107,12 @@ def remove_cancelled_jobs(df):
 def normalize_start_times(df):
     # We track each run attempt in a workflow run separately.
     df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
-    df = df.merge(df_grouped['start_time'].min(), on=[
-                  'sha', 'run_attempt', 'workflow_run_id'], how='left', suffixes=('_orig', ''))
+
+    # Suppress warning "FutureWarning: Passing 'suffixes' which cause duplicate columns {'start_time_orig'} in the result is deprecated and will raise a MergeError in a future version."
+    with warnings.catch_warnings():
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+        df = df.merge(df_grouped['start_time'].min(), on=[
+                    'sha', 'run_attempt', 'workflow_run_id'], how='left', suffixes=('_orig', ''))
 
     # Update the duration accordingly
     df['duration_mins'] = round(
