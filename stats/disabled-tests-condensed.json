@@ -427,6 +427,20 @@
       "linux"
     ]
   ],
+  "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "98681",
+    "https://github.com/pytorch/pytorch/issues/98681",
+    [
+      "linux"
+    ]
+  ],
+  "test_conv_transpose2d_unary_dynamic_shapes (__main__.DynamicShapesCodegenCpuTests)": [
+    "98682",
+    "https://github.com/pytorch/pytorch/issues/98682",
+    [
+      "linux"
+    ]
+  ],
   "test_cpp_wrapper_cpu (__main__.CpuTests)": [
     "97194",
     "https://github.com/pytorch/pytorch/issues/97194",
