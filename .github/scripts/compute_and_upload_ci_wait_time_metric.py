@@ -358,13 +358,13 @@ def upload_stats(pr_stats):
         )
 
         updated_prs.append(dynamoKey)
-        if updated_prs % UPDATE_ANNOUNCEMENT_BATCH_SIZE == 0:
+        if len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE == 0:
             # print the last 10 prs updated
             latest_updates = ", ".join(updated_prs[(-UPDATE_ANNOUNCEMENT_BATCH_SIZE):])
             print(f"Updated {latest_updates}")
 
     # print the last batch of prs updated (if any)
-    last_updates = updated_prs % UPDATE_ANNOUNCEMENT_BATCH_SIZE
+    last_updates = len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE
     if last_updates > 0:
         latest_updates = ", ".join(updated_prs[-last_updates:])
         print(f"Updated {latest_updates}")
