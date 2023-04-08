@@ -28,7 +28,7 @@ def query_workflows_from_rockset() -> pd.DataFrame:
         rockset.models.QueryParameter(
             name="from_days_ago",
             type="int",
-            value="360",
+            value="300",
         ),
         rockset.models.QueryParameter(
             name="to_days_ago",
