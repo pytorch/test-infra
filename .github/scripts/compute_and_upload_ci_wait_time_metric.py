@@ -342,7 +342,7 @@ def upload_stats(pr_stats):
                 Key={
                     'dynamoKey': dynamoKey,
                 },
-                UpdateExpression="set pr_number=:p duration_mins=:d, start_time=:s, end_time=:e, num_commits=:n, week=:w",
+                UpdateExpression="set pr_number=:p, duration_mins=:d, start_time=:s, end_time=:e, num_commits=:n, week=:w",
                 ExpressionAttributeValues={
                     ':p': row['pr_number'],
                     ':d': int(row['duration_mins']),
