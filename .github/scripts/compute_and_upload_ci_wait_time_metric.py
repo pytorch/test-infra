@@ -329,6 +329,12 @@ def get_pr_stats() -> pd.DataFrame:
 
     return get_pr_level_stats(runs)
 
+# Shares that the the last num_prs_updated PRs from pr_list have been updated
+def log_recently_updated_prs(pr_list, num_prs_updated):
+    if num_prs_updated > 0:
+        latest_updates = ", ".join(pr_list[(-num_prs_updated):])
+        print(f"Updated PRs: {latest_updates}")
+
 
 def upload_stats(pr_stats):
     print(f"Uploading data to {TABLE_NAME}")
@@ -359,15 +365,10 @@ def upload_stats(pr_stats):
 
         updated_prs.append(dynamoKey)
         if len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE == 0:
-            # print the last 10 prs updated
-            latest_updates = ", ".join(updated_prs[(-UPDATE_ANNOUNCEMENT_BATCH_SIZE):])
-            print(f"Updated {latest_updates}")
+            log_recently_updated_prs(updated_prs, UPDATE_ANNOUNCEMENT_BATCH_SIZE)
 
     # print the last batch of prs updated (if any)
-    last_updates = len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE
-    if last_updates > 0:
-        latest_updates = ", ".join(updated_prs[-last_updates:])
-        print(f"Updated {latest_updates}")
+    log_recently_updated_prs(updated_prs, len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE)
 
     end_time = time.time()
 
