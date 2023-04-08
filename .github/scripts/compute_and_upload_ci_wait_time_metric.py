@@ -323,13 +323,15 @@ def upload_stats(pr_stats):
         dynamoKey = f"{row['week'].isoformat()}_{row['pr_number']}"
 
         # # Check if stats table already has the row
-
+        print (f"Checking for key {dynamoKey}")
         record = statsTable.get_item(
             Key={
                 'dynamoKey': dynamoKey,
                 'pr_number': row['pr_number'],
             }
         )
+
+        print(f"Got record: {record}")
 
         # If record exists, update it
         if 'Item' in record:
@@ -388,6 +390,8 @@ def main() -> None:
 
     print("Uploading stats to dynamo")
     upload_stats(pr_stats)
+
+    return 0
 
 if __name__ == "__main__":
     main()
