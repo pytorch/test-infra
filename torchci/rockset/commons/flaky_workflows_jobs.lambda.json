@@ -2,14 +2,14 @@
   "sql_path": "__sql/flaky_workflows_jobs.sql",
   "default_parameters": [
     {
-      "name": "attempt",
-      "type": "int",
-      "value": "1"
-    },
-    {
       "name": "branches",
       "type": "string",
       "value": "master,main"
+    },
+    {
+      "name": "max_attempt",
+      "type": "int",
+      "value": "1"
     },
     {
       "name": "nextWorkflowId",
@@ -19,7 +19,7 @@
     {
       "name": "numHours",
       "type": "int",
-      "value": "48"
+      "value": "24"
     },
     {
       "name": "repo",

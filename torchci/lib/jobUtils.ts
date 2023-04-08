@@ -64,7 +64,7 @@ export async function getFlakyJobsFromPreviousWorkflow(
           value: branch,
         },
         {
-          name: "attempt",
+          name: "max_attempt",
           type: "int",
           value: "1", // If the job was retried and still failed, it wasn't flaky
         },
