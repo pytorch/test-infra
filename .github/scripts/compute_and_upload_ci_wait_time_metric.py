@@ -327,7 +327,7 @@ def upload_stats(pr_stats):
         record = statsTable.get_item(
             Key={
                 'dynamoKey': dynamoKey,
-                'pr_number': row['pr_number'],
+                'pr_number': str(row['pr_number']),
             }
         )
 
@@ -339,6 +339,7 @@ def upload_stats(pr_stats):
             statsTable.update_item(
                 Key={
                     'dynamoKey': dynamoKey,
+                    'pr_number': str(row['pr_number']),
                 },
                 UpdateExpression="set pr_number=:p duration_mins=:d, start_time=:s, end_time=:e, num_commits=:n, week=:w",
                 ExpressionAttributeValues={
