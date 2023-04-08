@@ -7,7 +7,7 @@
       "value": "master,main"
     },
     {
-      "name": "max_attempt",
+      "name": "maxAttempt",
       "type": "int",
       "value": "1"
     },

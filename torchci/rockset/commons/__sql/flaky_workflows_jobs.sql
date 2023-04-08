@@ -98,8 +98,8 @@ flaky_jobs AS (
     latest_attempts
   WHERE
     (
-      latest_attempts.run_attempt <= : max_attempt
-      OR : max_attempt = 0
+      latest_attempts.run_attempt <= : maxAttempt
+      OR : maxAttempt = 0
     )
 )
 SELECT
