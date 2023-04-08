@@ -327,6 +327,7 @@ def upload_stats(pr_stats):
         record = statsTable.get_item(
             Key={
                 'dynamoKey': dynamoKey,
+                'pr_number': row['pr_number'],
             }
         )
 
