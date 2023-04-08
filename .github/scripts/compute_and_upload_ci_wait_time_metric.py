@@ -330,36 +330,15 @@ def get_pr_stats() -> pd.DataFrame:
     return get_pr_level_stats(runs)
 
 
-def table_exists(table_name: str) -> bool:
-    """
-    Determines whether a table exists. As a side effect, stores the table in
-    a member variable.
-    """
-    exists = None
-    try:
-        table = dynamodb.Table(table_name)
-        table.load()
-        exists = True
-        print(f"Table '{table_name}' exists")
-    except ClientError as err:
-        if err.response["Error"]["Code"] == "ResourceNotFoundException":
-            print(f"Table '{table_name}' does not exist")
-            exists = False
-        else:
-            print("Unknown error")
-            print(err.response)
-    return exists
-
-
 def upload_stats(pr_stats):
     print(f"Uploading data to {TABLE_NAME}")
 
     statsTable = dynamodb.Table(TABLE_NAME)
 
+    start_time = time.time()
     for _, row in pr_stats.iterrows():
         dynamoKey = str(row['pr_number'])
 
-        print("Updating record for key: %s" % dynamoKey)
         statsTable.update_item(
             Key={
                 'dynamoKey': dynamoKey,
@@ -375,7 +354,9 @@ def upload_stats(pr_stats):
             }
         )
 
-    print(f"Finished uploading data to {TABLE_NAME}")
+    end_time = time.time()
+
+    print(f"Finished uploading data to {TABLE_NAME}, updated {pr_stats.shape[0]} rows in  {round((end_time - start_time)/60.0, 1)} minutes")
 
 
 def main() -> None:
