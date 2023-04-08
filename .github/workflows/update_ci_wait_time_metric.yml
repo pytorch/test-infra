@@ -12,7 +12,7 @@ on:
 jobs:
   update-kpi:
     runs-on: ubuntu-22.04
-    if: ${{ github.repository == 'pytorch/pytorch' }}
+    if: ${{ github.repository == 'pytorch/test-infra' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
