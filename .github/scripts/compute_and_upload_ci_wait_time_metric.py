@@ -3,6 +3,7 @@ import time
 import warnings
 import rockset
 import pandas as pd
+import json
 import boto3  # type: ignore[import]
 from botocore.exceptions import ClientError  # type: ignore[import]
 from decimal import Decimal
@@ -24,6 +25,14 @@ def query_workflows_from_rockset() -> pd.DataFrame:
     rs = rockset.RocksetClient(
         host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
+
+    collection = "metrics"
+    queryLambdaName = "completed_pr_jobs_aggregate"
+
+    with open("torchci/rockset/prodVersions.json") as f:
+        prod_versions = json.load(f)
+        version = prod_versions[collection][queryLambdaName]
+
     params = [
         rockset.models.QueryParameter(
             name="from_days_ago",
@@ -43,9 +52,9 @@ def query_workflows_from_rockset() -> pd.DataFrame:
     for page in rockset.QueryPaginator(
         rs,
         rs.QueryLambdas.execute_query_lambda(
-            query_lambda="completed_pr_jobs_aggregate",
-            version="01fc2a697ae85856",
-            workspace="metrics",
+            query_lambda=queryLambdaName,
+            version=version,
+            workspace=collection,
             parameters=params,
             paginate=True,
             initial_paginate_response_doc_count=10000,
