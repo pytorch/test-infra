@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/completed_pr_jobs_aggregate.sql",
+  "default_parameters": [
+    {
+      "name": "from_days_ago",
+      "type": "int",
+      "value": "30"
+    },
+    {
+      "name": "to_days_ago",
+      "type": "int",
+      "value": "0"
+    }
+  ],
+  "description": "Intermediate data for the CI Wait TIme kpi"
+}
