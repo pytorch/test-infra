@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 import rockset
 import pandas as pd
 import boto3 # type: ignore[import]
@@ -241,7 +242,11 @@ def get_pr_level_stats(df):
         num_commits = group['sha'].nunique()
         pr_start_time = group['start_time'].min()
         pr_end_time = group['end_time'].max()
-        week = pr_end_time.to_period('W').start_time
+
+        # Suppress warning "Converting to Period representation will drop timezone information."
+        with warnings.catch_warnings():
+            warnings.simplefilter(action='ignore', category=UserWarning)
+            week = pr_end_time.to_period('W').start_time
 
         # Stats for this PR
         df_results = pd.concat([df_results, pd.DataFrame({
@@ -313,20 +318,18 @@ def table_exists(table_name: str) -> bool:
     return exists
 
 def upload_stats(pr_stats):
-    print(pr_stats.head(30))
-
     print(f"Uploading data to {TABLE_NAME}")
 
     statsTable = dynamodb.Table(TABLE_NAME)
 
     for _, row in pr_stats.iterrows():
-        weekKey = str(row['week'].isoformat())
+        dynamoKey = str(row['pr_number'])
 
         # # Check if stats table already has the row
-        print (f"Checking for key {weekKey}")
+        print (f"Checking for key {dynamoKey}")
         record = statsTable.get_item(
             Key={
-                'week': weekKey,
+                'dynamoKey': dynamoKey,
             }
         )
 
@@ -334,10 +337,10 @@ def upload_stats(pr_stats):
 
         # If record exists, update it
         if 'Item' in record:
-            print("Updating record for week: %s" % weekKey)
+            print("Updating record for key: %s" % dynamoKey)
             statsTable.update_item(
                 Key={
-                    'week': weekKey,
+                    'dynamoKey': dynamoKey,
                 },
                 UpdateExpression="set pr_number=:p duration_mins=:d, start_time=:s, end_time=:e, num_commits=:n, week=:w",
                 ExpressionAttributeValues={
@@ -351,9 +354,10 @@ def upload_stats(pr_stats):
             )
         else:    
             # If it doesn't, insert it
-            print("Inserting record for week: %s" % weekKey)
+            print("Inserting record for key: %s" % dynamoKey)
             statsTable.put_item(
                 Item={
+                    'dynamoKey': dynamoKey,
                     'week': row['week'].isoformat(),
                     'pr_number': row['pr_number'],
                     'duration_mins': int(row['duration_mins']),
