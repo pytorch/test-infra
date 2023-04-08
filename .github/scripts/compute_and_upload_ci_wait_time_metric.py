@@ -335,6 +335,9 @@ def upload_stats(pr_stats):
 
     statsTable = dynamodb.Table(TABLE_NAME)
 
+    UPDATE_ANNOUNCEMENT_BATCH_SIZE = 10
+
+    updated_prs = []
     start_time = time.time()
     for _, row in pr_stats.iterrows():
         dynamoKey = str(row['pr_number'])
@@ -353,6 +356,18 @@ def upload_stats(pr_stats):
                 ':w': row['week'].isoformat(),
             }
         )
+
+        updated_prs.append(dynamoKey)
+        if updated_prs % UPDATE_ANNOUNCEMENT_BATCH_SIZE == 0:
+            # print the last 10 prs updated
+            latest_updates = ", ".join(updated_prs[(-UPDATE_ANNOUNCEMENT_BATCH_SIZE):])
+            print(f"Updated {latest_updates}")
+
+    # print the last batch of prs updated (if any)
+    last_updates = updated_prs % UPDATE_ANNOUNCEMENT_BATCH_SIZE
+    if last_updates > 0:
+        latest_updates = ", ".join(updated_prs[-last_updates:])
+        print(f"Updated {latest_updates}")
 
     end_time = time.time()
 
