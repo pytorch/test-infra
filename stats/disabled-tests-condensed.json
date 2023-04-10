@@ -303,6 +303,16 @@
       "mac"
     ]
   ],
+  "test_bytecode (__main__.LoggingTests)": [
+    "98749",
+    "https://github.com/pytorch/pytorch/issues/98749",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_caching_pinned_memory (__main__.TestCuda)": [
     "79508",
     "https://github.com/pytorch/pytorch/issues/79508",
