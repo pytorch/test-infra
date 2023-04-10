@@ -166,6 +166,16 @@
       "macos"
     ]
   ],
+  "test_aot_joint_graph (__main__.LoggingTests)": [
+    "98736",
+    "https://github.com/pytorch/pytorch/issues/98736",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
