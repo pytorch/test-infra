@@ -11,7 +11,7 @@ import GenerateTestInsightsOverviewTable  from "../../components/metrics/panels/
 import { useRouter } from "next/router";
 const THRESHOLD_IN_SECOND = 60;
 
-export default function individualTestInsights() {
+export default function IndividualTestInsights() {
     const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
     const [stopTime, setStopTime] = useState(dayjs());
     const router = useRouter();
