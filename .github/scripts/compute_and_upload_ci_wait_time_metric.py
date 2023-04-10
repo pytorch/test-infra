@@ -276,7 +276,7 @@ def get_pr_level_stats(df):
         # Suppress warning "Converting to Period representation will drop timezone information."
         with warnings.catch_warnings():
             warnings.simplefilter(action='ignore', category=UserWarning)
-            week = pr_end_time.to_period('W').start_time
+            week = pr_end_time.to_period('W').start_time # The week that CI was last run against the PR. Usually the week it was merged.
 
         # Stats for this PR
         df_results = pd.concat([df_results, pd.DataFrame({
