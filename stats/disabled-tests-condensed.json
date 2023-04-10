@@ -157,6 +157,15 @@
       "macos"
     ]
   ],
+  "test_aot_graphs (__main__.LoggingTests)": [
+    "98726",
+    "https://github.com/pytorch/pytorch/issues/98726",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
@@ -1045,6 +1054,13 @@
   "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "98295",
     "https://github.com/pytorch/pytorch/issues/98295",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94507",
+    "https://github.com/pytorch/pytorch/issues/94507",
     [
       "linux"
     ]
