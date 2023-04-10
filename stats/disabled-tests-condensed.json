@@ -1039,13 +1039,6 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94507",
-    "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93049",
     "https://github.com/pytorch/pytorch/issues/93049",
@@ -1170,13 +1163,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
     ]
   ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
@@ -1401,6 +1387,20 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
+    [
+      "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
+    "98713",
+    "https://github.com/pytorch/pytorch/issues/98713",
+    [
+      "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
+    "93325",
+    "https://github.com/pytorch/pytorch/issues/93325",
     [
       "linux"
     ]
