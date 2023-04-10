@@ -509,6 +509,19 @@
       "dynamo"
     ]
   ],
+  "test_dataclass_output (__main__.DistributedDataParallelTest)": [
+    "98761",
+    "https://github.com/pytorch/pytorch/issues/98761",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>"
+    ]
+  ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
     "78641",
     "https://github.com/pytorch/pytorch/issues/78641",
@@ -640,6 +653,14 @@
     "74714",
     "https://github.com/pytorch/pytorch/issues/74714",
     []
+  ],
+  "test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
+    "79886",
+    "https://github.com/pytorch/pytorch/issues/79886",
+    [
+      "linux",
+      "rocm"
+    ]
   ],
   "test_delayed_optim_step_offload_true_no_shard (__main__.TestParityWithDDP)": [
     "82490",
