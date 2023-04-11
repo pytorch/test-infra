@@ -104,6 +104,13 @@
       "mac"
     ]
   ],
+  "test_all_to_all_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98875",
+    "https://github.com/pytorch/pytorch/issues/98875",
+    [
+      "linux"
+    ]
+  ],
   "test_all_to_all_single_bfp16 (__main__.DistQuantizationTests)": [
     "93933",
     "https://github.com/pytorch/pytorch/issues/93933",
@@ -1100,6 +1107,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93063",
+    "https://github.com/pytorch/pytorch/issues/93063",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1942,6 +1956,13 @@
   "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
     "86711",
     "https://github.com/pytorch/pytorch/issues/86711",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86732",
+    "https://github.com/pytorch/pytorch/issues/86732",
     [
       "linux"
     ]
