@@ -185,6 +185,11 @@ jobs:
             for x in secrets_names
           ]
 
+          print('*****************************')
+          print(os.environ['ALL_SECRETS'])
+          print(all_secrets)
+          print('*****************************')
+
           for sname, senv in zip(secrets_names, secrets_u_names):
             try:
               os.environ[senv] = str(all_secrets[sname])
