@@ -12,7 +12,7 @@ TABLE_NAME = "torchci-metrics-ci-wait-time"
 dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
 
 # Make the records more consistent, and ensure colums are proper typed
-def normalize_workflow_runs(records):
+def normalize_workflow_runs(records: pd.DataFrame) -> pd.DataFrame:
     records['start_time'] = pd.to_datetime(records['start_time'])
     records['end_time'] = pd.to_datetime(records['end_time'])
 
@@ -73,7 +73,7 @@ def query_workflows_from_rockset() -> pd.DataFrame:
     return normalize_workflow_runs(results_df)
 
 
-def remove_cancelled_jobs(df):
+def remove_cancelled_jobs(df: pd.DataFrame) -> pd.DataFrame:
     # Cancelled jobs can fall into one of three categories:
     # 1. The job timed out
     # 2. The run was cancelled by a user's push before any job failed
@@ -86,13 +86,15 @@ def remove_cancelled_jobs(df):
     # Consider timeouts to be a type of failures.
     df['conclusion'] = df.apply(
         lambda row: 'failure' if row['was_timeout'] else row['conclusion'], axis=1)
+    
+    # drop the temporary "was_timeout" column
+    df = df.drop(columns=['was_timeout'])
 
     # For non-timeout cancellations, if the workflows were cancelled _after_ a job already failed, then
     # we say the failure signal gave the "end time" since it provided an actionable signal.
     # This means we can ignore the 'cancelled' jobs for such workflow runs.
     # Thus, if the job failed, and later it's workflow was cancelled then we ignore those cancelled jobs
-    df = df[~((df['conclusion'] == 'cancelled') & (
-        df['sha'].isin(df[df['conclusion'] == 'failure']['sha'])))]
+    df = df[~((df['conclusion'] == 'cancelled') & (df['sha'].isin(df[df['conclusion'] == 'failure']['sha'])))]
 
     # Now the remaining cancelled jobs are the ones cancelled due to additional commits being pushed
     # _before_ a job failed. We can ignore these entire commits since they did't provide any actionable signal.
@@ -104,7 +106,7 @@ def remove_cancelled_jobs(df):
 
 # For each workflow run, set the start_time for the group to the earliest start_time in that group
 # since the first job shows when the user started waiting on CI
-def normalize_start_times(df):
+def normalize_start_times(df: pd.DataFrame) -> pd.DataFrame:
     # We track each run attempt in a workflow run separately.
     df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
 
@@ -117,11 +119,14 @@ def normalize_start_times(df):
     # Update the duration accordingly
     df['duration_mins'] = round(
         (df['end_time'] - df['start_time']).dt.total_seconds() / 60)
+    
+    # Drop the temporary "start_time_orig" column
+    df = df.drop(columns=['start_time_orig'])
 
     return df
 
 
-def ignore_failures_from_retried_jobs(df):
+def ignore_failures_from_retried_jobs(df: pd.DataFrame) -> pd.DataFrame:
     # If this isn't the last run attempt, then the dev was blocked (unable to retry) until the last job completed.
     # Simulate that experience by having all conclusions for jobs that were retried to 'success', since
     # we don't want to stop the clock early
@@ -131,7 +136,7 @@ def ignore_failures_from_retried_jobs(df):
 
 
 # Within a run, if there are both successful and failed jobs, the successful jobs are irrelevant. Let's remove them
-def remove_irrelevant_success_jobs(df):
+def remove_irrelevant_success_jobs(df: pd.DataFrame) -> pd.DataFrame:
     df = normalize_start_times(df)  # Ensure we keep the earliest start times
     print("normalized start times")
 
@@ -146,7 +151,7 @@ def remove_irrelevant_success_jobs(df):
     # If a run attempt has multiple 'success' jobs, preserve the one that ended last
     df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
-        if group[group['conclusion'] == 'successs'].shape[0] > 1:
+        if group[group['conclusion'] == 'success'].shape[0] > 1:
             df = df[~((df['sha'] == sha) & (df['run_attempt'] == run_attempt) & (df['workflow_run_id'] == workflow_run_id) & (
                 df['conclusion'] == 'success') & (df['end_time'] != group['end_time'].max()))]
 
@@ -154,7 +159,7 @@ def remove_irrelevant_success_jobs(df):
 
 
 # Within a run, if there are multiple batches of failed jobs, the one that ends first gave the first signal
-def remove_irrelevant_failure_jobs(df):
+def remove_irrelevant_failure_jobs(df: pd.DataFrame) -> pd.DataFrame:
     df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
         if group[group['conclusion'] == 'failure'].shape[0] > 1:
@@ -165,7 +170,7 @@ def remove_irrelevant_failure_jobs(df):
 
 
 # Some jobs are extra funky. Remove them from our data to donoise it and decomplicate the logic.
-def discard_weird_cases(df):
+def discard_weird_cases(df: pd.DataFrame) -> pd.DataFrame:
     # Multiple PRs could potentially share the same commit in their history
     #  (this only affected 4 PRs over a 6 month window)
     # Discard those PRs.
@@ -211,7 +216,7 @@ class OverlapableTimeSpan:
 # Combine the time spans across all jobs in a PR to get the PR's total duration.
 # Some workflows run in parallel, e.g. pull/trunk, and we don't want to double count time
 # spent waiting on them
-def get_duration_for_pr(pr_df_group):
+def get_duration_for_pr(pr_df_group) -> int:
     logged_timespans = []
     pr_df_group = pr_df_group.sort_values(by=['start_time'])
 
@@ -236,7 +241,7 @@ def get_duration_for_pr(pr_df_group):
     return duration
 
 
-def validate_all_data_has_been_deduped(df):
+def validate_all_data_has_been_deduped(df: pd.DataFrame):
     unduped_jobs = pd.DataFrame(
         columns=['sha', 'run_attempt', 'workflow_run_id'])
 
@@ -259,7 +264,7 @@ def validate_all_data_has_been_deduped(df):
 # We're interested in:
 #  1. The wall clock time spent waiting on the CI per PR
 #  2. The number of commits it had
-def get_pr_level_stats(df):
+def get_pr_level_stats(df: pd.DataFrame) -> pd.DataFrame:
     # Now, all run attempts should have exactly one row. If not, we missed a corner case
     validate_all_data_has_been_deduped(df)
 
