@@ -13,7 +13,7 @@ jobs:
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
-      job-name: "test-secrets-filter-var"
+      job-name: "test-secrets-no-filter-var"
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
