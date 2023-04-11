@@ -1,55 +1,96 @@
-with repeats as (
-    select
-        array_agg(j.id) as ids
-    from
-        workflow_job j
-        join workflow_run w on w.id = j.run_id
-    where
-        j._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        and j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
-        and w.head_repository.full_name = :repo
-        and w.head_branch = :branch
-        AND w.event != 'workflow_run'
-        AND w.event != 'repository_dispatch'
-    group by
-        j.head_sha,
-        j.name,
-        w.name
-    having
-        count(*) > :count
-        and bool_or(
-            j.conclusion in ('failure', 'cancelled', 'time_out')
-        )
-),
-ids as (
-    select
-        ids.id
-    from
-        repeats,
-        unnest(repeats.ids as id) as ids
+WITH flaky_jobs AS (
+  SELECT
+    w.name AS workflow_name,
+    job.name AS job_name,
+    -- Next commit
+    w.id AS next_workflow_id,
+    job.id AS next_job_id,
+    -- The flaky status of the job
+    FIRST_VALUE(job.conclusion) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) = 'success'
+    AND NTH_VALUE(job.conclusion, 2) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) = 'failure'
+    AND LAST_VALUE(job.conclusion) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) = 'success' AS flaky,
+    -- The current commit
+    NTH_VALUE(w.id, 2) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) AS workflow_id,
+    NTH_VALUE(job.id, 2) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) AS job_id,
+    NTH_VALUE(w.run_attempt, 2) OVER(
+      PARTITION BY CONCAT(w.name, ' / ', job.name)
+      ORDER BY
+        push.head_commit.timestamp DESC ROWS BETWEEN CURRENT ROW
+        AND 2 FOLLOWING
+    ) AS workflow_run_attempt,
+  FROM
+    commons.workflow_run w
+    JOIN commons.workflow_job job ON w.id = job.run_id HINT(join_strategy = lookup)
+    JOIN push ON push.head_commit.id = w.head_commit.id
+  WHERE
+    (
+      job._event_time >= CURRENT_DATE() - HOURS(: numHours)
+      OR : numHours = 0
+    )
+    AND w.head_repository.full_name = : repo
+    AND ARRAY_CONTAINS(SPLIT(:branches, ','), w.head_branch)
+    AND ARRAY_CONTAINS(
+      SPLIT(: workflowNames, ','),
+      w.name
+    )
+    AND job.name NOT LIKE '%mem_leak_check%'
+    AND job.name NOT LIKE '%rerun_disabled_tests%'
 )
-select
-    job.head_sha as sha,
-    CONCAT(w.name, ' / ', job.name) as jobName,
-    job.id,
-    job.conclusion,
-    job.html_url as htmlUrl,
-    CONCAT(
-        'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-        CAST(job.id as string)
-    ) as logUrl,
-    DATE_DIFF(
-        'SECOND',
-        PARSE_TIMESTAMP_ISO8601(job.started_at),
-        PARSE_TIMESTAMP_ISO8601(job.completed_at)
-    ) as durationS,
-    w.repository.full_name as repo,
-    job.torchci_classification.line as failureLine,
-    job.torchci_classification.captures as failureCaptures,
-    job.torchci_classification.line_num as failureLineNumber,
-from
-    ids
-    join workflow_job job on job.id = ids.id
-    inner join workflow_run w on w.id = job.run_id
-where
-    job.conclusion in ('failure', 'cancelled', 'time_out')
+SELECT
+  DISTINCT flaky_jobs.workflow_name,
+  flaky_jobs.workflow_id,
+  flaky_jobs.job_name,
+  flaky_jobs.job_id,
+  flaky_jobs.flaky,
+  flaky_jobs.workflow_run_attempt AS run_attempt,
+  flaky_jobs.next_workflow_id,
+  flaky_jobs.next_job_id,
+  annotation.annotation,
+FROM
+  flaky_jobs
+  LEFT JOIN commons.job_annotation annotation on annotation.jobID = flaky_jobs.job_id
+WHERE
+  (
+    (
+      flaky_jobs.flaky
+      AND annotation.annotation IS NULL
+    )
+    OR annotation.annotation = 'TEST_FLAKE'
+  )
+  AND (
+    flaky_jobs.workflow_id = : workflowId
+    OR : workflowId = 0
+  )
+  AND (
+    flaky_jobs.next_workflow_id = : nextWorkflowId
+    OR : nextWorkflowId = 0
+  )
+  AND (
+    flaky_jobs.workflow_run_attempt = : attempt
+    OR : attempt = 0
+  )

@@ -146,6 +146,8 @@ jobs:
           set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
           source "${BUILD_ENV_FILE}"
+          export VSTOOLCHAIN_PACKAGE=vs2019
+          export VSDEVCMD_ARGS=''
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
 

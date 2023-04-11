@@ -159,15 +159,12 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           POST_SCRIPT: ${{ inputs.post-script }}
+          ENV_SCRIPT: ${{ inputs.env-script }}
         if: ${{ inputs.post-script != '' }}
         run: |
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${POST_SCRIPT} ]]; then
-            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
-          fi
+          ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -186,7 +183,7 @@ jobs:
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         env:

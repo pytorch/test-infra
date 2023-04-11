@@ -207,8 +207,8 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_build
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
-    # temporarily remove python 3.11 from conda matrix for release validation
-    if(channel == RELEASE):
+    # remove python 3.11 conda from macos x86
+    if(os == "macos"):
         python_versions = list_without(python_versions, ["3.11"])
 
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
@@ -373,9 +373,7 @@ def generate_wheels_matrix(
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = "" if arch_version == "cpu" else arch_version
-            # Skip rocm 3.11 binaries for now as the docker image are not correct
-            if python_version == "3.11" and gpu_arch_type == "rocm":
-                continue
+
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             ret.append(
                 {

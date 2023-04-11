@@ -23,6 +23,8 @@
   display: flex;
   flex-direction: row;
   padding-bottom: 3px;
+  z-index: 100;
+  position: relative;
 }
 
 .links > ul {

@@ -25,7 +25,6 @@ jobs:
             --base-commit=${{ github.event.pull_request.base.sha }} \
             --head-commit=${{ github.event.pull_request.head.sha }}
 
-      docker-image: buildpack-deps:scm
       runner: linux.large
 
   black:
