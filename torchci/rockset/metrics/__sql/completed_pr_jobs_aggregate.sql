@@ -28,11 +28,13 @@ WITH
             AND j._event_time < (CURRENT_DATETIME() - DAYS(:to_days_ago))
             AND r._event_time < (CURRENT_DATETIME() - DAYS(:to_days_ago))
             AND LENGTH(r.pull_requests) = 1
-            AND r.head_branch NOT IN ('master', 'main', 'nightly')
+            AND r.head_branch NOT IN ('master', 'main', 'nightly', 'viable/strict')
             AND r.pull_requests[1].head.repo.name = 'pytorch'
-            AND r.name IN ('pull', 'trunk', 'Lint') -- Ensure we don't pull in random PRs we don't care about
+            AND r.name IN ('pull', 'trunk', 'Lint') 
+            -- Ensure we don't pull in random PRs we don't care about
             AND (
                 r.pull_requests[1].base.ref = 'master'
+                OR r.pull_requests[1].base.ref = 'main'
                 OR r.pull_requests[1].base.ref like 'gh/%/base'
             )
         GROUP BY
@@ -70,17 +72,14 @@ WITH
             j.run_attempt, -- the attemp # this job was run on
             r.run_attempt AS total_attempts,
             r.id AS workflow_run_id,
-            min(j._event_time) AS start_time,
+            min(r.run_started_at) AS start_time,
             max(PARSE_TIMESTAMP_ISO8601(j.completed_at)) AS end_time,
             DATE_DIFF(
                 'MINUTE',
                 min(j._event_time),
                 max(PARSE_TIMESTAMP_ISO8601(j.completed_at))
             ) AS duration_mins,
-            CONCAT(
-                'https://github.com/pytorch/pytorch/actions/runs/',
-                r.id
-            ) AS workflow_url, -- for debugging
+            r.html_url AS workflow_url, -- for debugging
             s.url, -- for debugging 
         FROM
             commons.workflow_job j
@@ -88,10 +87,6 @@ WITH
             INNER JOIN commons.workflow_run r on j.run_id = r.id
         WHERE
             1 = 1
-            AND j._event_time > (
-                CURRENT_DATETIME() - DAYS(:from_days_ago)
-            )
-            AND j._event_time < (CURRENT_DATETIME() - DAYS(:to_days_ago))
             AND (
                 r.name IN ('pull', 'trunk', 'Lint')
                 OR r.name like 'linux-binary%'
@@ -111,7 +106,8 @@ WITH
             workflow_run_id,
             workflow_url
     )
-SELECT  
+SELECT
     *
 FROM
     commit_job_durations
+ORDER BY pr_number DESC
