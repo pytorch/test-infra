@@ -164,14 +164,25 @@ jobs:
 
           def run_cmd_or_die(cmd):
             print(f'Running command: {cmd}')
-            p = subprocess.Popen("/bin/sh", stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
-            p.stdin.write('set -e\n'.encode('utf-8'))
-            p.stdin.write(cmd.encode('utf-8'))
-            p.stdin.write('\nexit $?\n'.encode('utf-8'))
+            p = subprocess.Popen("/bin/bash", stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True)
+            p.stdin.write('set -e\n')
+            p.stdin.write(cmd)
+            p.stdin.write('\nexit $?\n')
             p.stdin.close()
-            exit_code = p.wait()
-            result = p.stdout.read().decode('utf-8')
-            print(result)
+
+            result = ''
+            while p.poll() is None:
+              line = p.stdout.readline()
+              if line:
+                print(line, end='')
+                result += line
+
+            # Read any remaining output
+            for line in p.stdout:
+              print(line, end='')
+              result += line
+
+            exit_code = p.returncode
             if exit_code != 0:
               raise RuntimeError(f'Command {cmd} failed with exit code {exit_code}')
             return result
