@@ -79,6 +79,8 @@ jobs:
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
+      # Will be blank outside of this
+      PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
@@ -154,7 +156,9 @@ jobs:
           # detached container should get cleaned up by teardown_ec2_linux
           # shellcheck disable=SC2086,SC2090
           container_name=$(docker run \
+            -e PR_NUMBER \
             -e RUNNER_ARTIFACT_DIR=/artifacts \
+            -e RUNNER_DOCS_DIR=/docs \
             -e RUNNER_TEST_RESULTS_DIR=/test-results \
             --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
             `# It is unknown why the container sees a different value for this.` \
@@ -170,6 +174,7 @@ jobs:
             -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
             -v "${GITHUB_WORKSPACE}/test-infra:/test-infra" \
             -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
+            -v "${RUNNER_DOCS_DIR}:/docs" \
             -v "${RUNNER_TEST_RESULTS_DIR}:/test-results" \
             -v "${RUNNER_TEMP}/exec_script:/exec" \
             -v "${GITHUB_STEP_SUMMARY}":"${GITHUB_STEP_SUMMARY}" \
@@ -191,26 +196,37 @@ jobs:
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
 
-      - name: Chown artifacts
+      - name: Chown runner temp
         if: ${{ always() }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
-          directory: ${{ env.RUNNER_ARTIFACT_DIR }}
+          directory: ${{ env.RUNNER_TEMP }}
 
-      - name: Check if there are potential artifacts and move them to the correct artifact location
+      - name: Prepare artifacts for upload
         working-directory: ${{ inputs.repository }}
         id: check-artifacts
-        if: ${{ inputs.upload-artifact != '' }}
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
         run: |
-          # If the default execution path is followed then we should get a wheel in the dist/ folder
-          # attempt to just grab whatever is in there and scoop it all up
-          if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
-            mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+          # Only do these steps if we actually want to upload an artifact
+          if [[ -n "${UPLOAD_ARTIFACT_NAME}" ]]; then
+            # If the default execution path is followed then we should get a wheel in the dist/ folder
+            # attempt to just grab whatever is in there and scoop it all up
+            if find "dist/" -name "*.whl" >/dev/null 2>/dev/null; then
+              mv -v dist/*.whl "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            # Set to fail upload step if there are no files for upload and expected files for upload
+            echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
           fi
-          # Set to fail upload step if there are no files for upload and expected files for upload
-          echo 'if-no-files-found=error' >> "${GITHUB_OUTPUT}"
+
+          upload_docs=0
+          # Check if there are things in the documentation folder to uplaod
+          if find "${RUNNER_DOCS_DIR}" -mindepth 1 -maxdepth 1 | read -r; then
+            # TODO: Add a check here to test if on ec2 because if we're not on ec2 then this
+            # upload will probably not work correctly
+            upload_docs=1
+          fi
+          echo "upload-docs=${upload_docs}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@v3
@@ -219,6 +235,27 @@ jobs:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+
+      # TODO: Remove once we converge on documentation paths
+      - name: (legacy) Upload documentation to S3 (if any)
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
+        with:
+          retention-days: 14
+          s3-bucket: doc-previews
+          if-no-files-found: error
+          path: ${{ env.RUNNER_DOCS_DIR }}
+          s3-prefix: pytorch/${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
+
+      - name: Upload documentation to S3 (if any)
+        uses: seemethere/upload-artifact-s3@v5
+        if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
+        with:
+          retention-days: 14
+          s3-bucket: doc-previews
+          if-no-files-found: error
+          path: ${{ env.RUNNER_DOCS_DIR }}
+          s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Teardown Linux
         if: ${{ always() }}
