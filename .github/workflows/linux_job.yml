@@ -215,7 +215,7 @@ jobs:
               -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
               -w /work \
               "{ os.environ.get('DOCKER_IMAGE', '') }"
-          ''')
+          ''').replace('\n', '').strip()
           run_cmd_or_die(f'docker exec -t {container_name} /exec')
           EOF
 
