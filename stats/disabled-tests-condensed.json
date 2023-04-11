@@ -826,11 +826,6 @@
       "windows"
     ]
   ],
-  "test_fd_pool (__main__.TestMultiprocessing)": [
-    "69660",
-    "https://github.com/pytorch/pytorch/issues/69660",
-    []
-  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
