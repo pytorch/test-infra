@@ -150,7 +150,7 @@ jobs:
           set -ex
           {
             echo "#!/usr/bin/env bash";
-            echo "set -eou pipefail";
+            echo "set -exou pipefail";
             # shellcheck disable=SC2016
             echo 'eval "$(conda shell.bash hook)"';
             echo "${SCRIPT}";
