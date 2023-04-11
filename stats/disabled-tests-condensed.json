@@ -1486,6 +1486,13 @@
       "linux"
     ]
   ],
+  "test_optim_state_dict_nested_state_dict_type_StateDictType_FULL_STATE_DICT_use_multiple_param_groups_False_rank0_only_True_use_diff_optim_inputs_False (__main__.TestFSDPOptimState)": [
+    "98821",
+    "https://github.com/pytorch/pytorch/issues/98821",
+    [
+      "linux"
+    ]
+  ],
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
