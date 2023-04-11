@@ -1,11 +1,8 @@
 name: Update CI Wait Time Metric
 on:
   schedule:
-    # Update the indices every 6 hours
-    - cron: "30 */6 * * *"
-  push:
-    branches:
-      - 'zainr/kpi-ci-wait' # to be removed before merging
+    # Update the indices every day at 5am
+    - cron: "0 5 * * *"
   # Enable triggering this job manually using the API as well 
   workflow_dispatch:
 
