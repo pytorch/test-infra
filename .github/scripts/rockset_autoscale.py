@@ -11,9 +11,16 @@ scale_up_size = "XLARGE"
 
 virtual_instance_id = "9a1d7e17-7601-431b-80ef-3e25cf6e76a9"
 
-rs = rockset.RocksetClient(
-    host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-)
+# Global rockset client, to be initialized later so that it doesn't affect unit tests
+rs = None
+
+
+def setup_rockset_client():
+    global rs
+    rs = rockset.RocksetClient(
+        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+    )
+
 
 def get_virtual_instance_status():
     try:
@@ -28,10 +35,8 @@ def get_virtual_instance_status():
 
 def get_desired_size_at_time(time: datetime, scale_up_time: time = scale_up_time, scale_down_time: time = scale_down_time) -> str:
     if time >= scale_down_time and time < scale_up_time:
-        print(f"Scaling down to {scale_down_size}")
         new_size = scale_down_size
     else:
-        print(f"Scaling up to {scale_up_size}")
         new_size = scale_up_size
 
     return new_size
@@ -78,8 +83,13 @@ def scale_virtual_instance(desired_size) -> None:
 
     print(f"Virtual instance is now {vi_status.data.state} and scaled to {vi_status.data.size}")
 
+
 def main() -> None:
+    setup_rockset_client()
+
     new_size = get_desired_size_right_now()
+    print(f"Desired size: {new_size}")
+
     if not is_scaling_needed(new_size):
         return 0
     
