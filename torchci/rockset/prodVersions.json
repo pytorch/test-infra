@@ -62,7 +62,7 @@
     "tts_percentile": "912c8ad61a1772a4",
     "tts_duration_historical": "67a356d17b37f6fb",
     "tts_duration_historical_percentile": "f6824cbe03e1b6d8",
-    "strict_lag_sec": "f9523e8c8c3a3311",
+    "strict_lag_sec": "39b76554fcb22e18",
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",

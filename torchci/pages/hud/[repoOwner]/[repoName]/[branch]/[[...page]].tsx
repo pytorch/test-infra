@@ -414,6 +414,29 @@ export default function Hud() {
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
+
+  // Get data about viable/strict lag for the current repo, if it exists
+  const strictLagParams: RocksetParam[] = [
+    {
+      repo: "repo",
+      type: "string",
+      value: params.repoOwner,
+    },
+    {
+      name: "head",
+      type: "string",
+      value: params.repoOwner === "pytorch" ? "refs/heads/master" : "refs/heads/main",
+    },
+  ];
+  const url = `/api/query/metrics/strict_lag_sec?parameters=${encodeURIComponent(
+    JSON.stringify(strictLagParams)
+  )}`;
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  });
+
+  const viableStrictLag = data === undefined || data.length === 0 ? undefined : `viable/strict lag: ${data[0]["strict_lag_sec"]}h`;
+
   return (
     <>
       <Head>
@@ -424,6 +447,7 @@ export default function Hud() {
           <div onClick={handleClick}>
             <HudHeader params={params} />
             <div>This page automatically updates.</div>
+            <div>{viableStrictLag}</div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
           </div>
