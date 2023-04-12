@@ -34,4 +34,4 @@ jobs:
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
         run: |
-          python3 .github/scripts/rockset_autoscale.py
+          python3 tools/scripts/rockset_autoscale.py

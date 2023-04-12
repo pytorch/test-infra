@@ -1,6 +1,6 @@
 from unittest import TestCase, main
 from datetime import time
-from rockset_autoscale import get_desired_size_at_time, scale_down_size, scale_up_size
+from tools.scripts.rockset_autoscale import get_desired_size_at_time, scale_down_size, scale_up_size
 
 class TestRocksetAutoscale(TestCase):
     def test_wants_to_scale_down_during_scale_down_window(self):
