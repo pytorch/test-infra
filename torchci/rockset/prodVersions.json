@@ -31,7 +31,8 @@
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "ff332d025976c103",
-    "strict_lag_historical": "d2a09d13caf8b76a"
+    "strict_lag_historical": "d2a09d13caf8b76a",
+    "ci_wait_time": "b1080f26b20ea142"
   },
   "metrics": {
     "correlation_matrix": "35c05e04047123f0",
@@ -66,7 +67,8 @@
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
-    "workflow_load": "48428f8a7c541b76"
+    "workflow_load": "48428f8a7c541b76",
+    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
   },
   "inductor": {
     "compilers_benchmark_performance": "d3434f5f6c89f51c",
