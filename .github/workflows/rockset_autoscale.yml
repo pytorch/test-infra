@@ -1,4 +1,4 @@
-name: Update CI Wait Time Metric
+name: Scale Rockset VM
 on:
   schedule:
     # Trigger scaling at 8:10am PST and 8:10pm PST on Weekdays (note: chron schedule is in UTC) 
