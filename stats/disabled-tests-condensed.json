@@ -1205,6 +1205,13 @@
       "macos"
     ]
   ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93417",
+    "https://github.com/pytorch/pytorch/issues/93417",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93046",
     "https://github.com/pytorch/pytorch/issues/93046",
