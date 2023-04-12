@@ -50,7 +50,7 @@ def get_desired_size_right_now() -> str:
 
 def is_scaling_needed(desired_size) -> bool:
     vi_status = get_virtual_instance_status()
-    current_size = vi_status.data.size
+    current_size = vi_status.data.desired_size
 
     if desired_size == current_size:
         print(f"Virtual instance is already at size {current_size}")
@@ -81,7 +81,7 @@ def scale_virtual_instance(desired_size) -> None:
         
         vi_status = get_virtual_instance_status()
 
-    print(f"Virtual instance is now {vi_status.data.state} and scaled to {vi_status.data.size}")
+    print(f"Virtual instance is now {vi_status.data.state} and scaled to {vi_status.data.current_size}")
 
 
 def main() -> None:
