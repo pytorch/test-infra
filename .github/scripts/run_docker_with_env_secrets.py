@@ -1,4 +1,8 @@
-import json, os, re, subprocess
+import json
+import os
+import re
+import subprocess
+import sys
 
 def run_cmd_or_die(cmd):
     print(f'Running command: {cmd}')
@@ -28,7 +32,7 @@ def run_cmd_or_die(cmd):
 
 def main():
     all_secrets = json.loads(os.environ['ALL_SECRETS'])
-    secrets_names = [x for x in '${{ inputs.secrets-env }}'.split(' ') if x]
+    secrets_names = [x for x in sys.argv[1].split(' ') if x]
     if not secrets_names:
         secrets_names = [x for x in all_secrets.keys()]
     secrets_u_names = [
