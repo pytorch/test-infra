@@ -39,6 +39,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -418,7 +419,7 @@ export default function Hud() {
   // Get data about viable/strict lag for the current repo, if it exists
   const strictLagParams: RocksetParam[] = [
     {
-      repo: "repo",
+      name: "repo",
       type: "string",
       value: params.repoOwner,
     },
