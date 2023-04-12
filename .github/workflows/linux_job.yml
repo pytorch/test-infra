@@ -41,7 +41,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: ""
         type: string
       docker-image:
         description: Identifies the Docker image by name.
