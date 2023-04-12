@@ -6,10 +6,9 @@ on:
     - cron: "10 3,15 * * 1-5"
     # Also trigger it on Saturday morning UTC, since that'll be Fri evening PST. This scales it down for the weekend
     - cron: "10 3 * * 6"
-  # Enable triggering this job manually using the API as well. For testing only
   push:
     branches:
-      - "zainr/rockset-autoscale" # to be removed before merging
+      - "zainr/rockset-autoscale" # For testing. To be removed before merging
   workflow_dispatch:
 
 jobs:
