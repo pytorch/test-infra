@@ -41,7 +41,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: ""
+        default: "main"
         type: string
       docker-image:
         description: Identifies the Docker image by name.
@@ -100,12 +100,21 @@ jobs:
           echo "::endgroup::"
 
       - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
-        uses: actions/checkout@v3
-        with:
-          # Support the use case where we need to checkout someone's fork
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
+        run: |
+          CURR_REF=$(echo "${{ inputs.test-infra-ref }}" | sed 's#refs/heads/##' | sed 's#refs/tags/##' | sed 's#refs/pull/##' | sed 's#/merge##')
+          git clone --no-checkout --sparse --depth=1 --single-branch --branch=${CURR_REF} https://github.com/pytorch/test-infra.git "${{ github.workspace }}/test-infra/"
+          cd "${{ github.workspace }}/test-infra/"
+          git sparse-checkout init --cone
+          git sparse-checkout set .github
+          git checkout
+
+      # - name: Checkout repository (${{ inputs.test-infra-repository }}@${{ inputs.test-infra-ref }})
+      #   uses: actions/checkout@v3
+      #   with:
+      #     # Support the use case where we need to checkout someone's fork
+      #     repository: ${{ inputs.test-infra-repository }}
+      #     ref: ${{ inputs.test-infra-ref }}
+      #     path: test-infra
 
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
