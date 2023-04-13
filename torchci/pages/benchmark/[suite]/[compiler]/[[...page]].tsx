@@ -380,6 +380,11 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
                     return styles.ok;
                   }
@@ -414,7 +419,9 @@ function ModelPanel({
                   return l;
                 } else {
                   return `${r} → ${l} ${
-                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
+                      ? "\uD83D\uDD3B"
+                      : ""
                   }`;
                 }
               },
@@ -437,6 +444,11 @@ function ModelPanel({
                     ? styles.warning
                     : "";
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (
                     l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
                     r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
@@ -478,7 +490,7 @@ function ModelPanel({
                   return l;
                 } else {
                   return `${r} → ${l} ${
-                    Number(l) > Number(r) && Number(r) != 0
+                    Number(l) > Number(r) && Number(r) != 0 && Number(l) != 0
                       ? "\uD83D\uDD3A"
                       : ""
                   }`;
@@ -501,6 +513,11 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (
                     l >= COMPRESSION_RATIO_THRESHOLD &&
                     r < COMPRESSION_RATIO_THRESHOLD
@@ -541,7 +558,9 @@ function ModelPanel({
                   return l;
                 } else {
                   return `${r} → ${l} ${
-                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
+                      ? "\uD83D\uDD3B"
+                      : ""
                   }`;
                 }
               },
