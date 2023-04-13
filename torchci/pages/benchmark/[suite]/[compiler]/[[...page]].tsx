@@ -55,9 +55,9 @@ import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 import CopyLink from "components/CopyLink";
 
-const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
+const ROW_HEIGHT = 38;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
@@ -237,8 +237,8 @@ function ModelPanel({
   });
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} lg={12} height={TABLE_ROW_HEIGHT + ROW_GAP}>
+    <Grid container spacing={2} style={{ height: "100%" }}>
+      <Grid item xs={12} lg={12} height={data.length * ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -357,7 +357,7 @@ function ModelPanel({
                   return "";
                 }
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
                 } else {
                   return `${v.r} → ${v.l}`;
@@ -410,7 +410,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -474,7 +474,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(0);
                 const r = Number(v.r).toFixed(0);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -537,7 +537,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -1001,7 +1001,10 @@ export default function Page() {
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&model=${model}`}
+          textToCopy={
+            `${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            (model === undefined ? "" : `&model=${model}`)
+          }
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

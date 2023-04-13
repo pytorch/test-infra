@@ -980,7 +980,7 @@ function SummaryPanel({
                       return "";
                     }
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{v.l}</a>;
                     } else {
                       return (
@@ -1059,7 +1059,7 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
@@ -1134,7 +1134,7 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}s</a>;
                     } else {
                       return (
@@ -1222,7 +1222,7 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
