@@ -53,6 +53,7 @@ import {
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
+import CopyLink from "components/CopyLink";
 
 const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
@@ -888,6 +889,7 @@ export default function Page() {
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
@@ -930,6 +932,8 @@ export default function Page() {
     if (rCommit !== undefined) {
       setRCommit(rCommit);
     }
+
+    setBaseUrl(`${window.location.host}${router.pathname}`);
   }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
@@ -986,6 +990,9 @@ export default function Page() {
           TorchInductor Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
+        <CopyLink
+          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+        />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker

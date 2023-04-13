@@ -36,6 +36,7 @@ import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
 import { useRouter } from "next/router";
+import CopyLink from "components/CopyLink";
 
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
@@ -1567,6 +1568,8 @@ function Report({
   rBranch: string;
   rCommit: string;
 }) {
+  const router = useRouter();
+
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
 
@@ -1678,9 +1681,25 @@ export default function Page() {
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
+    const startTime: string = (router.query.startTime as string) ?? undefined;
+    if (startTime !== undefined) {
+      setStartTime(dayjs(startTime));
+    }
+
+    const stopTime: string = (router.query.stopTime as string) ?? undefined;
+    if (stopTime !== undefined) {
+      setStopTime(dayjs(stopTime));
+    }
+
+    const suite: string = (router.query.suite as string) ?? undefined;
+    if (suite !== undefined) {
+      setSuite(suite);
+    }
+
     const mode: string = (router.query.mode as string) ?? undefined;
     if (mode !== undefined) {
       setMode(mode);
@@ -1710,6 +1729,8 @@ export default function Page() {
     if (rCommit !== undefined) {
       setRCommit(rCommit);
     }
+
+    setBaseUrl(`${window.location.host}${router.pathname}`);
   }, [router.query]);
 
   const queryParams: RocksetParam[] = [
@@ -1751,6 +1772,9 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           TorchInductor Performance DashBoard
         </Typography>
+        <CopyLink
+          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+        />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
@@ -1758,7 +1782,12 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_N_DAYS}
+          defaultValue={
+            router.query.startTime !== undefined &&
+            router.query.stopTime !== undefined
+              ? -1
+              : LAST_N_DAYS
+          }
         />
         <GranularityPicker
           granularity={granularity}
