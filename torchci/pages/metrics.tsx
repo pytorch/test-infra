@@ -262,7 +262,7 @@ export function TimeRangePicker({
 }) {
   // User-selected time range. If it's a number, the range is (#days to now). If
   // it's -1, the time range has been to a custom value.
-  const [timeRange, setTimeRange] = useState<number>(7);
+  const [timeRange, setTimeRange] = useState<number>(defaultValue ?? 7);
 
   function updateTimeRange() {
     if (timeRange === -1) {

@@ -144,6 +144,8 @@ function CommitPanel({
 }
 
 function ModelPanel({
+  startTime,
+  stopTime,
   suite,
   mode,
   dtype,
@@ -156,6 +158,8 @@ function ModelPanel({
   rCommit,
   rData,
 }: {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   suite: string;
   mode: string;
   dtype: string;
@@ -268,7 +272,7 @@ function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
                   return (
@@ -737,6 +741,8 @@ function GraphPanel({
 
 function Report({
   queryParams,
+  startTime,
+  stopTime,
   granularity,
   suite,
   mode,
@@ -749,6 +755,8 @@ function Report({
   rCommit,
 }: {
   queryParams: RocksetParam[];
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   granularity: Granularity;
   suite: string;
   mode: string;
@@ -843,6 +851,8 @@ function Report({
         rCommit={rCommit}
       />
       <ModelPanel
+        startTime={startTime}
+        stopTime={stopTime}
         suite={suite}
         mode={mode}
         dtype={dtype}
@@ -881,6 +891,16 @@ export default function Page() {
 
   // Set the dropdown value what is in the param
   useEffect(() => {
+    const startTime: string = (router.query.startTime as string) ?? undefined;
+    if (startTime !== undefined) {
+      setStartTime(dayjs(startTime));
+    }
+
+    const stopTime: string = (router.query.stopTime as string) ?? undefined;
+    if (stopTime !== undefined) {
+      setStopTime(dayjs(stopTime));
+    }
+
     const mode: string = (router.query.mode as string) ?? undefined;
     if (mode !== undefined) {
       setMode(mode);
@@ -973,7 +993,7 @@ export default function Page() {
           stopTime={stopTime}
           setStartTime={setStartTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_N_DAYS}
+          defaultValue={-1}
         />
         <GranularityPicker
           granularity={granularity}
@@ -1007,6 +1027,8 @@ export default function Page() {
       <Grid item xs={12}>
         <Report
           queryParams={queryParams}
+          startTime={startTime}
+          stopTime={stopTime}
           granularity={granularity}
           suite={suite}
           mode={mode}

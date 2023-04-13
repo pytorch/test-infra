@@ -35,6 +35,7 @@ import GranularityPicker from "components/GranularityPicker";
 import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
+import { useRouter } from "next/router";
 
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
@@ -863,6 +864,8 @@ function extractPercentage(value: string) {
 }
 
 function SummaryPanel({
+  startTime,
+  stopTime,
   mode,
   dtype,
   lBranch,
@@ -872,6 +875,8 @@ function SummaryPanel({
   rCommit,
   rData,
 }: {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   mode: string;
   dtype: string;
   lBranch: string;
@@ -965,7 +970,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -1048,7 +1053,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -1123,7 +1128,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
@@ -1211,7 +1216,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
@@ -1539,6 +1544,8 @@ function GraphPanel({
 
 function Report({
   queryParams,
+  startTime,
+  stopTime,
   granularity,
   suite,
   mode,
@@ -1549,6 +1556,8 @@ function Report({
   rCommit,
 }: {
   queryParams: RocksetParam[];
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   granularity: Granularity;
   suite: string;
   mode: string;
@@ -1631,6 +1640,8 @@ function Report({
         date={lData[0].granularity_bucket}
       />
       <SummaryPanel
+        startTime={startTime}
+        stopTime={stopTime}
         mode={mode}
         dtype={dtype}
         lBranch={lBranch}
@@ -1653,6 +1664,8 @@ function Report({
 }
 
 export default function Page() {
+  const router = useRouter();
+
   const [startTime, setStartTime] = useState(
     dayjs().subtract(LAST_N_DAYS, "day")
   );
@@ -1665,6 +1678,39 @@ export default function Page() {
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
+
+  // Set the dropdown value what is in the param
+  useEffect(() => {
+    const mode: string = (router.query.mode as string) ?? undefined;
+    if (mode !== undefined) {
+      setMode(mode);
+    }
+
+    const dtype: string = (router.query.dtype as string) ?? undefined;
+    if (dtype !== undefined) {
+      setDType(dtype);
+    }
+
+    const lBranch: string = (router.query.lBranch as string) ?? undefined;
+    if (lBranch !== undefined) {
+      setLBranch(lBranch);
+    }
+
+    const lCommit: string = (router.query.lCommit as string) ?? undefined;
+    if (lCommit !== undefined) {
+      setLCommit(lCommit);
+    }
+
+    const rBranch: string = (router.query.rBranch as string) ?? undefined;
+    if (rBranch !== undefined) {
+      setRBranch(rBranch);
+    }
+
+    const rCommit: string = (router.query.rCommit as string) ?? undefined;
+    if (rCommit !== undefined) {
+      setRCommit(rCommit);
+    }
+  }, [router.query]);
 
   const queryParams: RocksetParam[] = [
     {
@@ -1747,6 +1793,8 @@ export default function Page() {
       <Grid item xs={12}>
         <Report
           queryParams={queryParams}
+          startTime={startTime}
+          stopTime={stopTime}
           granularity={granularity}
           suite={suite}
           mode={mode}
