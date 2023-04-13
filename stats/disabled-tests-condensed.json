@@ -261,6 +261,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
+    "98998",
+    "https://github.com/pytorch/pytorch/issues/98998",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98046",
     "https://github.com/pytorch/pytorch/issues/98046",
@@ -1025,6 +1032,11 @@
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo)": [
     "71183",
     "https://github.com/pytorch/pytorch/issues/71183",
+    []
+  ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
     []
   ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
