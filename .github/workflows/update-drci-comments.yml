@@ -27,3 +27,10 @@ jobs:
           --url 'https://www.torch-ci.com/api/drci/drci' \
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
           --data 'repo=vision'
+
+      - name: Retrieve rockset query results and update Dr. CI comments for the Vision repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=audio'
