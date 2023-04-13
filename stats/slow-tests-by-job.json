@@ -711,3 +711,4 @@
     "test_worker_seed_reproducibility (__main__.TestDataLoader)": 71.03133333333334,
     "test_worker_seed_reproducibility (__main__.TestDataLoaderPersistentWorkers)": 62.50266666666667
   }
+}
