@@ -254,6 +254,13 @@
       "mac"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
+    "99026",
+    "https://github.com/pytorch/pytorch/issues/99026",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "97753",
     "https://github.com/pytorch/pytorch/issues/97753",
