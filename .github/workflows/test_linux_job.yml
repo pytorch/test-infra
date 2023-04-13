@@ -9,6 +9,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  test-secrets-no-filter-var:
+    uses: ./.github/workflows/linux_job.yml
+    secrets: inherit
+    with:
+      job-name: "test-secrets-no-filter-var"
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+  test-secrets-filter-var:
+    uses: ./.github/workflows/linux_job.yml
+    secrets: inherit
+    with:
+      job-name: "test-secrets-filter-var"
+      runner: linux.2xlarge
+      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
@@ -75,6 +100,27 @@ jobs:
       download-artifact: my-cool-artifact
       script: |
         grep  "hello" "${RUNNER_ARTIFACT_DIR}/cool_beans"
+  upload-docs:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        echo "hello" > "${RUNNER_DOCS_DIR}/index.html"
+  verify-upload-docs:
+    needs: upload-docs
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      script: |
+        # Sleep a couple of seconds just in case S3 is being slow (might not be needed?)
+        sleep 10
+        # TODO: Change this eventually to reflect new url path, see https://github.com/pytorch/test-infra/issues/3894
+        REPO_NAME="$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f2)"
+        curl -fsSL "https://docs-preview.pytorch.org/${REPO_NAME}/${PR_NUMBER}/index.html" | grep "hello"
   test-with-matrix:
     uses: ./.github/workflows/linux_job.yml
     strategy:

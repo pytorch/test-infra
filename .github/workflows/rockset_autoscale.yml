@@ -1,0 +1,37 @@
+name: Scale Rockset VM
+on:
+  schedule:
+    # Trigger scaling at 8:10am PST and 8:10pm PST on Weekdays (note: chron schedule is in UTC) 
+    # We do 10 mins past the hour to account for any clock skew on the machine this job runs on
+    - cron: "10 3,15 * * 1-5"
+    # Also trigger it on Saturday morning UTC, since that'll be Fri evening PST. This scales it down for the weekend
+    - cron: "10 3 * * 6"
+  push:
+    branches:
+      - "zainr/rockset-autoscale" # For testing. To be removed before merging
+  workflow_dispatch:
+
+jobs:
+  autoscale-rockset:
+    runs-on: ubuntu-22.04
+    if: ${{ github.repository == 'pytorch/test-infra' }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+          architecture: x64
+          cache: pip
+
+      - name: Install Python Packages
+        run: |
+          pip3 install rockset==1.0.3
+
+      - name: Scale the Rockset DB up or down based on time of day
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+        run: |
+          python3 tools/scripts/rockset_autoscale.py

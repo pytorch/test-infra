@@ -90,6 +90,11 @@ function NavBar() {
               </Link>
             </li>
             <li>
+              <Link prefetch={false} href="/benchmark/compilers">
+                TorchInductor
+              </Link>
+            </li>
+            <li>
               <span style={{ cursor: "pointer" }}>
                 <Link
                   href="https://github.com/pytorch/test-infra/tree/main/torchci"

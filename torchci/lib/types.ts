@@ -146,6 +146,19 @@ export interface JobsPerCommitData {
   successes: string[];
 }
 
+export interface CompilerPerformanceData {
+  accuracy: string;
+  compilation_latency: number;
+  compiler: string;
+  compression_ratio: number;
+  granularity_bucket: string;
+  name: string;
+  speedup: number;
+  suite: string;
+  workflow_id: number;
+  job_id?: number;
+}
+
 export enum JobAnnotation {
   NULL = "None",
   BROKEN_TRUNK = "Broken Trunk",
