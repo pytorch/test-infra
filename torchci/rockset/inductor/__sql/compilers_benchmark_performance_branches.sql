@@ -1,7 +1,10 @@
 SELECT DISTINCT
   w.head_branch,
   w.head_sha,
-  w._event_time AS event_time
+  w.id,
+  FORMAT_ISO8601(
+    DATE_TRUNC(: granularity, torch_dynamo_perf_stats._event_time)
+  ) AS event_time
 FROM
   inductor.torch_dynamo_perf_stats LEFT JOIN commons.workflow_run w ON torch_dynamo_perf_stats.workflow_id = w.id
 WHERE
@@ -9,4 +12,4 @@ WHERE
   AND torch_dynamo_perf_stats._event_time < PARSE_DATETIME_ISO8601(:stopTime)
 ORDER BY
   w.head_branch,
-  w._event_time DESC
+  event_time DESC

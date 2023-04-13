@@ -49,6 +49,7 @@ import {
   LogLinks,
   JOB_NAME_REGEX,
   LOG_PREFIX,
+  COMMIT_TO_WORKFLOW_ID,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -297,11 +298,11 @@ function ModelPanel({
                     </a>
                     &nbsp;(
                     <a target="_blank" rel="noreferrer" href={lLog}>
-                      <u>{lCommit.substr(0, 7)}</u>
-                    </a>{" "}
-                    ←{" "}
-                    <a target="_blank" rel="noreferrer" href={rLog}>
                       <u>{rCommit.substr(0, 7)}</u>
+                    </a>{" "}
+                    →{" "}
+                    <a target="_blank" rel="noreferrer" href={rLog}>
+                      <u>{lCommit.substr(0, 7)}</u>
                     </a>
                     )
                   </>
@@ -354,7 +355,7 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return v.l;
                 } else {
-                  return `${v.l} ← ${v.r}`;
+                  return `${v.r} → ${v.l}`;
                 }
               },
             },
@@ -407,7 +408,7 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
+                  return `${r} → ${l} ${
                     Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
                   }`;
                 }
@@ -471,7 +472,7 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
+                  return `${r} → ${l} ${
                     Number(l) > Number(r) && Number(r) != 0
                       ? "\uD83D\uDD3A"
                       : ""
@@ -534,7 +535,7 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
+                  return `${r} → ${l} ${
                     Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
                   }`;
                 }
@@ -554,12 +555,16 @@ function GraphPanel({
   compiler,
   model,
   branch,
+  lCommit,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   compiler: string;
   model: string;
   branch: string;
+  lCommit: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
@@ -597,10 +602,23 @@ function GraphPanel({
     queryParams.find((p) => p.name === "stopTime")?.value
   ).startOf(granularity);
 
+  // Only show records between these twos
+  const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
+  const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
+
   const groupByFieldName = "name";
   const chartData = data.filter(
     (record: CompilerPerformanceData) => record.name == model
-  );
+  ).filter((record: CompilerPerformanceData) => {
+    const id = record.workflow_id;
+    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+  }).map((record: CompilerPerformanceData) => {
+    record.speedup = Number(record.speedup).toFixed(2);
+    record.compilation_latency = Number(record.compilation_latency).toFixed(0);
+    record.compression_ratio = Number(record.compression_ratio).toFixed(2);
+    // Truncate the data to make it consistent with the display value
+    return record;
+  });
 
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -642,11 +660,18 @@ function GraphPanel({
           title={`Geomean`}
           groupByFieldName={groupByFieldName}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(2)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return Number(r.value[1]).toFixed(2);
+              },
             },
           }}
         />
@@ -660,11 +685,18 @@ function GraphPanel({
           groupByFieldName={groupByFieldName}
           yAxisLabel={"second"}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(0)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return Number(r.value[1]).toFixed(0);
+              },
             },
           }}
         />
@@ -677,11 +709,18 @@ function GraphPanel({
           title={`Peak memory footprint compression ratio`}
           groupByFieldName={groupByFieldName}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(2)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return Number(r.value[1]).toFixed(2);
+              },
             },
           }}
         />
@@ -794,6 +833,8 @@ function Report({
         compiler={compiler}
         model={model}
         branch={lBranch}
+        lCommit={lCommit}
+        rCommit={rCommit}
       />
       <ModelPanel
         suite={suite}
@@ -919,6 +960,8 @@ export default function Page() {
           TorchInductor Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
+      </Stack>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
           stopTime={stopTime}
@@ -933,24 +976,24 @@ export default function Page() {
         <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
-          branch={lBranch}
-          setBranch={setLBranch}
-          commit={lCommit}
-          setCommit={setLCommit}
-          queryParams={queryParams}
-          titlePrefix={"New"}
-          fallbackIndex={0} // Default to the latest commit
-        />
-        <Divider orientation="vertical" flexItem>
-          Diff
-        </Divider>
-        <BranchAndCommitPicker
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
           setCommit={setRCommit}
           queryParams={queryParams}
           titlePrefix={"Base"}
+          fallbackIndex={0} // Default to the latest commit
+        />
+        <Divider orientation="vertical" flexItem>
+          &mdash;Diff→
+        </Divider>
+        <BranchAndCommitPicker
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
+          queryParams={queryParams}
+          titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
         />
       </Stack>

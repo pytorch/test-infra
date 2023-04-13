@@ -40,7 +40,7 @@ const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
-export const LAST_N_DAYS = 7;
+export const LAST_N_DAYS = 3;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
 export const MAIN_BRANCH = "master";
@@ -75,11 +75,18 @@ export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 // Headers
-export const DIFF_HEADER = "New value (L) ← Base value (R)";
+export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+
+// Keep the mapping from workflow ID to commit, so that we can use it to
+// zoom in and out of the graph. NB: this is to avoid sending commit sha
+// again from Rockset in the compilers_benchmark_performance query which
+// already returns close to the 6MB data transfer limit. I need to figure
+// out a way to compress the data later
+export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 
 function getPassingModels(data: CompilerPerformanceData[]) {
   const models: { [k: string]: any } = {};
@@ -556,11 +563,16 @@ export function BranchAndCommitPicker({
   });
 
   useEffect(() => {
-    if (data !== undefined && (commit === undefined || commit === "")) {
-      setCommit(
-        data.filter((r: any) => r.head_branch === branch)[fallbackIndex]
-          .head_sha
-      );
+    if (data !== undefined) {
+      const branchCommits = data.filter((r: any) => r.head_branch === branch).map((r: any) => r.head_sha);
+      if (commit === undefined || commit === "" || !branchCommits.includes(commit)) {
+        const index = (branchCommits.length + fallbackIndex) % branchCommits.length;
+        setCommit(branchCommits[index]);
+      }
+
+      data.forEach((r: any) => {
+        COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+      });
     }
   }, [data]);
 
@@ -960,7 +972,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {v.l} ← {v.r}{" "}
+                          {v.r} → {v.l}{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1039,7 +1051,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {l}x ← {r}x{" "}
+                          {r}x → {l}x{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1114,7 +1126,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {l}s ← {r}s{" "}
+                          {r}s → {l}s{" "}
                           {Number(l) > Number(r) && Number(r) != 0
                             ? "\uD83D\uDD3A"
                             : ""}
@@ -1202,7 +1214,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {l}x ← {r}x{" "}
+                          {r}x → {l}x{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1266,11 +1278,15 @@ function GraphPanel({
   granularity,
   suite,
   branch,
+  lCommit,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   branch: string;
+  lCommit: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
@@ -1329,8 +1345,15 @@ function GraphPanel({
   const models = getPassingModels(data);
   const groupByFieldName = "compiler";
 
+  // Only show records between these twos
+  const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
+  const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
+
   // Accuracy
-  const passrate = computePassrate(data, models);
+  const passrate = computePassrate(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+  });
   const passrateSeries = seriesWithInterpolatedTimes(
     passrate,
     startTime,
@@ -1343,7 +1366,10 @@ function GraphPanel({
   );
 
   // Geomean speedup
-  const geomean = computeGeomean(data, models);
+  const geomean = computeGeomean(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+  });;
   const geomeanSeries = seriesWithInterpolatedTimes(
     geomean,
     startTime,
@@ -1356,7 +1382,10 @@ function GraphPanel({
   );
 
   // Compilation time
-  const compTime = computeCompilationTime(data, models);
+  const compTime = computeCompilationTime(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+  });;
   const compTimeSeries = seriesWithInterpolatedTimes(
     compTime,
     startTime,
@@ -1369,7 +1398,10 @@ function GraphPanel({
   );
 
   // Memory compression ratio
-  const memory = computeMemoryCompressionRatio(data, models);
+  const memory = computeMemoryCompressionRatio(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+  });;
   const memorySeries = seriesWithInterpolatedTimes(
     memory,
     startTime,
@@ -1397,6 +1429,13 @@ function GraphPanel({
             yAxis: {
               scale: true,
             },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return (r.value[1] * 100).toFixed(0);
+              },
+            },
           }}
         />
       </Grid>
@@ -1413,6 +1452,13 @@ function GraphPanel({
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return r.value[1];
+              },
             },
           }}
         />
@@ -1432,6 +1478,13 @@ function GraphPanel({
             yAxis: {
               scale: true,
             },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return Number(r.value[1]).toFixed(0);
+              },
+            },
           }}
         />
       </Grid>
@@ -1448,6 +1501,13 @@ function GraphPanel({
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r) => {
+                return r.value[1];
+              },
             },
           }}
         />
@@ -1564,6 +1624,8 @@ function Report({
         granularity={granularity}
         suite={suite}
         branch={lBranch}
+        lCommit={lCommit}
+        rCommit={rCommit}
       />
     </div>
   );
@@ -1622,6 +1684,8 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           TorchInductor Performance DashBoard
         </Typography>
+      </Stack>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
           stopTime={stopTime}
@@ -1637,25 +1701,25 @@ export default function Page() {
         <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
-          branch={lBranch}
-          setBranch={setLBranch}
-          commit={lCommit}
-          setCommit={setLCommit}
           queryParams={queryParams}
-          titlePrefix={"New"}
-          fallbackIndex={0} // Default to the latest commit
-        />
-        <Divider orientation="vertical" flexItem>
-          Diff
-        </Divider>
-        <BranchAndCommitPicker
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
           setCommit={setRCommit}
-          queryParams={queryParams}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to the next to latest commit
+          fallbackIndex={-1} // Default to the next to latest in the window
+        />
+        <Divider orientation="vertical" flexItem>
+          &mdash;Diff→
+        </Divider>
+        <BranchAndCommitPicker
+          queryParams={queryParams}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
+          titlePrefix={"New"}
+          fallbackIndex={0} // Default to the latest commit
         />
       </Stack>
 
