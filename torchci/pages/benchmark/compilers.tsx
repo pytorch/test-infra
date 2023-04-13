@@ -1669,10 +1669,12 @@ function Report({
 export default function Page() {
   const router = useRouter();
 
-  const [startTime, setStartTime] = useState(
-    dayjs().subtract(LAST_N_DAYS, "day")
-  );
-  const [stopTime, setStopTime] = useState(dayjs());
+  const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const defaultStopTime = dayjs();
+  const [stopTime, setStopTime] = useState(defaultStopTime);
+  const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
+
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(MODES[0]);
@@ -1688,11 +1690,19 @@ export default function Page() {
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
       setStartTime(dayjs(startTime));
+
+      if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
+        setTimeRange(-1);
+      }
     }
 
     const stopTime: string = (router.query.stopTime as string) ?? undefined;
     if (stopTime !== undefined) {
       setStopTime(dayjs(stopTime));
+
+      if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
+        setTimeRange(-1);
+      }
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
@@ -1730,7 +1740,7 @@ export default function Page() {
       setRCommit(rCommit);
     }
 
-    setBaseUrl(`${window.location.host}${router.pathname}`);
+    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
   }, [router.query]);
 
   const queryParams: RocksetParam[] = [
@@ -1779,15 +1789,11 @@ export default function Page() {
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={
-            router.query.startTime !== undefined &&
-            router.query.stopTime !== undefined
-              ? -1
-              : LAST_N_DAYS
-          }
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}

@@ -878,10 +878,12 @@ export default function Page() {
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
 
-  const [startTime, setStartTime] = useState(
-    dayjs().subtract(LAST_N_DAYS, "day")
-  );
-  const [stopTime, setStopTime] = useState(dayjs());
+  const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const defaultStopTime = dayjs();
+  const [stopTime, setStopTime] = useState(defaultStopTime);
+  const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
+
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [mode, setMode] = useState<string>(MODES[0]);
   const [dtype, setDType] = useState<string>(DTYPES[0]);
@@ -896,11 +898,19 @@ export default function Page() {
     const startTime: string = (router.query.startTime as string) ?? undefined;
     if (startTime !== undefined) {
       setStartTime(dayjs(startTime));
+
+      if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
+        setTimeRange(-1);
+      }
     }
 
     const stopTime: string = (router.query.stopTime as string) ?? undefined;
     if (stopTime !== undefined) {
       setStopTime(dayjs(stopTime));
+
+      if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
+        setTimeRange(-1);
+      }
     }
 
     const mode: string = (router.query.mode as string) ?? undefined;
@@ -933,7 +943,7 @@ export default function Page() {
       setRCommit(rCommit);
     }
 
-    setBaseUrl(`${window.location.host}${router.pathname}`);
+    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
   }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
@@ -991,16 +1001,17 @@ export default function Page() {
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}&model=${model}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={-1}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}

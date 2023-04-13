@@ -249,21 +249,19 @@ function TimePicker({ label, value, setValue }: any) {
  */
 export function TimeRangePicker({
   startTime,
-  stopTime,
   setStartTime,
+  stopTime,
   setStopTime,
-  defaultValue,
+  timeRange,
+  setTimeRange,
 }: {
   startTime: dayjs.Dayjs;
-  stopTime: dayjs.Dayjs;
   setStartTime: any;
+  stopTime: dayjs.Dayjs;
   setStopTime: any;
-  defaultValue?: number;
+  timeRange: any;
+  setTimeRange: any;
 }) {
-  // User-selected time range. If it's a number, the range is (#days to now). If
-  // it's -1, the time range has been to a custom value.
-  const [timeRange, setTimeRange] = useState<number>(defaultValue ?? 7);
-
   function updateTimeRange() {
     if (timeRange === -1) {
       return;
@@ -297,7 +295,7 @@ export function TimeRangePicker({
       <FormControl>
         <InputLabel id="time-picker-select-label">Time Range</InputLabel>
         <Select
-          defaultValue={defaultValue ?? 7}
+          value={timeRange}
           label="Time Range"
           labelId="time-picker-select-label"
           onChange={handleChange}
@@ -310,7 +308,7 @@ export function TimeRangePicker({
           <MenuItem value={90}>Last Quarter</MenuItem>
           <MenuItem value={180}>Last Half</MenuItem>
           <MenuItem value={365}>Last Year</MenuItem>
-          <MenuItem value={-1}>Custom Time Range</MenuItem>
+          <MenuItem value={-1}>Custom</MenuItem>
         </Select>
       </FormControl>
       {timeRange === -1 && (
@@ -466,6 +464,7 @@ function getCommitRedMetrics(queryParams: RocksetParam[]) {}
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(7);
 
   const timeParams: RocksetParam[] = [
     {
@@ -522,9 +521,11 @@ export default function Page() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <TtsPercentilePicker
           ttsPercentile={ttsPercentile}
