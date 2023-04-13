@@ -607,18 +607,24 @@ function GraphPanel({
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
 
   const groupByFieldName = "name";
-  const chartData = data.filter(
-    (record: CompilerPerformanceData) => record.name == model
-  ).filter((record: CompilerPerformanceData) => {
-    const id = record.workflow_id;
-    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
-  }).map((record: CompilerPerformanceData) => {
-    record.speedup = Number(record.speedup).toFixed(2);
-    record.compilation_latency = Number(record.compilation_latency).toFixed(0);
-    record.compression_ratio = Number(record.compression_ratio).toFixed(2);
-    // Truncate the data to make it consistent with the display value
-    return record;
-  });
+  const chartData = data
+    .filter((record: CompilerPerformanceData) => record.name == model)
+    .filter((record: CompilerPerformanceData) => {
+      const id = record.workflow_id;
+      return (
+        (id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)
+      );
+    })
+    .map((record: CompilerPerformanceData) => {
+      record.speedup = Number(record.speedup.toFixed(2));
+      record.compilation_latency = Number(
+        record.compilation_latency.toFixed(0)
+      );
+      record.compression_ratio = Number(record.compression_ratio.toFixed(2));
+      // Truncate the data to make it consistent with the display value
+      return record;
+    });
 
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -669,7 +675,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return Number(r.value[1]).toFixed(2);
               },
             },
@@ -694,7 +700,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return Number(r.value[1]).toFixed(0);
               },
             },
@@ -718,7 +724,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return Number(r.value[1]).toFixed(2);
               },
             },

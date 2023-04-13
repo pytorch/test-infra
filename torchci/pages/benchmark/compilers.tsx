@@ -564,9 +564,16 @@ export function BranchAndCommitPicker({
 
   useEffect(() => {
     if (data !== undefined) {
-      const branchCommits = data.filter((r: any) => r.head_branch === branch).map((r: any) => r.head_sha);
-      if (commit === undefined || commit === "" || !branchCommits.includes(commit)) {
-        const index = (branchCommits.length + fallbackIndex) % branchCommits.length;
+      const branchCommits = data
+        .filter((r: any) => r.head_branch === branch)
+        .map((r: any) => r.head_sha);
+      if (
+        commit === undefined ||
+        commit === "" ||
+        !branchCommits.includes(commit)
+      ) {
+        const index =
+          (branchCommits.length + fallbackIndex) % branchCommits.length;
         setCommit(branchCommits[index]);
       }
 
@@ -1352,7 +1359,10 @@ function GraphPanel({
   // Accuracy
   const passrate = computePassrate(data, models).filter((r: any) => {
     const id = r.workflow_id;
-    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
   });
   const passrateSeries = seriesWithInterpolatedTimes(
     passrate,
@@ -1368,8 +1378,11 @@ function GraphPanel({
   // Geomean speedup
   const geomean = computeGeomean(data, models).filter((r: any) => {
     const id = r.workflow_id;
-    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
-  });;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
   const geomeanSeries = seriesWithInterpolatedTimes(
     geomean,
     startTime,
@@ -1384,8 +1397,11 @@ function GraphPanel({
   // Compilation time
   const compTime = computeCompilationTime(data, models).filter((r: any) => {
     const id = r.workflow_id;
-    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
-  });;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
   const compTimeSeries = seriesWithInterpolatedTimes(
     compTime,
     startTime,
@@ -1398,10 +1414,15 @@ function GraphPanel({
   );
 
   // Memory compression ratio
-  const memory = computeMemoryCompressionRatio(data, models).filter((r: any) => {
-    const id = r.workflow_id;
-    return (id >= lWorkflowId && id <= rWorkflowId) || (id <= lWorkflowId && id >= rWorkflowId);
-  });;
+  const memory = computeMemoryCompressionRatio(data, models).filter(
+    (r: any) => {
+      const id = r.workflow_id;
+      return (
+        (id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)
+      );
+    }
+  );
   const memorySeries = seriesWithInterpolatedTimes(
     memory,
     startTime,
@@ -1432,7 +1453,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return (r.value[1] * 100).toFixed(0);
               },
             },
@@ -1456,7 +1477,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return r.value[1];
               },
             },
@@ -1481,7 +1502,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return Number(r.value[1]).toFixed(0);
               },
             },
@@ -1505,7 +1526,7 @@ function GraphPanel({
             label: {
               show: true,
               align: "left",
-              formatter: (r) => {
+              formatter: (r: any) => {
                 return r.value[1];
               },
             },
