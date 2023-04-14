@@ -1525,6 +1525,7 @@ function SuiteGraphPanel({
           additionalOptions={{
             yAxis: {
               scale: true,
+              min: 1.0,
             },
             label: {
               show: true,
