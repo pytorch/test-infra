@@ -436,7 +436,12 @@ export default function Hud() {
     refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
   });
 
-  const viableStrictLag = data === undefined || data.length === 0 ? undefined : `viable/strict lag: ${data[0]["strict_lag_sec"]}h`;
+  let viableStrictLag: string | undefined;
+
+  if (data !== undefined && data.length > 0) {
+    const timeLagInHours = Math.floor(data[0]["strict_lag_sec"] / 3600);
+    const viableStrictLag = `viable/strict lag: ${timeLagInHours}h`;
+  }
 
   return (
     <>
