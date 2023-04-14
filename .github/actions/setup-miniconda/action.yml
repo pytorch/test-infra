@@ -12,8 +12,7 @@ inputs:
     description: Miniconda version to install
     required: false
     type: string
-    # default: "23.1.0-1"
-    default: "4.12.0"
+    default: "23.1.0-1"
   environment-file:
     description: Environment file to install dependencies from
     required: false
@@ -77,14 +76,10 @@ runs:
           set -x
 
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
-          # NB: There might be more than one version of conda running here. And we want
-          # to make sure that the one in MINICONDA_INSTALL_PATH is used. Appending the
-          # path to GITHUB_PATH won't suffice as we need MINICONDA_INSTALL_PATH to come
-          # first
-          # GITHUB_PATH_CONTENT=$(cat "${GITHUB_PATH}")
           echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
+          # NB: GITHUB_PATH has a lower priority than PATH, so also set the path
+          # here to make sure that the correct conda is used
           echo "PATH=${MINICONDA_INSTALL_PATH}/bin:${PATH}" >> $GITHUB_ENV
-          # echo "${GITHUB_PATH_CONTENT}" >> $GITHUB_PATH
 
       # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
       # function will return an empty string without failing the step. This works out nicely and we can have a various
@@ -151,6 +146,7 @@ runs:
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
           CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
+          PIP_REQUIREMENTS_FILE: ${{ inputs.pip-requirements-file }}
         run: |
           # Print the conda we are using here in case we need debugging information
           which conda
@@ -161,6 +157,18 @@ runs:
             --yes --quiet \
             --prefix "${CONDA_ENV}" \
             --clone "${CONDA_BASE_ENV}"
+
+          # NB: Cloning sometimes doesn't copied pip dependencies (untracked files) over. If this
+          # happens, let's attempt to install the pip requirements directly on top of the cloned
+          # environment. This is to make sure that no dependency is missing
+          UNTRACKED_FILES_COUNT=$(conda package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l)
+          if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
+            if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
+              conda run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
+            elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
+              echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
+            fi
+          fi
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
