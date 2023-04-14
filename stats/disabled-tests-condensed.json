@@ -261,13 +261,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
-    "97753",
-    "https://github.com/pytorch/pytorch/issues/97753",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "98998",
     "https://github.com/pytorch/pytorch/issues/98998",
@@ -1240,6 +1233,13 @@
       "linux"
     ]
   ],
+  "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "93046",
+    "https://github.com/pytorch/pytorch/issues/93046",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "93061",
     "https://github.com/pytorch/pytorch/issues/93061",
@@ -1535,13 +1535,6 @@
     "https://github.com/pytorch/pytorch/issues/94541",
     [
       "linux"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex64 (__main__.TestForeachCUDA)": [
-    "97956",
-    "https://github.com/pytorch/pytorch/issues/97956",
-    [
-      "rocm"
     ]
   ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
