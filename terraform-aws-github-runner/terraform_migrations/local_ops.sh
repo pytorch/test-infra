@@ -19,15 +19,24 @@ function validate_module() {
 
 set -ex
 
+# Download the state file from S3 and keep a backup
 aws s3 cp s3://pytorch-gha-infra-terraform/runners/terraform.tfstate ./terraform.tfstate
+cp -a terraform.tfstate terraform.tfstate.bak.$(date +"%y%m%d%H%M%S")
 
+# Init terraform
 terraform init
+
+# Move the state [still in WIP]
 move_state aws_kms_ciphertext.github_app_key_base64
 move_state aws_kms_ciphertext.github_app_client_secret
 
+# Validate the modules
 validate_module "tf-modules/terraform-aws-github-runner/modules/runners/"
 validate_module tf-modules/terraform-aws-github-runner/modules/runners-instances/
 validate_module tf-modules/terraform-aws-github-runner
 
+# Validate the main module
 terraform validate
+
+# Plan changes
 terraform plan
