@@ -223,6 +223,7 @@ export default function Page() {
 
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(7);
   const [granularity, setGranularity] = useState<Granularity>("day");
   const [ttsPercentile, setTtsPercentile] = useState<number>(percentile);
 
@@ -291,9 +292,11 @@ export default function Page() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}

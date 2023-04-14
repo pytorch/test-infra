@@ -35,12 +35,14 @@ import GranularityPicker from "components/GranularityPicker";
 import { TimeRangePicker } from "../metrics";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
+import { useRouter } from "next/router";
+import CopyLink from "components/CopyLink";
 
 const ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
-export const LAST_N_DAYS = 7;
+export const LAST_N_DAYS = 3;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
 export const MAIN_BRANCH = "master";
@@ -75,11 +77,18 @@ export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 // Headers
-export const DIFF_HEADER = "New value (L) ← Base value (R)";
+export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
+
+// Keep the mapping from workflow ID to commit, so that we can use it to
+// zoom in and out of the graph. NB: this is to avoid sending commit sha
+// again from Rockset in the compilers_benchmark_performance query which
+// already returns close to the 6MB data transfer limit. I need to figure
+// out a way to compress the data later
+export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
 
 function getPassingModels(data: CompilerPerformanceData[]) {
   const models: { [k: string]: any } = {};
@@ -556,11 +565,23 @@ export function BranchAndCommitPicker({
   });
 
   useEffect(() => {
-    if (data !== undefined && (commit === undefined || commit === "")) {
-      setCommit(
-        data.filter((r: any) => r.head_branch === branch)[fallbackIndex]
-          .head_sha
-      );
+    if (data !== undefined) {
+      const branchCommits = data
+        .filter((r: any) => r.head_branch === branch)
+        .map((r: any) => r.head_sha);
+      if (
+        commit === undefined ||
+        commit === "" ||
+        !branchCommits.includes(commit)
+      ) {
+        const index =
+          (branchCommits.length + fallbackIndex) % branchCommits.length;
+        setCommit(branchCommits[index]);
+      }
+
+      data.forEach((r: any) => {
+        COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+      });
     }
   }, [data]);
 
@@ -844,6 +865,8 @@ function extractPercentage(value: string) {
 }
 
 function SummaryPanel({
+  startTime,
+  stopTime,
   mode,
   dtype,
   lBranch,
@@ -853,6 +876,8 @@ function SummaryPanel({
   rCommit,
   rData,
 }: {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   mode: string;
   dtype: string;
   lBranch: string;
@@ -946,7 +971,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -955,12 +980,12 @@ function SummaryPanel({
                       return "";
                     }
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{v.l}</a>;
                     } else {
                       return (
                         <a href={url}>
-                          {v.l} ← {v.r}{" "}
+                          {v.r} → {v.l}{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1029,17 +1054,17 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
                         <a href={url}>
-                          {l}x ← {r}x{" "}
+                          {r}x → {l}x{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1104,17 +1129,17 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}s</a>;
                     } else {
                       return (
                         <a href={url}>
-                          {l}s ← {r}s{" "}
+                          {r}s → {l}s{" "}
                           {Number(l) > Number(r) && Number(r) != 0
                             ? "\uD83D\uDD3A"
                             : ""}
@@ -1192,17 +1217,17 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit) {
+                    if (lCommit === rCommit || l === r) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
                         <a href={url}>
-                          {l}x ← {r}x{" "}
+                          {r}x → {l}x{" "}
                           {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
                         </a>
                       );
@@ -1266,11 +1291,15 @@ function GraphPanel({
   granularity,
   suite,
   branch,
+  lCommit,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
   branch: string;
+  lCommit: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
@@ -1329,8 +1358,18 @@ function GraphPanel({
   const models = getPassingModels(data);
   const groupByFieldName = "compiler";
 
+  // Only show records between these twos
+  const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
+  const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
+
   // Accuracy
-  const passrate = computePassrate(data, models);
+  const passrate = computePassrate(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
   const passrateSeries = seriesWithInterpolatedTimes(
     passrate,
     startTime,
@@ -1343,7 +1382,13 @@ function GraphPanel({
   );
 
   // Geomean speedup
-  const geomean = computeGeomean(data, models);
+  const geomean = computeGeomean(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
   const geomeanSeries = seriesWithInterpolatedTimes(
     geomean,
     startTime,
@@ -1356,7 +1401,13 @@ function GraphPanel({
   );
 
   // Compilation time
-  const compTime = computeCompilationTime(data, models);
+  const compTime = computeCompilationTime(data, models).filter((r: any) => {
+    const id = r.workflow_id;
+    return (
+      (id >= lWorkflowId && id <= rWorkflowId) ||
+      (id <= lWorkflowId && id >= rWorkflowId)
+    );
+  });
   const compTimeSeries = seriesWithInterpolatedTimes(
     compTime,
     startTime,
@@ -1369,7 +1420,15 @@ function GraphPanel({
   );
 
   // Memory compression ratio
-  const memory = computeMemoryCompressionRatio(data, models);
+  const memory = computeMemoryCompressionRatio(data, models).filter(
+    (r: any) => {
+      const id = r.workflow_id;
+      return (
+        (id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)
+      );
+    }
+  );
   const memorySeries = seriesWithInterpolatedTimes(
     memory,
     startTime,
@@ -1397,6 +1456,13 @@ function GraphPanel({
             yAxis: {
               scale: true,
             },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return (r.value[1] * 100).toFixed(0);
+              },
+            },
           }}
         />
       </Grid>
@@ -1413,6 +1479,13 @@ function GraphPanel({
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return r.value[1];
+              },
             },
           }}
         />
@@ -1432,6 +1505,13 @@ function GraphPanel({
             yAxis: {
               scale: true,
             },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return Number(r.value[1]).toFixed(0);
+              },
+            },
           }}
         />
       </Grid>
@@ -1449,6 +1529,13 @@ function GraphPanel({
             yAxis: {
               scale: true,
             },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return r.value[1];
+              },
+            },
           }}
         />
       </Grid>
@@ -1458,6 +1545,8 @@ function GraphPanel({
 
 function Report({
   queryParams,
+  startTime,
+  stopTime,
   granularity,
   suite,
   mode,
@@ -1468,6 +1557,8 @@ function Report({
   rCommit,
 }: {
   queryParams: RocksetParam[];
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   granularity: Granularity;
   suite: string;
   mode: string;
@@ -1477,6 +1568,8 @@ function Report({
   rBranch: string;
   rCommit: string;
 }) {
+  const router = useRouter();
+
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
 
@@ -1550,6 +1643,8 @@ function Report({
         date={lData[0].granularity_bucket}
       />
       <SummaryPanel
+        startTime={startTime}
+        stopTime={stopTime}
         mode={mode}
         dtype={dtype}
         lBranch={lBranch}
@@ -1564,16 +1659,22 @@ function Report({
         granularity={granularity}
         suite={suite}
         branch={lBranch}
+        lCommit={lCommit}
+        rCommit={rCommit}
       />
     </div>
   );
 }
 
 export default function Page() {
-  const [startTime, setStartTime] = useState(
-    dayjs().subtract(LAST_N_DAYS, "day")
-  );
-  const [stopTime, setStopTime] = useState(dayjs());
+  const router = useRouter();
+
+  const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const defaultStopTime = dayjs();
+  const [stopTime, setStopTime] = useState(defaultStopTime);
+  const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
+
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
   const [mode, setMode] = useState<string>(MODES[0]);
@@ -1582,6 +1683,65 @@ export default function Page() {
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
+
+  // Set the dropdown value what is in the param
+  useEffect(() => {
+    const startTime: string = (router.query.startTime as string) ?? undefined;
+    if (startTime !== undefined) {
+      setStartTime(dayjs(startTime));
+
+      if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
+        setTimeRange(-1);
+      }
+    }
+
+    const stopTime: string = (router.query.stopTime as string) ?? undefined;
+    if (stopTime !== undefined) {
+      setStopTime(dayjs(stopTime));
+
+      if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
+        setTimeRange(-1);
+      }
+    }
+
+    const suite: string = (router.query.suite as string) ?? undefined;
+    if (suite !== undefined) {
+      setSuite(suite);
+    }
+
+    const mode: string = (router.query.mode as string) ?? undefined;
+    if (mode !== undefined) {
+      setMode(mode);
+    }
+
+    const dtype: string = (router.query.dtype as string) ?? undefined;
+    if (dtype !== undefined) {
+      setDType(dtype);
+    }
+
+    const lBranch: string = (router.query.lBranch as string) ?? undefined;
+    if (lBranch !== undefined) {
+      setLBranch(lBranch);
+    }
+
+    const lCommit: string = (router.query.lCommit as string) ?? undefined;
+    if (lCommit !== undefined) {
+      setLCommit(lCommit);
+    }
+
+    const rBranch: string = (router.query.rBranch as string) ?? undefined;
+    if (rBranch !== undefined) {
+      setRBranch(rBranch);
+    }
+
+    const rCommit: string = (router.query.rCommit as string) ?? undefined;
+    if (rCommit !== undefined) {
+      setRCommit(rCommit);
+    }
+
+    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
+  }, [router.query]);
 
   const queryParams: RocksetParam[] = [
     {
@@ -1622,12 +1782,18 @@ export default function Page() {
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           TorchInductor Performance DashBoard
         </Typography>
+        <CopyLink
+          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+        />
+      </Stack>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_N_DAYS}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}
@@ -1637,31 +1803,33 @@ export default function Page() {
         <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
-          branch={lBranch}
-          setBranch={setLBranch}
-          commit={lCommit}
-          setCommit={setLCommit}
           queryParams={queryParams}
-          titlePrefix={"New"}
-          fallbackIndex={0} // Default to the latest commit
-        />
-        <Divider orientation="vertical" flexItem>
-          Diff
-        </Divider>
-        <BranchAndCommitPicker
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
           setCommit={setRCommit}
-          queryParams={queryParams}
           titlePrefix={"Base"}
-          fallbackIndex={1} // Default to the next to latest commit
+          fallbackIndex={-1} // Default to the next to latest in the window
+        />
+        <Divider orientation="vertical" flexItem>
+          &mdash;Diff→
+        </Divider>
+        <BranchAndCommitPicker
+          queryParams={queryParams}
+          branch={lBranch}
+          setBranch={setLBranch}
+          commit={lCommit}
+          setCommit={setLCommit}
+          titlePrefix={"New"}
+          fallbackIndex={0} // Default to the latest commit
         />
       </Stack>
 
       <Grid item xs={12}>
         <Report
           queryParams={queryParams}
+          startTime={startTime}
+          stopTime={stopTime}
           granularity={granularity}
           suite={suite}
           mode={mode}

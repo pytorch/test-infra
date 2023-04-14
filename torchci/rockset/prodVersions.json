@@ -8,7 +8,7 @@
     "filter_forced_merge_pr": "5cdaa020d6b71414",
     "flaky_tests": "9f7a1abcebb7f027",
     "flaky_tests_across_jobs": "9609d34ca73adf3d",
-    "flaky_workflows_jobs": "a1c7e34872854b7a",
+    "flaky_workflows_jobs": "d5783ef1fe73fa5b",
     "failed_workflow_jobs": "6ec4fd3f36a72071",
     "get_workflow_jobs": "6ed2029b19691a4b",
     "slow_tests": "ef8d035d23aa8ab6",
@@ -31,7 +31,8 @@
     "time_to_merge": "be1c2a28cf75fe32",
     "time_to_review": "adfbcdfc51ede11a",
     "time_to_signal": "ff332d025976c103",
-    "strict_lag_historical": "d2a09d13caf8b76a"
+    "strict_lag_historical": "d2a09d13caf8b76a",
+    "ci_wait_time": "b1080f26b20ea142"
   },
   "metrics": {
     "correlation_matrix": "35c05e04047123f0",
@@ -66,11 +67,12 @@
     "queue_times_historical": "7f4d6599362e70ba",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
-    "workflow_load": "48428f8a7c541b76"
+    "workflow_load": "48428f8a7c541b76",
+    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
   },
   "inductor": {
     "compilers_benchmark_performance": "d3434f5f6c89f51c",
-    "compilers_benchmark_performance_branches": "2bea08ef6c510f85",
+    "compilers_benchmark_performance_branches": "f259d06862b41888",
     "compilers_benchmark_performance_latest_runs": "ea73304f42a9316e"
   }
 }

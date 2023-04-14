@@ -169,6 +169,7 @@ function GenerateTestInsightsOverviewTable({
 export default function GatherTestsInfo() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(7);
 
   return (
     <div>
@@ -178,9 +179,11 @@ export default function GatherTestsInfo() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
       </Stack>
 
