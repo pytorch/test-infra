@@ -762,31 +762,6 @@ export default function Page() {
           />
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"Workflow load"}
-            queryName={"workflow_load"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
-              {
-                name: "repo",
-                type: "string",
-                value: "pytorch/%",
-              },
-              ...timeParams,
-            ]}
-            granularity={"hour"}
-            groupByFieldName={"name"}
-            timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"count"}
-            yAxisRenderer={(value) => value}
-          />
-        </Grid>
-
         <JobsDuration
           title={"Job time-to-signal, all branches"}
           branchName={"%"}
