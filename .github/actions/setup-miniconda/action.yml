@@ -160,11 +160,14 @@ runs:
             --prefix "${CONDA_ENV}" \
             --clone "${CONDA_BASE_ENV}"
 
+          set +e
           # NB: Cloning sometimes doesn't copied pip dependencies (untracked files) over. If this
           # happens, let's attempt to install the pip requirements directly on top of the cloned
           # environment. This is to make sure that no dependency is missing
           UNTRACKED_FILES_COUNT=$(conda package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l | xargs)
           echo $?
+          set -e
+
           if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
             echo "REACHING HERE"
             echo "${PIP_REQUIREMENTS_FILE}"
