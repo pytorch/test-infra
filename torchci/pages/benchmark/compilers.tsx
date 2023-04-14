@@ -943,7 +943,12 @@ function SummaryPanel({
   return (
     <div>
       <Grid container spacing={2} style={{ height: "100%" }}>
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT * Object.keys(passrate).length + ROW_GAP}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(passrate).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={
               lCommit === rCommit
@@ -1030,7 +1035,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT * Object.keys(geomean).length + ROW_GAP}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(geomean).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={GEOMEAN_HEADER}
             data={Object.values(geomean).sort((a: any, b: any) =>
@@ -1105,7 +1115,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT * Object.keys(compTime).length + ROW_GAP}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(compTime).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={COMPILATION_LATENCY_HEADER}
             data={Object.values(compTime).sort((a: any, b: any) =>
@@ -1193,7 +1208,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT * Object.keys(memory).length + ROW_GAP}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(memory).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={MEMORY_HEADER}
             data={Object.values(memory).sort((a: any, b: any) =>
