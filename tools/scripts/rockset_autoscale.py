@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime, time
 
-scale_down_time = datetime.strptime("3:00", "%H:%M").time() # 3am UTC, which is 8pm PST 
+scale_down_time = datetime.strptime("5:00", "%H:%M").time() # 5am UTC, which is 10pm PST
 scale_up_time = datetime.strptime("15:00", "%H:%M").time() # 3pm UTC, which is 8am PST
 
 scale_down_size = "LARGE"
