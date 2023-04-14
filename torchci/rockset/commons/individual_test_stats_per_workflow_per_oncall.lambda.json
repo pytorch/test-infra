@@ -1,10 +1,10 @@
 {
-    "sql_path": "__sql/individual_test_stats_per_workflow_per_oncall.sql",
-    "default_parameters": [
+  "sql_path": "__sql/individual_test_stats_per_workflow_per_oncall.sql",
+  "default_parameters": [
     {
       "name": "oncall",
       "type": "string",
-      "value": "functorch"
+      "value": "dynamo"
     },
     {
       "name": "queryDate",

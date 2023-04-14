@@ -1,11 +1,16 @@
 {
-    "sql_path": "__sql/test_times_per_workflow_type.sql",
-    "default_parameters": [
-      {
-        "name": "startDate",
-        "type": "string",
-        "value": "2023-02-31T00:06:32.839Z"
-      }
-    ],
-    "description": ""
-  }
+  "sql_path": "__sql/test_times_per_workflow_type.sql",
+  "default_parameters": [
+    {
+      "name": "startDate",
+      "type": "string",
+      "value": "2023-03-06T00:06:32.839Z"
+    },
+    {
+      "name": "workflow_type",
+      "type": "string",
+      "value": "pull"
+    }
+  ],
+  "description": ""
+}
