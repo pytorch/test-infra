@@ -12,7 +12,8 @@ inputs:
     description: Miniconda version to install
     required: false
     type: string
-    default: "23.1.0-1"
+    # default: "23.1.0-1"
+    default: "4.12.0"
   environment-file:
     description: Environment file to install dependencies from
     required: false
