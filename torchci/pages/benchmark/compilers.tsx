@@ -38,7 +38,6 @@ import styles from "components/metrics.module.css";
 import { useRouter } from "next/router";
 import CopyLink from "components/CopyLink";
 
-const GRAPH_ROW_GAP = 30;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
@@ -1488,7 +1487,7 @@ function SuiteGraphPanel({
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT + GRAPH_ROW_GAP}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={passrate}
           series={passrateSeries}
@@ -1513,7 +1512,7 @@ function SuiteGraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT + GRAPH_ROW_GAP}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={geomean}
           series={geomeanSeries}
@@ -1538,7 +1537,7 @@ function SuiteGraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT + GRAPH_ROW_GAP}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={compTime}
           series={compTimeSeries}
@@ -1563,7 +1562,7 @@ function SuiteGraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT + GRAPH_ROW_GAP}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={memory}
           series={memorySeries}
@@ -1830,7 +1829,7 @@ export default function Page() {
           TorchInductor Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
