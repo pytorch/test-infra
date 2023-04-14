@@ -165,6 +165,8 @@ runs:
           # environment. This is to make sure that no dependency is missing
           UNTRACKED_FILES_COUNT=$(conda package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l | xargs)
           if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
+            echo "REACHING HERE"
+            echo "${PIP_REQUIREMENTS_FILE}"
             if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
               conda run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
             elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
