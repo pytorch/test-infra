@@ -35,15 +35,15 @@ runs:
         run: |
           echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
 
-      - name: Setup miniconda cache
-        id: miniconda-cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ runner.temp }}/miniconda
-          key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
+      # - name: Setup miniconda cache
+      #   id: miniconda-cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ${{ runner.temp }}/miniconda
+      #     key: miniconda-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}
 
       - name: Install miniconda (${{ inputs.miniconda-version }})
-        if: steps.miniconda-cache.outputs.cache-hit != 'true'
+        # if: steps.miniconda-cache.outputs.cache-hit != 'true'
         env:
           MINICONDA_VERSION: ${{ inputs.miniconda-version }}
         shell: bash -l {0}
@@ -73,8 +73,15 @@ runs:
       - name: Update GitHub path to include miniconda install
         shell: bash
         run: |
+          set -x
+
           MINICONDA_INSTALL_PATH="${RUNNER_TEMP}/miniconda"
-          echo "${MINICONDA_INSTALL_PATH}/bin" >> $GITHUB_PATH
+          # NB: There might be more than one version of conda running here. And we want
+          # to make sure that the one in MINICONDA_INSTALL_PATH is used. Appending the
+          # path to GITHUB_PATH won't suffice as we need MINICONDA_INSTALL_PATH to come
+          # first
+          GITHUB_PATH_CONTENT=$(cat "${GITHUB_PATH}")
+          echo -n "${MINICONDA_INSTALL_PATH}/bin\n${GITHUB_PATH_CONTENT}" > $GITHUB_PATH
 
       # When the environment-file or pip-requirements-file inputs are not set or are set to invalid paths, the hashFiles
       # function will return an empty string without failing the step. This works out nicely and we can have a various
@@ -85,15 +92,15 @@ runs:
       # - The second one is missing or invalid: miniconda-env-macOS-ARM64-20221022d-HASH(environment-file)-
       #
       # There is no need to skip or run actions/cache with complicated logic
-      - name: Setup miniconda env cache
-        id: miniconda-env-cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
-          key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
+      # - name: Setup miniconda env cache
+      #   id: miniconda-env-cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
+      #     key: miniconda-env-${{ runner.os }}-${{ runner.arch }}-${{ inputs.python-version }}-${{ steps.get-date.outputs.today }}-${{ hashFiles(inputs.environment-file) }}-${{ hashFiles(inputs.pip-requirements-file) }}
 
       - name: Setup conda environment with python (v${{ inputs.python-version }})
-        if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
+        # if: steps.miniconda-env-cache.outcome == 'success' && steps.miniconda-env-cache.outputs.cache-hit != 'true'
         shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
@@ -114,6 +121,10 @@ runs:
           if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
             CONDA_EXTRA_FLAGS=" -c pytorch-nightly"
           fi
+
+          # Print the conda we are using here in case we need debugging information
+          which conda
+          conda --version
 
           conda create \
             --yes --quiet \
@@ -138,6 +149,10 @@ runs:
           PYTHON_VERSION: ${{ inputs.python-version }}
           CONDA_BASE_ENV: ${{ runner.temp }}/conda-python-${{ inputs.python-version }}
         run: |
+          # Print the conda we are using here in case we need debugging information
+          which conda
+          conda --version
+
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           conda create \
             --yes --quiet \
@@ -152,6 +167,7 @@ runs:
           else
             echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           fi
+
       - name: Reset channel priority
         shell: bash -l {0}
         run: |
