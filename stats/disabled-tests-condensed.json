@@ -275,13 +275,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
-    "98046",
-    "https://github.com/pytorch/pytorch/issues/98046",
-    [
-      "rocm"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -849,6 +842,13 @@
       "windows"
     ]
   ],
+  "test_fake_crossref_backward_no_amp_index_fill_cuda_float32 (__main__.TestFakeTensorCUDA)": [
+    "99126",
+    "https://github.com/pytorch/pytorch/issues/99126",
+    [
+      "linux"
+    ]
+  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -887,13 +887,6 @@
   "test_find_unused_parameters_kwarg_grad_is_view_debug_off (__main__.DistributedDataParallelTest)": [
     "82500",
     "https://github.com/pytorch/pytorch/issues/82500",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93047",
-    "https://github.com/pytorch/pytorch/issues/93047",
     [
       "linux"
     ]
@@ -1240,23 +1233,9 @@
       "linux"
     ]
   ],
-  "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "93046",
-    "https://github.com/pytorch/pytorch/issues/93046",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "93061",
     "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
-    ]
-  ],
-  "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95344",
-    "https://github.com/pytorch/pytorch/issues/95344",
     [
       "linux"
     ]
