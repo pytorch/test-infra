@@ -1,11 +1,11 @@
 name: Scale Rockset VM
 on:
   schedule:
-    # Trigger scaling at 8:10am PST and 8:10pm PST on Weekdays (note: chron schedule is in UTC) 
+    # Trigger scaling at 8:10am PST and 10:10pm PST on Weekdays (note: chron schedule is in UTC)
     # We do 10 mins past the hour to account for any clock skew on the machine this job runs on
-    - cron: "10 3,15 * * 1-5"
+    - cron: "10 5,15 * * 1-5"
     # Also trigger it on Saturday morning UTC, since that'll be Fri evening PST. This scales it down for the weekend
-    - cron: "10 3 * * 6"
+    - cron: "10 5 * * 6"
   push:
     branches:
       - "zainr/rockset-autoscale" # For testing. To be removed before merging
