@@ -545,6 +545,7 @@ export function BranchAndCommitPicker({
   setCommit,
   titlePrefix,
   fallbackIndex,
+  timeRange,
 }: {
   queryParams: RocksetParam[];
   branch: string;
@@ -553,6 +554,7 @@ export function BranchAndCommitPicker({
   setCommit: any;
   titlePrefix: string;
   fallbackIndex: number;
+  timeRange: any;
 }) {
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
@@ -571,9 +573,16 @@ export function BranchAndCommitPicker({
         .filter((r: any) => r.head_branch === branch)
         .map((r: any) => r.head_sha);
 
-      const index =
-        (branchCommits.length + fallbackIndex) % branchCommits.length;
-      setCommit(branchCommits[index]);
+      if (
+        commit === undefined ||
+        commit === "" ||
+        !branchCommits.includes(commit) ||
+        timeRange !== -1
+      ) {
+        const index =
+          (branchCommits.length + fallbackIndex) % branchCommits.length;
+        setCommit(branchCommits[index]);
+      }
 
       data.forEach((r: any) => {
         COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
@@ -1856,6 +1865,7 @@ export default function Page() {
           setCommit={setRCommit}
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
+          timeRange={timeRange}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -1868,6 +1878,7 @@ export default function Page() {
           setCommit={setLCommit}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
+          timeRange={timeRange}
         />
       </Stack>
 
