@@ -14,6 +14,8 @@ const THRESHOLD_IN_SECOND = 60;
 export default function IndividualTestInsights() {
     const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
     const [stopTime, setStopTime] = useState(dayjs());
+    const [timeRange, setTimeRange] = useState<number>(7);
+
     const router = useRouter();
     const testFile = router.query.testFile as string;
     const testClass = router.query.testClass as string;
@@ -25,12 +27,14 @@ export default function IndividualTestInsights() {
           </Typography>
           <TimeRangePicker
             startTime={startTime}
-            stopTime={stopTime}
             setStartTime={setStartTime}
+            stopTime={stopTime}
             setStopTime={setStopTime}
+            timeRange={timeRange}
+            setTimeRange={setTimeRange}
           />
         </Stack>
-  
+
         <Grid container spacing={4}>
           <GenerateTestInsightsOverviewTable
             workflowName={"pull"}
@@ -40,7 +44,7 @@ export default function IndividualTestInsights() {
             testFile={testFile}
             testClass={testClass}
           />
-  
+
           <GenerateTestInsightsOverviewTable
             workflowName={"trunk"}
             startTime={startTime}
@@ -49,7 +53,7 @@ export default function IndividualTestInsights() {
             testFile={testFile}
             testClass={testClass}
           />
-  
+
           <GenerateTestInsightsOverviewTable
             workflowName={"periodic"}
             startTime={startTime}
@@ -58,7 +62,7 @@ export default function IndividualTestInsights() {
             testFile={testFile}
             testClass={testClass}
           />
-  
+
           <GenerateTestInsightsOverviewTable
             workflowName={"inductor"}
             startTime={startTime}

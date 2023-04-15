@@ -1048,7 +1048,8 @@ export default function Page() {
           setCommit={setRCommit}
           queryParams={queryParams}
           titlePrefix={"Base"}
-          fallbackIndex={0} // Default to the latest commit
+          fallbackIndex={-1} // Default to the next to latest in the window
+          timeRange={timeRange}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -1061,6 +1062,7 @@ export default function Page() {
           queryParams={queryParams}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
+          timeRange={timeRange}
         />
       </Stack>
 

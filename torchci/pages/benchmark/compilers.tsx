@@ -38,8 +38,9 @@ import styles from "components/metrics.module.css";
 import { useRouter } from "next/router";
 import CopyLink from "components/CopyLink";
 
-const ROW_HEIGHT = 245;
-const ROW_GAP = 30;
+const GRAPH_ROW_HEIGHT = 245;
+const ROW_GAP = 100;
+const ROW_HEIGHT = 38;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
 export const LAST_N_DAYS = 3;
@@ -544,6 +545,7 @@ export function BranchAndCommitPicker({
   setCommit,
   titlePrefix,
   fallbackIndex,
+  timeRange,
 }: {
   queryParams: RocksetParam[];
   branch: string;
@@ -552,6 +554,7 @@ export function BranchAndCommitPicker({
   setCommit: any;
   titlePrefix: string;
   fallbackIndex: number;
+  timeRange: any;
 }) {
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
@@ -569,10 +572,12 @@ export function BranchAndCommitPicker({
       const branchCommits = data
         .filter((r: any) => r.head_branch === branch)
         .map((r: any) => r.head_sha);
+
       if (
         commit === undefined ||
         commit === "" ||
-        !branchCommits.includes(commit)
+        !branchCommits.includes(commit) ||
+        timeRange !== -1
       ) {
         const index =
           (branchCommits.length + fallbackIndex) % branchCommits.length;
@@ -945,8 +950,13 @@ function SummaryPanel({
 
   return (
     <div>
-      <Grid container spacing={2} height={ROW_HEIGHT * 2 + ROW_GAP}>
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid container spacing={2} style={{ height: "100%" }}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(passrate).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={
               lCommit === rCommit
@@ -1033,7 +1043,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(geomean).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={GEOMEAN_HEADER}
             data={Object.values(geomean).sort((a: any, b: any) =>
@@ -1108,7 +1123,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(compTime).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={COMPILATION_LATENCY_HEADER}
             data={Object.values(compTime).sort((a: any, b: any) =>
@@ -1196,7 +1216,12 @@ function SummaryPanel({
           />
         </Grid>
 
-        <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <Grid
+          item
+          xs={12}
+          lg={6}
+          height={ROW_HEIGHT * Object.keys(memory).length + ROW_GAP}
+        >
           <TablePanelWithData
             title={MEMORY_HEADER}
             data={Object.values(memory).sort((a: any, b: any) =>
@@ -1287,6 +1312,35 @@ function SummaryPanel({
 }
 
 function GraphPanel({
+  queryParams,
+  granularity,
+  suite,
+  branch,
+  lCommit,
+  rCommit,
+}: {
+  queryParams: RocksetParam[];
+  granularity: Granularity;
+  suite: string;
+  branch: string;
+  lCommit: string;
+  rCommit: string;
+}) {
+  // NB: I need to do multiple queries here for different suites to keep the response
+  // from Rockset small enough (<6MB) to fit into Vercel lambda limit
+  return (
+    <SuiteGraphPanel
+      queryParams={queryParams}
+      granularity={granularity}
+      suite={suite}
+      branch={branch}
+      lCommit={lCommit}
+      rCommit={rCommit}
+    />
+  );
+}
+
+function SuiteGraphPanel({
   queryParams,
   granularity,
   suite,
@@ -1442,7 +1496,7 @@ function GraphPanel({
 
   return (
     <Grid container spacing={2}>
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={passrate}
           series={passrateSeries}
@@ -1467,7 +1521,7 @@ function GraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={geomean}
           series={geomeanSeries}
@@ -1479,6 +1533,7 @@ function GraphPanel({
           additionalOptions={{
             yAxis: {
               scale: true,
+              min: 1.0,
             },
             label: {
               show: true,
@@ -1491,7 +1546,7 @@ function GraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={compTime}
           series={compTimeSeries}
@@ -1516,7 +1571,7 @@ function GraphPanel({
         />
       </Grid>
 
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+      <Grid item xs={12} lg={6} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
           data={memory}
           series={memorySeries}
@@ -1810,6 +1865,7 @@ export default function Page() {
           setCommit={setRCommit}
           titlePrefix={"Base"}
           fallbackIndex={-1} // Default to the next to latest in the window
+          timeRange={timeRange}
         />
         <Divider orientation="vertical" flexItem>
           &mdash;Diff→
@@ -1822,24 +1878,23 @@ export default function Page() {
           setCommit={setLCommit}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
+          timeRange={timeRange}
         />
       </Stack>
 
-      <Grid item xs={12}>
-        <Report
-          queryParams={queryParams}
-          startTime={startTime}
-          stopTime={stopTime}
-          granularity={granularity}
-          suite={suite}
-          mode={mode}
-          dtype={dtype}
-          lBranch={lBranch}
-          lCommit={lCommit}
-          rBranch={rBranch}
-          rCommit={rCommit}
-        />
-      </Grid>
+      <Report
+        queryParams={queryParams}
+        startTime={startTime}
+        stopTime={stopTime}
+        granularity={granularity}
+        suite={suite}
+        mode={mode}
+        dtype={dtype}
+        lBranch={lBranch}
+        lCommit={lCommit}
+        rBranch={rBranch}
+        rCommit={rCommit}
+      />
     </div>
   );
 }
