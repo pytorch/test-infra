@@ -32,7 +32,7 @@ with failed_jobs as (
         join push on push.head_commit.id = w.head_commit.id
     where
         job._event_time >= CURRENT_DATE() - HOURS(:numHours)
-        and w.head_branch = 'master'
+        and w.head_branch = 'main'
         and w.name in ('trunk', 'pull')
         and job.name not like '%mem_leak_check%'
         and job.name not like '%rerun_disabled_tests%'

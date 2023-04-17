@@ -4,7 +4,7 @@
     {
       "name": "branch",
       "type": "string",
-      "value": "master"
+      "value": "main"
     },
     {
       "name": "commits",

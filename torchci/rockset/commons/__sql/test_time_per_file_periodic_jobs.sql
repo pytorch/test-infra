@@ -8,7 +8,7 @@ WITH good_periodic_sha AS (
         JOIN push on workflow.head_commit.id = push.head_commit.id
     where
         workflow.name = 'periodic'
-        AND workflow.head_branch LIKE 'master'
+        AND workflow.head_branch LIKE 'main'
     group by
         job.head_sha,
         push._event_time

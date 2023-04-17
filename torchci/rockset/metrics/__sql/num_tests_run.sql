@@ -5,7 +5,7 @@ WITH most_recent_commits AS (
     FROM
         commons.push
     WHERE
-        push.ref = 'refs/heads/master'
+        push.ref = 'refs/heads/main'
         AND push.repository.full_name = 'pytorch/pytorch'
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)
         AND push._event_time < PARSE_DATETIME_ISO8601(:stopTime)

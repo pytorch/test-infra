@@ -18,7 +18,7 @@ WITH test_runs AS (
     AND test_run_summary._event_time < PARSE_DATETIME_ISO8601(: stopTime) 
     AND test_run_summary.workflow_run_attempt = 1 
     AND workflow_run.name = : workflowName 
-    AND workflow_run.head_branch = 'master' 
+    AND workflow_run.head_branch = 'main'
     AND test_run_summary.invoking_file LIKE : testFile 
     AND test_run_summary.classname LIKE : testClass
 ), 
