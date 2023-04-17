@@ -405,13 +405,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_prod_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "98047",
-    "https://github.com/pytorch/pytorch/issues/98047",
-    [
-      "linux"
-    ]
-  ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
     "85012",
     "https://github.com/pytorch/pytorch/issues/85012",
@@ -1986,13 +1979,6 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
-    ]
-  ],
-  "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "97734",
-    "https://github.com/pytorch/pytorch/issues/97734",
-    [
-      "rocm"
     ]
   ],
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
