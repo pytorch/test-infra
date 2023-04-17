@@ -111,7 +111,7 @@ FROM
 WHERE
   ARRAY_CONTAINS(SPLIT(:suites, ','), LOWER(results.suite))
   AND (ARRAY_CONTAINS(SPLIT(:compilers, ','), LOWER(results.compiler)) OR :compilers = '')
-  AND head_branch LIKE :branch
+  AND (ARRAY_CONTAINS(SPLIT(:branches, ','), head_branch) OR :branches = '')
   AND (ARRAY_CONTAINS(SPLIT(:commits, ','), head_sha) OR :commits = '')  
 ORDER BY
   granularity_bucket DESC,

@@ -39,6 +39,7 @@ import {
   HUD_PREFIX,
   TIME_FIELD_NAME,
   MAIN_BRANCH,
+  DEFAULT_BRANCHES,
   SPEEDUP_THRESHOLD,
   COMPILATION_lATENCY_THRESHOLD_IN_SECONDS,
   COMPRESSION_RATIO_THRESHOLD,
@@ -595,9 +596,9 @@ function GraphPanel({
 
   const queryParamsWithBranch: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: branch,
+      value: branch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : branch,
     },
     ...queryParams,
   ];
@@ -793,9 +794,9 @@ function Report({
 
   const queryParamsWithL: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: lBranch,
+      value: lBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : lBranch,
     },
     {
       name: "commits",
@@ -819,9 +820,9 @@ function Report({
 
   const queryParamsWithR: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: rBranch,
+      value: rBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : rBranch,
     },
     {
       name: "commits",

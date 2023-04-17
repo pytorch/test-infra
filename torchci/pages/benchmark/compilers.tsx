@@ -46,7 +46,9 @@ const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 export const LAST_N_DAYS = 3;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
-export const MAIN_BRANCH = "master";
+export const MAIN_BRANCH = "main";
+// NB: Need to have this as PyTorch default branch is renamed from master to main recently
+export const DEFAULT_BRANCHES = ["main", "master"];
 export const LOG_PREFIX = "https://ossci-raw-job-status.s3.amazonaws.com/log";
 export const JOB_NAME_REGEX = new RegExp(
   ".+\\s/\\stest\\s\\(inductor_(.+)_perf, ([0-9]+), ([0-9]+), (.+)\\)"
@@ -537,6 +539,25 @@ export function DTypePicker({
   );
 }
 
+function groupCommitByBranch(
+  data: any,
+) {
+  const branches: { [k: string]: any[] } = {};
+  data.forEach((r: any) => {
+    const b = DEFAULT_BRANCHES.includes(r.head_branch) ? MAIN_BRANCH : r.head_branch;
+    if (!(b in branches)) {
+      branches[b] = [];
+    }
+
+    branches[b].push({
+      head_sha: r.head_sha,
+      event_time: r.event_time,
+    });
+  });
+
+  return branches;
+}
+
 export function BranchAndCommitPicker({
   queryParams,
   branch,
@@ -569,9 +590,8 @@ export function BranchAndCommitPicker({
 
   useEffect(() => {
     if (data !== undefined) {
-      const branchCommits = data
-        .filter((r: any) => r.head_branch === branch)
-        .map((r: any) => r.head_sha);
+      const branches = groupCommitByBranch(data);
+      const branchCommits = branches[branch].map((r: any) => r.head_sha);
 
       if (
         commit === undefined ||
@@ -603,16 +623,20 @@ export function BranchAndCommitPicker({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+
   function handleBranchChange(e: SelectChangeEvent<string>) {
     const branch: string = e.target.value;
     setBranch(branch);
-    setCommit(data.filter((r: any) => r.head_branch === branch)[0].head_sha);
+
+    const branches = groupCommitByBranch(data);
+    setCommit(branches[branch][0].head_sha);
   }
 
   function handleCommitChange(e: SelectChangeEvent<string>) {
     setCommit(e.target.value);
   }
 
+  const branches = groupCommitByBranch(data);
   return (
     <div>
       <FormControl>
@@ -627,14 +651,14 @@ export function BranchAndCommitPicker({
           id={`branch-picker-select-${commit}`}
         >
           <MenuItem value={MAIN_BRANCH}>main</MenuItem>
-          {data
-            .filter((r: any) => r.head_branch !== MAIN_BRANCH)
-            .map((r: any) => (
+          {Object.keys(branches)
+            .filter((b: string) => !DEFAULT_BRANCHES.includes(b))
+            .map((b: string) => (
               <MenuItem
-                key={`${r.head_branch}-${commit}`}
-                value={r.head_branch}
+                key={`${b}-${commit}`}
+                value={b}
               >
-                {r.head_branch}
+                {b}
               </MenuItem>
             ))}
         </Select>
@@ -651,8 +675,7 @@ export function BranchAndCommitPicker({
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
         >
-          {data
-            .filter((r: any) => r.head_branch === branch)
+          {branches[branch]
             .map((r: any) => (
               <MenuItem key={r.head_sha} value={r.head_sha}>
                 {r.head_sha.substring(0, 7)} (
@@ -1365,9 +1388,9 @@ function SuiteGraphPanel({
       value: suite,
     },
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: branch,
+      value: branch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : branch,
     },
     ...queryParams,
   ];
@@ -1635,9 +1658,9 @@ function Report({
       value: Object.keys(SUITES).join(","),
     },
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: lBranch,
+      value: lBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : lBranch,
     },
     {
       name: "commits",
@@ -1661,9 +1684,9 @@ function Report({
       value: Object.keys(SUITES).join(","),
     },
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: rBranch,
+      value: rBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : rBranch,
     },
     {
       name: "commits",
