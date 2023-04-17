@@ -107,7 +107,7 @@ async function forAllPRs(workflowsByPR: Map<number, PRandJobs>, func: CallableFu
 }
 
 function get_head_branch(repo: string) {
-    return repo === REPO ? "master" : "main";
+    return "main";
 }
 
 async function addMergeBaseCommits(
@@ -232,7 +232,7 @@ export function constructResultsComment(
     output += constructResultsJobsSections(
       hud_pr_url,
       "FLAKY",
-      "The following jobs failed but were likely due to flakiness present on master",
+      "The following jobs failed but were likely due to flakiness present on trunk",
       flakyJobs
     );
     output += constructResultsJobsSections(
