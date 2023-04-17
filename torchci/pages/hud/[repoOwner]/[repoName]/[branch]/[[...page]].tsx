@@ -39,6 +39,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { RocksetParam } from "lib/rockset";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -414,6 +415,34 @@ export default function Hud() {
     params.repoOwner != null && params.repoName != null && params.branch != null
       ? ` (${params.repoOwner}/${params.repoName}: ${params.branch})`
       : "";
+
+  // Get data about viable/strict lag for the current repo, if it exists
+  const strictLagParams: RocksetParam[] = [
+    {
+      name: "repo",
+      type: "string",
+      value: params.repoOwner,
+    },
+    {
+      name: "head",
+      type: "string",
+      value: params.repoOwner === "pytorch" ? "refs/heads/master" : "refs/heads/main",
+    },
+  ];
+  const url = `/api/query/metrics/strict_lag_sec?parameters=${encodeURIComponent(
+    JSON.stringify(strictLagParams)
+  )}`;
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  });
+
+  let viableStrictLag: string | undefined;
+
+  if (data !== undefined && data.length > 0) {
+    const timeLagInHours = Math.floor(data[0]["strict_lag_sec"] / 3600);
+    const viableStrictLag = `viable/strict lag: ${timeLagInHours}h`;
+  }
+
   return (
     <>
       <Head>
@@ -424,6 +453,7 @@ export default function Hud() {
           <div onClick={handleClick}>
             <HudHeader params={params} />
             <div>This page automatically updates.</div>
+            <div>{viableStrictLag}</div>
             <HudTable params={params} />
             <PageSelector params={params} baseUrl="hud" />
           </div>
