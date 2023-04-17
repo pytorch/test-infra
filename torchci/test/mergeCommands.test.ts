@@ -964,10 +964,10 @@ some other text lol
     handleScope(scope);
   });
 
-  test("merge rebase master", async () => {
+  test("merge rebase main", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -r master";
+    event.payload.comment.body = "@pytorchbot merge -r main";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -988,7 +988,7 @@ some other text lol
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"master"}}`
+          `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"rebase":"main"}}`
         );
         return true;
       })
@@ -1096,7 +1096,7 @@ some other text lol
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "@pytorchbot merge: error: argument -r/--rebase: invalid choice: 'something' (choose from 'viable/strict', 'master')"
+          "@pytorchbot merge: error: argument -r/--rebase: invalid choice: 'something' (choose from 'viable/strict', 'main')"
         );
         return true;
       })

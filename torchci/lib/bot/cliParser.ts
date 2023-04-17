@@ -52,11 +52,11 @@ mergeOption.add_argument("-ic", "--ignore-current", {
     "since this will fail.",
 });
 merge.add_argument("-r", "--rebase", {
-  help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
+  help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or main as branch options and " +
   "will default to viable/strict if not specified.",
   nargs: "?",
   const: "viable/strict",
-  choices: ["viable/strict", "master"],
+  choices: ["viable/strict", "main"],
 });
 merge.add_argument("-h", "--help", {
   action: "store_true",
