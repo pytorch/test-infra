@@ -1,12 +1,15 @@
+import argparse
 import datetime
-import json
 import os
 import re
+import shlex
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from rockset import RocksetClient  # type: ignore[import]
-from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
+
+from torchci.scripts.github_analyze import GitCommit  # type: ignore[import]
+from torchci.scripts.github_analyze import GitRepo
 
 CLASSIFICATIONS = {
     "nosignal": "No Signal",
@@ -17,6 +20,34 @@ CLASSIFICATIONS = {
     "manual": "Not through pytorchbot",
     "unknown": "Got @pytorchbot revert command, but no corresponding commit",
 }
+
+
+ROCKSET_REVERT_QUERY = """
+SELECT
+    ic._event_time revert_time,
+    ic.user.login as reverter,
+    ic.body,
+    ic.html_url as comment_url
+FROM
+    commons.issue_comment AS ic
+WHERE
+    REGEXP_LIKE(
+        ic.body,
+        '^ *@pytorch(merge|)bot revert'
+    )
+    AND ic._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
+    AND ic._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
+    AND ic.user.login != 'pytorch-bot[bot]'
+"""
+
+
+def parse_body(body: str) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("-c", "--classification")
+    parser.add_argument("-m", "--message")
+
+    return parser.parse_args(shlex.split(" ".join(body.split(" ")[2:])))
 
 
 def find_corresponding_gitlog_commit(
@@ -52,29 +83,34 @@ def get_start_stop_times() -> Tuple[str, str]:
 
 
 def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
-    params = [
-        {"name": "startTime", "type": "string", "value": start_time},
-        {"name": "stopTime", "type": "string", "value": end_time},
-    ]
+    params = {
+        "startTime": start_time,
+        "stopTime": end_time,
+    }
     ROCKSET_API_KEY = os.environ.get("ROCKSET_API_KEY")
     if ROCKSET_API_KEY is None:
         raise RuntimeError("ROCKSET_API_KEY not set")
-
-    with open("torchci/rockset/prodVersions.json") as f:
-        prod_versions = json.load(f)
 
     client = RocksetClient(
         api_key=ROCKSET_API_KEY,
         host="https://api.usw2a1.rockset.com",
     )
-    response = client.QueryLambdas.execute_query_lambda(
-        query_lambda="reverted_prs_with_reason",
-        version=prod_versions["commons"]["reverted_prs_with_reason"],
-        workspace="commons",
-        parameters=params,
-    )
+    response = client.sql(ROCKSET_REVERT_QUERY, params=params)
     res: List[Dict[str, str]] = response.results
-    return res
+
+    cleaned_up: List[Dict[str, str]] = []
+    # re-parse message to reduce errors, should really just upload to rockset from pytorchbot or trymerge
+    for revert in res:
+        body = revert["body"]
+        parse = parse_body(body)
+        if parse.classification is None or parse.message is None:
+            # comment is badly formed
+            continue
+        revert["code"] = parse.classification
+        revert["message"] = parse.message
+        cleaned_up.append(revert)
+
+    return cleaned_up
 
 
 def get_gitlog_reverts(start_time: str, end_time: str) -> List[GitCommit]:
