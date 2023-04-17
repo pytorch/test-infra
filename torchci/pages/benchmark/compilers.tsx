@@ -539,12 +539,12 @@ export function DTypePicker({
   );
 }
 
-function groupCommitByBranch(
-  data: any,
-) {
+function groupCommitByBranch(data: any) {
   const branches: { [k: string]: any[] } = {};
   data.forEach((r: any) => {
-    const b = DEFAULT_BRANCHES.includes(r.head_branch) ? MAIN_BRANCH : r.head_branch;
+    const b = DEFAULT_BRANCHES.includes(r.head_branch)
+      ? MAIN_BRANCH
+      : r.head_branch;
     if (!(b in branches)) {
       branches[b] = [];
     }
@@ -623,12 +623,11 @@ export function BranchAndCommitPicker({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  const branches = groupCommitByBranch(data);
 
   function handleBranchChange(e: SelectChangeEvent<string>) {
     const branch: string = e.target.value;
     setBranch(branch);
-
-    const branches = groupCommitByBranch(data);
     setCommit(branches[branch][0].head_sha);
   }
 
@@ -636,7 +635,6 @@ export function BranchAndCommitPicker({
     setCommit(e.target.value);
   }
 
-  const branches = groupCommitByBranch(data);
   return (
     <div>
       <FormControl>
@@ -654,10 +652,7 @@ export function BranchAndCommitPicker({
           {Object.keys(branches)
             .filter((b: string) => !DEFAULT_BRANCHES.includes(b))
             .map((b: string) => (
-              <MenuItem
-                key={`${b}-${commit}`}
-                value={b}
-              >
+              <MenuItem key={`${b}-${commit}`} value={b}>
                 {b}
               </MenuItem>
             ))}
@@ -675,13 +670,12 @@ export function BranchAndCommitPicker({
           onChange={handleCommitChange}
           id={`commit-picker-select-${commit}`}
         >
-          {branches[branch]
-            .map((r: any) => (
-              <MenuItem key={r.head_sha} value={r.head_sha}>
-                {r.head_sha.substring(0, 7)} (
-                {dayjs(r.event_time).format("YYYY/MM/DD")})
-              </MenuItem>
-            ))}
+          {branches[branch].map((r: any) => (
+            <MenuItem key={r.head_sha} value={r.head_sha}>
+              {r.head_sha.substring(0, 7)} (
+              {dayjs(r.event_time).format("YYYY/MM/DD")})
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
     </div>
