@@ -169,7 +169,9 @@ runs:
 
           if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
             if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
-              conda run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
+              # NB: Force reinstall and don't use the cache, as the installation would still fail
+              # when reporting that all requirements have been satisfied
+              conda run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install --ignore-installed --no-cache-dir -r "${PIP_REQUIREMENTS_FILE}"
             elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
               echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
             fi
