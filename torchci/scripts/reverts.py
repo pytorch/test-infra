@@ -101,14 +101,19 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
     cleaned_up: List[Dict[str, str]] = []
     # re-parse message to reduce errors, should really just upload to rockset from pytorchbot or trymerge
     for revert in res:
-        body = revert["body"]
-        parse = parse_body(body)
-        if parse.classification is None or parse.message is None:
-            # comment is badly formed
+        body = revert["body"].splitlines()[0]
+        try:
+            parse = parse_body(body)
+            if parse.classification is None or parse.message is None:
+                # comment is badly formed
+                continue
+            revert["code"] = parse.classification
+            revert["message"] = parse.message
+            cleaned_up.append(revert)
+        except Exception as e:
+            print(e)
             continue
-        revert["code"] = parse.classification
-        revert["message"] = parse.message
-        cleaned_up.append(revert)
+
 
     return cleaned_up
 
@@ -157,7 +162,7 @@ def main() -> None:
         f.write(
             f"# Week of {start_time.split('T')[0]} to {end_time.split('T')[0]} ({num_reverts})\n"
         )
-        for classification, reverts in classification_dict.items():
+        for classification, reverts in sorted(classification_dict.items(), key=lambda x: x[0]):
             f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
                 f.write(format_string_for_markdown_long(commit, rockset_result))
