@@ -4,17 +4,6 @@ import { CachedConfigTracker } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
-const ALLOWED_WORKFLOW_PREFIXES: { [key: string]: string[] } = {
-  pytorch: ["lint", "pull", "trunk", "linux-binary", "windows-binary"],
-  vision: [
-    "lint",
-    "Build Linux",
-    "Build Macos",
-    "Build M1",
-    "Tests on Linux",
-    "Tests on macOS",
-  ],
-};
 
 async function retryPreviousWorkflow(
   ctx: any,
@@ -79,9 +68,9 @@ async function retryCurrentWorkflow(
   };
 
   const retryJobs = failedJobs.filter((job) => {
-    // If the job was cancelled on master, it was probably an infra error, so rerun.
+    // If the job was cancelled on main, it was probably an infra error, so rerun.
     // On other branches, it could have been cancelled for valid reasons, so we won't rerun.
-    // Would be good to fine tune this further for non-master branches to differentiate between.
+    // Would be good to fine tune this further for non-main branches to differentiate between.
     // retryable and nonretryable cancellations
     if (
       job.conclusion === "cancelled" &&
