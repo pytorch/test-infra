@@ -47,7 +47,7 @@ function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { text: "% master jobs by red" },
+    title: { text: "% main jobs by red" },
     grid: { top: 48, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "time" },
@@ -108,7 +108,7 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
 
   const options: EChartsOption = {
     title: {
-      text: "Commits red on master, by day",
+      text: "Commits red on main, by day",
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -540,7 +540,7 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
-              title={"% commits red on master (broken trunk)"}
+              title={"% commits red on main (broken trunk)"}
               value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
@@ -560,7 +560,7 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
-              title={"% commits red on master (flaky)"}
+              title={"% commits red on main (flaky)"}
               value={flakyRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
@@ -622,7 +622,7 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"Last master push"}
+              title={"Last main push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
@@ -630,7 +630,7 @@ export default function Page() {
                 {
                   name: "branch",
                   type: "string",
-                  value: "refs/heads/master",
+                  value: "refs/heads/main",
                 },
               ]}
               badThreshold={(_) => false} // never bad
@@ -786,8 +786,8 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job time-to-signal, master-only"}
-          branchName={"master"}
+          title={"Job time-to-signal, main-only"}
+          branchName={"main"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
           percentileParam={percentileParam}
@@ -804,8 +804,8 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job duration, master-only"}
-          branchName={"master"}
+          title={"Job duration, main-only"}
+          branchName={"main"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
           percentileParam={percentileParam}
