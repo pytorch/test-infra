@@ -1558,13 +1558,6 @@
       "rocm"
     ]
   ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "96375",
-    "https://github.com/pytorch/pytorch/issues/96375",
-    [
-      "rocm"
-    ]
-  ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98025",
     "https://github.com/pytorch/pytorch/issues/98025",
