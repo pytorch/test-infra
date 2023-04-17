@@ -74,8 +74,7 @@
     "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
   },
   "inductor": {
-    "compilers_benchmark_performance": "48968bc792eb3287",
-    "compilers_benchmark_performance_branches": "f259d06862b41888",
-    "compilers_benchmark_performance_latest_runs": "35cec2aacb0f0637"
+    "compilers_benchmark_performance": "5ddc9635e18202b9",
+    "compilers_benchmark_performance_branches": "f259d06862b41888"
   }
 }
