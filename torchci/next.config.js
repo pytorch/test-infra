@@ -5,7 +5,7 @@ module.exports = {
     return [
       {
         source: "/",
-        destination: "/hud/pytorch/pytorch/master/1",
+        destination: "/hud/pytorch/pytorch/main/1",
       },
       {
         source: "/commit/:repoOwner/:repoName/:sha",
@@ -29,11 +29,11 @@ module.exports = {
       },
       {
         source: "/minihud",
-        destination: "/minihud/pytorch/pytorch/master/1",
+        destination: "/minihud/pytorch/pytorch/main/1",
       },
       {
         source: "/tts",
-        destination: "/tts/pytorch/pytorch/master",
+        destination: "/tts/pytorch/pytorch/main",
       },
       {
         source: "/reliability",
