@@ -82,7 +82,7 @@ def get_gitlog_reverts(start_time: str, end_time: str) -> List[GitCommit]:
     remote = "origin"
     repo = GitRepo(repo_path, remote)
     all_commits = repo._run_git_log(
-        f"{remote}/master", [f"--since={start_time}", f"--before={end_time}"]
+        f"{remote}/main", [f"--since={start_time}", f"--before={end_time}"]
     )
 
     return [
