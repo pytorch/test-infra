@@ -39,6 +39,7 @@ import {
   HUD_PREFIX,
   TIME_FIELD_NAME,
   MAIN_BRANCH,
+  DEFAULT_BRANCHES,
   SPEEDUP_THRESHOLD,
   COMPILATION_lATENCY_THRESHOLD_IN_SECONDS,
   COMPRESSION_RATIO_THRESHOLD,
@@ -49,13 +50,15 @@ import {
   LogLinks,
   JOB_NAME_REGEX,
   LOG_PREFIX,
+  COMMIT_TO_WORKFLOW_ID,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
+import CopyLink from "components/CopyLink";
 
-const TABLE_ROW_HEIGHT = 1000;
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
+const ROW_HEIGHT = 38;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
@@ -143,6 +146,8 @@ function CommitPanel({
 }
 
 function ModelPanel({
+  startTime,
+  stopTime,
   suite,
   mode,
   dtype,
@@ -155,6 +160,8 @@ function ModelPanel({
   rCommit,
   rData,
 }: {
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   suite: string;
   mode: string;
   dtype: string;
@@ -231,8 +238,8 @@ function ModelPanel({
   });
 
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} lg={12} height={TABLE_ROW_HEIGHT + ROW_GAP}>
+    <Grid container spacing={2} style={{ height: "100%" }}>
+      <Grid item xs={12} lg={12} height={data.length * ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -267,7 +274,7 @@ function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
                   return (
@@ -297,11 +304,11 @@ function ModelPanel({
                     </a>
                     &nbsp;(
                     <a target="_blank" rel="noreferrer" href={lLog}>
-                      <u>{lCommit.substr(0, 7)}</u>
-                    </a>{" "}
-                    ←{" "}
-                    <a target="_blank" rel="noreferrer" href={rLog}>
                       <u>{rCommit.substr(0, 7)}</u>
+                    </a>{" "}
+                    →{" "}
+                    <a target="_blank" rel="noreferrer" href={rLog}>
+                      <u>{lCommit.substr(0, 7)}</u>
                     </a>
                     )
                   </>
@@ -351,10 +358,10 @@ function ModelPanel({
                   return "";
                 }
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
                 } else {
-                  return `${v.l} ← ${v.r}`;
+                  return `${v.r} → ${v.l}`;
                 }
               },
             },
@@ -374,6 +381,11 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
                     return styles.ok;
                   }
@@ -404,11 +416,13 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
-                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                  return `${r} → ${l} ${
+                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
+                      ? "\uD83D\uDD3B"
+                      : ""
                   }`;
                 }
               },
@@ -431,6 +445,11 @@ function ModelPanel({
                     ? styles.warning
                     : "";
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (
                     l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
                     r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
@@ -468,11 +487,11 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(0);
                 const r = Number(v.r).toFixed(0);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
-                    Number(l) > Number(r) && Number(r) != 0
+                  return `${r} → ${l} ${
+                    Number(l) > Number(r) && Number(r) != 0 && Number(l) != 0
                       ? "\uD83D\uDD3A"
                       : ""
                   }`;
@@ -495,6 +514,11 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 } else {
+                  if (l === 0) {
+                    // This means the model isn't run at all
+                    return "";
+                  }
+
                   if (
                     l >= COMPRESSION_RATIO_THRESHOLD &&
                     r < COMPRESSION_RATIO_THRESHOLD
@@ -531,11 +555,13 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit) {
+                if (lCommit === rCommit || l === r) {
                   return l;
                 } else {
-                  return `${l} ← ${r} ${
-                    Number(l) < Number(r) ? "\uD83D\uDD3B" : ""
+                  return `${r} → ${l} ${
+                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
+                      ? "\uD83D\uDD3B"
+                      : ""
                   }`;
                 }
               },
@@ -554,21 +580,25 @@ function GraphPanel({
   compiler,
   model,
   branch,
+  lCommit,
+  rCommit,
 }: {
   queryParams: RocksetParam[];
   granularity: Granularity;
   compiler: string;
   model: string;
   branch: string;
+  lCommit: string;
+  rCommit: string;
 }) {
   const queryCollection = "inductor";
   const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithBranch: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: branch,
+      value: branch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : branch,
     },
     ...queryParams,
   ];
@@ -597,10 +627,29 @@ function GraphPanel({
     queryParams.find((p) => p.name === "stopTime")?.value
   ).startOf(granularity);
 
+  // Only show records between these twos
+  const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lCommit];
+  const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rCommit];
+
   const groupByFieldName = "name";
-  const chartData = data.filter(
-    (record: CompilerPerformanceData) => record.name == model
-  );
+  const chartData = data
+    .filter((record: CompilerPerformanceData) => record.name == model)
+    .filter((record: CompilerPerformanceData) => {
+      const id = record.workflow_id;
+      return (
+        (id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)
+      );
+    })
+    .map((record: CompilerPerformanceData) => {
+      record.speedup = Number(record.speedup.toFixed(2));
+      record.compilation_latency = Number(
+        record.compilation_latency.toFixed(0)
+      );
+      record.compression_ratio = Number(record.compression_ratio.toFixed(2));
+      // Truncate the data to make it consistent with the display value
+      return record;
+    });
 
   const geomeanSeries = seriesWithInterpolatedTimes(
     chartData,
@@ -642,11 +691,18 @@ function GraphPanel({
           title={`Geomean`}
           groupByFieldName={groupByFieldName}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(2)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return Number(r.value[1]).toFixed(2);
+              },
             },
           }}
         />
@@ -660,11 +716,18 @@ function GraphPanel({
           groupByFieldName={groupByFieldName}
           yAxisLabel={"second"}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(0)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return Number(r.value[1]).toFixed(0);
+              },
             },
           }}
         />
@@ -677,11 +740,18 @@ function GraphPanel({
           title={`Peak memory footprint compression ratio`}
           groupByFieldName={groupByFieldName}
           yAxisRenderer={(unit) => {
-            return `${unit}`;
+            return `${unit.toFixed(2)}`;
           }}
           additionalOptions={{
             yAxis: {
               scale: true,
+            },
+            label: {
+              show: true,
+              align: "left",
+              formatter: (r: any) => {
+                return Number(r.value[1]).toFixed(2);
+              },
             },
           }}
         />
@@ -692,6 +762,8 @@ function GraphPanel({
 
 function Report({
   queryParams,
+  startTime,
+  stopTime,
   granularity,
   suite,
   mode,
@@ -704,6 +776,8 @@ function Report({
   rCommit,
 }: {
   queryParams: RocksetParam[];
+  startTime: dayjs.Dayjs;
+  stopTime: dayjs.Dayjs;
   granularity: Granularity;
   suite: string;
   mode: string;
@@ -720,9 +794,9 @@ function Report({
 
   const queryParamsWithL: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: lBranch,
+      value: lBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : lBranch,
     },
     {
       name: "commits",
@@ -746,9 +820,9 @@ function Report({
 
   const queryParamsWithR: RocksetParam[] = [
     {
-      name: "branch",
+      name: "branches",
       type: "string",
-      value: rBranch,
+      value: rBranch === MAIN_BRANCH ? DEFAULT_BRANCHES.join(",") : rBranch,
     },
     {
       name: "commits",
@@ -794,8 +868,12 @@ function Report({
         compiler={compiler}
         model={model}
         branch={lBranch}
+        lCommit={lCommit}
+        rCommit={rCommit}
       />
       <ModelPanel
+        startTime={startTime}
+        stopTime={stopTime}
         suite={suite}
         mode={mode}
         dtype={dtype}
@@ -820,10 +898,12 @@ export default function Page() {
   const compiler: string = (router.query.compiler as string) ?? undefined;
   const model: string = (router.query.model as string) ?? undefined;
 
-  const [startTime, setStartTime] = useState(
-    dayjs().subtract(LAST_N_DAYS, "day")
-  );
-  const [stopTime, setStopTime] = useState(dayjs());
+  const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const defaultStopTime = dayjs();
+  const [stopTime, setStopTime] = useState(defaultStopTime);
+  const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
+
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [mode, setMode] = useState<string>(MODES[0]);
   const [dtype, setDType] = useState<string>(DTYPES[0]);
@@ -831,9 +911,28 @@ export default function Page() {
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
   const [rCommit, setRCommit] = useState<string>("");
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   // Set the dropdown value what is in the param
   useEffect(() => {
+    const startTime: string = (router.query.startTime as string) ?? undefined;
+    if (startTime !== undefined) {
+      setStartTime(dayjs(startTime));
+
+      if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
+        setTimeRange(-1);
+      }
+    }
+
+    const stopTime: string = (router.query.stopTime as string) ?? undefined;
+    if (stopTime !== undefined) {
+      setStopTime(dayjs(stopTime));
+
+      if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
+        setTimeRange(-1);
+      }
+    }
+
     const mode: string = (router.query.mode as string) ?? undefined;
     if (mode !== undefined) {
       setMode(mode);
@@ -863,6 +962,8 @@ export default function Page() {
     if (rCommit !== undefined) {
       setRCommit(rCommit);
     }
+
+    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
   }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
@@ -919,12 +1020,21 @@ export default function Page() {
           TorchInductor Performance DashBoard (
           {COMPILER_NAMES_TO_DISPLAY_NAMES[compiler] || compiler})
         </Typography>
+        <CopyLink
+          textToCopy={
+            `${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            (model === undefined ? "" : `&model=${model}`)
+          }
+        />
+      </Stack>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_N_DAYS}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}
@@ -933,6 +1043,19 @@ export default function Page() {
         <ModePicker mode={mode} setMode={setMode} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
+          branch={rBranch}
+          setBranch={setRBranch}
+          commit={rCommit}
+          setCommit={setRCommit}
+          queryParams={queryParams}
+          titlePrefix={"Base"}
+          fallbackIndex={-1} // Default to the next to latest in the window
+          timeRange={timeRange}
+        />
+        <Divider orientation="vertical" flexItem>
+          &mdash;Diff→
+        </Divider>
+        <BranchAndCommitPicker
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
@@ -940,24 +1063,15 @@ export default function Page() {
           queryParams={queryParams}
           titlePrefix={"New"}
           fallbackIndex={0} // Default to the latest commit
-        />
-        <Divider orientation="vertical" flexItem>
-          Diff
-        </Divider>
-        <BranchAndCommitPicker
-          branch={rBranch}
-          setBranch={setRBranch}
-          commit={rCommit}
-          setCommit={setRCommit}
-          queryParams={queryParams}
-          titlePrefix={"Base"}
-          fallbackIndex={0} // Default to the latest commit
+          timeRange={timeRange}
         />
       </Stack>
 
       <Grid item xs={12}>
         <Report
           queryParams={queryParams}
+          startTime={startTime}
+          stopTime={stopTime}
           granularity={granularity}
           suite={suite}
           mode={mode}

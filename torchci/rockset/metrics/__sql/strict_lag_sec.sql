@@ -4,9 +4,9 @@ WITH master as (
     FROM
         push
     WHERE
-        push.ref = 'refs/heads/master'
+        push.ref = :head
         AND push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
+        AND push.repository.name = :repo
         AND push.head_commit is not null
     ORDER BY
         push._event_time desc
@@ -20,7 +20,7 @@ WITH master as (
     WHERE
         push.ref = 'refs/heads/viable/strict'
         AND push.repository.owner.name = 'pytorch'
-        AND push.repository.name = 'pytorch'
+        AND push.repository.name = :repo
         AND push.head_commit is not null
     ORDER BY
         push._event_time desc

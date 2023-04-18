@@ -308,6 +308,7 @@ export default function Page() {
 
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(LAST_WEEK);
   const [granularity, setGranularity] = useState<Granularity>("day");
 
   const [filter, setFilter] = useState(new Set());
@@ -368,10 +369,11 @@ export default function Page() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_WEEK}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}

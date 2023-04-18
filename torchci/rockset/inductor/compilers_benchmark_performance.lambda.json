@@ -2,9 +2,9 @@
   "sql_path": "__sql/compilers_benchmark_performance.sql",
   "default_parameters": [
     {
-      "name": "branch",
+      "name": "branches",
       "type": "string",
-      "value": "master"
+      "value": "main,master"
     },
     {
       "name": "commits",
@@ -49,7 +49,7 @@
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2023-04-06T00:00:00.00Z"
+      "value": "2023-05-01T00:00:00.00Z"
     },
     {
       "name": "suites",

@@ -35,7 +35,7 @@ WITH all_jobs AS (
         )
         AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND push.ref = 'refs/heads/master'
+        AND push.ref = 'refs/heads/main'
         AND push.repository.owner.name = 'pytorch'
         AND push.repository.name = 'pytorch'
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)

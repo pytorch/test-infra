@@ -23,7 +23,7 @@ WHERE
     job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
     AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
     AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), workflow.name)
-	AND workflow.head_branch LIKE 'master'
+	AND workflow.head_branch LIKE 'main'
     AND workflow.run_attempt = 1
 GROUP BY
     granularity_bucket,
