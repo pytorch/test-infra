@@ -187,7 +187,7 @@ runs:
           fi
 
       - name: Reset channel priority
-        shell: bash -l {0}
+        shell: bash
         run: |
           CONDA_RUNTIME=$(which conda)
 
