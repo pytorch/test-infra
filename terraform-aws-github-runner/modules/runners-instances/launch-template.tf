@@ -193,7 +193,6 @@ resource "aws_launch_template" "windows_runner" {
       {
         "Name"               = format("%s", local.name_runner)
         "InstanceManagement" = "dynamic"
-
       },
     )
   }

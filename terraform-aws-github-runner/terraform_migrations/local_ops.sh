@@ -29,6 +29,31 @@ terraform init
 # Move the state [still in WIP]
 move_state aws_kms_ciphertext.github_app_key_base64
 move_state aws_kms_ciphertext.github_app_client_secret
+move_state aws_cloudwatch_log_group.gh_runners_linux
+move_state aws_cloudwatch_log_group.gh_runners_windows
+move_state aws_iam_instance_profile.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role_policy.cloudwatch_linux
+move_state aws_iam_role_policy.cloudwatch_linux_nvidia
+move_state aws_iam_role_policy.cloudwatch_windows
+move_state aws_iam_role_policy.create_tags
+move_state aws_iam_role_policy.dist_bucket
+move_state aws_iam_role_policy.scale_up
+move_state aws_iam_role_policy.ssm_parameters
+move_state aws_iam_role_policy_attachment.managed_policies
+move_state aws_iam_role_policy_attachment.runner_session_manager_aws_managed
+move_state aws_lambda_alias.scale_up_lambda_alias
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
+move_state aws_iam_role.runner
 
 # Validate the modules
 validate_module "tf-modules/terraform-aws-github-runner/modules/runners/"
