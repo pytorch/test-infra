@@ -6,5 +6,13 @@
     "pull",
     "win-vs2019-cpu-py3",
     "test"
+  ],
+  "trunk / win-vs2019-cuda11.7-py3 / test (force_on_cpu)": [
+    "kit1980",
+    "99481",
+    "https://github.com/pytorch/pytorch/issues/99481",
+    "trunk",
+    "win-vs2019-cuda11.7-py3",
+    "test (force_on_cpu)"
   ]
 }
