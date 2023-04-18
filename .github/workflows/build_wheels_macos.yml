@@ -194,6 +194,7 @@ jobs:
           ${CONDA_RUN} pip show torchdata
           ${CONDA_RUN} python -c "import sys; print(sys.path)"
           ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          ${CONDA_RUN} python -c "import torchdata; print('package version is ', torchdata.__version__)"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
