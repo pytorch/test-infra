@@ -188,11 +188,12 @@ jobs:
             grep "Requires-Dist: torch (==.*)" -r .
           )
 
-          ${CONDA_RUN} pip uninstall -y torchdata
+          # ${CONDA_RUN} pip uninstall -y torchdata
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           ${CONDA_RUN} pip install numpy
           ${CONDA_RUN} pip show torchdata
           ${CONDA_RUN} python -c "import sys; print(sys.path)"
+          ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
