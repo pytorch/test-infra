@@ -1266,13 +1266,6 @@
       "linux"
     ]
   ],
-  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93064",
-    "https://github.com/pytorch/pytorch/issues/93064",
-    [
-      "linux"
-    ]
-  ],
   "test_masked_bmm (__main__.TestMatMul)": [
     "84586",
     "https://github.com/pytorch/pytorch/issues/84586",
