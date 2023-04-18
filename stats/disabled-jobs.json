@@ -1,1 +1,10 @@
-{}
+{
+  "pull / win-vs2019-cpu-py3 / test": [
+    "kit1980",
+    "99480",
+    "https://github.com/pytorch/pytorch/issues/99480",
+    "pull",
+    "win-vs2019-cpu-py3",
+    "test"
+  ]
+}
