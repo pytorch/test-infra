@@ -1,13 +1,13 @@
 name: Test Build MacOS Wheels
 
 on:
-  pull_request:
-    paths:
-      - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/test_build_wheels_macos.yml
-      - .github/workflows/build_wheels_macos.yml
-      - .github/workflows/generate_binary_build_matrix.yml
-      - tools/scripts/generate_binary_build_matrix.py
+  # pull_request:
+  #   paths:
+  #     - .github/actions/setup-binary-builds/action.yml
+  #     - .github/workflows/test_build_wheels_macos.yml
+  #     - .github/workflows/build_wheels_macos.yml
+  #     - .github/workflows/generate_binary_build_matrix.yml
+  #     - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
 jobs:

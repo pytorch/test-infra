@@ -190,6 +190,8 @@ jobs:
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           ${CONDA_RUN} pip install numpy
+          ${CONDA_RUN} pip show torchdata
+          ${CONDA_RUN} python -c "import sys; print(sys.path)"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
