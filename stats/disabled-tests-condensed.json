@@ -1046,6 +1046,13 @@
       "dynamo"
     ]
   ],
+  "test_fsdp_ddp_parity_with_grad_scaler_offload_false_none_mixed_precision_use_orig_params (__main__.TestShardedGradScalerParityWithDDP)": [
+    "99427",
+    "https://github.com/pytorch/pytorch/issues/99427",
+    [
+      "linux"
+    ]
+  ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
     "84046",
     "https://github.com/pytorch/pytorch/issues/84046",
