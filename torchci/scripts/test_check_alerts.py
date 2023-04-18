@@ -84,7 +84,7 @@ def mock_fetch_alerts(*args, **kwargs):
                 "issues": {
                     "nodes": [
                         {
-                            "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
+                            "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch main",
                             "closed": False,
                             "number": 3763,
                             "body": "",
@@ -269,10 +269,10 @@ class TestGitHubPR(TestCase):
             },
             {
                 "repo": "pytorch/pytorch",
-                "branch": "master",
+                "branch": "main",
                 "expected": [
                     {
-                        "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch master",
+                        "title": "[Pytorch] There are 3 Recurrently Failing Jobs on pytorch/pytorch main",
                         "closed": False,
                         "number": 3763,
                         "body": "",
