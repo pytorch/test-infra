@@ -63,7 +63,7 @@ def main():
         --shm-size=2g \
         --tty \
         --ulimit stack=10485760:83886080 \
-        { os.environ.get('GPU_FLAG', '') if os.environ.get('CPU_FLAG') else '' } \
+        { os.environ.get('GPU_FLAG', '') } \
         -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/{ os.environ.get('REPOSITORY', '') }:/work" \
         -v "{ os.environ.get('GITHUB_WORKSPACE', '') }/test-infra:/test-infra" \
         -v "{ os.environ.get('RUNNER_ARTIFACT_DIR', '') }:/artifacts" \
