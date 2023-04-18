@@ -246,7 +246,7 @@ def generate_failed_job_issue(
     issue[
         "title"
     ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on {repo} {branch}"
-    body = "Within the last 50 commits, there are the following failures on the master branch of pytorch: \n"
+    body = "Within the last 50 commits, there are the following failures on the main branch of pytorch: \n"
     for job in failed_jobs:
         failing_sha = job.failure_chain[-1]["sha"]
         body += (
@@ -581,7 +581,7 @@ def parse_args() -> argparse.Namespace:
         "--branch",
         help="Branch to do checks for",
         type=str,
-        default=os.getenv("BRANCH_TO_CHECK", "master"),
+        default=os.getenv("BRANCH_TO_CHECK", "main"),
     )
     parser.add_argument(
         "--job-name-regex",
