@@ -6,7 +6,11 @@ function move_state() {
 
     terraform state mv \
         "module.runners.module.runners.${old_module}" \
-        "module.runners.module.runners-instances.${new_module}"
+        "module.runners.module.runners_instances.${new_module}"
+
+    terraform state mv \
+        "module.canary_runners.module.runners.${old_module}" \
+        "module.canary_runners.module.runners_instances.${new_module}"
 }
 
 function validate_module() {
@@ -18,6 +22,17 @@ function validate_module() {
 }
 
 set -ex
+
+# Disables backend
+cat <<EOF >backend.tf
+# terraform {
+#   backend "s3" {
+#     bucket = "pytorch-gha-infra-terraform"
+#     key    = "runners/terraform.tfstate"
+#     region = "us-east-1"
+#   }
+# }
+EOF
 
 # Download the state file from S3 and keep a backup
 aws s3 cp s3://pytorch-gha-infra-terraform/runners/terraform.tfstate ./terraform.tfstate
@@ -38,22 +53,21 @@ move_state aws_iam_role_policy.cloudwatch_linux_nvidia
 move_state aws_iam_role_policy.cloudwatch_windows
 move_state aws_iam_role_policy.create_tags
 move_state aws_iam_role_policy.dist_bucket
-move_state aws_iam_role_policy.scale_up
 move_state aws_iam_role_policy.ssm_parameters
 move_state aws_iam_role_policy_attachment.managed_policies
 move_state aws_iam_role_policy_attachment.runner_session_manager_aws_managed
-move_state aws_lambda_alias.scale_up_lambda_alias
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
-move_state aws_iam_role.runner
+move_state aws_launch_template.linux_runner
+move_state aws_launch_template.linux_runner_nvidia
+move_state aws_launch_template.windows_runner
+move_state aws_security_group.runners_sg
+move_state aws_ssm_parameter.cloudwatch_agent_config_runner_linux
+move_state aws_ssm_parameter.cloudwatch_agent_config_runner_linux_nvidia
+move_state aws_ssm_parameter.cloudwatch_agent_config_runner_windows
+move_state aws_security_group.runner_sg
+# move_state aws_iam_role_policy.scale_up
+
+# Remove the useless intermediate states created by the move
+rm -f terraform.tfstate.*.backup
 
 # Validate the modules
 validate_module "tf-modules/terraform-aws-github-runner/modules/runners/"
