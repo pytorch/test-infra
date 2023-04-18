@@ -68,10 +68,7 @@ on:
         required: false
         default: ''
         type: string
-      secrets-env:
-        description: "List of secrets to be exported to environment variables"
-        type: string
-        default: ''
+
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -146,8 +143,6 @@ jobs:
       - name: Run script in container
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
-        env:
-          ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
           set -ex
           {
@@ -155,11 +150,38 @@ jobs:
             echo "set -eou pipefail";
             # shellcheck disable=SC2016
             echo 'eval "$(conda shell.bash hook)"';
-            echo "set -x";
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
-          python3 "${{ github.workspace }}/test-infra/.github/scripts/run_docker_with_env_secrets.py" "${{ inputs.secrets-env }}"
+          # detached container should get cleaned up by teardown_ec2_linux
+          # shellcheck disable=SC2086,SC2090
+          container_name=$(docker run \
+            -e PR_NUMBER \
+            -e RUNNER_ARTIFACT_DIR=/artifacts \
+            -e RUNNER_DOCS_DIR=/docs \
+            -e RUNNER_TEST_RESULTS_DIR=/test-results \
+            --env-file="${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}" \
+            `# It is unknown why the container sees a different value for this.` \
+            --env=GITHUB_STEP_SUMMARY \
+            --cap-add=SYS_PTRACE \
+            --detach \
+            --ipc=host \
+            --security-opt seccomp=unconfined \
+            --shm-size=2g \
+            --tty \
+            --ulimit stack=10485760:83886080 \
+            ${GPU_FLAG:-} \
+            -v "${GITHUB_WORKSPACE}/${REPOSITORY}:/work" \
+            -v "${GITHUB_WORKSPACE}/test-infra:/test-infra" \
+            -v "${RUNNER_ARTIFACT_DIR}:/artifacts" \
+            -v "${RUNNER_DOCS_DIR}:/docs" \
+            -v "${RUNNER_TEST_RESULTS_DIR}:/test-results" \
+            -v "${RUNNER_TEMP}/exec_script:/exec" \
+            -v "${GITHUB_STEP_SUMMARY}":"${GITHUB_STEP_SUMMARY}" \
+            -w /work \
+            "${DOCKER_IMAGE}"
+          )
+          docker exec -t "${container_name}" bash /exec
 
       - name: Surface failing tests
         if: always()
