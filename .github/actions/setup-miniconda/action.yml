@@ -121,10 +121,10 @@ runs:
           fi
 
           # Print the conda we are using here in case we need debugging information
-          which conda
-          conda --version
+          CONDA_RUNTIME=$(which conda)
+          "${CONDA_RUNTIME}" --version
 
-          conda create \
+          "${CONDA_RUNTIME}" create \
             --yes --quiet \
             --prefix "${CONDA_BASE_ENV}" \
             ${ENV_FILE_FLAG} \
@@ -136,7 +136,7 @@ runs:
             ${CONDA_EXTRA_FLAGS}
 
           if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
-            conda run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
+            "${CONDA_RUNTIME}" run -p "${CONDA_BASE_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
           elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
             echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
           fi
@@ -151,11 +151,11 @@ runs:
           set -x
 
           # Print the conda we are using here in case we need debugging information
-          which conda
-          conda --version
+          CONDA_RUNTIME=$(which conda)
+          "${CONDA_RUNTIME}" --version
 
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
-          conda create \
+          "${CONDA_RUNTIME}" create \
             --yes --quiet \
             --prefix "${CONDA_ENV}" \
             --clone "${CONDA_BASE_ENV}"
@@ -164,28 +164,32 @@ runs:
           # NB: Cloning sometimes doesn't copied pip dependencies (untracked files) over. If this
           # happens, let's attempt to install the pip requirements directly on top of the cloned
           # environment. This is to make sure that no dependency is missing.
-          UNTRACKED_FILES_COUNT=$(conda package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l | xargs)
+          UNTRACKED_FILES_COUNT=$("${CONDA_RUNTIME}" package -p "${CONDA_ENV}" -u | grep -v "^#" | wc -l | xargs)
           set -e
 
           if [[ -z "${UNTRACKED_FILES_COUNT}" ]] || [[ "${UNTRACKED_FILES_COUNT}" == "0" ]]; then
             if [[ -f "${PIP_REQUIREMENTS_FILE}" ]]; then
-              conda run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install -r "${PIP_REQUIREMENTS_FILE}"
+              # NB: Force reinstall and don't use the cache, as the installation would still fail
+              # when reporting that all requirements have been satisfied
+              "${CONDA_RUNTIME}" run -p "${CONDA_ENV}" --no-capture-output python3 -mpip install --ignore-installed --no-cache-dir -r "${PIP_REQUIREMENTS_FILE}"
             elif [[ -n "${PIP_REQUIREMENTS_FILE}" ]]; then
               echo "::warning::Specified pip requirements file (${PIP_REQUIREMENTS_FILE}) not found, not going to include it"
             fi
           fi
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_RUN=conda run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=${CONDA_RUNTIME} run -p ${CONDA_ENV} --no-capture-output" >> "${GITHUB_ENV}"
           if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
             # TODO: Remove me, when more packages will be available on default channel
-            echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_ENV} -c pytorch-nightly" >> "${GITHUB_ENV}"
           else
-            echo "CONDA_INSTALL=conda install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
           fi
 
       - name: Reset channel priority
-        shell: bash -l {0}
+        shell: bash
         run: |
+          CONDA_RUNTIME=$(which conda)
+
           set -euxo pipefail
-          conda config --set channel_priority false
+          "${CONDA_RUNTIME}" config --set channel_priority false
