@@ -63,8 +63,6 @@ move_state aws_security_group.runners_sg
 move_state aws_ssm_parameter.cloudwatch_agent_config_runner_linux
 move_state aws_ssm_parameter.cloudwatch_agent_config_runner_linux_nvidia
 move_state aws_ssm_parameter.cloudwatch_agent_config_runner_windows
-move_state aws_security_group.runner_sg
-# move_state aws_iam_role_policy.scale_up
 
 # Remove the useless intermediate states created by the move
 rm -f terraform.tfstate.*.backup
