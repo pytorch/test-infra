@@ -119,8 +119,17 @@ export function getDelayWithJitter(delayBase: number, jitter: number) {
   return Math.max(0, delayBase) * (1 + Math.random() * Math.max(0, jitter));
 }
 
+export function getDelay(retryCount: number, delayBase: number) {
+  return Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount));
+}
+
 export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
-  return getDelayWithJitter(Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount)), jitter);
+  return getDelayWithJitter(getDelay(retryCount, delayBase), jitter);
+}
+
+export function stochaticRunOvershoot(retryCount: number, maxTime: number, delayBase: number) {
+  const prob = maxTime / getDelay(retryCount, delayBase);
+  return Math.random() < prob;
 }
 
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */

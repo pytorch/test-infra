@@ -770,6 +770,11 @@ export class ScaleUpMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  stochasticOvershoot() {
+    this.countEntry('run.scaleup.stochasticOvershoot');
+  }
+
+  /* istanbul ignore next */
   scaleUpFailureRetryable(retries: number) {
     this.countEntry('run.scaleup.failure.total.count');
     this.addEntry('run.scaleup.failure.total.retries', retries);
