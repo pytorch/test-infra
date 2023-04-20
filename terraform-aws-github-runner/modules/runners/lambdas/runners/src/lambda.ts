@@ -3,17 +3,17 @@ import { Context, SQSEvent, SQSRecord, ScheduledEvent } from 'aws-lambda';
 
 import { Config } from './scale-runners/config';
 import { ScaleUpMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './scale-runners/metrics';
-import { getDelayWithJitterRetryCount } from './scale-runners/utils';
+import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 
-async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean]>, metrics: ScaleUpMetrics) {
+async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean, number]>, metrics: ScaleUpMetrics) {
   console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
   metrics.exception();
   const messagesToSend: Array<ActionRequestMessage> = [];
   console.dir(evtFailed);
 
-  for (const [evt, retryable] of evtFailed) {
+  for (const [evt, retryable, incRetry] of evtFailed) {
     const body: ActionRequestMessage = JSON.parse(evt.body);
     const retryCount = body?.retryCount ?? 0;
 
@@ -21,13 +21,17 @@ async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean]>, metrics: 
       retryCount < Config.Instance.maxRetryScaleUpRecord &&
       (Config.Instance.retryScaleUpRecordQueueUrl?.length ?? 0) > 0
     ) {
-      if (retryable) {
-        metrics.scaleUpFailureRetryable(retryCount);
+      if (incRetry > 0) {
+        if (retryable) {
+          metrics.scaleUpFailureRetryable(retryCount);
+        } else {
+          metrics.scaleUpFailureNonRetryable(retryCount);
+        }
       } else {
-        metrics.scaleUpFailureNonRetryable(retryCount);
+        metrics.stochasticOvershoot();
       }
 
-      body.retryCount = retryCount + 1;
+      body.retryCount = retryCount + incRetry;
       body.delaySeconds = Math.min(
         900,
         getDelayWithJitterRetryCount(
@@ -64,24 +68,32 @@ export async function scaleUp(event: SQSEvent, context: Context, callback: any) 
     (Config.Instance.lambdaTimeout - 10) * 1000,
   );
 
-  const evtFailed: Array<[SQSRecord, boolean]> = [];
+  const evtFailed: Array<[SQSRecord, boolean, number]> = [];
 
   try {
     recordsIterProcess: for (let i = 0; i < event.Records.length; i += 1) {
       const evt = event.Records[i];
 
       try {
-        await scaleUpR(evt.eventSource, JSON.parse(evt.body), metrics);
-        metrics.scaleUpSuccess();
+        const body = JSON.parse(evt.body) as ActionRequestMessage;
+        if (
+          !stochaticRunOvershoot(body?.retryCount ?? 0, 900, Math.max(Config.Instance.retryScaleUpRecordDelayS, 20))
+        ) {
+          console.warn(`Skipping message due to stochatic run overshoot: ${evt.body}`);
+          evtFailed.push([evt, true, 0]);
+        } else {
+          await scaleUpR(evt.eventSource, body, metrics);
+          metrics.scaleUpSuccess();
+        }
       } catch (e) {
         if (e instanceof RetryableScalingError) {
           console.error(`Retryable error thrown: "${e.message}"`);
-          evtFailed.push([evt, true]);
+          evtFailed.push([evt, true, 1]);
         } else {
           console.error(`Non-retryable error during request: "${e.message}"`);
           console.error(`All remaning '${event.Records.length - i}' messages will be scheduled to retry`);
           for (let ii = i; ii < event.Records.length; ii += 1) {
-            evtFailed.push([event.Records[ii], false]);
+            evtFailed.push([event.Records[ii], false, 1]);
           }
           break recordsIterProcess;
         }

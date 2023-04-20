@@ -1,12 +1,14 @@
 import {
   expBackOff,
   getBoolean,
+  getDelay,
   getDelayWithJitter,
   getDelayWithJitterRetryCount,
   getRepo,
   getRepoKey,
   groupBy,
   shuffleArrayInPlace,
+  stochaticRunOvershoot,
 } from './utils';
 import nock from 'nock';
 
@@ -140,6 +142,20 @@ describe('./utils', () => {
     });
   });
 
+  describe('getDelay', () => {
+    it('test some numbers', () => {
+      expect(getDelay(0, 3)).toEqual(3);
+      expect(getDelay(1, 3)).toEqual(6);
+      expect(getDelay(2, 3)).toEqual(12);
+      expect(getDelay(3, 3)).toEqual(24);
+
+      expect(getDelay(0, 5)).toEqual(5);
+      expect(getDelay(1, 5)).toEqual(10);
+      expect(getDelay(2, 5)).toEqual(20);
+      expect(getDelay(3, 5)).toEqual(40);
+    });
+  });
+
   describe('getDelayWithJitter', () => {
     it('have jitter == 0', () => {
       expect(getDelayWithJitter(20, 0.0)).toEqual(20);
@@ -258,5 +274,42 @@ describe('shuffleArrayInPlace', () => {
     for (const number of Array(10).keys()) {
       expect(arr).toContain(number);
     }
+  });
+
+  describe('stochaticRunOvershoot', () => {
+    afterEach(() => {
+      jest.spyOn(global.Math, 'random').mockRestore();
+    });
+
+    it('test some values', () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+      expect(stochaticRunOvershoot(0, 100, 10)).toBe(true);
+
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6249);
+      expect(stochaticRunOvershoot(4, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6251);
+      expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+      expect(stochaticRunOvershoot(4, 100, 10)).toBe(false);
+
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0);
+      expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244139);
+      expect(stochaticRunOvershoot(12, 100, 10)).toBe(true);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.00244141);
+      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.5);
+      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(1.0);
+      expect(stochaticRunOvershoot(12, 100, 10)).toBe(false);
+    });
   });
 });
