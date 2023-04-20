@@ -162,7 +162,7 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
     else:
-        return return f"conda install pytorch-{channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
+        return f"conda install pytorch-{channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
