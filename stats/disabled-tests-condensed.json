@@ -1684,6 +1684,13 @@
       "linux"
     ]
   ],
+  "test_save_graph_repro (__main__.TestAfterAot)": [
+    "99602",
+    "https://github.com/pytorch/pytorch/issues/99602",
+    [
+      "linux"
+    ]
+  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
