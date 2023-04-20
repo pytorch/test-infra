@@ -310,7 +310,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       });
     }
     const [launchTemplateName, launchTemplateVersion] = getLaunchTemplateName(runnerParameters);
-    const errors: Array<[string, unknown]> = [];
+    const errors: Array<[string, unknown, string]> = [];
 
     const shuffledAwsRegionInstances = Config.Instance.shuffledAwsRegionInstances;
     for (const [awsRegionIdx, awsRegion] of shuffledAwsRegionInstances.entries()) {
@@ -387,7 +387,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                 `[${awsRegion}] [${vpcId}] [${runnerParameters.runnerType.instance_type}] ` +
                 `[${runnerParameters.runnerType.runnerTypeName}] ec2.runInstances returned empty list of instaces ` +
                 `created, but exit without throwing any exception (?!?!?!)`;
-              errors.push([msg, undefined]);
+              errors.push([msg, undefined, awsRegion]);
               console.warn(msg);
             }
           } catch (e) {
@@ -396,7 +396,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               `[${vpcIdIdx}/${shuffledVPCsForAwsRegion.length} - ${vpcId}] ` +
               `[${awsRegionIdx}/${shuffledAwsRegionInstances.length} - ${awsRegion}] Issue creating instance ` +
               `${runnerParameters.runnerType.instance_type}: ${e}`;
-            errors.push([msg, e]);
+            errors.push([msg, e, awsRegion]);
             console.warn(msg);
           }
         }
@@ -409,15 +409,26 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
         let key = 'undefined';
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          key = (err[1] as any).constructor.name;
+          key = (err[1] as any).name;
         } catch (e) {
           try {
-            key = typeof err[1];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            key = (err[1] as any).code;
           } catch (e) {
-            console.debug(`could not get a type for ${err[1]}`);
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              key = (err[1] as any).constructor.name;
+            } catch (e) {
+              try {
+                key = typeof err[1];
+              } catch (e) {
+                console.debug(`could not get a type for ${err[1]}`);
+              }
+            }
           }
         }
         errsCount.set(key, (errsCount.get(key) ?? 0) + 1);
+        metrics.ec2RunInstancesAWSCallException(runnerParameters.runnerType.instance_type, err[2], key);
       });
       let excSumm = '';
       errsCount.forEach((count, excep) => {

@@ -732,6 +732,18 @@ export class Metrics {
     this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);
   }
 
+  /* istanbul ignore next */
+  ec2RunInstancesAWSCallException(instanceType: string, awsRegion: string, exceptionName: string, count = 1) {
+    this.countEntry('aws.ec2.runInstances.exception', count);
+    this.countEntry(`aws.ec2.perRegion.runInstances.exception`, count, new Map([['Region', awsRegion]]));
+    this.countEntry(
+      `aws.ec2.perInstancesType.runInstances.exception`,
+      count,
+      new Map([['InstanceType', instanceType]]),
+    );
+    this.countEntry(`aws.ec2.perException.runInstances.exception`, count, new Map([['Exception', exceptionName]]));
+  }
+
   // RUN
   /* istanbul ignore next */
   getRunnerTypesSuccess() {
