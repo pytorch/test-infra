@@ -96,6 +96,52 @@ describe('scaleUp', () => {
     expect(sqsDeleteMessageBatch).toBeCalledWith(metrics, evts);
   });
 
+  it('stochasticOvershoot when retryCount > 5', async () => {
+    const config = {
+      maxRetryScaleUpRecord: 1999,
+      retryScaleUpRecordDelayS: 20,
+      retryScaleUpRecordJitterPct: 0.2,
+      retryScaleUpRecordQueueUrl: 'asdf',
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+    const records = [
+      { eventSource: 'aws:sqs', body: '{"id":1}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 1 },
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":2,"retryCount":3}',
+        eventSourceARN: '1:2:3:4:5:6:7',
+        receiptHandle: 'xxx',
+        messageId: 2,
+      },
+      {
+        eventSource: 'aws:sqs',
+        body: '{"id":3,"retryCount":12}',
+        eventSourceARN: '1:2:3:4:5:6:7',
+        receiptHandle: 'xxx',
+        messageId: 3,
+      },
+    ];
+
+    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+    jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
+
+    const callback = jest.fn();
+    await scaleUpL({ Records: records } as unknown as SQSEvent, {} as unknown as Context, callback);
+    expect(mockedScaleUp).toBeCalledTimes(2);
+
+    const expected = [
+      {
+        id: 3,
+        retryCount: 12,
+        delaySeconds: 900,
+      },
+    ];
+    expect(sqsSendMessages).toBeCalledTimes(1);
+    expect(sqsSendMessages).toBeCalledWith(metrics, expected, 'asdf');
+
+    expect(sqsDeleteMessageBatch).toBeCalledTimes(0);
+  });
+
   it('RetryableScalingError', async () => {
     const config = {
       maxRetryScaleUpRecord: 12,
