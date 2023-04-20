@@ -154,7 +154,8 @@ def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
 def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str, os: str) -> str:
-    conda_channels = "-c pytorch" if channel == RELEASE else f"-c pytorch-{channel}"
+    pytorch_channel = "pytorch" if channel == RELEASE else f"pytorch-{channel}"
+    conda_channels = f"-c {pytorch_channel}"
     conda_package_type = ""
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
@@ -162,7 +163,7 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
     else:
-        return f"{CONDA_INSTALL_BASE} {conda_channels}"
+        return f"conda install {pytorch_channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
