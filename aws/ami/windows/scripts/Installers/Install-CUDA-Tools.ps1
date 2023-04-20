@@ -19,9 +19,6 @@ $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
 $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
 
 Switch ($cudaVersion) {
-  "11.6" {
-    $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
-  }
   "11.7" {
     $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
@@ -29,6 +26,11 @@ Switch ($cudaVersion) {
   "11.8" {
     $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-8.7.0.84_cuda11-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion"
+  }
+  "12.1" {
+    $toolkitInstaller = "cuda_12.1.0_531.14_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-8.8.1.3_cuda12-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion"
   }
 }
