@@ -159,8 +159,6 @@ async function handleLabelEvent(
     if (!is_first_time_contributor){
       body = "Warning: " + body + "\n Please add the new label to .github/pytorch-probot.yml"
     }
-    console.log("is first time")
-    console.log(is_first_time_contributor)
     await context.octokit.issues.createComment(
       context.repo({
         body,
