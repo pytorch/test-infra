@@ -1,5 +1,5 @@
 import { Context, Probot } from "probot";
-import { CachedConfigTracker, isPyTorchPyTorch } from "./utils";
+import { CachedConfigTracker, isFirstTimeContributor, isPyTorchPyTorch } from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
@@ -150,19 +150,26 @@ async function handleLabelEvent(
     );
     return;
   }
-
   if (!valid_labels.includes(label)) {
     let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
     valid_labels.forEach((l: string) => {
       body += ` - \`${l}\`\n`;
     });
+    let is_first_time_contributor = await isFirstTimeContributor(context, context.payload.pull_request.user.login);
+    if (!is_first_time_contributor){
+      body = "Warning: " + body + "\n Please add the new label to .github/pytorch-probot.yml"
+    }
+    console.log("is first time")
+    console.log(is_first_time_contributor)
     await context.octokit.issues.createComment(
       context.repo({
         body,
         issue_number: context.payload.pull_request.number,
       })
     );
-    return;
+    if (is_first_time_contributor){
+      return;
+    }    
   }
 
   const prNum = context.payload.pull_request.number;

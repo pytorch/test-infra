@@ -17,7 +17,7 @@ export function isPyTorchPyTorch(owner: string, repo: string): boolean {
 }
 
 export function isDrCIEnabled(owner: string, repo: string): boolean {
-  return isPyTorchOrg(owner) && ["pytorch", "vision", "text", "audio"].includes(repo);
+  return isPyTorchOrg(owner) && ["pytorch", "vision", "text", "audio", "pytorch-canary"].includes(repo);
 }
 
 export class CachedConfigTracker {
@@ -186,6 +186,9 @@ export async function isFirstTimeContributor(
     sha: ctx.payload.repository.default_branch,
     per_page: 1,
   });
+  console.log("length is")
+  console.log(commits?.data?.length )
+  console.log(commits?.data)
   return commits?.data?.length === 0;
 }
 

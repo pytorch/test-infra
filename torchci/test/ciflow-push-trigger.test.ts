@@ -2,7 +2,7 @@ import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
 
-nock.disableNetConnect();
+// nock.disableNetConnect();
 
 describe("Push trigger integration tests", () => {
   let probot: Probot;
@@ -280,12 +280,15 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
-  test("Invalid CIFlow label creates comment", async () => {
+  test("Invalid CIFlow label with first time contributor creates comment", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
-    nock("https://api.github.com")
-      .get(
+    payload.pull_request.user.login = "fake_user";
+    const login = payload.pull_request.user.login
+    nock("https://api.github.com").get(`/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`)
+    .reply(200, [])
+    .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
         )}`
@@ -299,4 +302,44 @@ describe("Push trigger integration tests", () => {
 
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
+
+  test("Invalid CIFlow label with established contributor triggers flow", async () => {
+    const payload = require("./fixtures/push-trigger/pull_request.labeled");
+    const commits = require("./fixtures/push-trigger/commits");
+    const label = payload.label.name;
+    const prNum = payload.pull_request.number;
+    const login = payload.pull_request.user.login
+    payload.pull_request.state = "open";
+    payload.label.name = "ciflow/test";
+    nock("https://api.github.com").get(`/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`)
+    .reply(200, commits)
+    .get(
+        `/repos/suo/actions-test/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
+      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
+        expect(body.body).toContain("Unknown label `ciflow/test`.");
+        return true;
+      })
+      .reply(200)
+      .get(
+        `/repos/suo/actions-test/git/matching-refs/${encodeURIComponent(
+          `tags/${label}/${prNum}`
+        )}`
+      )
+      .reply(200, [])
+      .post("/repos/suo/actions-test/git/refs", (body) => {
+        expect(body).toMatchObject({
+          ref: `refs/tags/${label}/${prNum}`,
+          sha: payload.pull_request.head.sha,
+        });
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", id: "123", payload });
+  });
+
 });
