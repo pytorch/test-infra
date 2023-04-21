@@ -2,7 +2,7 @@ import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
 
-// nock.disableNetConnect();
+nock.disableNetConnect();
 
 describe("Push trigger integration tests", () => {
   let probot: Probot;
