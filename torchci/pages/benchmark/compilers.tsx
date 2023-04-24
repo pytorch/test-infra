@@ -43,7 +43,7 @@ const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
-export const LAST_N_DAYS = 3;
+export const LAST_N_DAYS = 7;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
 export const MAIN_BRANCH = "main";
@@ -51,7 +51,7 @@ export const MAIN_BRANCH = "main";
 export const DEFAULT_BRANCHES = ["main", "master"];
 export const LOG_PREFIX = "https://ossci-raw-job-status.s3.amazonaws.com/log";
 export const JOB_NAME_REGEX = new RegExp(
-  ".+\\s/\\stest\\s\\(inductor_(.+)_perf, ([0-9]+), ([0-9]+), (.+)\\)"
+  ".+\\s/\\stest\\s\\(inductor_(.+)_perf_?(.*), ([0-9]+), ([0-9]+), (.+)\\)"
 );
 
 // After https://github.com/pytorch/pytorch/pull/96986, there is no perf data
@@ -753,14 +753,16 @@ function CommitPanel({
     }
 
     const suite = m[1];
-    const index = m[2];
-    const total = m[3];
+    const setting = m[2];
+    const index = m[3];
+    const total = m[4];
 
     if (!(suite in logsBySuite)) {
       logsBySuite[suite] = [];
     }
     logsBySuite[suite].push({
       index: index,
+      setting: setting,
       total: total,
       url: url,
     });
@@ -1007,7 +1009,7 @@ function SummaryPanel({
                       return "";
                     }
 
-                    if (lCommit === rCommit || l === r) {
+                    if (lCommit === rCommit || l === r || r == undefined) {
                       return <a href={url}>{v.l}</a>;
                     } else {
                       return (
@@ -1079,7 +1081,7 @@ function SummaryPanel({
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (v === undefined || v.l === undefined || v.l === "") {
                       return "";
                     }
 
@@ -1091,7 +1093,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit || l === r) {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
@@ -1104,7 +1111,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1159,7 +1172,7 @@ function SummaryPanel({
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (v === undefined || v.l === undefined || v.l === "") {
                       return "";
                     }
 
@@ -1171,7 +1184,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
 
-                    if (lCommit === rCommit || l === r) {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}s</a>;
                     } else {
                       return (
@@ -1186,7 +1204,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1252,7 +1276,7 @@ function SummaryPanel({
                   flex: 1,
                   renderCell: (params: GridRenderCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (v === undefined || v.l === undefined || v.l === "") {
                       return "";
                     }
 
@@ -1264,7 +1288,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit || l === r) {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
@@ -1277,7 +1306,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined) {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1855,7 +1890,11 @@ export default function Page() {
           TorchInductor Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+            startTime.toString()
+          )}&stopTime=${encodeURIComponent(
+            stopTime.toString()
+          )}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
