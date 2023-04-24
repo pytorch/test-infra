@@ -194,41 +194,53 @@ export function constructResultsComment(
     const headerPrefix = `## `
     const pendingIcon = `:hourglass_flowing_sand:`
     const successIcon = `:white_check_mark:`
-    const noneFailing = ` No Failures`;
-    const someFailing = `## :x: ${failing} Failures`;
-    const somePending = `, ${pending} Pending`;
+    const failuresIcon = `:x:`
+    const noneFailing = `No Failures`
+    const significantFailures = `${failedJobs.length} Significant Failures`
+    const unrelatedFailures = `${flakyJobs.length + brokenTrunkJobs.length} Unrelated Failures`
+    const pendingJobs = `${pending} Pending`
 
-    const hasFailing = failing > 0;
+    const hasAnyFailing = failing > 0;
+    const hasUserInducedFailures = failedJobs.length > 0;
     const hasPending = pending > 0;
-    if (!hasFailing) {
-        output += headerPrefix
-        if (hasPending) {
-            output += pendingIcon
-        } else {
-            output += successIcon
-        }
-
-        output += noneFailing;
-
-        if (hasPending) {
-            output += somePending;
-        }
-
-        output += `\nAs of commit ${sha}:`;
-        output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
+    
+    let icon = ''
+    if (hasUserInducedFailures) {
+      icon = failuresIcon
+    } else if (hasPending) {
+      icon = pendingIcon
     } else {
-        output += someFailing;
-        if (hasPending) {
-            output += somePending;
-        }
-        output += `\nAs of commit ${sha}:`;
-        output += constructResultsJobsSections(
-          hud_pr_url,
-          "NEW FAILURES",
-          "The following jobs have failed",
-          failedJobs,
-        );
+      icon = successIcon
     }
+
+    let title_messages = []
+    if (hasUserInducedFailures) {
+      title_messages.push(significantFailures)
+    }
+    if (!hasAnyFailing) {
+      title_messages.push(noneFailing)
+    }
+    if (hasPending) {
+      title_messages.push(pendingJobs)
+    }
+    if (unrelatedFailures){
+      title_messages.push(unrelatedFailures)
+    }
+
+    let title = headerPrefix + icon + ' ' + title_messages.join(', ')
+    output += title
+    output += `\nAs of commit ${sha}:`;
+
+
+    if (!hasAnyFailing) {
+      output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
+    }
+    output += constructResultsJobsSections(
+      hud_pr_url,
+      "NEW FAILURES",
+      "The following jobs have failed",
+      failedJobs,
+    );
     output += constructResultsJobsSections(
       hud_pr_url,
       "FLAKY",
