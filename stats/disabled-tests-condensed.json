@@ -146,29 +146,10 @@
       "linux"
     ]
   ],
-  "test_aot (__main__.LoggingTests)": [
-    "98721",
-    "https://github.com/pytorch/pytorch/issues/98721",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_aot_autograd_exhaustive_as_strided_scatter_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
     "85879",
     "https://github.com/pytorch/pytorch/issues/85879",
     [
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_aot_graphs (__main__.LoggingTests)": [
-    "98726",
-    "https://github.com/pytorch/pytorch/issues/98726",
-    [
-      "linux",
       "mac",
       "macos"
     ]
