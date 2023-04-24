@@ -944,13 +944,6 @@
       "linux"
     ]
   ],
-  "test_forward_ad_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "87051",
-    "https://github.com/pytorch/pytorch/issues/87051",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1434,13 +1427,6 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96760",
     "https://github.com/pytorch/pytorch/issues/96760",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "98026",
-    "https://github.com/pytorch/pytorch/issues/98026",
     [
       "rocm"
     ]
