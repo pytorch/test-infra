@@ -121,11 +121,13 @@ function CommitPanel({
     }
 
     const suite = m[1];
-    const index = m[2];
-    const total = m[3];
+    const setting = m[2];
+    const index = m[3];
+    const total = m[4];
 
     return {
       index: index,
+      setting: setting,
       total: total,
       url: url,
     };
@@ -182,7 +184,7 @@ function ModelPanel({
   });
 
   // Combine with right data
-  if (lCommit !== rCommit) {
+  if (lCommit !== rCommit && rData !== undefined) {
     rData.forEach((record: CompilerPerformanceData) => {
       if (record.name in dataGroupedByModel) {
         dataGroupedByModel[record.name]["r"] = record;
@@ -324,7 +326,7 @@ function ModelPanel({
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
-                if (v === undefined) {
+                if (v === undefined || v.r == undefined) {
                   return "";
                 }
 
@@ -358,7 +360,7 @@ function ModelPanel({
                   return "";
                 }
 
-                if (lCommit === rCommit || v.l === v.r) {
+                if (lCommit === rCommit || v.l === v.r || v.r === undefined) {
                   return v.l;
                 } else {
                   return `${v.r} → ${v.l}`;
@@ -371,7 +373,7 @@ function ModelPanel({
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
-                if (v === undefined) {
+                if (v === undefined || v.r === 0) {
                   return "";
                 }
 
@@ -416,7 +418,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit || l === r) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -433,7 +435,7 @@ function ModelPanel({
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
-                if (v === undefined) {
+                if (v === undefined || v.r === 0) {
                   return "";
                 }
 
@@ -487,7 +489,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(0);
                 const r = Number(v.r).toFixed(0);
 
-                if (lCommit === rCommit || l === r) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -504,7 +506,7 @@ function ModelPanel({
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
-                if (v === undefined) {
+                if (v === undefined || v.r === 0) {
                   return "";
                 }
 
@@ -555,7 +557,7 @@ function ModelPanel({
                 const l = Number(v.l).toFixed(2);
                 const r = Number(v.r).toFixed(2);
 
-                if (lCommit === rCommit || l === r) {
+                if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
                   return `${r} → ${l} ${
@@ -844,12 +846,7 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
-  if (
-    lData === undefined ||
-    lData.length === 0 ||
-    rData === undefined ||
-    rData.length === 0
-  ) {
+  if (lData === undefined || lData.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
@@ -1022,7 +1019,11 @@ export default function Page() {
         </Typography>
         <CopyLink
           textToCopy={
-            `${baseUrl}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            `${baseUrl}?startTime=${encodeURIComponent(
+              startTime.toString()
+            )}&stopTime=${encodeURIComponent(
+              stopTime.toString()
+            )}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
             (model === undefined ? "" : `&model=${model}`)
           }
         />
