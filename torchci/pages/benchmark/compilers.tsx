@@ -753,7 +753,7 @@ function CommitPanel({
     }
 
     const suite = m[1];
-    const setting = m[2]
+    const setting = m[2];
     const index = m[3];
     const total = m[4];
 
@@ -1093,7 +1093,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit || l === r || v.r === undefined || v.r === "") {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
@@ -1106,7 +1111,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined || v.l === undefined || v.l === "" || v.r === undefined || v.r === "") {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1173,7 +1184,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
 
-                    if (lCommit === rCommit || l === r || v.r === undefined || v.r === "") {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}s</a>;
                     } else {
                       return (
@@ -1188,7 +1204,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined || v.l === undefined || v.l === "" || v.r === undefined || v.r === "") {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1266,7 +1288,12 @@ function SummaryPanel({
                     const l = Number(v.l).toFixed(2);
                     const r = Number(v.r).toFixed(2);
 
-                    if (lCommit === rCommit || l === r || v.r === undefined || v.r === "") {
+                    if (
+                      lCommit === rCommit ||
+                      l === r ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return <a href={url}>{l}x</a>;
                     } else {
                       return (
@@ -1279,7 +1306,13 @@ function SummaryPanel({
                   },
                   cellClassName: (params: GridCellParams<any>) => {
                     const v = params.value;
-                    if (v === undefined || v.l === undefined || v.l === "" || v.r === undefined || v.r === "") {
+                    if (
+                      v === undefined ||
+                      v.l === undefined ||
+                      v.l === "" ||
+                      v.r === undefined ||
+                      v.r === ""
+                    ) {
                       return "";
                     }
 
@@ -1857,7 +1890,11 @@ export default function Page() {
           TorchInductor Performance DashBoard
         </Typography>
         <CopyLink
-          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(startTime)}&stopTime=${encodeURIComponent(stopTime)}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
+            startTime.toString()
+          )}&stopTime=${encodeURIComponent(
+            stopTime.toString()
+          )}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

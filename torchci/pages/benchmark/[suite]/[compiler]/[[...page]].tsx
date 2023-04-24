@@ -1019,7 +1019,11 @@ export default function Page() {
         </Typography>
         <CopyLink
           textToCopy={
-            `${baseUrl}?startTime=${encodeURIComponent(startTime)}&stopTime=${encodeURIComponent(stopTime)}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            `${baseUrl}?startTime=${encodeURIComponent(
+              startTime.toString()
+            )}&stopTime=${encodeURIComponent(
+              stopTime.toString()
+            )}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
             (model === undefined ? "" : `&model=${model}`)
           }
         />
