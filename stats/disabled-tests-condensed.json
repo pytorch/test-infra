@@ -1768,13 +1768,6 @@
       "dynamo"
     ]
   ],
-  "test_transformer_no_grad_mixed_precision_True (__main__.TestNoGrad)": [
-    "99011",
-    "https://github.com/pytorch/pytorch/issues/99011",
-    [
-      "linux"
-    ]
-  ],
   "test_transpose_with_norm (__main__.CPUReproTests)": [
     "98618",
     "https://github.com/pytorch/pytorch/issues/98618",
