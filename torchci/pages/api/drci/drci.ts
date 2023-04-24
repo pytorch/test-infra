@@ -200,9 +200,10 @@ export function constructResultsComment(
     const unrelatedFailures = `${flakyJobs.length + brokenTrunkJobs.length} Unrelated Failures`
     const pendingJobs = `${pending} Pending`
 
-    const hasAnyFailing = failing > 0;
-    const hasSignificantFailures = failedJobs.length > 0;
-    const hasPending = pending > 0;
+    const hasAnyFailing = failing > 0
+    const hasSignificantFailures = failedJobs.length > 0
+    const hasPending = pending > 0
+    const hasUnrelatedFailures = flakyJobs.length + brokenTrunkJobs.length
     
     let icon = ''
     if (hasSignificantFailures) {
@@ -223,7 +224,7 @@ export function constructResultsComment(
     if (hasPending) {
       title_messages.push(pendingJobs)
     }
-    if (unrelatedFailures){
+    if (hasUnrelatedFailures){
       title_messages.push(unrelatedFailures)
     }
 
