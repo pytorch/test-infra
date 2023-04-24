@@ -208,10 +208,6 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_pr_builds
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
-    # remove python 3.11 conda from macos x86
-    if(os == "macos"):
-        python_versions = list_without(python_versions, ["3.11"])
-
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
 
