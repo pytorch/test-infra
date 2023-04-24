@@ -201,11 +201,11 @@ export function constructResultsComment(
     const pendingJobs = `${pending} Pending`
 
     const hasAnyFailing = failing > 0;
-    const hasUserInducedFailures = failedJobs.length > 0;
+    const hasSignificantFailures = failedJobs.length > 0;
     const hasPending = pending > 0;
     
     let icon = ''
-    if (hasUserInducedFailures) {
+    if (hasSignificantFailures) {
       icon = failuresIcon
     } else if (hasPending) {
       icon = pendingIcon
@@ -214,7 +214,7 @@ export function constructResultsComment(
     }
 
     let title_messages = []
-    if (hasUserInducedFailures) {
+    if (hasSignificantFailures) {
       title_messages.push(significantFailures)
     }
     if (!hasAnyFailing) {
