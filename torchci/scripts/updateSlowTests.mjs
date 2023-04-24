@@ -22,7 +22,7 @@ from
     join commons.workflow_job j on j.run_id = w.id
 where
     w._event_time > CURRENT_TIMESTAMP() - DAYS(7)
-    and w.head_branch = 'master'
+    and w.head_branch = 'main'
     and j.name like '%test%'
 `;
 
