@@ -423,6 +423,13 @@
       "mac"
     ]
   ],
+  "test_cuda_lstm (__main__.FakeTensorTest)": [
+    "99952",
+    "https://github.com/pytorch/pytorch/issues/99952",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
@@ -1008,6 +1015,13 @@
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
     "https://github.com/pytorch/pytorch/issues/82866",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93051",
+    "https://github.com/pytorch/pytorch/issues/93051",
     [
       "linux"
     ]
@@ -1681,6 +1695,13 @@
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
+    ]
+  ],
+  "test_sum_fp16 (__main__.TestCuda)": [
+    "99953",
+    "https://github.com/pytorch/pytorch/issues/99953",
+    [
+      "rocm"
     ]
   ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
