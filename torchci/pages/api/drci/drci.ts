@@ -230,8 +230,7 @@ export function constructResultsComment(
 
     let title = headerPrefix + icon + ' ' + title_messages.join(', ')
     output += title
-    output += `\nAs of commit ${sha}:`;
-
+    output += `\nAs of commit ${sha}:`
 
     if (!hasAnyFailing) {
       output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
