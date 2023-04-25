@@ -1,0 +1,70 @@
+name: bosco
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/bosco.yml
+      - tools/bosco/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/bosco.yml
+      - tools/bosco/**
+
+jobs:
+  black:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        # black writes its output to stderr, so we redirect stderr to
+        # tee, and then return tee's output back to stderr.
+        PYTHONPATH=tools/bosco/scripts/src/ python tools/bosco/scripts/black.py \
+            --create-environment --debug 2> >(tee "${GITHUB_STEP_SUMMARY}" >&2)
+
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
+
+  coverage:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        PYTHONPATH=tools/bosco/scripts/src/ python tools/bosco/scripts/coverage.py \
+            --create-environment --debug \
+                | tee "${GITHUB_STEP_SUMMARY}"
+
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
+
+  flake8:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        PYTHONPATH=tools/bosco/scripts/src/ python tools/bosco/scripts/flake8.py \
+            --create-environment --debug \
+                | tee "${GITHUB_STEP_SUMMARY}"
+
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
+
+  mypy:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        PYTHONPATH=tools/bosco/scripts/src/ python tools/bosco/scripts/mypy.py \
+            --create-environment --debug \
+                | tee "${GITHUB_STEP_SUMMARY}"
+
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
+
+  pytest:
+    uses: pytorch/test-infra/.github/workflows/linux_job.yml@main
+    with:
+      script: |
+        PYTHONPATH=tools/bosco/scripts/src/ python tools/bosco/scripts/pytest.py \
+            --create-environment --debug \
+                | tee "${GITHUB_STEP_SUMMARY}"
+
+      docker-image: python:3.11.0-slim-bullseye
+      runner: linux.large
