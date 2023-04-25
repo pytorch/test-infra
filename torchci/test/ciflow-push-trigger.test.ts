@@ -282,17 +282,12 @@ describe("Push trigger integration tests", () => {
 
   test("Invalid CIFlow label with established contributor triggers flow", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
-    const commits = require("./fixtures/push-trigger/commits");
-    const suo_commits = require("./fixtures/push-trigger/suo_commits");
     const permission = require("./fixtures/push-trigger/permission")
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
-    const login = payload.pull_request.user.login
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
     nock("https://api.github.com")
-    // .get(`/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`)
-    // .reply(200, suo_commits)
     .get(`/repos/suo/actions-test/collaborators/suo/permission`)
     .reply(200, permission) // note: example response from pytorch not action-test
     .get(
@@ -301,8 +296,6 @@ describe("Push trigger integration tests", () => {
         )}`
       )
       .reply(200, '{ ciflow_push_tags: ["ciflow/foo" ]}')
-      // .get("/repos/suo/actions-test/commits")
-      // .reply(200, commits)
       .post("/repos/suo/actions-test/issues/5/comments", (body) => {
         expect(body.body).toContain("Unknown label `ciflow/test`.");
         return true;
@@ -331,8 +324,6 @@ describe("Push trigger integration tests", () => {
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
     payload.pull_request.user.login = "fake_user";
-    const label = payload.label.name;
-    const prNum = payload.pull_request.number;
     const login = payload.pull_request.user.login
     nock("https://api.github.com").get(`/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`)
     .reply(200, [])
