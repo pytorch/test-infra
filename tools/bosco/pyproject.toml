@@ -31,3 +31,6 @@ addopts = [
      # https://docs.pytest.org/en/7.3.x/explanation/goodpractices.html#which-import-mode
      '--import-mode=importlib',
 ]
+
+[tool.setuptools.package-data]
+bosco = ['py.typed']
