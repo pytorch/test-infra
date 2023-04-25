@@ -380,6 +380,13 @@
       "linux"
     ]
   ],
+  "test_compute_local_offset_1d (__main__.UtilTest)": [
+    "100032",
+    "https://github.com/pytorch/pytorch/issues/100032",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95270",
     "https://github.com/pytorch/pytorch/issues/95270",
@@ -1054,6 +1061,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94508",
+    "https://github.com/pytorch/pytorch/issues/94508",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -1452,6 +1466,13 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96760",
     "https://github.com/pytorch/pytorch/issues/96760",
+    [
+      "rocm"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
+    "100033",
+    "https://github.com/pytorch/pytorch/issues/100033",
     [
       "rocm"
     ]
