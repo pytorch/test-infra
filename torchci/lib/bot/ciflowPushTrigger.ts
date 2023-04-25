@@ -1,5 +1,5 @@
 import { Context, Probot } from "probot";
-import { CachedConfigTracker, isFirstTimeContributor, isPyTorchPyTorch } from "./utils";
+import { CachedConfigTracker, hasWorkflowRunningPermissions, isPyTorchPyTorch } from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
@@ -155,8 +155,8 @@ async function handleLabelEvent(
     valid_labels.forEach((l: string) => {
       body += ` - \`${l}\`\n`;
     });
-    let is_first_time_contributor = await isFirstTimeContributor(context, context.payload.pull_request.user.login);
-    if (!is_first_time_contributor){
+    let has_workflow_permissions = await hasWorkflowRunningPermissions(context, context.payload.pull_request.user.login);
+    if (has_workflow_permissions){
       body = "Warning: " + body + "\n Please add the new label to .github/pytorch-probot.yml"
     }
     await context.octokit.issues.createComment(
@@ -165,7 +165,7 @@ async function handleLabelEvent(
         issue_number: context.payload.pull_request.number,
       })
     );
-    if (is_first_time_contributor){
+    if (!has_workflow_permissions){
       return;
     }    
   }
