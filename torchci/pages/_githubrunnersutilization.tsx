@@ -12,7 +12,7 @@ import {
 const ROW_HEIGHT = 340;
 
 export default function Page() {
-  const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
+  const [startTime, setStartTime] = useState(dayjs().subtract(30, "day"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(30);
 
