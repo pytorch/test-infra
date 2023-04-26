@@ -27,7 +27,7 @@ export function RunnerTypePicker({
   runnerType: string;
   setRunnerType: any;
 }) {
-  function handleChange(e: SelectChangeEvent<number>) {
+  function handleChange(e: SelectChangeEvent<string>) {
     setRunnerType(e.target.value as string);
   }
 
