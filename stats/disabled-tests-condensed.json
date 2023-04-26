@@ -323,6 +323,13 @@
       "linux"
     ]
   ],
+  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
+    "100074",
+    "https://github.com/pytorch/pytorch/issues/100074",
+    [
+      "linux"
+    ]
+  ],
   "test_class_compile (__main__.TestRecursiveScript)": [
     "96938",
     "https://github.com/pytorch/pytorch/issues/96938",
