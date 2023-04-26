@@ -181,8 +181,16 @@ function constructResultsJobsSections(
   return output;
 }
 
-function pluralize(word: string, count: number): string {
-  return count === 1 ? word : `${word}s`;
+function pluralize(word: string, count: number, pluralForm?: string): string {
+  if (count === 1) {
+    return word
+  }
+
+  if (pluralForm) {
+    return pluralForm;
+  }
+  
+  return `${word}s`;
 }
 
 export function constructResultsComment(
@@ -250,7 +258,7 @@ export function constructResultsComment(
     output += constructResultsJobsSections(
       hud_pr_url,
       "FLAKY",
-      `The following ${pluralize("job", flakyJobs.length)} failed but were likely due to flakiness present on trunk`,
+      `The following ${pluralize("job", flakyJobs.length)} failed but ${pluralize("was", flakyJobs.length, "were")} likely due to flakiness present on trunk`,
       flakyJobs,
       "",
       true,
@@ -258,7 +266,7 @@ export function constructResultsComment(
     output += constructResultsJobsSections(
       hud_pr_url,
       "BROKEN TRUNK",
-      `The following ${pluralize("job", brokenTrunkJobs.length)} failed but were present on the merge base ${merge_base}`,
+      `The following ${pluralize("job", brokenTrunkJobs.length)} failed but ${pluralize("was", flakyJobs.length, "were")} present on the merge base ${merge_base}`,
       brokenTrunkJobs,
       "Rebase onto the `viable/strict` branch to avoid these failures",
       true

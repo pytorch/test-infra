@@ -387,8 +387,8 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       const expectToContain = [
         "1 New Failure, 1 Pending, 2 Unrelated Failures",
         "The following job has failed",
-        "The following job failed but were likely due to flakiness present on trunk",
-        "The following job failed but were present on the merge base random base sha",
+        "The following job failed but was likely due to flakiness present on trunk",
+        "The following job failed but was present on the merge base random base sha",
         failedA.name,
         failedB.name,
         failedC.name,
