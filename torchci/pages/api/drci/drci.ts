@@ -161,11 +161,12 @@ function constructResultsJobsSections(
   description: string,
   jobs: RecentWorkflowsData[],
   suggestion?: string,
+  collapsed: boolean = false,
 ): string {
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details open><summary><b>${header}</b> - ${description}:</summary>`;
+  let output = `\n<details ${collapsed ? "" : "open"}}><summary><b>${header}</b> - ${description}:</summary>`;
 
   if (suggestion) {
     output += `<p>👉 <b>${suggestion}</b></p>`
@@ -180,6 +181,18 @@ function constructResultsJobsSections(
   return output;
 }
 
+function pluralize(word: string, count: number, pluralForm?: string): string {
+  if (count === 1) {
+    return word
+  }
+
+  if (pluralForm) {
+    return pluralForm;
+  }
+  
+  return `${word}s`;
+}
+
 export function constructResultsComment(
     pending: number,
     failedJobs: RecentWorkflowsData[],
@@ -190,57 +203,73 @@ export function constructResultsComment(
     hud_pr_url: string,
 ): string {
     let output = `\n`;
+    const unrelatedFailureCount = flakyJobs.length + brokenTrunkJobs.length;
     const failing = failedJobs.length + flakyJobs.length + brokenTrunkJobs.length;
     const headerPrefix = `## `
     const pendingIcon = `:hourglass_flowing_sand:`
     const successIcon = `:white_check_mark:`
-    const noneFailing = ` No Failures`;
-    const someFailing = `## :x: ${failing} Failures`;
-    const somePending = `, ${pending} Pending`;
+    const failuresIcon = `:x:`
+    const noneFailing = `No Failures`
+    const significantFailures = `${failedJobs.length} New ${pluralize("Failure", failedJobs.length)}`
+    const unrelatedFailures = `${unrelatedFailureCount} Unrelated ${pluralize("Failure", unrelatedFailureCount)}`
+    const pendingJobs = `${pending} Pending`
 
-    const hasFailing = failing > 0;
-    const hasPending = pending > 0;
-    if (!hasFailing) {
-        output += headerPrefix
-        if (hasPending) {
-            output += pendingIcon
-        } else {
-            output += successIcon
-        }
-
-        output += noneFailing;
-
-        if (hasPending) {
-            output += somePending;
-        }
-
-        output += `\nAs of commit ${sha}:`;
-        output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
+    const hasAnyFailing = failing > 0
+    const hasSignificantFailures = failedJobs.length > 0
+    const hasPending = pending > 0
+    const hasUnrelatedFailures = flakyJobs.length + brokenTrunkJobs.length
+    
+    let icon = ''
+    if (hasSignificantFailures) {
+      icon = failuresIcon
+    } else if (hasPending) {
+      icon = pendingIcon
     } else {
-        output += someFailing;
-        if (hasPending) {
-            output += somePending;
-        }
-        output += `\nAs of commit ${sha}:`;
-        output += constructResultsJobsSections(
-          hud_pr_url,
-          "NEW FAILURES",
-          "The following jobs have failed",
-          failedJobs,
-        );
+      icon = successIcon
+    }
+
+    let title_messages = []
+    if (hasSignificantFailures) {
+      title_messages.push(significantFailures)
+    }
+    if (!hasAnyFailing) {
+      title_messages.push(noneFailing)
+    }
+    if (hasPending) {
+      title_messages.push(pendingJobs)
+    }
+    if (hasUnrelatedFailures){
+      title_messages.push(unrelatedFailures)
+    }
+
+    let title = headerPrefix + icon + ' ' + title_messages.join(', ')
+    output += title
+    output += `\nAs of commit ${sha}:`
+
+    if (!hasAnyFailing) {
+      output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
     }
     output += constructResultsJobsSections(
       hud_pr_url,
+      `NEW ${pluralize("FAILURE", failedJobs.length).toLocaleUpperCase()}`,
+      `The following ${failedJobs.length > 1? "jobs have" : "job has"} failed`,
+      failedJobs,
+    );
+    output += constructResultsJobsSections(
+      hud_pr_url,
       "FLAKY",
-      "The following jobs failed but were likely due to flakiness present on trunk",
-      flakyJobs
+      `The following ${pluralize("job", flakyJobs.length)} failed but ${pluralize("was", flakyJobs.length, "were")} likely due to flakiness present on trunk`,
+      flakyJobs,
+      "",
+      true,
     );
     output += constructResultsJobsSections(
       hud_pr_url,
       "BROKEN TRUNK",
-      `The following jobs failed but were present on the merge base ${merge_base}`,
+      `The following ${pluralize("job", brokenTrunkJobs.length)} failed but ${pluralize("was", flakyJobs.length, "were")} present on the merge base ${merge_base}`,
       brokenTrunkJobs,
-      "Rebase onto the `viable/strict` branch to avoid these failures"
+      "Rebase onto the `viable/strict` branch to avoid these failures",
+      true
     );
     return output;
 }
