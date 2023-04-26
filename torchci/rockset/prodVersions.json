@@ -78,6 +78,7 @@
     "compilers_benchmark_performance_branches": "f259d06862b41888"
   },
   "utilization": {
-    "runner_utilization": "fe1de2dc300de3c5"
+    "runner_utilization": "fe1de2dc300de3c5",
+    "runner_utilization_by_repo": "567c4a09d9e84567"
   }
 }
