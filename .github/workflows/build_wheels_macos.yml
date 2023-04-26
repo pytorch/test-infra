@@ -201,6 +201,7 @@ jobs:
             echo $DYLD_FALLBACK_LIBRARY_PATH
 
             ${CONDA_RUN} conda install --yes --quiet ffmpeg
+            ${CONDA_RUN} pip install --upgrade torch
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
