@@ -239,6 +239,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
+    "98046",
+    "https://github.com/pytorch/pytorch/issues/98046",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -740,6 +747,13 @@
   "test_dtensor_api_device_mesh_context_manager (__main__.DTensorMeshTest)": [
     "98058",
     "https://github.com/pytorch/pytorch/issues/98058",
+    [
+      "linux"
+    ]
+  ],
+  "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
+    "100126",
+    "https://github.com/pytorch/pytorch/issues/100126",
     [
       "linux"
     ]
