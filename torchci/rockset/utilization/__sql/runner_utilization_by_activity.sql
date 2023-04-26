@@ -10,7 +10,9 @@ SELECT
 FROM (SELECT
   PARSE_TIMESTAMP_ISO8601(started_at) as started_at,
   PARSE_TIMESTAMP_ISO8601(completed_at) as completed_at,
-  IF(head_branch like 'ciflow/%', CONCAT('ciflow/', ELEMENT_AT(SPLIT(head_branch, '/'), 2)), head_branch) as activity
+  IF(head_branch like 'ciflow/%',
+    CONCAT('ciflow/', ELEMENT_AT(SPLIT(head_branch, '/'), 2)),
+    IF(workflow_name = 'periodic', 'periodic', head_branch)) as activity
   FROM commons.workflow_job
   WHERE
       status = 'completed' AND
