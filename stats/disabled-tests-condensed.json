@@ -1068,9 +1068,9 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
+  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94625",
+    "https://github.com/pytorch/pytorch/issues/94625",
     [
       "linux"
     ]
@@ -1164,13 +1164,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93417",
-    "https://github.com/pytorch/pytorch/issues/93417",
-    [
-      "linux"
     ]
   ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
