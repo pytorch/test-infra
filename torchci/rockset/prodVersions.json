@@ -16,7 +16,7 @@
     "test_time_per_file": "1c8d6289623181d8",
     "test_time_per_file_periodic_jobs": "90ce1275b2fb6dc9",
     "test_time_per_oncall": "c2ccd4e8034ae287",
-    "test_times_per_workflow_type": "db62d4264f198a93",
+    "test_times_per_workflow_type": "3ab0de839b95d22c",
     "issue_query": "276aea6b8186d808",
     "failure_samples_query": "18e7e696b4949f05",
     "num_commits_master": "e4a864147cf3bf44",
