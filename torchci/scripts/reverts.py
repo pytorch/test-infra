@@ -3,6 +3,7 @@ import datetime
 import os
 import re
 import shlex
+import sys
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -110,10 +111,10 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
             revert["code"] = parse.classification
             revert["message"] = parse.message
             cleaned_up.append(revert)
-        except Exception as e:
-            print(e)
+        except (Exception, SystemExit) as e:
+            print(f"failed {revert['body']}", file=sys.stderr)
+            print(e, file=sys.stderr)
             continue
-
 
     return cleaned_up
 
