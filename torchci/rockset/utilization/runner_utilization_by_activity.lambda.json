@@ -1,0 +1,36 @@
+{
+  "sql_path": "__sql/runner_utilization_by_activity.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "value": "macos-12-xl"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-04-01"
+    },
+    {
+      "name": "started_pattern",
+      "type": "string",
+      "value": "2023-04-%"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-31"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": "Collects runner utilization by activity"
+}

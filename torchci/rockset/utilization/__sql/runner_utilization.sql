@@ -7,7 +7,7 @@ SELECT
     ) AS started_date,
   label,
   SUM(DATE_DIFF('SECOND',started_at,completed_at)) AS duration,
-FROM (SELECT 
+FROM (SELECT
   PARSE_TIMESTAMP_ISO8601(started_at) as started_at,
   PARSE_TIMESTAMP_ISO8601(completed_at) as completed_at,
   ELEMENT_AT(labels, 1) AS label
