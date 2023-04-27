@@ -1239,13 +1239,6 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_kineto (__main__.TestProfiler)": [
-    "88377",
-    "https://github.com/pytorch/pytorch/issues/88377",
-    [
-      "linux"
-    ]
-  ],
   "test_launch_user_script (__main__.TestDistributedLaunch)": [
     "79488",
     "https://github.com/pytorch/pytorch/issues/79488",
@@ -1286,11 +1279,6 @@
       "win",
       "windows"
     ]
-  ],
-  "test_mem_leak (__main__.TestProfilerCUDA)": [
-    "78457",
-    "https://github.com/pytorch/pytorch/issues/78457",
-    []
   ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
@@ -1498,6 +1486,14 @@
     "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
+    ]
+  ],
+  "test_output_match_empty_permuted_cpu_bool (__main__.TestConsistencyCPU)": [
+    "100175",
+    "https://github.com/pytorch/pytorch/issues/100175",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
