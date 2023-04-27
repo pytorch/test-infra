@@ -166,7 +166,7 @@ function constructResultsJobsSections(
   if (jobs.length === 0) {
     return "";
   }
-  let output = `\n<details ${collapsed ? "" : "open"}}><summary><b>${header}</b> - ${description}:</summary>`;
+  let output = `\n<details ${collapsed ? "" : "open"}><summary><b>${header}</b> - ${description}:</summary>`;
 
   if (suggestion) {
     output += `<p>👉 <b>${suggestion}</b></p>`
@@ -189,7 +189,7 @@ function pluralize(word: string, count: number, pluralForm?: string): string {
   if (pluralForm) {
     return pluralForm;
   }
-  
+
   return `${word}s`;
 }
 
@@ -218,7 +218,7 @@ export function constructResultsComment(
     const hasSignificantFailures = failedJobs.length > 0
     const hasPending = pending > 0
     const hasUnrelatedFailures = flakyJobs.length + brokenTrunkJobs.length
-    
+
     let icon = ''
     if (hasSignificantFailures) {
       icon = failuresIcon
