@@ -246,6 +246,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
+    "100159",
+    "https://github.com/pytorch/pytorch/issues/100159",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
