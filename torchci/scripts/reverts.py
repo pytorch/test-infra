@@ -112,7 +112,7 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
             revert["message"] = parse.message
             cleaned_up.append(revert)
         except (Exception, SystemExit) as e:
-            print(f"failed {revert['body']}", file=sys.stderr)
+            print(f"failed to parse {revert['comment_url']}: {revert['body']}", file=sys.stderr)
             print(e, file=sys.stderr)
             continue
 
