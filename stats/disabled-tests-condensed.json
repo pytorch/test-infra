@@ -974,6 +974,13 @@
       "linux"
     ]
   ],
+  "test_fn_gradgrad_logsumexp_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "100190",
+    "https://github.com/pytorch/pytorch/issues/100190",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "93048",
     "https://github.com/pytorch/pytorch/issues/93048",
