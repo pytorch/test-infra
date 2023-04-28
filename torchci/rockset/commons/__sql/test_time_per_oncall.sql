@@ -33,7 +33,9 @@ With avg_table as (
     ) < DATE_TRUNC(
       'DAY', 
       PARSE_DATETIME_ISO8601(: endDate)
-    ) 
+    )
+  AND workflow_id IS NOT NULL
+  AND workflow_run_attempt = 1
   GROUP BY 
     workflow_name, 
     job_name, 

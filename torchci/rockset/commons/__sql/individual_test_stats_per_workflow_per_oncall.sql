@@ -14,6 +14,9 @@ WITH t AS (
     MAX(max_errors) AS max_errors 
   FROM 
     metrics.aggregated_test_metrics 
+  WHERE
+  workflow_run_attempt = 1
+  AND workflow_id IS NOT NULL
   GROUP BY 
     workflow_name, 
     job_name, 
