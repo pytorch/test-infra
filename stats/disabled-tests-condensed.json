@@ -1246,13 +1246,6 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_kineto (__main__.TestProfiler)": [
-    "100204",
-    "https://github.com/pytorch/pytorch/issues/100204",
-    [
-      "rocm"
-    ]
-  ],
   "test_launch_user_script (__main__.TestDistributedLaunch)": [
     "79488",
     "https://github.com/pytorch/pytorch/issues/79488",
