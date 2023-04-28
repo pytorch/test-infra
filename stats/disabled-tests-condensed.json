@@ -995,6 +995,13 @@
       "linux"
     ]
   ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1485,7 +1492,9 @@
       "linux",
       "win",
       "windows",
-      "dynamo"
+      "dynamo",
+      "mac",
+      "macos"
     ]
   ],
   "test_optional_list (test_jit.TestScript)": [
