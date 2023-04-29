@@ -9,7 +9,7 @@
     {
       "name": "label",
       "type": "string",
-      "value": "ci: sev"
+      "value": "skipped"
     }
   ],
   "description": ""
