@@ -161,6 +161,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         state: "open" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -182,6 +183,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         state: "open" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -216,6 +218,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         state: "closed" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -237,6 +240,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
         state: "closed" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -331,6 +335,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         state: "open" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -367,6 +372,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         state: "closed" as "open" | "closed",
         body: "random",
         updated_at: dayjs().toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -411,6 +417,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         state: "open" as "open" | "closed",
         body: "random",
         updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING + 1, "hour").toString(),
+        author_association: "MEMBER",
       },
     ];
 
@@ -444,6 +451,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         state: "open" as "open" | "closed",
         body: "random",
         updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING - 1, "hour").toString(),
+        author_association: "MEMBER",
       },
     ];
 

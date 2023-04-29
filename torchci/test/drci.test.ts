@@ -92,6 +92,7 @@ const sev : IssueData= {
   state: "open",
   body: "random stuff",
   updated_at: dayjs().toString(),
+  author_association: "MEMBER",
 };
 
 const mergeBlockingSev : IssueData= {
@@ -101,6 +102,7 @@ const mergeBlockingSev : IssueData= {
   state: "open",
   body: "merge blocking",
   updated_at: dayjs().toString(),
+  author_association: "MEMBER",
 };
 
 const closedSev : IssueData= {
@@ -110,6 +112,7 @@ const closedSev : IssueData= {
   state: "closed",
   body: "random stuff",
   updated_at: dayjs().toString(),
+  author_association: "MEMBER",
 };
 
 describe("Update Dr. CI Bot Unit Tests", () => {
