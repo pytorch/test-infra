@@ -1781,13 +1781,6 @@
     "https://github.com/pytorch/pytorch/issues/61670",
     []
   ],
-  "test_slice (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_False_dynamic_shapes_True)": [
-    "100301",
-    "https://github.com/pytorch/pytorch/issues/100301",
-    [
-      "linux"
-    ]
-  ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
     "73145",
     "https://github.com/pytorch/pytorch/issues/73145",
