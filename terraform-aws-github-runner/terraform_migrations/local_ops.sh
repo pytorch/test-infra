@@ -39,7 +39,10 @@ aws s3 cp s3://pytorch-gha-infra-terraform/runners/terraform.tfstate ./terraform
 cp -a terraform.tfstate terraform.tfstate.bak.$(date +"%y%m%d%H%M%S")
 
 # Init terraform
-terraform init
+terraform init -reconfigure
+
+# Ignore a legacy change that I have no idea if it's safe to destroy
+terraform state rm "module.old_runners.module.runners.aws_security_group.runner_sg"
 
 # Move the state [still in WIP]
 move_state aws_kms_ciphertext.github_app_key_base64
