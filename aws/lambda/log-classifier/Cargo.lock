@@ -230,9 +230,9 @@ dependencies = [
 
 [[package]]
 name = "aws-sigv4"
-version = "0.48.0"
+version = "0.48.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b99b21b3aceaf224cccd693b353e1f38af4ede8c5fc618b97dd458bb63238efc"
+checksum = "9de17d7931657b99d0fcee1e5988cd2c230f244d58117fd9d4d49254832556af"
 dependencies = [
  "aws-smithy-eventstream",
  "aws-smithy-http",

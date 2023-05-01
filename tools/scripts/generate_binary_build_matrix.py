@@ -26,7 +26,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.8", "3.9", "3.10", "3.11"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.7", "11.8"],
+    "nightly": ["11.7", "11.8", "12.1"],
     "test": ["11.7", "11.8"],
     "release": ["11.7", "11.8"],
 }
@@ -44,7 +44,7 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_CANDIDATE_VERSION = "2.0.0"
+CURRENT_CANDIDATE_VERSION = "2.0.1"
 CURRENT_STABLE_VERSION = "2.0.0"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -154,7 +154,8 @@ def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
 def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str, os: str) -> str:
-    conda_channels = "-c pytorch" if channel == RELEASE else f"-c pytorch-{channel}"
+    pytorch_channel = "pytorch" if channel == RELEASE else f"pytorch-{channel}"
+    conda_channels = f"-c {pytorch_channel}"
     conda_package_type = ""
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
@@ -162,7 +163,7 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
     else:
-        return f"{CONDA_INSTALL_BASE} {conda_channels}"
+        return f"conda install {pytorch_channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
@@ -206,10 +207,6 @@ def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_pr_builds
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
-
-    # remove python 3.11 conda from macos x86
-    if(os == "macos"):
-        python_versions = list_without(python_versions, ["3.11"])
 
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
