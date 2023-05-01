@@ -1205,6 +1205,13 @@
       "macos"
     ]
   ],
+  "test_inductor (__main__.TransformationTest)": [
+    "100432",
+    "https://github.com/pytorch/pytorch/issues/100432",
+    [
+      "rocm"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
