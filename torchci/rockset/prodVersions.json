@@ -76,5 +76,10 @@
   "inductor": {
     "compilers_benchmark_performance": "5ddc9635e18202b9",
     "compilers_benchmark_performance_branches": "f259d06862b41888"
+  },
+  "utilization": {
+    "runner_utilization": "2dfc4f9c16e51da0",
+    "runner_utilization_by_repo": "2ca7468c6f158924",
+    "runner_utilization_by_activity": "343929e0ebeee379"
   }
 }
