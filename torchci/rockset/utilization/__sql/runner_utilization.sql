@@ -14,11 +14,10 @@ FROM (SELECT
   FROM commons.workflow_job
   WHERE
       status = 'completed' AND
-      runner_group_name = 'GitHub Actions'
+      runner_group_name = 'GitHub Actions' AND
+      PARSE_DATETIME_ISO8601(started_at) >= PARSE_DATETIME_ISO8601(:startTime) AND
+      PARSE_DATETIME_ISO8601(started_at) < PARSE_DATETIME_ISO8601(:stopTime)
   ) AS gha_jobs
-WHERE
-    started_at >= PARSE_DATETIME_ISO8601(:startTime) AND
-    started_at < PARSE_DATETIME_ISO8601(:stopTime)
 GROUP BY started_date, label
 ORDER BY started_date DESC, label
 LIMIT 500;
