@@ -47,7 +47,7 @@ export function durationHuman(seconds: number) {
 // e.g. 5400 -> "1.5h"
 export function durationDisplay(seconds: number): string {
   if (seconds < 60) {
-    return seconds + "s";
+    return seconds.toFixed(1) + "s";
   }
   const minutes = seconds / 60.0;
   if (minutes < 60) {

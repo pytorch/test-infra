@@ -65,6 +65,19 @@ function GenerateOncallTestingOverheadLeaderboard({
           queryParams={queryParams}
           columns={[
             {
+              field: "oncall",
+              headerName: "Oncall",
+              flex: 1,
+              renderCell: (params: GridRenderCellParams<string>) => {
+                  const oncall = params.value;
+                  return (
+                    <a href={`/testing_overhead/oncall_insights?oncall=${oncall}`}>
+                      {oncall}
+                    </a>
+                  );
+                }
+          },
+            {
               field: "time_in_seconds",
               headerName: "Avg duration",
               flex: 1,
@@ -73,7 +86,7 @@ function GenerateOncallTestingOverheadLeaderboard({
               filterable: false,
             }, 
             {
-                field: "percentage",
+                field: "percentage_of_time",
                 headerName: "% of workflow time",
                 flex: 1,
                 valueFormatter: (params: GridValueFormatterParams<number>) =>
@@ -81,18 +94,21 @@ function GenerateOncallTestingOverheadLeaderboard({
                 filterable: false,
               }, 
               {
-                field: "oncall",
-                headerName: "Oncall",
+                field: "estimated_price_per_run_in_dollars",
+                headerName: "Estimated price per run",
                 flex: 1,
-                renderCell: (params: GridRenderCellParams<string>) => {
-                    const oncall = params.value;
-                    return (
-                      <a href={`/testing_overhead/oncall_insights?oncall=${oncall}`}>
-                        {oncall}
-                      </a>
-                    );
-                  }
-            },
+                valueFormatter: (params: GridValueFormatterParams<number>) =>
+                  `$${params.value.toFixed(2)}`,
+                filterable: false,
+              },
+              {
+                field: "percentage_of_cost",
+                headerName: "% of workflow cost",
+                flex: 1,
+                valueFormatter: (params: GridValueFormatterParams<number>) =>
+                  params.value + "%",
+                filterable: false,
+              },
           ]}
           dataGridProps={{
             getRowId: (e: any) => e.oncall + e.date + e.workflow_name + e.time_in_seconds,

@@ -58,6 +58,14 @@ function GenerateTestInsightsOverviewTable({
               filterable: false,
             }, 
             {
+              field: "estimated_price_per_run_in_dollars",
+              headerName: "Estimated cost",
+              flex: 1,
+              valueFormatter: (params: GridValueFormatterParams<number>) =>
+                `$${params.value.toFixed(2)}`,
+              filterable: false,
+            },
+            {
               field: "test_file",
               headerName: "Test file",
               flex: 1,
