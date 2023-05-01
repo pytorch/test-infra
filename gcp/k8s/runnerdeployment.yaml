@@ -6,7 +6,8 @@ spec:
   template:
     spec:
       # image: ghcr.io/actions/actions-runner-controller/actions-runner-dind:ubuntu-22.04
-      image: xzhao9/gcp-a100-runner-dind:latest
+      # image: xzhao9/gcp-a100-runner-dind:latest
+      image: ghcr.io/pytorch/torchbench:latest
       dockerdWithinRunnerContainer: true
       env: []
       organization: pytorch
