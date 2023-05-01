@@ -1,0 +1,87 @@
+"release notes: dataloader":
+  - /torch\/utils\/data/gi
+  - /test_data(loader|pipe)/gi
+
+"release notes: distributed (c10d)":
+  - /c10d/gi
+
+"release notes: distributed (sharded)":
+  - /distributed.*sharded/gi
+
+"release notes: distributed (ddp)":
+  - /distributed.*ddp/gi
+
+"release notes: distributed (pipeline)":
+  - /distributed.*pipeline/gi
+
+"release notes: distributed (fsdp)":
+  - /distributed.*fsdp/gi
+
+"release notes: distributed (rpc)":
+  - /distributed.*rpc/gi
+
+"release notes: vulkan":
+  - /vulkan/gi
+
+"release notes: foreach_frontend":
+  - /foreach/gi
+
+"release notes: onnx":
+  - /onnx/gi
+
+"release notes: fx":
+  - /torch\/fx/gi
+  - /test_fx/gi
+
+"release notes: AO frontend":
+  - /(torch|test)\/ao/gi
+
+"release notes: quantization":
+  - /(torch|test)\/quantization/gi
+  - /aten\/src\/ATen\/native\/quantized/gi
+  - /torch\/nn\/quantiz(ed|able)/gi
+
+"release notes: package/deploy":
+  - /(torch|test)\/package/gi
+
+"release notes: mobile":
+  - /torch\/csrc\/jit\/mobile/gi
+  - /aten\/src\/ATen\/native\/metal/gi
+  - /torch\/backends\/_nnapi\//gi
+  - /test\/mobile/gi
+  - /test\/test_nnapi.py/gi
+
+"release notes: mps":
+  - /aten\/src\/ATen\/native\/mps/gi
+  - /aten\/src\/ATen\/mps/gi
+
+"release notes: linalg_frontend":
+  - /aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi
+  - /test\/test_linalg.py/gi
+  - /torch\/linalg/gi
+
+"release notes: sparse":
+  - /aten\/src\/ATen\/native\/sparse/gi
+  - /torch\/sparse/gi
+  - /torch\/_masked\/__init__.py/gi
+
+"release notes: nn":
+  - /test\/test_nn.py/gi
+  - /test\/test_module.py/gi
+  - /torch\/optim/gi
+  - /tools\/nn\/modules/gi
+  - /tools\/nn\/functional.py/gi
+
+
+"release notes: jit":
+  - /torch\/(csrc\/)?jit/gi
+
+"release notes: releng":
+  - /docker\//gi
+  - /.circleci/gi
+  - /.github/gi
+  - /.jenkins/gi
+  - /.azure_pipelines/gi
+
+"release notes: cpp":
+  - /torch\/(csrc|cpp)\/api/gi
