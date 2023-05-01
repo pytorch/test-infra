@@ -821,13 +821,6 @@
       "linux"
     ]
   ],
-  "test_equal (__main__.TestTorch)": [
-    "100340",
-    "https://github.com/pytorch/pytorch/issues/100340",
-    [
-      "linux"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
