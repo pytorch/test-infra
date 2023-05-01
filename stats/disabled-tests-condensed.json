@@ -1338,6 +1338,14 @@
       "linux"
     ]
   ],
+  "test_mobilenet_v3 (__main__.TestNumericSuiteEager)": [
+    "100404",
+    "https://github.com/pytorch/pytorch/issues/100404",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
