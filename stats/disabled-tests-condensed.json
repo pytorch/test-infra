@@ -1338,9 +1338,17 @@
       "linux"
     ]
   ],
+  "test_mobilenet_v2 (__main__.TestNumericSuiteEager)": [
+    "100421",
+    "https://github.com/pytorch/pytorch/issues/100421",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_mobilenet_v3 (__main__.TestNumericSuiteEager)": [
-    "100404",
-    "https://github.com/pytorch/pytorch/issues/100404",
+    "100420",
+    "https://github.com/pytorch/pytorch/issues/100420",
     [
       "asan",
       "linux"
