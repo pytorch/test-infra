@@ -1,7 +1,7 @@
 WITH performance_results AS (
   SELECT
     name,
-    speedup,
+    IF(speedup = 'infra_error', NULL, speedup) AS speedup, -- Handle the recent burst of infra error
     REPLACE(
       filename,
       CONCAT(
