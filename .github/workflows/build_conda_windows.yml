@@ -198,7 +198,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           CONDA_OUTPUT_PATH="${{ inputs.repository }}/distr/win-64/"
           echo "$CONDA_OUTPUT_PATH"
-          BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
+          BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/"$PACKAGE_NAME"*.tar.bz2)
           echo "$BINARY_NAME"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
