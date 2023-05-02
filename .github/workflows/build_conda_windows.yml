@@ -165,14 +165,14 @@ jobs:
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --no-test  --python "${PYTHON_VERSION}" \
-            --output-folder dist/ \
+            --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
+          path: ${{ inputs.repository }}/distr/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -231,7 +231,7 @@ jobs:
           ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
           set ANACONDA_PATH
           echo "$ANACONDA_PATH"
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
