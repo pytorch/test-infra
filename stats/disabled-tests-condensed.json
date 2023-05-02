@@ -1042,11 +1042,6 @@
     "https://github.com/pytorch/pytorch/issues/71183",
     []
   ],
-  "test_fs_pool (__main__.TestMultiprocessing)": [
-    "69659",
-    "https://github.com/pytorch/pytorch/issues/69659",
-    []
-  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
