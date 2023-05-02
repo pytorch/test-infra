@@ -75,9 +75,6 @@ module "webhook" {
   sqs_build_queue           = aws_sqs_queue.queued_builds
   github_app_webhook_secret = var.github_app.webhook_secret
 
-  lambda_s3_bucket                 = var.lambda_s3_bucket
-  webhook_lambda_s3_key            = var.webhook_lambda_s3_key
-  webhook_lambda_s3_object_version = var.webhook_lambda_s3_object_version
   lambda_zip                       = var.webhook_lambda_zip
   lambda_timeout                   = var.webhook_lambda_timeout
   logging_retention_in_days        = var.logging_retention_in_days
@@ -120,9 +117,6 @@ module "runners" {
   idle_config                          = var.idle_config
   secretsmanager_secrets_id            = var.secretsmanager_secrets_id
 
-  lambda_s3_bucket                 = var.lambda_s3_bucket
-  runners_lambda_s3_key            = var.runners_lambda_s3_key
-  runners_lambda_s3_object_version = var.runners_lambda_s3_object_version
   lambda_zip                       = var.runners_lambda_zip
   lambda_timeout_scale_up          = var.runners_scale_up_lambda_timeout
   lambda_timeout_scale_down        = var.runners_scale_down_lambda_timeout
@@ -212,8 +206,6 @@ module "runner_binaries" {
 
   runner_allow_prerelease_binaries = var.runner_allow_prerelease_binaries
 
-  lambda_s3_bucket                = var.lambda_s3_bucket
-  syncer_lambda_s3_object_version = var.syncer_lambda_s3_object_version
   lambda_zip                      = var.runner_binaries_syncer_lambda_zip
   lambda_timeout                  = var.runner_binaries_syncer_lambda_timeout
   logging_retention_in_days       = var.logging_retention_in_days
