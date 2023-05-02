@@ -47,6 +47,10 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+      smoke-test-script:
+        description: "Script for Smoke Test for a specific domain"
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -161,14 +165,14 @@ jobs:
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
             --no-test  --python "${PYTHON_VERSION}" \
-            --output-folder dist/ \
+            --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
+          path: ${{ inputs.repository }}/distr/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -182,6 +186,41 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
+      - name: Smoke Test
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+          GPU_ARCH: ${{ matrix.gpu_arch_type }}
+          DESIRED_CUDA: ${{ matrix.desired_cuda }}
+          GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          FULL_PATH_TO_DISTR="file://$(readlink -f ${{ inputs.repository }}/distr)"
+          # fix we have to use for windows to make sure drive path is c: not c
+          CONDA_LOCAL_CHANNEL=$(echo $FULL_PATH_TO_DISTR | sed "s/\/c\//\/c:\//")
+
+          export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
+          export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
+
+          if [[ "${GPU_ARCH}" = "cuda" ]]; then
+            CONSTRAINTS="pytorch-cuda=${GPU_ARCH_VERSION}"
+          else
+            CONSTRAINTS="cpuonly"
+          fi
+          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}" ${CONSTRAINTS}
+
+          if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
+            ${CONDA_RUN_SMOKE} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          else
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
+            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+            conda install --yes --quiet 'ffmpeg<5'
+            ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+          fi
+          conda env remove -p "${CONDA_ENV_SMOKE}"
       - name: Upload package to conda
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
@@ -194,7 +233,7 @@ jobs:
           ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
           set ANACONDA_PATH
           echo "$ANACONDA_PATH"
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

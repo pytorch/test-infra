@@ -29,7 +29,7 @@ jobs:
             env-script: ""
             wheel-build-params: "--plat-name win_amd64"
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
             conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
@@ -47,6 +47,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
