@@ -196,7 +196,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          FULL_PATH_TO_DISTR="$(readlink -f ${{ inputs.repository }}/distr)"
+          FULL_PATH_TO_DISTR="file://$(readlink -f ${{ inputs.repository }}/distr)"
           # fix we have to use for windows to make sure drive path is c: not c
           CONDA_LOCAL_CHANNEL=$(echo $FULL_PATH_TO_DISTR | sed "s/\/c\//\/c:\//")
 
@@ -213,7 +213,7 @@ jobs:
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
-            ${CONDA_RUN_SMOKE} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+            ${CONDA_RUN_SMOKE} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"

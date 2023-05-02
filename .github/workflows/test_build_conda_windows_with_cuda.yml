@@ -29,7 +29,7 @@ jobs:
             env-script: ""
             wheel-build-params: "--plat-name win_amd64"
             post-script: ""
-            smoke-test-script: ""
+            smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
             conda-package-directory: packaging/torchaudio
           - repository: pytorch/vision
