@@ -1513,14 +1513,6 @@
       "linux"
     ]
   ],
-  "test_output_match_empty_permuted_cpu_bool (__main__.TestConsistencyCPU)": [
-    "100175",
-    "https://github.com/pytorch/pytorch/issues/100175",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
