@@ -196,7 +196,10 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
+          CONDA_OUTPUT_PATH="${{ inputs.repository }}/distr/win-64/"
+          echo "$CONDA_OUTPUT_PATH"
+          BINARY_NAME=$(ls "$CONDA_OUTPUT_PATH"/*.tar.bz2)
+          echo "$BINARY_NAME"
 
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
@@ -207,7 +210,9 @@ jobs:
           else
             CONSTRAINTS="cpuonly"
           fi
-          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}" ${CONSTRAINTS}
+
+          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia pytorch ${CONSTRAINTS}
+          ${CONDA_RUN_SMOKE} conda install "$BINARY_NAME"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
