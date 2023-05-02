@@ -47,6 +47,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
       package-name: ${{ matrix.package-name }}
