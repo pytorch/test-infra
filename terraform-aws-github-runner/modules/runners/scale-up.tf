@@ -71,7 +71,7 @@ resource "aws_lambda_function" "scale_up" {
               format(
                 "%s|%s",
                 vpc.vpc,
-                var.lambda_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
+                var.runners_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
               )
           ],
           [
@@ -91,7 +91,10 @@ resource "aws_lambda_function" "scale_up" {
   }
 
   vpc_config {
-    security_group_ids = var.lambda_security_group_ids
+    security_group_ids = concat(
+      var.lambda_security_group_ids,
+      [var.runners_security_group_ids[0]]
+    )
     subnet_ids         = var.lambda_subnet_ids
   }
 }

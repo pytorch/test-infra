@@ -122,10 +122,8 @@ module "runners" {
   lambda_timeout_scale_down        = var.runners_scale_down_lambda_timeout
   lambda_subnet_ids                = var.lambda_subnet_ids
 
-  lambda_security_group_ids        = concat(
-    var.lambda_security_group_ids,
-    [module.runners_instances.security_groups_ids_vpcs[0]]
-  )
+  lambda_security_group_ids        = var.lambda_security_group_ids
+  runners_security_group_ids       = module.runners_instances.security_groups_ids_vpcs
   github_app_key_base64            = module.runners_instances.github_app_key_base64
   github_app_client_secret         = module.runners_instances.github_app_client_secret
   role_runner_arn                  = module.runners_instances.role_runner_arn
