@@ -1919,6 +1919,13 @@
     ]
   ],
   "test_trace_numeric_counter (__main__.TestLogging)": [
+    "100585",
+    "https://github.com/pytorch/pytorch/issues/100585",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_trace_numeric_counter (jit.test_logging.TestLogging)": [
     "96247",
     "https://github.com/pytorch/pytorch/issues/96247",
     [
@@ -1949,7 +1956,8 @@
     "https://github.com/pytorch/pytorch/issues/95412",
     [
       "win",
-      "windows"
+      "windows",
+      "linux"
     ]
   ],
   "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
