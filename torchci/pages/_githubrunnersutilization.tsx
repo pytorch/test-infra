@@ -90,76 +90,76 @@ export default function Page() {
           setRunnerType={setRunnerType}
         />
       </Stack>
-    <Grid item xs={6} height={ROW_HEIGHT}>
-      <TimeSeriesPanel
-        title={"Runners utilization daily"}
-        queryCollection={"utilization"}
-        queryName={"runner_utilization"}
-        groupByFieldName={"label"}
-        granularity={"day"}
-        timeFieldName={"started_date"}
-        yAxisFieldName={"duration"}
-        yAxisRenderer={durationDisplay}
-        queryParams={[
-          {
-            name: "timezone",
-            type: "string",
-            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          ...timeParams,
-        ]}
-      />
-    </Grid>
-    <Grid item xs={6} height={ROW_HEIGHT}>
-      <TimeSeriesPanel
-        title={"Runners utilization daily by repo"}
-        queryCollection={"utilization"}
-        queryName={"runner_utilization_by_repo"}
-        groupByFieldName={"project"}
-        granularity={"day"}
-        timeFieldName={"started_date"}
-        yAxisFieldName={"duration"}
-        yAxisRenderer={durationDisplay}
-        queryParams={[
-          {
-            name: "timezone",
-            type: "string",
-            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          {
-            name: "label",
-            type: "string",
-            value: runnerType,
-          },
-          ...timeParams,
-        ]}
-      />
-    </Grid>
-    <Grid item xs={6} height={ROW_HEIGHT}>
-      <TimeSeriesPanel
-        title={"Runners utilization daily by activity on PyTorch"}
-        queryCollection={"utilization"}
-        queryName={"runner_utilization_by_activity"}
-        groupByFieldName={"activity"}
-        granularity={"day"}
-        timeFieldName={"started_date"}
-        yAxisFieldName={"duration"}
-        yAxisRenderer={durationDisplay}
-        queryParams={[
-          {
-            name: "timezone",
-            type: "string",
-            value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-          {
-            name: "label",
-            type: "string",
-            value: runnerType,
-          },
-          ...timeParams,
-        ]}
-      />
-    </Grid>
+      <Grid item xs={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Runners utilization daily"}
+          queryCollection={"utilization"}
+          queryName={"runner_utilization"}
+          groupByFieldName={"label"}
+          granularity={"day"}
+          timeFieldName={"started_date"}
+          yAxisFieldName={"duration"}
+          yAxisRenderer={durationDisplay}
+          queryParams={[
+            {
+              name: "timezone",
+              type: "string",
+              value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            ...timeParams,
+          ]}
+        />
+      </Grid>
+      <Grid item xs={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Runners utilization daily by repo"}
+          queryCollection={"utilization"}
+          queryName={"runner_utilization_by_repo"}
+          groupByFieldName={"project"}
+          granularity={"day"}
+          timeFieldName={"started_date"}
+          yAxisFieldName={"duration"}
+          yAxisRenderer={durationDisplay}
+          queryParams={[
+            {
+              name: "timezone",
+              type: "string",
+              value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            {
+              name: "label",
+              type: "string",
+              value: runnerType,
+            },
+            ...timeParams,
+          ]}
+        />
+      </Grid>
+      <Grid item xs={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Runners utilization daily by activity on PyTorch"}
+          queryCollection={"utilization"}
+          queryName={"runner_utilization_by_activity"}
+          groupByFieldName={"activity"}
+          granularity={"day"}
+          timeFieldName={"started_date"}
+          yAxisFieldName={"duration"}
+          yAxisRenderer={durationDisplay}
+          queryParams={[
+            {
+              name: "timezone",
+              type: "string",
+              value: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            {
+              name: "label",
+              type: "string",
+              value: runnerType,
+            },
+            ...timeParams,
+          ]}
+        />
+      </Grid>
     </div>
   );
 }

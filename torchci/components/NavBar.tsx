@@ -20,7 +20,7 @@ function NavBar() {
             </li>
             <li>
               <Link prefetch={false} href="/hud/pytorch/pytorch/main">
-               Main
+                Main
               </Link>
             </li>
             <li>

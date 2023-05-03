@@ -1,10 +1,5 @@
 import dayjs from "dayjs";
-import {
-  Divider,
-  Grid,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Divider, Grid, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
@@ -17,11 +12,9 @@ const LASTEST_N_RUNS = 50;
 const ROW_HEIGHT = 240;
 const TO_GB = 1024 * 1024 * 1024;
 
-function formatDate(
-  timestamp: string
-) {
+function formatDate(timestamp: string) {
   // TODO: This is a weird hack, see how to get rid of this later
-  return new Date(timestamp).toISOString().replace('T', ' ').substring(0, 19);
+  return new Date(timestamp).toISOString().replace("T", " ").substring(0, 19);
 }
 
 function formatSeries(
@@ -29,7 +22,7 @@ function formatSeries(
   // An optional list of markers to mark the start time of the jobs
   startTimes: string[],
   // An optional list of markers to mark the stop time of the jobs
-  stopTimes: string[],
+  stopTimes: string[]
 ) {
   const markers = [];
 
@@ -151,7 +144,7 @@ function GetUsage({
   const { data } = useSWR(url, fetcher);
 
   if (data === undefined || data.length == 0) {
-    return (<></>);
+    return <></>;
   }
 
   const transformedData = [];
@@ -167,7 +160,9 @@ function GetUsage({
   }
 
   if (transformedData.length !== 0) {
-    const lastTimestamp = new Date(transformedData[transformedData.length-1]["timestamp"]);
+    const lastTimestamp = new Date(
+      transformedData[transformedData.length - 1]["timestamp"]
+    );
     // Add one more 1-minute data point so that we can clearly show the stop time. This is
     // purely for presentation purpose
     const extra = new Date(lastTimestamp.getTime() + 60 * 1000);
@@ -263,15 +258,14 @@ function GetJobs({
   // If there is no workflow and job ID specified, query Rockset for the list of N latest jobs
   if (workflowId == null || jobId == null) {
     if (data === undefined || data.length == 0) {
-      return (<div></div>);
+      return <div></div>;
     }
 
     for (const e of data) {
       workflowIds.push(e["workflow_id"]);
       jobIds.push(e["job_id"]);
     }
-  }
-  else {
+  } else {
     workflowIds.push(workflowId);
     jobIds.push(jobId);
   }

@@ -282,15 +282,15 @@ describe("Push trigger integration tests", () => {
 
   test("Invalid CIFlow label with established contributor triggers flow", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
-    const permission = require("./fixtures/push-trigger/permission")
+    const permission = require("./fixtures/push-trigger/permission");
     const label = payload.label.name;
     const prNum = payload.pull_request.number;
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
     nock("https://api.github.com")
-    .get(`/repos/suo/actions-test/collaborators/suo/permission`)
-    .reply(200, permission) // note: example response from pytorch not action-test
-    .get(
+      .get(`/repos/suo/actions-test/collaborators/suo/permission`)
+      .reply(200, permission) // note: example response from pytorch not action-test
+      .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
         )}`
@@ -324,15 +324,19 @@ describe("Push trigger integration tests", () => {
     payload.pull_request.state = "open";
     payload.label.name = "ciflow/test";
     payload.pull_request.user.login = "fake_user";
-    const login = payload.pull_request.user.login
-    nock("https://api.github.com").get(`/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`)
-    .reply(200, [])
-    .get(`/repos/suo/actions-test/collaborators/${login}/permission`)
-    .reply(200, {
-      "message": "fake_user is not a user",
-      "documentation_url": "https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user"
-    })
-    .get(
+    const login = payload.pull_request.user.login;
+    nock("https://api.github.com")
+      .get(
+        `/repos/suo/actions-test/commits?author=${login}&sha=main&per_page=1`
+      )
+      .reply(200, [])
+      .get(`/repos/suo/actions-test/collaborators/${login}/permission`)
+      .reply(200, {
+        message: "fake_user is not a user",
+        documentation_url:
+          "https://docs.github.com/rest/collaborators/collaborators#get-repository-permissions-for-a-user",
+      })
+      .get(
         `/repos/suo/actions-test/contents/${encodeURIComponent(
           ".github/pytorch-probot.yml"
         )}`
@@ -343,9 +347,7 @@ describe("Push trigger integration tests", () => {
         return true;
       })
       .reply(200);
-      
 
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
-
 });

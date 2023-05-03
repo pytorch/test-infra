@@ -9,7 +9,7 @@ export const config = {
     // and then try to figure out how to make the results smaller later
     responseLimit: "8mb",
   },
-}
+};
 
 export default async function handler(
   req: NextApiRequest,

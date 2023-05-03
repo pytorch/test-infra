@@ -27,10 +27,10 @@ export interface PytorchbotParams {
   useReactions: boolean;
 }
 
-const PR_COMMENTED = 'commented'
-const PR_DISMISSED = 'dismissed'
-const PR_CHANGES_REQUESTED = 'changes_requested'
-const PR_APPROVED = 'approved'
+const PR_COMMENTED = "commented";
+const PR_DISMISSED = "dismissed";
+const PR_CHANGES_REQUESTED = "changes_requested";
+const PR_APPROVED = "approved";
 
 class PytorchBotHandler {
   ctx: any;
@@ -164,7 +164,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
 
     if (!reviews.length) {
-      this.ctx.log("Could not find any reviews for PR")
+      this.ctx.log("Could not find any reviews for PR");
       return "no_reviews";
     }
 
@@ -174,46 +174,60 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       "CONTRIBUTOR",
       "MEMBER",
       "OWNER",
-    ]
+    ];
 
     // Find the latest review offered by each authroized reviewer
     // But first sort them in case Github ever returns the list unsorted
     var latest_reviews: { [user: string]: string } = reviews
       .sort((a: PullRequestReview, b: PullRequestReview) => {
-         return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "") ? -1 : 1
+        return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
+          ? -1
+          : 1;
       })
-      .reduce((latest_reviews: { [user: string]: string }, curr_review: PullRequestReview) => {
-        if (!ALLOWED_APPROVER_ASSOCIATIONS.includes(curr_review.author_association)) {
-          // Not an authorized approver
+      .reduce(
+        (
+          latest_reviews: { [user: string]: string },
+          curr_review: PullRequestReview
+        ) => {
+          if (
+            !ALLOWED_APPROVER_ASSOCIATIONS.includes(
+              curr_review.author_association
+            )
+          ) {
+            // Not an authorized approver
+            return latest_reviews;
+          }
+
+          // Casing is werid here. The typescript defintion says state will be lower case, yet github
+          // returns upper case. We can't trust that to remain that way, so always conver the state
+          // to lowercase before any comparisons
+          switch (curr_review.state.toLocaleLowerCase()) {
+            case PR_COMMENTED: // Ignore mere comments
+              break;
+            case PR_DISMISSED: // Ignore previous reviews by this person
+              delete latest_reviews[curr_review.user.login];
+              break;
+            case PR_CHANGES_REQUESTED:
+            case PR_APPROVED:
+              latest_reviews[curr_review.user.login] = curr_review.state;
+              break;
+            default:
+              this.ctx.log(
+                `Found an invalid review state '${curr_review.state}' on review id ${curr_review.id}. See ${curr_review.html_url}`
+              );
+          }
+
           return latest_reviews;
-        }
-
-        // Casing is werid here. The typescript defintion says state will be lower case, yet github
-        // returns upper case. We can't trust that to remain that way, so always conver the state
-        // to lowercase before any comparisons
-        switch(curr_review.state.toLocaleLowerCase()) {
-          case PR_COMMENTED: // Ignore mere comments
-            break;
-          case PR_DISMISSED: // Ignore previous reviews by this person
-            delete latest_reviews[curr_review.user.login]
-            break;
-          case PR_CHANGES_REQUESTED:
-          case PR_APPROVED:
-            latest_reviews[curr_review.user.login] = curr_review.state;
-            break;
-          default:
-            this.ctx.log(`Found an invalid review state '${curr_review.state}' on review id ${curr_review.id}. See ${curr_review.html_url}`)
-        }
-
-        return latest_reviews;
-      }, {})
+        },
+        {}
+      );
 
     // Aggregate the reviews to figure out the overall status.
     // One approval is all that's needed
-    let approval_status = ""
+    let approval_status = "";
     for (let [_, review_state] of Object.entries(latest_reviews)) {
-      if (review_state.toLocaleLowerCase() ==  PR_APPROVED) {
-        approval_status = review_state
+      if (review_state.toLocaleLowerCase() == PR_APPROVED) {
+        approval_status = review_state;
       }
     }
 
@@ -236,9 +250,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
     } else if (isPyTorchOrg(this.owner)) {
       // Ensure the PR has been signed off on
-      let approval_status = await this.getApprovalStatus()
+      let approval_status = await this.getApprovalStatus();
       if (approval_status !== PR_APPROVED) {
-        rejection_reason = "This PR needs to be approved by an authorized maintainer before merge."
+        rejection_reason =
+          "This PR needs to be approved by an authorized maintainer before merge.";
       }
     }
 
@@ -256,7 +271,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     ) {
       await this.addComment(
         "You don't have permissions to rebase this PR since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra."
-      )
+      );
       rebase = false;
     }
 
@@ -267,12 +282,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       );
       if (labels === undefined) {
         labels = this.ctx.payload?.pull_request?.labels.map(
-        (e: any) => e["name"]
+          (e: any) => e["name"]
         );
       }
 
-      if (labels !== undefined && ! labels.find( x => x === CIFLOW_TRUNK_LABEL)) {
-        await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL])
+      if (
+        labels !== undefined &&
+        !labels.find((x) => x === CIFLOW_TRUNK_LABEL)
+      ) {
+        await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
     }
 

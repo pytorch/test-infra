@@ -81,7 +81,9 @@ function myBot(app: Probot): void {
         if (payloadType === "issue") {
           await context.octokit.issues.update(context.issue({ body: newBody }));
         } else if (payloadType === "pull_request") {
-          await context.octokit.pulls.update(context.pullRequest({ body: newBody }));
+          await context.octokit.pulls.update(
+            context.pullRequest({ body: newBody })
+          );
         }
       } else {
         context.log("no action: no change from existing cc list on issue");

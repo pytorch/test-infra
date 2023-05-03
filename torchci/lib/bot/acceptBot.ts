@@ -9,7 +9,6 @@ function containsLabel(labels: Label[], labelName: string) {
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 
 function acceptBot(app: Probot): void {
-
   app.on("pull_request.labeled", async (ctx) => {
     const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;

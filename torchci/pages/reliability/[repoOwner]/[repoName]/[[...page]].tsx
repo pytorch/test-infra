@@ -3,13 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import {
-  Grid,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
