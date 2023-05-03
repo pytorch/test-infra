@@ -135,9 +135,6 @@ jobs:
             # Source conda so it's available to the script environment
             echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
             echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
-            echo 'echo ### DEBUG ########################'
-            echo 'cat /c/Jenkins/Miniconda3/etc/profile.d/conda.sh'
-            echo 'echo ##################################'
             # Setup CUDA paths
             echo 'if [[ ${{ inputs.gpu-arch-type }} == '\''cuda'\'' ]]; then'
             echo '  export CUDA_HOME="/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
