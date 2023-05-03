@@ -1,8 +1,6 @@
 import nock from "nock";
 import { Probot } from "probot";
-import myProbotApp, {
-  CIFLOW_TRUNK_LABEL,
-} from "../lib/bot/acceptBot";
+import myProbotApp, { CIFLOW_TRUNK_LABEL } from "../lib/bot/acceptBot";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
 nock.disableNetConnect();
@@ -23,5 +21,4 @@ describe("accept bot", () => {
 
     handleScope(scope);
   });
-
 });

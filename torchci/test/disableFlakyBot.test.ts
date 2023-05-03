@@ -89,7 +89,7 @@ const nonFlakyTestA = {
   flaky: false,
   num_green: 50,
   num_red: 0,
-}
+};
 
 const nonFlakyTestZ = {
   name: "test_z",
@@ -98,7 +98,7 @@ const nonFlakyTestZ = {
   flaky: false,
   num_green: 50,
   num_red: 0,
-}
+};
 
 describe("Disable Flaky Test Bot Across Jobs", () => {
   const octokit = utils.testOctokit();
@@ -407,7 +407,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         expect(body).toMatchObject({ state: "closed" });
         return true;
       })
-      .reply(200, {})
+      .reply(200, {});
 
     const issues = [
       {
@@ -416,14 +416,23 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING + 1, "hour").toString(),
+        updated_at: dayjs()
+          .subtract(
+            disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING + 1,
+            "hour"
+          )
+          .toString(),
         author_association: "MEMBER",
       },
     ];
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
     // Close the disabled issue if the test is not flaky anymore
-    await disableFlakyTestBot.handleNonFlakyTest(nonFlakyTestA, issues, octokit);
+    await disableFlakyTestBot.handleNonFlakyTest(
+      nonFlakyTestA,
+      issues,
+      octokit
+    );
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -450,20 +459,28 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
         html_url: "https://api.github.com/repos/pytorch/pytorch/issues/1",
         state: "open" as "open" | "closed",
         body: "random",
-        updated_at: dayjs().subtract(disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING - 1, "hour").toString(),
+        updated_at: dayjs()
+          .subtract(
+            disableFlakyTestBot.NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING - 1,
+            "hour"
+          )
+          .toString(),
         author_association: "MEMBER",
       },
     ];
 
     await disableFlakyTestBot.handleFlakyTest(flakyTestA, issues, octokit);
     // Close the disabled issue if the test is not flaky anymore
-    await disableFlakyTestBot.handleNonFlakyTest(nonFlakyTestA, issues, octokit);
+    await disableFlakyTestBot.handleNonFlakyTest(
+      nonFlakyTestA,
+      issues,
+      octokit
+    );
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
     scope.done();
-
   });
 });
 
@@ -830,18 +847,15 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
   });
 
   test("filterOutNonFlakyTest: should not contain any flaky tests", async () => {
-    const disabledNonFlakyTests = [
-      nonFlakyTestA,
-      nonFlakyTestZ,
-    ];
+    const disabledNonFlakyTests = [nonFlakyTestA, nonFlakyTestZ];
 
-    const flakyTests = [
-      flakyTestA,
-      flakyTestB,
-    ];
+    const flakyTests = [flakyTestA, flakyTestB];
 
-    expect(disableFlakyTestBot.filterOutNonFlakyTests(disabledNonFlakyTests, flakyTests)).toEqual([
-      nonFlakyTestZ,
-    ]);
+    expect(
+      disableFlakyTestBot.filterOutNonFlakyTests(
+        disabledNonFlakyTests,
+        flakyTests
+      )
+    ).toEqual([nonFlakyTestZ]);
   });
 });

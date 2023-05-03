@@ -40,9 +40,10 @@ following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 ## Testing
+
 To run tests first make sure you're in the `torchci` folder and then:
 
-- To run all tests: 
+- To run all tests:
   - `yarn test`
 - To run all tests in a specific file:
   - `yarn test <path-to-file>`
@@ -108,6 +109,7 @@ Github Issue.
 A Meta internal Butterfly bot rule will trigger when the task is created or updated to assign the task to the oncall to notify the DevX team.
 
 Butterfly bot links:
+
 - [When a new alert is created](https://www.internalfb.com/butterfly/rule/5455687371213466)
 - [When pytorch/pytorch failures are edited](https://www.internalfb.com/butterfly/rule/2024866984357962)
 - [When flaky test detector bot alerts are edited](https://www.internalfb.com/butterfly/rule/741489054164977)
@@ -115,6 +117,7 @@ Butterfly bot links:
 ## Modifying Deployment Settings
 
 If you ever need to modify the deployment settings like the oauth callbacks, domain names, there's a few places that you need to change these settings in. Here's a list:
+
 1. [DNS Registry/Certificates](https://fb.workplace.com/groups/osssupport) (Contact the the OSS team)
 2. [Environment Variables](https://vercel.com/fbopensource/torchci/settings/environment-variables)
 3. [OAuth Project](https://github.com/settings/applications/1973779) / [OAuth Project Local](https://github.com/settings/applications/1976306)

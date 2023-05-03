@@ -30,15 +30,19 @@ export default async function handler(
 }
 
 async function disableFlakyTestsAndReenableNonFlakyTests() {
-  const [octokit, flakyTests, flakyTestsAcrossJobs, issues, disabledNonFlakyTests] = await Promise.all(
-    [
-      getOctokit(owner, repo),
-      fetchFlakyTests(`${NUM_HOURS}`),
-      fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
-      fetchIssuesByLabel("skipped"),
-      fetchDisabledNonFlakyTests(),
-    ]
-  );
+  const [
+    octokit,
+    flakyTests,
+    flakyTestsAcrossJobs,
+    issues,
+    disabledNonFlakyTests,
+  ] = await Promise.all([
+    getOctokit(owner, repo),
+    fetchFlakyTests(`${NUM_HOURS}`),
+    fetchFlakyTestsAcrossJobs(`${NUM_HOURS_ACROSS_JOBS}`), // use a larger time window so we can get more data
+    fetchIssuesByLabel("skipped"),
+    fetchDisabledNonFlakyTests(),
+  ]);
 
   const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs);
   // If the test is flaky only on PRs, we should not disable it yet.
@@ -52,11 +56,14 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
 
   // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
   // that no flaky test is accidentally closed
-  const nonFlakyTests = filterOutNonFlakyTests(disabledNonFlakyTests, allFlakyTests);
+  const nonFlakyTests = filterOutNonFlakyTests(
+    disabledNonFlakyTests,
+    allFlakyTests
+  );
 
   nonFlakyTests.forEach(async function (test) {
     await handleNonFlakyTest(test, issues, octokit);
-  })
+  });
 }
 
 export function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
@@ -129,7 +136,7 @@ export async function handleFlakyTest(
 
 export function filterOutNonFlakyTests(
   nonFlakyTests: DisabledNonFlakyTestData[],
-  allFlakyTests: FlakyTestData[],
+  allFlakyTests: FlakyTestData[]
 ): DisabledNonFlakyTestData[] {
   const flakyTestKeys = allFlakyTests.map(
     (test) => `${test.name} / ${test.suite}`
@@ -156,7 +163,8 @@ export async function handleNonFlakyTest(
 
   if (matchingIssue.state === "open") {
     const updatedAt = dayjs(matchingIssue.updated_at);
-    const daysSinceLastUpdate: number = NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
+    const daysSinceLastUpdate: number =
+      NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
 
     // Only close the issue if the issue is not flaky and hasn't been updated in
     // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
@@ -170,7 +178,8 @@ export async function handleNonFlakyTest(
     }
     console.log(`${matchingIssue.number} is not longer flaky`);
 
-    const body = `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
+    const body =
+      `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
       `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
       `issue to re-disable the test if you think this is a false positive`;
     await octokit.rest.issues.createComment({
@@ -324,7 +333,6 @@ export async function getTestOwnerLabels(
   }
 }
 
-
 export function wasRecent(test: FlakyTestData) {
   if (test.eventTimes) {
     return test.eventTimes.some(
@@ -333,7 +341,6 @@ export function wasRecent(test: FlakyTestData) {
   }
   return true;
 }
-
 
 export async function createIssueFromFlakyTest(
   test: FlakyTestData,

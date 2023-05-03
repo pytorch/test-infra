@@ -14,7 +14,7 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
     const time = dayjs(timestamp).local();
     if (dayjs().isSame(time, "day")) {
       setTime(time.format("h:mm a"));
-    } else if (dayjs().subtract(7, 'days').isBefore(time, 'day')) {
+    } else if (dayjs().subtract(7, "days").isBefore(time, "day")) {
       setTime(time.format("ddd h:mm a"));
     } else {
       setTime(time.format("M/D h:mm a"));

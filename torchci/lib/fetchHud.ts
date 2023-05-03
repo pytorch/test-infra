@@ -4,10 +4,7 @@ import getRocksetClient from "./rockset";
 import { HudParams, JobData, RowData } from "./types";
 import rocksetVersions from "rockset/prodVersions.json";
 import { isFailure } from "./JobClassifierUtil";
-import {
-  isRerunDisabledTestsJob,
-  isUnstableJob,
-} from "./jobUtils";
+import { isRerunDisabledTestsJob, isUnstableJob } from "./jobUtils";
 
 export default async function fetchHud(params: HudParams): Promise<{
   shaGrid: RowData[];
@@ -48,26 +45,29 @@ export default async function fetchHud(params: HudParams): Promise<{
   );
 
   // Check if any of these commits are forced merge
-  const filterForcedMergePr = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "filter_forced_merge_pr",
-    rocksetVersions.commons.filter_forced_merge_pr,
-    {
-      parameters: [
-        {
-          name: "issueUrls",
-          type: "string",
-          value: _.map(commits, (commit) => {
-            // Get the PR number to figure out if this is forced merged
-            return `https://api.github.com/repos/${params.repoOwner}/${params.repoName}/issues/${commit.prNum}`;
-          }).join(","),
-        }
-      ],
-    }
+  const filterForcedMergePr =
+    await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "filter_forced_merge_pr",
+      rocksetVersions.commons.filter_forced_merge_pr,
+      {
+        parameters: [
+          {
+            name: "issueUrls",
+            type: "string",
+            value: _.map(commits, (commit) => {
+              // Get the PR number to figure out if this is forced merged
+              return `https://api.github.com/repos/${params.repoOwner}/${params.repoName}/issues/${commit.prNum}`;
+            }).join(","),
+          },
+        ],
+      }
+    );
+  const forcedMergePrNums = new Set(
+    _.map(filterForcedMergePr.results, (result) => {
+      return result.issue_url.split("/").pop();
+    })
   );
-  const forcedMergePrNums = new Set(_.map(filterForcedMergePr.results, (result) => {
-    return result.issue_url.split("/").pop();
-  }));
 
   const commitsBySha = _.keyBy(commits, "sha");
   let results = hudQuery.results;
@@ -103,7 +103,8 @@ export default async function fetchHud(params: HudParams): Promise<{
       // cases, we want the most recent job to be shown.
       if (job.id! > existingJob.id!) {
         jobsBySha[job.sha!][job.name!] = job;
-        jobsBySha[job.sha!][job.name!].failedPreviousRun = existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
+        jobsBySha[job.sha!][job.name!].failedPreviousRun =
+          existingJob.failedPreviousRun || isFailure(existingJob.conclusion);
       } else {
         existingJob.failedPreviousRun =
           existingJob.failedPreviousRun || isFailure(job.conclusion);
@@ -137,7 +138,9 @@ export default async function fetchHud(params: HudParams): Promise<{
       ...commit,
       jobs: jobs,
       // Revert commits won't have any associated PR number
-      isForcedMerge: forcedMergePrNums.has(commit.prNum !== null ? commit.prNum.toString() : ""),
+      isForcedMerge: forcedMergePrNums.has(
+        commit.prNum !== null ? commit.prNum.toString() : ""
+      ),
     };
     shaGrid.push(row);
   });

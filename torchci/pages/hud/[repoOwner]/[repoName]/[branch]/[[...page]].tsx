@@ -401,12 +401,12 @@ export default function Hud() {
     name: undefined,
   });
   function handleClick() {
-    setPinnedTooltip({  sha: undefined, name: undefined  });
+    setPinnedTooltip({ sha: undefined, name: undefined });
   }
   useEffect(() => {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
-        setPinnedTooltip({  sha: undefined, name: undefined });
+        setPinnedTooltip({ sha: undefined, name: undefined });
       }
     });
   }, []);

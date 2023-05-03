@@ -8,8 +8,10 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
 // Sanity check. Generally not an issue though since we invoke this file via yarn
 if (!existsSync(`./rockset`)) {
-  console.error("Please cd to the test-infra/torchci folder before running downloadQueryLambda")
-  exit(-1)
+  console.error(
+    "Please cd to the test-infra/torchci folder before running downloadQueryLambda"
+  );
+  exit(-1);
 }
 
 const parser = new ArgumentParser({
@@ -53,14 +55,10 @@ const metadata = {
 };
 
 // Update the sql query and parameters in the lambda.json file
-const workspaceDir = `./rockset/${args.workspace}`
+const workspaceDir = `./rockset/${args.workspace}`;
 
 await fs.mkdir(`${workspaceDir}/__sql`, { recursive: true });
-await fs.writeFile(
-  `${workspaceDir}/__sql/${args.query}.sql`,
-  sql,
-  "utf8"
-);
+await fs.writeFile(`${workspaceDir}/__sql/${args.query}.sql`, sql, "utf8");
 
 const metadaJson = JSON.stringify(metadata, null, 2);
 await fs.writeFile(
@@ -70,14 +68,16 @@ await fs.writeFile(
 );
 
 // Update the version in the prodVersions.json file
-const prodVersionsFilePath = `./rockset/prodVersions.json`
+const prodVersionsFilePath = `./rockset/prodVersions.json`;
 
-const prodVersions = JSON.parse(await fs.readFile(prodVersionsFilePath, "utf8"))
+const prodVersions = JSON.parse(
+  await fs.readFile(prodVersionsFilePath, "utf8")
+);
 if (!prodVersions[qLambda.workspace]) {
-  prodVersions[qLambda.workspace] = {}
+  prodVersions[qLambda.workspace] = {};
 }
 
-prodVersions[qLambda.workspace][qLambda.name] = qLambda.version
+prodVersions[qLambda.workspace][qLambda.name] = qLambda.version;
 
 await fs.writeFile(
   prodVersionsFilePath,

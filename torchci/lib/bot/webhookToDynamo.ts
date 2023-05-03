@@ -64,9 +64,7 @@ async function handleIssues(event: WebhookEvent<"issues">) {
   });
 }
 
-async function handleIssueComment(
-  event: WebhookEvent<"issue_comment">
-) {
+async function handleIssueComment(event: WebhookEvent<"issue_comment">) {
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 

@@ -3,7 +3,9 @@ import rocksetVersions from "rockset/prodVersions.json";
 
 import { DisabledNonFlakyTestData } from "./types";
 
-export default async function fetchDisabledNonFlakyTests(): Promise<DisabledNonFlakyTestData[]> {
+export default async function fetchDisabledNonFlakyTests(): Promise<
+  DisabledNonFlakyTestData[]
+> {
   const rocksetClient = getRocksetClient();
   const nonFlakyTestQuery = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
