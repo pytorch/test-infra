@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/slow_tests_by_workflow.sql",
+  "default_parameters": [
+    {
+      "name": "workflow",
+      "type": "string",
+      "value": "slow"
+    }
+  ],
+  "description": ""
+}
