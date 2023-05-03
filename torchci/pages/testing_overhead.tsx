@@ -62,7 +62,7 @@ export default function TestingOverhead() {
     return (
       <Grid item xs={12} height={ROW_HEIGHT}>
         <TablePanel
-          title={`Unsharded Testing times for Workflow: ${workflowName} on ${startTime.format(
+          title={`Total Testing Times per Workflow on All Runners: ${workflowName} on ${startTime.format(
             "YYYY-MM-DD"
           )}`}
           queryCollection={"commons"}
