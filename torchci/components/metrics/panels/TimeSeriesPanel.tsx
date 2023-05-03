@@ -11,6 +11,7 @@ import { EChartsOption } from "echarts";
 import _ from "lodash";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { time } from "console";
 dayjs.extend(utc);
 
 export type Granularity = "minute" | "hour" | "day" | "week" | "month" | "year";
@@ -117,6 +118,8 @@ export function TimeSeriesPanelWithData({
   // What field name to group by. Each unique value in this field will show up
   // as its own line.
   groupByFieldName,
+  // Display format for the time field (ex "M/D h:mm:ss A")
+  timeFieldDisplayFormat = "M/D h:mm:ss A",
   // Callback to render the y axis value in some nice way.
   yAxisRenderer,
   // What label to put on the y axis.
@@ -128,6 +131,7 @@ export function TimeSeriesPanelWithData({
   series: any;
   title: string;
   groupByFieldName?: string;
+  timeFieldDisplayFormat?: string;
   yAxisRenderer: (value: any) => string;
   yAxisLabel?: string;
   additionalOptions?: EChartsOption;
@@ -163,7 +167,7 @@ export function TimeSeriesPanelWithData({
           `${params.seriesName}` +
           `<br/>${dayjs(params.value[0])
             .local()
-            .format("M/D h:mm:ss A")}<br/>` +
+            .format(timeFieldDisplayFormat)}<br/>` +
           `${getTooltipMarker(params.color)}` +
           `<b>${yAxisRenderer(params.value[1])}</b>`,
       },
@@ -197,6 +201,8 @@ export default function TimeSeriesPanel({
   groupByFieldName,
   // What field name to treat as the time value.
   timeFieldName,
+  // Display format for the time field (ex "M/D h:mm:ss A")
+  timeFieldDisplayFormat = "M/D h:mm:ss A",
   // What field name to put on the y axis.
   yAxisFieldName,
   // Callback to render the y axis value in some nice way.
@@ -213,6 +219,7 @@ export default function TimeSeriesPanel({
   granularity: Granularity;
   groupByFieldName?: string;
   timeFieldName: string;
+  timeFieldDisplayFormat?: string;
   yAxisFieldName: string;
   yAxisRenderer: (value: any) => string;
   yAxisLabel?: string;
@@ -262,6 +269,7 @@ export default function TimeSeriesPanel({
       groupByFieldName={groupByFieldName}
       yAxisRenderer={yAxisRenderer}
       yAxisLabel={yAxisLabel}
+      timeFieldDisplayFormat={timeFieldDisplayFormat}
       additionalOptions={additionalOptions}
     />
   );
