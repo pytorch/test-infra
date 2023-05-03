@@ -126,6 +126,9 @@ jobs:
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
+          echo "### DEBUG #################"
+          echo "${RUNNER_TEMP}"
+          echo "###########################"
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
