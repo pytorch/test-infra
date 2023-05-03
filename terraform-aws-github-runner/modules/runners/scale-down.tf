@@ -34,9 +34,9 @@ resource "aws_lambda_function" "scale_down" {
       ENVIRONMENT                     = var.environment
       GHES_URL                        = var.ghes_url
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
+      GITHUB_APP_CLIENT_SECRET        = var.github_app_client_secret
       GITHUB_APP_ID                   = var.github_app.id
-      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
+      GITHUB_APP_KEY_BASE64           = var.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
@@ -49,10 +49,7 @@ resource "aws_lambda_function" "scale_down" {
   }
 
   vpc_config {
-    security_group_ids = concat(
-      var.lambda_security_group_ids,
-      [aws_security_group.runners_sg[0].id]
-    )
+    security_group_ids = var.lambda_security_group_ids
     subnet_ids         = var.lambda_subnet_ids
   }
 }

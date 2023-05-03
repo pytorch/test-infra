@@ -264,42 +264,6 @@ variable "ami_owners_windows" {
   default     = ["amazon"]
 }
 
-variable "lambda_s3_bucket" {
-  description = "S3 bucket from which to specify lambda functions. This is an alternative to providing local files directly."
-  type        = string
-  default     = null
-}
-
-variable "syncer_lambda_s3_object_version" {
-  description = "S3 object version for syncer lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
-variable "webhook_lambda_s3_key" {
-  description = "S3 key for webhook lambda function. Required if using S3 bucket to specify lambdas."
-  type        = string
-  default     = null
-}
-
-variable "webhook_lambda_s3_object_version" {
-  description = "S3 object version for webhook lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
-variable "runners_lambda_s3_key" {
-  description = "S3 key for runners lambda function. Required if using S3 bucket to specify lambdas."
-  type        = string
-  default     = null
-}
-
-variable "runners_lambda_s3_object_version" {
-  description = "S3 object version for runners lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
 variable "create_service_linked_role_spot" {
   description = "(optional) create the serviced linked role for spot instances that is required by the scale-up lambda."
   type        = bool
