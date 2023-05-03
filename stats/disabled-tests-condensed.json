@@ -1753,6 +1753,13 @@
       "linux"
     ]
   ],
+  "test_scalar_cuda (__main__.TestContentStoreCUDA)": [
+    "100539",
+    "https://github.com/pytorch/pytorch/issues/100539",
+    [
+      "rocm"
+    ]
+  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
