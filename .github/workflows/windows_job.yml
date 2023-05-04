@@ -131,7 +131,7 @@ jobs:
           echo "###########################"
           {
             echo "#!/usr/bin/env bash";
-            echo "set -eou pipefail";
+            echo "set -euxo pipefail";
             # Without this specific version of pywin32 conda the default conda installation does not work
             # See https://github.com/conda/conda/issues/11503
             echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
@@ -139,7 +139,7 @@ jobs:
             echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
             echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
             # Setup CUDA paths
-            echo 'if [[ ${{ inputs.gpu-arch-type }} == '\''cuda'\'' ]]; then'
+            echo 'if [[ ${{ inputs.gpu-arch-type }} == cuda ]]; then'
             echo '  export CUDA_HOME="/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
             echo '  export CUDA_PATH="${CUDA_HOME}"'
             echo '  export PATH="${CUDA_PATH}/bin:${PATH}"'
@@ -149,6 +149,9 @@ jobs:
           while read line; do
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          echo "### DEBUG #################"
+          cat "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          echo "###########################"
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
