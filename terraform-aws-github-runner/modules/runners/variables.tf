@@ -178,6 +178,12 @@ variable "lambda_security_group_ids" {
   default     = []
 }
 
+variable "runners_security_group_ids" {
+  description = "Security groups"
+  type        = list(string)
+  default     = []
+}
+
 variable "secretsmanager_secrets_id" {
   description = "(optional) ID for secretsmanager secret to use for Github App credentials"
   type        = string
