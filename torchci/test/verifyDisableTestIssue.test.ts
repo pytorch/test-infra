@@ -11,6 +11,37 @@ describe("verify-disable-test-issue", () => {
     probot.load(myProbotApp);
   });
 
+  test("issue opened with title starts w/ DISABLED: unauthorized", async () => {
+    let title = "DISABLED pull / linux-bionic-py3.8-clang9";
+    const jobName = bot.parseTitle(title);
+    let comment = bot.formJobValidationComment("mock-user", false, jobName);
+
+    expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
+    expect(
+      comment.includes("You (mock-user) don't have permission to disable")
+    ).toBeTruthy();
+    expect(comment.includes("ERROR")).toBeTruthy();
+
+    title = "DISABLED testMethodName (testClass.TestSuite)";
+    const body = "Platforms:linux,macos";
+
+    const platforms = bot.parseBody(body);
+    const testName = bot.parseTitle(title);
+
+    comment = bot.formValidationComment(
+      "mock-user",
+      false,
+      testName,
+      platforms
+    );
+
+    expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
+    expect(
+      comment.includes("You (mock-user) don't have permission to disable")
+    ).toBeTruthy();
+    expect(comment.includes("ERROR")).toBeTruthy();
+  });
+
   test("issue opened with title starts w/ DISABLED: disable for win", async () => {
     const title = "DISABLED testMethodName (testClass.TestSuite)";
     const body = "whatever\nPlatforms:win\nyay";
@@ -20,7 +51,12 @@ describe("verify-disable-test-issue", () => {
     expect(platforms).toMatchObject([new Set(["win"]), new Set()]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
       comment.includes(
@@ -44,7 +80,12 @@ describe("verify-disable-test-issue", () => {
     ]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
       comment.includes(
@@ -67,7 +108,12 @@ describe("verify-disable-test-issue", () => {
     expect(platforms).toMatchObject([new Set(), new Set()]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
       comment.includes(
@@ -88,7 +134,12 @@ describe("verify-disable-test-issue", () => {
     expect(platforms).toMatchObject([new Set(), new Set(["everything"])]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
       comment.includes(
@@ -117,7 +168,12 @@ describe("verify-disable-test-issue", () => {
       "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)"
     );
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
@@ -133,7 +189,12 @@ describe("verify-disable-test-issue", () => {
     expect(platforms).toMatchObject([new Set(), new Set()]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();
     expect(comment.includes("ERROR")).toBeTruthy();
@@ -149,7 +210,12 @@ describe("verify-disable-test-issue", () => {
     expect(platforms).toMatchObject([new Set(), new Set(["all of them"])]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
-    const comment = bot.formValidationComment(testName, platforms);
+    const comment = bot.formValidationComment(
+      "mock-user",
+      true,
+      testName,
+      platforms
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes("~15 minutes")).toBeFalsy();
     expect(comment.includes("ERROR")).toBeTruthy();
@@ -197,30 +263,9 @@ describe("verify-disable-test-issue", () => {
     const jobName = bot.parseTitle(title);
     expect(jobName).toEqual("pull / linux-bionic-py3.8-clang9");
 
-    const spy = jest.spyOn(botUtils, "hasWritePermissions");
-
-    spy.mockReturnValue(Promise.resolve(true));
-    let comment = await bot.formJobValidationComment(
-      "context",
-      "mock-user",
-      jobName
-    );
+    let comment = bot.formJobValidationComment("mock-user", true, jobName);
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
-
-    spy.mockReturnValue(Promise.resolve(false));
-    comment = await bot.formJobValidationComment(
-      "context",
-      "mock-user",
-      jobName
-    );
-    expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
-    expect(
-      comment.includes("You (mock-user) don't have permission to disable")
-    ).toBeTruthy();
-    expect(comment.includes("ERROR")).toBeTruthy();
-
-    spy.mockRestore();
   });
 });

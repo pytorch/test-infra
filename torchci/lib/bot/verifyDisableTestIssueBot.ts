@@ -78,6 +78,8 @@ function testNameIsExpected(testName: string): boolean {
 }
 
 export function formValidationComment(
+  username: string,
+  authorized: boolean,
   testName: string,
   platforms: [Set<string>, Set<string>]
 ): string {
@@ -97,7 +99,8 @@ export function formValidationComment(
   body += "it looks like you are attempting to disable a test in PyTorch CI. ";
   body += "The information I have parsed is below:\n\n";
   body += `* Test name: \`${testName}\`\n`;
-  body += `* Platforms for which to skip the test: ${platformMsg}\n\n`;
+  body += `* Platforms for which to skip the test: ${platformMsg}\n`;
+  body += `* Credential: \`${username}\`\n\n`;
 
   if (invalidPlatforms.length > 0) {
     body +=
@@ -109,6 +112,12 @@ export function formValidationComment(
       "be typos or platforms we do not yet support test disabling. Please ";
     body +=
       "verify the platform list above and modify your issue body if needed.\n\n";
+  }
+
+  if (!authorized) {
+    body += `<b>ERROR!</b> You (${username}) don't have permission to disable ${testName} on ${platformMsg}.\n\n`;
+    body += "</body>";
+    return validationCommentStart + body + validationCommentEnd;
   }
 
   if (!testNameIsExpected(testName)) {
@@ -142,13 +151,11 @@ export function formValidationComment(
   return validationCommentStart + body + validationCommentEnd;
 }
 
-export async function formJobValidationComment(
-  context: any,
+export function formJobValidationComment(
   username: string,
+  authorized: boolean,
   jobName: string
-): Promise<string> {
-  const authorized = await hasWritePermissions(context, username);
-
+): string {
   let body =
     "<body>Hello there! From the DISABLED prefix in this issue title, ";
   body += "it looks like you are attempting to disable a job in PyTorch CI. ";
@@ -197,10 +204,11 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const target = parseTitle(title);
     const platforms = parseBody(body!);
     const username = context.payload["issue"]["user"]["login"];
+    const authorized = await hasWritePermissions(context, username);
 
     const validationComment = isDisabledTest(title)
-      ? formValidationComment(target, platforms)
-      : await formJobValidationComment(context, username, target);
+      ? formValidationComment(username, authorized, target, platforms)
+      : formJobValidationComment(username, authorized, target);
 
     if (existingValidationComment === validationComment) {
       return;
@@ -219,6 +227,16 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
         owner,
         repo,
         comment_id: existingValidationCommentID,
+      });
+    }
+
+    // Auto-close unauthorized issues
+    if (!authorized) {
+      await context.octokit.issues.update({
+        owner,
+        repo,
+        issue_number: number,
+        state: "closed",
       });
     }
   });
