@@ -49,7 +49,10 @@ resource "aws_lambda_function" "scale_down" {
   }
 
   vpc_config {
-    security_group_ids = var.lambda_security_group_ids
+    security_group_ids = concat(
+      var.lambda_security_group_ids,
+      [var.runners_security_group_ids[0]]
+    )
     subnet_ids         = var.lambda_subnet_ids
   }
 }
