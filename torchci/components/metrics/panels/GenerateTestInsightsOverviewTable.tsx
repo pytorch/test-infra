@@ -9,6 +9,7 @@ import { durationDisplay } from "components/TimeUtils";
 import { RocksetParam } from "lib/rockset";
 
 const ROW_HEIGHT = 500;
+
 export default function GenerateTestInsightsOverviewTable({
   workflowName,
   startTime,
