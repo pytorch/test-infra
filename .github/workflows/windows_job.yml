@@ -126,12 +126,9 @@ jobs:
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
-          echo "### DEBUG #################"
-          echo "${RUNNER_TEMP}"
-          echo "###########################"
           {
             echo "#!/usr/bin/env bash";
-            echo "set -euxo pipefail";
+            echo "set -eou pipefail";
             # Without this specific version of pywin32 conda the default conda installation does not work
             # See https://github.com/conda/conda/issues/11503
             echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
@@ -150,7 +147,7 @@ jobs:
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           echo "### DEBUG #################"
-          cat "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          cat "${RUNNER_TEMP}/exec_script"
           echo "###########################"
           bash "${RUNNER_TEMP}/exec_script"
 
