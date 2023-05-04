@@ -7,13 +7,13 @@ runs:
   using: composite
   steps:
     - name: Set default CHANNEL
-      shell: bash -l {0}
+      shell: bash
       run: |
         set -euxo pipefail
         echo "CHANNEL=nightly" >> "${GITHUB_ENV}"
     - name: Set CHANNEL for tagged pushes
       if: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/') }}
-      shell: bash -l {0}
+      shell: bash
       run: |
         set -euxo pipefail
         # reference ends with an RC suffix
@@ -22,7 +22,7 @@ runs:
         fi
     - name: Set Release CHANNEL for release
       if: ${{ (github.event_name == 'pull_request' && startsWith(github.base_ref, 'release')) || startsWith(github.ref, 'refs/heads/release') }}
-      shell: bash -l {0}
+      shell: bash
       run: |
         set -euxo pipefail
         echo "CHANNEL=test" >> "$GITHUB_ENV"
