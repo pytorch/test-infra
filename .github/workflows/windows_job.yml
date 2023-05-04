@@ -137,7 +137,7 @@ jobs:
             echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
             # Setup CUDA paths
             echo 'if [[ ${{ inputs.gpu-arch-type }} == cuda ]]; then'
-            echo '  export CUDA_HOME="/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
+            echo '  export CUDA_HOME="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
             echo '  export CUDA_PATH="${CUDA_HOME}"'
             echo '  export PATH="${CUDA_PATH}/bin:${PATH}"'
             echo 'fi'
