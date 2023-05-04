@@ -136,13 +136,25 @@ jobs:
           fi
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
-          ${CONDA_RUN} conda build \
-            -c defaults \
-            -c "pytorch-${CHANNEL}" \
-            --no-anaconda-upload \
-            --python "${PYTHON_VERSION}" \
-            --output-folder distr/ \
-            "${CONDA_PACKAGE_DIRECTORY}"
+          arch_name="$(uname -m)"
+          if [[ "${arch_name}" = "x86_64" ]] && [[ "${PYTHON_VERSION}" = "3.10" || "${PYTHON_VERSION}" = "3.11" ]]; then
+            ${CONDA_RUN} conda build \
+              -c defaults \
+              -c conda-forge \
+              -c "pytorch-${CHANNEL}" \
+              --no-anaconda-upload \
+              --python "${PYTHON_VERSION}" \
+              --output-folder distr/ \
+              "${CONDA_PACKAGE_DIRECTORY}"
+          else
+            ${CONDA_RUN} conda build \
+              -c defaults \
+              -c "pytorch-${CHANNEL}" \
+              --no-anaconda-upload \
+              --python "${PYTHON_VERSION}" \
+              --output-folder distr/ \
+              "${CONDA_PACKAGE_DIRECTORY}"
+          fi
 
       - name: Upload artifact to GitHub
         continue-on-error: true
