@@ -137,7 +137,7 @@ jobs:
           export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           arch_name="$(uname -m)"
-          if [ "${arch_name}" = "x86_64" && "${PYTHON_VERSION}" = "3.10" ]; then
+          if [[ "${arch_name}" = "x86_64" && "${PYTHON_VERSION}" = "3.10" ]]; then
             ${CONDA_RUN} conda build \
               -c defaults \
               -c conda-forge \
