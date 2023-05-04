@@ -313,8 +313,5 @@ export function isPersistentGroup(name: string) {
 }
 
 export function isUnstableGroup(name: string) {
-  return (
-    name.toLocaleLowerCase().includes("unstable") ||
-    name === GROUP_BINARY_WINDOWS
-  );
+  return name.toLocaleLowerCase().includes("unstable");
 }

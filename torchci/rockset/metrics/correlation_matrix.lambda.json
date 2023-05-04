@@ -4,7 +4,7 @@
     {
       "name": "workflowNames",
       "type": "string",
-      "value": "pull,trunk,periodic"
+      "value": "pull,trunk,periodic,windows-binary-libtorch-debug,windows-binary-libtorch-release"
     }
   ],
   "description": ""

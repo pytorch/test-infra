@@ -52,6 +52,13 @@ def compute():
         query_lambda="correlation_matrix",
         version=prod_versions["metrics"]["correlation_matrix"],
         workspace="metrics",
+        parameters=[
+            {
+                "name": "workflowNames",
+                "type": "string",
+                "value": "pull,trunk,periodic,windows-binary-libtorch-debug,windows-binary-libtorch-release"
+            },
+        ],
     )
 
     pivot = defaultdict(dict)
@@ -102,6 +109,8 @@ def compute():
     # Prepare for rendering in json:
     # Turn the nested dict of name => name => corr to Array<xAxis, yAxis, corr>
     correlation_matrix = correlation_matrix.to_dict()
+    print(correlation_matrix["libtorch-cpu-shared-with-deps-debug-test"]["win-vs2019-cpu-py3 / test (default)"])
+    print(correlation_matrix["libtorch-cpu-shared-with-deps-release-test"]["win-vs2019-cpu-py3 / test (default)"])
     data = []
 
     for xIdx, xName in enumerate(correlation_matrix):
