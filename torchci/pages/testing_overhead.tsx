@@ -9,8 +9,10 @@ import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
+import GenerateIndividualTestsLeaderboard from "./testing_overhead/GenerateIndividualTestsLeaderboard";
 
 const ROW_HEIGHT = 240;
+const THRESHOLD_IN_SECOND = 10;
 
 export default function TestingOverhead() {
   // Looking at data from the past six months
@@ -183,8 +185,23 @@ export default function TestingOverhead() {
         </Grid>
       </>
       <GenerateOncallTestingOverheadLeaderboard workflowName={"pull"} />
+      <GenerateIndividualTestsLeaderboard
+        workflowName={"pull"}
+        queryDate={stopTime}
+        thresholdInSecond={THRESHOLD_IN_SECOND}
+      />
       <GenerateOncallTestingOverheadLeaderboard workflowName={"trunk"} />
+      <GenerateIndividualTestsLeaderboard
+        workflowName={"trunk"}
+        queryDate={stopTime}
+        thresholdInSecond={THRESHOLD_IN_SECOND}
+      />
       <GenerateOncallTestingOverheadLeaderboard workflowName={"periodic"} />
+      <GenerateIndividualTestsLeaderboard
+        workflowName={"periodic"}
+        queryDate={stopTime}
+        thresholdInSecond={THRESHOLD_IN_SECOND}
+      />
     </>
   );
 }

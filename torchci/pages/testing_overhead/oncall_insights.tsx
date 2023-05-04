@@ -13,6 +13,7 @@ import {
 
 const ROW_HEIGHT = 500;
 const THRESHOLD_IN_SECOND = 60;
+
 function GenerateTestInsightsOverviewTable({
   workflowName,
 }: {
