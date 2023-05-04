@@ -157,6 +157,7 @@ export default function Kpis() {
           queryParams={[...contributionTimeParams]}
           granularity={"month"}
           timeFieldName={"year_and_month"}
+          timeFieldDisplayFormat={"MMMM YYYY"}
           yAxisFieldName={"pr_count"}
           yAxisRenderer={(value) => value}
           additionalOptions={{ yAxis: { scale: true } }}
