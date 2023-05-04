@@ -52,7 +52,8 @@ def run() -> None:
         check=True,
         stdout=subprocess.PIPE,
     )
-    suppressed = '#suppress-api-compatibility-check' in pinfo.stdout or args.suppressed
+    suppression_tags = ['#suppress-api-compatibility-check', '#suppress-bc-linter']
+    suppressed = args.suppressed or any(tag in pinfo.stdout for tag in suppression_tags)
     level = 'notice' if suppressed else 'warning'
 
     for file, file_violations in violations.items():
