@@ -147,7 +147,6 @@ const HUD_GROUP_SORTING = [
   GROUP_LIBTORCH,
   GROUP_ANDROID,
   GROUP_BINARY_LINUX,
-  GROUP_BINARY_WINDOWS,
   GROUP_DOCKER,
   GROUP_MEMORY_LEAK_CHECK,
   GROUP_CALC_DOCKER_IMAGE,
@@ -160,6 +159,7 @@ const HUD_GROUP_SORTING = [
   GROUP_INDUCTOR,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_OTHER,
+  GROUP_BINARY_WINDOWS,
   GROUP_UNSTABLE,
 ];
 
@@ -313,5 +313,8 @@ export function isPersistentGroup(name: string) {
 }
 
 export function isUnstableGroup(name: string) {
-  return name.toLocaleLowerCase().includes("unstable");
+  return (
+    name.toLocaleLowerCase().includes("unstable") ||
+    name === GROUP_BINARY_WINDOWS
+  );
 }
