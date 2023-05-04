@@ -11,11 +11,14 @@
 
 name: Close stale pull requests
 
-on:
-  schedule:
-    # Run daily
-    - cron: 0 0 * * *
-  workflow_dispatch:
+inputs:
+  repository:
+    description: Current repo
+    required: true
+    type: string
+    default:
+      owner: ${{ github.repository_owner }}
+      name: ${{ github.repository_name }}
 
 runs:
   using: composite
@@ -94,8 +97,8 @@ runs:
           core.info(`[${pull.number}] Closing PR.`);
           numAPIRequests += 1;
           await github.rest.issues.update({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: ${{ inputs.repository.owner }},
+            repo: ${{ inputs.repository.name }},
             issue_number: pull.number,
             state: "closed",
           });
@@ -105,16 +108,16 @@ runs:
 
           numAPIRequests += 1;
           await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: ${{ inputs.repository.owner }},
+            repo: ${{ inputs.repository.name }},
             issue_number: pull.number,
             body: STALE_MESSAGE,
           });
 
           numAPIRequests += 1;
           await github.rest.issues.addLabels({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+            owner: ${{ inputs.repository.owner }},
+            repo: ${{ inputs.repository.name }},
             issue_number: pull.number,
             labels: ["Stale"],
           });
@@ -124,8 +127,8 @@ runs:
       for await (const response of github.paginate.iterator(
         github.rest.pulls.list,
         {
-          owner: context.repo.owner,
-          repo: context.repo.repo,
+          owner: ${{ inputs.repository.owner }},
+          repo: ${{ inputs.repository.name }},
           state: "open",
           sort: "created",
           direction: "asc",
