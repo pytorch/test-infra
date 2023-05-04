@@ -146,9 +146,6 @@ jobs:
           while read line; do
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-          echo "### DEBUG #################"
-          cat "${RUNNER_TEMP}/exec_script"
-          echo "###########################"
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
