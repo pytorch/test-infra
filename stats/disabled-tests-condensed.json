@@ -6,6 +6,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
+    "100643",
+    "https://github.com/pytorch/pytorch/issues/100643",
+    [
+      "rocm"
+    ]
+  ],
   "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
     "76428",
     "https://github.com/pytorch/pytorch/issues/76428",
