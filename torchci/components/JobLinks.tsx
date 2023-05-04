@@ -3,7 +3,7 @@ import useSWR from "swr";
 import React from "react";
 import { IssueData, JobData } from "../lib/types";
 import styles from "./JobLinks.module.css";
-import TestInsightsLink from "./TestInsights"
+import TestInsightsLink from "./TestInsights";
 
 export default function JobLinks({ job }: { job: JobData }) {
   const rawLogs =
@@ -27,7 +27,10 @@ export default function JobLinks({ job }: { job: JobData }) {
 
   const eventTime =
     job.time != null ? (
-      <span>{` | Started: `}<LocalTimeHuman timestamp={job.time} /></span>
+      <span>
+        {` | Started: `}
+        <LocalTimeHuman timestamp={job.time} />
+      </span>
     ) : null;
 
   const failureCaptures =
@@ -61,14 +64,14 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const unittestFailureRe = /^(?:FAIL|ERROR) \[.*\]: (test_.* \(.*Test.*\))/;
 const pytestFailureRe = /^FAILED .*.py::(.*)::(test_\S*)/;
-function getTestName(failureCapture: string)  {
+function getTestName(failureCapture: string) {
   const unittestMatch = failureCapture.match(unittestFailureRe);
   if (unittestMatch !== null) {
     return unittestMatch[1];
   }
   const pytestMatch = failureCapture.match(pytestFailureRe);
   if (pytestMatch !== null) {
-    return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`
+    return `${pytestMatch[2]} (__main__.${pytestMatch[1]})`;
   }
   return null;
 }

@@ -9,30 +9,31 @@ export async function fetchRecentWorkflows(
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
   const rocksetClient = getRocksetClient();
-  const recentWorkflowsQuery = await rocksetClient.queryLambdas.executeQueryLambda(
-    "commons",
-    "recent_pr_workflows_query",
-    rocksetVersions.commons.recent_pr_workflows_query,
-    {
-      parameters: [
-        {
-          name: "numMinutes",
-          type: "int",
-          value: numMinutes,
-        },
-        {
-          name: "prNumber",
-          type: "int",
-          value: prNumber,
-        },
-        {
-          name: "repo",
-          type: "string",
-          value: repo,
-        },
-      ],
-    }
-  );
+  const recentWorkflowsQuery =
+    await rocksetClient.queryLambdas.executeQueryLambda(
+      "commons",
+      "recent_pr_workflows_query",
+      rocksetVersions.commons.recent_pr_workflows_query,
+      {
+        parameters: [
+          {
+            name: "numMinutes",
+            type: "int",
+            value: numMinutes,
+          },
+          {
+            name: "prNumber",
+            type: "int",
+            value: prNumber,
+          },
+          {
+            name: "repo",
+            type: "string",
+            value: repo,
+          },
+        ],
+      }
+    );
   return recentWorkflowsQuery.results ?? [];
 }
 

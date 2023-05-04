@@ -15,8 +15,8 @@ class PytorchBotLogger {
         marshallOptions: {
           convertEmptyValues: true,
           removeUndefinedValues: true,
-        }
-      }
+        },
+      };
       this.client = getDynamoClient(config);
     } catch (exception) {
       console.error("Error getting Dynamo Client", exception);

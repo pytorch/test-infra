@@ -7,6 +7,10 @@ export default function Page() {
   if (repoOwner && repoName && issueNumber) {
     const githubLink = `https://github.com/${repoOwner}/${repoName}/issues/${issueNumber}`;
     window.location.replace(githubLink);
-    return <div>Redirecting to <a href={githubLink}>github</a></div>;
+    return (
+      <div>
+        Redirecting to <a href={githubLink}>github</a>
+      </div>
+    );
   }
 }

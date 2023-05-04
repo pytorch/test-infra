@@ -7,7 +7,7 @@ import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import { Octokit, App } from "octokit";
 import { createAppAuth } from "@octokit/auth-app";
 import rockset from "@rockset/client";
-import { request } from 'urllib';
+import { request } from "urllib";
 
 function getDynamoClient() {
   return DynamoDBDocument.from(
@@ -48,7 +48,13 @@ const client = rockset.default(process.env.ROCKSET_API_KEY);
 const dClient = getDynamoClient();
 const octokit = await getOctokit("pytorch", "pytorch");
 
-async function backfillWorkflowJob(id, repo_name, owner, dynamo_key, skipBackfill) {
+async function backfillWorkflowJob(
+  id,
+  repo_name,
+  owner,
+  dynamo_key,
+  skipBackfill
+) {
   console.log(`Checking job ${id}`);
 
   let job = await octokit.rest.actions.getJobForWorkflowRun({
@@ -107,10 +113,21 @@ LIMIT 10000
 // get rate limited while trying to backfill. Since backfilling is not
 // latency-sensitive, it's fine to just processed them serially to ensure we
 // make forward progress.
-for (const { id, repo_name, owner, dynamo_key } of jobsWithNoConclusion.results) {
+for (const {
+  id,
+  repo_name,
+  owner,
+  dynamo_key,
+} of jobsWithNoConclusion.results) {
   // Some jobs just never get marked completed due to bugs in the GHA backend.
   // Just skip them.
-  await backfillWorkflowJob(id, repo_name, owner, dynamo_key, (job) => job.conclusion === null);
+  await backfillWorkflowJob(
+    id,
+    repo_name,
+    owner,
+    dynamo_key,
+    (job) => job.conclusion === null
+  );
 }
 console.log("::endgroup::");
 
@@ -141,7 +158,7 @@ LIMIT 10000
 });
 
 // See above for why we're awaiting in a loop.
-for (const {id, repo_name, owner, dynamo_key } of queuedJobs.results) {
+for (const { id, repo_name, owner, dynamo_key } of queuedJobs.results) {
   await backfillWorkflowJob(
     id,
     repo_name,
@@ -173,7 +190,9 @@ where
 `,
   },
 });
-console.log(`There are ${unclassifiedJobs.results.length} jobs with unclassified logs`)
+console.log(
+  `There are ${unclassifiedJobs.results.length} jobs with unclassified logs`
+);
 for (const job of unclassifiedJobs.results) {
   console.log(`Attempting to backfill log of ${job.id}`);
   try {
@@ -182,7 +201,7 @@ for (const job of unclassifiedJobs.results) {
     );
     console.log(a);
   } catch (error) {
-    console.log(`Failed to backfill log of ${job.id}: ${error}`)
+    console.log(`Failed to backfill log of ${job.id}: ${error}`);
   }
 }
 console.log("::endgroup::");
