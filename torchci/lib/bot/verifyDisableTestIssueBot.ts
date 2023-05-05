@@ -100,7 +100,7 @@ export function formValidationComment(
   body += "The information I have parsed is below:\n\n";
   body += `* Test name: \`${testName}\`\n`;
   body += `* Platforms for which to skip the test: ${platformMsg}\n`;
-  body += `* Credential: \`${username}\`\n\n`;
+  body += `* Disabled by  \`${username}\`\n\n`;
 
   if (invalidPlatforms.length > 0) {
     body +=
