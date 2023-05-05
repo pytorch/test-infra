@@ -1651,7 +1651,9 @@
     "https://github.com/pytorch/pytorch/issues/82499",
     [
       "linux",
-      "rocm"
+      "rocm",
+      "win",
+      "mac"
     ]
   ],
   "test_profiler_experimental_tree_with_memory (__main__.TestProfilerTree)": [
