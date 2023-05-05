@@ -30,7 +30,6 @@ with commit_overall_conclusion as (
                     -- Limit it to workflows which block viable/strict upgrades
                     workflow.name in ('Lint', 'pull', 'trunk')
                     OR workflow.name like 'linux-binary%'
-                    OR workflow.name like 'windows-binary%'
                 )
                 AND job.name NOT LIKE '%rerun_disabled_tests%'
                 AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
