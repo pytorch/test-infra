@@ -1,1 +1,34 @@
-{}
+{
+  "linux-binary-libtorch-cxx11-abi / libtorch-cpu-shared-with-deps-cxx11-abi-test / test": [
+    "huydhn",
+    "100758",
+    "https://github.com/pytorch/pytorch/issues/100758",
+    "linux-binary-libtorch-cxx11-abi",
+    "libtorch-cpu-shared-with-deps-cxx11-abi-test",
+    "test"
+  ],
+  "linux-binary-manywheel / manywheel-py3_8-cuda11_8-build": [
+    "huydhn",
+    "100759",
+    "https://github.com/pytorch/pytorch/issues/100759",
+    "linux-binary-manywheel",
+    "manywheel-py3_8-cuda11_8-build",
+    ""
+  ],
+  "windows-binary-libtorch-debug / libtorch-cpu-shared-with-deps-debug-build": [
+    "huydhn",
+    "100760",
+    "https://github.com/pytorch/pytorch/issues/100760",
+    "windows-binary-libtorch-debug",
+    "libtorch-cpu-shared-with-deps-debug-build",
+    ""
+  ],
+  "windows-binary-libtorch-release": [
+    "huydhn",
+    "100761",
+    "https://github.com/pytorch/pytorch/issues/100761",
+    "windows-binary-libtorch-release",
+    "",
+    ""
+  ]
+}
