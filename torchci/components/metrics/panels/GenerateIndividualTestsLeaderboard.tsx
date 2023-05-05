@@ -8,22 +8,22 @@ import TablePanel from "components/metrics/panels/TablePanel";
 import { durationDisplay } from "components/TimeUtils";
 import { RocksetParam } from "lib/rockset";
 import { useRouter } from "next/router";
+import { useState } from "react";
 
 const ROW_HEIGHT = 500;
 
 export default function GenerateIndividualTestsLeaderboard({
   oncallName = "%",
   workflowName,
-  queryDate,
   thresholdInSecond,
   classname = "%",
 }: {
   oncallName?: string;
   workflowName: string;
-  queryDate: dayjs.Dayjs;
   thresholdInSecond: number;
   classname?: string;
 }) {
+  const [queryDate, setQueryDate] = useState(dayjs().subtract(1, "day"));
   const router = useRouter();
   const queryParamsForLongTestTable: RocksetParam[] = [
     {
@@ -60,7 +60,7 @@ export default function GenerateIndividualTestsLeaderboard({
           "YYYY-MM-DD"
         )}`}
         queryCollection={"commons"}
-        queryName={"test_time_per_oncall"}
+        queryName={"individual_test_times_per_oncall_per_workflow"}
         queryParams={queryParamsForLongTestTable}
         columns={[
           {
@@ -115,7 +115,11 @@ export default function GenerateIndividualTestsLeaderboard({
         ]}
         dataGridProps={{
           getRowId: (e: any) =>
-            e.oncall + e.date + e.workflow_name + e.time_in_seconds,
+            e.oncall +
+            e.workflow_name +
+            e.test_file +
+            e.test_class +
+            e.test_name,
           initialState: {},
         }}
       />

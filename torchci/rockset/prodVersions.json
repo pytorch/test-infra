@@ -9,7 +9,7 @@
     "flaky_tests": "9f7a1abcebb7f027",
     "flaky_tests_across_jobs": "474e5454bda0c5bb",
     "individual_test_stats_per_workflow_per_oncall": "518a4743eadd205a",
-    "individual_test_times_per_oncall_per_workflow": "64f90ef2c14b179b",
+    "individual_test_times_per_oncall_per_workflow": "61f75d41a22a6477",
     "flaky_workflows_jobs": "d5783ef1fe73fa5b",
     "failed_workflow_jobs": "6ec4fd3f36a72071",
     "get_workflow_jobs": "6ed2029b19691a4b",
