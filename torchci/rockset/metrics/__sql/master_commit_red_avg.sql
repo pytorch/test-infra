@@ -12,8 +12,7 @@ WITH all_jobs AS (
         AND job.name != 'generate-test-matrix'
         AND ( -- Limit it to workflows which block viable/strict upgrades
             ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
-            OR workflow.name like 'linux-binary%'
-            OR workflow.name like 'windows-binary%'
+            OR workflow.name like 'linux-binary%'            
         )
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%mem_leak_check%'

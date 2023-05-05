@@ -52,6 +52,13 @@ def compute():
         query_lambda="correlation_matrix",
         version=prod_versions["metrics"]["correlation_matrix"],
         workspace="metrics",
+        parameters=[
+            {
+                "name": "workflowNames",
+                "type": "string",
+                "value": "pull,trunk,periodic,windows-binary-libtorch-debug,windows-binary-libtorch-release"
+            },
+        ],
     )
 
     pivot = defaultdict(dict)
