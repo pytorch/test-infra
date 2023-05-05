@@ -2051,13 +2051,6 @@
       "linux"
     ]
   ],
-  "test_with_grads_core (__main__.TestUnshardParams)": [
-    "100641",
-    "https://github.com/pytorch/pytorch/issues/100641",
-    [
-      "linux"
-    ]
-  ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "75984",
     "https://github.com/pytorch/pytorch/issues/75984",
