@@ -74,7 +74,7 @@ results AS (
     END AS compiler,
     accuracy_results.name,
     CAST(IF(
-      speedup IS NULL, '0.0000',
+      speedup IS NULL OR speedup = 'timeout', '0.0000',
       speedup
     ) AS FLOAT) AS speedup,
     accuracy,
