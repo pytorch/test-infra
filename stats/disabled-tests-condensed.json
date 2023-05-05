@@ -1258,8 +1258,8 @@
     ]
   ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "100675",
-    "https://github.com/pytorch/pytorch/issues/100675",
+    "100686",
+    "https://github.com/pytorch/pytorch/issues/100686",
     [
       "linux"
     ]
@@ -2007,6 +2007,13 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
+    ]
+  ],
+  "test_vmapjvpall_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "100687",
+    "https://github.com/pytorch/pytorch/issues/100687",
+    [
+      "linux"
     ]
   ],
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
