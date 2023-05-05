@@ -73,19 +73,19 @@ results AS (
       ELSE NULL
     END AS compiler,
     accuracy_results.name,
-    CAST(IF(
-      speedup IS NULL OR speedup = 'timeout', '0.0000',
-      speedup
-    ) AS FLOAT) AS speedup,
+    IF(TRY_CAST(speedup AS FLOAT) IS NOT NULL,
+      CAST(speedup AS FLOAT),
+      0.0
+    ) AS speedup,
     accuracy,
-    CAST(IF(
-      compilation_latency IS NULL, '0.0000',
-      compilation_latency
-    ) AS FLOAT) AS compilation_latency,
-    CAST(IF(
-      compression_ratio IS NULL, '0.0000',
-      compression_ratio
-    ) AS FLOAT) AS compression_ratio,
+    IF(TRY_CAST(compilation_latency AS FLOAT) IS NOT NULL,
+      CAST(compilation_latency AS FLOAT),
+      0.0
+    ) AS compilation_latency,
+    IF(TRY_CAST(compression_ratio AS FLOAT) IS NOT NULL,
+      CAST(compression_ratio AS FLOAT),
+      0.0
+    ) AS compression_ratio,
   FROM
     accuracy_results
     LEFT JOIN performance_results ON performance_results.name = accuracy_results.name
