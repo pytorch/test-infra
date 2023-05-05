@@ -10,6 +10,10 @@ import {
   GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
+import GenerateIndividualTestsLeaderboard from "components/metrics/panels/GenerateIndividualTestsLeaderboard";
+import WorkflowPicker, {
+  WORKFLOWS,
+} from "components/metrics/panels/WorkflowPicker";
 
 const ROW_HEIGHT = 500;
 const THRESHOLD_IN_SECOND = 60;
@@ -126,11 +130,12 @@ export default function TestingOverhead() {
   // Looking at data from the past six months
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
   const [endTime, setEndTime] = useState(dayjs());
-
+  const [workflow, setWorkFlow] = useState<string>(Object.keys(WORKFLOWS)[0]);
   return (
     <>
       <>
         <Grid container spacing={1}>
+          <WorkflowPicker workflow={workflow} setWorkFlow={setWorkFlow} />
           <Grid item xs={24} lg={12} height={ROW_HEIGHT}>
             <TimeSeriesPanel
               title={`Average Time for Workflow for ${oncall} jobs`}
@@ -169,12 +174,14 @@ export default function TestingOverhead() {
           </Grid>
         </Grid>
       </>
+
       <Grid container spacing={4}>
-        <GenerateTestInsightsOverviewTable workflowName={"pull"} />
-
-        <GenerateTestInsightsOverviewTable workflowName={"trunk"} />
-
-        <GenerateTestInsightsOverviewTable workflowName={"periodic"} />
+        <GenerateTestInsightsOverviewTable workflowName={workflow} />
+        <GenerateIndividualTestsLeaderboard
+          workflowName={workflow}
+          thresholdInSecond={THRESHOLD_IN_SECOND}
+          oncallName={oncall}
+        />
       </Grid>
     </>
   );
