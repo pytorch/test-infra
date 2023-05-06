@@ -14,21 +14,5 @@
     "linux-binary-manywheel",
     "manywheel-py3_8-cuda11_8-build",
     ""
-  ],
-  "windows-binary-libtorch-debug / libtorch-cpu-shared-with-deps-debug-build": [
-    "huydhn",
-    "100760",
-    "https://github.com/pytorch/pytorch/issues/100760",
-    "windows-binary-libtorch-debug",
-    "libtorch-cpu-shared-with-deps-debug-build",
-    ""
-  ],
-  "windows-binary-libtorch-release": [
-    "huydhn",
-    "100761",
-    "https://github.com/pytorch/pytorch/issues/100761",
-    "windows-binary-libtorch-release",
-    "",
-    ""
   ]
 }
