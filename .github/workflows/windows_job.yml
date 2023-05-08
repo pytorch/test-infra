@@ -56,6 +56,14 @@ on:
         required: false
         default: ''
         type: string
+      gpu-arch-type:
+        description: "GPU arch type to use"
+        default: "cpu"
+        type: string
+      gpu-arch-version:
+        description: "GPU arch version to use"
+        default: ""
+        type: string
 
 jobs:
   job:
@@ -118,6 +126,7 @@ jobs:
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         run: |
+          EXEC_SCRIPT="${RUNNER_TEMP}/exec_script"
           {
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
@@ -126,12 +135,20 @@ jobs:
             echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
             # Source conda so it's available to the script environment
             echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
-            echo "${SCRIPT}";
-          } > "${RUNNER_TEMP}/exec_script"
+            echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
+          } > "${EXEC_SCRIPT}"
+          if [[ ${{ inputs.gpu-arch-type }} == cuda ]]; then
+            {
+              echo 'export CUDA_HOME="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
+              echo 'export CUDA_PATH="${CUDA_HOME}"'
+              echo 'export PATH="${CUDA_PATH}/bin:${PATH}"'
+            } >> "${EXEC_SCRIPT}"
+          fi
+          echo "${SCRIPT}" >> "${EXEC_SCRIPT}"
           while read line; do
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-          bash "${RUNNER_TEMP}/exec_script"
+          bash "${EXEC_SCRIPT}"
 
       - name: Surface failing tests
         if: always()
