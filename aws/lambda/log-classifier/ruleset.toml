@@ -185,6 +185,10 @@ name = 'Python AttributeError'
 pattern = '^AttributeError: .*'
 
 [[rule]]
+name = 'File level retry'
+pattern = '^Got exit code -.*, retrying \(retries left=.*\)$'
+
+[[rule]]
 name = 'Python flaky unittest - failed'
 pattern = '^\s*(test.*) failed - num_retries_left:'
 
