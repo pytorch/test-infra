@@ -233,4 +233,4 @@ runs:
                   exit 1
                   ;;
           esac
-          echo "GPU_FLAG=--gpus all" >> "${GITHUB_ENV}"
+          echo "GPU_FLAG=--gpus all,capabilities=all" >> "${GITHUB_ENV}"
