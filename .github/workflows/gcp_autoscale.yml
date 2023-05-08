@@ -1,0 +1,24 @@
+name: Scale GCP Cluster
+
+on:
+  schedule:
+    # TODO every 5 minutes
+    - cron: "SOMETHING HERE"
+  workflow_dispatch:
+
+jobs:
+  autoscale-gcp:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      repository: fairinternal/pytorch-gha-infra
+      ref: main
+      job-name: GCP Autoscaler 
+      secrets: "TODO figure out"
+      script: |
+        # Ensure GOOGLE_APPLICATION_CREDENTIALS and ROCKSET_API_KEY are set
+        # Create conda env
+        pip install -r requirements.txt
+        python3 scale.py \
+          --workers-per-node=1 \
+          --job-type=autoscale \
+          --gce-project-name=pytorch-ossea13315f \
