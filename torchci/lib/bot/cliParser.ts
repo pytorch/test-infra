@@ -94,7 +94,7 @@ const rebase = commands.add_parser("rebase", {
   help: "Rebase a PR",
   description:
     "Rebase a PR. Rebasing defaults to the stable viable/strict branch of pytorch.\n" +
-    "You must have write permissions to the repo to rebase a PR.",
+    "Repeat contributor may use this command to rebase their PR.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
 });
