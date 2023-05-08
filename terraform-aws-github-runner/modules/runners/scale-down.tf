@@ -24,7 +24,7 @@ resource "aws_lambda_function" "scale_down" {
   runtime           = "nodejs14.x"
   timeout           = var.lambda_timeout_scale_down
   tags              = local.tags
-  memory_size       = 512
+  memory_size       = 2048
 
   environment {
     variables = {
@@ -34,23 +34,26 @@ resource "aws_lambda_function" "scale_down" {
       ENVIRONMENT                     = var.environment
       GHES_URL                        = var.ghes_url
       GITHUB_APP_CLIENT_ID            = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET        = local.github_app_client_secret
+      GITHUB_APP_CLIENT_SECRET        = var.github_app_client_secret
       GITHUB_APP_ID                   = var.github_app.id
-      GITHUB_APP_KEY_BASE64           = local.github_app_key_base64
+      GITHUB_APP_KEY_BASE64           = var.github_app_key_base64
       KMS_KEY_ID                      = var.encryption.kms_key_id
       LAMBDA_TIMEOUT                  = var.lambda_timeout_scale_down
       MINIMUM_RUNNING_TIME_IN_MINUTES = var.minimum_running_time_in_minutes
+      REDIS_ENDPOINT                  = var.redis_endpoint
+      REDIS_LOGIN                     = var.redis_login
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
+
     }
   }
 
-  dynamic "vpc_config" {
-    for_each = var.lambda_subnet_ids != null && var.lambda_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.lambda_security_group_ids
-      subnet_ids         = var.lambda_subnet_ids
-    }
+  vpc_config {
+    security_group_ids = concat(
+      var.lambda_security_group_ids,
+      [var.runners_security_group_ids[0]]
+    )
+    subnet_ids         = var.lambda_subnet_ids
   }
 }
 

@@ -1,30 +1,31 @@
 import { GroupedJobStatus, JobStatus } from "components/GroupJobConclusion";
 import { GroupData, RowData } from "./types";
 
-const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check"
-const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests"
-const GROUP_UNSTABLE = "Unstable"
-const GROUP_PERIODIC = "Periodic"
-const GROUP_LINT = "Lint"
-const GROUP_INDUCTOR = "Inductor"
-const GROUP_ANDROID = "Android"
-const GROUP_ROCM = "ROCm"
-const GROUP_XLA = "XLA"
-const GROUP_LINUX = "Linux"
-const GROUP_BINARY_LINUX = "Binary Linux"
-const GROUP_BINARY_WINDOWS = "Binary Windows"
-const GROUP_ANNOTATIONS_AND_LABELING = "Annotations and labeling"
-const GROUP_DOCKER = "Docker"
-const GROUP_WINDOWS = "Windows"
-const GROUP_CALC_DOCKER_IMAGE = "GitHub calculate-docker-image"
-const GROUP_CI_DOCKER_IMAGE_BUILDS = "CI Docker Image Builds"
-const GROUP_CI_CIRCLECI_PYTORCH_IOS = "ci/circleci: pytorch_ios"
-const GROUP_IOS = "iOS"
-const GROUP_MAC = "Mac"
-const GROUP_PARALLEL = "Parallel"
-const GROUP_DOCS = "Docs"
-const GROUP_LIBTORCH = "Libtorch"
-const GROUP_OTHER = "other"
+const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
+const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
+const GROUP_UNSTABLE = "Unstable";
+const GROUP_PERIODIC = "Periodic";
+const GROUP_SLOW = "Slow";
+const GROUP_LINT = "Lint";
+const GROUP_INDUCTOR = "Inductor";
+const GROUP_ANDROID = "Android";
+const GROUP_ROCM = "ROCm";
+const GROUP_XLA = "XLA";
+const GROUP_LINUX = "Linux";
+const GROUP_BINARY_LINUX = "Binary Linux";
+const GROUP_BINARY_WINDOWS = "Binary Windows";
+const GROUP_ANNOTATIONS_AND_LABELING = "Annotations and labeling";
+const GROUP_DOCKER = "Docker";
+const GROUP_WINDOWS = "Windows";
+const GROUP_CALC_DOCKER_IMAGE = "GitHub calculate-docker-image";
+const GROUP_CI_DOCKER_IMAGE_BUILDS = "CI Docker Image Builds";
+const GROUP_CI_CIRCLECI_PYTORCH_IOS = "ci/circleci: pytorch_ios";
+const GROUP_IOS = "iOS";
+const GROUP_MAC = "Mac";
+const GROUP_PARALLEL = "Parallel";
+const GROUP_DOCS = "Docs";
+const GROUP_LIBTORCH = "Libtorch";
+const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
@@ -46,6 +47,10 @@ export const groups = [
   {
     regex: /periodic/,
     name: GROUP_PERIODIC,
+  },
+  {
+    regex: /slow/,
+    name: GROUP_SLOW,
   },
   {
     regex: /Lint/,
@@ -142,37 +147,37 @@ const HUD_GROUP_SORTING = [
   GROUP_LIBTORCH,
   GROUP_ANDROID,
   GROUP_BINARY_LINUX,
-  GROUP_BINARY_WINDOWS,
   GROUP_DOCKER,
   GROUP_MEMORY_LEAK_CHECK,
   GROUP_CALC_DOCKER_IMAGE,
   GROUP_CI_DOCKER_IMAGE_BUILDS,
   GROUP_CI_CIRCLECI_PYTORCH_IOS,
   GROUP_PERIODIC,
+  GROUP_SLOW,
   GROUP_DOCS,
   GROUP_RERUN_DISABLED_TESTS,
   GROUP_INDUCTOR,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_OTHER,
+  GROUP_BINARY_WINDOWS,
   GROUP_UNSTABLE,
-]
+];
 
 // Accepts a list of group names and returns that list sorted according to
 // the order defined in HUD_GROUP_SORTING
-export function sortGroupNamesForHUD(groupNames: string[]) : string[] {
-
-  let result: string[] = []
+export function sortGroupNamesForHUD(groupNames: string[]): string[] {
+  let result: string[] = [];
   for (const group of HUD_GROUP_SORTING) {
     if (groupNames.includes(group)) {
-      result.push(group)
+      result.push(group);
     }
   }
-  
-  // Be flexible in case against any groups were left out of HUD_GROUP_SORTING
-  let remaining = groupNames.filter(x => !result.includes(x))
 
-  result = result.concat(remaining)
-  return result
+  // Be flexible in case against any groups were left out of HUD_GROUP_SORTING
+  let remaining = groupNames.filter((x) => !result.includes(x));
+
+  result = result.concat(remaining);
+  return result;
 }
 
 export function classifyGroup(jobName: string): string {

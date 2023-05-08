@@ -10,7 +10,7 @@ $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
 # installerArgs
-$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion"
+$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion nvjpeg_$cudaVersion nvjpeg_dev_$cudaVersion"
 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
@@ -19,9 +19,6 @@ $cudnn_subfolder="cudnn-windows-x86_64-8.3.2.44_cuda11.5-archive"
 $toolkitInstaller = "cuda_11.3.0_465.89_win10.exe"
 
 Switch ($cudaVersion) {
-  "11.6" {
-    $toolkitInstaller = "cuda_11.6.0_511.23_windows.exe"
-  }
   "11.7" {
     $toolkitInstaller = "cuda_11.7.0_516.01_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-8.5.0.96_cuda11-archive"
@@ -30,6 +27,11 @@ Switch ($cudaVersion) {
     $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
     $cudnn_subfolder = "cudnn-windows-x86_64-8.7.0.84_cuda11-archive"
     $installerArgs += " cuda_profiler_api_$cudaVersion"
+  }
+  "12.1" {
+    $toolkitInstaller = "cuda_12.1.0_531.14_windows.exe"
+    $cudnn_subfolder = "cudnn-windows-x86_64-8.8.1.3_cuda12-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
 }
 
@@ -96,10 +98,11 @@ function Install-Cudnn() {
   Write-Output "Copying cudnn to $expectedInstallLocation"
 
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
-  if ($cudaVersion -eq "11.8") {
-    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
-  } else {
+  # TODO: Remove when CUDA 11.7 is deprecated
+  if ($cudaVersion -eq "11.7") {
     Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
+  } else {
+    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
   }
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
 

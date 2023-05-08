@@ -3,18 +3,7 @@ import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
 import _ from "lodash";
-import {
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  SelectChangeEvent,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import { useCallback, useRef, useState } from "react";
 import { RocksetParam } from "lib/rockset";
@@ -28,6 +17,7 @@ import { durationDisplay } from "components/TimeUtils";
 import React from "react";
 import { TimeRangePicker } from "../../../metrics";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import GranularityPicker from "components/GranularityPicker";
 import {
   GridRenderCellParams,
   GridCellParams,
@@ -306,39 +296,13 @@ function Graphs({
   );
 }
 
-function GranularityPicker({
-  granularity,
-  setGranularity,
-}: {
-  granularity: string;
-  setGranularity: any;
-}) {
-  function handleChange(e: SelectChangeEvent<string>) {
-    setGranularity(e.target.value);
-  }
-  return (
-    <FormControl>
-      <InputLabel id="granularity-select-label">Granularity</InputLabel>
-      <Select
-        value={granularity}
-        label="Granularity"
-        labelId="granularity-select-label"
-        onChange={handleChange}
-      >
-        <MenuItem value={"month"}>month</MenuItem>
-        <MenuItem value={"week"}>week</MenuItem>
-        <MenuItem value={"day"}>day</MenuItem>
-      </Select>
-    </FormControl>
-  );
-}
-
 export default function Page() {
   const router = useRouter();
   const jobName: string = (router.query.jobName as string) ?? "none";
 
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(LAST_WEEK);
   const [granularity, setGranularity] = useState<Granularity>("day");
 
   const [filter, setFilter] = useState(new Set());
@@ -399,10 +363,11 @@ export default function Page() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
-          defaultValue={LAST_WEEK}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <GranularityPicker
           granularity={granularity}

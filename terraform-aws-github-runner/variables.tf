@@ -10,7 +10,12 @@ variable "aws_region_instances" {
 }
 
 variable "vpc_ids" {
-  description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
+  description = "The list of vpc_id for aws_region. keys: 'vpc' 'region'"
+  type        = list(map(string))
+}
+
+variable "vpc_cidrs" {
+  description = "The list of CIDR for vpcs. Keys 'vpc', 'cidr'"
   type        = list(map(string))
 }
 
@@ -90,19 +95,25 @@ variable "runners_lambda_zip" {
 variable "runners_scale_up_sqs_max_retry" {
   description = "max retry count for messages in the scale up sqs."
   type        = number
-  default     = 3
+  default     = 1
+}
+
+variable "runners_scale_up_sqs_message_ret_s" {
+  description = "scale up SQS message retention timeout (seconds)"
+  type        = number
+  default     = 7200
 }
 
 variable "runners_scale_up_sqs_visibility_timeout" {
   description = "Time out for visibility of messages in the scale up sqs."
   type        = number
-  default     = 180
+  default     = 600
 }
 
 variable "runners_scale_up_lambda_timeout" {
   description = "Time out for the scale up lambda in seconds."
   type        = number
-  default     = 180
+  default     = 600
 }
 
 variable "runners_scale_down_lambda_timeout" {
@@ -251,42 +262,6 @@ variable "ami_owners_windows" {
   description = "The list of owners used to select the AMI of windows action runner instances."
   type        = list(string)
   default     = ["amazon"]
-}
-
-variable "lambda_s3_bucket" {
-  description = "S3 bucket from which to specify lambda functions. This is an alternative to providing local files directly."
-  type        = string
-  default     = null
-}
-
-variable "syncer_lambda_s3_object_version" {
-  description = "S3 object version for syncer lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
-variable "webhook_lambda_s3_key" {
-  description = "S3 key for webhook lambda function. Required if using S3 bucket to specify lambdas."
-  type        = string
-  default     = null
-}
-
-variable "webhook_lambda_s3_object_version" {
-  description = "S3 object version for webhook lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
-variable "runners_lambda_s3_key" {
-  description = "S3 key for runners lambda function. Required if using S3 bucket to specify lambdas."
-  type        = string
-  default     = null
-}
-
-variable "runners_lambda_s3_object_version" {
-  description = "S3 object version for runners lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
 }
 
 variable "create_service_linked_role_spot" {

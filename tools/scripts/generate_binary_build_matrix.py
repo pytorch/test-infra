@@ -26,7 +26,7 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.8", "3.9", "3.10", "3.11"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.7", "11.8"],
+    "nightly": ["11.7", "11.8", "12.1"],
     "test": ["11.7", "11.8"],
     "release": ["11.7", "11.8"],
 }
@@ -44,8 +44,8 @@ DEBUG = "debug"
 NIGHTLY = "nightly"
 TEST = "test"
 
-CURRENT_CANDIDATE_VERSION = "2.0.0"
-CURRENT_STABLE_VERSION = "2.0.0"
+CURRENT_CANDIDATE_VERSION = "2.0.1"
+CURRENT_STABLE_VERSION = "2.0.1"
 mod.CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -154,7 +154,8 @@ def list_without(in_list: List[str], without: List[str]) -> List[str]:
     return [item for item in in_list if item not in without]
 
 def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: str, os: str) -> str:
-    conda_channels = "-c pytorch" if channel == RELEASE else f"-c pytorch-{channel}"
+    pytorch_channel = "pytorch" if channel == RELEASE else f"pytorch-{channel}"
+    conda_channels = f"-c {pytorch_channel}"
     conda_package_type = ""
     if gpu_arch_type == "cuda":
         conda_package_type = f"pytorch-cuda={arch_version}"
@@ -162,7 +163,7 @@ def get_conda_install_command(channel: str, gpu_arch_type: str, arch_version: st
     elif os not in ("macos", "macos-arm64"):
         conda_package_type = "cpuonly"
     else:
-        return f"{CONDA_INSTALL_BASE} {conda_channels}"
+        return f"conda install {pytorch_channel}::{PACKAGES_TO_INSTALL_CONDA} {conda_channels}"
 
     return f"{CONDA_INSTALL_BASE} {conda_package_type} {conda_channels}"
 
@@ -202,19 +203,15 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_win_builds: str) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_pr_builds: bool) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
-    # temporarily remove python 3.11 from conda matrix for release validation
-    if(channel == RELEASE):
-        python_versions = list_without(python_versions, ["3.11"])
-
     if with_cuda == ENABLE and (os == "linux" or os == "windows"):
         arches += mod.CUDA_ARCHES
 
-    if os == "windows" and limit_win_builds == ENABLE:
+    if limit_pr_builds:
         python_versions = [ python_versions[0] ]
 
     for python_version in python_versions:
@@ -250,7 +247,7 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
-    limit_win_builds: str,
+    limit_pr_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
     libtorch_variants: Optional[List[str]] = None,
@@ -339,7 +336,7 @@ def generate_wheels_matrix(
     os: str,
     channel: str,
     with_cuda: str,
-    limit_win_builds: str,
+    limit_pr_builds: bool,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -365,7 +362,7 @@ def generate_wheels_matrix(
             elif os == "windows":
                 arches += mod.CUDA_ARCHES
 
-    if (os == "windows" and limit_win_builds == ENABLE):
+    if limit_pr_builds:
         python_versions = [ python_versions[0] ]
 
     ret: List[Dict[str, str]] = []
@@ -373,9 +370,7 @@ def generate_wheels_matrix(
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
             gpu_arch_version = "" if arch_version == "cpu" else arch_version
-            # Skip rocm 3.11 binaries for now as the docker image are not correct
-            if python_version == "3.11" and gpu_arch_type == "rocm":
-                continue
+
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             ret.append(
                 {
@@ -432,12 +427,15 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_CUDA", ENABLE),
     )
+    # By default this is false for this script but expectation is that the caller
+    # workflow will default this to be true most of the time, where a pull
+    # request is synchronized and does not contain the label "ciflow/binaries/all"
     parser.add_argument(
-        "--limit-win-builds",
-        help="Limit windows builds to single python/cuda config",
+        "--limit-pr-builds",
+        help="Limit PR builds to single python/cuda config",
         type=str,
-        choices=[ENABLE, DISABLE],
-        default=os.getenv("LIMIT_WIN_BUILDS", DISABLE),
+        choices=["true", "false"],
+        default=os.getenv("LIMIT_PR_BUILDS", "false"),
     )
 
 
@@ -459,14 +457,14 @@ def main(args) -> None:
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.limit_win_builds)
+                                                                options.limit_pr_builds == "true")
                     )
             else:
                 includes.extend(
                     GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
                                                                 channel,
                                                                 options.with_cuda,
-                                                                options.limit_win_builds)
+                                                                options.limit_pr_builds == "true")
                     )
 
 

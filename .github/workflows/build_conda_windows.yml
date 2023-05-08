@@ -47,6 +47,10 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+      smoke-test-script:
+        description: "Script for Smoke Test for a specific domain"
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -65,7 +69,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
-    runs-on: ${{ inputs.runner-type }}
+    runs-on: ${{ matrix.validation_runner }}
     defaults:
       run:
         shell: bash -l {0}
@@ -80,11 +84,20 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: ./test-infra/.github/actions/set-channel
+      - uses: ./test-infra/.github/actions/setup-ssh
+        name: Setup SSH
+        with:
+          github-secret: ${{ secrets.GITHUB_TOKEN }}
+          activate-with-label: false
+          instructions: "SSH with rdesktop using ssh -L 3389:localhost:3389 %%username%%@%%hostname%%"
+      - name: Add Conda scripts to GitHub path
+        run: |
+          echo "C:/Jenkins/Miniconda3/Scripts" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Run pre-script
         working-directory: ${{ inputs.repository }}
@@ -93,11 +106,17 @@ jobs:
         if: ${{ inputs.pre-script != '' }}
         run: |
           source "${BUILD_ENV_FILE}"
+          C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
+
           if [[ ! -f ${PRE_SCRIPT} ]]; then
             echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
             exit 1
           else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
+            if [[ ${PRE_SCRIPT} == *.bat ]]; then
+              ${PRE_SCRIPT}
+            else
+              source ${PRE_SCRIPT}
+            fi
           fi
       - name: Setup base environment variables
         run: |
@@ -112,7 +131,10 @@ jobs:
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
+          source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
+          conda install -yq conda-build "conda-package-handling!=1.5.0"
+
+          conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
@@ -120,28 +142,37 @@ jobs:
             --python "${PYTHON_VERSION}" \
             packaging/$VSTOOLCHAIN_PACKAGE
           cp packaging/$VSTOOLCHAIN_PACKAGE/conda_build_config.yaml packaging/$PACKAGE_NAME/conda_build_config.yaml
-
       - name: Build the conda (conda-build)
         working-directory: ${{ inputs.repository }}
         env:
           CUDATOOLKIT_CHANNEL: ${{ env.CUDATOOLKIT_CHANNEL }}
         run: |
+          set -euxo pipefail
           cat "${BUILD_ENV_FILE}"
           source "${BUILD_ENV_FILE}"
-          ${CONDA_RUN} conda build \
+          export VSTOOLCHAIN_PACKAGE=vs2019
+          export VSDEVCMD_ARGS=''
+          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
+          export USE_FFMPEG="1"
+
+          #conda install -yq conda-build "conda-package-handling!=1.5.0"
+          #bash packaging/build_conda.sh
+
+
+          conda build \
             -c defaults \
             -c "${CUDATOOLKIT_CHANNEL}" \
             -c "pytorch-${CHANNEL}" \
             --no-anaconda-upload \
-            --python "${PYTHON_VERSION}" \
-            --output-folder dist/ \
+            --no-test  --python "${PYTHON_VERSION}" \
+            --output-folder distr/ \
             "${CONDA_PACKAGE_DIRECTORY}"
       - name: Upload artifact to GitHub
         continue-on-error: true
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
+          path: ${{ inputs.repository }}/distr/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -155,6 +186,41 @@ jobs:
           else
             ${CONDA_RUN} bash "${POST_SCRIPT}"
           fi
+      - name: Smoke Test
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+          GPU_ARCH: ${{ matrix.gpu_arch_type }}
+          DESIRED_CUDA: ${{ matrix.desired_cuda }}
+          GPU_ARCH_VERSION: ${{ matrix.gpu_arch_version }}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          FULL_PATH_TO_DISTR="file://$(readlink -f ${{ inputs.repository }}/distr)"
+          # fix we have to use for windows to make sure drive path is c: not c
+          CONDA_LOCAL_CHANNEL=$(echo $FULL_PATH_TO_DISTR | sed "s/\/c\//\/c:\//")
+
+          export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
+          conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
+          export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
+
+          if [[ "${GPU_ARCH}" = "cuda" ]]; then
+            CONSTRAINTS="pytorch-cuda=${GPU_ARCH_VERSION}"
+          else
+            CONSTRAINTS="cpuonly"
+          fi
+          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}" ${CONSTRAINTS}
+
+          if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
+            ${CONDA_RUN_SMOKE} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+          else
+            echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
+            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
+            conda install --yes --quiet 'ffmpeg<5'
+            ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+          fi
+          conda env remove -p "${CONDA_ENV_SMOKE}"
       - name: Upload package to conda
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
@@ -167,7 +233,7 @@ jobs:
           ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
           set ANACONDA_PATH
           echo "$ANACONDA_PATH"
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload dist/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

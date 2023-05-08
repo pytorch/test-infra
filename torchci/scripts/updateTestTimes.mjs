@@ -15,7 +15,7 @@ async function getTestTimes(numRetries = 3) {
       return JSON.parse(result.data);
     }
   }
-  throw new Error("failed to retrieve old test times")
+  throw new Error("failed to retrieve old test times");
 }
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });

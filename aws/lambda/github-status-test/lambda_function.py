@@ -40,10 +40,9 @@ def download_log(full_name, conclusion, job_id):
     )
 
     # Fire off to the `log_classifier` lambda
-    if full_name == "pytorch/pytorch":
-        urlopen(
-            f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={job_id}"
-        )
+    urlopen(
+        f"https://vwg52br27lx5oymv4ouejwf4re0akoeg.lambda-url.us-east-1.on.aws/?job_id={job_id}&repo={full_name}"
+    )
 
 
 # See this page for webhook info:

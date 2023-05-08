@@ -54,10 +54,14 @@ runs:
         RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
         mkdir -p "${RUNNER_ARTIFACT_DIR}"
         echo "RUNNER_ARTIFACT_DIR=${RUNNER_ARTIFACT_DIR}" >> "${GITHUB_ENV}"
-        
+
         RUNNER_TEST_RESULTS_DIR="${RUNNER_TEMP}/test-results"
         mkdir -p "${RUNNER_TEST_RESULTS_DIR}"
         echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
+
+        RUNNER_DOCS_DIR="${RUNNER_TEMP}/docs"
+        mkdir -p "${RUNNER_DOCS_DIR}"
+        echo "RUNNER_DOCS_DIR=${RUNNER_DOCS_DIR}" >> "${GITHUB_ENV}"
 
     - name: Needs nvidia driver?
       shell: bash

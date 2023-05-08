@@ -11,8 +11,8 @@ async function fetchFailureJobs(
   const rocksetClient = getRocksetClient();
   const failedJobs = await rocksetClient.queryLambdas.executeQueryLambda(
     "commons",
-    "flaky_workflows_jobs",
-    rocksetVersions.commons.flaky_workflows_jobs,
+    "failed_workflow_jobs",
+    rocksetVersions.commons.failed_workflow_jobs,
     {
       parameters: queryParams,
     }

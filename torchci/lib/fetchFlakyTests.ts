@@ -42,7 +42,6 @@ export default async function fetchFlakyTests(
   return flakyTestQuery.results ?? [];
 }
 
-
 export async function fetchFlakyTestsAcrossJobs(
   numHours: string = "3",
   threshold: number = 1,

@@ -73,6 +73,7 @@ export interface IssueData {
   state: "open" | "closed";
   body: string;
   updated_at: string;
+  author_association: string;
 }
 
 export interface HudParams {
@@ -144,6 +145,19 @@ export interface JobsPerCommitData {
   time: string;
   failures: string[];
   successes: string[];
+}
+
+export interface CompilerPerformanceData {
+  accuracy: string;
+  compilation_latency: number;
+  compiler: string;
+  compression_ratio: number;
+  granularity_bucket: string;
+  name: string;
+  speedup: number;
+  suite: string;
+  workflow_id: number;
+  job_id?: number;
 }
 
 export enum JobAnnotation {

@@ -1,0 +1,54 @@
+name: Test Build Windows Conda with CUDA
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/setup-binary-builds/action.yml
+      - .github/workflows/test_build_conda_windows_with_cuda.yml
+      - .github/workflows/build_conda_windows.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
+  workflow_dispatch:
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: conda
+      os: windows
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/audio
+            pre-script: packaging/ffmpeg/build.bat
+            env-script: ""
+            wheel-build-params: "--plat-name win_amd64"
+            post-script: ""
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
+            conda-package-directory: packaging/torchaudio
+          - repository: pytorch/vision
+            pre-script: packaging/pre_build_script.sh
+            env-script: packaging/windows/internal/vc_env_helper.bat
+            post-script: ""
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
+    uses: ./.github/workflows/build_conda_windows.yml
+    name: ${{ matrix.repository }}
+    with:
+      conda-package-directory: ${{ matrix.conda-package-directory }}
+      repository: ${{ matrix.repository }}
+      ref: main
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      pre-script: ${{ matrix.pre-script }}
+      post-script: ${{ matrix.post-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"

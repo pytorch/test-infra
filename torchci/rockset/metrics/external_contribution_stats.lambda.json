@@ -1,21 +1,21 @@
 {
-    "sql_path": "__sql/external_contribution_stats.sql",
-    "default_parameters": [
-      {
-        "name": "granularity",
-        "type": "string",
-        "value": "day"
-      },
-      {
-        "name": "startTime",
-        "type": "string",
-        "value": "2022-05-01T00:06:32.839Z"
-      },
-      {
-        "name": "stopTime",
-        "type": "string",
-        "value": "2023-03-07T00:06:32.839Z"
-      }
-    ],
-    "description": "pr count and number of unique external contributors per day"
-  }
+  "sql_path": "__sql/external_contribution_stats.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2022-06-01T00:06:32.839Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-03-07T00:06:32.839Z"
+    }
+  ],
+  "description": "pr count and number of unique external contributors per day"
+}

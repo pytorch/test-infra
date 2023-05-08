@@ -1,7 +1,6 @@
 import { Context, Probot } from "probot";
 import { addLabels, isPyTorchPyTorch } from "./utils";
 
-
 const titleRegexToLabel: [RegExp, string][] = [
   [/rocm/gi, "module: rocm"],
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
@@ -44,7 +43,10 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/torch\/backends\/_nnapi\//gi, "release notes: mobile"],
   [/test\/test_nnapi.py/gi, "release notes: mobile"],
   // linalg_frontend
-  [/aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi, "release notes: linalg_frontend"],
+  [
+    /aten\/src\/ATen\/native\/LinearAlgebra.cpp/gi,
+    "release notes: linalg_frontend",
+  ],
   [/test\/test_linalg.py/gi, "release notes: linalg_frontend"],
   [/torch\/linalg/gi, "release notes: linalg_frontend"],
   // sparse_frontend
@@ -102,11 +104,9 @@ const notUserFacingPatterns: RegExp[] = [
   /[a-zA-Z]+.md/gi,
   /\.(ini|toml|txt)/g,
   /\.gdbinit/g,
-]
+];
 
-const notUserFacingPatternExceptions: RegExp[] = [
-  /tools\/autograd/g,
-]
+const notUserFacingPatternExceptions: RegExp[] = [/tools\/autograd/g];
 
 // For in the specified repo, if any file path matches the given regex we will apply the label
 // corresponding to that file to the PR
@@ -115,18 +115,19 @@ const notUserFacingPatternExceptions: RegExp[] = [
 //  [/regex-for-path1/, "label-to-apply"],
 //  [/regex-for-path2/, "label-to-apply"],
 // ]
-const repoSpecificAutoLabels: {[repo: string]: [RegExp, string][]}  = {
+const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
   "pytorch/pytorch": [
-      [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
-      [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
-      [/test\/test_mps.py/gi, "ciflow/mps"],
+    [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
+    [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
+    [/test\/test_mps.py/gi, "ciflow/mps"],
   ],
-  "pytorch/fake-test-repo": [
-    [/somefolder/gi, "cool-label"]
-  ]
-}
+  "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
+};
 
-function getRepoSpecificLabels(owner: string, repo: string): [RegExp, string][] {
+function getRepoSpecificLabels(
+  owner: string,
+  repo: string
+): [RegExp, string][] {
   var repoKey = owner + "/" + repo;
   if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
     return [];
@@ -148,9 +149,14 @@ function myBot(app: Probot): void {
   }
 
   function isNotUserFacing(filesChanged: string[]): boolean {
-    return filesChanged.length > 0 &&
-      filesChanged.every(f => (notUserFacingPatterns.some(p => f.match(p)) &&
-                               !notUserFacingPatternExceptions.some(p => f.match(p))));
+    return (
+      filesChanged.length > 0 &&
+      filesChanged.every(
+        (f) =>
+          notUserFacingPatterns.some((p) => f.match(p)) &&
+          !notUserFacingPatternExceptions.some((p) => f.match(p))
+      )
+    );
   }
 
   app.on("issues.labeled", async (context) => {
@@ -185,9 +191,7 @@ function myBot(app: Probot): void {
     }
   });
 
-  function getLabelsToAddFromTitle(
-    title: string,
-  ): string[] {
+  function getLabelsToAddFromTitle(title: string): string[] {
     const labelsToAdd: string[] = [];
 
     for (const [regex, label] of titleRegexToLabel) {
@@ -203,7 +207,7 @@ function myBot(app: Probot): void {
   function getReleaseNotesCategoryAndTopic(
     title: string,
     labels: string[],
-    filesChanged: string[],
+    filesChanged: string[]
   ): [string, string] {
     let topic: string = "untopiced";
 
@@ -223,15 +227,22 @@ function myBot(app: Probot): void {
     }
 
     // don't re-categorize those with existing labels
-    if (labels.some(l => l.startsWith("release notes:" ) || l === "topic: not user facing")) {
+    if (
+      labels.some(
+        (l) => l.startsWith("release notes:") || l === "topic: not user facing"
+      )
+    ) {
       // already topiced
-      if (labels.some(l => l.startsWith("topic:" ))) {
+      if (labels.some((l) => l.startsWith("topic:"))) {
         return ["skip", "skip"];
       }
       return ["skip", topic];
     }
 
-    if (filesChanged.length > 0 && filesChanged.every(f => f.includes("caffe2"))) {
+    if (
+      filesChanged.length > 0 &&
+      filesChanged.every((f) => f.includes("caffe2"))
+    ) {
       return ["caffe2", topic];
     }
 
@@ -249,7 +260,10 @@ function myBot(app: Probot): void {
       }
     }
 
-    if (filesChanged.length > 0 && filesChanged.every(f => f.endsWith(".cu") || f.endsWith(".cuh"))) {
+    if (
+      filesChanged.length > 0 &&
+      filesChanged.every((f) => f.endsWith(".cu") || f.endsWith(".cuh"))
+    ) {
       return ["release notes: cuda", topic];
     }
 
@@ -258,19 +272,27 @@ function myBot(app: Probot): void {
     }
 
     // OpInfo related
-    if (filesChanged.length === 1 &&
-        (filesChanged.at(0)?.includes("torch/testing/_internal/common_methods_invocations.py") ||
-        filesChanged.at(0)?.includes("torch/_torch_docs.py"))) {
-          return ["release notes: python_frontend", topic];
+    if (
+      filesChanged.length === 1 &&
+      (filesChanged
+        .at(0)
+        ?.includes("torch/testing/_internal/common_methods_invocations.py") ||
+        filesChanged.at(0)?.includes("torch/_torch_docs.py"))
+    ) {
+      return ["release notes: python_frontend", topic];
     }
 
     return ["uncategorized", topic];
   }
 
-  async function addNewLabels(existingLabels: string[], labelsToAdd: string[], context: Context): Promise<void> {
+  async function addNewLabels(
+    existingLabels: string[],
+    labelsToAdd: string[],
+    context: Context
+  ): Promise<void> {
     // labelsToAdd may have duplicates, so we cannot use a filter
-    const newLabels: string[] = []
-    labelsToAdd.forEach(l => {
+    const newLabels: string[] = [];
+    labelsToAdd.forEach((l) => {
       if (!existingLabels.includes(l) && !newLabels.includes(l)) {
         newLabels.push(l);
       }
@@ -299,12 +321,15 @@ function myBot(app: Probot): void {
     const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     const title = context.payload.pull_request.title;
-    const filesChangedRes = await context.octokit.paginate("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
-      owner,
-      repo,
-      pull_number: context.payload.pull_request.number,
-      per_page: 100,
-    })
+    const filesChangedRes = await context.octokit.paginate(
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+      {
+        owner,
+        repo,
+        pull_number: context.payload.pull_request.number,
+        per_page: 100,
+      }
+    );
     const filesChanged = filesChangedRes.map((f: any) => f.filename);
     context.log({ labels, title, filesChanged });
 
@@ -312,7 +337,11 @@ function myBot(app: Probot): void {
 
     // only categorize for release notes for prs in pytorch/pytorch
     if (isPyTorchPyTorch(owner, repo)) {
-      const [category, topic] = getReleaseNotesCategoryAndTopic(title, labels, filesChanged);
+      const [category, topic] = getReleaseNotesCategoryAndTopic(
+        title,
+        labels,
+        filesChanged
+      );
       if (category !== "uncategorized" && category !== "skip") {
         labelsToAdd.push(category);
       }

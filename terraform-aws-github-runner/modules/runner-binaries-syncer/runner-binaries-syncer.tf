@@ -4,10 +4,8 @@ locals {
 }
 
 resource "aws_lambda_function" "syncer" {
-  s3_bucket         = var.lambda_s3_bucket != null ? var.lambda_s3_bucket : null
-  s3_object_version = var.syncer_lambda_s3_object_version != null ? var.syncer_lambda_s3_object_version : null
-  filename          = var.lambda_s3_bucket == null ? local.lambda_zip : null
-  source_code_hash  = var.lambda_s3_bucket == null ? filebase64sha256(local.lambda_zip) : null
+  filename          = local.lambda_zip
+  source_code_hash  = filebase64sha256(local.lambda_zip)
   function_name     = "${var.environment}-syncer"
   role              = aws_iam_role.syncer_lambda.arn
   handler           = "index.handler"
@@ -23,14 +21,7 @@ resource "aws_lambda_function" "syncer" {
       GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES = var.runner_allow_prerelease_binaries
     }
   }
-  dynamic "vpc_config" {
-    for_each = var.lambda_subnet_ids != null && var.lambda_security_group_ids != null ? [true] : []
-    content {
-      security_group_ids = var.lambda_security_group_ids
-      subnet_ids         = var.lambda_subnet_ids
-    }
-  }
-
+  
   tags = var.tags
 }
 

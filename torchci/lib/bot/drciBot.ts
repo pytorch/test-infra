@@ -1,7 +1,14 @@
 import { Probot } from "probot";
-import { OWNER, REPO, formDrciComment, getDrciComment, getActiveSEVs, formDrciSevBody, upsertDrCiComment } from "lib/drciUtils";
+import {
+  OWNER,
+  REPO,
+  formDrciComment,
+  getDrciComment,
+  getActiveSEVs,
+  formDrciSevBody,
+  upsertDrCiComment,
+} from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
-
 
 export default function drciBot(app: Probot): void {
   app.on(
@@ -13,17 +20,18 @@ export default function drciBot(app: Probot): void {
       const prNum = context.payload.pull_request.number;
       const prOwner = context.payload.pull_request.user.login;
       const prState = context.payload.pull_request.state;
-      const prUrl = context.payload.pull_request.html_url
+      const prUrl = context.payload.pull_request.html_url;
 
       if (prState != "open") {
-        context.log(`Pull request ${prNum} to ${owner}/${repo} is not open, no comment is made`);
+        context.log(
+          `Pull request ${prNum} to ${owner}/${repo} is not open, no comment is made`
+        );
         return;
       }
 
       context.log(prOwner);
-      
-      await upsertDrCiComment(owner, repo, prNum, context, prUrl)
+
+      await upsertDrCiComment(owner, repo, prNum, context, prUrl);
     }
   );
 }
-

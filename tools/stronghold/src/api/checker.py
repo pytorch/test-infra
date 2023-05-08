@@ -14,6 +14,14 @@ def run() -> None:
     parser = argparse.ArgumentParser(prog=sys.argv[0], description=__doc__)
     parser.add_argument('--base-commit', type=str, required=True)
     parser.add_argument('--head-commit', type=str, required=True)
+    parser.add_argument(
+        '--suppressed',
+        default=False,
+        required=False,
+        action='store_true',
+        help='Failures are suppressed'
+        '(alternative to #suppress-api-compatibility-check commit message tag).',
+    )
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path('.'))
@@ -44,7 +52,8 @@ def run() -> None:
         check=True,
         stdout=subprocess.PIPE,
     )
-    suppressed = '#suppress-api-compatibility-check' in pinfo.stdout
+    suppression_tags = ['#suppress-api-compatibility-check', '#suppress-bc-linter']
+    suppressed = args.suppressed or any(tag in pinfo.stdout for tag in suppression_tags)
     level = 'notice' if suppressed else 'warning'
 
     for file, file_violations in violations.items():

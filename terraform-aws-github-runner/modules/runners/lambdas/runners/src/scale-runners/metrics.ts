@@ -213,11 +213,31 @@ export class Metrics {
       });
     });
 
-    for (const metricsReq of awsMetrics.values()) {
-      await expBackOff(() => {
-        return this.cloudwatch.putMetricData(metricsReq).promise();
-      });
+    for (const [i, metricsReq] of awsMetrics.entries()) {
+      try {
+        console.info(
+          `Sending metrics with cloudwatch.putMetricData [LEN: ${metricsReq.MetricData.length} ` +
+            `NS: ${metricsReq.Namespace}] (${i} of ${awsMetrics.length})`,
+        );
+        await expBackOff(async () => {
+          return await this.cloudwatch.putMetricData(metricsReq).promise();
+        });
+        console.info(`Success sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length})`);
+      } catch (e) {
+        console.error(`Error sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length}): ${e}`);
+        throw e;
+      }
     }
+  }
+
+  /* istanbul ignore next */
+  run() {
+    this.countEntry('run.count');
+  }
+
+  /* istanbul ignore next */
+  exception() {
+    this.countEntry('run.exceptions_count');
   }
 
   // GitHub API CALLS
@@ -430,6 +450,60 @@ export class Metrics {
   }
 
   // AWS API CALLS
+  /* istanbul ignore next */
+  sqsSendMessagesBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.count`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.success`, 1);
+    this.addEntry(`aws.sqs.sendMessagesBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsSendMessagesBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.count`, 1);
+    this.countEntry(`aws.sqs.sendMessagesBatch.failure`, 1);
+    this.addEntry(`aws.sqs.sendMessagesBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsChangeMessageVisibilityBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.count`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.success`, 1);
+    this.addEntry(`aws.sqs.changeMessageVisibilityBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsChangeMessageVisibilityBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.count`, 1);
+    this.countEntry(`aws.sqs.changeMessageVisibilityBatch.failure`, 1);
+    this.addEntry(`aws.sqs.changeMessageVisibilityBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsDeleteMessageBatchSuccess(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.count`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.success`, 1);
+    this.addEntry(`aws.sqs.sqsDeleteMessageBatch.wallclock`, ms);
+  }
+
+  /* istanbul ignore next */
+  sqsDeleteMessageBatchFailure(ms: number) {
+    this.countEntry(`aws.calls.total`, 1);
+    this.countEntry(`aws.sqs.calls.total`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.count`, 1);
+    this.countEntry(`aws.sqs.sqsDeleteMessageBatch.failure`, 1);
+    this.addEntry(`aws.sqs.sqsDeleteMessageBatch.wallclock`, ms);
+  }
+
   /* istanbul ignore next */
   kmsDecryptAWSCallSuccess(ms: number) {
     this.countEntry(`aws.calls.total`, 1);
@@ -658,6 +732,18 @@ export class Metrics {
     this.addEntry(`aws.ec2.perRegion.runInstances.wallclock`, ms, dimensions);
   }
 
+  /* istanbul ignore next */
+  ec2RunInstancesAWSCallException(instanceType: string, awsRegion: string, exceptionName: string, count = 1) {
+    this.countEntry('aws.ec2.runInstances.exception', count);
+    this.countEntry(`aws.ec2.perRegion.runInstances.exception`, count, new Map([['Region', awsRegion]]));
+    this.countEntry(
+      `aws.ec2.perInstancesType.runInstances.exception`,
+      count,
+      new Map([['InstanceType', instanceType]]),
+    );
+    this.countEntry(`aws.ec2.perException.runInstances.exception`, count, new Map([['Exception', exceptionName]]));
+  }
+
   // RUN
   /* istanbul ignore next */
   getRunnerTypesSuccess() {
@@ -688,6 +774,58 @@ export class ScaleUpMetrics extends Metrics {
   /* istanbul ignore next */
   skipRepo(repo: Repo) {
     this.countEntry('run.skip', 1, this.getRepoDim(repo));
+  }
+
+  /* istanbul ignore next */
+  scaleUpSuccess() {
+    this.countEntry('run.scaleup.success');
+  }
+
+  /* istanbul ignore next */
+  stochasticOvershoot() {
+    this.countEntry('run.scaleup.stochasticOvershoot');
+  }
+
+  /* istanbul ignore next */
+  scaleUpFailureRetryable(retries: number) {
+    this.countEntry('run.scaleup.failure.total.count');
+    this.addEntry('run.scaleup.failure.total.retries', retries);
+
+    this.countEntry('run.scaleup.failure.retryable.count');
+    this.addEntry('run.scaleup.failure.retryable.retries', retries);
+  }
+
+  /* istanbul ignore next */
+  scaleUpFailureNonRetryable(retries: number) {
+    this.countEntry('run.scaleup.failure.total.count');
+    this.addEntry('run.scaleup.failure.total.retries', retries);
+
+    this.countEntry('run.scaleup.failure.nonretryable.count');
+    this.addEntry('run.scaleup.failure.nonretryable.retries', retries);
+  }
+
+  /* istanbul ignore next */
+  scaleUpChangeMessageVisibilitySuccess(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.changeMessageVisibility.success.count');
+    this.addEntry('run.scaleUp.sqs.changeMessageVisibility.success.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpChangeMessageVisibilityFailure(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.changeMessageVisibility.failure.count');
+    this.addEntry('run.scaleUp.sqs.changeMessageVisibility.failure.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpDeleteMessageSuccess(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.deleteMessage.success.count');
+    this.addEntry('run.scaleUp.sqs.deleteMessage.success.batchSize', batchSize);
+  }
+
+  /* istanbul ignore next */
+  scaleUpDeleteMessageFailure(batchSize: number) {
+    this.countEntry('run.scaleUp.sqs.deleteMessage.failure.count');
+    this.addEntry('run.scaleUp.sqs.deleteMessage.failure.batchSize', batchSize);
   }
 
   /* istanbul ignore next */
@@ -792,16 +930,6 @@ export class ScaleUpMetrics extends Metrics {
 export class ScaleDownMetrics extends Metrics {
   constructor() {
     super('scaleDown');
-  }
-
-  /* istanbul ignore next */
-  run() {
-    this.countEntry('run.count');
-  }
-
-  /* istanbul ignore next */
-  exception() {
-    this.countEntry('run.exceptions_count');
   }
 
   /* istanbul ignore next */

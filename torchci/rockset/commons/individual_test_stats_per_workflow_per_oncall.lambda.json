@@ -1,0 +1,26 @@
+{
+  "sql_path": "__sql/individual_test_stats_per_workflow_per_oncall.sql",
+  "default_parameters": [
+    {
+      "name": "oncall",
+      "type": "string",
+      "value": "dynamo"
+    },
+    {
+      "name": "queryDate",
+      "type": "string",
+      "value": "2023-04-09T00:06:32.839Z"
+    },
+    {
+      "name": "thresholdInSecond",
+      "type": "int",
+      "value": "60"
+    },
+    {
+      "name": "workflow_name",
+      "type": "string",
+      "value": "pull"
+    }
+  ],
+  "description": ""
+}

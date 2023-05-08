@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - repo: pytorch/pytorch
-            branch: master
+            branch: main
             with_flaky_test_alerting: YES
             job_filter_regex: ""
           - repo: pytorch/pytorch

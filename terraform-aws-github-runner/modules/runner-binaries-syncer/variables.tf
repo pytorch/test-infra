@@ -56,26 +56,3 @@ variable "runner_allow_prerelease_binaries" {
   default     = false
 }
 
-variable "lambda_s3_bucket" {
-  description = "S3 bucket from which to specify lambda functions. This is an alternative to providing local files directly."
-  type        = string
-  default     = null
-}
-
-variable "syncer_lambda_s3_object_version" {
-  description = "S3 object version for syncer lambda function. Useful if S3 versioning is enabled on source bucket."
-  type        = string
-  default     = null
-}
-
-variable "lambda_subnet_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
-  type        = list(string)
-  default     = []
-}
-
-variable "lambda_security_group_ids" {
-  description = "List of subnets in which the action runners will be launched, the subnets needs to be subnets in the `vpc_ids`."
-  type        = list(string)
-  default     = []
-}

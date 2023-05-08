@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/compilers_benchmark_performance_branches.sql",
+  "default_parameters": [
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-02-01T00:00:00.00Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-04-01T00:00:00.00Z"
+    }
+  ],
+  "description": "Get all the branches that run the benchmark "
+}

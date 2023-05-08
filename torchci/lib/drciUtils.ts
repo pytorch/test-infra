@@ -9,7 +9,7 @@ export const REPO: string = "pytorch";
 export const OWNER: string = "pytorch";
 export const DRCI_COMMENT_START = "<!-- drci-comment-start -->\n";
 export const OH_URL =
-    "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
+  "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
 export const DOCS_URL = "https://docs-preview.pytorch.org";
 export const PYTHON_DOCS_PATH = "index.html";
 export const CPP_DOCS_PATH = "cppdocs/index.html";
@@ -22,20 +22,24 @@ export const BOT_COMMANDS_WIKI_URL =
 export const FLAKY_RULES_JSON =
   "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/flaky-rules.json";
 
-export function formDrciHeader(owner: string, repo: string, prNum: number): string {
-    // For PyTorch only
-    if (isPyTorchPyTorch(owner, repo)) {
-        return `## :link: Helpful Links
+export function formDrciHeader(
+  owner: string,
+  repo: string,
+  prNum: number
+): string {
+  // For PyTorch only
+  if (isPyTorchPyTorch(owner, repo)) {
+    return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${CPP_DOCS_PATH})
 * :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL}) or our [office hours](${OH_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
-    }
+  }
 
-    // For domain libraries
-    return `## :link: Helpful Links
+  // For domain libraries
+  return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${owner}/${repo}/${prNum}](${HUD_URL}${owner}/${repo}/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
 
@@ -57,7 +61,6 @@ ${pr_results}
 ${DRCI_COMMENT_END}`;
   return comment;
 }
-
 
 export async function getDrciComment(
   octokit: Octokit,
@@ -127,10 +130,18 @@ ${sev_list}\n
 
 // The context here is the context from probot.
 // Today we only use probot for upserts, but this could later be split into logger
-export async function upsertDrCiComment(owner: string, repo: string, prNum: number, context: any, prUrl: string) {
+export async function upsertDrCiComment(
+  owner: string,
+  repo: string,
+  prNum: number,
+  context: any,
+  prUrl: string
+) {
   // Dr.CI only supports [pytorch/pytorch, pytorch/vision] at the moment
   if (!isDrCIEnabled(owner, repo)) {
-    context.log(`Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`);
+    context.log(
+      `Pull request to ${owner}/${repo} is not supported by Dr.CI bot, no comment is made`
+    );
     return;
   }
 
@@ -140,11 +151,22 @@ export async function upsertDrCiComment(owner: string, repo: string, prNum: numb
     repo,
     prNum
   );
-  context.log("Got existing ID: " + existingDrciData.id + " with body " + existingDrciData.body)
+  context.log(
+    "Got existing ID: " +
+      existingDrciData.id +
+      " with body " +
+      existingDrciData.body
+  );
   const existingDrciID = existingDrciData.id;
   const existingDrciComment = existingDrciData.body;
   const sev = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
-  const drciComment = formDrciComment(prNum, owner, repo, "", formDrciSevBody(sev));
+  const drciComment = formDrciComment(
+    prNum,
+    owner,
+    repo,
+    "",
+    formDrciSevBody(sev)
+  );
 
   if (existingDrciComment === drciComment) {
     return;
@@ -157,9 +179,7 @@ export async function upsertDrCiComment(owner: string, repo: string, prNum: numb
       repo: repo,
       issue_number: prNum,
     });
-    context.log(
-      `Commenting with "${drciComment}" for pull request ${prUrl}`
-    );
+    context.log(`Commenting with "${drciComment}" for pull request ${prUrl}`);
   } else {
     context.log({
       body: drciComment,

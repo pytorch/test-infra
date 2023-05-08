@@ -45,7 +45,7 @@ for platform in ${PLATFORMS}; do
             (
                 set -x
                 anaconda remove --force "${CHANNEL}/${PKG}/${version}/${platform}/${PKG}-${version}-${spec}.tar.bz2"
-                sleep 10
+                sleep $((RANDOM % 300 + 30))
             )
         fi
         done

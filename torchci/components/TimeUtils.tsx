@@ -14,7 +14,7 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
     const time = dayjs(timestamp).local();
     if (dayjs().isSame(time, "day")) {
       setTime(time.format("h:mm a"));
-    } else if (dayjs().subtract(7, 'days').isBefore(time, 'day')) {
+    } else if (dayjs().subtract(7, "days").isBefore(time, "day")) {
       setTime(time.format("ddd h:mm a"));
     } else {
       setTime(time.format("M/D h:mm a"));
@@ -47,7 +47,7 @@ export function durationHuman(seconds: number) {
 // e.g. 5400 -> "1.5h"
 export function durationDisplay(seconds: number): string {
   if (seconds < 60) {
-    return seconds + "s";
+    return seconds.toFixed(1) + "s";
   }
   const minutes = seconds / 60.0;
   if (minutes < 60) {

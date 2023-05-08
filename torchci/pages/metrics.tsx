@@ -26,7 +26,9 @@ import { useEffect, useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
-import ScalarPanel from "components/metrics/panels/ScalarPanel";
+import ScalarPanel, {
+  ScalarPanelWithValue,
+} from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
@@ -45,7 +47,7 @@ function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
   }
 
   const options: EChartsOption = {
-    title: { text: "% master jobs by red" },
+    title: { text: "% main jobs by red" },
     grid: { top: 48, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "time" },
@@ -106,7 +108,7 @@ function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
 
   const options: EChartsOption = {
     title: {
-      text: "Commits red on master, by day",
+      text: "Commits red on main, by day",
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -247,21 +249,19 @@ function TimePicker({ label, value, setValue }: any) {
  */
 export function TimeRangePicker({
   startTime,
-  stopTime,
   setStartTime,
+  stopTime,
   setStopTime,
-  defaultValue,
+  timeRange,
+  setTimeRange,
 }: {
   startTime: dayjs.Dayjs;
-  stopTime: dayjs.Dayjs;
   setStartTime: any;
+  stopTime: dayjs.Dayjs;
   setStopTime: any;
-  defaultValue?: number;
+  timeRange: any;
+  setTimeRange: any;
 }) {
-  // User-selected time range. If it's a number, the range is (#days to now). If
-  // it's -1, the time range has been to a custom value.
-  const [timeRange, setTimeRange] = useState<number>(7);
-
   function updateTimeRange() {
     if (timeRange === -1) {
       return;
@@ -295,7 +295,7 @@ export function TimeRangePicker({
       <FormControl>
         <InputLabel id="time-picker-select-label">Time Range</InputLabel>
         <Select
-          defaultValue={defaultValue ?? 7}
+          value={timeRange}
           label="Time Range"
           labelId="time-picker-select-label"
           onChange={handleChange}
@@ -308,7 +308,7 @@ export function TimeRangePicker({
           <MenuItem value={90}>Last Quarter</MenuItem>
           <MenuItem value={180}>Last Half</MenuItem>
           <MenuItem value={365}>Last Year</MenuItem>
-          <MenuItem value={-1}>Custom Time Range</MenuItem>
+          <MenuItem value={-1}>Custom</MenuItem>
         </Select>
       </FormControl>
       {timeRange === -1 && (
@@ -459,9 +459,12 @@ function JobsDuration({
 
 const ROW_HEIGHT = 340;
 
+function getCommitRedMetrics(queryParams: RocksetParam[]) {}
+
 export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [timeRange, setTimeRange] = useState<number>(7);
 
   const timeParams: RocksetParam[] = [
     {
@@ -489,6 +492,27 @@ export default function Page() {
     maximumFractionDigits: 1,
   });
 
+  // Split the aggregated red % into broken trunk and flaky red %
+  const queryCollection = "metrics";
+  const queryName = "master_commit_red_avg";
+
+  // Query both broken trunk and flaky red % in one query to some
+  // save CPU usage. This query is quite expensive to run
+  const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
+    JSON.stringify(timeParams)
+  )}`;
+
+  const { data } = useSWR(url, fetcher, {
+    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
+  });
+
+  const brokenTrunkRed =
+    data === undefined || data.length === 0
+      ? undefined
+      : data[0]["broken_trunk_red"];
+  const flakyRed =
+    data === undefined || data.length === 0 ? undefined : data[0]["flaky_red"];
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -497,9 +521,11 @@ export default function Page() {
         </Typography>
         <TimeRangePicker
           startTime={startTime}
-          stopTime={stopTime}
           setStartTime={setStartTime}
+          stopTime={stopTime}
           setStopTime={setStopTime}
+          timeRange={timeRange}
+          setTimeRange={setTimeRange}
         />
         <TtsPercentilePicker
           ttsPercentile={ttsPercentile}
@@ -513,12 +539,10 @@ export default function Page() {
         </Grid>
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"% commits red on master, aggregate"}
-              queryName={"master_commit_red_avg"}
-              metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-              queryParams={timeParams}
+            <ScalarPanelWithValue
+              title={"% commits red on main (broken trunk)"}
+              value={brokenTrunkRed}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
@@ -535,19 +559,10 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
-              title={"% commits red on master, after retries"}
-              queryName={"master_commit_red_avg"}
-              metricName={"red"}
-              valueRenderer={(value) => (value * 100).toFixed(2) + "%"}
-              queryParams={[
-                {
-                  name: "useRetryConclusion",
-                  type: "bool",
-                  value: true,
-                },
-                ...timeParams,
-              ]}
+            <ScalarPanelWithValue
+              title={"% commits red on main (flaky)"}
+              value={flakyRed}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
             <ScalarPanel
@@ -563,18 +578,18 @@ export default function Page() {
 
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
+            <ScalarPanel
+              title={"% force merges due to failed PR checks"}
+              queryName={"force_merge_red_avg"}
+              metricName={"force_merges_red"}
+              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 0.2}
+            />
             <WorkflowDuration
               percentileParam={percentileParam}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
-            />
-            <ScalarPanel
-              title={"# force merges"}
-              queryName={"number_of_force_pushes"}
-              metricName={"count"}
-              valueRenderer={(value: string) => value}
-              queryParams={timeParams}
-              badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
           </Stack>
         </Grid>
@@ -607,7 +622,7 @@ export default function Page() {
         <Grid container item xs={2} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanel
-              title={"Last master push"}
+              title={"Last main push"}
               queryName={"last_branch_push"}
               metricName={"push_seconds_ago"}
               valueRenderer={(value) => durationDisplay(value)}
@@ -615,7 +630,7 @@ export default function Page() {
                 {
                   name: "branch",
                   type: "string",
-                  value: "refs/heads/master",
+                  value: "refs/heads/main",
                 },
               ]}
               badThreshold={(_) => false} // never bad
@@ -749,26 +764,15 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Workflow load"}
-            queryName={"workflow_load"}
-            queryParams={[
-              {
-                name: "timezone",
-                type: "string",
-                value: Intl.DateTimeFormat().resolvedOptions().timeZone,
-              },
-              {
-                name: "repo",
-                type: "string",
-                value: "pytorch/%",
-              },
-              ...timeParams,
-            ]}
-            granularity={"hour"}
-            groupByFieldName={"name"}
-            timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"count"}
-            yAxisRenderer={(value) => value}
+            title={"Number of tests run"}
+            queryName={"num_tests_run"}
+            queryParams={[...timeParams]}
+            granularity={"minute"}
+            groupByFieldName={"workflow_name"}
+            timeFieldName={"push_event_time"}
+            yAxisFieldName={"avg_num_tests"}
+            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
+            additionalOptions={{ yAxis: { scale: true } }}
           />
         </Grid>
 
@@ -782,8 +786,8 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job time-to-signal, master-only"}
-          branchName={"master"}
+          title={"Job time-to-signal, main-only"}
+          branchName={"main"}
           queryName={"tts_percentile"}
           metricName={"tts_sec"}
           percentileParam={percentileParam}
@@ -800,27 +804,13 @@ export default function Page() {
         />
 
         <JobsDuration
-          title={"Job duration, master-only"}
-          branchName={"master"}
+          title={"Job duration, main-only"}
+          branchName={"main"}
           queryName={"job_duration_percentile"}
           metricName={"duration_sec"}
           percentileParam={percentileParam}
           timeParams={timeParams}
         />
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TimeSeriesPanel
-            title={"Number of tests run"}
-            queryName={"num_tests_run"}
-            queryParams={[...timeParams]}
-            granularity={"minute"}
-            groupByFieldName={"workflow_name"}
-            timeFieldName={"push_event_time"}
-            yAxisFieldName={"avg_num_tests"}
-            yAxisRenderer={(value) => numberFormat.format(parseInt(value))}
-            additionalOptions={{ yAxis: { scale: true } }}
-          />
-        </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel

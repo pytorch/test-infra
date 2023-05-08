@@ -7,11 +7,7 @@ WITH all_jobs AS (
             workflow.name,
             ' / ',
             ELEMENT_AT(SPLIT(job.name, ' / '), 1),
-            IF(
-                job.name LIKE '%/%',
-                CONCAT(' / ', ELEMENT_AT(SPLIT(ELEMENT_AT(SPLIT(job.name, ' / '), 2), ', '), 1)),
-                ''
-            )
+            CONCAT(' / ', ELEMENT_AT(SPLIT(ELEMENT_AT(SPLIT(job.name, ' / '), 2), ', '), 1))
         ) AS name,
     FROM
         commons.workflow_job job
@@ -22,13 +18,10 @@ WITH all_jobs AS (
         AND job.name != 'generate-test-matrix'
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%filter%'
-        AND (
-            LOWER(workflow.name) = 'lint'
-            OR job.name LIKE '%/%'
-        )
+        AND job.name LIKE '%/%'
         AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND push.ref = 'refs/heads/master'
+        AND push.ref = 'refs/heads/main'
         AND push.repository.owner.name = 'pytorch'
         AND push.repository.name = 'pytorch'
         AND push._event_time >= PARSE_DATETIME_ISO8601(:startTime)

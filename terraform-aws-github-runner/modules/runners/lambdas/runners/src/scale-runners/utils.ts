@@ -114,3 +114,50 @@ export function groupBy<T, V>(lst: T[], keyGetter: (itm: T) => V): Map<V, Array<
   }
   return map;
 }
+
+export function getDelayWithJitter(delayBase: number, jitter: number) {
+  return Math.max(0, delayBase) * (1 + Math.random() * Math.max(0, jitter));
+}
+
+export function getDelay(retryCount: number, delayBase: number) {
+  return Math.max(0, delayBase) * Math.pow(2, Math.max(0, retryCount));
+}
+
+export function getDelayWithJitterRetryCount(retryCount: number, delayBase: number, jitter: number) {
+  return getDelayWithJitter(getDelay(retryCount, delayBase), jitter);
+}
+
+export function stochaticRunOvershoot(retryCount: number, maxTime: number, delayBase: number) {
+  const prob = maxTime / getDelay(retryCount, delayBase);
+  return Math.random() < prob;
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReplacer(key: string, value: any) {
+  if (value instanceof Map) {
+    return {
+      dataType: 'Map',
+      value: Array.from(value.entries()),
+    };
+  } else {
+    return value;
+  }
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+export function mapReviver(key: string, value: any) {
+  if (typeof value === 'object' && value !== null) {
+    if (value.dataType === 'Map') {
+      return new Map(value.value);
+    }
+  }
+  return value;
+}
+
+export function shuffleArrayInPlace<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}

@@ -2,6 +2,11 @@
   "sql_path": "__sql/issue_query.sql",
   "default_parameters": [
     {
+      "name": "associations",
+      "type": "string",
+      "value": "member,contributor,collaborator"
+    },
+    {
       "name": "label",
       "type": "string",
       "value": "skipped"

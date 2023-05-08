@@ -19,7 +19,7 @@ WHERE
     AND workflow_job.name = :jobName
     AND test_run_summary.invoking_file = :testFile
     AND test_run_summary.classname = :testClass
-    AND workflow_run.head_branch = 'master'
+    AND workflow_run.head_branch = 'main'
 ORDER BY
     test_run_summary._event_time DESC
 LIMIT

@@ -1,5 +1,4 @@
 import { Config } from './config';
-import LRU from 'lru-cache';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { OctokitOptions } from '@octokit/core/dist-types/types';
@@ -9,6 +8,7 @@ import { createAppAuth } from '@octokit/auth-app';
 import { decrypt } from './kms';
 import { expBackOff } from './utils';
 import { request } from '@octokit/request';
+import { locallyCached, clearLocalCacheNamespace } from './cache';
 
 export interface GithubCredentials {
   github_app_key_base64: string;
@@ -17,21 +17,19 @@ export interface GithubCredentials {
   github_app_client_secret: string;
 }
 
-const secretCache = new LRU({ maxAge: 5 * 60 * 1000 });
-
 export function resetSecretCache() {
-  secretCache.reset();
+  clearLocalCacheNamespace('secretCache');
+  clearLocalCacheNamespace('ghToken');
 }
 
 async function getCredentialsFromSecretsManager(
   secretsManagerSecretsId: string,
   metrics: Metrics,
 ): Promise<GithubCredentials> {
-  try {
-    let secret = secretCache.get(secretsManagerSecretsId) as GithubCredentials;
-
-    if (secret === undefined) {
+  return await locallyCached('secretCache', secretsManagerSecretsId, 10 * 60, async () => {
+    try {
       const secretsManager = new SecretsManager();
+
       const data = await expBackOff(() => {
         return metrics.trackRequest(
           metrics.smGetSecretValueAWSCallSuccess,
@@ -45,15 +43,12 @@ async function getCredentialsFromSecretsManager(
       if (data.SecretString === undefined) {
         throw Error('Issue grabbing secret');
       }
-      secret = JSON.parse(data.SecretString as string) as GithubCredentials;
-      secretCache.set(secretsManagerSecretsId, secret);
+      return JSON.parse(data.SecretString as string) as GithubCredentials;
+    } catch (e) {
+      console.error(`[getCredentialsFromSecretsManager]: ${e}`);
+      throw e;
     }
-
-    return secret;
-  } catch (e) {
-    console.error(`[getCredentialsFromSecretsManager]: ${e}`);
-    throw e;
-  }
+  });
 }
 
 export function createOctoClient(token: string, ghesApiUrl = ''): Octokit {
@@ -95,72 +90,74 @@ export async function createGithubAuth(
   ghesApiUrl = '',
   metrics: Metrics,
 ): Promise<string> {
-  try {
-    const githubCreds = await getGithubCredentials(metrics);
+  return await locallyCached('ghToken', `${authType}|${installationId}`, 10 * 60, async () => {
+    try {
+      const githubCreds = await getGithubCredentials(metrics);
 
-    /* istanbul ignore next */
-    const clientSecret = Config.Instance.kmsKeyId
-      ? await decrypt(
-          githubCreds.github_app_client_secret,
-          Config.Instance.kmsKeyId as string,
-          Config.Instance.environment,
-          metrics,
-        )
-      : githubCreds.github_app_client_secret;
+      /* istanbul ignore next */
+      const clientSecret = Config.Instance.kmsKeyId
+        ? await decrypt(
+            githubCreds.github_app_client_secret,
+            Config.Instance.kmsKeyId as string,
+            Config.Instance.environment,
+            metrics,
+          )
+        : githubCreds.github_app_client_secret;
 
-    /* istanbul ignore next */
-    const privateKeyBase64 = Config.Instance.kmsKeyId
-      ? await decrypt(
-          githubCreds.github_app_key_base64,
-          Config.Instance.kmsKeyId as string,
-          Config.Instance.environment,
-          metrics,
-        )
-      : githubCreds.github_app_key_base64;
+      /* istanbul ignore next */
+      const privateKeyBase64 = Config.Instance.kmsKeyId
+        ? await decrypt(
+            githubCreds.github_app_key_base64,
+            Config.Instance.kmsKeyId as string,
+            Config.Instance.environment,
+            metrics,
+          )
+        : githubCreds.github_app_key_base64;
 
-    if (clientSecret === undefined || privateKeyBase64 === undefined) {
-      throw Error('Cannot decrypt.');
-    }
+      if (clientSecret === undefined || privateKeyBase64 === undefined) {
+        throw Error('Cannot decrypt.');
+      }
 
-    const authOptions: StrategyOptions = {
-      appId: parseInt(githubCreds.github_app_id),
-      privateKey: Buffer.from(privateKeyBase64, 'base64').toString(),
-      installationId,
-      clientId: githubCreds.github_app_client_id as string,
-      clientSecret,
-    };
+      const authOptions: StrategyOptions = {
+        appId: parseInt(githubCreds.github_app_id),
+        privateKey: Buffer.from(privateKeyBase64, 'base64').toString(),
+        installationId,
+        clientId: githubCreds.github_app_client_id as string,
+        clientSecret,
+      };
 
-    if (ghesApiUrl) {
-      authOptions.request = request.defaults({
-        baseUrl: ghesApiUrl,
+      if (ghesApiUrl) {
+        authOptions.request = request.defaults({
+          baseUrl: ghesApiUrl,
+        });
+      }
+
+      const auth = await expBackOff(() => {
+        return metrics.trackRequest(metrics.createAppAuthGHCallSuccess, metrics.createAppAuthGHCallFailure, () => {
+          return createAppAuth(authOptions)({ type: authType });
+        });
       });
-    }
 
-    const auth = await expBackOff(() => {
-      return metrics.trackRequest(metrics.createAppAuthGHCallSuccess, metrics.createAppAuthGHCallFailure, () => {
-        return createAppAuth(authOptions)({ type: authType });
-      });
-    });
-
-    let tokenDisplayInfo = '';
-    if (auth.type !== undefined) tokenDisplayInfo += ` Type: ${auth.type}`;
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-    if ((auth as any).tokenType !== undefined) tokenDisplayInfo += ` TokenType: ${(auth as any).tokenType}`;
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-    if ((auth as any).expiresAt !== undefined) tokenDisplayInfo += ` ExpiresAt: ${(auth as any).expiresAt}`;
-    // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-    if ((auth as any).installationId !== undefined) {
+      let tokenDisplayInfo = '';
+      if (auth.type !== undefined) tokenDisplayInfo += ` Type: ${auth.type}`;
       // eslint-disable-next-line  @typescript-eslint/no-explicit-any
-      tokenDisplayInfo += ` InstallationId: ${(auth as any).installationId}`;
-    }
+      if ((auth as any).tokenType !== undefined) tokenDisplayInfo += ` TokenType: ${(auth as any).tokenType}`;
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+      if ((auth as any).expiresAt !== undefined) tokenDisplayInfo += ` ExpiresAt: ${(auth as any).expiresAt}`;
+      // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+      if ((auth as any).installationId !== undefined) {
+        // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+        tokenDisplayInfo += ` InstallationId: ${(auth as any).installationId}`;
+      }
 
-    if (tokenDisplayInfo) {
-      console.debug(`[createGithubAuth] Created token with:${tokenDisplayInfo}`);
-    }
+      if (tokenDisplayInfo) {
+        console.debug(`[createGithubAuth] Created token with:${tokenDisplayInfo}`);
+      }
 
-    return auth.token;
-  } catch (e) {
-    console.error(`[createGithubAuth]: ${e}`);
-    throw e;
-  }
+      return auth.token;
+    } catch (e) {
+      console.error(`[createGithubAuth]: ${e}`);
+      throw e;
+    }
+  });
 }

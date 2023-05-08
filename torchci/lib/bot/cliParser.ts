@@ -52,11 +52,16 @@ mergeOption.add_argument("-ic", "--ignore-current", {
     "since this will fail.",
 });
 merge.add_argument("-r", "--rebase", {
-  help: "Rebase the PR to re run checks before merging.  Accepts viable/strict or master as branch options and " +
-  "will default to viable/strict if not specified.",
+  help:
+    "Rebase the PR to re run checks before merging.  Accepts viable/strict or main as branch options and " +
+    "will default to viable/strict if not specified.",
   nargs: "?",
   const: "viable/strict",
-  choices: ["viable/strict", "master"],
+  choices: ["viable/strict", "main"],
+});
+merge.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
 });
 
 // Revert
@@ -79,6 +84,10 @@ revert.add_argument("-c", "--classification", {
   choices: Object.keys(revertClassifications),
   help: "A machine-friendly classification of the revert reason.",
 });
+revert.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
 
 // Rebase
 const rebase = commands.add_parser("rebase", {
@@ -97,6 +106,10 @@ branch_selection.add_argument("-s", "--stable", {
 branch_selection.add_argument("-b", "--branch", {
   help: "Branch you would like to rebase to",
 });
+rebase.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
 
 const label = commands.add_parser("label", {
   help: "Add label to a PR",
@@ -109,6 +122,10 @@ label.add_argument("labels", {
   nargs: "+",
   help: "Labels to add to given Pull Request",
 });
+label.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
 
 // Dr. CI
 const drCi = commands.add_parser("drci", {
@@ -118,6 +135,10 @@ const drCi = commands.add_parser("drci", {
     "with actual CI results.",
   formatter_class: RawTextHelpFormatter,
   add_help: false,
+});
+drCi.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
 });
 
 // Help

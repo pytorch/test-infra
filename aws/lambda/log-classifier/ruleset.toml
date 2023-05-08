@@ -73,10 +73,6 @@ name = 'npm error'
 pattern = '^npm ERR! code .*'
 
 [[rule]]
-name = 'NVIDIA installation failure'
-pattern = '^ERROR: Installation has failed.*?nvidia'
-
-[[rule]]
 name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
@@ -90,7 +86,7 @@ pattern = 'XPASS(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest failure'
-pattern = '^FAILED (\S*.py::\S*::test_\S*)'
+pattern = '^FAILED (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'Python unittest error'
@@ -98,11 +94,15 @@ pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
 name = 'pytest test error'
-pattern = '^ERROR (\S*.py::\S*::test_\S*)'
+pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'inductor model failure'
 pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
+
+[[rule]]
+name = 'NVIDIA installation failure'
+pattern = '^ERROR: Installation has failed.*?nvidia'
 
 [[rule]]
 name = 'failed to download github artifacts'
@@ -227,6 +227,14 @@ pattern = '^Error response from daemon: .*'
 [[rule]]
 name = 'Out of space error'
 pattern = 'no space left on device'
+
+[[rule]]
+name = 'New graph breaks'
+pattern = 'FAIL:\s+graph_breaks='
+
+[[rule]]
+name = 'Improved graph breaks'
+pattern = 'IMPROVED:\s+graph_breaks='
 
 [[rule]]
 name = 'GHA error'

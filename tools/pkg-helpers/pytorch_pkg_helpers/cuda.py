@@ -8,10 +8,12 @@ WINDOWS_PATH_PREFIX = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v"
 
 
 def get_cuda_arch_list(sanitized_version: str) -> str:
+    if float(sanitized_version) >= 12.0:
+        return "5.0+PTX;6.0;7.0;7.5;8.0;8.6;9.0"
     if float(sanitized_version) > 11.3:
         return "3.5;5.0+PTX;6.0;7.0;7.5;8.0;8.6"
-    else:  # mainly for cuda 10.2
-        return "3.5;5.0+PTX;6.0;7.0;7.5"
+    # mainly for cuda 10.2
+    return "3.5;5.0+PTX;6.0;7.0;7.5"
 
 
 def get_cuda_variables(
@@ -48,6 +50,7 @@ def get_cuda_variables(
         ret.extend(
             [
                 f"export CUDA_HOME='{cuda_home}'",
+                f"export CUDA_PATH='{cuda_home}'",
                 f"export TORCH_CUDA_ARCH_LIST='{cuda_arch_list}'",
                 # Double quotes needed here to expand PATH var
                 f'export PATH="{cuda_home}/bin:${{PATH}}"',

@@ -183,7 +183,7 @@ jobs:
           # Checking that we have a pinned version of torch in our dependency tree
           (
             pushd "${RUNNER_TEMP}"
-            unzip "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
+            unzip -o "${GITHUB_WORKSPACE}/${{ inputs.repository }}/dist/$WHEEL_NAME"
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )
@@ -204,7 +204,7 @@ jobs:
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
-        if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}
         working-directory: ${{ inputs.repository }}
         env:

@@ -1,5 +1,9 @@
 import { Context, Probot } from "probot";
-import { CachedConfigTracker, isPyTorchPyTorch } from "./utils";
+import {
+  CachedConfigTracker,
+  hasWorkflowRunningPermissions,
+  isPyTorchPyTorch,
+} from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
   return label.startsWith("ciflow/") || label.startsWith("ci/");
@@ -142,27 +146,39 @@ async function handleLabelEvent(
   if (valid_labels == null) {
     await context.octokit.issues.createComment(
       context.repo({
-        body: "No ciflow labels are configured for this repo.\n" +
-              "For information on how to enable CIFlow bot see " +
-              "this [wiki]( https://github.com/pytorch/test-infra/wiki/PyTorch-bot#ciflow-bot)",
+        body:
+          "No ciflow labels are configured for this repo.\n" +
+          "For information on how to enable CIFlow bot see " +
+          "this [wiki]( https://github.com/pytorch/test-infra/wiki/PyTorch-bot#ciflow-bot)",
         issue_number: context.payload.pull_request.number,
       })
     );
     return;
   }
-
   if (!valid_labels.includes(label)) {
     let body = `Unknown label \`${label}\`.\n Currently recognized labels are\n`;
     valid_labels.forEach((l: string) => {
       body += ` - \`${l}\`\n`;
     });
+    let has_workflow_permissions = await hasWorkflowRunningPermissions(
+      context,
+      context.payload.pull_request.user.login
+    );
+    if (has_workflow_permissions) {
+      body =
+        "Warning: " +
+        body +
+        "\n Please add the new label to .github/pytorch-probot.yml";
+    }
     await context.octokit.issues.createComment(
       context.repo({
         body,
         issue_number: context.payload.pull_request.number,
       })
     );
-    return;
+    if (!has_workflow_permissions) {
+      return;
+    }
   }
 
   const prNum = context.payload.pull_request.number;
