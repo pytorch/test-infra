@@ -222,7 +222,8 @@ jobs:
           s3-bucket: doc-previews
           if-no-files-found: error
           path: ${{ env.RUNNER_DOCS_DIR }}
-          s3-prefix: pytorch/${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
+          # ${{ env.repository }} is $OWNER/$REPO
+          s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Teardown Linux
         if: ${{ always() }}
