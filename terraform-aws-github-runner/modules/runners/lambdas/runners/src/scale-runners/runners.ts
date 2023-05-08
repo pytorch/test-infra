@@ -352,6 +352,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                     ],
                     NetworkInterfaces: [
                       {
+                        Ipv6AddressCount: 1,
                         AssociatePublicIpAddress: true,
                         SubnetId: subnet,
                         Groups: securityGroupIds,
