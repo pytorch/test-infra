@@ -27,12 +27,12 @@ jobs:
       runner: windows.8xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      job-name: "win-py3.8-cu116"
+      job-name: "win-py3.8-cu117"
       timeout: 60
       script: |
         conda create --yes --quiet -n test python=3.8
         conda activate test
-        python -m pip install --extra-index-url https://download.pytorch.org/whl/nightly/cu116 --pre torch
+        python -m pip install ---index-url=https://download.pytorch.org/whl/nightly/cu117 --pre torch
         # Can import pytorch, cuda is available
         python -c 'import torch;assert(torch.cuda.is_available())'
   test-upload-artifact:
