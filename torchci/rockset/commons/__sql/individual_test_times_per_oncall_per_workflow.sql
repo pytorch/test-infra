@@ -1,55 +1,44 @@
 WITH
-    filtered_table AS (
+    oncalls_table as (
         SELECT
-            oncalls,
-            workflow_name,
-            CAST(workflow_id as STRING) as workflow_id,
-            test_class,
             test_file,
-        FROM
-            metrics.aggregated_test_metrics
-        WHERE
-            workflow_run_attempt = 1
-            AND workflow_id IS NOT NULL
-            AND workflow_name = :workflow_name
-            AND DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(date)) = DATE_TRUNC('DAY', CAST(PARSE_DATETIME_ISO8601(:queryDate) as date))
-            AND test_class LIKE :classname
-        GROUP BY
-            workflow_name,
-            test_class,
-            test_file,
-            workflow_id,
-            date,
             oncalls
+        FROM
+            commons.test_file_to_oncall_mapping
+        WHERE
+            DATE_TRUNC('DAY', PARSE_DATETIME_ISO8601(date)) >= DATE_TRUNC(
+                'DAY',
+                CAST(PARSE_DATETIME_ISO8601(:queryDate) as date)
+            )
     ),
     filtered_oncalls as (
         SELECT
-            f.test_class,
             f.test_file,
             oncall
         FROM
-            (filtered_table f
+            (oncalls_table f
             CROSS JOIN UNNEST(oncalls AS oncall))
         WHERE
             REPLACE(REPLACE(oncall, 'module: ', ''), 'oncall: ', '') LIKE: oncall
         GROUP BY
-          f.test_class,
-          f.test_file,
-          oncall
+            f.test_file,
+            oncall
     ),
     workflow_id_table as (
         SELECT
-            workflow_id,
+            CAST(workflow_id as STRING) as workflow_id,
             workflow_name
         from
-            filtered_table
-        GROUP BY
-            workflow_name,
-            workflow_id
+            commons.workflow_ids_from_test_aggregates
+        WHERE
+            workflow_name = :workflow_name
+            AND DATE_TRUNC('DAY', date) = DATE_TRUNC(
+                'DAY',
+                CAST(PARSE_DATETIME_ISO8601(:queryDate) as date)
+            )
         LIMIT
-          3
-    ),
-    test_times_filtered as (
+            3
+    ), test_times_filtered as (
         SELECT
             test_runs.time,
             test_runs.classname,
@@ -60,8 +49,11 @@ WITH
             commons.test_run_s3 test_runs
             INNER JOIN workflow_id_table wid ON (test_runs.workflow_id = wid.workflow_id) HINT(join_strategy = lookup)
         WHERE
-          test_runs.workflow_run_attempt = 1
-  ),
+            test_runs.workflow_run_attempt = 1
+            AND test_runs.classname IS NOT NULL
+            AND test_runs.classname LIKE :classname
+            
+    ),
     test_times_with_oncalls as (
         SELECT
             time,

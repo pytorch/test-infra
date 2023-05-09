@@ -23,7 +23,7 @@ export default function GenerateIndividualTestsLeaderboard({
   thresholdInSecond: number;
   classname?: string;
 }) {
-  const [queryDate, setQueryDate] = useState(dayjs().subtract(1, "day"));
+  const [queryDate, setQueryDate] = useState(dayjs().subtract(2, "day"));
   const router = useRouter();
   const queryParamsForLongTestTable: RocksetParam[] = [
     {
@@ -52,7 +52,6 @@ export default function GenerateIndividualTestsLeaderboard({
       value: classname,
     },
   ];
-
   return (
     <Grid item xs={12} height={ROW_HEIGHT}>
       <TablePanel

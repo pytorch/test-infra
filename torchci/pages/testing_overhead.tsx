@@ -76,7 +76,6 @@ export default function TestingOverhead() {
       <Grid item xs={12} height={ROW_HEIGHT}>
         <TablePanel
           title={`Total Testing Times per Workflow on All Runners: ${workflowName} on ${startTime
-            .subtract(1, "day")
             .format("YYYY-MM-DD")}`}
           queryCollection={"commons"}
           queryName={"test_time_per_oncall"}
@@ -99,7 +98,7 @@ export default function TestingOverhead() {
             },
             {
               field: "time_in_seconds",
-              headerName: "Avg duration",
+              headerName: "Total duration per day",
               flex: 1,
               valueFormatter: (params: GridValueFormatterParams<number>) =>
                 durationDisplay(params.value),
@@ -116,6 +115,14 @@ export default function TestingOverhead() {
             {
               field: "estimated_price_per_run_in_dollars",
               headerName: "Estimated price per run",
+              flex: 1,
+              valueFormatter: (params: GridValueFormatterParams<number>) =>
+                `$${params.value.toFixed(2)}`,
+              filterable: false,
+            },
+            {
+              field: "estimated_price_per_day_in_dollars",
+              headerName: "Estimated price per day",
               flex: 1,
               valueFormatter: (params: GridValueFormatterParams<number>) =>
                 `$${params.value.toFixed(2)}`,
