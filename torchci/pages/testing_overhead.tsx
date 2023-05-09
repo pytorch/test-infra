@@ -99,7 +99,7 @@ export default function TestingOverhead() {
             },
             {
               field: "time_in_seconds",
-              headerName: "Total duration per day",
+              headerName: "Total duration",
               flex: 1,
               valueFormatter: (params: GridValueFormatterParams<number>) =>
                 durationDisplay(params.value),
