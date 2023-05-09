@@ -91,6 +91,7 @@ function createExpectedRunInstancesLinux(
     ],
     NetworkInterfaces: [
       {
+        Ipv6AddressCount: 1,
         AssociatePublicIpAddress: true,
         SubnetId: snetId,
         Groups: secGroup,
@@ -480,6 +481,7 @@ describe('createRunner', () => {
         ],
         NetworkInterfaces: [
           {
+            Ipv6AddressCount: 1,
             AssociatePublicIpAddress: true,
             SubnetId: snetId[0],
             Groups: secGroup,
