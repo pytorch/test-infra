@@ -439,7 +439,7 @@ export default function Hud() {
   let viableStrictLag: string | undefined;
 
   if (data !== undefined && data.length > 0) {
-    const timeLagInHours = Math.floor(data[0]["strict_lag_sec"] / 3600);
+    const timeLagInHours = (data[0]["strict_lag_sec"] / 3600).toFixed(1);
     const viableStrictLag = `viable/strict lag: ${timeLagInHours}h`;
   }
 
