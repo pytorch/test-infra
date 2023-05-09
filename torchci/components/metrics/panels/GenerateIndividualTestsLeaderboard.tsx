@@ -55,13 +55,26 @@ export default function GenerateIndividualTestsLeaderboard({
   return (
     <Grid item xs={12} height={ROW_HEIGHT}>
       <TablePanel
-        title={`Longest Tests on Runner: ${workflowName} on ${queryDate.format(
+        title={`Longest Tests: ${workflowName} on ${queryDate.format(
           "YYYY-MM-DD"
         )}`}
         queryCollection={"commons"}
         queryName={"individual_test_times_per_oncall_per_workflow"}
         queryParams={queryParamsForLongTestTable}
         columns={[
+          {
+            field: "oncall",
+            headerName: "Oncall",
+            flex: 1,
+            renderCell: (params: GridRenderCellParams<string>) => {
+              const oncall = params.value;
+              return (
+                <a href={`/testing_overhead/oncall_insights?oncall=${oncall}`}>
+                  {oncall}
+                </a>
+              );
+            },
+          },
           {
             field: "test_name",
             headerName: "Test Name",
@@ -70,7 +83,7 @@ export default function GenerateIndividualTestsLeaderboard({
           },
           {
             field: "test_class",
-            headerName: "Test class",
+            headerName: "Test Class",
             flex: 1,
             renderCell: (params: GridRenderCellParams<string>) => {
               const testFile = params.row.test_file;
@@ -92,24 +105,19 @@ export default function GenerateIndividualTestsLeaderboard({
           },
           {
             field: "avg_time_in_seconds",
-            headerName: "Avg duration",
+            headerName: "Avg Duration per Runner",
             flex: 1,
             valueFormatter: (params: GridValueFormatterParams<number>) =>
               durationDisplay(params.value),
             filterable: false,
           },
           {
-            field: "oncall",
-            headerName: "Oncall",
+            field: "time_per_wokflow_in_seconds",
+            headerName: "Total Duration per Workflow",
             flex: 1,
-            renderCell: (params: GridRenderCellParams<string>) => {
-              const oncall = params.value;
-              return (
-                <a href={`/testing_overhead/oncall_insights?oncall=${oncall}`}>
-                  {oncall}
-                </a>
-              );
-            },
+            valueFormatter: (params: GridValueFormatterParams<number>) =>
+              durationDisplay(params.value),
+            filterable: false,
           },
         ]}
         dataGridProps={{

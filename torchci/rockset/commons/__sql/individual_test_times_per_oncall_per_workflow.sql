@@ -45,6 +45,7 @@ WITH
             test_runs.invoking_file,
             test_runs.name,
             wid.workflow_name,
+            wid.workflow_id,
         FROM
             commons.test_run_s3 test_runs
             INNER JOIN workflow_id_table wid ON (test_runs.workflow_id = wid.workflow_id) HINT(join_strategy = lookup)
@@ -52,13 +53,13 @@ WITH
             test_runs.workflow_run_attempt = 1
             AND test_runs.classname IS NOT NULL
             AND test_runs.classname LIKE :classname
-            
     ),
     test_times_with_oncalls as (
         SELECT
             time,
             classname,
             workflow_name,
+            workflow_id,
             name,
             invoking_file,
             oncall
@@ -68,6 +69,7 @@ WITH
     )
 SELECT
     AVG(time) as avg_time_in_seconds,
+    SUM(time) / COUNT(DISTINCT(workflow_id)) as time_per_wokflow_in_seconds,
     classname as test_class,
     invoking_file as test_file,
     name as test_name,
