@@ -139,6 +139,14 @@ jobs:
           export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
           export USE_FFMPEG="1"
 
+          if [[ "$CU_VERSION" == "cpu" ]]; then
+          # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
+          # in this case
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
+          else
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
+          fi
+
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} python setup.py bdist_wheel
           else
@@ -149,12 +157,6 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
             fi
           fi
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -165,6 +167,12 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
