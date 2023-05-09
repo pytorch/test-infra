@@ -124,8 +124,8 @@ export default function TestingOverhead() {
   return (
     <>
       <>
+        <WorkflowPicker workflow={workflow} setWorkFlow={setWorkFlow} />
         <Grid container spacing={1}>
-          <WorkflowPicker workflow={workflow} setWorkFlow={setWorkFlow} />
           <Grid item xs={24} lg={12} height={ROW_HEIGHT}>
             <TimeSeriesPanel
               title={`Total Time per Workflow for ${oncall} jobs on all runners`}
@@ -158,7 +158,7 @@ export default function TestingOverhead() {
               yAxisFieldName={"time_in_seconds"}
               yAxisLabel={"Avg test time (s)"}
               yAxisRenderer={(unit) => durationDisplay(unit)}
-              groupByFieldName={"workflow_type"}
+              groupByFieldName={"workflow_name"}
               additionalOptions={{ yAxis: { scale: true } }}
             />
           </Grid>

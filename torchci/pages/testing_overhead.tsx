@@ -75,10 +75,11 @@ export default function TestingOverhead() {
     return (
       <Grid item xs={12} height={ROW_HEIGHT}>
         <TablePanel
-          title={`Total Testing Times per Workflow on All Runners: ${workflowName} on ${startTime
-            .format("YYYY-MM-DD")}`}
+          title={`Total Testing Times and Costs per Workflow on All Runners: ${workflowName} on ${startTime.format(
+            "YYYY-MM-DD"
+          )}`}
           queryCollection={"commons"}
-          queryName={"test_time_per_oncall"}
+          queryName={"test_time_and_price_per_oncall"}
           queryParams={queryParams}
           columns={[
             {
