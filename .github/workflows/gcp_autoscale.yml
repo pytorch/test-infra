@@ -13,11 +13,15 @@ jobs:
       repository: fairinternal/pytorch-gha-infra
       ref: main
       job-name: GCP Autoscaler 
-      secrets: "TODO figure out"
+      secrets-env: "GOOGLE_APPLICATION_CREDENTIALS ROCKSET_API_KEY"
       script: |
-        # Ensure GOOGLE_APPLICATION_CREDENTIALS and ROCKSET_API_KEY are set
-        # Create conda env
+        # We would need to pass the creds file because the GCPClient authorizes
+        # using that JSON. We would separately need to get the private key file
+        # in-place so that we can do the SSH.
+        conda create --yes --quiet -n gcp_env python=3.10
+        conda activate gcp_env
         pip install -r requirements.txt
+        cd gcp-scaler
         python3 scale.py \
           --workers-per-node=1 \
           --job-type=autoscale \
