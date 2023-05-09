@@ -1,21 +1,34 @@
-import { Grid } from "@mui/material";
+import {
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
+} from "@mui/material";
 import {
   GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import WorkflowPicker, {
+  WORKFLOWS,
+} from "components/metrics/panels/WorkflowPicker";
 import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { RocksetParam } from "lib/rockset";
 import { useState } from "react";
+import GenerateIndividualTestsLeaderboard from "../components/metrics/panels/GenerateIndividualTestsLeaderboard";
 
 const ROW_HEIGHT = 240;
+const THRESHOLD_IN_SECOND = 10;
 
 export default function TestingOverhead() {
   // Looking at data from the past six months
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
   const [stopTime, setStopTime] = useState(dayjs());
+  const [workflow, setWorkFlow] = useState<string>(Object.keys(WORKFLOWS)[0]);
   const timeParams: RocksetParam[] = [
     {
       name: "startTime",
@@ -62,11 +75,11 @@ export default function TestingOverhead() {
     return (
       <Grid item xs={12} height={ROW_HEIGHT}>
         <TablePanel
-          title={`Total Testing Times per Workflow on All Runners: ${workflowName} on ${startTime.format(
+          title={`Total Testing Times and Costs per Workflow on All Runners: ${workflowName} on ${startTime.format(
             "YYYY-MM-DD"
           )}`}
           queryCollection={"commons"}
-          queryName={"test_time_per_oncall"}
+          queryName={"test_time_and_price_per_oncall"}
           queryParams={queryParams}
           columns={[
             {
@@ -86,7 +99,7 @@ export default function TestingOverhead() {
             },
             {
               field: "time_in_seconds",
-              headerName: "Avg duration",
+              headerName: "Total duration per day",
               flex: 1,
               valueFormatter: (params: GridValueFormatterParams<number>) =>
                 durationDisplay(params.value),
@@ -103,6 +116,14 @@ export default function TestingOverhead() {
             {
               field: "estimated_price_per_run_in_dollars",
               headerName: "Estimated price per run",
+              flex: 1,
+              valueFormatter: (params: GridValueFormatterParams<number>) =>
+                `$${params.value.toFixed(2)}`,
+              filterable: false,
+            },
+            {
+              field: "estimated_price_per_day_in_dollars",
+              headerName: "Estimated price per day",
               flex: 1,
               valueFormatter: (params: GridValueFormatterParams<number>) =>
                 `$${params.value.toFixed(2)}`,
@@ -130,6 +151,7 @@ export default function TestingOverhead() {
   return (
     <>
       <>
+        <WorkflowPicker workflow={workflow} setWorkFlow={setWorkFlow} />
         <Grid container spacing={1}>
           <Grid item xs={6} lg={12} height={ROW_HEIGHT}>
             <TimeSeriesPanel
@@ -182,9 +204,11 @@ export default function TestingOverhead() {
           </Grid>
         </Grid>
       </>
-      <GenerateOncallTestingOverheadLeaderboard workflowName={"pull"} />
-      <GenerateOncallTestingOverheadLeaderboard workflowName={"trunk"} />
-      <GenerateOncallTestingOverheadLeaderboard workflowName={"periodic"} />
+      <GenerateOncallTestingOverheadLeaderboard workflowName={workflow} />
+      <GenerateIndividualTestsLeaderboard
+        workflowName={workflow}
+        thresholdInSecond={THRESHOLD_IN_SECOND}
+      />
     </>
   );
 }

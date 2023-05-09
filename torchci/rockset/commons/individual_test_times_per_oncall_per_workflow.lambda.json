@@ -1,20 +1,25 @@
 {
-  "sql_path": "__sql/individual_test_stats_per_workflow_per_oncall.sql",
+  "sql_path": "__sql/individual_test_times_per_oncall_per_workflow.sql",
   "default_parameters": [
+    {
+      "name": "classname",
+      "type": "string",
+      "value": "%"
+    },
     {
       "name": "oncall",
       "type": "string",
-      "value": "functorch"
+      "value": "%"
     },
     {
       "name": "queryDate",
       "type": "string",
-      "value": "2023-04-11T00:06:32.839Z"
+      "value": "2023-05-04T21:08:08.862Z"
     },
     {
       "name": "thresholdInSecond",
-      "type": "int",
-      "value": "60"
+      "type": "float",
+      "value": "10"
     },
     {
       "name": "workflow_name",

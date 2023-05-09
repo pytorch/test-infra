@@ -10,10 +10,15 @@ import {
   GridRenderCellParams,
   GridValueFormatterParams,
 } from "@mui/x-data-grid";
+import GenerateIndividualTestsLeaderboard from "components/metrics/panels/GenerateIndividualTestsLeaderboard";
+import WorkflowPicker, {
+  WORKFLOWS,
+} from "components/metrics/panels/WorkflowPicker";
 
 const ROW_HEIGHT = 500;
 const THRESHOLD_IN_SECOND = 60;
-function GenerateTestInsightsOverviewTable({
+
+function GenerateOncallTestInsightsOverviewTable({
   workflowName,
 }: {
   workflowName: string;
@@ -56,15 +61,23 @@ function GenerateTestInsightsOverviewTable({
         columns={[
           {
             field: "avg_duration_in_second",
-            headerName: "Avg duration",
+            headerName: "avg_duration_in_second",
             flex: 1,
             valueFormatter: (params: GridValueFormatterParams<number>) =>
               durationDisplay(params.value),
             filterable: false,
           },
           {
-            field: "estimated_price_per_run_in_dollars",
-            headerName: "Estimated cost",
+            field: "est_cost_per_run",
+            headerName: "Estimated cost per workflow run on all runners",
+            flex: 1,
+            valueFormatter: (params: GridValueFormatterParams<number>) =>
+              `$${params.value.toFixed(2)}`,
+            filterable: false,
+          },
+          {
+            field: "est_cost_per_day",
+            headerName: "Estimated cost per day on all runners",
             flex: 1,
             valueFormatter: (params: GridValueFormatterParams<number>) =>
               `$${params.value.toFixed(2)}`,
@@ -91,24 +104,6 @@ function GenerateTestInsightsOverviewTable({
               );
             },
           },
-          {
-            field: "max_failures",
-            headerName: "# Test failures",
-            flex: 1,
-            filterable: false,
-          },
-          {
-            field: "max_errors",
-            headerName: "# Unexpected errors",
-            flex: 1,
-            filterable: false,
-          },
-          {
-            field: "avg_skipped",
-            headerName: "# Test skipped",
-            flex: 1,
-            filterable: false,
-          },
         ]}
         dataGridProps={{
           getRowId: (e: any) => e.test_file + e.test_class,
@@ -125,14 +120,15 @@ export default function TestingOverhead() {
   // Looking at data from the past six months
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "month"));
   const [endTime, setEndTime] = useState(dayjs());
-
+  const [workflow, setWorkFlow] = useState<string>(Object.keys(WORKFLOWS)[0]);
   return (
     <>
       <>
+        <WorkflowPicker workflow={workflow} setWorkFlow={setWorkFlow} />
         <Grid container spacing={1}>
           <Grid item xs={24} lg={12} height={ROW_HEIGHT}>
             <TimeSeriesPanel
-              title={`Average Time for Workflow for ${oncall} jobs`}
+              title={`Total Time per Workflow for ${oncall} jobs on all runners`}
               queryName={"test_time_per_oncall"}
               queryCollection={"commons"}
               queryParams={[
@@ -162,18 +158,20 @@ export default function TestingOverhead() {
               yAxisFieldName={"time_in_seconds"}
               yAxisLabel={"Avg test time (s)"}
               yAxisRenderer={(unit) => durationDisplay(unit)}
-              groupByFieldName={"workflow_type"}
+              groupByFieldName={"workflow_name"}
               additionalOptions={{ yAxis: { scale: true } }}
             />
           </Grid>
         </Grid>
       </>
+
       <Grid container spacing={4}>
-        <GenerateTestInsightsOverviewTable workflowName={"pull"} />
-
-        <GenerateTestInsightsOverviewTable workflowName={"trunk"} />
-
-        <GenerateTestInsightsOverviewTable workflowName={"periodic"} />
+        <GenerateOncallTestInsightsOverviewTable workflowName={workflow} />
+        <GenerateIndividualTestsLeaderboard
+          workflowName={workflow}
+          thresholdInSecond={THRESHOLD_IN_SECOND}
+          oncallName={oncall}
+        />
       </Grid>
     </>
   );
