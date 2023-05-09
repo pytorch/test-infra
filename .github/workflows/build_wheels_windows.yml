@@ -157,12 +157,6 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
             fi
           fi
-      - name: Upload wheel to GitHub
-        continue-on-error: true
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ inputs.repository }}/dist/
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
@@ -173,6 +167,12 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} ${ENV_SCRIPT} ${POST_SCRIPT}
+      - name: Upload wheel to GitHub
+        continue-on-error: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
