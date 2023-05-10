@@ -33,3 +33,7 @@ output "webhook" {
     endpoint    = "${module.webhook.gateway.api_endpoint}/${module.webhook.endpoint_relative_path}"
   }
 }
+
+output "distribution_bucket_name" {
+  value = module.runner_binaries.distribution_bucket_name
+}
