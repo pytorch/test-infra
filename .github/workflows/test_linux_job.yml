@@ -119,9 +119,8 @@ jobs:
       script: |
         # Sleep a couple of seconds just in case S3 is being slow (might not be needed?)
         sleep 10
-        # TODO: Change this eventually to reflect new url path, see https://github.com/pytorch/test-infra/issues/3894
         REPO_NAME="$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f2)"
-        curl -fsSL "https://docs-preview.pytorch.org/${REPO_NAME}/${PR_NUMBER}/index.html" | grep "hello"
+        curl -fsSL "https://docs-preview.pytorch.org/pytorch/${REPO_NAME}/${PR_NUMBER}/index.html" | grep "hello"
   test-with-matrix:
     uses: ./.github/workflows/linux_job.yml
     strategy:

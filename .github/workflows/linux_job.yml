@@ -214,17 +214,6 @@ jobs:
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
 
-      # TODO: Remove once we converge on documentation paths
-      - name: (legacy) Upload documentation to S3 (if any)
-        uses: seemethere/upload-artifact-s3@v5
-        if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
-        with:
-          retention-days: 14
-          s3-bucket: doc-previews
-          if-no-files-found: error
-          path: ${{ env.RUNNER_DOCS_DIR }}
-          s3-prefix: pytorch/${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
-
       - name: Upload documentation to S3 (if any)
         uses: seemethere/upload-artifact-s3@v5
         if: ${{ steps.check-artifacts.outputs.upload-docs == 1 && github.event.pull_request.number != '' }}
@@ -233,6 +222,7 @@ jobs:
           s3-bucket: doc-previews
           if-no-files-found: error
           path: ${{ env.RUNNER_DOCS_DIR }}
+          # ${{ env.repository }} is $OWNER/$REPO
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
       - name: Teardown Linux
