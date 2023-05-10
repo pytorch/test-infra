@@ -17,3 +17,7 @@ output "lambda" {
 output "lambda_role" {
   value = aws_iam_role.syncer_lambda
 }
+
+output "distribution_bucket_name" {
+  value = aws_s3_bucket.action_dist.bucket
+}
