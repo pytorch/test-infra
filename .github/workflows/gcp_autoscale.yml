@@ -2,8 +2,8 @@ name: Scale GCP Cluster
 
 on:
   schedule:
-    # TODO every 5 minutes
-    - cron: "SOMETHING HERE"
+    # Fire every 5 minutes
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,8 +13,32 @@ jobs:
       repository: fairinternal/pytorch-gha-infra
       ref: main
       job-name: GCP Autoscaler 
-      secrets-env: "GOOGLE_APPLICATION_CREDENTIALS ROCKSET_API_KEY"
+      secrets-env: "GOOGLE_AUTH_JSON"
       script: |
+        # Install Google Cloud SDK
+        curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-430.0.0-linux-x86_64.tar.gz
+
+        # Extract GCP SDK tar file
+        tar -xf google-cloud-cli-430.0.0-linux-x86_64.tar.gz
+
+        # Run installer
+        ./google-cloud-sdk/install.sh -q
+
+        # Dump JSON secret into JSON file. GOOGLE_APPLICATION_CREDENTIALS is the path to
+        # that JSON file
+        export GOOGLE_APPLICATION_CREDENTIALS="./gcloud_auth.json"
+        touch "${GOOGLE_APPLICATION_CREDENTIALS}"
+        cat "${{ secrets.GOOGLE_AUTH_JSON }}" > "${GOOGLE_APPLICATION_CREDENTIALS}"
+
+        # Auth Login
+        ./google-cloud-sdk/bin/gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}"
+
+        # Set Project
+        ./google-cloud-sdk/bin/gcloud config set project pytorch-ossea13315f
+
+        # Do a Dummy SSH to create SSH keys
+        ./google-cloud-sdk/bin/gcloud compute ssh a100-test-runner --zone=us-central1-a --quiet --command="exit"
+
         # We would need to pass the creds file because the GCPClient authorizes
         # using that JSON. We would separately need to get the private key file
         # in-place so that we can do the SSH.
@@ -23,6 +47,7 @@ jobs:
         pip install -r requirements.txt
         cd gcp-scaler
         python3 scale.py \
-          --workers-per-node=1 \
           --job-type=autoscale \
           --gce-project-name=pytorch-ossea13315f \
+          # TODO: remove this nodelist arg once we're done testing
+          --nodelist test_nodelist.txt
