@@ -225,15 +225,13 @@ jobs:
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         working-directory: ${{ inputs.repository }}
         env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
           CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}
         run: |
+          set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
-          set -x
-          ANACONDA_PATH=$(${CONDA_RUN} conda info --base)/bin
-          set ANACONDA_PATH
-          echo "$ANACONDA_PATH"
-          "$ANACONDA_PATH/anaconda" -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/win-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "distr/win-64/${PACKAGE_NAME}*.tar.bz2" -u "pytorch-${CHANNEL}" --label main --no-progress --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
