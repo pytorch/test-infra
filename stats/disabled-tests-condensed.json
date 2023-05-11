@@ -1606,6 +1606,13 @@
       "rocm"
     ]
   ],
+  "test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)": [
+    "77123",
+    "https://github.com/pytorch/pytorch/issues/77123",
+    [
+      "linux"
+    ]
+  ],
   "test_post_localSGD_optimizer_parity_grad_is_view (__main__.TestDistBackendWithSpawn)": [
     "77292",
     "https://github.com/pytorch/pytorch/issues/77292",
