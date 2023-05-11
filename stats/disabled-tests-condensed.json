@@ -1063,6 +1063,13 @@
       "dynamo"
     ]
   ],
+  "test_fsdp_tp_checkpoint_integration (__main__.TestTPFSDPIntegration)": [
+    "101162",
+    "https://github.com/pytorch/pytorch/issues/101162",
+    [
+      "linux"
+    ]
+  ],
   "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
     "84046",
     "https://github.com/pytorch/pytorch/issues/84046",
