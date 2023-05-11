@@ -34,6 +34,7 @@ output "webhook" {
   }
 }
 
+# used in gha-infra
 output "distribution_bucket_name" {
   value = module.runner_binaries.distribution_bucket_name
 }
