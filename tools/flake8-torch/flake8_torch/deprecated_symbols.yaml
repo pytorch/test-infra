@@ -1,0 +1,7 @@
+- name: torch.qr
+  deprecate_pr: https://github.com/pytorch/pytorch/pull/57745
+  remove_pr:
+
+- name: torch.symeig
+  deprecate_pr: https://github.com/pytorch/pytorch/pull/57732
+  remove_pr: https://github.com/pytorch/pytorch/pull/70988
