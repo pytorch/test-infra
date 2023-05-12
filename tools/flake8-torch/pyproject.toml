@@ -8,3 +8,6 @@ version = "0.0.1"
 [tool.pytest.ini_options]
 log_cli = true
 log_cli_level = "INFO"
+
+[tool.black]
+exclude = 'tests/fixtures/*'
