@@ -14,7 +14,6 @@ jobs:
       repository: fairinternal/pytorch-gha-infra
       ref: main
       job-name: GCP Autoscaler 
-      runner: ubuntu-latest
       secrets-env: "GOOGLE_AUTH_JSON"
       script: |
         # Install Google Cloud SDK
