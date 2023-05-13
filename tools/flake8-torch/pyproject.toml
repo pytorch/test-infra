@@ -10,4 +10,7 @@ log_cli = true
 log_cli_level = "INFO"
 
 [tool.black]
-exclude = 'tests/fixtures/*'
+exclude = "tests/fixtures/*"
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml"]
