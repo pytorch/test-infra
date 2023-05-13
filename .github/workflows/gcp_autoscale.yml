@@ -1,6 +1,7 @@
 name: Scale GCP Cluster
 
 on:
+  pull_request:
   schedule:
     # Fire every 5 minutes
     - cron: "*/5 * * * *"
@@ -13,6 +14,7 @@ jobs:
       repository: fairinternal/pytorch-gha-infra
       ref: main
       job-name: GCP Autoscaler 
+      runner: ubuntu-latest
       secrets-env: "GOOGLE_AUTH_JSON"
       script: |
         # Install Google Cloud SDK
@@ -49,5 +51,5 @@ jobs:
         python3 scale.py \
           --job-type=autoscale \
           --gce-project-name=pytorch-ossea13315f \
-          # TODO: remove this nodelist arg once we're done testing
           --nodelist test_nodelist.txt
+          # TODO: remove this nodelist arg once we're done testing
