@@ -30,7 +30,7 @@ jobs:
         # that JSON file
         export GOOGLE_APPLICATION_CREDENTIALS="./gcloud_auth.json"
         touch "${GOOGLE_APPLICATION_CREDENTIALS}"
-        cat "${{ secrets.GOOGLE_AUTH_JSON }}" > "${GOOGLE_APPLICATION_CREDENTIALS}"
+        cat "${GOOGLE_AUTH_JSON}" > "${GOOGLE_APPLICATION_CREDENTIALS}"
 
         # Auth Login
         ./google-cloud-sdk/bin/gcloud auth login --cred-file="${GOOGLE_APPLICATION_CREDENTIALS}"
