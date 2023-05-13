@@ -41,9 +41,7 @@ jobs:
         # Do a Dummy SSH to create SSH keys
         ./google-cloud-sdk/bin/gcloud compute ssh a100-test-runner --zone=us-central1-a --quiet --command="exit"
 
-        # We would need to pass the creds file because the GCPClient authorizes
-        # using that JSON. We would separately need to get the private key file
-        # in-place so that we can do the SSH.
+        # Application gets credentials from env var.
         conda create --yes --quiet -n gcp_env python=3.10
         conda activate gcp_env
         pip install -r requirements.txt
