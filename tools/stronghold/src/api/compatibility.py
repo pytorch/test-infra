@@ -26,7 +26,7 @@ def check_range(
         if any(dir.name.startswith('_') for dir in file.parents):
             # Ignore any internal packages.
             continue
-         if any(dir.name.startswith('.') for dir in file.parents):
+        if any(dir.name.startswith('.') for dir in file.parents):
             # Ignore any internal packages and ci modules
             continue
         if file.name.startswith('_'):
