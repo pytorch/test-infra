@@ -73,7 +73,7 @@ jobs:
       image: ${{ matrix.container_image }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Clean workspace
         run: |
