@@ -805,27 +805,45 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
   });
 
-  test("getPlatformsAffected: should correctly triage dyanmo", async () => {
-    let workflowJobs = ["linux rocm", "dynamo linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "rocm",
-      "dynamo",
-    ]);
+  test("getPlatformsAffected: should correctly triage dyanmo and inductor", async () => {
+    function expectJobsToDisablePlatforms(jobs: string[], platforms: string[]) {
+      expect(disableFlakyTestBot.getPlatformsAffected(jobs)).toEqual(platforms);
+    }
 
-    workflowJobs = ["dynamo linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "dynamo",
-    ]);
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "inductor linux", "linux"],
+      ["linux", "rocm", "dynamo", "inductor"]
+    );
 
-    workflowJobs = ["linux rocm", "dynamo linux", "linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "linux",
-      "rocm",
-      "dynamo",
-    ]);
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "inductor linux"],
+      ["rocm", "dynamo", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["dynamo linux", "inductor linux"],
+      ["dynamo", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "linux"],
+      ["linux", "rocm", "dynamo"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "inductor linux", "linux"],
+      ["linux", "rocm", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["dynamo linux", "linux"],
+      ["linux", "dynamo"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["inductor linux", "linux"],
+      ["linux", "inductor"]
+    );
   });
 
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
