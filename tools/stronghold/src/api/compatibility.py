@@ -35,6 +35,9 @@ def check_range(
         if file.name.startswith('test_') or file.stem.endswith('_test'):
             # Ignore test files.
             continue
+        if any(dir.name.startswith('.circleci') for dir in file.parents):
+            # Ignore .circleci files, deprecating these
+            continue
 
         # Get the contents before and after the diff.
         #
