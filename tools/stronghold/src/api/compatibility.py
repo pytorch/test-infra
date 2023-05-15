@@ -26,6 +26,9 @@ def check_range(
         if any(dir.name.startswith('_') for dir in file.parents):
             # Ignore any internal packages.
             continue
+         if any(dir.name.startswith('.') for dir in file.parents):
+            # Ignore any internal packages and ci modules
+            continue
         if file.name.startswith('_'):
             # Ignore internal modules.
             continue
@@ -35,9 +38,7 @@ def check_range(
         if file.name.startswith('test_') or file.stem.endswith('_test'):
             # Ignore test files.
             continue
-        if any(dir.name.startswith('.circleci') for dir in file.parents):
-            # Ignore .circleci files, deprecating these
-            continue
+
 
         # Get the contents before and after the diff.
         #
