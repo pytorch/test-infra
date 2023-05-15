@@ -39,7 +39,6 @@ def check_range(
             # Ignore test files.
             continue
 
-
         # Get the contents before and after the diff.
         #
         # Note that if the file doesn't exist, it is equivalent to it
