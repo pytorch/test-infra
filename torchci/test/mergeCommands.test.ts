@@ -338,7 +338,7 @@ describe("merge-bot", () => {
   test("merge -ic command on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic";
+    event.payload.comment.body = "@pytorchbot merge --ic";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -811,7 +811,7 @@ describe("merge-bot", () => {
   test("merge with ignore current flag using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchmergebot merge -ic";
+    event.payload.comment.body = "@pytorchmergebot merge --ic";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
