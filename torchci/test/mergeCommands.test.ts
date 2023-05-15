@@ -335,10 +335,10 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
-  test("merge -ic command on pull request triggers dispatch and like", async () => {
+  test("merge -i command on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge --ic";
+    event.payload.comment.body = "@pytorchbot merge -i";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -607,7 +607,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic -f '[MINOR] Fix lint'";
+    event.payload.comment.body = "@pytorchbot merge -i -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -616,7 +616,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -ic/--ignore-current"
+          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -i/--ignore-current"
         );
         return true;
       })
@@ -630,7 +630,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options without force merge reason", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic -f";
+    event.payload.comment.body = "@pytorchbot merge -i -f";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -811,7 +811,7 @@ describe("merge-bot", () => {
   test("merge with ignore current flag using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchmergebot merge --ic";
+    event.payload.comment.body = "@pytorchmergebot merge -i";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
