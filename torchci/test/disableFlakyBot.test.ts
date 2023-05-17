@@ -111,7 +111,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
 
   test("Create new issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -259,7 +259,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -288,7 +288,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue on main", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestB.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestB.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -568,7 +568,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should return proper module and be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -590,7 +590,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -612,7 +612,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -636,7 +636,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: ill-formatted file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from("line1\nline2\nline3\nstill no owners\nline4\nlastline\n")
@@ -658,21 +658,21 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: retry getting file fails all times", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404);
 
     const { labels, additionalErrMessage } =
@@ -693,9 +693,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: retry getting file", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -716,15 +716,15 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: fallback to invoking file when retrieving file", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/nn/test_convolution.py`)
+      .get(`/pytorch/pytorch/main/test/nn/test_convolution.py`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)

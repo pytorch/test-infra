@@ -290,7 +290,7 @@ export async function getTestOwnerLabels(
   invokingFile: string
 ): Promise<{ labels: string[]; additionalErrMessage?: string }> {
   const urlkey =
-    "https://raw.githubusercontent.com/pytorch/pytorch/master/test/";
+    "https://raw.githubusercontent.com/pytorch/pytorch/main/test/";
 
   try {
     let result = await retryRequest(`${urlkey}${testFile}`);

@@ -38,6 +38,7 @@ function FailureInfo({
   // we highlight master branch
   const highlighted = new Set<string>();
   highlighted.add("master");
+  highlighted.add("main");
 
   const branchNames = new Set<string>(highlighted);
   samples.forEach((job, i) => {
