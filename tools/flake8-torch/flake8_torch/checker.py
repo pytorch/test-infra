@@ -38,9 +38,9 @@ class TorchVisitor(ast.NodeVisitor):
         module = "." * node.level + module
         for alias in node.names:
             if alias.asname is None:
-                self._import_info[alias.name] = module + "." + alias.name
+                self._import_info[alias.name] = f"{module}.{alias.name}"
             else:
-                self._import_info[alias.asname] = module + "." + alias.name
+                self._import_info[alias.asname] = f"{module}.{alias.name}"
         self.generic_visit(node)
 
 
