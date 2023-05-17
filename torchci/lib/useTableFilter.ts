@@ -15,30 +15,27 @@ export default function useTableFilter(params: HudParams) {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         setJobFilter(null);
+        router.push(formatHudUrlForRoute("hud", params), undefined, {
+          shallow: true,
+        });
       }
     });
   }, []);
   const handleInput = useCallback((f: any) => {
     setJobFilter(f);
-  }, []);
-  const handleSubmit = useCallback(() => {
-    if (jobFilter === "") {
-      router.push(formatHudUrlForRoute("hud", params), undefined, {
+    router.push(
+      formatHudUrlForRoute("hud", {
+        ...params,
+        nameFilter: f ?? undefined,
+      }),
+      undefined,
+      {
         shallow: true,
-      });
-    } else {
-      router.push(
-        formatHudUrlForRoute("hud", {
-          ...params,
-          nameFilter: jobFilter ?? undefined,
-        }),
-        undefined,
-        {
-          shallow: true,
-        }
-      );
-    }
-  }, [params, router, jobFilter]);
+      }
+    );
+  }, [params, router]);
+  const handleSubmit = () => {
+  };
 
   // We have to use an effect hook here because query params are undefined at
   // static generation time; they only become available after hydration.
