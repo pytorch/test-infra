@@ -36,6 +36,7 @@ a {
 }
 
 button {
+  
   cursor: pointer;
   display: inline-block;
   font-weight: 400;

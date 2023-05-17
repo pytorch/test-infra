@@ -1,7 +1,64 @@
 import styles from "components/NavBar.module.css";
 import Link from "next/link";
+import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import LoginSection from "./LoginSection";
+
+const Dropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+      <div>
+          <button onClick={() => setIsOpen(!isOpen)}
+          style ={{
+color: "#0064cf",
+background: 'transparent',
+border: '0px',
+whiteSpace: "nowrap",
+textDecoration: "none",
+borderRadius: "0px",
+// border-radius: "0px",
+
+          }} >
+              Metrics {'\u02C5'}
+          </button>
+          
+          {isOpen && (
+           <div className={styles.links}> 
+
+              <ul>
+                  <li>
+                  <Link prefetch={false} href="/metrics">
+                Overall Metrics
+              </Link>
+                  </li>
+                  <li>
+                  <Link prefetch={false} href="/testing_overhead">
+                Testing Overhead
+              </Link>
+                  </li>
+                  <li>
+                  <Link prefetch={false} href="/tts">
+                TTS
+              </Link>
+                  </li>
+                  <li>
+                  <Link prefetch={false} href="/kpis">
+                KPIs
+              </Link>
+                  </li>
+                  <li>
+                  <Link prefetch={false} href="/reliability">
+                Failures Metric
+              </Link>
+                  </li>
+              </ul>
+              </div>
+          )}
+      </div>
+  );
+};
+
 function NavBar() {
   return (
     <div className={styles.linksContainer}>
@@ -41,6 +98,16 @@ function NavBar() {
           </ul>
         </div>
         <div
+                            style={{
+                              display: "inline",
+                              // marginLeft: "auto",
+                              // marginRight: "0px",
+                              whiteSpace: "nowrap",
+                            }}
+        >
+          <Dropdown />
+        </div>
+        <div
           style={{
             display: "inline",
             marginLeft: "auto",
@@ -59,32 +126,6 @@ function NavBar() {
                 Requests
               </Link>
             </li>
-            <li>
-              <Link prefetch={false} href="/metrics">
-                Metrics
-              </Link>
-            </li>
-            <li>
-              <Link prefetch={false} href="/kpis">
-                KPIs
-              </Link>
-            </li>
-            <li>
-              <Link prefetch={false} href="/tts">
-                TTS
-              </Link>
-            </li>
-            <li>
-              <Link prefetch={false} href="/reliability">
-                Failures Metric
-              </Link>
-            </li>
-            {/* uncomment after some eyeballs are on this */}
-            {/* <li>
-              <Link prefetch={false} href="/testing_overhead">
-                Testing Overhead
-              </Link>
-            </li> */}
             <li>
               <Link prefetch={false} href="/failedjobs/pytorch/pytorch/main">
                 Failures Classfier
