@@ -7,10 +7,6 @@ FIXTURES_PATH = Path(__file__).absolute().parent / "fixtures"
 LOGGER = logging.getLogger(__name__)
 
 
-def _fixture_path(filename):
-    return Path(__file__).absolute().parent / "fixtures" / filename
-
-
 def _results(s):
     tree = ast.parse(s)
     checker = TorchChecker(tree)
