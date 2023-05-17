@@ -15,6 +15,7 @@ export const supportedPlatforms = new Set([
   "win",
   "windows",
   "dynamo",
+  "inductor",
 ]);
 
 async function getValidationComment(
