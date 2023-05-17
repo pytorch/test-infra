@@ -2,6 +2,8 @@ from pathlib import Path
 import ast
 import yaml
 
+__version__ = "0.0.1"
+
 
 class TorchVisitor(ast.NodeVisitor):
     def __init__(self):
@@ -46,7 +48,7 @@ class TorchVisitor(ast.NodeVisitor):
 
 class TorchChecker:
     name = "flake8-torch"
-    version = "0.0.1"
+    version = __version__
 
     def __init__(self, tree):
         self.tree = tree

@@ -1,6 +1,6 @@
 [project]
 name = "flake8-torch"
-version = "0.0.1"
+dynamic = ["version"]
 dependencies = ["flake8>=3.8.2", "PyYAML"]
 
 [project.entry-points]
@@ -15,3 +15,6 @@ exclude = "tests/fixtures/*"
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml"]
+
+[tool.setuptools.dynamic]
+version = {attr = "flake8_torch.checker.__version__"}
