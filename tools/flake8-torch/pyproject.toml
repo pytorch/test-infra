@@ -1,6 +1,7 @@
 [project]
 name = "flake8-torch"
 version = "0.0.1"
+dependencies = ["flake8>=3.8.2", "PyYAML"]
 
 [project.entry-points]
 "flake8.extension" = {TOR = "flake8_torch.checker:TorchChecker"}

@@ -49,3 +49,7 @@
 - name: torch.nn.UpsamplingBilinear2d
   deprecate_pr: TBA
   remove_pr:
+
+- name: torch.testing.assert_allclose
+  deprecate_pr: TBA
+  remove_pr:
