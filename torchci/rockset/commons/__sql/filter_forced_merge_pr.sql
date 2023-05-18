@@ -27,13 +27,24 @@ force_merges_with_failed_checks AS (
       1,
       0
     ) AS force_merge,
+    failed_checks_count,
     pr_num,
     merge_commit_sha,
   FROM
     all_merges
 )
 SELECT
-  *
+  pr_num,
+  merge_commit_sha,
+  force_merge,
+  IF(
+    (
+      force_merge = 1
+      AND failed_checks_count > 0
+    ),
+    1,
+    0
+  ) AS force_merge_with_failures
 FROM
   force_merges_with_failed_checks
 WHERE

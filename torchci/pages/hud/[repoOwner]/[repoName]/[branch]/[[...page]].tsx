@@ -115,7 +115,13 @@ function HudRow({
             href={`https://github.com/${params.repoOwner}/${params.repoName}/pull/${rowData.prNum}`}
           >
             {rowData.isForcedMerge ? (
-              <mark className={styles.forcedMergeWarning}>
+              <mark
+                className={
+                  rowData.isForcedMergeWithFailures
+                    ? styles.forcedMergeWithFailure
+                    : styles.forcedMerge
+                }
+              >
                 #{rowData.prNum}
               </mark>
             ) : (

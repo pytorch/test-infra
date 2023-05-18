@@ -98,8 +98,12 @@
   padding: 3px;
 }
 
-.forcedMergeWarning {
+.forcedMerge {
   background-color: lightyellow;
+}
+
+.forcedMergeWithFailure {
+  background-color: lightpink;
 }
 
 .selectedRow {

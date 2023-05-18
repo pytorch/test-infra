@@ -71,9 +71,19 @@ export default async function fetchHud(params: HudParams): Promise<{
       }
     );
   const forcedMergeShas = new Set(
-    _.map(filterForcedMergePr.results, (result) => {
-      return result.merge_commit_sha;
+    _.map(filterForcedMergePr.results, (r) => {
+      return r.merge_commit_sha;
     })
+  );
+  const forcedMergeWithFailuresShas = new Set(
+    _.map(
+      _.filter(filterForcedMergePr.results, (r) => {
+        return r.force_merge_with_failures !== 0;
+      }),
+      (r) => {
+        return r.merge_commit_sha;
+      }
+    )
   );
 
   const commitsBySha = _.keyBy(commits, "sha");
@@ -145,6 +155,7 @@ export default async function fetchHud(params: HudParams): Promise<{
       ...commit,
       jobs: jobs,
       isForcedMerge: forcedMergeShas.has(commit.sha),
+      isForcedMergeWithFailures: forcedMergeWithFailuresShas.has(commit.sha),
     };
     shaGrid.push(row);
   });

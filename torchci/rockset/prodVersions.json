@@ -5,7 +5,7 @@
     "commit_jobs_query": "cc524c5036e78794",
     "disabled_non_flaky_tests": "f909abf9eec15b56",
     "commit_failed_jobs": "7e5b39f3ec22b89f",
-    "filter_forced_merge_pr": "aab7c41ed19a2c3c",
+    "filter_forced_merge_pr": "98786319ff984d95",
     "flaky_tests": "9f7a1abcebb7f027",
     "flaky_tests_across_jobs": "474e5454bda0c5bb",
     "individual_test_stats_per_workflow_per_oncall": "559b6735965f1eb2",
