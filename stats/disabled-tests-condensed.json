@@ -362,6 +362,15 @@
       "linux"
     ]
   ],
+  "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101827",
+    "https://github.com/pytorch/pytorch/issues/101827",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_cat (test_jit.TestScript)": [
     "91491",
     "https://github.com/pytorch/pytorch/issues/91491",
@@ -472,6 +481,15 @@
     "https://github.com/pytorch/pytorch/issues/100032",
     [
       "linux"
+    ]
+  ],
+  "test_cond (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101826",
+    "https://github.com/pytorch/pytorch/issues/101826",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
@@ -2110,6 +2128,13 @@
     "https://github.com/pytorch/pytorch/issues/88719",
     [
       "dynamo"
+    ]
+  ],
+  "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "101828",
+    "https://github.com/pytorch/pytorch/issues/101828",
+    [
+      "rocm"
     ]
   ],
   "test_vmapjvpall_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
