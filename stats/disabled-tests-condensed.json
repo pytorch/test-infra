@@ -340,6 +340,13 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
+  "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101772",
+    "https://github.com/pytorch/pytorch/issues/101772",
+    [
+      "linux"
+    ]
+  ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "101751",
     "https://github.com/pytorch/pytorch/issues/101751",
@@ -679,8 +686,8 @@
     ]
   ],
   "test_decoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101749",
-    "https://github.com/pytorch/pytorch/issues/101749",
+    "101774",
+    "https://github.com/pytorch/pytorch/issues/101774",
     [
       "dynamo"
     ]
@@ -874,8 +881,8 @@
     ]
   ],
   "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101748",
-    "https://github.com/pytorch/pytorch/issues/101748",
+    "101773",
+    "https://github.com/pytorch/pytorch/issues/101773",
     [
       "dynamo"
     ]
@@ -952,15 +959,15 @@
     ]
   ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "101756",
-    "https://github.com/pytorch/pytorch/issues/101756",
+    "101770",
+    "https://github.com/pytorch/pytorch/issues/101770",
     [
       "inductor"
     ]
   ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "101755",
-    "https://github.com/pytorch/pytorch/issues/101755",
+    "101769",
+    "https://github.com/pytorch/pytorch/issues/101769",
     [
       "inductor"
     ]
@@ -1024,8 +1031,8 @@
     ]
   ],
   "test_fn_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "101754",
-    "https://github.com/pytorch/pytorch/issues/101754",
+    "101771",
+    "https://github.com/pytorch/pytorch/issues/101771",
     [
       "inductor"
     ]
