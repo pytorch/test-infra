@@ -2,9 +2,19 @@
   "sql_path": "__sql/filter_forced_merge_pr.sql",
   "default_parameters": [
     {
-      "name": "issueUrls",
+      "name": "owner",
       "type": "string",
-      "value": "https://api.github.com/repos/pytorch/pytorch/issues/87809,https://api.github.com/repos/pytorch/pytorch/issues/87797,https://api.github.com/repos/pytorch/pytorch/issues/12345"
+      "value": "pytorch"
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "value": "pytorch"
+    },
+    {
+      "name": "shas",
+      "type": "string",
+      "value": "dafa009c3c0198d501fc7bc6cdcc7df14f800852,a0e6f82087af53299c70c09834db42787e750caf,c73923473d4ed0ab08143cb8fe3e8c3f86f2cf73"
     }
   ],
   "description": "Check if these PRs are forced merge"
