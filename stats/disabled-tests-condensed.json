@@ -260,6 +260,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
+    "101786",
+    "https://github.com/pytorch/pytorch/issues/101786",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
     "100159",
     "https://github.com/pytorch/pytorch/issues/100159",
@@ -298,18 +305,19 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "101752",
-    "https://github.com/pytorch/pytorch/issues/101752",
+    "101784",
+    "https://github.com/pytorch/pytorch/issues/101784",
     [
+      "asan",
       "linux"
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101750",
-    "https://github.com/pytorch/pytorch/issues/101750",
+    "101783",
+    "https://github.com/pytorch/pytorch/issues/101783",
     [
-      "asan",
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -686,8 +694,8 @@
     ]
   ],
   "test_decoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101774",
-    "https://github.com/pytorch/pytorch/issues/101774",
+    "101787",
+    "https://github.com/pytorch/pytorch/issues/101787",
     [
       "dynamo"
     ]
@@ -881,8 +889,8 @@
     ]
   ],
   "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101773",
-    "https://github.com/pytorch/pytorch/issues/101773",
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
     [
       "dynamo"
     ]
