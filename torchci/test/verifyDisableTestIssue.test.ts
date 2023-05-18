@@ -3,6 +3,7 @@ import * as utils from "./utils";
 import myProbotApp, * as bot from "../lib/bot/verifyDisableTestIssueBot";
 import nock from "nock";
 import { requireDeepCopy, handleScope } from "./common";
+import { pytorchBotId } from "../lib/bot/verifyDisableTestIssueBot";
 
 nock.disableNetConnect();
 
@@ -289,7 +290,7 @@ describe("verify-disable-test-issue-bot", () => {
   test("pytorch-bot[bot] is authorized", async () => {
     const payload = requireDeepCopy("./fixtures/issues.opened.json");
     payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
-    payload.issue.user.login = "pytorch-bot[bot]";
+    payload.issue.user.id = pytorchBotId;
 
     const owner = payload.repository.owner.login;
     const repo = payload.repository.name;

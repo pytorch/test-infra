@@ -5,7 +5,7 @@ const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
 const disabledKey = "DISABLED ";
 const disabledTestIssueTitle = new RegExp("DISABLED\\s*test.+\\s*\\(.+\\)");
-export const pytorchBotName = 'pytorch-bot[bot]'
+export const pytorchBotId = 54816060;
 
 export const supportedPlatforms = new Set([
   "asan",
@@ -206,7 +206,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const platforms = parseBody(body!);
     const username = context.payload["issue"]["user"]["login"];
     const authorized =
-      username === pytorchBotName ||
+      context.payload["issue"]["user"]["id"] === pytorchBotId ||
       (await hasWritePermissions(context, username));
 
     const validationComment = isDisabledTest(title)
