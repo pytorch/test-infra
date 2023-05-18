@@ -19,17 +19,14 @@ WITH all_merges AS (
 force_merges_with_failed_checks AS (
   SELECT
     IF(
-      (
-        skip_mandatory_checks = true
-        AND failed_checks_count > 0
-      )
+      (skip_mandatory_checks = true)
       OR (
         ignore_current = true
         AND is_failed = false
       ),
       1,
       0
-    ) AS force_merges_red,
+    ) AS force_merge,
     pr_num,
     merge_commit_sha,
   FROM
@@ -40,4 +37,4 @@ SELECT
 FROM
   force_merges_with_failed_checks
 WHERE
-  force_merges_red = 1
+  force_merge = 1
