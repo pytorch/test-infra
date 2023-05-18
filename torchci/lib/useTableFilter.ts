@@ -42,8 +42,7 @@ export default function useTableFilter(params: HudParams) {
   useEffect(() => {
     const filterValue = (router.query.name_filter as string) || "";
     setJobFilter(filterValue);
-    handleInput(filterValue);
-  }, [router.query.name_filter, handleInput]);
+  }, [router.query.name_filter]);
 
   return { jobFilter, handleSubmit, handleInput, normalizedJobFilter };
 }
