@@ -87,7 +87,7 @@ function NavBar() {
             </li> */}
             <li>
               <Link prefetch={false} href="/failedjobs/pytorch/pytorch/main">
-                Failures Classfier
+                Failures Classifier
               </Link>
             </li>
             <li>
