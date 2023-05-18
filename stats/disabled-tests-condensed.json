@@ -297,6 +297,29 @@
       "linux"
     ]
   ],
+  "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
+    "101752",
+    "https://github.com/pytorch/pytorch/issues/101752",
+    [
+      "linux"
+    ]
+  ],
+  "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101750",
+    "https://github.com/pytorch/pytorch/issues/101750",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101753",
+    "https://github.com/pytorch/pytorch/issues/101753",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
     "https://github.com/pytorch/pytorch/issues/69179",
@@ -316,6 +339,14 @@
     "60998",
     "https://github.com/pytorch/pytorch/issues/60998",
     []
+  ],
+  "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "101751",
+    "https://github.com/pytorch/pytorch/issues/101751",
+    [
+      "asan",
+      "linux"
+    ]
   ],
   "test_cat (test_jit.TestScript)": [
     "91491",
@@ -432,6 +463,13 @@
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95270",
     "https://github.com/pytorch/pytorch/issues/95270",
+    [
+      "linux"
+    ]
+  ],
+  "test_cond_nested (__main__.MiscTests)": [
+    "101758",
+    "https://github.com/pytorch/pytorch/issues/101758",
     [
       "linux"
     ]
@@ -640,6 +678,13 @@
       "linux"
     ]
   ],
+  "test_decoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101749",
+    "https://github.com/pytorch/pytorch/issues/101749",
+    [
+      "dynamo"
+    ]
+  ],
   "test_default_store_timeout_gloo (__main__.TimeoutTest)": [
     "74714",
     "https://github.com/pytorch/pytorch/issues/74714",
@@ -828,6 +873,13 @@
       "linux"
     ]
   ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101748",
+    "https://github.com/pytorch/pytorch/issues/101748",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -899,6 +951,20 @@
       "linux"
     ]
   ],
+  "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "101756",
+    "https://github.com/pytorch/pytorch/issues/101756",
+    [
+      "inductor"
+    ]
+  ],
+  "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "101755",
+    "https://github.com/pytorch/pytorch/issues/101755",
+    [
+      "inductor"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94216",
     "https://github.com/pytorch/pytorch/issues/94216",
@@ -957,6 +1023,13 @@
       "windows"
     ]
   ],
+  "test_fn_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "101754",
+    "https://github.com/pytorch/pytorch/issues/101754",
+    [
+      "inductor"
+    ]
+  ],
   "test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "62328",
     "https://github.com/pytorch/pytorch/issues/62328",
@@ -993,6 +1066,13 @@
     "https://github.com/pytorch/pytorch/issues/100190",
     [
       "linux"
+    ]
+  ],
+  "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "101757",
+    "https://github.com/pytorch/pytorch/issues/101757",
+    [
+      "inductor"
     ]
   ],
   "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
