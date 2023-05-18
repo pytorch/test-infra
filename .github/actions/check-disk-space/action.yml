@@ -25,7 +25,7 @@ runs:
         function check_disk_space() {
           set +e
 
-          # Set the minimum requirement space to 4GB
+          # Set the minimum requirement space to 6GB
           MINIMUM_AVAILABLE_SPACE_IN_KB=$(($MINIMUM_AVAILABLE_SPACE_IN_GB * 1024 * 1024))
 
           # Use KB to avoid floating point warning like 3.1GB
@@ -55,6 +55,9 @@ runs:
           sudo rm "/System/Library/Caches/com.apple.coresymbolicationd/data" || true
           # Stop the daemon and launchctl will automatically start it again, thus accomplish a restart and free up the above file
           sudo launchctl stop com.apple.coresymbolicationd || true
+
+          # Clean up crash reports on the runner
+          sudo rm -rf "/System/Volumes/Data/Library/Logs/CrashReporter" || true
 
           # Also try to clean up torch.hub caching directory
           rm -rf "${HOME}/.cache/torch/hub" || true
