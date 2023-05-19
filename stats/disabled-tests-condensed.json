@@ -313,10 +313,12 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101841",
-    "https://github.com/pytorch/pytorch/issues/101841",
+    "101858",
+    "https://github.com/pytorch/pytorch/issues/101858",
     [
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
