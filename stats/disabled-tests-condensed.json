@@ -349,6 +349,14 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
+  "test_call_parent_non_class_methods_from_child (__main__.DynamicShapesMiscTests)": [
+    "101877",
+    "https://github.com/pytorch/pytorch/issues/101877",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101852",
     "https://github.com/pytorch/pytorch/issues/101852",
@@ -474,6 +482,14 @@
   "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "101869",
     "https://github.com/pytorch/pytorch/issues/101869",
+    [
+      "rocm",
+      "inductor"
+    ]
+  ],
+  "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
+    "101876",
+    "https://github.com/pytorch/pytorch/issues/101876",
     [
       "rocm",
       "inductor"
@@ -1162,13 +1178,6 @@
   "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
     "86504",
     "https://github.com/pytorch/pytorch/issues/86504",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86760",
-    "https://github.com/pytorch/pytorch/issues/86760",
     [
       "linux"
     ]
