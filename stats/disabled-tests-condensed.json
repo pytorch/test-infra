@@ -456,6 +456,29 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_empty_strided_cuda_bool (__main__.TestInductorOpInfoCUDA)": [
+    "101868",
+    "https://github.com/pytorch/pytorch/issues/101868",
+    [
+      "linux",
+      "inductor"
+    ]
+  ],
+  "test_comprehensive_empty_strided_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "101867",
+    "https://github.com/pytorch/pytorch/issues/101867",
+    [
+      "inductor"
+    ]
+  ],
+  "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "101869",
+    "https://github.com/pytorch/pytorch/issues/101869",
+    [
+      "rocm",
+      "inductor"
+    ]
+  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
