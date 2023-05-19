@@ -1182,13 +1182,6 @@
       "linux"
     ]
   ],
-  "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86760",
-    "https://github.com/pytorch/pytorch/issues/86760",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA)": [
     "77039",
     "https://github.com/pytorch/pytorch/issues/77039",
