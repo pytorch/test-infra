@@ -348,11 +348,11 @@
     []
   ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101842",
-    "https://github.com/pytorch/pytorch/issues/101842",
+    "101852",
+    "https://github.com/pytorch/pytorch/issues/101852",
     [
-      "asan",
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -489,6 +489,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101851",
+    "https://github.com/pytorch/pytorch/issues/101851",
+    [
+      "linux"
     ]
   ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
