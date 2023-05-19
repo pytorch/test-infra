@@ -48,15 +48,15 @@ export default async function handler(
 
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
-  if (session === undefined || session === null) {
+  if (session === undefined || session === null || session.user === undefined) {
     return res.status(401).end();
   }
 
   const { repoOwner, repoName, annotation } = req.query;
-  // @ts-ignore
   const hasPermission = await isPyTorchDevInfraMember(
-    repoOwner,
-    repoName,
+    repoOwner as string,
+    repoName as string,
+    // @ts-ignore
     session.user.id
   );
   if (!hasPermission) {
