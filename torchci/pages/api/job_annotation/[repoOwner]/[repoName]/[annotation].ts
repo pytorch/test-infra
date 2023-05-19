@@ -1,18 +1,42 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { getDynamoClient } from "lib/dynamo";
-import { unstable_getServerSession } from "next-auth";
+import { getServerSession } from "next-auth";
 import { authOptions } from "pages/api/auth/[...nextauth]";
+import { getOctokit } from "lib/github";
 
-// Get number by going to https://api.github.com/users/<username>
-// and copying the "id" field
-export const annotationEditAllowlist = new Set([
-  "4468967", // ZainRizvi
-  "44682903", // clee2000
-  "475357", // huydhn
-  "420184", // kit1980
-  "2453524", // malfet
-  "1617424", // suo
-]);
+// Team ID query from https://api.github.com/orgs/pytorch/teams/pytorch-dev-infra
+export const pytorchDevInfra = "pytorch-dev-infra";
+
+async function isPyTorchDevInfraMember(
+  repoOwner: string,
+  repoName: string,
+  userId: string
+) {
+  if (
+    repoOwner === undefined ||
+    repoName === undefined ||
+    userId === undefined
+  ) {
+    return false;
+  }
+
+  const octokit = await getOctokit(repoOwner, repoName);
+  // NB: For an unfathomable reason, the session only returns user ID and there is no call
+  // atm to map GitHub user ID to username in Octokit. So there is no way to directly check
+  // the team membership by user ID. The work around here is to get the list of all members
+  // then check if the ID is there
+  const pytorchDevInfraMembers = await octokit.rest.teams.listMembersInOrg({
+    org: repoOwner,
+    team_slug: pytorchDevInfra,
+  });
+
+  return (
+    pytorchDevInfraMembers.data.filter((member) => {
+      const memberId = member.id.toString();
+      return memberId === userId;
+    }).length === 1
+  );
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -21,16 +45,25 @@ export default async function handler(
   if (req.method !== "POST") {
     return res.status(504).end();
   }
-  // @ts-ignore
-  const session = await unstable_getServerSession(req, res, authOptions);
 
   // @ts-ignore
-  if (!session || !annotationEditAllowlist.has(session.user.id)) {
+  const session = await getServerSession(req, res, authOptions);
+  if (session === undefined || session === null) {
     return res.status(401).end();
   }
-  const client = getDynamoClient();
-  const { repoOwner, repoName, annotation } = req.query;
 
+  const { repoOwner, repoName, annotation } = req.query;
+  // @ts-ignore
+  const hasPermission = await isPyTorchDevInfraMember(
+    repoOwner,
+    repoName,
+    session.user.id
+  );
+  if (!hasPermission) {
+    return res.status(401).end();
+  }
+
+  const client = getDynamoClient();
   // The request body contains an optional list of similar failures. If the list
   // exists, the API will annotate all failures in the list with the same annotation
   const jobIds = JSON.parse(req.body) ?? [];
