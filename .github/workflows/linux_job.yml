@@ -127,6 +127,7 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN || github.token }}
           fetch-depth: ${{ inputs.fetch-depth }}
 
       - name: Download artifacts (if any)
