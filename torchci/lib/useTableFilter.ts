@@ -21,21 +21,23 @@ export default function useTableFilter(params: HudParams) {
       }
     });
   }, []);
-  const handleInput = useCallback((f: any) => {
-    setJobFilter(f);
-    router.push(
-      formatHudUrlForRoute("hud", {
-        ...params,
-        nameFilter: f ?? undefined,
-      }),
-      undefined,
-      {
-        shallow: true,
-      }
-    );
-  }, [params, router]);
-  const handleSubmit = () => {
-  };
+  const handleInput = useCallback(
+    (f: any) => {
+      setJobFilter(f);
+      router.push(
+        formatHudUrlForRoute("hud", {
+          ...params,
+          nameFilter: f ?? undefined,
+        }),
+        undefined,
+        {
+          shallow: true,
+        }
+      );
+    },
+    [params, router]
+  );
+  const handleSubmit = () => {};
 
   // We have to use an effect hook here because query params are undefined at
   // static generation time; they only become available after hydration.
