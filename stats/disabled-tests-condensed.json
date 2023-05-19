@@ -305,20 +305,18 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "101784",
-    "https://github.com/pytorch/pytorch/issues/101784",
+    "101903",
+    "https://github.com/pytorch/pytorch/issues/101903",
     [
-      "asan",
       "linux"
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101858",
-    "https://github.com/pytorch/pytorch/issues/101858",
+    "101904",
+    "https://github.com/pytorch/pytorch/issues/101904",
     [
       "linux",
-      "mac",
-      "macos"
+      "rocm"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -473,17 +471,31 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "101867",
-    "https://github.com/pytorch/pytorch/issues/101867",
+    "101907",
+    "https://github.com/pytorch/pytorch/issues/101907",
     [
+      "linux",
       "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "101869",
-    "https://github.com/pytorch/pytorch/issues/101869",
+    "101906",
+    "https://github.com/pytorch/pytorch/issues/101906",
     [
-      "rocm",
+      "inductor"
+    ]
+  ],
+  "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
+    "101905",
+    "https://github.com/pytorch/pytorch/issues/101905",
+    [
+      "inductor"
+    ]
+  ],
+  "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
+    "101908",
+    "https://github.com/pytorch/pytorch/issues/101908",
+    [
       "inductor"
     ]
   ],
@@ -1686,6 +1698,13 @@
       "dynamo",
       "mac",
       "macos"
+    ]
+  ],
+  "test_operator_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "101909",
+    "https://github.com/pytorch/pytorch/issues/101909",
+    [
+      "linux"
     ]
   ],
   "test_optional_list (test_jit.TestScript)": [
