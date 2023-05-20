@@ -80,6 +80,9 @@ function Install-CudaToolkit() {
     Get-Content -Path "$cudaInstallLogs\LOG.setup.exe.log"
     exit 1
   }
+
+  Write-Output "Installing VS 2019 integration"
+  Copy-Item -Force -Verbose -Recurse "$tmpExtractedInstaller\visual_studio_integration\CUDAVisualStudioIntegration\extras\visual_studio_integration\MSBuildExtensions\*.*" "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Microsoft\VC\v160\BuildCustomizations"
 }
 
 function Install-Cudnn() {
