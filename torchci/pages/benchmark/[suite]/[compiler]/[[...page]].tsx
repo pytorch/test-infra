@@ -782,7 +782,7 @@ function GraphPanel({
             return (
               <tr key={index}>
                 <td>{entry.granularity_bucket}</td>
-                <td><a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}><code>{commit}</code></a> <button onClick={() => navigator.clipboard.writeText(commit)} className="animate-on-click">📋</button></td>
+                <td><code><a onClick={() => navigator.clipboard.writeText(commit)} className="animate-on-click">{commit}</a></code></td>
                 <td>{entry.accuracy}</td>
                 <td>{entry.speedup}</td>
                 <td>{entry.compilation_latency}</td>
