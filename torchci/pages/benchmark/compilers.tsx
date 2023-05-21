@@ -92,6 +92,7 @@ const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${CO
 // already returns close to the 6MB data transfer limit. I need to figure
 // out a way to compress the data later
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
+export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
 function getPassingModels(data: CompilerPerformanceData[]) {
   const models: { [k: string]: any } = {};
@@ -606,6 +607,7 @@ export function BranchAndCommitPicker({
 
       data.forEach((r: any) => {
         COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+        WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
       });
     }
   }, [data]);

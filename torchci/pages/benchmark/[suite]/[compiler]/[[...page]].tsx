@@ -51,6 +51,7 @@ import {
   JOB_NAME_REGEX,
   LOG_PREFIX,
   COMMIT_TO_WORKFLOW_ID,
+  WORKFLOW_ID_TO_COMMIT,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -687,6 +688,9 @@ function GraphPanel({
   );
 
   return (
+    <>
+    <div>
+    <h2>Details for {model}</h2>
     <Grid container spacing={2}>
       <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
         <TimeSeriesPanelWithData
@@ -761,6 +765,40 @@ function GraphPanel({
         />
       </Grid>
     </Grid>
+    </div>
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Commit</th>
+            <th>Accuracy</th>
+            <th>Speedup</th>
+            <th>Comptime</th>
+            <th>Memory</th>
+          </tr>
+        </thead>
+        <tbody>
+          {chartData.map((entry: any, index: number) => {
+            let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+            return (
+              <tr key={index}>
+                <td>{entry.granularity_bucket}</td>
+                <td><code><a onClick={() => navigator.clipboard.writeText(commit)} className="animate-on-click">{commit}</a></code></td>
+                <td>{entry.accuracy}</td>
+                <td>{entry.speedup}</td>
+                <td>{entry.compilation_latency}</td>
+                <td>{entry.compression_ratio}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <div>
+        Tip: to view all commits between two commits, run <code>git log --oneline START..END</code> (NB: this will exclude the START commit itself, which is typically what you want.)
+      </div>
+    </div>
+    </>
   );
 }
 
