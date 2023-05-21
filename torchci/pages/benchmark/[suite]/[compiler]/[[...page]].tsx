@@ -777,7 +777,7 @@ function GraphPanel({
           </tr>
         </thead>
         <tbody>
-          {chartData.map((entry, index) => {
+          {chartData.map((entry: any, index: number) => {
             let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
             return (
               <tr key={index}>
