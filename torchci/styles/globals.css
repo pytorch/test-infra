@@ -46,3 +46,11 @@ button {
   border: 1px solid transparent;
   border-radius: 0.25rem;
 }
+
+.animate-on-click {
+  background-color: white;
+}
+
+.animate-on-click:active {
+  background-color: green;
+}
