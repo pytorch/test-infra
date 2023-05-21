@@ -360,7 +360,9 @@ function ModelPanel({
                   return "";
                 }
 
-                if (lCommit === rCommit || v.l === v.r || v.r === undefined) {
+                if (v.r === undefined) {
+                  return <>{v.l} (<strong>NEW!</strong>)</>;
+                } else if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
                 } else {
                   return `${v.r} → ${v.l}`;
