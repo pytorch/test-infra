@@ -305,18 +305,17 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "101903",
-    "https://github.com/pytorch/pytorch/issues/101903",
+    "102012",
+    "https://github.com/pytorch/pytorch/issues/102012",
     [
       "linux"
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101904",
-    "https://github.com/pytorch/pytorch/issues/101904",
+    "102011",
+    "https://github.com/pytorch/pytorch/issues/102011",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -479,16 +478,18 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "101906",
-    "https://github.com/pytorch/pytorch/issues/101906",
+    "102013",
+    "https://github.com/pytorch/pytorch/issues/102013",
     [
-      "inductor"
+      "linux",
+      "rocm"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "101966",
-    "https://github.com/pytorch/pytorch/issues/101966",
+    "102014",
+    "https://github.com/pytorch/pytorch/issues/102014",
     [
+      "rocm",
       "inductor"
     ]
   ],
