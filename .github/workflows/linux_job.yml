@@ -143,7 +143,7 @@ jobs:
           binary-matrix: ${{ inputs.binary-matrix }}
           target-os: "linux"
 
-      - name: Run script in container
+      - name: Run script in container poke!
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         env:
