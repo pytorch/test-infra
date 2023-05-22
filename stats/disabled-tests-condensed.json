@@ -486,8 +486,8 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "101905",
-    "https://github.com/pytorch/pytorch/issues/101905",
+    "101966",
+    "https://github.com/pytorch/pytorch/issues/101966",
     [
       "inductor"
     ]
