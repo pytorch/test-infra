@@ -47,6 +47,12 @@ class QueueInfo(NamedTuple):
     hours: float
 
 
+def close_other_alerts(issues: Any, dry_run: bool) -> None:
+    for issue in issues:
+        if issue['state'] != 'CLOSED':
+            clear_alerts([issue], dry_run=dry_run)
+
+
 def gen_queue_info_str(q: QueueInfo) -> str:
     return f"- {q.machine}, {q.count} machines, {round(q.hours, 2)} hours\n"
 
@@ -158,7 +164,10 @@ def queuing_alert(dry_run: bool) -> None:
             TEST_INFRA_REPO_NAME,
         )
 
-    existing_issue = existing_alerts[0]
+    # Favor the most recent issue and close the rest
+    existing_issue = existing_alerts[-1]
+    close_other_alerts(existing_alerts[:-1], dry_run)
+
     update_comment = gen_update_comment(existing_issue, large_queue)
 
     if update_comment:
