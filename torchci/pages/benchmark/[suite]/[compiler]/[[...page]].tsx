@@ -306,12 +306,12 @@ function ModelPanel({
                       <b>{name}</b>
                     </a>
                     &nbsp;(
-                    <a target="_blank" rel="noreferrer" href={lLog}>
-                      <u>{lCommit.substr(0, 7)}</u>
-                    </a>{" "}
-                    →{" "}
                     <a target="_blank" rel="noreferrer" href={rLog}>
                       <u>{rCommit.substr(0, 7)}</u>
+                    </a>{" "}
+                    →{" "}
+                    <a target="_blank" rel="noreferrer" href={lLog}>
+                      <u>{lCommit.substr(0, 7)}</u>
                     </a>
                     )
                   </>
