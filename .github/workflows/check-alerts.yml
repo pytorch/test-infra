@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install requests
         run: |
-           pip3 install requests setuptools
+           pip3 install requests setuptools rockset==1.0.3
       - name: Run tests
         run: |
           python3 torchci/scripts/test_queue_alert.py
