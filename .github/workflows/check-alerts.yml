@@ -4,6 +4,7 @@ on:
     paths:
       - .github/workflows/check-alerts.yml
       - torchci/scripts/check_alerts.py
+      - torchci/scripts/queue_alert.py
   schedule:
     # Every 5 minutes
     - cron: "*/5 * * * *"
