@@ -9,6 +9,9 @@ dependencies = ["flake8>=3.8.2", "PyYAML"]
 [tool.pytest.ini_options]
 log_cli = true
 log_cli_level = "INFO"
+pythonpath = [
+  "."
+]
 
 [tool.black]
 exclude = "tests/fixtures/*"
