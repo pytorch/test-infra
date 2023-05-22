@@ -23,8 +23,8 @@ PROD_VERSIONS_FILE = REPO_ROOT / "torchci" / "rockset" / "prodVersions.json"
 
 QUEUE_ALERT_LABEL = "queue-alert"
 
-MAX_HOURS = 3
-MAX_MACHINES = 50
+MAX_HOURS = 2.5
+MAX_MACHINES = 40
 EXCEPTIONS = {"linux.gcp.a100.large": (0, 20)}
 ISSUES_WITH_LABEL_QUERY = """
 query ($owner: String!, $name: String!, $labels: [String!]) {
