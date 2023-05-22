@@ -12,6 +12,7 @@ from check_alerts import (
     REPO_OWNER,
     TEST_INFRA_REPO_NAME,
     clear_alerts,
+    create_issue,
     headers,
     update_issue,
 )
@@ -24,7 +25,7 @@ QUEUE_ALERT_LABEL = "queue-alert"
 
 MAX_HOURS = 3
 MAX_MACHINES = 50
-EXCEPTIONS = {"linux.gcp.a100.large": (10, 20)}
+EXCEPTIONS = {"linux.gcp.a100.large": (0, 20)}
 ISSUES_WITH_LABEL_QUERY = """
 query ($owner: String!, $name: String!, $labels: [String!]) {
   repository(owner: $owner, name: $name, followRenames: false) {
@@ -146,6 +147,16 @@ def queuing_alert(dry_run: bool) -> None:
         print("Closing queuing alert")
         clear_alerts(existing_alerts, dry_run=dry_run)
         return
+
+    if len(existing_alerts) == 0:
+        # Generate a blank issue if there are no issues with the label and
+        # re-fetch the issues so we can post an update comment, which will
+        # trigger a more informative workchat ping
+        create_issue(gen_issue([]), dry_run)
+        existing_alerts = fetch_alert(
+            REPO_OWNER,
+            TEST_INFRA_REPO_NAME,
+        )
 
     existing_issue = existing_alerts[0]
     update_comment = gen_update_comment(existing_issue, large_queue)
