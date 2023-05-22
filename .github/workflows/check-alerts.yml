@@ -51,3 +51,23 @@ jobs:
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-queue-alert:
+    env:
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install requests
+        run: |
+           pip3 install requests setuptools
+      - name: Run tests
+        run: |
+          python3 torchci/scripts/test_queue_alert.py
+      - name: Check for alerts and creates issue
+        run: |
+          python3 torchci/scripts/queue_alert.py
+        env:
+          # NOTE: Should be a blank string for pull requests
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
