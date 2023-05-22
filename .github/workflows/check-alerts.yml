@@ -55,6 +55,7 @@ jobs:
   update-queue-alert:
     env:
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
+      ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
