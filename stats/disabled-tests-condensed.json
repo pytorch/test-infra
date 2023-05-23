@@ -485,23 +485,23 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "102033",
-    "https://github.com/pytorch/pytorch/issues/102033",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "102030",
-    "https://github.com/pytorch/pytorch/issues/102030",
+    "102062",
+    "https://github.com/pytorch/pytorch/issues/102062",
     [
       "rocm",
       "inductor"
     ]
   ],
+  "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
+    "102061",
+    "https://github.com/pytorch/pytorch/issues/102061",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
-    "102044",
-    "https://github.com/pytorch/pytorch/issues/102044",
+    "102060",
+    "https://github.com/pytorch/pytorch/issues/102060",
     [
       "inductor"
     ]
