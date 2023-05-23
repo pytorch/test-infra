@@ -658,15 +658,7 @@
   "test_dataclass_output (__main__.DistributedDataParallelTest)": [
     "98761",
     "https://github.com/pytorch/pytorch/issues/98761",
-    [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows.>"
-    ]
+    []
   ],
   "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
     "78641",
