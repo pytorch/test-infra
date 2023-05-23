@@ -356,8 +356,8 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102072",
-    "https://github.com/pytorch/pytorch/issues/102072",
+    "102116",
+    "https://github.com/pytorch/pytorch/issues/102116",
     [
       "linux"
     ]
@@ -371,8 +371,8 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101840",
-    "https://github.com/pytorch/pytorch/issues/101840",
+    "102114",
+    "https://github.com/pytorch/pytorch/issues/102114",
     [
       "linux"
     ]
@@ -493,16 +493,19 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "102061",
-    "https://github.com/pytorch/pytorch/issues/102061",
+    "102117",
+    "https://github.com/pytorch/pytorch/issues/102117",
     [
+      "linux",
+      "rocm",
       "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
-    "102060",
-    "https://github.com/pytorch/pytorch/issues/102060",
+    "102119",
+    "https://github.com/pytorch/pytorch/issues/102119",
     [
+      "rocm",
       "inductor"
     ]
   ],
@@ -541,6 +544,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_cond_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "102118",
+    "https://github.com/pytorch/pytorch/issues/102118",
+    [
+      "linux"
     ]
   ],
   "test_cond_export (__main__.DynamicShapesMiscTests)": [
@@ -1065,6 +1075,13 @@
       "inductor"
     ]
   ],
+  "test_fn_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "102112",
+    "https://github.com/pytorch/pytorch/issues/102112",
+    [
+      "inductor"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "101769",
     "https://github.com/pytorch/pytorch/issues/101769",
@@ -1430,11 +1447,25 @@
       "linux"
     ]
   ],
+  "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "102113",
+    "https://github.com/pytorch/pytorch/issues/102113",
+    [
+      "inductor"
+    ]
+  ],
   "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "95148",
     "https://github.com/pytorch/pytorch/issues/95148",
     [
       "linux"
+    ]
+  ],
+  "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
+    "102115",
+    "https://github.com/pytorch/pytorch/issues/102115",
+    [
+      "inductor"
     ]
   ],
   "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
