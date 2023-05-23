@@ -20,6 +20,6 @@ runs:
         repository: pytorch/test-infra
         path: _test-infra
     - name: Run Script to Validate Alerts
-      run: python scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
+      run: python tools/scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
     # - name: Run Script to Upload Alerts
-    #   run: python scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
+    #   run: python tools/scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
