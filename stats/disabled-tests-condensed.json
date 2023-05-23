@@ -488,8 +488,8 @@
     "102074",
     "https://github.com/pytorch/pytorch/issues/102074",
     [
-      "linux",
-      "inductor"
+      "inductor",
+      "linux"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
