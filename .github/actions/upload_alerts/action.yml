@@ -1,0 +1,25 @@
+name: 'Verify and Upload Alerts'
+description: 'Verifies and Uploads a set of alerts to AWS'
+inputs:
+  alerts:
+    description: 'JSON string to which represents alerts. It must conform to the alerting schema [put link here]'
+    required: true
+  organization:
+    description: 'GitHub organization alerts are for'
+    required: false
+  repo:
+    description: 'GitHub repository alerts are for'
+    required: false
+    
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout pytorch/test-infra repository
+      uses: actions/checkout@v3
+      with:
+        repository: pytorch/test-infra
+        path: _test-infra
+    - name: Run Script to Validate Alerts
+      run: python scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
+    # - name: Run Script to Upload Alerts
+    #   run: python scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
