@@ -28,7 +28,7 @@ PYTHON_ARCHES_DICT = {
 CUDA_ARCHES_DICT = {
     "nightly": ["11.8", "12.1"],
     "test": ["11.8", "12.1"],
-    "release": ["11.8", "12.1"],
+    "release": ["11.7", "11.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["5.3", "5.4.2"],
