@@ -305,9 +305,10 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
-    "102012",
-    "https://github.com/pytorch/pytorch/issues/102012",
+    "102036",
+    "https://github.com/pytorch/pytorch/issues/102036",
     [
+      "asan",
       "linux"
     ]
   ],
@@ -347,11 +348,10 @@
     []
   ],
   "test_call_parent_non_class_methods_from_child (__main__.DynamicShapesMiscTests)": [
-    "101877",
-    "https://github.com/pytorch/pytorch/issues/101877",
+    "102034",
+    "https://github.com/pytorch/pytorch/issues/102034",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -478,25 +478,24 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "102013",
-    "https://github.com/pytorch/pytorch/issues/102013",
+    "102031",
+    "https://github.com/pytorch/pytorch/issues/102031",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "102014",
-    "https://github.com/pytorch/pytorch/issues/102014",
+    "102033",
+    "https://github.com/pytorch/pytorch/issues/102033",
     [
-      "rocm",
       "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "101908",
-    "https://github.com/pytorch/pytorch/issues/101908",
+    "102030",
+    "https://github.com/pytorch/pytorch/issues/102030",
     [
+      "rocm",
       "inductor"
     ]
   ],
@@ -543,6 +542,23 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_cond_export (__main__.DynamicShapesMiscTests)": [
+    "102032",
+    "https://github.com/pytorch/pytorch/issues/102032",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_cond_export (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "102035",
+    "https://github.com/pytorch/pytorch/issues/102035",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
