@@ -8,7 +8,6 @@ import {
   formDrciSevBody,
   upsertDrCiComment,
 } from "lib/drciUtils";
-import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 
 export default function drciBot(app: Probot): void {
   app.on(
