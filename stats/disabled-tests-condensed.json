@@ -314,15 +314,15 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102011",
-    "https://github.com/pytorch/pytorch/issues/102011",
+    "102146",
+    "https://github.com/pytorch/pytorch/issues/102146",
     [
       "linux"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101843",
-    "https://github.com/pytorch/pytorch/issues/101843",
+    "102144",
+    "https://github.com/pytorch/pytorch/issues/102144",
     [
       "asan",
       "linux"
@@ -356,17 +356,16 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102116",
-    "https://github.com/pytorch/pytorch/issues/102116",
+    "102145",
+    "https://github.com/pytorch/pytorch/issues/102145",
     [
       "linux"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "101751",
-    "https://github.com/pytorch/pytorch/issues/101751",
+    "102143",
+    "https://github.com/pytorch/pytorch/issues/102143",
     [
-      "asan",
       "linux"
     ]
   ],
