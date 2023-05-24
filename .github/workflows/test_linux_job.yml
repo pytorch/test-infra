@@ -137,3 +137,17 @@ jobs:
         conda create --yes --quiet -n test python="${PYTHON_VERSION}"
         conda activate test
         python --version | grep "${PYTHON_VERSION}"
+  test-no-docker:
+    uses: ./.github/workflows/linux_job.yml
+    with:
+      job-name: "no-docker-test"
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      run-with-docker: false
+      script: |
+        export PYTHON_VERSION="3.8"
+        docker run -e PYTHON_VERSION -t -v $PWD:$PWD -w $PWD "${DOCKER_IMAGE}" echo "hello from inside docker"
+        echo "hello from outside docker"
