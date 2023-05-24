@@ -182,6 +182,8 @@ jobs:
             echo 'export DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}"';
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
+          echo "Script below:"
+          cat "${RUNNER_TEMP}/exec_script"
           while read line; do
             eval "export ${line}"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
