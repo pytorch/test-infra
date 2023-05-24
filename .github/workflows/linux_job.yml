@@ -185,7 +185,7 @@ jobs:
           # enclosed in quotes in the env file, so simply eval-ing each line in
           # the file will fail. As a workaround, we eval all env vars except
           # for GITHUB_WORKFLOW here.
-          while read line; do
+          while read -r line; do
             eval "if [[ \"${line}\" != \"GITHUB_WORKFLOW=\"* ]]; then export ${line}; fi"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
