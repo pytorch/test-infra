@@ -493,10 +493,9 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "102117",
-    "https://github.com/pytorch/pytorch/issues/102117",
+    "102137",
+    "https://github.com/pytorch/pytorch/issues/102137",
     [
-      "linux",
       "rocm",
       "inductor"
     ]
