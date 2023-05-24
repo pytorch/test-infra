@@ -186,8 +186,14 @@ jobs:
           # the file will fail. As a workaround, we eval all env vars except
           # for GITHUB_WORKFLOW here.
           while read -r line; do
-            eval "if [[ \"${line}\" != \"GITHUB_WORKFLOW=\"* ]]; then export ${line}; fi"
+            if [[ "${line}" != "GITHUB_WORKFLOW="* ]]; then
+              eval "export ${line}"
+            fi
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          echo "${RUNNER_TEMP}/exec_script"
+          cat "${RUNNER_TEMP}/exec_script"
+          echo "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          cat "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
