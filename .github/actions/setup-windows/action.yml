@@ -36,6 +36,8 @@ runs:
       shell: powershell
       run: |
         Add-MpPreference -ExclusionPath $(Get-Location).tostring() -ErrorAction Ignore
+        Add-MpPreference -ExclusionPath C:\\Users\\runneruser -ErrorAction Ignore
+        Add-MpPreference -ExclusionPath C:\\actions-runner\\_work -ErrorAction Ignore
 
     - name: Setup useful environment variables
       shell: bash
