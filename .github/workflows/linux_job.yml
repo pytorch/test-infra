@@ -68,6 +68,11 @@ on:
         required: false
         default: ''
         type: string
+      run-with-docker:
+        description: "Whether the provided script should run inside a docker container"
+        required: false
+        default: true
+        type: boolean
       secrets-env:
         description: "List of secrets to be exported to environment variables"
         type: string
@@ -144,6 +149,7 @@ jobs:
           target-os: "linux"
 
       - name: Run script in container
+        if: ${{ inputs.run-with-docker == true }}
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         env:
@@ -160,6 +166,29 @@ jobs:
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_docker_with_env_secrets.py" "${{ inputs.secrets-env }}"
+
+      - name: Run script outside container
+        if: ${{ inputs.run-with-docker == false }}
+        continue-on-error: ${{ inputs.continue-on-error }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+        run: |
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            # Source conda so it's available to the script environment
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          # The GITHUB_WORKFLOW env var contains the name of the workflow
+          # defined at the top of the workflow file. Unfortunately this is not
+          # enclosed in quotes in the env file, so simply eval-ing each line in
+          # the file will fail. As a workaround, we eval all env vars except
+          # for GITHUB_WORKFLOW here.
+          while read -r line; do
+            eval "if [[ \"${line}\" != \"GITHUB_WORKFLOW=\"* ]]; then export ${line}; fi"
+          done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
         if: always()
