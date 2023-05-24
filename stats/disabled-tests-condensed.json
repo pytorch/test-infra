@@ -314,11 +314,12 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102164",
-    "https://github.com/pytorch/pytorch/issues/102164",
+    "102158",
+    "https://github.com/pytorch/pytorch/issues/102158",
     [
       "linux",
-      "rocm"
+      "mac",
+      "macos"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
