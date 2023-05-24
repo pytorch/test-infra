@@ -67,6 +67,9 @@ const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`
 const LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
+// The number of digit after decimal to display on the detail page
+const SCALE = 4;
+
 function CommitPanel({
   suite,
   branch,
@@ -362,7 +365,11 @@ function ModelPanel({
                 }
 
                 if (v.r === undefined) {
-                  return <>{v.l} (<strong>NEW!</strong>)</>;
+                  return (
+                    <>
+                      {v.l} (<strong>NEW!</strong>)
+                    </>
+                  );
                 } else if (lCommit === rCommit || v.l === v.r) {
                   return v.l;
                 } else {
@@ -418,8 +425,8 @@ function ModelPanel({
                   return "";
                 }
 
-                const l = Number(v.l).toFixed(2);
-                const r = Number(v.r).toFixed(2);
+                const l = Number(v.l).toFixed(SCALE);
+                const r = Number(v.r).toFixed(SCALE);
 
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
@@ -557,8 +564,8 @@ function ModelPanel({
                   return "";
                 }
 
-                const l = Number(v.l).toFixed(2);
-                const r = Number(v.r).toFixed(2);
+                const l = Number(v.l).toFixed(SCALE);
+                const r = Number(v.r).toFixed(SCALE);
 
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
@@ -647,11 +654,13 @@ function GraphPanel({
       );
     })
     .map((record: CompilerPerformanceData) => {
-      record.speedup = Number(record.speedup.toFixed(2));
+      record.speedup = Number(record.speedup.toFixed(SCALE));
       record.compilation_latency = Number(
         record.compilation_latency.toFixed(0)
       );
-      record.compression_ratio = Number(record.compression_ratio.toFixed(2));
+      record.compression_ratio = Number(
+        record.compression_ratio.toFixed(SCALE)
+      );
       // Truncate the data to make it consistent with the display value
       return record;
     });
@@ -689,115 +698,126 @@ function GraphPanel({
 
   return (
     <>
-    <div>
-    <h2>Details for {model}</h2>
-    <Grid container spacing={2}>
-      <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={chartData}
-          series={geomeanSeries}
-          title={`Geomean`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit.toFixed(2)}`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              scale: true,
-            },
-            label: {
-              show: true,
-              align: "left",
-              formatter: (r: any) => {
-                return Number(r.value[1]).toFixed(2);
-              },
-            },
-          }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={chartData}
-          series={compTimeSeries}
-          title={`Mean compilation time`}
-          groupByFieldName={groupByFieldName}
-          yAxisLabel={"second"}
-          yAxisRenderer={(unit) => {
-            return `${unit.toFixed(0)}`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              scale: true,
-            },
-            label: {
-              show: true,
-              align: "left",
-              formatter: (r: any) => {
-                return Number(r.value[1]).toFixed(0);
-              },
-            },
-          }}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
-        <TimeSeriesPanelWithData
-          data={chartData}
-          series={memorySeries}
-          title={`Peak memory footprint compression ratio`}
-          groupByFieldName={groupByFieldName}
-          yAxisRenderer={(unit) => {
-            return `${unit.toFixed(2)}`;
-          }}
-          additionalOptions={{
-            yAxis: {
-              scale: true,
-            },
-            label: {
-              show: true,
-              align: "left",
-              formatter: (r: any) => {
-                return Number(r.value[1]).toFixed(2);
-              },
-            },
-          }}
-        />
-      </Grid>
-    </Grid>
-    </div>
-    <div>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Commit</th>
-            <th>Accuracy</th>
-            <th>Speedup</th>
-            <th>Comptime</th>
-            <th>Memory</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartData.map((entry: any, index: number) => {
-            let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
-            return (
-              <tr key={index}>
-                <td>{entry.granularity_bucket}</td>
-                <td><code><a onClick={() => navigator.clipboard.writeText(commit)} className="animate-on-click">{commit}</a></code></td>
-                <td>{entry.accuracy}</td>
-                <td>{entry.speedup}</td>
-                <td>{entry.compilation_latency}</td>
-                <td>{entry.compression_ratio}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
       <div>
-        Tip: to view all commits between two commits, run <code>git log --oneline START..END</code> (NB: this will exclude the START commit itself, which is typically what you want.)
+        <h2>Details for {model}</h2>
+        <Grid container spacing={2}>
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={geomeanSeries}
+              title={`Geomean`}
+              groupByFieldName={groupByFieldName}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(SCALE)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(SCALE);
+                  },
+                },
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={compTimeSeries}
+              title={`Mean compilation time`}
+              groupByFieldName={groupByFieldName}
+              yAxisLabel={"second"}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(0)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(0);
+                  },
+                },
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={memorySeries}
+              title={`Peak memory footprint compression ratio`}
+              groupByFieldName={groupByFieldName}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(SCALE)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(SCALE);
+                  },
+                },
+              }}
+            />
+          </Grid>
+        </Grid>
       </div>
-    </div>
+      <div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Commit</th>
+              <th>Accuracy</th>
+              <th>Speedup</th>
+              <th>Comptime</th>
+              <th>Memory</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chartData.map((entry: any, index: number) => {
+              let commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+              return (
+                <tr key={index}>
+                  <td>{entry.granularity_bucket}</td>
+                  <td>
+                    <code>
+                      <a
+                        onClick={() => navigator.clipboard.writeText(commit)}
+                        className="animate-on-click"
+                      >
+                        {commit}
+                      </a>
+                    </code>
+                  </td>
+                  <td>{entry.accuracy}</td>
+                  <td>{entry.speedup}</td>
+                  <td>{entry.compilation_latency}</td>
+                  <td>{entry.compression_ratio}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div>
+          Tip: to view all commits between two commits, run{" "}
+          <code>git log --oneline START..END</code> (NB: this will exclude the
+          START commit itself, which is typically what you want.)
+        </div>
+      </div>
     </>
   );
 }

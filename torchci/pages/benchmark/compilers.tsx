@@ -79,6 +79,13 @@ export const SPEEDUP_THRESHOLD = 0.95;
 export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
+// When calculating geomean, all the values are clipped to the lower bound of 1.0
+// because if the speed up is less than 1.0, one can use eager mode instead
+export const GEOMEAN_LOWER_BOUND = 1.0;
+
+// The number of digit after decimal to display on the summary page
+const SCALE = 2;
+
 // Headers
 export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
@@ -229,9 +236,9 @@ function geomean(data: number[]) {
 
   var gm = 1.0;
   data.forEach((v) => {
-    gm *= v;
+    gm *= v < GEOMEAN_LOWER_BOUND ? GEOMEAN_LOWER_BOUND : v;
   });
-  return Math.pow(gm, 1.0 / data.length).toFixed(2);
+  return Math.pow(gm, 1.0 / data.length).toFixed(SCALE);
 }
 
 function computeGeomean(
@@ -363,7 +370,7 @@ function computeCompilationTime(
               workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
-              compilation_latency: m.toFixed(2),
+              compilation_latency: m.toFixed(SCALE),
             });
           }
         );
@@ -436,7 +443,7 @@ function computeMemoryCompressionRatio(
               workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
-              compression_ratio: m.toFixed(2),
+              compression_ratio: m.toFixed(SCALE),
             });
           }
         );
@@ -1092,8 +1099,8 @@ function SummaryPanel({
                       params.row.compiler
                     }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
-                    const l = Number(v.l).toFixed(2);
-                    const r = Number(v.r).toFixed(2);
+                    const l = Number(v.l).toFixed(SCALE);
+                    const r = Number(v.r).toFixed(SCALE);
 
                     if (
                       lCommit === rCommit ||
@@ -1287,8 +1294,8 @@ function SummaryPanel({
                       params.row.compiler
                     }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
-                    const l = Number(v.l).toFixed(2);
-                    const r = Number(v.r).toFixed(2);
+                    const l = Number(v.l).toFixed(SCALE);
+                    const r = Number(v.r).toFixed(SCALE);
 
                     if (
                       lCommit === rCommit ||
