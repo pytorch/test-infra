@@ -329,10 +329,9 @@
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102193",
-    "https://github.com/pytorch/pytorch/issues/102193",
+    "102215",
+    "https://github.com/pytorch/pytorch/issues/102215",
     [
-      "asan",
       "linux"
     ]
   ],
@@ -357,10 +356,13 @@
     []
   ],
   "test_call_parent_non_class_methods_from_child (__main__.DynamicShapesMiscTests)": [
-    "102034",
-    "https://github.com/pytorch/pytorch/issues/102034",
+    "102214",
+    "https://github.com/pytorch/pytorch/issues/102214",
     [
-      "linux"
+      "asan",
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.MiscTests)": [
@@ -519,9 +521,11 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
-    "102150",
-    "https://github.com/pytorch/pytorch/issues/102150",
+    "102213",
+    "https://github.com/pytorch/pytorch/issues/102213",
     [
+      "linux",
+      "rocm",
       "inductor"
     ]
   ],
@@ -579,17 +583,17 @@
     ]
   ],
   "test_cond_export (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102035",
-    "https://github.com/pytorch/pytorch/issues/102035",
+    "102216",
+    "https://github.com/pytorch/pytorch/issues/102216",
     [
-      "asan",
       "linux"
     ]
   ],
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101851",
-    "https://github.com/pytorch/pytorch/issues/101851",
+    "102217",
+    "https://github.com/pytorch/pytorch/issues/102217",
     [
+      "asan",
       "linux"
     ]
   ],
