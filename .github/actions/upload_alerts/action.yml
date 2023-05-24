@@ -20,6 +20,8 @@ runs:
         repository: pytorch/test-infra
         path: _test-infra
     - name: Run Script to Validate Alerts
+      if: github.event_name != 'pull_request'
       run: python tools/scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
-    # - name: Run Script to Upload Alerts
-    #   run: python tools/scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
+    - name: Run Script to Upload Alerts
+      if: github.event_name != 'pull_request'
+      run: python tools/scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
