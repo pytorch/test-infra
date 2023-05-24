@@ -7,12 +7,9 @@ import io
 import json
 import os
 import xml.etree.ElementTree as ET
-import zipfile
-from pathlib import Path
 from typing import Any, Dict, List
 
 import boto3  # type: ignore[import]
-import requests
 import rockset  # type: ignore[import]
 
 S3_RESOURCE = boto3.resource("s3")
@@ -46,14 +43,14 @@ def get_recent_alerts(orgname, reponame):
 
     # Define the name of the Rockset collection and lambda function
     collection_name = "commons"
-    lambda_function_name = "get_recent_alerts"
+    lambda_function_name = "get_relevant_alerts"
     query_parameters = [
         rockset.models.QueryParameter(name="repo", type="string", value=reponame),
-        rockset.models.QueryParameter(name="org", type="string", value=orgname),
+        rockset.models.QueryParameter(name="organization", type="string", value=orgname),
     ]
     api_response = rs.QueryLambdas.execute_query_lambda(
         query_lambda=lambda_function_name,
-        version="692684fa5b37177f",
+        version="ba8b0b824e799c45",
         parameters=query_parameters,
     )
     return api_response["results"]
@@ -89,12 +86,13 @@ if __name__ == '__main__':
     parser.add_argument('--org', type=str, required=True, help="Organization of repository for alerts")
     parser.add_argument('--repo', type=str, required=True, help="Repository for alerts")
     args = parser.parse_args()
-    timestamp = datetime.datetime.now().isoformat()
+    timestamp = datetime.datetime.utcnow().isoformat()
     new_alerts = append_metadata(args.alerts, args.org, args.repo, timestamp)
     current_alerts = get_recent_alerts(args.org, args.repo)
     data = merge_alerts(current_alerts, new_alerts)
+    data = new_alerts
     upload_to_s3(       
         bucket_name="torchci-alerts",
-        key=f"test_alerts/{args.org}/{args.repo}/{str(timestamp)}",
+        key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
         docs= data)
 
