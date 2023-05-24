@@ -185,7 +185,7 @@ jobs:
           cat "${RUNNER_TEMP}/exec_script"
           cat "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           while read line; do
-            eval "export ${line}"
+            eval "if [[ \"${line}\" != \"GITHUB_WORKFLOW=\"* ]]; then export ${line}; fi"
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
 
