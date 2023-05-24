@@ -178,7 +178,6 @@ jobs:
             echo "#!/usr/bin/env bash";
             echo "set -eou pipefail";
             # Source conda so it's available to the script environment
-            echo 'eval "$(conda shell.bash hook)"';
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           echo "Script below:"
