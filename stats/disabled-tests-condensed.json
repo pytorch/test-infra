@@ -169,12 +169,12 @@
     ]
   ],
   "test_attn_cuda (__main__.TestMin)": [
-    "86712",
-    "https://github.com/pytorch/pytorch/issues/86712",
+    "86710",
+    "https://github.com/pytorch/pytorch/issues/86710",
     [
+      "linux",
       "win",
-      "windows",
-      "linux"
+      "windows"
     ]
   ],
   "test_average_parameters (__main__.TestDistBackendWithSpawn)": [
@@ -329,9 +329,10 @@
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102215",
-    "https://github.com/pytorch/pytorch/issues/102215",
+    "102144",
+    "https://github.com/pytorch/pytorch/issues/102144",
     [
+      "asan",
       "linux"
     ]
   ],
@@ -356,13 +357,11 @@
     []
   ],
   "test_call_parent_non_class_methods_from_child (__main__.DynamicShapesMiscTests)": [
-    "102214",
-    "https://github.com/pytorch/pytorch/issues/102214",
+    "101877",
+    "https://github.com/pytorch/pytorch/issues/101877",
     [
-      "asan",
       "linux",
-      "mac",
-      "macos"
+      "rocm"
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.MiscTests)": [
@@ -374,10 +373,11 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102116",
-    "https://github.com/pytorch/pytorch/issues/102116",
+    "101852",
+    "https://github.com/pytorch/pytorch/issues/101852",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -389,12 +389,10 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102189",
-    "https://github.com/pytorch/pytorch/issues/102189",
+    "101840",
+    "https://github.com/pytorch/pytorch/issues/101840",
     [
-      "mac",
-      "macos",
-      "rocm"
+      "linux"
     ]
   ],
   "test_cat (test_jit.TestScript)": [
@@ -498,33 +496,31 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "102031",
-    "https://github.com/pytorch/pytorch/issues/102031",
+    "101869",
+    "https://github.com/pytorch/pytorch/issues/101869",
     [
-      "linux"
+      "rocm",
+      "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "102074",
-    "https://github.com/pytorch/pytorch/issues/102074",
+    "101966",
+    "https://github.com/pytorch/pytorch/issues/101966",
     [
-      "inductor",
-      "linux"
+      "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "102159",
-    "https://github.com/pytorch/pytorch/issues/102159",
+    "101908",
+    "https://github.com/pytorch/pytorch/issues/101908",
     [
-      "linux"
+      "inductor"
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
-    "102213",
-    "https://github.com/pytorch/pytorch/issues/102213",
+    "102044",
+    "https://github.com/pytorch/pytorch/issues/102044",
     [
-      "linux",
-      "rocm",
       "inductor"
     ]
   ],
@@ -589,10 +585,9 @@
     ]
   ],
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102217",
-    "https://github.com/pytorch/pytorch/issues/102217",
+    "101851",
+    "https://github.com/pytorch/pytorch/issues/101851",
     [
-      "asan",
       "linux"
     ]
   ],
@@ -1017,8 +1012,8 @@
     ]
   ],
   "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
+    "101748",
+    "https://github.com/pytorch/pytorch/issues/101748",
     [
       "dynamo"
     ]
@@ -1109,8 +1104,8 @@
     ]
   ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
-    "101769",
-    "https://github.com/pytorch/pytorch/issues/101769",
+    "101755",
+    "https://github.com/pytorch/pytorch/issues/101755",
     [
       "inductor"
     ]
@@ -1608,8 +1603,8 @@
     []
   ],
   "test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA)": [
-    "77026",
-    "https://github.com/pytorch/pytorch/issues/77026",
+    "77023",
+    "https://github.com/pytorch/pytorch/issues/77023",
     []
   ],
   "test_mm_batching (test_jit.TestScript)": [
