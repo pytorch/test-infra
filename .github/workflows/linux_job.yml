@@ -68,6 +68,11 @@ on:
         required: false
         default: ''
         type: string
+      run-with-docker:
+        description: "Whether the provided script should run inside a docker container"
+        required: false
+        default: true
+        type: boolean
       secrets-env:
         description: "List of secrets to be exported to environment variables"
         type: string
@@ -144,6 +149,7 @@ jobs:
           target-os: "linux"
 
       - name: Run script in container
+        if: ${{ inputs.run-with-docker == true }}
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository }}
         env:
@@ -160,6 +166,27 @@ jobs:
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
           python3 "${{ github.workspace }}/test-infra/.github/scripts/run_docker_with_env_secrets.py" "${{ inputs.secrets-env }}"
+
+      - name: Run script outside container
+        if: ${{ inputs.run-with-docker == false }}
+        continue-on-error: ${{ inputs.continue-on-error }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          ALL_SECRETS: ${{ toJSON(secrets) }}
+          DOCKER_IMAGE: ${{  }}
+        run: |
+          {
+            echo "#!/usr/bin/env bash";
+            echo "set -eou pipefail";
+            # Source conda so it's available to the script environment
+            echo 'eval "$(conda shell.bash hook)"';
+            echo 'export DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}';
+            echo "${SCRIPT}";
+          } > "${RUNNER_TEMP}/exec_script"
+          while read line; do
+            eval "export ${line}"
+          done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+          bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
         if: always()
