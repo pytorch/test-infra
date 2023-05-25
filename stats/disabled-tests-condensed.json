@@ -232,20 +232,6 @@
       "mac"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "99026",
-    "https://github.com/pytorch/pytorch/issues/99026",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "98998",
-    "https://github.com/pytorch/pytorch/issues/98998",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98046",
     "https://github.com/pytorch/pytorch/issues/98046",
@@ -253,23 +239,9 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_int16 (__main__.TestForeachCUDA)": [
-    "100755",
-    "https://github.com/pytorch/pytorch/issues/100755",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
     "101786",
     "https://github.com/pytorch/pytorch/issues/101786",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "100159",
-    "https://github.com/pytorch/pytorch/issues/100159",
     [
       "rocm"
     ]
@@ -329,10 +301,9 @@
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102144",
-    "https://github.com/pytorch/pytorch/issues/102144",
+    "102151",
+    "https://github.com/pytorch/pytorch/issues/102151",
     [
-      "asan",
       "linux"
     ]
   ],
@@ -425,13 +396,6 @@
   "test_checkpoint_wrapper_parity (__main__.CheckpointWrapperTest)": [
     "79510",
     "https://github.com/pytorch/pytorch/issues/79510",
-    [
-      "linux"
-    ]
-  ],
-  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
-    "100074",
-    "https://github.com/pytorch/pytorch/issues/100074",
     [
       "linux"
     ]
@@ -613,6 +577,13 @@
       "linux"
     ]
   ],
+  "test_cond_nested (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "101731",
+    "https://github.com/pytorch/pytorch/issues/101731",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_nested_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102192",
     "https://github.com/pytorch/pytorch/issues/102192",
@@ -675,13 +646,6 @@
     "https://github.com/pytorch/pytorch/issues/79750",
     [
       "linux"
-    ]
-  ],
-  "test_cycle_lr_removed_after_out_of_scope (__main__.TestLRScheduler)": [
-    "87748",
-    "https://github.com/pytorch/pytorch/issues/87748",
-    [
-      "dynamo"
     ]
   ],
   "test_dataclass_output (__main__.DistributedDataParallelTest)": [
@@ -855,22 +819,6 @@
   "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
     "80325",
     "https://github.com/pytorch/pytorch/issues/80325",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_false_none (__main__.TestParityWithDDP)": [
-    "82704",
-    "https://github.com/pytorch/pytorch/issues/82704",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_false_shard_grad_op (__main__.TestParityWithDDP)": [
-    "82398",
-    "https://github.com/pytorch/pytorch/issues/82398",
     [
       "linux",
       "rocm"
@@ -1110,13 +1058,6 @@
       "inductor"
     ]
   ],
-  "test_fn_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "94216",
-    "https://github.com/pytorch/pytorch/issues/94216",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad_linalg_det_singular_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "93044",
     "https://github.com/pytorch/pytorch/issues/93044",
@@ -1206,25 +1147,11 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_logsumexp_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "100190",
-    "https://github.com/pytorch/pytorch/issues/100190",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
     [
       "inductor"
-    ]
-  ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
-    [
-      "linux"
     ]
   ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
@@ -1303,62 +1230,6 @@
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
     "https://github.com/pytorch/pytorch/issues/82866",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93051",
-    "https://github.com/pytorch/pytorch/issues/93051",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "98295",
-    "https://github.com/pytorch/pytorch/issues/98295",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94507",
-    "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93049",
-    "https://github.com/pytorch/pytorch/issues/93049",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94531",
-    "https://github.com/pytorch/pytorch/issues/94531",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94625",
-    "https://github.com/pytorch/pytorch/issues/94625",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
@@ -1461,13 +1332,6 @@
       "macos"
     ]
   ],
-  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "100520",
-    "https://github.com/pytorch/pytorch/issues/100520",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "102113",
     "https://github.com/pytorch/pytorch/issues/102113",
@@ -1475,25 +1339,11 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "102115",
     "https://github.com/pytorch/pytorch/issues/102115",
     [
       "inductor"
-    ]
-  ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
     ]
   ],
   "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1506,13 +1356,6 @@
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
-    [
-      "linux"
-    ]
-  ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
     [
       "linux"
     ]
@@ -1539,13 +1382,6 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
-    [
-      "linux"
-    ]
-  ],
-  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93064",
-    "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
     ]
@@ -1654,14 +1490,6 @@
     [
       "linux",
       "mac",
-      "macos"
-    ]
-  ],
-  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
-    "88467",
-    "https://github.com/pytorch/pytorch/issues/88467",
-    [
-      "linux",
       "macos"
     ]
   ],
@@ -1803,13 +1631,6 @@
       "linux"
     ]
   ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
-    "97940",
-    "https://github.com/pytorch/pytorch/issues/97940",
-    [
-      "rocm"
-    ]
-  ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96760",
     "https://github.com/pytorch/pytorch/issues/96760",
@@ -1834,13 +1655,6 @@
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "96550",
     "https://github.com/pytorch/pytorch/issues/96550",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "96375",
-    "https://github.com/pytorch/pytorch/issues/96375",
     [
       "rocm"
     ]
@@ -2220,26 +2034,12 @@
     "https://github.com/pytorch/pytorch/issues/60494",
     []
   ],
-  "test_variable_sequence_cuda_float64 (__main__.TestNNDeviceTypeCUDA)": [
-    "86655",
-    "https://github.com/pytorch/pytorch/issues/86655",
-    [
-      "linux"
-    ]
-  ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
     "95412",
     "https://github.com/pytorch/pytorch/issues/95412",
     [
       "win",
       "windows",
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
-    "87070",
-    "https://github.com/pytorch/pytorch/issues/87070",
-    [
       "linux"
     ]
   ],
@@ -2269,13 +2069,6 @@
     "https://github.com/pytorch/pytorch/issues/101828",
     [
       "rocm"
-    ]
-  ],
-  "test_vmapjvpall_linalg_lu_factor_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "100687",
-    "https://github.com/pytorch/pytorch/issues/100687",
-    [
-      "linux"
     ]
   ],
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
