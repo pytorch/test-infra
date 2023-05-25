@@ -998,11 +998,6 @@
       "linux"
     ]
   ],
-  "test_fd_pool (__main__.TestMultiprocessing)": [
-    "69660",
-    "https://github.com/pytorch/pytorch/issues/69660",
-    []
-  ],
   "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
     "82632",
     "https://github.com/pytorch/pytorch/issues/82632",
@@ -1245,6 +1240,13 @@
   "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93051",
     "https://github.com/pytorch/pytorch/issues/93051",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "98295",
+    "https://github.com/pytorch/pytorch/issues/98295",
     [
       "linux"
     ]
