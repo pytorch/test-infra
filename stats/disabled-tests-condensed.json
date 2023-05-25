@@ -1671,13 +1671,6 @@
       "linux"
     ]
   ],
-  "test_optional_tensor (test_jit.TestScript)": [
-    "91494",
-    "https://github.com/pytorch/pytorch/issues/91494",
-    [
-      "linux"
-    ]
-  ],
   "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
     "78112",
     "https://github.com/pytorch/pytorch/issues/78112",
