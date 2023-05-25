@@ -1,4 +1,18 @@
 {
+  "test_Conv2d_no_bias_cuda_tf32 (__main__.TestNN)": [
+    "102291",
+    "https://github.com/pytorch/pytorch/issues/102291",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>",
+      "linux"
+    ]
+  ],
   "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
     "77317",
     "https://github.com/pytorch/pytorch/issues/77317",
@@ -501,6 +515,21 @@
     "https://github.com/pytorch/pytorch/issues/76962",
     [
       "linux"
+    ]
+  ],
+  "test_comprehensive_nn_functional_conv_transpose3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "102290",
+    "https://github.com/pytorch/pytorch/issues/102290",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>",
+      "linux",
+      "inductor"
     ]
   ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
@@ -1638,13 +1667,6 @@
   "test_optional_list (test_jit.TestScript)": [
     "91484",
     "https://github.com/pytorch/pytorch/issues/91484",
-    [
-      "linux"
-    ]
-  ],
-  "test_optional_tensor (test_jit.TestScript)": [
-    "91494",
-    "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
     ]
