@@ -3,6 +3,7 @@ import * as utils from "./utils";
 import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
 import dayjs from "dayjs";
 import { handleScope } from "./common";
+import { IssueData } from "lib/types";
 
 nock.disableNetConnect();
 
@@ -485,6 +486,8 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 });
 
 describe("Disable Flaky Test Bot Unit Tests", () => {
+  const octokit = utils.testOctokit();
+
   beforeEach(() => {});
 
   afterEach(() => {
@@ -875,5 +878,46 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         flakyTests
       )
     ).toEqual([nonFlakyTestZ]);
+  });
+
+  test("dedupFlakyTestIssues favors correct issues", async () => {
+    const openSmall: IssueData = {
+      number: 1,
+      title: "",
+      html_url: "",
+      state: "open",
+      body: "",
+      updated_at: "",
+      author_association: "MEMBER",
+    };
+    const closedSmall: IssueData = { ...openSmall, number: 2, state: "closed" };
+    const openBig: IssueData = { ...openSmall, number: 3 };
+    const closedBig: IssueData = { ...openSmall, number: 4, state: "closed" };
+
+    async function helper(
+      input: IssueData[],
+      expected: IssueData,
+      closed: IssueData[]
+    ) {
+      const scope = nock("https://api.github.com");
+      for (const issue of closed) {
+        scope.patch(`/repos/pytorch/pytorch/issues/${issue.number}`).reply(200);
+      }
+      expect(
+        await disableFlakyTestBot.dedupFlakyTestIssues(octokit, input)
+      ).toEqual([expected]);
+      scope.done();
+    }
+
+    // Definitely not the entire range of possibilities
+    await helper([openSmall], openSmall, []);
+    await helper([openSmall, closedSmall], openSmall, []);
+    await helper([openSmall, openBig, closedSmall], openBig, [openSmall]);
+    await helper([openSmall, openBig], openBig, [openSmall]);
+    await helper([openSmall, openBig, closedBig, closedSmall], openBig, [
+      openSmall,
+    ]);
+    await helper([closedSmall, closedBig], closedBig, []);
+    await helper([closedSmall, openSmall], openSmall, []);
   });
 });
