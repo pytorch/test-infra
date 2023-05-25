@@ -285,6 +285,13 @@
       "macos"
     ]
   ],
+  "test_build_tuple_unpack (__main__.MiscTests)": [
+    "102246",
+    "https://github.com/pytorch/pytorch/issues/102246",
+    [
+      "rocm"
+    ]
+  ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101783",
     "https://github.com/pytorch/pytorch/issues/101783",
@@ -475,9 +482,11 @@
     ]
   ],
   "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "101908",
-    "https://github.com/pytorch/pytorch/issues/101908",
+    "102117",
+    "https://github.com/pytorch/pytorch/issues/102117",
     [
+      "linux",
+      "rocm",
       "inductor"
     ]
   ],
