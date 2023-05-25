@@ -1496,13 +1496,6 @@
     "https://github.com/pytorch/pytorch/issues/77023",
     []
   ],
-  "test_mm_batching (test_jit.TestScript)": [
-    "91496",
-    "https://github.com/pytorch/pytorch/issues/91496",
-    [
-      "linux"
-    ]
-  ],
   "test_mobilenet_v2 (__main__.TestNumericSuiteEager)": [
     "100439",
     "https://github.com/pytorch/pytorch/issues/100439",
