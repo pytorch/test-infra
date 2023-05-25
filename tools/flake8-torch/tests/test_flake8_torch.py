@@ -1,4 +1,3 @@
-import ast
 from pathlib import Path
 from flake8_torch.checker import TorchChecker
 import logging
@@ -8,13 +7,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _results(s):
-    tree = ast.parse(s)
-    checker = TorchChecker(tree)
+    checker = TorchChecker(None, s)
     return [f"{line}:{col} {msg}" for line, col, msg, _ in checker.run()]
 
 
 def test_empty():
-    assert _results("") == []
+    assert _results([""]) == []
 
 
 def test_fixtures():
@@ -27,4 +25,4 @@ def test_fixtures():
                 expected_results.append(line.rstrip())
 
         with open(source_path) as source:
-            assert _results(source.read()) == expected_results
+            assert _results(source.readlines()) == expected_results
