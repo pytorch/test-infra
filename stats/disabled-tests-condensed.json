@@ -293,11 +293,10 @@
     ]
   ],
   "test_build_tuple_unpack (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101783",
-    "https://github.com/pytorch/pytorch/issues/101783",
+    "101799",
+    "https://github.com/pytorch/pytorch/issues/101799",
     [
-      "linux",
-      "rocm"
+      "linux"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -367,8 +366,8 @@
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101840",
-    "https://github.com/pytorch/pytorch/issues/101840",
+    "102114",
+    "https://github.com/pytorch/pytorch/issues/102114",
     [
       "linux"
     ]
@@ -1243,6 +1242,20 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93051",
+    "https://github.com/pytorch/pytorch/issues/93051",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93063",
+    "https://github.com/pytorch/pytorch/issues/93063",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1499,6 +1512,14 @@
     [
       "linux",
       "mac",
+      "macos"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
+    "88467",
+    "https://github.com/pytorch/pytorch/issues/88467",
+    [
+      "linux",
       "macos"
     ]
   ],
