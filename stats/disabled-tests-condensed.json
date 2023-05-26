@@ -796,6 +796,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_broadcast2_broadcast3 (__main__.SweepInputsCpuTest)": [
+    "102404",
+    "https://github.com/pytorch/pytorch/issues/102404",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_broadcast2_dense (__main__.SweepInputsCpuTest)": [
     "102350",
     "https://github.com/pytorch/pytorch/issues/102350",
@@ -810,6 +817,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_broadcast2_int (__main__.SweepInputsCpuTest)": [
+    "102405",
+    "https://github.com/pytorch/pytorch/issues/102405",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_broadcast2_strided (__main__.SweepInputsCpuTest)": [
     "102365",
     "https://github.com/pytorch/pytorch/issues/102365",
@@ -820,6 +834,20 @@
   "test_cpu_broadcast2_transposed (__main__.SweepInputsCpuTest)": [
     "102366",
     "https://github.com/pytorch/pytorch/issues/102366",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast3_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102403",
+    "https://github.com/pytorch/pytorch/issues/102403",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast3_dense (__main__.SweepInputsCpuTest)": [
+    "102406",
+    "https://github.com/pytorch/pytorch/issues/102406",
     [
       "rocm"
     ]
@@ -1637,8 +1665,8 @@
     ]
   ],
   "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93417",
-    "https://github.com/pytorch/pytorch/issues/93417",
+    "100520",
+    "https://github.com/pytorch/pytorch/issues/100520",
     [
       "linux"
     ]
@@ -1853,8 +1881,8 @@
     ]
   ],
   "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
-    "98713",
-    "https://github.com/pytorch/pytorch/issues/98713",
+    "101067",
+    "https://github.com/pytorch/pytorch/issues/101067",
     [
       "linux"
     ]
