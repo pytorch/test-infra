@@ -264,6 +264,7 @@ def generate_failed_job_issue(
     body += "Please review the errors and revert if needed."
     issue["body"] = body
     issue["labels"] = [PYTORCH_ALERT_LABEL]
+    issue["state"] = "open"
 
     print("Generating alerts for: ", failed_jobs)
     return issue
