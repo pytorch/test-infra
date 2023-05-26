@@ -83,6 +83,13 @@
       "rocm"
     ]
   ],
+  "test_after_aot_cpu_accuracy_error (__main__.MinifierTests)": [
+    "102327",
+    "https://github.com/pytorch/pytorch/issues/102327",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -406,6 +413,13 @@
       "linux"
     ]
   ],
+  "test_cat_mul (__main__.CPUReproTests)": [
+    "102321",
+    "https://github.com/pytorch/pytorch/issues/102321",
+    [
+      "rocm"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -701,6 +715,27 @@
   "test_cpu_broadcast1_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102308",
     "https://github.com/pytorch/pytorch/issues/102308",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast1_dense (__main__.SweepInputsCpuTest)": [
+    "102324",
+    "https://github.com/pytorch/pytorch/issues/102324",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast1_strided (__main__.SweepInputsCpuTest)": [
+    "102323",
+    "https://github.com/pytorch/pytorch/issues/102323",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast1_transposed (__main__.SweepInputsCpuTest)": [
+    "102322",
+    "https://github.com/pytorch/pytorch/issues/102322",
     [
       "rocm"
     ]
@@ -1234,6 +1269,13 @@
       "inductor"
     ]
   ],
+  "test_fn_gradgrad_triangular_solve_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94770",
+    "https://github.com/pytorch/pytorch/issues/94770",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1342,6 +1384,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94531",
+    "https://github.com/pytorch/pytorch/issues/94531",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -1432,9 +1481,23 @@
       "rocm"
     ]
   ],
+  "test_inductor_config_changes_warning (__main__.TestInductorConfig)": [
+    "102326",
+    "https://github.com/pytorch/pytorch/issues/102326",
+    [
+      "rocm"
+    ]
+  ],
   "test_inductor_via_bare_module (__main__.TestStandaloneInductor)": [
     "102303",
     "https://github.com/pytorch/pytorch/issues/102303",
+    [
+      "rocm"
+    ]
+  ],
+  "test_inductor_via_export1 (__main__.TestStandaloneInductor)": [
+    "102325",
+    "https://github.com/pytorch/pytorch/issues/102325",
     [
       "rocm"
     ]
@@ -1452,6 +1515,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93417",
+    "https://github.com/pytorch/pytorch/issues/93417",
+    [
+      "linux"
     ]
   ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1659,6 +1729,13 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
+    [
+      "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
+    "101067",
+    "https://github.com/pytorch/pytorch/issues/101067",
     [
       "linux"
     ]
