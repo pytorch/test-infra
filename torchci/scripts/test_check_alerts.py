@@ -156,7 +156,7 @@ class TestGitHubPR(TestCase):
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
         original_issue = {"closed": False}
-        original_issue['body'] = (
+        original_issue["body"] = (
             "- [job1](a) failed consecutively starting with commit []()\n"
             "- [job2](a) failed consecutively starting with commit []()"
         )
@@ -164,13 +164,15 @@ class TestGitHubPR(TestCase):
         self.assertFalse(update_comment)
 
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        original_issue['body'] = "- [job1](a) failed consecutively starting with commit []()"
+        original_issue[
+            "body"
+        ] = "- [job1](a) failed consecutively starting with commit []()"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("started failing" in update_comment)
         self.assertTrue("job2" in update_comment)
 
         jobs = [JobStatus("job1", [{}])]
-        original_issue['body']  = (
+        original_issue["body"] = (
             "- [job1](a) failed consecutively starting with commit []()\n"
             "- [job2](a) failed consecutively starting with commit []()"
         )
