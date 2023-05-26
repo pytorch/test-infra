@@ -44,6 +44,7 @@ jobs:
         run: |
            pip3 install requests setuptools
       - name: Run tests
+        if: ${{ github.event_name == 'pull_request'}}
         run: |
           python3 torchci/scripts/test_check_alerts.py
       - name: Check for alerts and creates issue
@@ -65,6 +66,7 @@ jobs:
         run: |
            pip3 install requests setuptools rockset==1.0.3
       - name: Run tests
+        if: ${{ github.event_name == 'pull_request'}}
         run: |
           python3 torchci/scripts/test_queue_alert.py
       - name: Check for alerts and creates issue
