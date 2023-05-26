@@ -161,9 +161,8 @@ export async function dedupFlakyTestIssues(
   for (const issue of issues) {
     const key = issue.title;
     const existing_issue = deduped.get(key);
-    if (!existing_issue) {
-      deduped.set(key, issue);
-    } else if (
+    if (
+      !existing_issue ||
       (issue.state === existing_issue.state &&
         issue.number > existing_issue.number) ||
       (existing_issue.state === "closed" && issue.state === "open")
