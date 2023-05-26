@@ -50,8 +50,10 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     filterOutPRFlakyTests(allFlakyTests)
   );
 
+  const dedupedIssues = await dedupFlakyTestIssues(octokit, issues);
+
   flakyTestsOnTrunk.forEach(async function (test) {
-    await handleFlakyTest(test, issues, octokit);
+    await handleFlakyTest(test, dedupedIssues, octokit);
   });
 
   // Get the list of non-flaky tests, the list of all flaky tests is used to guarantee
@@ -145,6 +147,44 @@ export function filterOutNonFlakyTests(
   return nonFlakyTests.filter(
     (test) => !flakyTestKeys.includes(`${test.name} / ${test.classname}`)
   );
+}
+
+export async function dedupFlakyTestIssues(
+  octokit: Octokit,
+  issues: IssueData[]
+): Promise<IssueData[]> {
+  // Dedup the list of issues by favoring open issues and issues with the
+  // largest PR number.
+
+  let deduped = new Map<string, IssueData>();
+
+  for (const issue of issues) {
+    const key = issue.title;
+    const existing_issue = deduped.get(key);
+    if (
+      !existing_issue ||
+      (issue.state === existing_issue.state &&
+        issue.number > existing_issue.number) ||
+      (existing_issue.state === "closed" && issue.state === "open")
+    ) {
+      deduped.set(key, issue);
+    }
+  }
+  const dedupedArray = Array.from(deduped.values());
+
+  // Close the issues that aren't favored
+  const dedupedArrayNumbers = dedupedArray.map((i) => i.number);
+  for (const issue of issues) {
+    if (!dedupedArrayNumbers.includes(issue.number) && issue.state === "open") {
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number: issue.number,
+        state: "closed",
+      });
+    }
+  }
+  return dedupedArray;
 }
 
 export async function handleNonFlakyTest(
