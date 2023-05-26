@@ -31,7 +31,7 @@ CANCELED = "canceled"
 ISSUES_WITH_LABEL_QUERY = """
 query ($owner: String!, $name: String!, $labels: [String!]) {
   repository(owner: $owner, name: $name, followRenames: false) {
-    issues(last: 10, labels: $labels, states: [OPEN]) {
+    issues(last: 20, labels: $labels, orderBy: {field: UPDATED_AT, direction: ASC} ) {
       nodes {
         id
         title
@@ -190,28 +190,34 @@ class JobStatus:
 
 
 def fetch_alerts(
-    repo: str, branch: str, alert_repo: str, labels: List[str]
+    labels: List[str],
+    alert_repo_owner: str = REPO_OWNER,
+    alert_repo_name: str = TEST_INFRA_REPO_NAME,
 ) -> List[Any]:
     try:
-        variables = {"owner": REPO_OWNER, "name": alert_repo, "labels": labels}
+        variables = {
+            "owner": alert_repo_owner,
+            "name": alert_repo_name,
+            "labels": labels,
+        }
         r = requests.post(
             GRAPHQL_URL,
             json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
             headers=headers,
         )
         r.raise_for_status()
-
-        data = json.loads(r.text)
-        # Return only alert belonging to the target repo and branch
-        return list(
-            filter(
-                lambda alert: f"Recurrently Failing Jobs on {repo} {branch}"
-                in alert["title"],
-                data["data"]["repository"]["issues"]["nodes"],
-            )
-        )
+        return json.loads(r.text)["data"]["repository"]["issues"]["nodes"]
     except Exception as e:
         raise RuntimeError("Error fetching alerts", e)
+
+
+def fetch_alerts_filter(repo: str, branch: str, labels: List[str]) -> List[Any]:
+    alerts = fetch_alerts(labels)
+    return [
+        alert
+        for alert in alerts
+        if f"Recurrently Failing Jobs on {repo} {branch}" in alert["title"]
+    ]
 
 
 def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str) -> int:
@@ -263,16 +269,17 @@ def generate_failed_job_issue(
     return issue
 
 
-def gen_update_comment(original_body: str, jobs: List[JobStatus]) -> str:
+def gen_update_comment(original_issue: Dict[str, Any], jobs: List[JobStatus]) -> str:
     """
     Returns empty string if nothing signficant changed. Otherwise returns a
     short string meant for updating the issue.
     """
     original_jobs = []
-    for line in original_body.splitlines():
-        match = re.match(FAILED_JOB_PATTERN, line.strip())
-        if match is not None:
-            original_jobs.append(match.group(1))
+    if not original_issue["closed"]:
+        for line in original_issue["body"].splitlines():
+            match = re.match(FAILED_JOB_PATTERN, line.strip())
+            if match is not None:
+                original_jobs.append(match.group(1))
 
     new_jobs = [job.job_name for job in jobs]
     stopped_failing_jobs = [job for job in original_jobs if job not in new_jobs]
@@ -406,14 +413,15 @@ def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
         return
     cleared_alerts = 0
     for alert in alerts:
-        r = requests.patch(
-            UPDATE_ISSUE_URL + str(alert["number"]),
-            json={"state": "closed"},
-            headers=headers,
-        )
-        r.raise_for_status()
-        cleared_alerts += 1
-    print(f"Clearing {cleared_alerts} alerts.")
+        if not alert["closed"]:
+            r = requests.patch(
+                UPDATE_ISSUE_URL + str(alert["number"]),
+                json={"state": "closed"},
+                headers=headers,
+            )
+            r.raise_for_status()
+            cleared_alerts += 1
+    print(f"Clearing {cleared_alerts} previously open alerts.")
     return cleared_alerts > 0
 
 
@@ -521,10 +529,9 @@ def check_for_recurrently_failing_jobs_alert(
     )
 
     # Fetch alerts
-    existing_alerts = fetch_alerts(
+    existing_alerts = fetch_alerts_filter(
         repo=repo,
         branch=branch,
-        alert_repo=TEST_INFRA_REPO_NAME,
         labels=PYTORCH_ALERT_LABEL,
     )
 
@@ -534,29 +541,31 @@ def check_for_recurrently_failing_jobs_alert(
         clear_alerts(existing_alerts, dry_run=dry_run)
         return
 
-    # In the current design, there should be at most one alert issue per repo and branch
-    assert len(existing_alerts) <= 1
-
-    if existing_alerts:
-        # New update, edit the current active alert
-        existing_issue = existing_alerts[0]
-        update_comment = gen_update_comment(existing_issue["body"], jobs_to_alert_on)
-
-        if update_comment:
-            new_issue = generate_failed_job_issue(
-                repo=repo, branch=branch, failed_jobs=jobs_to_alert_on
-            )
-            update_issue(new_issue, existing_issue, update_comment, dry_run=dry_run)
-        else:
-            print(f"No new change. Not updating any alert for {repo} {branch}")
-    else:
-        # No active alert exists, create a new one
+    if len(existing_alerts) == 0:
+        # Generate a blank issue if there are no issues so we can post an update
+        # comment, which will trigger a more informative workchat ping
         create_issue(
-            generate_failed_job_issue(
-                repo=repo, branch=branch, failed_jobs=jobs_to_alert_on
-            ),
-            dry_run=dry_run,
+            generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=[]), dry_run
         )
+        existing_alerts = fetch_alerts_filter(
+            repo=repo,
+            branch=branch,
+            labels=PYTORCH_ALERT_LABEL,
+        )
+
+    # Always favor the most recent issue, close all other ones
+    existing_issue = existing_alerts[-1]
+    clear_alerts(existing_alerts[:-1], dry_run)
+
+    update_comment = gen_update_comment(existing_issue, jobs_to_alert_on)
+
+    if update_comment:
+        new_issue = generate_failed_job_issue(
+            repo=repo, branch=branch, failed_jobs=jobs_to_alert_on
+        )
+        update_issue(new_issue, existing_issue, update_comment, dry_run=dry_run)
+    else:
+        print(f"No new change. Not updating any alert for {repo} {branch}")
 
 
 def check_for_no_flaky_tests_alert(repo: str, branch: str):

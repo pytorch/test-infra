@@ -4,16 +4,12 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple
-
-import requests
+from setuptools import distutils  # type: ignore[import]
 import rockset  # type: ignore[import]
 from check_alerts import (
-    GRAPHQL_URL,
-    REPO_OWNER,
-    TEST_INFRA_REPO_NAME,
     clear_alerts,
+    fetch_alerts,
     create_issue,
-    headers,
     update_issue,
 )
 
@@ -26,19 +22,6 @@ QUEUE_ALERT_LABEL = "queue-alert"
 MAX_HOURS = 4
 MAX_MACHINES = 75
 EXCEPTIONS = {"linux.gcp.a100.large": (10, 20)}
-ISSUES_WITH_LABEL_QUERY = """
-query ($owner: String!, $name: String!, $labels: [String!]) {
-  repository(owner: $owner, name: $name, followRenames: false) {
-    issues(last: 10, labels: $labels) {
-      nodes {
-        number
-        body
-        state
-      }
-    }
-  }
-}
-"""
 
 
 class QueueInfo(NamedTuple):
@@ -47,19 +30,13 @@ class QueueInfo(NamedTuple):
     hours: float
 
 
-def close_other_alerts(issues: Any, dry_run: bool) -> None:
-    for issue in issues:
-        if issue['state'] != 'CLOSED':
-            clear_alerts([issue], dry_run=dry_run)
-
-
 def gen_queue_info_str(q: QueueInfo) -> str:
     return f"- {q.machine}, {q.count} machines, {round(q.hours, 2)} hours\n"
 
 
 def gen_update_comment(original_issue: Any, new_queues: List[QueueInfo]) -> str:
     original_machines = []
-    if original_issue["state"] == "OPEN":
+    if not original_issue["closed"]:
         original_body = original_issue["body"]
         for line in original_body.splitlines():
             match = re.match(r"^- (.*), .* machines, .* hours$", line.strip())
@@ -91,20 +68,6 @@ def gen_issue(queues: List[QueueInfo]) -> Any:
     issue["state"] = "open"
 
     return issue
-
-
-def fetch_alert(owner: str, alert_repo: str, label=QUEUE_ALERT_LABEL) -> List[Any]:
-    try:
-        variables = {"owner": owner, "name": alert_repo, "labels": [label]}
-        r = requests.post(
-            GRAPHQL_URL,
-            json={"query": ISSUES_WITH_LABEL_QUERY, "variables": variables},
-            headers=headers,
-        )
-        r.raise_for_status()
-        return json.loads(r.text)["data"]["repository"]["issues"]["nodes"]
-    except Exception as e:
-        raise RuntimeError("Error fetching alerts", e)
 
 
 def filter_long_queues(rockset_result: List[Dict[str, Any]]) -> List[QueueInfo]:
@@ -144,10 +107,7 @@ def queuing_alert(dry_run: bool) -> None:
 
     large_queue = filter_long_queues(response.results)
 
-    existing_alerts = fetch_alert(
-        REPO_OWNER,
-        TEST_INFRA_REPO_NAME,
-    )
+    existing_alerts = fetch_alerts([QUEUE_ALERT_LABEL])
 
     if len(large_queue) == 0:
         print("Closing queuing alert")
@@ -159,14 +119,11 @@ def queuing_alert(dry_run: bool) -> None:
         # re-fetch the issues so we can post an update comment, which will
         # trigger a more informative workchat ping
         create_issue(gen_issue([]), dry_run)
-        existing_alerts = fetch_alert(
-            REPO_OWNER,
-            TEST_INFRA_REPO_NAME,
-        )
+        existing_alerts = fetch_alerts([QUEUE_ALERT_LABEL])
 
     # Favor the most recent issue and close the rest
     existing_issue = existing_alerts[-1]
-    close_other_alerts(existing_alerts[:-1], dry_run)
+    clear_alerts(existing_alerts[:-1], dry_run)
 
     update_comment = gen_update_comment(existing_issue, large_queue)
 
@@ -181,8 +138,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--dry-run",
-        action="store_true",
-        default=bool(os.getenv("DRY_RUN")),
+        type=distutils.util.strtobool,
+        default=os.getenv("DRY_RUN", "YES"),
     )
     return parser.parse_args()
 
