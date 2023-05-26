@@ -1734,8 +1734,8 @@
     ]
   ],
   "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
-    "101067",
-    "https://github.com/pytorch/pytorch/issues/101067",
+    "98713",
+    "https://github.com/pytorch/pytorch/issues/98713",
     [
       "linux"
     ]
