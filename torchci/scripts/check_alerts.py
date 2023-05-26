@@ -340,7 +340,7 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
         return
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
-    return issue
+    return {"number": r.json()["number"], "closed": False}
 
 
 def fetch_hud_data(repo: str, branch: str) -> Any:
@@ -544,14 +544,10 @@ def check_for_recurrently_failing_jobs_alert(
     if len(existing_alerts) == 0:
         # Generate a blank issue if there are no issues so we can post an update
         # comment, which will trigger a more informative workchat ping
-        create_issue(
+        new_issue = create_issue(
             generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=[]), dry_run
         )
-        existing_alerts = fetch_alerts_filter(
-            repo=repo,
-            branch=branch,
-            labels=PYTORCH_ALERT_LABEL,
-        )
+        existing_alerts.push(new_issue)
 
     # Always favor the most recent issue, close all other ones
     existing_issue = existing_alerts[-1]

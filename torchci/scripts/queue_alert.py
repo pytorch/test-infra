@@ -21,7 +21,7 @@ QUEUE_ALERT_LABEL = "queue-alert"
 
 MAX_HOURS = 4
 MAX_MACHINES = 75
-EXCEPTIONS = {"linux.gcp.a100.large": (10, 20)}
+EXCEPTIONS = {"linux.gcp.a100.large": (20, 20)}
 
 
 class QueueInfo(NamedTuple):
@@ -118,8 +118,8 @@ def queuing_alert(dry_run: bool) -> None:
         # Generate a blank issue if there are no issues with the label and
         # re-fetch the issues so we can post an update comment, which will
         # trigger a more informative workchat ping
-        create_issue(gen_issue([]), dry_run)
-        existing_alerts = fetch_alerts([QUEUE_ALERT_LABEL])
+        new_issue = create_issue(gen_issue([]), dry_run)
+        existing_alerts.push(new_issue)
 
     # Favor the most recent issue and close the rest
     existing_issue = existing_alerts[-1]
