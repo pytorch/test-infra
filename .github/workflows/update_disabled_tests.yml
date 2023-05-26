@@ -33,7 +33,10 @@ jobs:
 
       - name: Print the list of disabled and unstable jobs
         run: |
+          echo "Disabled jobs:"
           cat disabled-jobs.json
+
+          echo "Unstable jobs:"
           cat unstable-jobs.json
 
       - name: Push disable tests to test-infra repository
@@ -64,7 +67,7 @@ jobs:
           user_name: "Pytorch Test Infra"
           commit_message: "Updating disabled jobs"
 
-      - name: Push unstanle jobs to test-infra repository
+      - name: Push unstable jobs to test-infra repository
         # if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
         env:

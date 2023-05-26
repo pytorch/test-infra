@@ -253,7 +253,7 @@ def main() -> None:
         "disabled-jobs.json",
     )
 
-    # Also handle UNSTABLE issues that mars CI jobs as unstable
+    # Also handle UNSTABLE issues that mark CI jobs as unstable
     unstable_issues = get_disable_issues(prefix=UNSTABLE_PREFIX)
     validate_and_sort(unstable_issues)
 
