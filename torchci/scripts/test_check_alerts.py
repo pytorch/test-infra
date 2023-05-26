@@ -7,8 +7,6 @@ from check_alerts import (
     fetch_alerts_filter,
     filter_job_names,
     gen_update_comment,
-    generate_no_flaky_tests_issue,
-    handle_flaky_tests_alert,
     JobStatus,
     PYTORCH_ALERT_LABEL,
 )
@@ -156,7 +154,7 @@ class TestGitHubPR(TestCase):
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
         original_issue = {"closed": False}
-        original_issue['body'] = (
+        original_issue["body"] = (
             "- [job1](a) failed consecutively starting with commit []()\n"
             "- [job2](a) failed consecutively starting with commit []()"
         )
@@ -164,58 +162,21 @@ class TestGitHubPR(TestCase):
         self.assertFalse(update_comment)
 
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        original_issue['body'] = "- [job1](a) failed consecutively starting with commit []()"
+        original_issue[
+            "body"
+        ] = "- [job1](a) failed consecutively starting with commit []()"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("started failing" in update_comment)
         self.assertTrue("job2" in update_comment)
 
         jobs = [JobStatus("job1", [{}])]
-        original_issue['body']  = (
+        original_issue["body"] = (
             "- [job1](a) failed consecutively starting with commit []()\n"
             "- [job2](a) failed consecutively starting with commit []()"
         )
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("stopped failing" in update_comment)
         self.assertTrue("job2" in update_comment)
-
-    def test_generate_no_flaky_tests_issue(self):
-        issue = generate_no_flaky_tests_issue()
-        self.assertListEqual(issue["labels"], ["no-flaky-tests-alert"])
-
-    @patch("check_alerts.create_issue")
-    @patch("check_alerts.datetime")
-    @patch("check_alerts.get_num_issues_with_label")
-    def test_handle_flaky_tests_alert(
-        self, mock_get_num_issues_with_label, mock_date, mock_create_issue
-    ):
-        mock_issue = {
-            "title": "dummy-title",
-            "labels": ["dummy-label"],
-        }
-        mock_create_issue.return_value = mock_issue
-        mock_date.today.return_value = datetime(2022, 10, 10)
-        mock_get_num_issues_with_label.return_value = 5
-
-        res = handle_flaky_tests_alert([])
-        self.assertIsNone(res)
-
-        existing_alerts = [
-            {"createdAt": "2022-10-10T13:41:09Z"},
-            {"createdAt": "2022-10-08T14:41:09Z"},
-        ]
-        res = handle_flaky_tests_alert(existing_alerts)
-        self.assertIsNone(res)
-
-        existing_alerts = [
-            {"createdAt": "2022-10-09T13:41:09Z"},
-            {"createdAt": "2022-10-08T14:41:09Z"},
-        ]
-        res = handle_flaky_tests_alert(existing_alerts)
-        self.assertIsNone(res)
-
-        mock_get_num_issues_with_label.return_value = 0
-        res = handle_flaky_tests_alert(existing_alerts)
-        self.assertDictEqual(res, mock_issue)
 
     # test filter job names
     def test_job_filter(self):

@@ -6,7 +6,6 @@ import os
 import re
 import urllib.parse
 from collections import defaultdict
-from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Set, Tuple
 
@@ -51,21 +50,11 @@ query ($owner: String!, $name: String!, $labels: [String!]) {
 }
 """
 
-NUM_ISSUES_QUERY = """
-query ($query: String!) {
-  search(type: ISSUE, query: $query) {
-    issueCount
-  }
-}
-"""
 
 REPO_OWNER = "pytorch"
 PYTORCH_REPO_NAME = "pytorch"
 TEST_INFRA_REPO_NAME = "test-infra"
 PYTORCH_ALERT_LABEL = "pytorch-alert"
-FLAKY_TESTS_LABEL = "module: flaky-tests"
-NO_FLAKY_TESTS_LABEL = "no-flaky-tests-alert"
-FLAKY_TESTS_SEARCH_PERIOD_DAYS = 14
 DISABLED_ALERTS = [
     "rerun_disabled_tests",
     "unstable",
@@ -220,21 +209,6 @@ def fetch_alerts_filter(repo: str, branch: str, labels: List[str]) -> List[Any]:
     ]
 
 
-def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str) -> int:
-    query = f'repo:{owner}/{repo} label:"{label}" created:>={from_date} is:issue'
-    try:
-        r = requests.post(
-            GRAPHQL_URL,
-            json={"query": NUM_ISSUES_QUERY, "variables": {"query": query}},
-            headers=headers,
-        )
-        r.raise_for_status()
-        data = json.loads(r.text)
-        return data["data"]["search"]["issueCount"]
-    except Exception as e:
-        raise RuntimeError("Error fetching issues count", e)
-
-
 def generate_failed_job_hud_link(failed_job: JobStatus) -> str:
     # TODO: I don't think minihud is universal across multiple repositories
     #       would be good to just replace this with something that is
@@ -297,21 +271,6 @@ def gen_update_comment(original_issue: Dict[str, Any], jobs: List[JobStatus]) ->
         for job in started_failing_jobs:
             s += f"* {job}\n"
     return s
-
-
-def generate_no_flaky_tests_issue() -> Any:
-    issue = {}
-    issue[
-        "title"
-    ] = f"[Pytorch][Warning] No flaky test issues have been detected in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days!"
-    issue["body"] = (
-        f"No issues have been filed in the past {FLAKY_TESTS_SEARCH_PERIOD_DAYS} days for "
-        f"the repository {REPO_OWNER}/{TEST_INFRA_REPO_NAME}.\n"
-        "This can be an indication that the flaky test bot has stopped filing tests."
-    )
-    issue["labels"] = [NO_FLAKY_TESTS_LABEL]
-
-    return issue
 
 
 def update_issue(
@@ -472,31 +431,6 @@ def classify_jobs(
     return jobs_to_alert_on, flaky_jobs
 
 
-def handle_flaky_tests_alert(existing_alerts: List[Dict]) -> Dict:
-    if (
-        not existing_alerts
-        or datetime.fromisoformat(
-            existing_alerts[0]["createdAt"].replace("Z", "+00:00")
-        ).date()
-        != datetime.today().date()
-    ):
-        from_date = (
-            datetime.today() - timedelta(days=FLAKY_TESTS_SEARCH_PERIOD_DAYS)
-        ).strftime("%Y-%m-%d")
-        num_issues_with_flaky_tests_lables = get_num_issues_with_label(
-            REPO_OWNER, PYTORCH_REPO_NAME, FLAKY_TESTS_LABEL, from_date
-        )
-        print(
-            f"Num issues with `{FLAKY_TESTS_LABEL}` label: ",
-            num_issues_with_flaky_tests_lables,
-        )
-        if num_issues_with_flaky_tests_lables == 0:
-            return create_issue(generate_no_flaky_tests_issue(), False)
-
-    print("No new alert for flaky tests bots.")
-    return None
-
-
 # filter job names that don't match the regex
 def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
     if job_name_regex:
@@ -564,13 +498,6 @@ def check_for_recurrently_failing_jobs_alert(
         print(f"No new change. Not updating any alert for {repo} {branch}")
 
 
-def check_for_no_flaky_tests_alert(repo: str, branch: str):
-    existing_no_flaky_tests_alerts = fetch_alerts(
-        labels=[NO_FLAKY_TESTS_LABEL],
-    )
-    handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -592,12 +519,6 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("JOB_NAME_REGEX", ""),
     )
     parser.add_argument(
-        "--with-flaky-test-alert",
-        help="Run this script with the flaky test alerting",
-        type=distutils.util.strtobool,
-        default=os.getenv("WITH_FLAKY_TEST_ALERT", "NO"),
-    )
-    parser.add_argument(
         "--dry-run",
         help="Whether or not to actually post issues",
         type=distutils.util.strtobool,
@@ -611,9 +532,6 @@ def main():
     check_for_recurrently_failing_jobs_alert(
         args.repo, args.branch, args.job_name_regex, args.dry_run
     )
-    # TODO: Fill out dry run for flaky test alerting, not going to do in one PR
-    if args.with_flaky_test_alert:
-        check_for_no_flaky_tests_alert(args.repo, args.branch)
 
 
 if __name__ == "__main__":
