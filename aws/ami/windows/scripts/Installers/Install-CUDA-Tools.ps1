@@ -82,7 +82,7 @@ function Install-CudaToolkit() {
   }
 
   Write-Output "Installing VS 2019 integration"
-  New-Item -Path  "$expectedInstallLocation\MSBuildExtensions\" -Type Directory -ErrorAction SilentlyContinue # don't care if it already exists
+  New-Item -Path  "$expectedInstallLocation\MSBuildExtensions\" -Type Directory -Force
   Copy-Item -Force -Verbose -Recurse "$tmpExtractedInstaller\visual_studio_integration\CUDAVisualStudioIntegration\extras\visual_studio_integration\MSBuildExtensions\*.*" "$expectedInstallLocation\MSBuildExtensions\"
 }
 
