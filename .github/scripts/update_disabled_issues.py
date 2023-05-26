@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Query for the DISABLED issues and check:
+Query for the DISABLED and UNSTABLE issues and check:
   * if they are still flaky for disabled tests
   * if they are to disable workflow jobs
+  * if they are to mark workflow jobs as unstable
 """
 
 import argparse
@@ -16,6 +17,7 @@ from urllib.request import Request, urlopen
 
 
 DISABLED_PREFIX = "DISABLED"
+UNSTABLE_PREFIX = "UNSTABLE"
 DISABLED_TEST_ISSUE_TITLE = re.compile(r"DISABLED\s*test_.+\s*\(.+\)")
 JOB_NAME_MAXSPLIT = 2
 
@@ -64,9 +66,9 @@ def update_issues(issues_json: Dict[Any, Any], info: str) -> None:
 
 
 @lru_cache()
-def get_disable_issues() -> Dict[Any, Any]:
+def get_disable_issues(prefix: str = DISABLED_PREFIX) -> Dict[Any, Any]:
     prefix = (
-        f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+DISABLED&"
+        f"https://api.github.com/search/issues?q=is%3Aissue+is%3Aopen+repo:{OWNER}/{REPO}+in%3Atitle+{prefix}&"
         "&per_page=100"
     )
     header, info = github_api_request(prefix + "&page=1")
@@ -99,7 +101,9 @@ def validate_and_sort(issues_json: Dict[str, Any]) -> None:
     issues_json["items"].sort(key=lambda x: x["url"])
 
 
-def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[Any]]:
+def filter_disable_issues(
+    issues_json: Dict[str, Any], prefix: str = DISABLED_PREFIX
+) -> Tuple[List[Any], List[Any]]:
     """
     Return the list of disabled test and disabled job issues
     """
@@ -108,7 +112,7 @@ def filter_disable_issues(issues_json: Dict[str, Any]) -> Tuple[List[Any], List[
 
     for issue in issues_json.get("items", []):
         title = issue.get("title", "")
-        if not title or not title.startswith(DISABLED_PREFIX):
+        if not title or not title.startswith(prefix):
             continue
 
         if DISABLED_TEST_ISSUE_TITLE.match(title):
@@ -173,6 +177,7 @@ def condense_disable_jobs(
     disable_issues: List[Any],
     owner: str,
     repo: str,
+    prefix: str = DISABLED_PREFIX,
 ) -> Dict[str, Tuple]:
     disabled_job_from_issues = {}
     for item in disable_issues:
@@ -180,7 +185,7 @@ def condense_disable_jobs(
         issue_number = issue_url.split("/")[-1]
 
         title = item["title"]
-        job_name = title[len(DISABLED_PREFIX) :].strip()
+        job_name = title[len(prefix) :].strip()
 
         if not job_name:
             continue
@@ -246,6 +251,20 @@ def main() -> None:
     dump_json(
         condense_disable_jobs(disable_job_issues, args.owner, args.repo),
         "disabled-jobs.json",
+    )
+
+    # Also handle UNSTABLE issues that mars CI jobs as unstable
+    unstable_issues = get_disable_issues(prefix=UNSTABLE_PREFIX)
+    validate_and_sort(unstable_issues)
+
+    _, unstable_job_issues = filter_disable_issues(
+        unstable_issues, prefix=UNSTABLE_PREFIX
+    )
+    dump_json(
+        condense_disable_jobs(
+            unstable_job_issues, args.owner, args.repo, prefix=UNSTABLE_PREFIX
+        ),
+        "unstable-jobs.json",
     )
 
 
