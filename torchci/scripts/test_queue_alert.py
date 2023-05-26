@@ -15,7 +15,7 @@ class TestGitHubPR(TestCase):
         rockset_results = [
             {
                 "count": 0,
-                "avg_queue_s": 3600 * 20,
+                "avg_queue_s": 3600 * 30,
                 "machine_type": "linux.gcp.a100.large",
             },
             {"count": 10, "avg_queue_s": 0, "machine_type": "machine1"},

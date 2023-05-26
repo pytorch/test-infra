@@ -566,10 +566,7 @@ def check_for_recurrently_failing_jobs_alert(
 
 def check_for_no_flaky_tests_alert(repo: str, branch: str):
     existing_no_flaky_tests_alerts = fetch_alerts(
-        repo=repo,
-        branch=branch,
-        alert_repo=TEST_INFRA_REPO_NAME,
-        labels=NO_FLAKY_TESTS_LABEL,
+        labels=[NO_FLAKY_TESTS_LABEL],
     )
     handle_flaky_tests_alert(existing_no_flaky_tests_alerts)
 
