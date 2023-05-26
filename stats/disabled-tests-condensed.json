@@ -90,6 +90,13 @@
       "rocm"
     ]
   ],
+  "test_after_aot_cpu_compile_error (__main__.MinifierTests)": [
+    "102345",
+    "https://github.com/pytorch/pytorch/issues/102345",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -267,6 +274,13 @@
       "mac"
     ]
   ],
+  "test_bf16_neg_abs (__main__.CPUReproTests)": [
+    "102348",
+    "https://github.com/pytorch/pytorch/issues/102348",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98046",
     "https://github.com/pytorch/pytorch/issues/98046",
@@ -426,6 +440,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_channel_shuffle_cl_output (__main__.CPUReproTests)": [
+    "102347",
+    "https://github.com/pytorch/pytorch/issues/102347",
+    [
+      "rocm"
     ]
   ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
@@ -626,6 +647,13 @@
       "linux"
     ]
   ],
+  "test_cond_export_single_arg (__main__.MiscTests)": [
+    "101381",
+    "https://github.com/pytorch/pytorch/issues/101381",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95270",
     "https://github.com/pytorch/pytorch/issues/95270",
@@ -726,6 +754,20 @@
       "rocm"
     ]
   ],
+  "test_cpu_broadcast1_double (__main__.SweepInputsCpuTest)": [
+    "102349",
+    "https://github.com/pytorch/pytorch/issues/102349",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast1_int (__main__.SweepInputsCpuTest)": [
+    "102351",
+    "https://github.com/pytorch/pytorch/issues/102351",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_broadcast1_strided (__main__.SweepInputsCpuTest)": [
     "102323",
     "https://github.com/pytorch/pytorch/issues/102323",
@@ -736,6 +778,20 @@
   "test_cpu_broadcast1_transposed (__main__.SweepInputsCpuTest)": [
     "102322",
     "https://github.com/pytorch/pytorch/issues/102322",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast2_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102352",
+    "https://github.com/pytorch/pytorch/issues/102352",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast2_dense (__main__.SweepInputsCpuTest)": [
+    "102350",
+    "https://github.com/pytorch/pytorch/issues/102350",
     [
       "rocm"
     ]
@@ -1391,6 +1447,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94508",
+    "https://github.com/pytorch/pytorch/issues/94508",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -1498,6 +1561,13 @@
   "test_inductor_via_export1 (__main__.TestStandaloneInductor)": [
     "102325",
     "https://github.com/pytorch/pytorch/issues/102325",
+    [
+      "rocm"
+    ]
+  ],
+  "test_inductor_via_export2 (__main__.TestStandaloneInductor)": [
+    "102346",
+    "https://github.com/pytorch/pytorch/issues/102346",
     [
       "rocm"
     ]
@@ -1736,6 +1806,13 @@
   "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
     "98713",
     "https://github.com/pytorch/pytorch/issues/98713",
+    [
+      "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_native_batch_norm_cuda_float32 (__main__.TestCommonCUDA)": [
+    "95157",
+    "https://github.com/pytorch/pytorch/issues/95157",
     [
       "linux"
     ]
