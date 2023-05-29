@@ -2102,16 +2102,6 @@
       "linux"
     ]
   ],
-  "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
-    "82499",
-    "https://github.com/pytorch/pytorch/issues/82499",
-    [
-      "linux",
-      "rocm",
-      "win",
-      "mac"
-    ]
-  ],
   "test_profiler_experimental_tree_with_memory (__main__.TestProfilerTree)": [
     "82501",
     "https://github.com/pytorch/pytorch/issues/82501",
