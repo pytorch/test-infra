@@ -1,10 +1,1 @@
-{
-  "pull / linux-focal-py3.8-gcc7 / test (backwards_compat)": [
-    "huydhn",
-    "102425",
-    "https://github.com/pytorch/pytorch/issues/102425",
-    "pull",
-    "linux-focal-py3.8-gcc7",
-    "test (backwards_compat)"
-  ]
-}
+{}
