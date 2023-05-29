@@ -1593,7 +1593,9 @@ function SuiteGraphPanel({
             tooltip: {
               trigger: "item",
               formatter: (params: any) =>
-                `${params.seriesName}<br/>${dayjs(params.value[0]).local().format("M/D h:mm:ss A")}<br/>`
+                `${params.seriesName}<br/>${dayjs(params.value[0])
+                  .local()
+                  .format("M/D h:mm:ss A")}<br/>`,
             },
           }}
         />
@@ -1876,7 +1878,11 @@ export default function Page() {
       setRCommit(rCommit);
     }
 
-    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
   }, [router.query]);
 
   const queryParams: RocksetParam[] = [

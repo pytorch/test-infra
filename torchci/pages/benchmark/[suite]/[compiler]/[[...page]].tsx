@@ -1035,7 +1035,11 @@ export default function Page() {
       setRCommit(rCommit);
     }
 
-    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
   }, [router.query]);
 
   if (suite === undefined || compiler === undefined) {
