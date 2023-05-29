@@ -22,6 +22,9 @@ runs:
         echo "Print the available disk space for manual inspection"
         df -h
 
+        # Turning off indexing
+        sudo mdutil -a -i off
+
         function check_disk_space() {
           set +e
 
