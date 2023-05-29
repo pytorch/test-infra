@@ -23,7 +23,7 @@ runs:
         df -h
 
         # Turning off indexing
-        sudo mdutil -a -i off
+        sudo mdutil -a -i off || true
 
         function check_disk_space() {
           set +e
