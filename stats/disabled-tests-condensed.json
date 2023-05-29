@@ -1727,6 +1727,13 @@
       "linux"
     ]
   ],
+  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "93070",
+    "https://github.com/pytorch/pytorch/issues/93070",
+    [
+      "linux"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -2419,13 +2426,6 @@
     [
       "win",
       "windows",
-      "linux"
-    ]
-  ],
-  "test_variant_consistency_jit_linalg_lu_cuda_float32 (__main__.TestJitCUDA)": [
-    "86711",
-    "https://github.com/pytorch/pytorch/issues/86711",
-    [
       "linux"
     ]
   ],
