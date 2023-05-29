@@ -866,6 +866,20 @@
       "rocm"
     ]
   ],
+  "test_cpu_broadcast3_double (__main__.SweepInputsCpuTest)": [
+    "102488",
+    "https://github.com/pytorch/pytorch/issues/102488",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_broadcast3_int (__main__.SweepInputsCpuTest)": [
+    "102489",
+    "https://github.com/pytorch/pytorch/issues/102489",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_broadcast3_strided (__main__.SweepInputsCpuTest)": [
     "102475",
     "https://github.com/pytorch/pytorch/issues/102475",
@@ -876,6 +890,20 @@
   "test_cpu_broadcast3_transposed (__main__.SweepInputsCpuTest)": [
     "102473",
     "https://github.com/pytorch/pytorch/issues/102473",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_dense_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102490",
+    "https://github.com/pytorch/pytorch/issues/102490",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_double_broadcast3 (__main__.SweepInputsCpuTest)": [
+    "102491",
+    "https://github.com/pytorch/pytorch/issues/102491",
     [
       "rocm"
     ]
@@ -1416,6 +1444,13 @@
       "linux"
     ]
   ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1680,6 +1715,13 @@
   "test_inductor_via_fx_tensor_return (__main__.TestStandaloneInductor)": [
     "102476",
     "https://github.com/pytorch/pytorch/issues/102476",
+    [
+      "rocm"
+    ]
+  ],
+  "test_inductor_via_make_fx (__main__.TestStandaloneInductor)": [
+    "102487",
+    "https://github.com/pytorch/pytorch/issues/102487",
     [
       "rocm"
     ]
@@ -2107,6 +2149,14 @@
     "https://github.com/pytorch/pytorch/issues/81626",
     [
       "linux"
+    ]
+  ],
+  "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
+    "100728",
+    "https://github.com/pytorch/pytorch/issues/100728",
+    [
+      "win",
+      "mac"
     ]
   ],
   "test_profiler_experimental_tree_with_memory (__main__.TestProfilerTree)": [
