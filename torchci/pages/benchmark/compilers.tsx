@@ -912,6 +912,7 @@ function extractPercentage(value: string) {
 function SummaryPanel({
   startTime,
   stopTime,
+  granularity,
   mode,
   dtype,
   lBranch,
@@ -923,6 +924,7 @@ function SummaryPanel({
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
+  granularity: Granularity;
   mode: string;
   dtype: string;
   lBranch: string;
@@ -1021,7 +1023,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -1109,7 +1111,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);
                     const r = Number(v.r).toFixed(SCALE);
@@ -1200,7 +1202,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
@@ -1304,7 +1306,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(SCALE);
                     const r = Number(v.r).toFixed(SCALE);
@@ -1783,6 +1785,7 @@ function Report({
       <SummaryPanel
         startTime={startTime}
         stopTime={stopTime}
+        granularity={granularity}
         mode={mode}
         dtype={dtype}
         lBranch={lBranch}
@@ -1841,6 +1844,12 @@ export default function Page() {
       if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
         setTimeRange(-1);
       }
+    }
+
+    const granularity: Granularity =
+      (router.query.granularity as Granularity) ?? undefined;
+    if (granularity !== undefined) {
+      setGranularity(granularity);
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
@@ -1929,7 +1938,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -1940,6 +1949,7 @@ export default function Page() {
           setStopTime={setStopTime}
           timeRange={timeRange}
           setTimeRange={setTimeRange}
+          setGranularity={setGranularity}
         />
         <GranularityPicker
           granularity={granularity}

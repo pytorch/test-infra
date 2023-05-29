@@ -166,6 +166,7 @@ function CommitPanel({
 function ModelPanel({
   startTime,
   stopTime,
+  granularity,
   suite,
   mode,
   dtype,
@@ -180,6 +181,7 @@ function ModelPanel({
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
+  granularity: Granularity;
   suite: string;
   mode: string;
   dtype: string;
@@ -292,7 +294,7 @@ function ModelPanel({
                     : undefined;
 
                 const encodedName = encodeURIComponent(name);
-                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                const url = `/benchmark/${suite}/${compiler}?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&model=${encodedName}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                 if (lLog === undefined) {
                   return (
@@ -922,16 +924,19 @@ function Report({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  // Share between data from old and new commits
+  const granularityBucket = lData[0].granularity_bucket;
+
   return (
     <div>
       <CommitPanel
         suite={suite}
         lBranch={lBranch}
         lCommit={lCommit}
-        lDate={lData[0].granularity_bucket}
+        lDate={granularityBucket}
         rBranch={rBranch}
         rCommit={rCommit}
-        rDate={rData[0].granularity_bucket}
+        rDate={granularityBucket}
         workflowId={lData[0].workflow_id}
       />
       <GraphPanel
@@ -946,6 +951,7 @@ function Report({
       <ModelPanel
         startTime={startTime}
         stopTime={stopTime}
+        granularity={granularity}
         suite={suite}
         mode={mode}
         dtype={dtype}
@@ -1003,6 +1009,12 @@ export default function Page() {
       if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
         setTimeRange(-1);
       }
+    }
+
+    const granularity: Granularity =
+      (router.query.granularity as Granularity) ?? undefined;
+    if (granularity !== undefined) {
+      setGranularity(granularity);
     }
 
     const mode: string = (router.query.mode as string) ?? undefined;
@@ -1102,7 +1114,7 @@ export default function Page() {
               startTime.toString()
             )}&stopTime=${encodeURIComponent(
               stopTime.toString()
-            )}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
+            )}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}` +
             (model === undefined ? "" : `&model=${model}`)
           }
         />
@@ -1115,6 +1127,7 @@ export default function Page() {
           setStopTime={setStopTime}
           timeRange={timeRange}
           setTimeRange={setTimeRange}
+          setGranularity={setGranularity}
         />
         <GranularityPicker
           granularity={granularity}
