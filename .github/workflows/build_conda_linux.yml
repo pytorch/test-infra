@@ -116,7 +116,7 @@ jobs:
         id: run-cache-action
         uses: actions/cache@v3
         with:
-          path: '${{ inputs.repository }}''${{ inputs.cache-path }}'
+          path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
           key: ${{ inputs.cache-key!= '' }}
       - name: Run cache miss script
         if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
