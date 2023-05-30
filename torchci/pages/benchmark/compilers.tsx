@@ -1592,13 +1592,6 @@ function SuiteGraphPanel({
                 return (r.value[1] * 100).toFixed(0);
               },
             },
-            tooltip: {
-              trigger: "item",
-              formatter: (params: any) =>
-                `${params.seriesName}<br/>${dayjs(params.value[0])
-                  .local()
-                  .format("M/D h:mm:ss A")}<br/>`,
-            },
           }}
         />
       </Grid>
