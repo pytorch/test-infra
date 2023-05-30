@@ -26,7 +26,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
-    needs: generate-matrix, get-date
+    needs: [generate-matrix, get-date]
     strategy:
       fail-fast: false
       matrix:
