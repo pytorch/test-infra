@@ -2,9 +2,24 @@
   "sql_path": "__sql/compilers_benchmark_performance_branches.sql",
   "default_parameters": [
     {
+      "name": "device",
+      "type": "string",
+      "value": "cuda"
+    },
+    {
+      "name": "dtypes",
+      "type": "string",
+      "value": "amp"
+    },
+    {
       "name": "granularity",
       "type": "string",
       "value": "day"
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "value": "training"
     },
     {
       "name": "startTime",

@@ -254,6 +254,7 @@ export function TimeRangePicker({
   setStopTime,
   timeRange,
   setTimeRange,
+  setGranularity,
 }: {
   startTime: dayjs.Dayjs;
   setStartTime: any;
@@ -261,6 +262,7 @@ export function TimeRangePicker({
   setStopTime: any;
   timeRange: any;
   setTimeRange: any;
+  setGranularity?: any;
 }) {
   function updateTimeRange() {
     if (timeRange === -1) {
@@ -287,6 +289,30 @@ export function TimeRangePicker({
       setStartTime(startTime);
       const stopTime = dayjs();
       setStopTime(stopTime);
+    }
+
+    if (setGranularity === undefined) {
+      return;
+    }
+
+    // When setGranularity is provided, this picker can use it to switch to a
+    // bigger granularity automatically when a longer time range is selected.
+    // The users can still select a smaller granularity if they want to
+    switch (e.target.value as number) {
+      case 1:
+      case 3:
+      case 7:
+      case 14:
+        setGranularity("hour");
+        break;
+      case 30:
+        setGranularity("day");
+        break;
+      case 90:
+      case 180:
+      case 365:
+        setGranularity("week");
+        break;
     }
   }
 
