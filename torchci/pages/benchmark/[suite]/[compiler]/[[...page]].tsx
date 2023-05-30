@@ -64,7 +64,8 @@ const ROW_HEIGHT = 38;
 // Headers
 const ACCURACY_HEADER = "Accuracy";
 const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-const LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
+const COMPILATION_LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // The number of digit after decimal to display on the detail page
@@ -239,6 +240,12 @@ function ModelPanel({
       compression_ratio: {
         l: hasL ? record["l"]["compression_ratio"] : 0,
         r: hasR ? record["r"]["compression_ratio"] : 0,
+      },
+
+      // Absolute execution time
+      abs_latency: {
+        l: hasL ? record["l"]["abs_latency"] : 0,
+        r: hasR ? record["r"]["abs_latency"] : 0,
       },
     };
   });
@@ -441,7 +448,7 @@ function ModelPanel({
             },
             {
               field: "compilation_latency",
-              headerName: LATENCY_HEADER,
+              headerName: COMPILATION_LATENCY_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
                 const v = params.value;
@@ -578,6 +585,29 @@ function ModelPanel({
                 }
               },
             },
+            {
+              field: "abs_latency",
+              headerName: ABS_LATENCY_HEADER,
+              flex: 1,
+              cellClassName: (params: GridCellParams<any>) => {
+                return "";
+              },
+              renderCell: (params: GridRenderCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined) {
+                  return "";
+                }
+
+                const l = Number(v.l).toFixed(SCALE);
+                const r = Number(v.r).toFixed(SCALE);
+
+                if (lCommit === rCommit || l === r || v.r === 0) {
+                  return l;
+                } else {
+                  return `${r} → ${l}`;
+                }
+              },
+            },
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
@@ -661,6 +691,9 @@ function GraphPanel({
       record.compression_ratio = Number(
         record.compression_ratio.toFixed(SCALE)
       );
+      record.abs_latency = Number(
+        record.abs_latency.toFixed(SCALE)
+      );
       // Truncate the data to make it consistent with the display value
       return record;
     });
@@ -695,6 +728,16 @@ function GraphPanel({
     "compression_ratio",
     false
   );
+  const absTimeSeries = seriesWithInterpolatedTimes(
+    chartData,
+    startTime,
+    stopTime,
+    granularity,
+    groupByFieldName,
+    TIME_FIELD_NAME,
+    "abs_latency",
+    false
+  );
 
   return (
     <>
@@ -705,7 +748,7 @@ function GraphPanel({
             <TimeSeriesPanelWithData
               data={chartData}
               series={geomeanSeries}
-              title={`Geomean`}
+              title={`Speedup`}
               groupByFieldName={groupByFieldName}
               yAxisRenderer={(unit) => {
                 return `${unit.toFixed(SCALE)}`;
@@ -773,6 +816,31 @@ function GraphPanel({
               }}
             />
           </Grid>
+
+          <Grid item xs={12} lg={4} height={GRAPH_ROW_HEIGHT}>
+            <TimeSeriesPanelWithData
+              data={chartData}
+              series={absTimeSeries}
+              title={`Absolute execution time`}
+              groupByFieldName={groupByFieldName}
+              yAxisLabel={"millisecond"}
+              yAxisRenderer={(unit) => {
+                return `${unit.toFixed(SCALE)}`;
+              }}
+              additionalOptions={{
+                yAxis: {
+                  scale: true,
+                },
+                label: {
+                  show: true,
+                  align: "left",
+                  formatter: (r: any) => {
+                    return Number(r.value[1]).toFixed(SCALE);
+                  },
+                },
+              }}
+            />
+          </Grid>
         </Grid>
       </div>
       <div>
@@ -785,6 +853,7 @@ function GraphPanel({
               <th>Speedup</th>
               <th>Comptime</th>
               <th>Memory</th>
+              <th>AbsLatency</th>
             </tr>
           </thead>
           <tbody>
@@ -807,6 +876,7 @@ function GraphPanel({
                   <td>{entry.speedup}</td>
                   <td>{entry.compilation_latency}</td>
                   <td>{entry.compression_ratio}</td>
+                  <td>{entry.abs_latency}</td>
                 </tr>
               );
             })}
