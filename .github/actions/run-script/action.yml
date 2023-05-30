@@ -6,13 +6,17 @@ inputs:
     description: "script to run"
     default: ""
     type: string
+  working-directory:
+    description: "working directory"
+    default: ""
+    type: string
 
 runs:
   using: composite
   steps:
     - name: Run script
       shell: bash
-      working-directory: ${{ inputs.repository }}
+      working-directory: ${{ inputs.working-directory }}
       env:
         SCRIPT: ${{ inputs.script }}
       if: ${{ inputs.script != '' }}

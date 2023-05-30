@@ -119,10 +119,12 @@ jobs:
         uses: ./test-infra/.github/actions/run-script
         with:
           script: ${{ inputs.cache-miss-script }}
+          working-directory:  ${{ inputs.repository }}
       - name: Run pre-script
         uses: ./test-infra/.github/actions/run-script
         with:
           script: ${{ inputs.pre-script}}
+          working-directory:  ${{ inputs.repository }}
 
       - name: Setup base environment variables
         run: |
@@ -157,6 +159,7 @@ jobs:
         uses: ./test-infra/.github/actions/run-script
         with:
           script: ${{ inputs.post-script}}
+          working-directory:  ${{ inputs.repository }}
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
