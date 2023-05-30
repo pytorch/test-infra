@@ -1,0 +1,45 @@
+name: Cache path on host using github actions cache
+
+description: Add CHANNEL to GITHUB_ENV
+inputs:
+  cache-path:
+    description: "If Caching is used provide valid path"
+    default: ""
+    type: string
+  cache-key:
+    description: "If Caching is used provide valid key"
+    default: ""
+    type: string
+  cache-miss-script:
+    description: "Script to run if cache is missed"
+    default: ""
+    type: string
+  repository:
+    description: 'Repository to checkout, defaults to ""'
+    default: ""
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
+    # to refresh the cache daily. This is kind of optional though
+    - name: Get date
+      id: get-date
+      shell: bash
+      run: |
+        echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
+    - name: Run cache action
+      shell: bash
+      if: ${{ inputs.cache-path != '' }}
+      id: run-cache-action
+      uses: actions/cache@v3
+      with:
+        path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
+        key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
+    - name: Run cache miss script
+      if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
+      uses: ./test-infra/.github/actions/run-script
+      with:
+        script: ${{ inputs.cache-miss-script }}
+        working-directory:  ${{ inputs.repository }}
