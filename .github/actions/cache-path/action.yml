@@ -37,9 +37,18 @@ runs:
       with:
         path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
         key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
-    - name: Run cache miss script
+    - name: Run script
+      shell: bash
+      working-directory: ${{ inputs.repository }}
+      env:
+        SCRIPT: ${{ inputs.cache-miss-script }}
       if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
-      uses: ./test-infra/.github/actions/run-script
-      with:
-        script: ${{ inputs.cache-miss-script }}
-        working-directory:  ${{ inputs.repository }}
+      run: |
+        set -euxo pipefail
+        source "${BUILD_ENV_FILE}"
+        if [[ ! -f ${SCRIPT} ]]; then
+          echo "::error::Specified pre-script file (${SCRIPT}) not found, not going execute it"
+          exit 1
+        else
+          ${CONDA_RUN} bash "${SCRIPT}"
+        fi
