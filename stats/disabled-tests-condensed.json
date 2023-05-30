@@ -711,6 +711,13 @@
       "linux"
     ]
   ],
+  "test_conv_bn_fuse_cpu (__main__.CpuTests)": [
+    "102537",
+    "https://github.com/pytorch/pytorch/issues/102537",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
     "98681",
     "https://github.com/pytorch/pytorch/issues/98681",
@@ -953,6 +960,13 @@
   "test_cpu_double_transposed (__main__.SweepInputsCpuTest)": [
     "102504",
     "https://github.com/pytorch/pytorch/issues/102504",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_int_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102536",
+    "https://github.com/pytorch/pytorch/issues/102536",
     [
       "rocm"
     ]
@@ -1884,11 +1898,6 @@
     [
       "rocm"
     ]
-  ],
-  "test_memory_snapshot (__main__.TestCudaComm)": [
-    "97560",
-    "https://github.com/pytorch/pytorch/issues/97560",
-    []
   ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
