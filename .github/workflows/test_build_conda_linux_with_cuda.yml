@@ -11,13 +11,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  get-date:
-    runs-on: ubuntu-latest
-    steps:
-      - name: get-date
-        id: date
-        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
-
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
@@ -26,14 +19,14 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
-    needs: [generate-matrix, get-date]
+    needs: generate-matrix
     strategy:
       fail-fast: false
       matrix:
         include:
           - repository: pytorch/audio
             cache-path: /third_party/ffmpeg
-            cache-key: linux-ffmpeg-${{ needs.get-date.steps.date.outputs.date }}
+            cache-key: linux-ffmpeg
             cache-miss-script: packaging/pre_build_script.sh
             pre-script: ""
             post-script: packaging/post_build_script.sh

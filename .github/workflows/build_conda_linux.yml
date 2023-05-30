@@ -88,6 +88,13 @@ jobs:
     # to have a conversation
     timeout-minutes: 60
     steps:
+      # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
+      # to refresh the cache daily. This is kind of optional though
+      - name: Get date
+        id: get-date
+        shell: bash
+        run: |
+          echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
       - uses: actions/checkout@v3
         with:
           # Support the use case where we need to checkout someone's fork
@@ -117,7 +124,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
-          key: ${{ inputs.cache-key }}
+          key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
       - name: Run cache miss script
         if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
         uses: ./test-infra/.github/actions/run-script
