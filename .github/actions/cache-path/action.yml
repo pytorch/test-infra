@@ -30,7 +30,6 @@ runs:
       run: |
         echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
     - name: Run cache action
-      shell: bash
       if: ${{ inputs.cache-path != '' }}
       id: run-cache-action
       uses: actions/cache@v3
