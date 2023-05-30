@@ -35,6 +35,7 @@ jobs:
             cache-path: /third_party/ffmpeg
             cache-key: linux-ffmpeg-${{ needs.get-date.steps.date.outputs.date }}
             cache-miss-script: packaging/pre_build_script.sh
+            pre-script: ""
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
             conda-package-directory: packaging/torchaudio
