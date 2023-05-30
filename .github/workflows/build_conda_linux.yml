@@ -51,6 +51,14 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+      cache-path:
+        description: "If Caching is used provide valid path"
+        default: ""
+        type: string
+      cache-key:
+        description: "If Caching is used provide valid key"
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -99,20 +107,23 @@ jobs:
         run: |
           set -euxo pipefail
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
+      - name: Run cache action
+        if: ${{ inputs.cache-path != '' }}
+        id: run-cache-action
+        uses: actions/cache@v3
+        with:
+          path: inputs.cache-path
+          key: ${{ inputs.cache-key!= '' }}
+      - name: Run cache miss script
+        if: ${{ inputs.cache-path != '' && steps.cache-npm.outputs.cache-hit != 'true' }}
+        uses: ./test-infra/.github/actions/run-script
+        with:
+          script: ${{ inputs.cache-miss-script }}
       - name: Run pre-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          PRE_SCRIPT: ${{ inputs.pre-script }}
-        if: ${{ inputs.pre-script != '' }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${PRE_SCRIPT} ]]; then
-            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script
+        with:
+          script: ${{ inputs.pre-script}}
+
       - name: Setup base environment variables
         run: |
           set -euxo pipefail
@@ -143,19 +154,9 @@ jobs:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
       - name: Run post-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          POST_SCRIPT: ${{ inputs.post-script }}
-        if: ${{ inputs.post-script != '' }}
-        run: |
-          set -eax
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${POST_SCRIPT} ]]; then
-            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script
+        with:
+          script: ${{ inputs.post-script}}
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
