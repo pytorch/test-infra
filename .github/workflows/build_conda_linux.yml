@@ -59,6 +59,10 @@ on:
         description: "If Caching is used provide valid key"
         default: ""
         type: string
+      cache-miss-script:
+        description: "Script to run if cache is missed"
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -115,7 +119,7 @@ jobs:
           path: inputs.cache-path
           key: ${{ inputs.cache-key!= '' }}
       - name: Run cache miss script
-        if: ${{ inputs.cache-path != '' && steps.cache-npm.outputs.cache-hit != 'true' }}
+        if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
         uses: ./test-infra/.github/actions/run-script
         with:
           script: ${{ inputs.cache-miss-script }}
