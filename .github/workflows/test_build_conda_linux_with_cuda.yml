@@ -26,7 +26,7 @@ jobs:
         include:
           - repository: pytorch/audio
             cache-path: /third_party/ffmpeg
-            cache-key: ${{ runner.os }}-build-ffmpeg-${{ hashFiles('**/Makefile') }}
+            cache-key: linux-ffmpeg-${{ hashFiles('**/Makefile') }}
             cache-miss-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
