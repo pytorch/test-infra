@@ -117,7 +117,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
-          key: ${{ inputs.cache-key!= '' }}
+          key: ${{ inputs.cache-key }}
       - name: Run cache miss script
         if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
         uses: ./test-infra/.github/actions/run-script
