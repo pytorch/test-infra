@@ -922,6 +922,27 @@
       "rocm"
     ]
   ],
+  "test_cpu_dense_double (__main__.SweepInputsCpuTest)": [
+    "102528",
+    "https://github.com/pytorch/pytorch/issues/102528",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_dense_int (__main__.SweepInputsCpuTest)": [
+    "102527",
+    "https://github.com/pytorch/pytorch/issues/102527",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_double_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102529",
+    "https://github.com/pytorch/pytorch/issues/102529",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_double_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102491",
     "https://github.com/pytorch/pytorch/issues/102491",
@@ -932,6 +953,13 @@
   "test_cpu_double_transposed (__main__.SweepInputsCpuTest)": [
     "102504",
     "https://github.com/pytorch/pytorch/issues/102504",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_strided_int (__main__.SweepInputsCpuTest)": [
+    "102526",
+    "https://github.com/pytorch/pytorch/issues/102526",
     [
       "rocm"
     ]
