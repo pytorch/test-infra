@@ -156,8 +156,8 @@ function CommitPanel({
         at commit{" "}
         <a href={`${HUD_PREFIX}/${rCommit}#inductor-a100-perf-nightly`}>
           {rCommit.substring(0, SHA_DISPLAY_LENGTH)}
-        </a>{" "}
-        on {dayjs(rDate).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
+        </a>
+        . The running logs per shard are:{" "}
         <LogLinks key={`log-${name}`} suite={name} logs={logs} />.
       </Typography>
     </Stack>
@@ -705,9 +705,7 @@ function GraphPanel({
       record.compression_ratio = Number(
         record.compression_ratio.toFixed(SCALE)
       );
-      record.abs_latency = Number(
-        record.abs_latency.toFixed(SCALE)
-      );
+      record.abs_latency = Number(record.abs_latency.toFixed(SCALE));
       // Truncate the data to make it consistent with the display value
       return record;
     });
@@ -994,19 +992,20 @@ function Report({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  // Share between data from old and new commits
-  const granularityBucket = lData[0].granularity_bucket;
-
   return (
     <div>
       <CommitPanel
         suite={suite}
         lBranch={lBranch}
         lCommit={lCommit}
-        lDate={granularityBucket}
+        lDate={lData[0].granularity_bucket}
         rBranch={rBranch}
         rCommit={rCommit}
-        rDate={granularityBucket}
+        rDate={
+          rData !== undefined && rData.length !== 0
+            ? rData[0].granularity_bucket
+            : undefined
+        }
         workflowId={lData[0].workflow_id}
       />
       <GraphPanel

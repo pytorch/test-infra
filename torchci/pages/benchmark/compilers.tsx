@@ -796,8 +796,8 @@ function CommitPanel({
         at commit{" "}
         <a href={`${HUD_PREFIX}/${rCommit}#inductor-a100-perf-nightly`}>
           {rCommit.substring(0, SHA_DISPLAY_LENGTH)}
-        </a>{" "}
-        on {dayjs(rDate).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
+        </a>
+        . The running logs per shard are:{" "}
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
           const name = suite.includes("timm") ? "timm" : suite;
