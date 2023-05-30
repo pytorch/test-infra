@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  get-date: Get current date
+    id: date
+    run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
   generate-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
@@ -19,14 +22,14 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
   test:
-    needs: generate-matrix
+    needs: generate-matrix, get-date
     strategy:
       fail-fast: false
       matrix:
         include:
           - repository: pytorch/audio
             cache-path: /third_party/ffmpeg
-            cache-key: linux-ffmpeg-${{ hashFiles('**/Makefile') }}
+            cache-key: linux-ffmpeg-${{ needs.get-date.outputs.date }}
             cache-miss-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
