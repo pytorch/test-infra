@@ -2228,7 +2228,8 @@
     "https://github.com/pytorch/pytorch/issues/100728",
     [
       "win",
-      "mac"
+      "mac",
+      "rocm"
     ]
   ],
   "test_python_ir_utils (__main__.TestJit)": [
