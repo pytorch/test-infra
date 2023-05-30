@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  get-date: Get current date
+  get-date:
     id: date
     run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
   generate-matrix:
