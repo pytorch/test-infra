@@ -25,10 +25,10 @@ export default function GranularityPicker({
         labelId="granularity-select-label"
         onChange={handleChange}
       >
-        <MenuItem value={"month"}>month</MenuItem>
-        <MenuItem value={"week"}>week</MenuItem>
-        <MenuItem value={"day"}>day</MenuItem>
         <MenuItem value={"hour"}>hour</MenuItem>
+        <MenuItem value={"day"}>day</MenuItem>
+        <MenuItem value={"week"}>week</MenuItem>
+        <MenuItem value={"month"}>month</MenuItem>
       </Select>
     </FormControl>
   );
