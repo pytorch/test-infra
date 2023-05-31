@@ -52,11 +52,11 @@ on:
         default: ""
         type: string
       cache-path:
-        description: "If Caching is used provide valid path"
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
         default: ""
         type: string
       cache-key:
-        description: "If Caching is used provide valid key"
+        description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
     secrets:
