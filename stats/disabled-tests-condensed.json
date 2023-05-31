@@ -104,6 +104,13 @@
       "rocm"
     ]
   ],
+  "test_add_inplace_permuted_cpu (__main__.CpuTests)": [
+    "102612",
+    "https://github.com/pytorch/pytorch/issues/102612",
+    [
+      "rocm"
+    ]
+  ],
   "test_after_aot_cpu_accuracy_error (__main__.MinifierTests)": [
     "102327",
     "https://github.com/pytorch/pytorch/issues/102327",
