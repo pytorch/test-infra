@@ -4,6 +4,7 @@ import React from "react";
 import { IssueData, JobData } from "../lib/types";
 import styles from "./JobLinks.module.css";
 import TestInsightsLink from "./TestInsights";
+import ReproductionCommand from "./ReproductionCommand";
 
 export default function JobLinks({ job }: { job: JobData }) {
   const rawLogs =
@@ -54,6 +55,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {queueTimeS}
       {durationS}
       {eventTime}
+      <ReproductionCommand job={job} separator={" | "}/>
       <TestInsightsLink job={job} separator={" | "} />
       <DisableIssue job={job} />
     </span>
