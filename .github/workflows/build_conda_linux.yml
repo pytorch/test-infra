@@ -144,11 +144,14 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
-      - name: Run post-script
-        uses: ./test-infra/.github/actions/run-script
+      - name: Run Post-Script
+        if: ${{ inputs.post-script != '' }}
+        uses: ./test-infra/.github/actions/run-script-with-cache
         with:
-          script: ${{ inputs.post-script}}
-          working-directory:  ${{ inputs.repository }}
+          cache-path: ""
+          cache-key: ""
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.post-script }}
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
