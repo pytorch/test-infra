@@ -90,6 +90,13 @@
       "rocm"
     ]
   ],
+  "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
+    "102588",
+    "https://github.com/pytorch/pytorch/issues/102588",
+    [
+      "rocm"
+    ]
+  ],
   "test_after_aot_cpu_accuracy_error (__main__.MinifierTests)": [
     "102327",
     "https://github.com/pytorch/pytorch/issues/102327",
@@ -661,6 +668,13 @@
       "linux"
     ]
   ],
+  "test_cond_export_single_arg (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "102585",
+    "https://github.com/pytorch/pytorch/issues/102585",
+    [
+      "linux"
+    ]
+  ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
     "95270",
     "https://github.com/pytorch/pytorch/issues/95270",
@@ -957,6 +971,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_dense_transposed (__main__.SweepInputsCpuTest)": [
+    "102589",
+    "https://github.com/pytorch/pytorch/issues/102589",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_double_broadcast1 (__main__.SweepInputsCpuTest)": [
     "102529",
     "https://github.com/pytorch/pytorch/issues/102529",
@@ -978,6 +999,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_double_int (__main__.SweepInputsCpuTest)": [
+    "102586",
+    "https://github.com/pytorch/pytorch/issues/102586",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_double_transposed (__main__.SweepInputsCpuTest)": [
     "102504",
     "https://github.com/pytorch/pytorch/issues/102504",
@@ -995,6 +1023,13 @@
   "test_cpu_int_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102574",
     "https://github.com/pytorch/pytorch/issues/102574",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_int_dense (__main__.SweepInputsCpuTest)": [
+    "102587",
+    "https://github.com/pytorch/pytorch/issues/102587",
     [
       "rocm"
     ]
