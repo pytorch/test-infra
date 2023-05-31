@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/get_relevant_alerts.sql",
+  "default_parameters": [
+    {
+      "name": "organization",
+      "type": "string",
+      "value": "test_org"
+    },
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "test_repo"
+    }
+  ],
+  "description": ""
+}
