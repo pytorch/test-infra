@@ -224,6 +224,13 @@
       "macos"
     ]
   ],
+  "test_arange1_cpu (__main__.CpuTests)": [
+    "102634",
+    "https://github.com/pytorch/pytorch/issues/102634",
+    [
+      "rocm"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
@@ -1016,6 +1023,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_double_dense (__main__.SweepInputsCpuTest)": [
+    "102632",
+    "https://github.com/pytorch/pytorch/issues/102632",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_double_double (__main__.SweepInputsCpuTest)": [
     "102571",
     "https://github.com/pytorch/pytorch/issues/102571",
@@ -1068,6 +1082,20 @@
   "test_cpu_int_int (__main__.SweepInputsCpuTest)": [
     "102606",
     "https://github.com/pytorch/pytorch/issues/102606",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_int_transposed (__main__.SweepInputsCpuTest)": [
+    "102633",
+    "https://github.com/pytorch/pytorch/issues/102633",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_strided_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102635",
+    "https://github.com/pytorch/pytorch/issues/102635",
     [
       "rocm"
     ]
@@ -2067,6 +2095,15 @@
       "linux",
       "macos",
       "mac"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
+    "88475",
+    "https://github.com/pytorch/pytorch/issues/88475",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
