@@ -38,7 +38,6 @@ jobs:
             smoke-test-script: test/smoke_test.py
             conda-package-directory: packaging/torchvision
             package-name: torchvision
-            cache-miss-script: ""
             cache-path: ""
             cache-key: ""
 
