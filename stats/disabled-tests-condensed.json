@@ -97,6 +97,13 @@
       "rocm"
     ]
   ],
+  "test_add_const_int_cpu (__main__.CpuTests)": [
+    "102607",
+    "https://github.com/pytorch/pytorch/issues/102607",
+    [
+      "rocm"
+    ]
+  ],
   "test_after_aot_cpu_accuracy_error (__main__.MinifierTests)": [
     "102327",
     "https://github.com/pytorch/pytorch/issues/102327",
@@ -988,6 +995,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_double_broadcast2 (__main__.SweepInputsCpuTest)": [
+    "102605",
+    "https://github.com/pytorch/pytorch/issues/102605",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_double_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102491",
     "https://github.com/pytorch/pytorch/issues/102491",
@@ -1005,6 +1019,13 @@
   "test_cpu_double_int (__main__.SweepInputsCpuTest)": [
     "102586",
     "https://github.com/pytorch/pytorch/issues/102586",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_double_strided (__main__.SweepInputsCpuTest)": [
+    "102608",
+    "https://github.com/pytorch/pytorch/issues/102608",
     [
       "rocm"
     ]
@@ -1033,6 +1054,13 @@
   "test_cpu_int_dense (__main__.SweepInputsCpuTest)": [
     "102587",
     "https://github.com/pytorch/pytorch/issues/102587",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_int_int (__main__.SweepInputsCpuTest)": [
+    "102606",
+    "https://github.com/pytorch/pytorch/issues/102606",
     [
       "rocm"
     ]
@@ -1632,6 +1660,11 @@
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo)": [
     "71183",
     "https://github.com/pytorch/pytorch/issues/71183",
+    []
+  ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
     []
   ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
