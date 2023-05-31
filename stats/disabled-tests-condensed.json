@@ -359,7 +359,8 @@
     "101799",
     "https://github.com/pytorch/pytorch/issues/101799",
     [
-      "linux"
+      "linux",
+      "asan"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -431,7 +432,9 @@
     "102114",
     "https://github.com/pytorch/pytorch/issues/102114",
     [
-      "linux"
+      "linux",
+      "mac",
+      "rocm"
     ]
   ],
   "test_cat (test_jit.TestScript)": [
