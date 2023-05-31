@@ -148,8 +148,6 @@ jobs:
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
         with:
-          cache-path: ""
-          cache-key: ""
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
