@@ -59,10 +59,6 @@ on:
         description: "If Caching is used provide valid key"
         default: ""
         type: string
-      cache-miss-script:
-        description: "Script to run if cache is missed"
-        default: ""
-        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -111,18 +107,14 @@ jobs:
         run: |
           set -euxo pipefail
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
-      - uses: ./test-infra/.github/actions/cache-path
-        if: ${{ inputs.cache-path != '' }}
+      - name: Run Pre-Script with Caching
+        if: ${{ inputs.pre-script != '' }}
+        uses: ./test-infra/.github/actions/run-script-with-cache
         with:
           cache-path: ${{ inputs.cache-path }}
           cache-key: ${{ inputs.cache-key }}
           repository: ${{ inputs.repository  }}
-          cache-miss-script: ${{ inputs.cache-miss-script }}
-      - name: Run pre-script
-        uses: ./test-infra/.github/actions/run-script
-        with:
-          script: ${{ inputs.pre-script}}
-          working-directory:  ${{ inputs.repository }}
+          script: ${{ inputs.pre-script }}
       - name: Setup base environment variables
         run: |
           set -euxo pipefail

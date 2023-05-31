@@ -1,17 +1,17 @@
-name: Cache path on host using github actions cache
+name: Run Script with optional cache using github actions cache
 
-description: Add CHANNEL to GITHUB_ENV
+description: Cache path on host using github actions cache
 inputs:
   cache-path:
-    description: "If Caching is used provide valid path"
+    description: "The path(s) on the runner to cache or restore. The path is relative to repository."
     default: ""
     type: string
   cache-key:
-    description: "If Caching is used provide valid key"
+    description: "The key created when saving a cache and the key used to search for a cache."
     default: ""
     type: string
-  cache-miss-script:
-    description: "Script to run if cache is missed"
+  script:
+    description: "Script to run"
     default: ""
     type: string
   repository:
@@ -34,19 +34,19 @@ runs:
       id: run-cache-action
       uses: actions/cache@v3
       with:
-        path: '${{ github.workspace }}//${{ inputs.repository }}${{ inputs.cache-path }}'
+        path: '${{ github.workspace }}/${{ inputs.repository }}${{ inputs.cache-path }}'
         key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
     - name: Run script
       shell: bash
       working-directory: ${{ inputs.repository }}
       env:
-        SCRIPT: ${{ inputs.cache-miss-script }}
-      if: ${{ inputs.cache-path != '' && steps.run-cache-action.outputs.cache-hit != 'true' }}
+        SCRIPT: ${{ inputs.script }}
+      if: ${{ inputs.cache-path == '' || steps.run-cache-action.outputs.cache-hit != 'true' }}
       run: |
         set -euxo pipefail
         source "${BUILD_ENV_FILE}"
         if [[ ! -f ${SCRIPT} ]]; then
-          echo "::error::Specified pre-script file (${SCRIPT}) not found, not going execute it"
+          echo "::error::Specified script file (${SCRIPT}) not found, not going execute it"
           exit 1
         else
           ${CONDA_RUN} bash "${SCRIPT}"
