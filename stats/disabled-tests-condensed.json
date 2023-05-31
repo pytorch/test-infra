@@ -2026,15 +2026,6 @@
       "mac"
     ]
   ],
-  "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
-    "88475",
-    "https://github.com/pytorch/pytorch/issues/88475",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
     "88466",
     "https://github.com/pytorch/pytorch/issues/88466",
@@ -2621,13 +2612,6 @@
       "linux"
     ]
   ],
-  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
-    "86732",
-    "https://github.com/pytorch/pytorch/issues/86732",
-    [
-      "linux"
-    ]
-  ],
   "test_versioned_div_tensor_inplace (jit.test_save_load_for_op_version.TestSaveLoadForOpVersion)": [
     "88719",
     "https://github.com/pytorch/pytorch/issues/88719",
@@ -2640,6 +2624,13 @@
     "https://github.com/pytorch/pytorch/issues/101828",
     [
       "rocm"
+    ]
+  ],
+  "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86770",
+    "https://github.com/pytorch/pytorch/issues/86770",
+    [
+      "linux"
     ]
   ],
   "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
