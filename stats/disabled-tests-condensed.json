@@ -549,6 +549,13 @@
       "rocm"
     ]
   ],
+  "test_compare_cpu_linalg_pinv_singular_cuda_float32 (__main__.TestCommonCUDA)": [
+    "102678",
+    "https://github.com/pytorch/pytorch/issues/102678",
+    [
+      "rocm"
+    ]
+  ],
   "test_compile_api (__main__.TestInductorConfig)": [
     "102302",
     "https://github.com/pytorch/pytorch/issues/102302",
