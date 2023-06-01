@@ -230,6 +230,13 @@
       "linux"
     ]
   ],
+  "test_any_cpu (__main__.CpuTests)": [
+    "102778",
+    "https://github.com/pytorch/pytorch/issues/102778",
+    [
+      "rocm"
+    ]
+  ],
   "test_aot_autograd_exhaustive_as_strided_scatter_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
     "85879",
     "https://github.com/pytorch/pytorch/issues/85879",
@@ -269,6 +276,13 @@
   "test_argmax_to_float_cpu (__main__.CpuTests)": [
     "102742",
     "https://github.com/pytorch/pytorch/issues/102742",
+    [
+      "rocm"
+    ]
+  ],
+  "test_as_strided_scatter_cpu (__main__.CpuTests)": [
+    "102776",
+    "https://github.com/pytorch/pytorch/issues/102776",
     [
       "rocm"
     ]
@@ -1177,6 +1191,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_strided_broadcast3 (__main__.SweepInputsCpuTest)": [
+    "102779",
+    "https://github.com/pytorch/pytorch/issues/102779",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_strided_dense (__main__.SweepInputsCpuTest)": [
     "102712",
     "https://github.com/pytorch/pytorch/issues/102712",
@@ -1194,6 +1215,13 @@
   "test_cpu_strided_int (__main__.SweepInputsCpuTest)": [
     "102526",
     "https://github.com/pytorch/pytorch/issues/102526",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_strided_strided (__main__.SweepInputsCpuTest)": [
+    "102777",
+    "https://github.com/pytorch/pytorch/issues/102777",
     [
       "rocm"
     ]
@@ -2115,6 +2143,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "102775",
+    "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux"
+    ]
+  ],
   "test_masked_bmm (__main__.TestMatMul)": [
     "84586",
     "https://github.com/pytorch/pytorch/issues/84586",
@@ -2798,6 +2833,13 @@
     [
       "win",
       "windows",
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_ex_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86887",
+    "https://github.com/pytorch/pytorch/issues/86887",
+    [
       "linux"
     ]
   ],
