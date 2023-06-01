@@ -3,9 +3,6 @@ name: Test Action for alert upload
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 jobs:
   test:
