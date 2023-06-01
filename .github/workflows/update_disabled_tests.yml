@@ -40,48 +40,6 @@ jobs:
           echo "Unstable jobs:"
           cat unstable-jobs.json
 
-      - name: Push disable tests to test-infra repository
-        if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: "disabled-tests-condensed.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating condensed disabled tests stats"
-
-      - name: Push disable jobs to test-infra repository
-        if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: "disabled-jobs.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating disabled jobs"
-
-      - name: Push unstable jobs to test-infra repository
-        if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: "unstable-jobs.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating unstable jobs"
-
       - name: Upload file to s3
         if: github.event_name != 'pull_request'
         run: |
