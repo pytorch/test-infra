@@ -37,3 +37,10 @@ jobs:
             -ignore "SC1090" \
             -ignore 'when a reusable workflow is called with "uses", "strategy" is not available.' \
             -ignore 'reusable workflow cannot be nested.'
+            - name: Test my action
+      - name: Test alert uploads work
+        uses: ./.github/actions/upload-alerts
+        with:
+          repo: 'test_repo'
+          organization: 'test_org'
+          alerts: '[]'
