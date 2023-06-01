@@ -1,4 +1,12 @@
 {
+  "linux-binary-manywheel / manywheel-py3_8-cuda11_8": [
+    "huydhn",
+    "102433",
+    "https://github.com/pytorch/pytorch/issues/102433",
+    "linux-binary-manywheel",
+    "manywheel-py3_8-cuda11_8",
+    ""
+  ],
   "pull / linux-bionic-py3.11-clang9 / test (dynamo)": [
     "huydhn",
     "102298",
@@ -15,20 +23,12 @@
     "macos-12-py3-arm64",
     ""
   ],
-  "trunk / win-vs2019-cuda11.7-py3 / test": [
+  "trunk / win-vs2019-cpu-py3 / test": [
     "huydhn",
     "102297",
     "https://github.com/pytorch/pytorch/issues/102297",
     "trunk",
-    "win-vs2019-cuda11.7-py3",
+    "win-vs2019-cpu-py3",
     "test"
-  ],
-  "windows-binary-libtorch-release": [
-    "huydhn",
-    "102300",
-    "https://github.com/pytorch/pytorch/issues/102300",
-    "windows-binary-libtorch-release",
-    "",
-    ""
   ]
 }
