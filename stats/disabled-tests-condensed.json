@@ -132,6 +132,13 @@
       "rocm"
     ]
   ],
+  "test_alexnet_prefix_cpu (__main__.CpuTests)": [
+    "102743",
+    "https://github.com/pytorch/pytorch/issues/102743",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -255,6 +262,13 @@
   "test_argmax_argmin2_cpu (__main__.CpuTests)": [
     "102709",
     "https://github.com/pytorch/pytorch/issues/102709",
+    [
+      "rocm"
+    ]
+  ],
+  "test_argmax_to_float_cpu (__main__.CpuTests)": [
+    "102742",
+    "https://github.com/pytorch/pytorch/issues/102742",
     [
       "rocm"
     ]
@@ -1135,6 +1149,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_int_strided (__main__.SweepInputsCpuTest)": [
+    "102746",
+    "https://github.com/pytorch/pytorch/issues/102746",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_int_transposed (__main__.SweepInputsCpuTest)": [
     "102633",
     "https://github.com/pytorch/pytorch/issues/102633",
@@ -1159,6 +1180,13 @@
   "test_cpu_strided_dense (__main__.SweepInputsCpuTest)": [
     "102712",
     "https://github.com/pytorch/pytorch/issues/102712",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_strided_double (__main__.SweepInputsCpuTest)": [
+    "102744",
+    "https://github.com/pytorch/pytorch/issues/102744",
     [
       "rocm"
     ]
@@ -1272,6 +1300,13 @@
     "https://github.com/pytorch/pytorch/issues/78685",
     [
       "linux"
+    ]
+  ],
+  "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
+    "102745",
+    "https://github.com/pytorch/pytorch/issues/102745",
+    [
+      "rocm"
     ]
   ],
   "test_ddp_hook_parity_allreduce (__main__.TestDistBackendWithSpawn)": [
@@ -1390,14 +1425,6 @@
   "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
     "80325",
     "https://github.com/pytorch/pytorch/issues/80325",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_true_none (__main__.TestParityWithDDP)": [
-    "82399",
-    "https://github.com/pytorch/pytorch/issues/82399",
     [
       "linux",
       "rocm"
