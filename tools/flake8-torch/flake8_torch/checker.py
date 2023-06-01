@@ -189,7 +189,7 @@ def main() -> None:
             )
     except KeyboardInterrupt:
         print("Interrupted!", file=sys.stderr)
-        return 2
+        sys.exit(2)
 
     print(
         f"Finished checking {result.successes + result.skips + result.failures} files.",
