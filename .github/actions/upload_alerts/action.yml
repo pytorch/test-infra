@@ -6,10 +6,10 @@ inputs:
     required: true
   organization:
     description: 'GitHub organization alerts are for'
-    required: false
+    required: true
   repo:
     description: 'GitHub repository alerts are for'
-    required: false
+    required: true
     
 runs:
   using: 'composite'
@@ -23,8 +23,10 @@ runs:
     - name: Run Script to Validate Alerts
       shell: bash
       if: github.event_name != 'pull_request'
-      run: python tools/scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
+      run: | 
+        python tools/scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
     - name: Run Script to Upload Alerts
       shell: bash
       if: github.event_name != 'pull_request'
-      run: python tools/scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
+      run: |
+       python tools/scripts/upload_alerts.py "${{ inputs.alerts }}" "${{ inputs.organization }}" "${{ inputs.repo }}"
