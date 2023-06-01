@@ -278,12 +278,14 @@ function computeGeomean(
       speedup[bucket][workflowId][suite][compiler] = [];
     }
 
+    let speedupValue = GEOMEAN_LOWER_BOUND;
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       record.speedup !== 0.0
     ) {
-      speedup[bucket][workflowId][suite][compiler].push(record.speedup);
+      speedupValue = record.speedup;
     }
+    speedup[bucket][workflowId][suite][compiler].push(speedupValue);
   });
 
   Object.keys(speedup).forEach((bucket: string) => {
