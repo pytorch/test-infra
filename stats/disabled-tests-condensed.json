@@ -451,7 +451,8 @@
     "102151",
     "https://github.com/pytorch/pytorch/issues/102151",
     [
-      "linux"
+      "linux",
+      "mac"
     ]
   ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
