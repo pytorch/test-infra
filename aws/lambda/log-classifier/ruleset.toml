@@ -173,6 +173,10 @@ name = 'Bad response status code'
 pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
+name = 'Python Test timeout (KeyboardInterrupt)'
+pattern = '!+ KeyboardInterrupt !+'
+
+[[rule]]
 name = 'Python Test File RuntimeError'
 pattern = '^RuntimeError: .*test.* failed'
 
