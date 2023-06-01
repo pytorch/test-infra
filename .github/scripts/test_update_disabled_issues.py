@@ -7,6 +7,7 @@ from update_disabled_issues import (
     get_disable_issues,
     OWNER,
     REPO,
+    UNSTABLE_PREFIX,
     validate_and_sort,
 )
 
@@ -61,6 +62,37 @@ MOCK_DATA = {
             "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
             "number": 53457,
             "title": "Not a DISABLED issue, but has the disabled keyword",
+        },
+    ],
+}
+
+MOCK_UNSTABLE_DATA = {
+    "total_count": 3,
+    "incomplete_results": False,
+    "items": [
+        {
+            "html_url": "https://github.com/pytorch/pytorch/issues/102299",
+            "url": "https://api.github.com/repos/pytorch/pytorch/issues/102299",
+            "number": 102299,
+            "title": "UNSTABLE trunk / macos-12-py3-arm64",
+            "user": {
+                "login": "mock-user",
+            },
+        },
+        {
+            "html_url": "https://github.com/pytorch/pytorch/issues/102300",
+            "url": "https://api.github.com/repos/pytorch/pytorch/issues/102300",
+            "number": 102300,
+            "title": "UNSTABLE windows-binary-libtorch-release",
+            "user": {
+                "login": "mock-user",
+            },
+        },
+        {
+            "html_url": "https://github.com/pytorch/pytorch/issues/53457",
+            "url": "https://api.github.com/repos/pytorch/pytorch/issues/53457",
+            "number": 53457,
+            "title": "Not a UNSTABLE issue, but has the unstable keyword",
         },
     ],
 }
@@ -167,6 +199,49 @@ class TestUpdateDisabledIssues(TestCase):
             results,
         )
 
+    def test_unstable_jobs(self, mock_get_disable_issues):
+        mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
+
+        unstable_issues = get_disable_issues(prefix=UNSTABLE_PREFIX)
+        validate_and_sort(unstable_issues)
+
+        _, unstable_jobs = filter_disable_issues(
+            unstable_issues, prefix=UNSTABLE_PREFIX
+        )
+
+        with mock.patch(
+            "update_disabled_issues.can_disable_jobs"
+        ) as mock_can_disable_jobs:
+            mock_can_disable_jobs.return_value = True
+            results = condense_disable_jobs(
+                unstable_jobs,
+                owner=OWNER,
+                repo=REPO,
+                prefix=UNSTABLE_PREFIX,
+            )
+
+        self.assertDictEqual(
+            {
+                "trunk / macos-12-py3-arm64": (
+                    "mock-user",
+                    "102299",
+                    "https://github.com/pytorch/pytorch/issues/102299",
+                    "trunk",
+                    "macos-12-py3-arm64",
+                    "",
+                ),
+                "windows-binary-libtorch-release": (
+                    "mock-user",
+                    "102300",
+                    "https://github.com/pytorch/pytorch/issues/102300",
+                    "windows-binary-libtorch-release",
+                    "",
+                    "",
+                ),
+            },
+            results,
+        )
+
     def test_unauthorized_condense_disable_jobs(self, mock_get_disable_issues):
         mock_get_disable_issues.return_value = MOCK_DATA
 
@@ -184,6 +259,27 @@ class TestUpdateDisabledIssues(TestCase):
             )
 
         # Nothing should be disabled here because of the lack of permission
+        self.assertFalse(results)
+
+    def test_unauthorized_unstable_jobs(self, mock_get_disable_issues):
+        mock_get_disable_issues.return_value = MOCK_UNSTABLE_DATA
+
+        unstable_issues = get_disable_issues(MOCK_UNSTABLE_DATA)
+        validate_and_sort(unstable_issues)
+
+        _, unstable_jobs = filter_disable_issues(
+            unstable_issues, prefix=UNSTABLE_PREFIX
+        )
+
+        with mock.patch(
+            "update_disabled_issues.can_disable_jobs"
+        ) as mock_can_disable_jobs:
+            mock_can_disable_jobs.return_value = False
+            results = condense_disable_jobs(
+                unstable_jobs, owner=OWNER, repo=REPO, prefix=UNSTABLE_PREFIX
+            )
+
+        # Nothing should be masked as unstable here because of the lack of permission
         self.assertFalse(results)
 
 
