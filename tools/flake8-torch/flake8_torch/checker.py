@@ -205,7 +205,8 @@ def main() -> None:
                 "potentially fixable with the --fix option"
             )
 
-    return 1 if result.failures > 0 else 0
+    if result.failures > 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
