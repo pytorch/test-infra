@@ -11,10 +11,11 @@ import sys
 
 __version__ = "0.0.1"
 
-CYAN = "\033[96m"
-RED = "\033[31m"
-BOLD = "\033[1m"
-ENDC = "\033[0m"
+IS_TTY = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+CYAN = "\033[96m" if IS_TTY else ""
+RED = "\033[31m" if IS_TTY else ""
+BOLD = "\033[1m" if IS_TTY else ""
+ENDC = "\033[0m" if IS_TTY else ""
 
 
 @dataclass
