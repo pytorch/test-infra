@@ -24,7 +24,7 @@ runs:
       shell: bash
       # if: github.event_name != 'pull_request'
       run: | 
-        python tools/scripts/validate_alerts.py --alerts "${{ inputs.alerts }}"
+        python tools/scripts/validate_alerts_to_aws.py --alerts "${{ inputs.alerts }}"
 
     - name: Run Script to Upload Alerts
       shell: bash
