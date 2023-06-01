@@ -1,4 +1,3 @@
-# .github/workflows/test.yml
 name: Test Action for alert upload
 
 on:
@@ -9,7 +8,7 @@ on:
 
 jobs:
   test-alerting-workflow:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
