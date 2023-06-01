@@ -1,4 +1,11 @@
 {
+  "test_Conv2d_dilated_cuda_tf32 (__main__.TestNN)": [
+    "102727",
+    "https://github.com/pytorch/pytorch/issues/102727",
+    [
+      "linux"
+    ]
+  ],
   "test_Conv2d_no_bias_cuda_tf32 (__main__.TestNN)": [
     "102291",
     "https://github.com/pytorch/pytorch/issues/102291",
