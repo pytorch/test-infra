@@ -1303,8 +1303,8 @@
     ]
   ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
-    "102745",
-    "https://github.com/pytorch/pytorch/issues/102745",
+    "102751",
+    "https://github.com/pytorch/pytorch/issues/102751",
     [
       "rocm"
     ]
