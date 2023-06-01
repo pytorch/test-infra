@@ -1,1 +1,10 @@
-{}
+{
+  "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
+    "huydhn",
+    "102789",
+    "https://github.com/pytorch/pytorch/issues/102789",
+    "periodic",
+    "linux-focal-rocm5.4.2-py3.8",
+    "test"
+  ]
+}
