@@ -16,6 +16,14 @@ jobs:
         with:
           go-version: '^1.16.0'
       # Lifted from https://github.com/pytorch/pytorch/blob/b39b28ced39f6400c97c1ab663046d765fc95a87/.github/workflows/lint.yml#L189-L200
+      
+      - name: Test alert uploads work
+        uses: ./.github/actions/upload-alerts
+        with:
+          repo: 'test_repo'
+          organization: 'test_org'
+          alerts: '[]'      
+      
       - name: Install ShellCheck
         run: |
           set -x
@@ -38,9 +46,3 @@ jobs:
             -ignore 'when a reusable workflow is called with "uses", "strategy" is not available.' \
             -ignore 'reusable workflow cannot be nested.'
             - name: Test my action
-      - name: Test alert uploads work
-        uses: ./.github/actions/upload-alerts
-        with:
-          repo: 'test_repo'
-          organization: 'test_org'
-          alerts: '[]'
