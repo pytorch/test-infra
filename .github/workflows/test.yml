@@ -3,7 +3,17 @@ name: Test Action for alert upload
 
 on:
   pull_request:
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
   push:
+    branches:
+      - main
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
 
 jobs:
   test:
