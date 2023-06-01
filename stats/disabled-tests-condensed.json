@@ -238,6 +238,13 @@
       "rocm"
     ]
   ],
+  "test_argmax_argmin1_cpu (__main__.CpuTests)": [
+    "102686",
+    "https://github.com/pytorch/pytorch/issues/102686",
+    [
+      "rocm"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
@@ -1138,6 +1145,13 @@
   "test_cpu_strided_transposed (__main__.SweepInputsCpuTest)": [
     "102649",
     "https://github.com/pytorch/pytorch/issues/102649",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_transposed_int (__main__.SweepInputsCpuTest)": [
+    "102685",
+    "https://github.com/pytorch/pytorch/issues/102685",
     [
       "rocm"
     ]
