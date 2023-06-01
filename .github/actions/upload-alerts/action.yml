@@ -15,7 +15,6 @@ runs:
   using: 'composite'
   steps:
     - name: Checkout pytorch/test-infra repository
-      shell: bash
       uses: actions/checkout@v3
       with:
         repository: pytorch/test-infra
@@ -35,6 +34,5 @@ runs:
 
     - name: Cleanup
       run: |
-        rm -rf _repo
         rm -rf _test-infra
       shell: bash
