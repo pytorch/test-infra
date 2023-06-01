@@ -174,7 +174,7 @@ pattern = '^##\[error\]Response status code does not indicate success: .*$'
 
 [[rule]]
 name = 'Python Test timeout (KeyboardInterrupt)'
-pattern = '\!+ KeyboardInterrupt \!+'
+pattern = '!+ KeyboardInterrupt !+'
 
 [[rule]]
 name = 'Python Test File RuntimeError'
