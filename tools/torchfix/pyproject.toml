@@ -1,10 +1,10 @@
 [project]
-name = "flake8-torch"
+name = "TorchFix"
 dynamic = ["version"]
 dependencies = ["flake8>=3.8.2", "PyYAML", "libcst>=0.4.9,<0.5.0"]
 
 [project.entry-points]
-"flake8.extension" = {TOR = "flake8_torch.checker:TorchChecker"}
+"flake8.extension" = {TOR = "torchfix.torchfix:TorchChecker"}
 
 [tool.pytest.ini_options]
 log_cli = true
@@ -20,4 +20,4 @@ exclude = "tests/fixtures/*"
 "*" = ["*.yaml"]
 
 [tool.setuptools.dynamic]
-version = {attr = "flake8_torch.checker.__version__"}
+version = {attr = "torchfix.torchfix.__version__"}

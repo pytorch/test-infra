@@ -1,5 +1,5 @@
 from pathlib import Path
-from flake8_torch.checker import TorchChecker, TorchCodemod
+from torchfix.torchfix import TorchChecker, TorchCodemod
 import logging
 import libcst.codemod as codemod
 
