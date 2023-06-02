@@ -242,7 +242,7 @@ export async function handleNonFlakyTest(
 export function getLatestTrunkJobURL(test: FlakyTestData): string {
   let index = test.branches.lastIndexOf("master");
   if (index < 0) {
-    let index = test.branches.lastIndexOf("main");
+    index = test.branches.lastIndexOf("main");
     if (index < 0) {
       console.warn(
         `Flaky test ${test.name} has no trunk failures. Disabling anyway, but this may be unintended.`
