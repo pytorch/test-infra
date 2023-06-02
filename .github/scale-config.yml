@@ -22,7 +22,7 @@
 
 runner_types:
   linux.12xlarge:
-    disk_size: 150
+    disk_size: 200
     instance_type: c5.12xlarge
     is_ephemeral: false
     max_available: 1000
