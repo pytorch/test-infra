@@ -1262,6 +1262,13 @@
       "rocm"
     ]
   ],
+  "test_cpu_transposed_broadcast3 (__main__.SweepInputsCpuTest)": [
+    "102816",
+    "https://github.com/pytorch/pytorch/issues/102816",
+    [
+      "rocm"
+    ]
+  ],
   "test_cpu_transposed_int (__main__.SweepInputsCpuTest)": [
     "102685",
     "https://github.com/pytorch/pytorch/issues/102685",
