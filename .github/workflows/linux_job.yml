@@ -190,10 +190,6 @@ jobs:
               eval "export ${line}"
             fi
           done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-          echo "${RUNNER_TEMP}/exec_script"
-          cat "${RUNNER_TEMP}/exec_script"
-          echo "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-          cat "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
           bash "${RUNNER_TEMP}/exec_script"
 
       - name: Surface failing tests
