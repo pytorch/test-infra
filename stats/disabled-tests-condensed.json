@@ -390,11 +390,6 @@
     "https://github.com/pytorch/pytorch/issues/59798",
     []
   ],
-  "test_backward_rref_multi (__main__.TensorPipeDistAutogradTestWithSpawn)": [
-    "59768",
-    "https://github.com/pytorch/pytorch/issues/59768",
-    []
-  ],
   "test_backward_rref_nested (__main__.TensorPipeDistAutogradTestWithSpawn)": [
     "59794",
     "https://github.com/pytorch/pytorch/issues/59794",
