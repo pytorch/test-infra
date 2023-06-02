@@ -40,7 +40,6 @@ def test_checker_fixtures():
 def test_codemod_fixtures():
     for source_path in (FIXTURES_PATH / "codemod").glob("*.py"):
         LOGGER.info("Testing %s", source_path.relative_to(Path.cwd()))
-        expected_path = str(source_path) + ".out"
-        with open(expected_path) as expected:
-            expected_results = expected.read()
+        expected_path = source_path.with_suffix(".py.out")
+        expected_results = expected_path.read_text()
         assert _codemod_results(source_path) == expected_results
