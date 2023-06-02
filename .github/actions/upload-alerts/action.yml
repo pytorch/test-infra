@@ -30,7 +30,7 @@ runs:
       shell: bash
       # if: github.event_name != 'pull_request'
       run: |
-       python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --organization "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
+       python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
 
     - name: Cleanup
       run: |
