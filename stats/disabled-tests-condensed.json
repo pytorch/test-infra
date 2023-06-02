@@ -1,4 +1,11 @@
 {
+  "test_AllenaiLongformerBase_repro_cpu (__main__.CpuTests)": [
+    "102865",
+    "https://github.com/pytorch/pytorch/issues/102865",
+    [
+      "rocm"
+    ]
+  ],
   "test_Conv2d_dilated_cuda_tf32 (__main__.TestNN)": [
     "102727",
     "https://github.com/pytorch/pytorch/issues/102727",
@@ -160,6 +167,13 @@
       "rocm"
     ]
   ],
+  "test_aliased_buffer_reuse_cpu (__main__.CpuTests)": [
+    "102866",
+    "https://github.com/pytorch/pytorch/issues/102866",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -269,6 +283,13 @@
   "test_arange1_cpu (__main__.CpuTests)": [
     "102634",
     "https://github.com/pytorch/pytorch/issues/102634",
+    [
+      "rocm"
+    ]
+  ],
+  "test_arange3_cpu (__main__.CpuTests)": [
+    "102864",
+    "https://github.com/pytorch/pytorch/issues/102864",
     [
       "rocm"
     ]
@@ -390,6 +411,11 @@
     "https://github.com/pytorch/pytorch/issues/59798",
     []
   ],
+  "test_backward_rref_multi (__main__.TensorPipeDistAutogradTestWithSpawn)": [
+    "59768",
+    "https://github.com/pytorch/pytorch/issues/59768",
+    []
+  ],
   "test_backward_rref_nested (__main__.TensorPipeDistAutogradTestWithSpawn)": [
     "59794",
     "https://github.com/pytorch/pytorch/issues/59794",
@@ -481,7 +507,8 @@
     "https://github.com/pytorch/pytorch/issues/101799",
     [
       "linux",
-      "asan"
+      "asan",
+      "mac"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -680,14 +707,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_empty_strided_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "101869",
-    "https://github.com/pytorch/pytorch/issues/101869",
-    [
-      "rocm",
-      "inductor"
-    ]
-  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
@@ -832,6 +851,13 @@
   "test_cond_nested_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102192",
     "https://github.com/pytorch/pytorch/issues/102192",
+    [
+      "linux"
+    ]
+  ],
+  "test_cond_side_effects_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "102863",
+    "https://github.com/pytorch/pytorch/issues/102863",
     [
       "linux"
     ]
@@ -2520,13 +2546,6 @@
       "rocm"
     ]
   ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "100756",
-    "https://github.com/pytorch/pytorch/issues/100756",
-    [
-      "rocm"
-    ]
-  ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98025",
     "https://github.com/pytorch/pytorch/issues/98025",
@@ -2920,6 +2939,13 @@
     [
       "win",
       "windows",
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
+    "86732",
+    "https://github.com/pytorch/pytorch/issues/86732",
+    [
       "linux"
     ]
   ],
