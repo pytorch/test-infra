@@ -111,6 +111,13 @@
       "rocm"
     ]
   ],
+  "test_add_const_float_cpu (__main__.CpuTests)": [
+    "102838",
+    "https://github.com/pytorch/pytorch/issues/102838",
+    [
+      "rocm"
+    ]
+  ],
   "test_add_const_int_cpu (__main__.CpuTests)": [
     "102607",
     "https://github.com/pytorch/pytorch/issues/102607",
@@ -121,6 +128,13 @@
   "test_add_inplace_permuted_cpu (__main__.CpuTests)": [
     "102612",
     "https://github.com/pytorch/pytorch/issues/102612",
+    [
+      "rocm"
+    ]
+  ],
+  "test_addmm_cpu (__main__.CpuTests)": [
+    "102837",
+    "https://github.com/pytorch/pytorch/issues/102837",
     [
       "rocm"
     ]
@@ -1300,6 +1314,13 @@
   "test_cpu_transposed_dense (__main__.SweepInputsCpuTest)": [
     "102826",
     "https://github.com/pytorch/pytorch/issues/102826",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_transposed_double (__main__.SweepInputsCpuTest)": [
+    "102836",
+    "https://github.com/pytorch/pytorch/issues/102836",
     [
       "rocm"
     ]
