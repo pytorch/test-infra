@@ -31,7 +31,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate json string containing alerts")
     parser.add_argument('--alerts', type=str, required=True, help="JSON string to validate.")
     args = parser.parse_args()
-
+    print(f"the alerts are {args.alerts}")
     validate_json(args.alerts)
     validate_schema(args.alerts)
 
