@@ -10,6 +10,9 @@ inputs:
   repo:
     description: 'GitHub repository alerts are for'
     required: true
+  secrets:
+    ROCKSET_API_KEY:
+      required: true
     
 runs:
   using: 'composite'
