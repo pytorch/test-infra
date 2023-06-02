@@ -421,20 +421,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
-    "98046",
-    "https://github.com/pytorch/pytorch/issues/98046",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
-    "101786",
-    "https://github.com/pytorch/pytorch/issues/101786",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_int32 (__main__.TestForeachCUDA)": [
     "102824",
     "https://github.com/pytorch/pytorch/issues/102824",
