@@ -371,6 +371,11 @@
       "linux"
     ]
   ],
+  "test_backward_rref (__main__.TensorPipeDistAutogradTestWithSpawn)": [
+    "59798",
+    "https://github.com/pytorch/pytorch/issues/59798",
+    []
+  ],
   "test_backward_rref_multi (__main__.TensorPipeDistAutogradTestWithSpawn)": [
     "59768",
     "https://github.com/pytorch/pytorch/issues/59768",
