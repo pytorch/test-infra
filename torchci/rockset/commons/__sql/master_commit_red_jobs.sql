@@ -25,6 +25,7 @@ WITH all_jobs AS (
         AND job.name != 'generate-test-matrix'
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%filter%'
+        AND job.name NOT LIKE '%unstable%'
         AND job.name LIKE '%/%'
         AND ARRAY_CONTAINS(SPLIT(:workflowNames, ','), LOWER(workflow.name))
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
