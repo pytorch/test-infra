@@ -252,6 +252,13 @@
       "rocm"
     ]
   ],
+  "test_arange4_cpu (__main__.CpuTests)": [
+    "102798",
+    "https://github.com/pytorch/pytorch/issues/102798",
+    [
+      "rocm"
+    ]
+  ],
   "test_arange5_cpu (__main__.CpuTests)": [
     "102651",
     "https://github.com/pytorch/pytorch/issues/102651",
@@ -313,6 +320,13 @@
   "test_average_parameters (__main__.TestDistBackendWithSpawn)": [
     "93929",
     "https://github.com/pytorch/pytorch/issues/93929",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d5_cpu (__main__.CpuTests)": [
+    "102799",
+    "https://github.com/pytorch/pytorch/issues/102799",
     [
       "rocm"
     ]
@@ -382,6 +396,13 @@
   "test_binary_op__foreach_add_is_fastpath_True_cuda_int8 (__main__.TestForeachCUDA)": [
     "101786",
     "https://github.com/pytorch/pytorch/issues/101786",
+    [
+      "rocm"
+    ]
+  ],
+  "test_binary_op__foreach_sub_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
+    "102797",
+    "https://github.com/pytorch/pytorch/issues/102797",
     [
       "rocm"
     ]
@@ -775,13 +796,6 @@
     "https://github.com/pytorch/pytorch/issues/102165",
     [
       "asan",
-      "linux"
-    ]
-  ],
-  "test_cond_nested (__main__.MiscTests)": [
-    "101758",
-    "https://github.com/pytorch/pytorch/issues/101758",
-    [
       "linux"
     ]
   ],
@@ -1230,6 +1244,20 @@
   "test_cpu_strided_transposed (__main__.SweepInputsCpuTest)": [
     "102649",
     "https://github.com/pytorch/pytorch/issues/102649",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_transposed_broadcast1 (__main__.SweepInputsCpuTest)": [
+    "102800",
+    "https://github.com/pytorch/pytorch/issues/102800",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cpu_transposed_broadcast2 (__main__.SweepInputsCpuTest)": [
+    "102801",
+    "https://github.com/pytorch/pytorch/issues/102801",
     [
       "rocm"
     ]
@@ -2095,6 +2123,13 @@
     "https://github.com/pytorch/pytorch/issues/102113",
     [
       "inductor"
+    ]
+  ],
+  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95148",
+    "https://github.com/pytorch/pytorch/issues/95148",
+    [
+      "linux"
     ]
   ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
