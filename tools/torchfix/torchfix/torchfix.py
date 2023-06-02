@@ -29,7 +29,7 @@ class LintViolation:
 
     def flake8_result(self):
         full_message = f"{self.error_code} {self.message}"
-        return (self.line, 1 + self.column, full_message, "TorchChecker")
+        return (self.line, 1 + self.column, full_message, "TorchFix")
 
     def codemod_result(self) -> str:
         fixable = f" [{CYAN}*{ENDC}]" if self.replacement is not None else ""
@@ -98,7 +98,7 @@ def _read_deprecated_config(path=None):
 
 
 class TorchChecker:
-    name = "flake8-torch"
+    name = "TorchFix"
     version = __version__
 
     # The parameters need to have these exact names.
