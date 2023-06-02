@@ -10,9 +10,6 @@ inputs:
   repo:
     description: 'GitHub repository alerts are for'
     required: true
-  secrets:
-    ROCKSET_API_KEY:
-      required: true
     
 runs:
   using: 'composite'
@@ -31,8 +28,6 @@ runs:
 
     - name: Run Script to Upload Alerts
       shell: bash
-      env:
-          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
       # if: github.event_name != 'pull_request'
       run: |
        python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
