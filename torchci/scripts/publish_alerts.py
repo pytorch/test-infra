@@ -86,11 +86,19 @@ def fetch_alerts(
         raise RuntimeError("Error fetching alerts", e)
 
 def publish_alerts(alerts: List[Dict[str, Any]]):
-    # alert_dict is indexed as: org: repo: branch: alert_type: List of Alerts
-    alert_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: []))))
+    # alert_dict is indexed as: org: repo: alert_type: List of Alerts
+    alert_dict =  defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: []))))
+    individual_alert_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [])))))
+    oncall_alert_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [])))))
     for alert in alerts:
         if (alert["organization"], alert["repo"]) not in ENABLED_REPOS:
             continue
-        alert_dict[alert["organization"]][alert["repo"]][alert["branch"]][alert["AlertType"]].append(alert)
+        alert_dict[alert["organization"]][alert["repo"]][alert["AlertType"]].append(alert)
+        for oncall in alert["oncalls"]:
+            oncall_alert_dict[oncall][alert["organization"]][alert["repo"]][alert["AlertType"]].append(alert)
+        for individual in alert["individuals"]:
+            individual_alert_dict[individual][alert["organization"]][alert["repo"]][alert["AlertType"]].append(alert)
+        
     
+
         

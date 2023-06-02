@@ -1,6 +1,9 @@
+import re
 from typing import Dict, Any, List
 
-from torchci.scripts.check_alerts import generate_failed_job_hud_link
+import urllib3
+
+from torchci.scripts.check_alerts import FAILED_JOB_PATTERN, PYTORCH_ALERT_LABEL, JobStatus, generate_failed_job_hud_link
 
 ALERT_REGISTRY = {}
 
@@ -10,8 +13,9 @@ SKIPPED = "skipped"
 SUCCESS = "success"
 FAILURE = "failure"
 CANCELED = "canceled"
+PYTORCH_ALERT_LABEL = "pytorch-alert"
 
-def register(alert_type):
+def register_alert(alert_type):
     if alert_type in ALERT_REGISTRY:
         raise ValueError(f"Alert type {alert_type} is already registered")
     def inner(func):
@@ -19,17 +23,17 @@ def register(alert_type):
         return func
     return inner
 
-@register('Recurrently Failing Jobs')
-def handle_recurrently_failing_jobs(alerts: List[Dict[str, Any]]) -> str:
+@register_alert('Recurrently Failing Jobs')
+def handle_recurrently_failing_jobs(alerts: List[Dict[str, Any]]) -> Any:
     pass
 
-def generate_failed_job_hud_link(failed_job: JobStatus) -> str:
+def generate_failed_job_hud_link(failed_job_name: str) -> str:
     # TODO: I don't think minihud is universal across multiple repositories
     #       would be good to just replace this with something that is
-    hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
-        failed_job.job_name
+    hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib3.parse.quote(
+        failed_job_name
     )
-    return f"[{failed_job.job_name}]({hud_link})"
+    return f"[{failed_job_name}]({hud_link})"
 
 def generate_failed_job_issue(
     repo: str, branch: str, failed_jobs: List[JobStatus]
