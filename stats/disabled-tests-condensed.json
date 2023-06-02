@@ -118,6 +118,13 @@
       "rocm"
     ]
   ],
+  "test_adaptive_avg_pool2d_low_prec_cpu (__main__.CpuTests)": [
+    "102884",
+    "https://github.com/pytorch/pytorch/issues/102884",
+    [
+      "rocm"
+    ]
+  ],
   "test_add_const_float_cpu (__main__.CpuTests)": [
     "102838",
     "https://github.com/pytorch/pytorch/issues/102838",
@@ -287,6 +294,13 @@
       "rocm"
     ]
   ],
+  "test_arange2_cpu (__main__.CpuTests)": [
+    "102885",
+    "https://github.com/pytorch/pytorch/issues/102885",
+    [
+      "rocm"
+    ]
+  ],
   "test_arange3_cpu (__main__.CpuTests)": [
     "102864",
     "https://github.com/pytorch/pytorch/issues/102864",
@@ -332,6 +346,13 @@
   "test_argmax_to_float_cpu (__main__.CpuTests)": [
     "102742",
     "https://github.com/pytorch/pytorch/issues/102742",
+    [
+      "rocm"
+    ]
+  ],
+  "test_as_strided_cpu (__main__.CpuTests)": [
+    "102883",
+    "https://github.com/pytorch/pytorch/issues/102883",
     [
       "rocm"
     ]
@@ -550,7 +571,8 @@
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
     [
-      "linux"
+      "linux",
+      "mac"
     ]
   ],
   "test_call_parent_non_class_methods_from_child (__main__.MiscTests)": [
@@ -851,6 +873,13 @@
   "test_cond_nested_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102192",
     "https://github.com/pytorch/pytorch/issues/102192",
+    [
+      "linux"
+    ]
+  ],
+  "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+    "102882",
+    "https://github.com/pytorch/pytorch/issues/102882",
     [
       "linux"
     ]
