@@ -175,6 +175,7 @@ def main() -> None:
     command_instance = TorchCodemod(codemod.CodemodContext())
     DIFF_CONTEXT = 5
     try:
+        # XXX TODO: Get rid of this!
         # Silence "Failed to determine module name"
         # https://github.com/Instagram/LibCST/issues/944
         with contextlib.redirect_stderr(io.StringIO()):
@@ -198,11 +199,14 @@ def main() -> None:
 
     if result.successes > 0:
         if args.fix:
-            print(f"Transformed {result.successes} files successfully.")
+            print(
+                f"Transformed {result.successes} files successfully.", file=sys.stderr
+            )
         else:
             print(
                 f"[{CYAN}*{ENDC}] {result.successes} "
-                "potentially fixable with the --fix option"
+                "potentially fixable with the --fix option",
+                file=sys.stderr,
             )
 
     if result.failures > 0:
