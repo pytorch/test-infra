@@ -21,7 +21,7 @@ def validate_json(json_string):
         json_object = json.loads(json_string)
         print("The input string is a valid JSON.")
     except ValueError as e:
-        raise ValueError(f"The input string is not a valid JSON: Error: {e}")
+        raise ValueError(f"The input string is not a valid JSON: Error: {e}\n\n The input string is {json_string}")
 def validate_schema(json_string):
     json_object = json.loads(json_string)
     jsonschema.validate(instance=json_object, schema=ALERT_SCHEMA)
