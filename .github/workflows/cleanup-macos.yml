@@ -13,3 +13,5 @@ jobs:
     steps:
       - name: Clean up disk space before running MacOS workflow
         uses: huydhn/test-infra/.github/actions/check-disk-space@cleanup-macos-action
+        with:
+          minimum-available-space-in-gb: 12
