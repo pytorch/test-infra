@@ -1946,86 +1946,11 @@
       "rocm"
     ]
   ],
-  "test_fn_grad_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86943",
-    "https://github.com/pytorch/pytorch/issues/86943",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86864",
-    "https://github.com/pytorch/pytorch/issues/86864",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "87109",
-    "https://github.com/pytorch/pytorch/issues/87109",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86640",
-    "https://github.com/pytorch/pytorch/issues/86640",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_linalg_lu_factor_ex_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "86775",
-    "https://github.com/pytorch/pytorch/issues/86775",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_grad_nn_functional_fractional_max_pool3d_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "76429",
-    "https://github.com/pytorch/pytorch/issues/76429",
-    [
-      "linux",
-      "win",
-      "windows"
-    ]
-  ],
   "test_fn_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101771",
     "https://github.com/pytorch/pytorch/issues/101771",
     [
       "inductor"
-    ]
-  ],
-  "test_fn_gradgrad_linalg_det_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "62328",
-    "https://github.com/pytorch/pytorch/issues/62328",
-    []
-  ],
-  "test_fn_gradgrad_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86431",
-    "https://github.com/pytorch/pytorch/issues/86431",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86759",
-    "https://github.com/pytorch/pytorch/issues/86759",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86617",
-    "https://github.com/pytorch/pytorch/issues/86617",
-    []
-  ],
-  "test_fn_gradgrad_linalg_lu_factor_ex_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "86709",
-    "https://github.com/pytorch/pytorch/issues/86709",
-    [
-      "linux"
     ]
   ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -2052,34 +1977,6 @@
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
-    [
-      "rocm"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_lu_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86680",
-    "https://github.com/pytorch/pytorch/issues/86680",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_lu_factor_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "86504",
-    "https://github.com/pytorch/pytorch/issues/86504",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
-    "86760",
-    "https://github.com/pytorch/pytorch/issues/86760",
-    [
-      "linux"
-    ]
-  ],
-  "test_forward_mode_AD_nn_functional_max_unpool2d_cuda_float64 (__main__.TestGradientsCUDA)": [
-    "77039",
-    "https://github.com/pytorch/pytorch/issues/77039",
     [
       "rocm"
     ]
