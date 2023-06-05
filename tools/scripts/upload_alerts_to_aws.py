@@ -49,6 +49,7 @@ def get_recent_alerts(orgname, reponame):
         rockset.models.QueryParameter(name="repo", type="string", value=reponame),
         rockset.models.QueryParameter(name="organization", type="string", value=orgname),
     ]
+    print(f"rockset version {RELEVANT_QUERIES_VERSION} ")
     api_response = rs.QueryLambdas.execute_query_lambda(
         query_lambda=lambda_function_name,
         version=RELEVANT_QUERIES_VERSION,
