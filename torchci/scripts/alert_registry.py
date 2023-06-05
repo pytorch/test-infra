@@ -36,20 +36,19 @@ def generate_failed_job_hud_link(failed_job_name: str) -> str:
     return f"[{failed_job_name}]({hud_link})"
 
 def generate_failed_job_issue(
-    repo: str, branch: str, failed_jobs: List[JobStatus]
+    failed_jobs: List[str]
 ) -> Any:
     failed_jobs.sort(key=lambda status: status.job_name)
     issue = {}
     issue[
         "title"
-    ] = f"[Pytorch] There are {len(failed_jobs)} Recurrently Failing Jobs on {repo} {branch}"
+    ] = f"[Pytorch] There are {len(failed_jobs)}"
     body = "Within the last 50 commits, there are the following failures on the main branch of pytorch: \n"
     for job in failed_jobs:
         failing_sha = job.failure_chain[-1]["sha"]
         body += (
-            f"- {generate_failed_job_hud_link(job)} failed consecutively starting with "
+            f"- {generate_failed_job_hud_link(job)} failed consecutively"
         )
-        body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{repo}/{failing_sha})"
         body += "\n\n"
 
     body += "Please review the errors and revert if needed."
