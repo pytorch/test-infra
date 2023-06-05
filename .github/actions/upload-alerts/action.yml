@@ -19,7 +19,10 @@ runs:
       with:
         repository: pytorch/test-infra
         path: _test-infra
-
+    - name: Check file
+      shell: bash
+      run: |
+        cat _test-infra/tools/scripts/validate_alerts.py
     - name: Run Script to Validate Alerts
       shell: bash
       run: | 
@@ -29,7 +32,7 @@ runs:
       shell: bash
       # if: github.event_name != 'pull_request'
       run: |
-       python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}" --dry-run "${{ github.event_name }}" != "pull_request"
+       python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}" --dry-run [[ "${{ github.event_name }}" == "pull_request" ]]
 
     - name: Cleanup
       run: |
