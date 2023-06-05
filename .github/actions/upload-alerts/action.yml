@@ -19,7 +19,7 @@ runs:
       with:
         repository: pytorch/test-infra
         path: _test-infra
-        ref: 'e18db87fd8d6b546d0a9f23795594f4df59245c2'
+        ref: '914d2e876a37d03b73537b060ca769df0add5b9e'
     - name: Check file
       shell: bash
       run: |
