@@ -22,7 +22,7 @@ runs:
     - name: Check file
       shell: bash
       run: |
-        cat _test-infra/tools/scripts/validate_alerts.py
+        cat _test-infra/tools/scripts/upload_alerts_to_aws.py
     - name: Run Script to Validate Alerts
       shell: bash
       run: | 

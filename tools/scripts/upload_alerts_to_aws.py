@@ -85,7 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--alerts', type=str, required=True, help="JSON string to validate.")
     parser.add_argument('--org', type=str, required=True, help="Organization of repository for alerts")
     parser.add_argument('--repo', type=str, required=True, help="Repository for alerts")
-    parser.add_argument('--dry-run', type=str, required=False, default=False, help="is a dry run")
+    parser.add_argument('--dry-run', type=bool, required=False, default=False, help="is a dry run")
     args = parser.parse_args()
     timestamp = datetime.datetime.utcnow().isoformat()
     new_alerts = append_metadata(args.alerts, args.org, args.repo, timestamp)
