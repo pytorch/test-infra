@@ -13,7 +13,7 @@ import boto3  # type: ignore[import]
 import rockset  # type: ignore[import]
 
 S3_RESOURCE = boto3.resource("s3")
-RELEVANT_QUERIES_VERSION = "727014a49bef2c20"
+RELEVANT_QUERIES_VERSION = "5a66b6108b2ac5b1"
 def upload_to_s3(
     bucket_name: str,
     key: str,
