@@ -13,6 +13,7 @@ import boto3  # type: ignore[import]
 import rockset  # type: ignore[import]
 
 S3_RESOURCE = boto3.resource("s3")
+RELEVANT_QUERIES_VERSION = "727014a49bef2c20"
 def upload_to_s3(
     bucket_name: str,
     key: str,
@@ -50,7 +51,7 @@ def get_recent_alerts(orgname, reponame):
     ]
     api_response = rs.QueryLambdas.execute_query_lambda(
         query_lambda=lambda_function_name,
-        version="727014a49bef2c20",
+        version=RELEVANT_QUERIES_VERSION,
         parameters=query_parameters,
     )
     return api_response["results"]
