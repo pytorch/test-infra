@@ -45,8 +45,8 @@ mergeOption.add_argument("-f", "--force", {
   help: `Merge without checking anything. This requires a reason for auditting purpose, for example:
 @pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'` +
 "\n\n" +
-"Instead of using -f, it's better to use `--ignore-current` to merge if you see jobs with unrelated failures. " +
-"This will let you still complete any pending checks to make sure they pass before merging.",
+"Please use `-f` as last resort, prefer `--ignore-current` to continue the merge ignoring current failures. " +
+"This will allow currently pending tests to finish and report signal before the merge.",
 });
 mergeOption.add_argument("-ic", "--ignore-current", {
   action: "store_true",
