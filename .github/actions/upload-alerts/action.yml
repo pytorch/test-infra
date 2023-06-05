@@ -19,11 +19,7 @@ runs:
       with:
         repository: pytorch/test-infra
         path: _test-infra
-        ref: '11b4c6ee72c5c9b1829a20b4b903c5fe9a6aab09'
-    - name: Check file
-      shell: bash
-      run: |
-        cat _test-infra/tools/scripts/upload_alerts_to_aws.py
+
     - name: Run Script to Validate Alerts
       shell: bash
       run: | 
@@ -31,6 +27,7 @@ runs:
 
     - name: Run Script to Upload Alerts
       shell: bash
+      if: github.event_name != 'pull_request'
       run: |
        python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
 

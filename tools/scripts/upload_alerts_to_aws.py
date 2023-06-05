@@ -85,16 +85,14 @@ if __name__ == '__main__':
     parser.add_argument('--alerts', type=str, required=True, help="JSON string to validate.")
     parser.add_argument('--org', type=str, required=True, help="Organization of repository for alerts")
     parser.add_argument('--repo', type=str, required=True, help="Repository for alerts")
-    parser.add_argument("--dry-run", action="store_false")
     args = parser.parse_args()
     timestamp = datetime.datetime.utcnow().isoformat()
     new_alerts = append_metadata(args.alerts, args.org, args.repo, timestamp)
     current_alerts = get_recent_alerts(args.org, args.repo)
     data = merge_alerts(current_alerts, new_alerts)
     data = new_alerts
-    if not args.dry_run:
-        upload_to_s3(       
-            bucket_name="torchci-alerts",
-            key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
-            docs= data)
+    upload_to_s3(       
+        bucket_name="torchci-alerts",
+        key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
+        docs= data)
 
