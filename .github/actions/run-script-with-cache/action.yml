@@ -59,7 +59,7 @@ runs:
             if [[ ${SCRIPT} == *.bat ]]; then
               ${SCRIPT}
             else
-              source ${PRE_SCRIPT}
+              source ${SCRIPT}
             fi
           else
             ${CONDA_RUN} bash "${SCRIPT}"
