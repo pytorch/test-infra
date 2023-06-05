@@ -111,6 +111,20 @@
       "dynamo"
     ]
   ],
+  "test_adagrad (__main__.TestOptim)": [
+    "86817",
+    "https://github.com/pytorch/pytorch/issues/86817",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_adagrad_sparse (__main__.TestOptim)": [
+    "102986",
+    "https://github.com/pytorch/pytorch/issues/102986",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adam (__main__.TestOptim)": [
     "86432",
     "https://github.com/pytorch/pytorch/issues/86432",
