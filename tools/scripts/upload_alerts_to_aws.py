@@ -50,7 +50,7 @@ def get_recent_alerts(orgname, reponame):
     ]
     api_response = rs.QueryLambdas.execute_query_lambda(
         query_lambda=lambda_function_name,
-        version="ba8b0b824e799c45",
+        version="727014a49bef2c20",
         parameters=query_parameters,
     )
     return api_response["results"]
