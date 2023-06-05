@@ -520,6 +520,27 @@
       "rocm"
     ]
   ],
+  "test_avg_pool2d7_cpu (__main__.CpuTests)": [
+    "103029",
+    "https://github.com/pytorch/pytorch/issues/103029",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d8_cpu (__main__.CpuTests)": [
+    "103027",
+    "https://github.com/pytorch/pytorch/issues/103027",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d_backward4_cpu (__main__.CpuTests)": [
+    "103028",
+    "https://github.com/pytorch/pytorch/issues/103028",
+    [
+      "rocm"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -2511,6 +2532,13 @@
     "https://github.com/pytorch/pytorch/issues/83654",
     [
       "linux"
+    ]
+  ],
+  "test_nadam (__main__.TestOptim)": [
+    "68171",
+    "https://github.com/pytorch/pytorch/issues/68171",
+    [
+      "dynamo"
     ]
   ],
   "test_nccl_barrier_timeout_new_group_non_member (__main__.CommTest)": [
