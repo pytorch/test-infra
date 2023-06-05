@@ -50,7 +50,7 @@ def get_recent_alerts(orgname, reponame):
         rockset.models.QueryParameter(name="organization", type="string", value=orgname),
     ]
     print(f"rockset version {RELEVANT_QUERIES_VERSION} ")
-    api_response = rs.QueryLambdas.execute_query_lambda(query_lambda=lambda_function_name, version="727014a49bef2c20", parameters=query_parameters)
+    api_response = rs.QueryLambdas.execute_query_lambda(query_lambda=lambda_function_name, workspace=collection_name,version=RELEVANT_QUERIES_VERSION, parameters=query_parameters)
     return api_response["results"]
 def merge_alerts(current_alerts, new_alerts):
     current_alert_keys = set()
