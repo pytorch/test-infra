@@ -37,7 +37,7 @@ runs:
         path: '${{ github.workspace }}/${{ inputs.repository }}${{ inputs.cache-path }}'
         key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
     - name: Run script
-      shell: bash
+      shell: bash -l {0}
       working-directory: ${{ inputs.repository }}
       env:
         SCRIPT: ${{ inputs.script }}
