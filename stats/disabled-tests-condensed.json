@@ -160,6 +160,20 @@
       "dynamo"
     ]
   ],
+  "test_adamw (__main__.TestOptim)": [
+    "86435",
+    "https://github.com/pytorch/pytorch/issues/86435",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_adamw (optim.test_optim.TestOptim)": [
+    "103018",
+    "https://github.com/pytorch/pytorch/issues/103018",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
     "102588",
     "https://github.com/pytorch/pytorch/issues/102588",
