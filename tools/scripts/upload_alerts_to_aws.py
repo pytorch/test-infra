@@ -49,8 +49,10 @@ def get_recent_alerts(orgname, reponame):
         rockset.models.QueryParameter(name="repo", type="string", value=reponame),
         rockset.models.QueryParameter(name="organization", type="string", value=orgname),
     ]
-    print(f"rockset version {RELEVANT_QUERIES_VERSION} ")
-    api_response = rs.QueryLambdas.execute_query_lambda(query_lambda=lambda_function_name, workspace=collection_name,version=RELEVANT_QUERIES_VERSION, parameters=query_parameters)
+    api_response = rs.QueryLambdas.execute_query_lambda(query_lambda=lambda_function_name, 
+                                                        workspace=collection_name,
+                                                        version=RELEVANT_QUERIES_VERSION, 
+                                                        parameters=query_parameters)
     return api_response["results"]
 def merge_alerts(current_alerts, new_alerts):
     current_alert_keys = set()
@@ -83,14 +85,16 @@ if __name__ == '__main__':
     parser.add_argument('--alerts', type=str, required=True, help="JSON string to validate.")
     parser.add_argument('--org', type=str, required=True, help="Organization of repository for alerts")
     parser.add_argument('--repo', type=str, required=True, help="Repository for alerts")
+    parser.add_argument('--dry-run', type=str, required=False, default=False, help="is a dry run")
     args = parser.parse_args()
     timestamp = datetime.datetime.utcnow().isoformat()
     new_alerts = append_metadata(args.alerts, args.org, args.repo, timestamp)
     current_alerts = get_recent_alerts(args.org, args.repo)
     data = merge_alerts(current_alerts, new_alerts)
     data = new_alerts
-    upload_to_s3(       
-        bucket_name="torchci-alerts",
-        key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
-        docs= data)
+    if not args.dry_run:
+        upload_to_s3(       
+            bucket_name="torchci-alerts",
+            key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
+            docs= data)
 
