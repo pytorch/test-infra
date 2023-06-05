@@ -38,7 +38,7 @@ def get_recent_alerts(orgname, reponame):
     rockset_api_key = os.environ["ROCKSET_API_KEY"]
     rockset_api_server = "api.rs2.usw2.rockset.com"
     rs = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+        host="api.usw2a1.rockset.com", api_key=rockset_api_key
     )
 
     # Define the name of the Rockset collection and lambda function
