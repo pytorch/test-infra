@@ -13,6 +13,7 @@ import boto3  # type: ignore[import]
 import rockset  # type: ignore[import]
 
 S3_RESOURCE = boto3.resource("s3")
+RELEVANT_QUERIES_VERSION = "727014a49bef2c20"
 def upload_to_s3(
     bucket_name: str,
     key: str,
@@ -38,7 +39,7 @@ def get_recent_alerts(orgname, reponame):
     rockset_api_key = os.environ["ROCKSET_API_KEY"]
     rockset_api_server = "api.rs2.usw2.rockset.com"
     rs = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+        host="api.usw2a1.rockset.com", api_key=rockset_api_key
     )
 
     # Define the name of the Rockset collection and lambda function
@@ -48,11 +49,10 @@ def get_recent_alerts(orgname, reponame):
         rockset.models.QueryParameter(name="repo", type="string", value=reponame),
         rockset.models.QueryParameter(name="organization", type="string", value=orgname),
     ]
-    api_response = rs.QueryLambdas.execute_query_lambda(
-        query_lambda=lambda_function_name,
-        version="ba8b0b824e799c45",
-        parameters=query_parameters,
-    )
+    api_response = rs.QueryLambdas.execute_query_lambda(query_lambda=lambda_function_name, 
+                                                        workspace=collection_name,
+                                                        version=RELEVANT_QUERIES_VERSION, 
+                                                        parameters=query_parameters)
     return api_response["results"]
 def merge_alerts(current_alerts, new_alerts):
     current_alert_keys = set()
