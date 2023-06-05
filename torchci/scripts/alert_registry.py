@@ -2,9 +2,9 @@ import re
 from typing import Dict, Any, List, Union
 
 import urllib
-
-from check_alerts import FAILED_JOB_PATTERN, PYTORCH_ALERT_LABEL, JobStatus, generate_failed_job_hud_link
-
+import os
+from check_alerts import FAILED_JOB_PATTERN,CREATE_ISSUE_URL, PYTORCH_ALERT_LABEL, JobStatus, generate_failed_job_hud_link
+import requests
 ALERT_REGISTRY = {}
 
 PENDING = "pending"
@@ -13,7 +13,12 @@ SKIPPED = "skipped"
 SUCCESS = "success"
 FAILURE = "failure"
 CANCELED = "canceled"
-PYTORCH_ALERT_LABEL = "pytorch-alert"
+
+# rename this when these are ready
+# PYTORCH_ALERT_LABEL = "pytorch-alert"
+PYTORCH_ALERT_LABEL = "pytorch-alert-test"
+
+headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
 
 def register_alert(alert_type):
     if alert_type in ALERT_REGISTRY:
@@ -25,7 +30,17 @@ def register_alert(alert_type):
 
 @register_alert('Recurrently Failing Job')
 def handle_recurrently_failing_jobs(alerts: List[Dict[str, Any]]) -> Any:
-    return generate_failed_job_issue(alerts)
+    issue =  generate_failed_job_issue(alerts)
+    return create_issue(issue)
+
+def create_issue(issue: Dict, dry_run: bool = False) -> Dict:
+    print(f"Creating issue with content:{os.linesep}{issue}")
+    if dry_run:
+        print("NOTE: Dry run activated, not doing any real work")
+        return
+    r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
+    r.raise_for_status()
+    return {"number": r.json()["number"], "closed": False}
 
 def generate_failed_job_hud_link(failed_job_name: str) -> str:
     # TODO: I don't think minihud is universal across multiple repositories
@@ -42,7 +57,7 @@ def generate_failed_job_issue(
     issue = {}
     issue[
         "title"
-    ] = f"[Pytorch] There are {len(alerts)}"
+    ] = f"[Pytorch] [TEST ALERT PAY NO ATTENTION TO THIS] There are {len(alerts)}"
     body = "Within the last 50 commits, there are the following failures on the main branch of pytorch: \n"
     closed_alerts = []
     for alert in alerts:

@@ -105,6 +105,6 @@ def publish_alerts(alerts: List[Dict[str, Any]]):
 
 if __name__ == "__main__":
     alerts = get_recent_alerts("pytorch", "pytorch")
-    pprint.pprint(alerts)
-    # pprint.pprint([f"{alert['AlertObject']} @ {alert['timestamp']} is {alert['closed']}" for alert in alerts])
-    publish_alerts(alerts)
+    
+    published_alerts = publish_alerts(alerts)
+    pprint.pprint(published_alerts)
