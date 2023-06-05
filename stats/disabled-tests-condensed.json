@@ -111,6 +111,13 @@
       "dynamo"
     ]
   ],
+  "test_adam (__main__.TestOptim)": [
+    "86432",
+    "https://github.com/pytorch/pytorch/issues/86432",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
     "102588",
     "https://github.com/pytorch/pytorch/issues/102588",
@@ -329,6 +336,13 @@
       "rocm"
     ]
   ],
+  "test_arange6_cpu (__main__.CpuTests)": [
+    "102955",
+    "https://github.com/pytorch/pytorch/issues/102955",
+    [
+      "rocm"
+    ]
+  ],
   "test_argmax_argmin1_cpu (__main__.CpuTests)": [
     "102686",
     "https://github.com/pytorch/pytorch/issues/102686",
@@ -346,6 +360,13 @@
   "test_argmax_argmin_with_duplicates_cpu (__main__.CpuTests)": [
     "102829",
     "https://github.com/pytorch/pytorch/issues/102829",
+    [
+      "rocm"
+    ]
+  ],
+  "test_argmax_min_int32_cpu (__main__.CpuTests)": [
+    "102954",
+    "https://github.com/pytorch/pytorch/issues/102954",
     [
       "rocm"
     ]
@@ -397,6 +418,13 @@
   "test_average_parameters (__main__.TestDistBackendWithSpawn)": [
     "93929",
     "https://github.com/pytorch/pytorch/issues/93929",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d1_cpu (__main__.CpuTests)": [
+    "102956",
+    "https://github.com/pytorch/pytorch/issues/102956",
     [
       "rocm"
     ]
