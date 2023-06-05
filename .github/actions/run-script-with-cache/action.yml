@@ -18,6 +18,10 @@ inputs:
     description: 'Repository to checkout, defaults to ""'
     default: ""
     type: string
+  is_windows:
+    description: 'Is executing on windows'
+    default: 'disabled'
+    type: string
 
 runs:
   using: composite
@@ -45,9 +49,19 @@ runs:
       run: |
         set -euxo pipefail
         source "${BUILD_ENV_FILE}"
+
         if [[ ! -f ${SCRIPT} ]]; then
           echo "::error::Specified script file (${SCRIPT}) not found, not going execute it"
           exit 1
         else
-          ${CONDA_RUN} bash "${SCRIPT}"
+          if [[ ${{ inputs.cache-key }} == 'enabled' ]]; then
+            C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
+            if [[ ${SCRIPT} == *.bat ]]; then
+              ${SCRIPT}
+            else
+              source ${PRE_SCRIPT}
+            fi
+          else
+            ${CONDA_RUN} bash "${SCRIPT}"
+          fi
         fi

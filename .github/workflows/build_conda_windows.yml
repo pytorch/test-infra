@@ -51,6 +51,14 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -99,25 +107,15 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Run pre-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          PRE_SCRIPT: ${{ inputs.pre-script }}
+      - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
-        run: |
-          source "${BUILD_ENV_FILE}"
-          C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
-
-          if [[ ! -f ${PRE_SCRIPT} ]]; then
-            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            if [[ ${PRE_SCRIPT} == *.bat ]]; then
-              ${PRE_SCRIPT}
-            else
-              source ${PRE_SCRIPT}
-            fi
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          cache-path: ${{ inputs.cache-path }}
+          cache-key: ${{ inputs.cache-key }}
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.pre-script }}
+          is_windows: 'enabled'
       - name: Setup base environment variables
         run: |
           # //\\// means replace every backslash with slash
