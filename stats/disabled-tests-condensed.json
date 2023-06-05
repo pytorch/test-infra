@@ -3061,20 +3061,6 @@
       "rocm"
     ]
   ],
-  "test_vmapvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "86893",
-    "https://github.com/pytorch/pytorch/issues/86893",
-    [
-      "linux"
-    ]
-  ],
-  "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "86929",
-    "https://github.com/pytorch/pytorch/issues/86929",
-    [
-      "linux"
-    ]
-  ],
   "test_wait_i_3 (__main__.TestMultiThreadedWait)": [
     "100459",
     "https://github.com/pytorch/pytorch/issues/100459",
