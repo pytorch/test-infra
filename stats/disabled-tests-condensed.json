@@ -132,6 +132,20 @@
       "dynamo"
     ]
   ],
+  "test_adamax (__main__.TestOptim)": [
+    "86474",
+    "https://github.com/pytorch/pytorch/issues/86474",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_adamax (optim.test_optim.TestOptim)": [
+    "103006",
+    "https://github.com/pytorch/pytorch/issues/103006",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
     "102588",
     "https://github.com/pytorch/pytorch/issues/102588",
