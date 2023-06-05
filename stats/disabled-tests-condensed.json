@@ -429,6 +429,27 @@
       "rocm"
     ]
   ],
+  "test_avg_pool2d2_cpu (__main__.CpuTests)": [
+    "102974",
+    "https://github.com/pytorch/pytorch/issues/102974",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d3_cpu (__main__.CpuTests)": [
+    "102976",
+    "https://github.com/pytorch/pytorch/issues/102976",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d4_cpu (__main__.CpuTests)": [
+    "102975",
+    "https://github.com/pytorch/pytorch/issues/102975",
+    [
+      "rocm"
+    ]
+  ],
   "test_avg_pool2d5_cpu (__main__.CpuTests)": [
     "102799",
     "https://github.com/pytorch/pytorch/issues/102799",
@@ -3036,13 +3057,6 @@
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86770",
     "https://github.com/pytorch/pytorch/issues/86770",
-    [
-      "linux"
-    ]
-  ],
-  "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "86733",
-    "https://github.com/pytorch/pytorch/issues/86733",
     [
       "linux"
     ]
