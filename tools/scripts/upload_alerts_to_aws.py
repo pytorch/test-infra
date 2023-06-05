@@ -92,9 +92,9 @@ if __name__ == '__main__':
     current_alerts = get_recent_alerts(args.org, args.repo)
     data = merge_alerts(current_alerts, new_alerts)
     data = new_alerts
-    # if not args.dry_run:
-    upload_to_s3(       
-        bucket_name="torchci-alerts",
-        key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
-        docs= data)
+    if not args.dry_run:
+        upload_to_s3(       
+            bucket_name="torchci-alerts",
+            key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
+            docs= data)
 
