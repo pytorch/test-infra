@@ -7,9 +7,11 @@ WITH
         WHERE
             repo = :repo
             and organization = :organization
-            and closed = false
-            or (
-                PARSE_DATETIME_ISO8601(timestamp) > (CURRENT_TIME() - INTERVAL 1 DAY)
+            and (
+                closed = false
+                or (
+                    PARSE_DATETIME_ISO8601(timestamp) > (CURRENT_DATETIME() - INTERVAL 1 DAY)
+                )
             )
     )
 SELECT
