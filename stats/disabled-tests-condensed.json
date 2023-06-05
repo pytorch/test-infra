@@ -1891,6 +1891,13 @@
       "linux"
     ]
   ],
+  "test_fn_gradgrad_linalg_lu_factor_cuda_complex128 (__main__.TestGradientsCUDA)": [
+    "86759",
+    "https://github.com/pytorch/pytorch/issues/86759",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_gradgrad_linalg_lu_factor_ex_cuda_complex128 (__main__.TestGradientsCUDA)": [
     "86617",
     "https://github.com/pytorch/pytorch/issues/86617",
