@@ -104,6 +104,13 @@
       "rocm"
     ]
   ],
+  "test_adadelta (__main__.TestOptim)": [
+    "102941",
+    "https://github.com/pytorch/pytorch/issues/102941",
+    [
+      "dynamo"
+    ]
+  ],
   "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
     "102588",
     "https://github.com/pytorch/pytorch/issues/102588",
@@ -2748,6 +2755,13 @@
     "https://github.com/pytorch/pytorch/issues/92477",
     [
       "linux"
+    ]
+  ],
+  "test_rmsprop (__main__.TestOptim)": [
+    "86433",
+    "https://github.com/pytorch/pytorch/issues/86433",
+    [
+      "dynamo"
     ]
   ],
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
