@@ -462,6 +462,13 @@
       "dynamo"
     ]
   ],
+  "test_asgd (optim.test_optim.TestOptim)": [
+    "103115",
+    "https://github.com/pytorch/pytorch/issues/103115",
+    [
+      "dynamo"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
