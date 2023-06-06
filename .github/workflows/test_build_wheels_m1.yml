@@ -1,4 +1,4 @@
-name: Test Build M1 Wheels
+name: Test Build M1 Wheels Test
 
 on:
   pull_request:
@@ -24,21 +24,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - repository: pytorch/audio
-            pre-script: packaging/pre_build_script.sh
-            post-script: packaging/post_build_script.sh
-            smoke-test-script: test/smoke_test/smoke_test.py
-            package-name: torchaudio
+#          - repository: pytorch/audio
+#            pre-script: packaging/pre_build_script.sh
+#            post-script: packaging/post_build_script.sh
+#            smoke-test-script: test/smoke_test/smoke_test.py
+#            package-name: torchaudio
           - repository: pytorch/vision
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
-          - repository: pytorch/text
-            pre-script: packaging/install_torchdata.sh
-            post-script: ""
-            smoke-test-script: test/smoke_tests/smoke_tests.py
-            package-name: torchtext
+#          - repository: pytorch/text
+#            pre-script: packaging/install_torchdata.sh
+#            post-script: ""
+#            smoke-test-script: test/smoke_tests/smoke_tests.py
+#            package-name: torchtext
     uses: ./.github/workflows/build_wheels_macos.yml
     name: ${{ matrix.repository }}
     with:

@@ -185,6 +185,7 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
 
     if os == 'macos':
         build_name = "libtorch-macos-latest.zip"
+
         if channel == RELEASE:
             build_name = f"libtorch-macos-{mod.CURRENT_VERSION}.zip"
     elif os == 'linux' and (channel == RELEASE or channel == TEST):
