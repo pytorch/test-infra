@@ -680,6 +680,20 @@
       "rocm"
     ]
   ],
+  "test_bmm1_cpu (__main__.CpuTests)": [
+    "103098",
+    "https://github.com/pytorch/pytorch/issues/103098",
+    [
+      "rocm"
+    ]
+  ],
+  "test_bmm2_cpu (__main__.CpuTests)": [
+    "103097",
+    "https://github.com/pytorch/pytorch/issues/103097",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -816,6 +830,13 @@
     "https://github.com/pytorch/pytorch/issues/91491",
     [
       "linux"
+    ]
+  ],
+  "test_cat_cpu (__main__.CpuTests)": [
+    "103096",
+    "https://github.com/pytorch/pytorch/issues/103096",
+    [
+      "rocm"
     ]
   ],
   "test_cat_mul (__main__.CPUReproTests)": [
@@ -3083,6 +3104,13 @@
       "linux"
     ]
   ],
+  "test_variant_consistency_jit_linalg_lu_cuda_complex64 (__main__.TestJitCUDA)": [
+    "87070",
+    "https://github.com/pytorch/pytorch/issues/87070",
+    [
+      "linux"
+    ]
+  ],
   "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
     "86732",
     "https://github.com/pytorch/pytorch/issues/86732",
@@ -3121,6 +3149,13 @@
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86770",
     "https://github.com/pytorch/pytorch/issues/86770",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapjvpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86733",
+    "https://github.com/pytorch/pytorch/issues/86733",
     [
       "linux"
     ]
