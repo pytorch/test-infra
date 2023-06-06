@@ -48,11 +48,15 @@ mergeOption.add_argument("-f", "--force", {
 "Please use `-f` as last resort, prefer `--ignore-current` to continue the merge ignoring current failures. " +
 "This will allow currently pending tests to finish and report signal before the merge.",
 });
-mergeOption.add_argument("-ic", "--ignore-current", {
+mergeOption.add_argument("-i", "--ignore-current", {
   action: "store_true",
   help:
     "Merge while ignore the currently failing jobs.  If there are no pending checks, use -f/--force " +
     "since this will fail.",
+});
+merge.add_argument("-ic", {
+  action: "store_true",
+  help: "Old flag for --ignore-current. Deprecated in favor of -i.",
 });
 merge.add_argument("-r", "--rebase", {
   help:
