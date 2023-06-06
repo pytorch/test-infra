@@ -469,10 +469,6 @@ function GroupedHudTable({
   const groupNames = Array.from(groupNameMapping.keys());
   let names = sortGroupNamesForHUD(groupNames);
 
-  if (hideUnstable) {
-    names = names.filter((name) => !isUnstableGroup(name));
-  }
-
   if (useGrouping) {
     expandedGroups.forEach((group) => {
       const nameInd = names.indexOf(group);
@@ -482,6 +478,9 @@ function GroupedHudTable({
         ...names.slice(nameInd + 1),
       ];
     });
+    if (hideUnstable) {
+      names = names.filter((name) => !isUnstableGroup(name));
+    }
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
