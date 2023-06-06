@@ -448,6 +448,13 @@
       "rocm"
     ]
   ],
+  "test_asgd (__main__.TestOptim)": [
+    "86763",
+    "https://github.com/pytorch/pytorch/issues/86763",
+    [
+      "dynamo"
+    ]
+  ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
     "76907",
     "https://github.com/pytorch/pytorch/issues/76907",
@@ -534,9 +541,23 @@
       "rocm"
     ]
   ],
+  "test_avg_pool2d_backward3_cpu (__main__.CpuTests)": [
+    "103044",
+    "https://github.com/pytorch/pytorch/issues/103044",
+    [
+      "rocm"
+    ]
+  ],
   "test_avg_pool2d_backward4_cpu (__main__.CpuTests)": [
     "103028",
     "https://github.com/pytorch/pytorch/issues/103028",
+    [
+      "rocm"
+    ]
+  ],
+  "test_avg_pool2d_backward_cpu (__main__.CpuTests)": [
+    "103045",
+    "https://github.com/pytorch/pytorch/issues/103045",
     [
       "rocm"
     ]
@@ -580,6 +601,13 @@
     "https://github.com/pytorch/pytorch/issues/77556",
     [
       "linux"
+    ]
+  ],
+  "test_baddbmm_cpu (__main__.CpuTests)": [
+    "103046",
+    "https://github.com/pytorch/pytorch/issues/103046",
+    [
+      "rocm"
     ]
   ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
@@ -1981,6 +2009,13 @@
       "rocm"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "103043",
+    "https://github.com/pytorch/pytorch/issues/103043",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)": [
     "79017",
     "https://github.com/pytorch/pytorch/issues/79017",
@@ -2593,6 +2628,13 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex64 (__main__.TestForeachCUDA)": [
     "97956",
     "https://github.com/pytorch/pytorch/issues/97956",
+    [
+      "rocm"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
+    "96760",
+    "https://github.com/pytorch/pytorch/issues/96760",
     [
       "rocm"
     ]
