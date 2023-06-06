@@ -1,6 +1,6 @@
 import pathlib
 import textwrap
-from typing import Any
+from typing import Any, List
 
 import pytest
 
@@ -416,6 +416,58 @@ def test_multiple_params(tmp_path: pathlib.Path) -> None:
     assert api.compatibility.check(before, after) == [
         api.violations.ParameterNowRequired(func=func.__name__, parameter="a", line=2)
     ]
+
+
+def test_parameter_type_change_positional(tmp_path: pathlib.Path) -> None:
+    def func(a: int, b: int, /) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(a: str, b: int, /) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.ParameterTypeChanged(
+            func=func.__name__, parameter="a", line=1,
+            type_before='int', type_after='str',
+        )
+    ]
+
+
+def test_parameter_type_change_named(tmp_path: pathlib.Path) -> None:
+    def func(*, a: int, b: int) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(*, b: int, a: str) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.ParameterTypeChanged(
+            func=func.__name__, parameter="a", line=1,
+            type_before='int', type_after='str',
+        )
+    ]
+
+
+def test_no_parameter_type_change_generic(tmp_path: pathlib.Path) -> None:
+    def func(*, a: List[int], b: List[int]) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    def func(*, b: List[int], a: List[int]) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
 
 
 @pytest.mark.parametrize(

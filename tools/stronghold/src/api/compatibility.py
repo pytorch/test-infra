@@ -6,6 +6,7 @@ from collections.abc import Iterable, Mapping, Sequence
 import difflib
 import pathlib
 import tempfile
+from typing import Optional
 
 import api
 import api.ast
@@ -116,6 +117,11 @@ def _check_by_name(
                 func=func, parameter=name, line=after.line
             )
             continue
+        if not _check_type_compatibility(before_param.annotation, after_param.annotation):
+            yield api.violations.ParameterTypeChanged(
+                func=func, parameter=name, line=after.line,
+                type_before=str(before_param.annotation), type_after=str(after_param.annotation)
+            )
         assert after_param.name == name
 
     for name, after_param in _keyword_only_parameters(after).items():
@@ -147,6 +153,12 @@ def _check_by_position(
     after_param_names = [param.name for param in after_params]
 
     if before_param_names == after_param_names:
+        for before, after in zip(before_params, after_params):
+            if not _check_type_compatibility(before.annotation, after.annotation):
+                yield api.violations.ParameterTypeChanged(
+                    func=func, parameter=before.name, line=after.line,
+                    type_before=str(before.annotation), type_after=str(after.annotation)
+                )
         return
 
     if set(before_param_names) == set(after_param_names):
@@ -225,3 +237,56 @@ def _check_variadic_parameters(
         yield api.violations.VarArgsDeleted(func=func, line=after.line)
     if before.variadic_kwargs and not after.variadic_kwargs:
         yield api.violations.KwArgsDeleted(func, line=after.line)
+
+
+def _check_type_compatibility(
+        type_before: Optional, type_after: Optional
+) -> bool:
+    """Checks that the type annotations are compatible.
+        Returns True if compatible.
+    """
+    # If annotations are identical, they are compatible
+    if type_before == type_after:
+        return True
+
+    # If either of the annotations is None, then we can't make a compatibility judgement
+    # because Python allows functions to have untyped parameters.
+    if type_before is None or type_after is None:
+        return True
+
+    # if either of the types is Unknown, then we can't make a compatibility judgement
+    if isinstance(type_before, api.types.Unknown) or isinstance(type_after, api.types.Unknown):
+        return True
+
+    # Checks compatibility if one types is Constant
+    if isinstance(type_before, api.types.Constant) or isinstance(type_after, api.types.Constant):
+        # optimistically allow for type expansion: was constant, now is not constant
+        if isinstance(type_before, api.types.Constant) and not isinstance(type_after, api.types.Constant):
+            return True
+
+        # fail if the type was not constant before, but became constant now,
+        # or if the constant value changed
+        return False
+
+    # Checks compatibility if one types is simple (e.g. int, str, etc.)
+    # or Attribute (e.g. api.types.FooBar)
+    if isinstance(type_before, api.types.TypeName) or isinstance(type_after, api.types.TypeName) or\
+            isinstance(type_before, api.types.Attribute) or isinstance(type_after, api.types.Attribute):
+        # fail (the equality is checked earlier)
+        return False
+
+    # Checks compatibility if both annotations are generic types (like List[int], Dict[str, int], etc.)
+    if isinstance(type_before, api.types.Generic) or isinstance(type_after, api.types.Generic):
+        if not isinstance(type_before, api.types.Generic) or not isinstance(type_after, api.types.Generic):
+            # fail if one of the types is generic, but the other is not
+            return False
+
+        # fail if the generic type changed or generic type arguments changed
+        if type_before.base != type_after.base or len(type_before.arguments) != len(type_after.arguments):
+            return False
+
+        for type_before_arg, type_after_arg in zip(type_before.arguments, type_after.arguments):
+            if not _check_type_compatibility(type_before_arg, type_after_arg):
+                return False
+
+        return True

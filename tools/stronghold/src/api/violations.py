@@ -105,3 +105,18 @@ class ParameterRenamed(ParameterViolation):
 
     def __post_init__(self) -> None:
         self.message = f'{self.parameter} was renamed to {self.parameter_after}'
+
+@dataclass
+class ParameterTypeChanged(ParameterViolation):
+    """Represents when a parameter type has changed in a non-compatible way"""
+
+    # Type before it was changed
+    type_before: str = ''
+
+    # Type after it was changed
+    type_after: str = ''
+
+    message: str = ''
+
+    def __post_init__(self) -> None:
+        self.message = f'{self.parameter} changed from {self.type_before} to {self.type_after}'
