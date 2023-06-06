@@ -51,7 +51,7 @@ mergeOption.add_argument("-f", "--force", {
 mergeOption.add_argument("-i", "--ignore-current", {
   action: "store_true",
   help:
-    "Merge while ignore the currently failing jobs.",
+    "Merge while ignoring the currently failing jobs.  Behaves like -f if there are no pending jobs.",
 });
 merge.add_argument("-ic", {
   action: "store_true",
