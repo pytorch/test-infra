@@ -3083,6 +3083,13 @@
       "dynamo"
     ]
   ],
+  "test_vjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "103072",
+    "https://github.com/pytorch/pytorch/issues/103072",
+    [
+      "linux"
+    ]
+  ],
   "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
     "101828",
     "https://github.com/pytorch/pytorch/issues/101828",
@@ -3109,6 +3116,13 @@
     "https://github.com/pytorch/pytorch/issues/97366",
     [
       "rocm"
+    ]
+  ],
+  "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "86929",
+    "https://github.com/pytorch/pytorch/issues/86929",
+    [
+      "linux"
     ]
   ],
   "test_wait_i_3 (__main__.TestMultiThreadedWait)": [
