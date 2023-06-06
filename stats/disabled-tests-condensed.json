@@ -617,6 +617,27 @@
       "mac"
     ]
   ],
+  "test_batch_norm_2d_cpu (__main__.CpuTests)": [
+    "103063",
+    "https://github.com/pytorch/pytorch/issues/103063",
+    [
+      "rocm"
+    ]
+  ],
+  "test_bernoulli1_cpu (__main__.CpuTests)": [
+    "103064",
+    "https://github.com/pytorch/pytorch/issues/103064",
+    [
+      "rocm"
+    ]
+  ],
+  "test_bernoulli2_cpu (__main__.CpuTests)": [
+    "103062",
+    "https://github.com/pytorch/pytorch/issues/103062",
+    [
+      "rocm"
+    ]
+  ],
   "test_bf16_neg_abs (__main__.CPUReproTests)": [
     "102348",
     "https://github.com/pytorch/pytorch/issues/102348",
