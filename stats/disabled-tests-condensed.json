@@ -874,14 +874,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_empty_strided_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "101907",
-    "https://github.com/pytorch/pytorch/issues/101907",
-    [
-      "linux",
-      "inductor"
-    ]
-  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
