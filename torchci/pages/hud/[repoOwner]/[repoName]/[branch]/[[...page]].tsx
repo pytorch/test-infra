@@ -29,7 +29,6 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
 import useSWR from "swr";
@@ -39,6 +38,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { useGroupingPreference, usePreference } from "lib/useGroupingPreference";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -464,7 +464,7 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
-  const [hideUnstable, setHideUnstable] = useState<boolean>(true);
+  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = sortGroupNamesForHUD(groupNames);
