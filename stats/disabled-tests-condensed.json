@@ -139,7 +139,7 @@
       "dynamo"
     ]
   ],
-  "test_adam (__main__.TestOptim)": [
+  "test_adam (optim.test_optim.TestOptim)": [
     "86432",
     "https://github.com/pytorch/pytorch/issues/86432",
     [
