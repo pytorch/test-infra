@@ -6,5 +6,21 @@
     "periodic",
     "linux-focal-rocm5.4.2-py3.8",
     "test"
+  ],
+  "pull / linux-bionic-py3.11-clang9 / test (dynamo)": [
+    "ZainRizvi",
+    "103007",
+    "https://github.com/pytorch/pytorch/issues/103007",
+    "pull",
+    "linux-bionic-py3.11-clang9",
+    "test (dynamo)"
+  ],
+  "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
+    "ZainRizvi",
+    "103010",
+    "https://github.com/pytorch/pytorch/issues/103010",
+    "pull",
+    "linux-bionic-py3.8-clang9",
+    "test (dynamo)"
   ]
 }
