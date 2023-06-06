@@ -104,7 +104,7 @@
       "rocm"
     ]
   ],
-  "test_adadelta (__main__.TestOptim)": [
+  "test_adadelta (optim.test_optim.TestOptim)": [
     "102941",
     "https://github.com/pytorch/pytorch/issues/102941",
     [
@@ -2876,7 +2876,7 @@
       "linux"
     ]
   ],
-  "test_rmsprop (__main__.TestOptim)": [
+  "test_rmsprop (optim.test_optim.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
     [
