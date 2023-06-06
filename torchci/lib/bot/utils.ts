@@ -19,7 +19,14 @@ export function isPyTorchPyTorch(owner: string, repo: string): boolean {
 export function isDrCIEnabled(owner: string, repo: string): boolean {
   return (
     isPyTorchOrg(owner) &&
-    ["pytorch", "vision", "text", "audio", "pytorch-canary"].includes(repo)
+    [
+      "pytorch",
+      "vision",
+      "text",
+      "audio",
+      "pytorch-canary",
+      "tutorials",
+    ].includes(repo)
   );
 }
 
