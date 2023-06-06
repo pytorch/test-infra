@@ -47,7 +47,9 @@ runs:
         SCRIPT: ${{ inputs.script }}
       if: ${{ inputs.cache-path == '' || steps.run-cache-action.outputs.cache-hit != 'true' }}
       run: |
-        set -euxo pipefail
+        if [[ ${{ inputs.is_windows }} == 'disabled' ]]; then
+          set -euxo pipefail
+        fi
         source "${BUILD_ENV_FILE}"
 
         if [[ ! -f ${SCRIPT} ]]; then
