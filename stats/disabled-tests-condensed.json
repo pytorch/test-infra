@@ -659,6 +659,27 @@
       "rocm"
     ]
   ],
+  "test_bitwise2_cpu (__main__.CpuTests)": [
+    "103076",
+    "https://github.com/pytorch/pytorch/issues/103076",
+    [
+      "rocm"
+    ]
+  ],
+  "test_bitwise3_cpu (__main__.CpuTests)": [
+    "103077",
+    "https://github.com/pytorch/pytorch/issues/103077",
+    [
+      "rocm"
+    ]
+  ],
+  "test_bitwise_cpu (__main__.CpuTests)": [
+    "103078",
+    "https://github.com/pytorch/pytorch/issues/103078",
+    [
+      "rocm"
+    ]
+  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
