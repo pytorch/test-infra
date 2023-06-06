@@ -112,6 +112,11 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
+          # PyTorch, the primary target for this job template, heavily
+          # relies on submodules. Clone them by default to avoid
+          # surprises.
+          submodules: 'recursive'
+
       - name: Setup Linux
         uses: ./test-infra/.github/actions/setup-linux
 
