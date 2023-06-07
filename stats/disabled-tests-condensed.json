@@ -1261,13 +1261,6 @@
       "rocm"
     ]
   ],
-  "test_cpu_broadcast2_double (__main__.SweepInputsCpuTest)": [
-    "102362",
-    "https://github.com/pytorch/pytorch/issues/102362",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_broadcast2_int (__main__.SweepInputsCpuTest)": [
     "102405",
     "https://github.com/pytorch/pytorch/issues/102405",
