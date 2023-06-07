@@ -53,6 +53,7 @@ import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
   SHA_DISPLAY_LENGTH,
+  HELP_LINK,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";

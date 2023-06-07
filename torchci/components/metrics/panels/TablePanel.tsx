@@ -2,6 +2,8 @@ import useSWR from "swr";
 import { DataGrid, DataGridProps, GridColDef } from "@mui/x-data-grid";
 import { Typography, Skeleton } from "@mui/material";
 import { RocksetParam } from "lib/rockset";
+import HelpIcon from "@mui/icons-material/Help";
+import IconButton from "@mui/material/IconButton";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -18,6 +20,8 @@ export default function TablePanel({
   columns,
   // Props to propagate to the data grid.
   dataGridProps,
+  // An optional help link to display in the title
+  helpLink,
 }: {
   title: string;
   queryCollection?: string;
@@ -25,6 +29,7 @@ export default function TablePanel({
   queryParams: RocksetParam[];
   columns: GridColDef[];
   dataGridProps: any;
+  helpLink?: string;
 }) {
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -40,6 +45,7 @@ export default function TablePanel({
       data={data}
       columns={columns}
       dataGridProps={dataGridProps}
+      helpLink={helpLink}
     />
   );
 }
@@ -53,20 +59,32 @@ export function TablePanelWithData({
   columns,
   // Props to propagate to the data grid.
   dataGridProps,
+  // An optional help link to display in the title
+  helpLink,
 }: {
   title: string;
   data: any;
   columns: GridColDef[];
   dataGridProps: any;
+  helpLink?: string;
 }) {
   if (data === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  function helpLinkOnClick() {
+    window.open(helpLink, "_blank");
+  }
+
   function Header() {
     return (
       <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
-        {title}
+        {title}{" "}
+        {helpLink !== undefined && (
+          <IconButton size="small" onClick={helpLinkOnClick}>
+            <HelpIcon fontSize="inherit" color="info" />
+          </IconButton>
+        )}
       </Typography>
     );
   }
