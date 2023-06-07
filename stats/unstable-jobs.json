@@ -6,5 +6,13 @@
     "periodic",
     "linux-focal-rocm5.4.2-py3.8",
     "test"
+  ],
+  "pull / linux-focal-py3.8-gcc7 / test (distributed)": [
+    "huydhn",
+    "103195",
+    "https://github.com/pytorch/pytorch/issues/103195",
+    "pull",
+    "linux-focal-py3.8-gcc7",
+    "test (distributed)"
   ]
 }
