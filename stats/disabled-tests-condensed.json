@@ -752,6 +752,13 @@
       "linux"
     ]
   ],
+  "test_broadcast_object (__main__.TestObjectCollectivesWithSubPg)": [
+    "103199",
+    "https://github.com/pytorch/pytorch/issues/103199",
+    [
+      "dynamo"
+    ]
+  ],
   "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
     "103178",
     "https://github.com/pytorch/pytorch/issues/103178",
