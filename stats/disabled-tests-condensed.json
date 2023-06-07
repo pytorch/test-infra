@@ -799,11 +799,12 @@
       "mac"
     ]
   ],
-  "test_build_tuple_unpack_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
+  "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102157",
     "https://github.com/pytorch/pytorch/issues/102157",
     [
-      "linux"
+      "linux",
+      "mac"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -834,20 +835,20 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101852",
-    "https://github.com/pytorch/pytorch/issues/101852",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
     [
       "linux",
       "mac"
+    ]
+  ],
+  "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
+    "101852",
+    "https://github.com/pytorch/pytorch/issues/101852",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
