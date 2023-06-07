@@ -812,14 +812,6 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_call_parent_non_class_methods_from_child (__main__.MiscTests)": [
-    "102163",
-    "https://github.com/pytorch/pytorch/issues/102163",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101852",
     "https://github.com/pytorch/pytorch/issues/101852",
