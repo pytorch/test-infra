@@ -2314,13 +2314,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_via_fx (__main__.TestStandaloneInductor)": [
-    "102363",
-    "https://github.com/pytorch/pytorch/issues/102363",
-    [
-      "rocm"
-    ]
-  ],
   "test_inductor_via_fx_dict_input (__main__.TestStandaloneInductor)": [
     "102381",
     "https://github.com/pytorch/pytorch/issues/102381",
