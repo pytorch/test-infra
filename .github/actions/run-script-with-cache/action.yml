@@ -56,14 +56,9 @@ runs:
           echo "::error::Specified script file (${SCRIPT}) not found, not going execute it"
           exit 1
         else
-          if [[ ${{ inputs.is_windows }} == 'enabled' ]]; then
-            C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
-            if [[ ${SCRIPT} == *.bat ]]; then
-              ${SCRIPT}
-            else
-              source ${SCRIPT}
-            fi
+          if [[ ${SCRIPT} == *.bat ]]; then
+            ${CONDA_RUN} ${SCRIPT}
           else
-            ${CONDA_RUN} bash "${SCRIPT}"
+            ${CONDA_RUN} bash ${PRE_SCRIPT}
           fi
         fi
