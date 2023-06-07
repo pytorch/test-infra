@@ -745,6 +745,14 @@
       "linux"
     ]
   ],
+  "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
+    "103178",
+    "https://github.com/pytorch/pytorch/issues/103178",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
     "82847",
     "https://github.com/pytorch/pytorch/issues/82847",
@@ -894,6 +902,13 @@
       "rocm"
     ]
   ],
+  "test_cauchy_cpu (__main__.CpuTests)": [
+    "103180",
+    "https://github.com/pytorch/pytorch/issues/103180",
+    [
+      "rocm"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
@@ -926,6 +941,13 @@
     "https://github.com/pytorch/pytorch/issues/79510",
     [
       "linux"
+    ]
+  ],
+  "test_clamp_cpu (__main__.CpuTests)": [
+    "103179",
+    "https://github.com/pytorch/pytorch/issues/103179",
+    [
+      "rocm"
     ]
   ],
   "test_class_compile (__main__.TestRecursiveScript)": [
