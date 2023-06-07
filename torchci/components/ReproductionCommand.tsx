@@ -5,21 +5,17 @@ import CopyLink from "./CopyLink";
 export default function ReproductionCommand({
   job,
   separator,
+  testName,
 }: {
   job: JobData;
   separator: string;
+  testName: string | null;
 }) {
-  if (job === null) {
+  if (job === null || testName === null) {
     return <></>;
   }
 
   if (job.conclusion === "pending") {
-    return <></>;
-  }
-
-  let repro = job.jobName ?? "";
-
-  if (repro === null) {
     return <></>;
   }
 
@@ -30,10 +26,8 @@ export default function ReproductionCommand({
   return (
     <span>
       {separator}
-      <div>
-        <a>Copy Repro</a>
-        <CopyLink textToCopy={repro} />
-      </div>
+      <a>Copy Repro</a>
+      <CopyLink textToCopy={testName} />
     </span>
   );
 }

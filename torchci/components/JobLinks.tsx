@@ -55,7 +55,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {queueTimeS}
       {durationS}
       {eventTime}
-      <ReproductionCommand job={job} separator={" | "}/>
+      <ReproductionCommand job={job} separator={" | "} testName={getTestName(job.failureLine!)}/>
       <TestInsightsLink job={job} separator={" | "} />
       <DisableIssue job={job} />
     </span>
