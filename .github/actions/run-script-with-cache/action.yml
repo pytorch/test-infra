@@ -47,6 +47,7 @@ runs:
         SCRIPT: ${{ inputs.script }}
       if: ${{ inputs.cache-path == '' || steps.run-cache-action.outputs.cache-hit != 'true' }}
       run: |
+        # Windows scripts needs cleanup on audio and vision, todo remove this once resolved
         if [[ ${{ inputs.is_windows }} == 'disabled' ]]; then
           set -euxo pipefail
         fi
