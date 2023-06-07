@@ -874,9 +874,30 @@
       "rocm"
     ]
   ],
+  "test_cat_inplace_cpu (__main__.CpuTests)": [
+    "103143",
+    "https://github.com/pytorch/pytorch/issues/103143",
+    [
+      "rocm"
+    ]
+  ],
   "test_cat_mul (__main__.CPUReproTests)": [
     "102321",
     "https://github.com/pytorch/pytorch/issues/102321",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cat_of_loops_and_extern_kernel_cpu (__main__.CpuTests)": [
+    "103144",
+    "https://github.com/pytorch/pytorch/issues/103144",
+    [
+      "rocm"
+    ]
+  ],
+  "test_cat_upcasting_cpu (__main__.CpuTests)": [
+    "103145",
+    "https://github.com/pytorch/pytorch/issues/103145",
     [
       "rocm"
     ]
