@@ -51,6 +51,14 @@ on:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
         type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
     secrets:
       AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
         description: "AWS Access Key passed from caller workflow"
