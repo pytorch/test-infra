@@ -1261,13 +1261,6 @@
       "rocm"
     ]
   ],
-  "test_cpu_broadcast2_double (__main__.SweepInputsCpuTest)": [
-    "102362",
-    "https://github.com/pytorch/pytorch/issues/102362",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_broadcast2_int (__main__.SweepInputsCpuTest)": [
     "102405",
     "https://github.com/pytorch/pytorch/issues/102405",
@@ -2310,6 +2303,13 @@
   "test_inductor_via_export2 (__main__.TestStandaloneInductor)": [
     "102346",
     "https://github.com/pytorch/pytorch/issues/102346",
+    [
+      "rocm"
+    ]
+  ],
+  "test_inductor_via_fx (__main__.TestStandaloneInductor)": [
+    "102363",
+    "https://github.com/pytorch/pytorch/issues/102363",
     [
       "rocm"
     ]
