@@ -18,6 +18,10 @@ inputs:
     description: 'Repository to checkout, defaults to ""'
     default: ""
     type: string
+  is_windows:
+    description: 'Is executing on windows'
+    default: 'disabled'
+    type: string
 
 runs:
   using: composite
@@ -37,17 +41,25 @@ runs:
         path: '${{ github.workspace }}/${{ inputs.repository }}${{ inputs.cache-path }}'
         key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
     - name: Run script
-      shell: bash
+      shell: bash -l {0}
       working-directory: ${{ inputs.repository }}
       env:
         SCRIPT: ${{ inputs.script }}
       if: ${{ inputs.cache-path == '' || steps.run-cache-action.outputs.cache-hit != 'true' }}
       run: |
-        set -euxo pipefail
+        # Windows scripts needs cleanup on audio and vision, todo remove this once resolved
+        if [[ ${{ inputs.is_windows }} == 'disabled' ]]; then
+          set -euxo pipefail
+        fi
         source "${BUILD_ENV_FILE}"
+
         if [[ ! -f ${SCRIPT} ]]; then
           echo "::error::Specified script file (${SCRIPT}) not found, not going execute it"
           exit 1
         else
-          ${CONDA_RUN} bash "${SCRIPT}"
+          if [[ ${SCRIPT} == *.bat ]]; then
+            ${CONDA_RUN} ${SCRIPT}
+          else
+            ${CONDA_RUN} bash ${SCRIPT}
+          fi
         fi

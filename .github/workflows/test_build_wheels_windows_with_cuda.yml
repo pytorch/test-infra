@@ -27,6 +27,8 @@ jobs:
         - repository: pytorch/audio
           pre-script: packaging/ffmpeg/build.bat
           env-script: packaging/vc_env_helper.bat
+          cache-path: /third_party/ffmpeg
+          cache-key: windows-ffmpeg
           wheel-build-params: "--plat-name win_amd64"
           post-script: ""
           smoke-test-script: test/smoke_test/smoke_test.py
@@ -52,3 +54,5 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+      cache-path: ${{ matrix.cache-path }}
+      cache-key: ${{ matrix.cache-key }}
