@@ -21,7 +21,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" ]] || exit 1
   test-secrets-filter-var:
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
