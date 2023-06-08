@@ -90,6 +90,7 @@ export async function handleFlakyTest(
   const issueTitle = getIssueTitle(test.name, test.suite);
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
   const workflowJobNames = getWorkflowJobNames(test);
+  test.invoking_file = test.invoking_file.replaceAll(".", "/");
   if (matchingIssues.length !== 0) {
     // There is a matching issue
     const matchingIssue = matchingIssues[0];
@@ -275,14 +276,26 @@ export function getPlatformsAffected(workflowJobNames: string[]): string[] {
       if (
         workflowJobNames.includes(platform) &&
         (platform == "rocm" || !workflowJobNames.includes("rocm")) &&
-        (platform == "dynamo" || !workflowJobNames.includes("dynamo")) &&
-        (platform == "inductor" || !workflowJobNames.includes("inductor")) &&
+        !workflowJobNames.includes("dynamo") &&
+        !workflowJobNames.includes("inductor") &&
         !platformsToSkip.includes(platform)
       ) {
         platformsToSkip.push(platform);
       }
     })
   );
+
+  // dynamo and inductor are subsets of linux, so only include them if linux is
+  // not present as a disable platform
+  if (!platformsToSkip.includes("linux")) {
+    if (workflowJobNames.some((name) => name.includes("dynamo"))) {
+      platformsToSkip.push("dynamo");
+    }
+    if (workflowJobNames.some((name) => name.includes("inductor"))) {
+      platformsToSkip.push("inductor");
+    }
+  }
+
   return platformsToSkip;
 }
 
@@ -299,7 +312,7 @@ To find relevant log snippets:
 `;
   let fileInfo = `Test file path: \`${test.file}\``;
   if (test.file !== `${test.invoking_file}.py`) {
-    fileInfo += ` or \`${test.file}\``;
+    fileInfo += ` or \`${test.invoking_file}\``;
   }
   if (test.numRed === undefined) {
     // numRed === undefined indicates that is from the 'flaky_tests_across_jobs' query
@@ -327,20 +340,21 @@ ${fileInfo}`;
 }
 
 export async function getTestOwnerLabels(
-  testFile: string,
-  invokingFile: string
+  test: FlakyTestData
 ): Promise<{ labels: string[]; additionalErrMessage?: string }> {
   const urlkey = "https://raw.githubusercontent.com/pytorch/pytorch/main/test/";
 
+  let labels: string[] = [];
+  let additionalErrMessage = undefined;
+
   try {
-    let result = await retryRequest(`${urlkey}${testFile}`);
+    let result = await retryRequest(`${urlkey}${test.file}`);
     let statusCode = result.res.statusCode;
     if (statusCode !== 200) {
-      const invokingFileClean = invokingFile.replaceAll(".", "/");
-      result = await retryRequest(`${urlkey}${invokingFileClean}.py`);
+      result = await retryRequest(`${urlkey}${test.invoking_file}.py`);
       if (result.res.statusCode !== 200) {
         throw new Error(
-          `Error retrieving ${testFile}: ${statusCode}, ${invokingFileClean}: ${result.res.statusCode}`
+          `Error retrieving ${test.file}: ${statusCode}, ${test.invoking_file}: ${result.res.statusCode}`
         );
       }
     }
@@ -349,28 +363,28 @@ export async function getTestOwnerLabels(
     const prefix = "# Owner(s): ";
     for (const line of lines) {
       if (line.startsWith(prefix)) {
-        const labels: string[] = JSON.parse(line.substring(prefix.length));
-        if (labels.length === 0) {
-          return { labels: ["module: unknown"] };
-        }
-        if (
-          labels.some(
-            (x) => x.startsWith("module: ") && x !== "module: unknown"
-          )
-        ) {
-          labels.push("triaged");
-        }
-        return { labels: labels };
+        labels = labels.concat(JSON.parse(line.substring(prefix.length)));
+        break;
       }
     }
-    return { labels: ["module: unknown"] };
   } catch (err) {
     console.warn(err);
-    return {
-      labels: ["module: unknown"],
-      additionalErrMessage: `${err}`,
-    };
+    additionalErrMessage = `${err}`;
   }
+
+  if (labels.length === 0) {
+    labels.push("module: unknown");
+  }
+
+  let platforms = getPlatformsAffected(getWorkflowJobNames(test));
+  if (platforms.includes("dynamo") || platforms.includes("inductor")) {
+    labels.push("oncall: pt2");
+  }
+
+  if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
+    labels.push("triaged");
+  }
+  return { labels, additionalErrMessage };
 }
 
 export function wasRecent(test: FlakyTestData) {
@@ -388,10 +402,7 @@ export async function createIssueFromFlakyTest(
 ): Promise<void> {
   const title = getIssueTitle(test.name, test.suite);
   let body = getIssueBodyForFlakyTest(test);
-  const { labels, additionalErrMessage } = await getTestOwnerLabels(
-    test.file,
-    test.invoking_file
-  );
+  const { labels, additionalErrMessage } = await getTestOwnerLabels(test);
   if (additionalErrMessage) {
     body += `\n\n${additionalErrMessage}`;
   }
