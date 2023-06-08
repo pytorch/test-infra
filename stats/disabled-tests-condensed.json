@@ -17,13 +17,6 @@
     "102291",
     "https://github.com/pytorch/pytorch/issues/102291",
     [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows.>",
       "linux"
     ]
   ],
