@@ -21,8 +21,13 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        # This test secret is not available on forked repo
-        [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" || "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        if [[ "${REPOSITORY_OWNER}" == "pytorch" ]]; then
+          [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        else
+          # This test secret is not available on forked repo. Without a filter, the
+          # variable is an unbound variable
+          [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" ]] || exit 1
+        fi
   test-secrets-filter-var:
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
@@ -35,8 +40,13 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        # This test secret is not available on forked repo
-        [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" || "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        if [[ "${REPOSITORY_OWNER}" == "pytorch" ]]; then
+          [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+        else
+          # This test secret is not available on forked repo. With a filter, the variable
+          # if default to an empty string
+          [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" ]] || exit 1
+        fi
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
