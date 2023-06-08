@@ -50,7 +50,7 @@ def main():
 
     for sname, senv in zip(secrets_names, secrets_u_names):
         try:
-            os.environ[senv] = str(all_secrets.get(sname, default=""))
+            os.environ[senv] = str(all_secrets.get(sname, ""))
         except KeyError as e:
             print(f"Could not set {senv} from secret {sname}: {e}")
 
