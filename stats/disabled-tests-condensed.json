@@ -279,13 +279,6 @@
       "linux"
     ]
   ],
-  "test_all_gather_object (__main__.TestObjectCollectivesWithSubPg)": [
-    "103188",
-    "https://github.com/pytorch/pytorch/issues/103188",
-    [
-      "distributed"
-    ]
-  ],
   "test_all_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "98508",
     "https://github.com/pytorch/pytorch/issues/98508",
