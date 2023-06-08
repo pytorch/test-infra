@@ -769,13 +769,6 @@
       "macos"
     ]
   ],
-  "test_build_tuple_unpack (__main__.MiscTests)": [
-    "102246",
-    "https://github.com/pytorch/pytorch/issues/102246",
-    [
-      "rocm"
-    ]
-  ],
   "test_build_tuple_unpack (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
     "101799",
     "https://github.com/pytorch/pytorch/issues/101799",
@@ -2023,6 +2016,13 @@
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
+    [
+      "linux"
+    ]
+  ],
+  "test_duplicate_graph_break_warning (__main__.StaticDefaultDynamicShapesMiscTests)": [
+    "103236",
+    "https://github.com/pytorch/pytorch/issues/103236",
     [
       "linux"
     ]
