@@ -838,7 +838,7 @@
       "linux"
     ]
   ],
-  "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
+  "test_call_parent_non_class_methods_from_child_dynamic_shapes_static_default (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
     "102114",
     "https://github.com/pytorch/pytorch/issues/102114",
     [
