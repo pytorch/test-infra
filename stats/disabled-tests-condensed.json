@@ -1360,20 +1360,6 @@
       "rocm"
     ]
   ],
-  "test_cpu_broadcast3_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102472",
-    "https://github.com/pytorch/pytorch/issues/102472",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102474",
-    "https://github.com/pytorch/pytorch/issues/102474",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_broadcast3_dense (__main__.SweepInputsCpuTest)": [
     "102406",
     "https://github.com/pytorch/pytorch/issues/102406",
@@ -1391,20 +1377,6 @@
   "test_cpu_broadcast3_int (__main__.SweepInputsCpuTest)": [
     "102489",
     "https://github.com/pytorch/pytorch/issues/102489",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_strided (__main__.SweepInputsCpuTest)": [
-    "102475",
-    "https://github.com/pytorch/pytorch/issues/102475",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_transposed (__main__.SweepInputsCpuTest)": [
-    "102473",
-    "https://github.com/pytorch/pytorch/issues/102473",
     [
       "rocm"
     ]
@@ -2395,13 +2367,6 @@
   "test_inductor_via_fx_dict_input (__main__.TestStandaloneInductor)": [
     "102381",
     "https://github.com/pytorch/pytorch/issues/102381",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_fx_tensor_return (__main__.TestStandaloneInductor)": [
-    "102476",
-    "https://github.com/pytorch/pytorch/issues/102476",
     [
       "rocm"
     ]
