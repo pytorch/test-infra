@@ -6,7 +6,6 @@ import gzip
 import io
 import json
 import os
-import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
 
 import boto3  # type: ignore[import]
