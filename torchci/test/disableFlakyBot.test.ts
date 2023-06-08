@@ -746,7 +746,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: give dynamo and inductor oncall: pt2 label, unknown owner", async () => {
     const test = { ...flakyTestA };
-    test.jobNames = ["inductor linux", "linux"];
+    test.jobNames = ["inductor linux"];
 
     let scope = nock("https://raw.githubusercontent.com/")
       .get(`/pytorch/pytorch/main/test/${test.file}`)
@@ -861,10 +861,9 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       ["rocm", "inductor"]
     );
 
-    expectJobsToDisablePlatforms(
-      ["inductor linux", "dynamo linux"],
-      ["dynamo", "inductor"]
-    );
+    expectJobsToDisablePlatforms(["inductor linux"], ["inductor"]);
+
+    expectJobsToDisablePlatforms(["dynamo linux"], ["dynamo"]);
   });
 
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
