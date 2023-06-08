@@ -966,6 +966,13 @@
       "windows"
     ]
   ],
+  "test_clone_cpu (__main__.CpuTests)": [
+    "103224",
+    "https://github.com/pytorch/pytorch/issues/103224",
+    [
+      "rocm"
+    ]
+  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -1004,6 +1011,13 @@
   "test_compile_api (__main__.TestInductorConfig)": [
     "102302",
     "https://github.com/pytorch/pytorch/issues/102302",
+    [
+      "rocm"
+    ]
+  ],
+  "test_complex_fallback_cpu (__main__.CpuTests)": [
+    "103225",
+    "https://github.com/pytorch/pytorch/issues/103225",
     [
       "rocm"
     ]
@@ -1180,6 +1194,13 @@
   "test_constant_pad_3d_cpu (__main__.CpuTests)": [
     "103207",
     "https://github.com/pytorch/pytorch/issues/103207",
+    [
+      "rocm"
+    ]
+  ],
+  "test_constant_pad_float64_cpu (__main__.CpuTests)": [
+    "103226",
+    "https://github.com/pytorch/pytorch/issues/103226",
     [
       "rocm"
     ]
