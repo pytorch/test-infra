@@ -39,6 +39,8 @@ jobs:
           post-script: "python packaging/wheel/relocate.py"
           smoke-test-script: test/smoke_test.py
           package-name: torchvision
+          cache-path: ""
+          cache-key: ""
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
