@@ -11,6 +11,7 @@ on:
 
 jobs:
   test-secrets-no-filter-var:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
@@ -21,16 +22,23 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        env
-
-        if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
-          [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
-        else
-          # This test secret is not available on forked repo. Without a filter, the
-          # variable is an unbound variable
-          [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" ]] || exit 1
-        fi
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+  test-secrets-no-filter-var-forked-repo:
+    # This test secret is not available on forked repo
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    uses: ./.github/workflows/linux_job.yml
+    secrets: inherit
+    with:
+      job-name: "test-secrets-no-filter-var"
+      runner: linux.2xlarge
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" ]] || exit 1
   test-secrets-filter-var:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
@@ -42,15 +50,22 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        env
-
-        if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
-          [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
-        else
-          # This test secret is not available on forked repo. With a filter, the variable
-          # if default to an empty string
-          [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" ]] || exit 1
-        fi
+        [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
+  test-secrets-filter-var-forked-repo:
+    # This test secret is not available on forked repo
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    uses: ./.github/workflows/linux_job.yml
+    secrets: inherit
+    with:
+      job-name: "test-secrets-filter-var"
+      runner: linux.2xlarge
+      secrets-env: "NOT_A_SECRET_USED_FOR_TESTING"
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" ]] || exit 1
   test-cpu:
     uses: ./.github/workflows/linux_job.yml
     with:
