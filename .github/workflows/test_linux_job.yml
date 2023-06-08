@@ -21,7 +21,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        if [[ "${REPOSITORY_OWNER}" == "pytorch" ]]; then
+        if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
           [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
         else
           # This test secret is not available on forked repo. Without a filter, the
@@ -40,7 +40,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        if [[ "${REPOSITORY_OWNER}" == "pytorch" ]]; then
+        if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
           [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
         else
           # This test secret is not available on forked repo. With a filter, the variable

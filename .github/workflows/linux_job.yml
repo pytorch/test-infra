@@ -87,7 +87,6 @@ jobs:
                                                                       inputs.gpu-arch-version)
                                                            || inputs.docker-image }}
       REPOSITORY: ${{ inputs.repository || github.repository }}
-      REPOSITORY_OWNER: ${{ github.repository_owner }}
       # Will be blank outside of this
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
