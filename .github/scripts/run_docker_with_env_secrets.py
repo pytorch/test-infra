@@ -43,8 +43,8 @@ def main():
     for sname, senv in zip(secrets_names, secrets_u_names):
         try:
             os.environ[senv] = str(all_secrets[sname])
-        except KeyError:
-            print(f'Could not set {senv} from secret {sname}')
+        except KeyError as e:
+            print(f'Could not set {senv} from secret {sname}: {e}')
 
     container_name = run_cmd_or_die(f'''
     docker run \
