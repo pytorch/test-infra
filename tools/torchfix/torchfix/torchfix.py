@@ -9,7 +9,6 @@ import argparse
 import contextlib
 import io
 import sys
-from typing import Optional
 
 __version__ = "0.0.1"
 
@@ -95,7 +94,7 @@ class TorchVisitor(cst.CSTVisitor):
             replacement = node.with_deep_changes(old_node=node.func.attr, value="outer")
 
         # Replace `range` with `arange`.
-        # Add `step` to the `end` argument as for `arange` the interval is `[start, end)`.
+        # Add `step` to the `end` argument as `arange` has the interval `[start, end)`.
         if qualified_name == "torch.range":
             end_arg, step_arg = _get_range_args(node)
             step = 1
