@@ -29,7 +29,6 @@ import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import useGroupingPreference from "lib/useGroupingPreference";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import PageSelector from "components/PageSelector";
 import useSWR from "swr";
@@ -39,6 +38,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
+import { useGroupingPreference, usePreference } from "lib/useGroupingPreference";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
@@ -464,14 +464,10 @@ function GroupedHudTable({
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter != null && params.nameFilter !== ""
   );
-  const [hideUnstable, setHideUnstable] = useState<boolean>(true);
+  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
 
   const groupNames = Array.from(groupNameMapping.keys());
   let names = sortGroupNamesForHUD(groupNames);
-
-  if (hideUnstable) {
-    names = names.filter((name) => !isUnstableGroup(name));
-  }
 
   if (useGrouping) {
     expandedGroups.forEach((group) => {
@@ -482,14 +478,18 @@ function GroupedHudTable({
         ...names.slice(nameInd + 1),
       ];
     });
+    if (hideUnstable) {
+      names = names.filter((name) => !isUnstableGroup(name));
+    }
   } else {
     names = [...data.jobNames];
     groups.forEach((group) => {
-      if (hideUnstable && isUnstableGroup(group.name)) {
-        return;
-      }
-
-      if (groupNames.includes(group.name) && group.persistent) {
+      if (
+        (groupNames.includes(group.name) && group.persistent) ||
+        (isUnstableGroup(group.name) && hideUnstable)
+      ) {
+        // Add group name, take out all the jobs that belong to that group
+        // unless the group is expanded
         names.push(group.name);
         names = names.filter(
           (name) => !groupNameMapping.get(group.name)?.includes(name)
