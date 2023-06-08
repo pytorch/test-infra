@@ -27,7 +27,7 @@ runs:
 
     - name: Run Script to Upload Alerts
       shell: bash
-      if: github.event_name != 'pull_request'
+      # if: github.event_name != 'pull_request'
       run: |
        python _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
 
