@@ -21,6 +21,8 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
+        env
+
         if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
           [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
         else
@@ -40,6 +42,8 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
+        env
+
         if [[ "${GITHUB_REPOSITORY_OWNER}" == "pytorch" ]]; then
           [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
         else
