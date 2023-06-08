@@ -43,6 +43,10 @@ const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
+// A help link to explain the metrics used in the dashboard
+export const HELP_LINK =
+  "https://pytorch.org/docs/main/compile/performance-dashboard.html";
+
 export const SHA_DISPLAY_LENGTH = 10;
 export const LAST_N_DAYS = 7;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
@@ -79,10 +83,6 @@ export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
 export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
-
-// When calculating geomean, all the values are clipped to the lower bound of 1.0
-// because if the speed up is less than 1.0, one can use eager mode instead
-export const GEOMEAN_LOWER_BOUND = 1.0;
 
 // The number of digit after decimal to display on the summary page
 const SCALE = 2;
@@ -237,7 +237,7 @@ function geomean(data: number[]) {
 
   var gm = 1.0;
   data.forEach((v) => {
-    gm *= v < GEOMEAN_LOWER_BOUND ? GEOMEAN_LOWER_BOUND : v;
+    gm *= v;
   });
   return Math.pow(gm, 1.0 / data.length).toFixed(SCALE);
 }
@@ -278,14 +278,12 @@ function computeGeomean(
       speedup[bucket][workflowId][suite][compiler] = [];
     }
 
-    let speedupValue = GEOMEAN_LOWER_BOUND;
     if (
       isPass(bucket, workflowId, suite, compiler, model, passingModels) &&
       record.speedup !== 0.0
     ) {
-      speedupValue = record.speedup;
+      speedup[bucket][workflowId][suite][compiler].push(record.speedup);
     }
-    speedup[bucket][workflowId][suite][compiler].push(speedupValue);
   });
 
   Object.keys(speedup).forEach((bucket: string) => {
@@ -1007,6 +1005,7 @@ function SummaryPanel({
                 ? PASSRATE_HEADER
                 : `${PASSRATE_HEADER} ${DIFF_HEADER}`
             }
+            helpLink={HELP_LINK}
             data={Object.values(passrate).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1095,6 +1094,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={GEOMEAN_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(geomean).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1186,6 +1186,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={COMPILATION_LATENCY_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(compTime).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1290,6 +1291,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={MEMORY_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(memory).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
