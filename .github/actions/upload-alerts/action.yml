@@ -19,7 +19,12 @@ runs:
       with:
         repository: pytorch/test-infra
         path: _test-infra
-
+    - name: Install Dependencies
+      run: |
+        pip3 install jsonschema
+        pip3 install boto3==1.19.12
+        pip3 install rockset==1.0.3
+      shell: bash
     - name: Run Script to Validate Alerts
       shell: bash
       run: | 
