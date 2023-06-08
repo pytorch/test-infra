@@ -896,6 +896,13 @@
       "rocm"
     ]
   ],
+  "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93050",
+    "https://github.com/pytorch/pytorch/issues/93050",
+    [
+      "linux"
+    ]
+  ],
   "test_cdist_large_batch (__main__.TestMPS)": [
     "92078",
     "https://github.com/pytorch/pytorch/issues/92078",
