@@ -267,6 +267,17 @@ class TorchVisitor(cst.CSTVisitor):
 
 # TODO: refactor/generalize this.
 class _UpdateFunctorchImports(cst.CSTTransformer):
+    REPLACEMENTS = {
+        "vmap",
+        "grad",
+        "vjp",
+        "jvp",
+        "jacrev",
+        "jacfwd",
+        "hessian",
+        "functionalize",
+    }
+
     def __init__(self):
         self.changed = False
 
@@ -274,10 +285,12 @@ class _UpdateFunctorchImports(cst.CSTTransformer):
         self, node: cst.ImportFrom, updated_node: cst.ImportFrom
     ) -> cst.ImportFrom:
         if node.module.value == "functorch":
-            self.changed = True
-            return updated_node.with_changes(module=cst.parse_expression("torch.func"))
-        else:
-            return updated_node
+            if all([name.name.value in self.REPLACEMENTS for name in node.names]):
+                self.changed = True
+                return updated_node.with_changes(
+                    module=cst.parse_expression("torch.func")
+                )
+        return updated_node
 
 
 def _read_deprecated_config(path=None):

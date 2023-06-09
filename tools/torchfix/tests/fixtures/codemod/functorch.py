@@ -45,3 +45,10 @@ def f():
     jacfwd()
     hessian()
     functionalize()
+
+# Don't modify, as some symbols are not in func.torch.
+from functorch import (
+    make_functional_with_buffers as make_functional_functorch,
+    vmap,
+)
+from functorch import FunctionalModule, FunctionalModuleWithBuffers
