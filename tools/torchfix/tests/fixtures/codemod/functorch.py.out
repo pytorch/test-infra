@@ -19,11 +19,12 @@ def model(feature_vec):
     return feature_vec.dot(weights).relu()
 
 examples = torch.randn(batch_size, feature_size)
-result = torch.func.vmap(examples)
+result = torch.func.vmap(model)(examples)
 print(result)
 
 # Non-runnable, just to check name changes.
 def f():
+    td_out = torch.func.vmap(tdmodule, (None, 0))(td, params)
     torch.func.vmap()
     torch.func.grad()
     torch.func.vjp()
@@ -35,6 +36,7 @@ def f():
 
 # Don't modify these, change the imports in the beginning
 def f():
+    td_out = vmap(tdmodule, (None, 0))(td, params)
     vmap()
     grad()
     vjp()

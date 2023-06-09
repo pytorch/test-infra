@@ -67,6 +67,18 @@ class TorchVisitor(cst.CSTVisitor):
             old_begin, _, old_last = old_qualified_name.rpartition(".")
             new_begin, _, new_last = new_qualified_name.rpartition(".")
 
+            # Guard against situations like `vmap(a)(b)`:
+            #
+            # Call(
+            #   func=Call(
+            #       func=Name(
+            #         value='vmap',
+            #
+            # The QualifiedName metadata for the outer call will be the same
+            # as for the inner call.
+            if isinstance(node.func, cst.Call):
+                return None
+
             # If the only difference is the last name part.
             if old_begin == new_begin:
                 replacement = node.with_deep_changes(
@@ -239,7 +251,6 @@ class TorchVisitor(cst.CSTVisitor):
             else:
                 error_code = "TOR001"
                 message = f"Use of removed function {qualified_name}"
-
             replacement = self._call_replacement(node, qualified_name)
 
             self.violations.append(
@@ -256,10 +267,14 @@ class TorchVisitor(cst.CSTVisitor):
 
 # TODO: refactor/generalize this.
 class _UpdateFunctorchImports(cst.CSTTransformer):
+    def __init__(self):
+        self.changed = False
+
     def leave_ImportFrom(
         self, node: cst.ImportFrom, updated_node: cst.ImportFrom
     ) -> cst.ImportFrom:
         if node.module.value == "functorch":
+            self.changed = True
             return updated_node.with_changes(module=cst.parse_expression("torch.func"))
         else:
             return updated_node
@@ -320,12 +335,14 @@ class TorchCodemod(codemod.Codemod):
                 # Not a subpath of a current dir, use absolute path
                 path = self.context.filename
             print(f"{path}{violation.codemod_result()}")
-        if fixes_count == 0:
-            raise codemod.SkipFile("No changes")
 
         new_module = deep_multi_replace(module, replacement_map)
 
-        new_module = new_module.visit(_UpdateFunctorchImports())
+        update_imports_visitor = _UpdateFunctorchImports()
+        new_module = new_module.visit(update_imports_visitor)
+
+        if fixes_count == 0 and not update_imports_visitor.changed:
+            raise codemod.SkipFile("No changes")
 
         return new_module
 

@@ -24,6 +24,7 @@ print(result)
 
 # Non-runnable, just to check name changes.
 def f():
+    td_out = functorch.vmap(tdmodule, (None, 0))(td, params)
     functorch.vmap()
     functorch.grad()
     functorch.vjp()
@@ -35,6 +36,7 @@ def f():
 
 # Don't modify these, change the imports in the beginning
 def f():
+    td_out = vmap(tdmodule, (None, 0))(td, params)
     vmap()
     grad()
     vjp()
