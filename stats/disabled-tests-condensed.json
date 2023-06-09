@@ -659,6 +659,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_sub_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
+    "103310",
+    "https://github.com/pytorch/pytorch/issues/103310",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_sub_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "102797",
     "https://github.com/pytorch/pytorch/issues/102797",
@@ -1659,6 +1666,13 @@
     "https://github.com/pytorch/pytorch/issues/102710",
     [
       "rocm"
+    ]
+  ],
+  "test_create_script_module_on_remote (__main__.TensorPipeJitRpcTest)": [
+    "103309",
+    "https://github.com/pytorch/pytorch/issues/103309",
+    [
+      "linux"
     ]
   ],
   "test_cuda_lstm (__main__.FakeTensorTest)": [
