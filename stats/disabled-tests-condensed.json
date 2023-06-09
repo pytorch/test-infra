@@ -975,21 +975,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_conv_transpose3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "102290",
-    "https://github.com/pytorch/pytorch/issues/102290",
-    [
-      "<fill this in or delete. valid labels are: asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win",
-      "windows.>",
-      "linux",
-      "inductor"
-    ]
-  ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
     "85012",
     "https://github.com/pytorch/pytorch/issues/85012",
@@ -1046,13 +1031,6 @@
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101851",
     "https://github.com/pytorch/pytorch/issues/101851",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_export_single_arg (__main__.MiscTests)": [
-    "101381",
-    "https://github.com/pytorch/pytorch/issues/101381",
     [
       "linux"
     ]
@@ -2122,6 +2100,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94507",
+    "https://github.com/pytorch/pytorch/issues/94507",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -2764,6 +2749,13 @@
     "https://github.com/pytorch/pytorch/issues/75406",
     [
       "mac"
+    ]
+  ],
+  "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
+    "103345",
+    "https://github.com/pytorch/pytorch/issues/103345",
+    [
+      "linux"
     ]
   ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
