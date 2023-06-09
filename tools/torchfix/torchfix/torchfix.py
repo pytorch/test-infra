@@ -61,6 +61,23 @@ class TorchVisitor(cst.CSTVisitor):
     )
 
     def _call_replacement(self, node: cst.Call, qualified_name) -> cst.Call:
+        def call_with_name_changes(
+            node: cst.Call, old_qualified_name: str, new_qualified_name: str
+        ) -> cst.Call:
+            # If the only difference is the last name part.
+            if (
+                old_qualified_name.rpartition(".")[0]
+                == new_qualified_name.rpartition(".")[0]
+            ):
+                replacement = node.with_deep_changes(
+                    old_node=node.func.attr,
+                    value=function_name_replacement.rpartition(".")[-1],
+                )
+            else:
+                replacement = node.with_changes(
+                    func=cst.parse_expression(new_qualified_name)
+                )
+            return replacement
 
         # `torch.range` documented signature is not a valid Python signature,
         # so it's hard to generalize this.
@@ -90,8 +107,15 @@ class TorchVisitor(cst.CSTVisitor):
             return end_arg, step_arg
 
         replacement = None
-        if qualified_name == "torch.ger":
-            replacement = node.with_deep_changes(old_node=node.func.attr, value="outer")
+
+        # Replace names for functions that have drop-in replacement.
+        function_name_replacement = self.deprecated_config.get(qualified_name, {}).get(
+            "replacement", ""
+        )
+        if function_name_replacement:
+            replacement = call_with_name_changes(
+                node, qualified_name, function_name_replacement
+            )
 
         # Replace `range` with `arange`.
         # Add `step` to the `end` argument as `arange` has the interval `[start, end)`.
@@ -304,6 +328,13 @@ def main() -> None:
         type=int,
         default=None,
     )
+    # XXX TODO: Get rid of this!
+    # Silence "Failed to determine module name"
+    # https://github.com/Instagram/LibCST/issues/944
+    parser.add_argument(
+        "--ignore-stderr",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -311,10 +342,11 @@ def main() -> None:
     command_instance = TorchCodemod(codemod.CodemodContext())
     DIFF_CONTEXT = 5
     try:
-        # XXX TODO: Get rid of this!
-        # Silence "Failed to determine module name"
-        # https://github.com/Instagram/LibCST/issues/944
-        with contextlib.redirect_stderr(io.StringIO()):
+        if args.ignore_stderr:
+            context = contextlib.redirect_stderr(io.StringIO())
+        else:
+            context = contextlib.nullcontext()
+        with context:
             result = codemod.parallel_exec_transform_with_prettyprint(
                 command_instance,
                 files,
