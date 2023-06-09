@@ -97,37 +97,9 @@
       "rocm"
     ]
   ],
-  "test_adadelta (optim.test_optim.TestOptim)": [
-    "102941",
-    "https://github.com/pytorch/pytorch/issues/102941",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adagrad (__main__.TestOptim)": [
-    "86817",
-    "https://github.com/pytorch/pytorch/issues/86817",
-    [
-      "dynamo"
-    ]
-  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adamax (optim.test_optim.TestOptim)": [
-    "103006",
-    "https://github.com/pytorch/pytorch/issues/103006",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adamw (__main__.TestOptim)": [
-    "86435",
-    "https://github.com/pytorch/pytorch/issues/86435",
     [
       "dynamo"
     ]
@@ -404,20 +376,6 @@
     "https://github.com/pytorch/pytorch/issues/102776",
     [
       "rocm"
-    ]
-  ],
-  "test_asgd (__main__.TestOptim)": [
-    "86763",
-    "https://github.com/pytorch/pytorch/issues/86763",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_asgd (optim.test_optim.TestOptim)": [
-    "103115",
-    "https://github.com/pytorch/pytorch/issues/103115",
-    [
-      "dynamo"
     ]
   ],
   "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
@@ -2863,13 +2821,6 @@
     "https://github.com/pytorch/pytorch/issues/92477",
     [
       "linux"
-    ]
-  ],
-  "test_rmsprop (__main__.TestOptim)": [
-    "103112",
-    "https://github.com/pytorch/pytorch/issues/103112",
-    [
-      "dynamo"
     ]
   ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
