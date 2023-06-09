@@ -485,8 +485,8 @@ function GroupedHudTable({
     names = [...data.jobNames];
     groups.forEach((group) => {
       if (
-        (groupNames.includes(group.name) && group.persistent) ||
-        (isUnstableGroup(group.name) && hideUnstable)
+        groupNames.includes(group.name) &&
+        (group.persistent || (isUnstableGroup(group.name) && hideUnstable))
       ) {
         // Add group name, take out all the jobs that belong to that group
         // unless the group is expanded
