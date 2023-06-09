@@ -2662,13 +2662,6 @@
       "linux"
     ]
   ],
-  "test_noncontiguous_samples_native_batch_norm_cuda_float32 (__main__.TestCommonCUDA)": [
-    "95157",
-    "https://github.com/pytorch/pytorch/issues/95157",
-    [
-      "linux"
-    ]
-  ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
     "87542",
     "https://github.com/pytorch/pytorch/issues/87542",
