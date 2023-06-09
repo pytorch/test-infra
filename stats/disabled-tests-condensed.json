@@ -1793,13 +1793,6 @@
       "linux"
     ]
   ],
-  "test_ddp_static_graph_nested_types (__main__.TestDistBackendWithSpawn)": [
-    "77625",
-    "https://github.com/pytorch/pytorch/issues/77625",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_uneven_input_join_disable (__main__.TestDistBackendWithSpawn)": [
     "78684",
     "https://github.com/pytorch/pytorch/issues/78684",
@@ -2121,13 +2114,6 @@
       "inductor"
     ]
   ],
-  "test_fn_gradgrad_triangular_solve_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "94770",
-    "https://github.com/pytorch/pytorch/issues/94770",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "94487",
     "https://github.com/pytorch/pytorch/issues/94487",
@@ -2400,6 +2386,13 @@
       "macos"
     ]
   ],
+  "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
+    "103285",
+    "https://github.com/pytorch/pytorch/issues/103285",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100520",
     "https://github.com/pytorch/pytorch/issues/100520",
@@ -2493,6 +2486,15 @@
     "https://github.com/pytorch/pytorch/issues/95172",
     [
       "rocm"
+    ]
+  ],
+  "test_memory_timeline_no_id (__main__.TestMemoryProfilerE2E)": [
+    "103286",
+    "https://github.com/pytorch/pytorch/issues/103286",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
