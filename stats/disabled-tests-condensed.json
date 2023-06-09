@@ -97,13 +97,6 @@
       "rocm"
     ]
   ],
-  "test_adadelta (__main__.TestOptim)": [
-    "102940",
-    "https://github.com/pytorch/pytorch/issues/102940",
-    [
-      "dynamo"
-    ]
-  ],
   "test_adadelta (optim.test_optim.TestOptim)": [
     "102941",
     "https://github.com/pytorch/pytorch/issues/102941",
@@ -114,34 +107,6 @@
   "test_adagrad (__main__.TestOptim)": [
     "86817",
     "https://github.com/pytorch/pytorch/issues/86817",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adagrad (optim.test_optim.TestOptim)": [
-    "103013",
-    "https://github.com/pytorch/pytorch/issues/103013",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adagrad_sparse (__main__.TestOptim)": [
-    "102986",
-    "https://github.com/pytorch/pytorch/issues/102986",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adagrad_sparse (optim.test_optim.TestOptim)": [
-    "103012",
-    "https://github.com/pytorch/pytorch/issues/103012",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adam (optim.test_optim.TestOptim)": [
-    "86432",
-    "https://github.com/pytorch/pytorch/issues/86432",
     [
       "dynamo"
     ]
@@ -163,13 +128,6 @@
   "test_adamw (__main__.TestOptim)": [
     "86435",
     "https://github.com/pytorch/pytorch/issues/86435",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_adamw (optim.test_optim.TestOptim)": [
-    "103018",
-    "https://github.com/pytorch/pytorch/issues/103018",
     [
       "dynamo"
     ]
