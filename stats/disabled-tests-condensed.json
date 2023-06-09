@@ -2106,7 +2106,7 @@
     "94507",
     "https://github.com/pytorch/pytorch/issues/94507",
     [
-      "linux"
+      "inductor"
     ]
   ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
@@ -2507,6 +2507,13 @@
     "https://github.com/pytorch/pytorch/issues/101067",
     [
       "linux"
+    ]
+  ],
+  "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
+    "101525",
+    "https://github.com/pytorch/pytorch/issues/101525",
+    [
+      "inductor"
     ]
   ],
   "test_numpy_ref_mps_nn_functional_conv_transpose1d_mps_float32 (__main__.TestCommonMPS)": [
