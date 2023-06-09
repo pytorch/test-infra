@@ -1,6 +1,12 @@
 name: Test build/test linux workflow
 
 on:
+  push:
+    paths:
+      - .github/workflows/linux_job.yml
+      - .github/workflows/test_linux_job.yml
+      - .github/actions/setup-linux/action.yml
+      - .github/scripts/run_docker_with_env_secrets.py
   pull_request:
     paths:
       - .github/workflows/linux_job.yml
@@ -11,7 +17,8 @@ on:
 
 jobs:
   test-secrets-no-filter-var:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository_owner == 'pytorch'
+    # if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
@@ -25,7 +32,8 @@ jobs:
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-secrets-no-filter-var-forked-repo:
     # This test secret is not available on forked repo
-    if: github.event.pull_request.head.repo.full_name != github.repository
+    if: github.repository_owner != 'pytorch'
+    # if: github.event.pull_request.head.repo.full_name != github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
@@ -38,7 +46,8 @@ jobs:
       script: |
         [[ -z "${SECRET_NOT_A_SECRET_USED_FOR_TESTING:-}" ]] || exit 1
   test-secrets-filter-var:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.repository_owner == 'pytorch'
+    # if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
@@ -53,7 +62,8 @@ jobs:
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
   test-secrets-filter-var-forked-repo:
     # This test secret is not available on forked repo
-    if: github.event.pull_request.head.repo.full_name != github.repository
+    if: github.repository_owner != 'pytorch'
+    # if: github.event.pull_request.head.repo.full_name != github.repository
     uses: ./.github/workflows/linux_job.yml
     secrets: inherit
     with:
