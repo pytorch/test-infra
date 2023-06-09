@@ -1039,7 +1039,8 @@
     "102585",
     "https://github.com/pytorch/pytorch/issues/102585",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
@@ -1068,7 +1069,8 @@
     "102192",
     "https://github.com/pytorch/pytorch/issues/102192",
     [
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
