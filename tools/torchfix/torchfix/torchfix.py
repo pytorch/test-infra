@@ -64,15 +64,23 @@ class TorchVisitor(cst.CSTVisitor):
         def call_with_name_changes(
             node: cst.Call, old_qualified_name: str, new_qualified_name: str
         ) -> cst.Call:
+            old_begin, _, old_last = old_qualified_name.rpartition(".")
+            new_begin, _, new_last = new_qualified_name.rpartition(".")
+
             # If the only difference is the last name part.
-            if (
-                old_qualified_name.rpartition(".")[0]
-                == new_qualified_name.rpartition(".")[0]
-            ):
+            if old_begin == new_begin:
                 replacement = node.with_deep_changes(
                     old_node=node.func.attr,
-                    value=function_name_replacement.rpartition(".")[-1],
+                    value=new_last,
                 )
+
+            # If the the last name part is the same and
+            # originally called without a dot: don't change the call site,
+            # just change the imports elsewhere.
+            elif old_last == new_last and isinstance(node.func, cst.Name):
+                replacement = None
+
+            # Replace with new_qualified_name.
             else:
                 replacement = node.with_changes(
                     func=cst.parse_expression(new_qualified_name)
@@ -246,6 +254,17 @@ class TorchVisitor(cst.CSTVisitor):
             )
 
 
+# TODO: refactor/generalize this.
+class _UpdateFunctorchImports(cst.CSTTransformer):
+    def leave_ImportFrom(
+        self, node: cst.ImportFrom, updated_node: cst.ImportFrom
+    ) -> cst.ImportFrom:
+        if node.module.value == "functorch":
+            return updated_node.with_changes(module=cst.parse_expression("torch.func"))
+        else:
+            return updated_node
+
+
 def _read_deprecated_config(path=None):
     if path is None:
         path = Path(__file__).absolute().parent / "deprecated_symbols.yaml"
@@ -305,6 +324,9 @@ class TorchCodemod(codemod.Codemod):
             raise codemod.SkipFile("No changes")
 
         new_module = deep_multi_replace(module, replacement_map)
+
+        new_module = new_module.visit(_UpdateFunctorchImports())
+
         return new_module
 
 
