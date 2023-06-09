@@ -2199,58 +2199,9 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93051",
-    "https://github.com/pytorch/pytorch/issues/93051",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "98295",
-    "https://github.com/pytorch/pytorch/issues/98295",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94507",
-    "https://github.com/pytorch/pytorch/issues/94507",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93049",
-    "https://github.com/pytorch/pytorch/issues/93049",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94531",
-    "https://github.com/pytorch/pytorch/issues/94531",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
     "94625",
     "https://github.com/pytorch/pytorch/issues/94625",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
