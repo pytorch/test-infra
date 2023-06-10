@@ -84,7 +84,6 @@ export const RELATIVE_THRESHOLD = 0.05;
 // Thresholds
 export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
-export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 // The number of digit after decimal to display on the summary page
@@ -94,7 +93,7 @@ const SCALE = 2;
 export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
@@ -1246,9 +1245,7 @@ function SummaryPanel({
                     const r = Number(v.r);
 
                     if (lCommit === rCommit) {
-                      return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                        ? styles.warning
-                        : "";
+                      return "";
                     } else {
                       if (l === r) {
                         return "";
@@ -1262,10 +1259,6 @@ function SummaryPanel({
                       // Increasing more than x%
                       if (l - r > RELATIVE_THRESHOLD * r) {
                         return styles.error;
-                      }
-
-                      if (l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS) {
-                        return styles.warning;
                       }
                     }
 

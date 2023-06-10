@@ -41,7 +41,6 @@ import {
   MAIN_BRANCH,
   DEFAULT_BRANCHES,
   SPEEDUP_THRESHOLD,
-  COMPILATION_lATENCY_THRESHOLD_IN_SECONDS,
   COMPRESSION_RATIO_THRESHOLD,
   PASSING_ACCURACY,
   DIFF_HEADER,
@@ -68,7 +67,7 @@ const ROW_HEIGHT = 38;
 const ACCURACY_HEADER = "Accuracy";
 const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
-const COMPILATION_LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const COMPILATION_LATENCY_HEADER = `Compilation latency in seconds`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // The number of digit after decimal to display on the detail page
@@ -464,9 +463,7 @@ function ModelPanel({
                 const r = Number(v.r);
 
                 if (lCommit === rCommit) {
-                  return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                    ? styles.warning
-                    : "";
+                  return "";
                 } else {
                   if (l === 0 || l === r) {
                     // 0 means the model isn't run at all
@@ -481,10 +478,6 @@ function ModelPanel({
                   // Increasing more than x%
                   if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.error;
-                  }
-
-                  if (l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS) {
-                    return styles.warning;
                   }
                 }
 
