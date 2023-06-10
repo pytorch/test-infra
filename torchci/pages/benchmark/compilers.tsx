@@ -1041,8 +1041,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {v.r} → {v.l}{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {v.r} → {v.l}
                         </a>
                       );
                     }
@@ -1133,8 +1132,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }
@@ -1227,10 +1225,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}s → {l}s{" "}
-                          {Number(l) > Number(r) && Number(r) != 0
-                            ? "\uD83D\uDD3A"
-                            : ""}
+                          {r}s → {l}s
                         </a>
                       );
                     }
@@ -1325,8 +1320,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }

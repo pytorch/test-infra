@@ -446,11 +446,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3B"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
@@ -506,11 +502,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) > Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3A"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
@@ -564,11 +556,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3B"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
