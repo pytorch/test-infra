@@ -78,10 +78,12 @@ export const MODES = ["training", "inference"];
 export const DTYPES = ["amp"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
+// Relative thresholds
+export const RELATIVE_THRESHOLD = 0.05;
+
 // Thresholds
 export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
-export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
 // The number of digit after decimal to display on the summary page
@@ -91,7 +93,7 @@ const SCALE = 2;
 export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
@@ -1038,8 +1040,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {v.r} → {v.l}{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {v.r} → {v.l}
                         </a>
                       );
                     }
@@ -1060,19 +1061,21 @@ function SummaryPanel({
                     if (lCommit === rCommit || r === undefined) {
                       return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < ACCURACY_THRESHOLD && r >= ACCURACY_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < ACCURACY_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1128,8 +1131,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }
@@ -1152,19 +1154,21 @@ function SummaryPanel({
                     if (lCommit === rCommit) {
                       return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < SPEEDUP_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1220,10 +1224,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}s → {l}s{" "}
-                          {Number(l) > Number(r) && Number(r) != 0
-                            ? "\uD83D\uDD3A"
-                            : ""}
+                          {r}s → {l}s
                         </a>
                       );
                     }
@@ -1244,33 +1245,20 @@ function SummaryPanel({
                     const r = Number(v.r);
 
                     if (lCommit === rCommit) {
-                      return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                        ? styles.warning
-                        : "";
+                      return "";
                     } else {
-                      if (
-                        l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.warning;
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
                       }
                     }
 
@@ -1325,8 +1313,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }
@@ -1351,28 +1338,21 @@ function SummaryPanel({
                         ? ""
                         : styles.warning;
                     } else {
-                      if (
-                        l >= COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r >= COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < COMPRESSION_RATIO_THRESHOLD) {
                         return styles.warning;
                       }
                     }

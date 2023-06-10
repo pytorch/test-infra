@@ -41,7 +41,6 @@ import {
   MAIN_BRANCH,
   DEFAULT_BRANCHES,
   SPEEDUP_THRESHOLD,
-  COMPILATION_lATENCY_THRESHOLD_IN_SECONDS,
   COMPRESSION_RATIO_THRESHOLD,
   PASSING_ACCURACY,
   DIFF_HEADER,
@@ -54,6 +53,7 @@ import {
   WORKFLOW_ID_TO_COMMIT,
   SHA_DISPLAY_LENGTH,
   HELP_LINK,
+  RELATIVE_THRESHOLD,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
@@ -67,7 +67,7 @@ const ROW_HEIGHT = 38;
 const ACCURACY_HEADER = "Accuracy";
 const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
-const COMPILATION_LATENCY_HEADER = `Compilation latency in seconds (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const COMPILATION_LATENCY_HEADER = `Compilation latency (seconds)`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // The number of digit after decimal to display on the detail page
@@ -415,26 +415,18 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
-                  if (l === 0) {
-                    // This means the model isn't run at all
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
                     return "";
                   }
 
-                  if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                  // Increasing more than x%
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
-                  if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
-                    return styles.error;
-                  }
-
-                  if ((l === 0 && r === 0) || l === r) {
-                    return "";
-                  }
-
-                  // If the value decreases more than SPEEDUP_THRESHOLD, this also needs to be marked
-                  // as a regression
-                  if (r * SPEEDUP_THRESHOLD > l) {
+                  // Decreasing more than x%
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
                 }
@@ -453,11 +445,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3B"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
@@ -475,38 +463,21 @@ function ModelPanel({
                 const r = Number(v.r);
 
                 if (lCommit === rCommit) {
-                  return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                    ? styles.warning
-                    : "";
+                  return "";
                 } else {
-                  if (l === 0) {
-                    // This means the model isn't run at all
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
                     return "";
                   }
 
-                  if (
-                    l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                    r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                  ) {
+                  // Decreasing more than x%
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
-                  if (
-                    l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                    r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                  ) {
+                  // Increasing more than x%
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.error;
-                  }
-
-                  if (l === r) {
-                    return "";
-                  }
-
-                  if (
-                    l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                    r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                  ) {
-                    return styles.warning;
                   }
                 }
 
@@ -524,11 +495,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) > Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3A"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
@@ -548,33 +515,23 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= COMPRESSION_RATIO_THRESHOLD ? "" : styles.warning;
                 } else {
-                  if (l === 0) {
-                    // This means the model isn't run at all
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
                     return "";
                   }
 
-                  if (
-                    l >= COMPRESSION_RATIO_THRESHOLD &&
-                    r < COMPRESSION_RATIO_THRESHOLD
-                  ) {
+                  // Increasing more than x%
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
-                  if (
-                    l < COMPRESSION_RATIO_THRESHOLD &&
-                    r >= COMPRESSION_RATIO_THRESHOLD
-                  ) {
+                  // Decreasing more than x%
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
 
-                  if ((l === 0 && r === 0) || l === r) {
-                    return "";
-                  }
-
-                  // If the value decreases more than SPEEDUP_THRESHOLD, this also needs to be marked
-                  // as a regression
-                  if (r * COMPRESSION_RATIO_THRESHOLD > l) {
-                    return styles.error;
+                  if (l < COMPRESSION_RATIO_THRESHOLD) {
+                    return styles.warning;
                   }
                 }
 
@@ -592,11 +549,7 @@ function ModelPanel({
                 if (lCommit === rCommit || l === r || v.r === 0) {
                   return l;
                 } else {
-                  return `${r} → ${l} ${
-                    Number(l) < Number(r) && Number(r) != 0 && Number(l) != 0
-                      ? "\uD83D\uDD3B"
-                      : ""
-                  }`;
+                  return `${r} → ${l}`;
                 }
               },
             },
@@ -605,6 +558,33 @@ function ModelPanel({
               headerName: ABS_LATENCY_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined || v.r === 0) {
+                  return "";
+                }
+
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return "";
+                } else {
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
+                    return "";
+                  }
+
+                  // Decreasing more than x%
+                  if (r - l > RELATIVE_THRESHOLD * r) {
+                    return styles.ok;
+                  }
+
+                  // Increasing more than x%
+                  if (l - r > RELATIVE_THRESHOLD * r) {
+                    return styles.error;
+                  }
+                }
+
                 return "";
               },
               renderCell: (params: GridRenderCellParams<any>) => {
