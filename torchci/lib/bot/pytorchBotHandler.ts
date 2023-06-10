@@ -238,7 +238,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     forceMessage: string,
     ignore_current: boolean,
     rebase: string | boolean,
-    ic: boolean
+    ic: boolean,
   ) {
     const extra_data = {
       forceMessage,
@@ -259,8 +259,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
 
     if (ic) {
-      rejection_reason =
-        "`-ic` flag is deprecated, please use `-i` instead for the same effect.";
+      rejection_reason = "`-ic` flag is deprecated, please use `-i` instead for the same effect."
     }
 
     if (rejection_reason) {

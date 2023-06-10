@@ -20,7 +20,7 @@ export function usePreference(
   return [state, setStatePersist];
 }
 
-export function useGroupingPreference(
+export  function useGroupingPreference(
   hasParams: boolean
 ): [boolean, (grouping: boolean) => void] {
   const override = hasParams ? false : undefined;

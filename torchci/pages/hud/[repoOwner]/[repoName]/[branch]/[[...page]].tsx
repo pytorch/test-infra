@@ -38,10 +38,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { fetcher } from "lib/GeneralUtils";
-import {
-  useGroupingPreference,
-  usePreference,
-} from "lib/useGroupingPreference";
+import { useGroupingPreference, usePreference } from "lib/useGroupingPreference";
 
 export function JobCell({ sha, job }: { sha: string; job: JobData }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
