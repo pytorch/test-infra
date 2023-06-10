@@ -81,6 +81,7 @@ export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 // Thresholds
 export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
+export const COMPILATION_lATENCY_THRESHOLD = 0.9;
 export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
@@ -1060,19 +1061,21 @@ function SummaryPanel({
                     if (lCommit === rCommit || r === undefined) {
                       return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < ACCURACY_THRESHOLD && r >= ACCURACY_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > (1.0 - ACCURACY_THRESHOLD / 100) * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > (1.0 - ACCURACY_THRESHOLD / 100) * r) {
+                        return styles.error;
+                      }
+
+                      if (l < ACCURACY_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1152,19 +1155,21 @@ function SummaryPanel({
                     if (lCommit === rCommit) {
                       return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                        return styles.error;
+                      }
+
+                      if (l < SPEEDUP_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1248,28 +1253,21 @@ function SummaryPanel({
                         ? styles.warning
                         : "";
                     } else {
-                      if (
-                        l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
+                      // Decreasing more than x%
+                      if (r - l > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                        return styles.ok;
+                      }
+
+                      // Increasing more than x%
+                      if (l - r > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                        return styles.error;
+                      }
+
+                      if (l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS) {
                         return styles.warning;
                       }
                     }
@@ -1351,28 +1349,21 @@ function SummaryPanel({
                         ? ""
                         : styles.warning;
                     } else {
-                      if (
-                        l >= COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r >= COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
+                      // Increasing more than x%
+                      if (l - r > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                        return styles.error;
+                      }
+
+                      if (l < COMPRESSION_RATIO_THRESHOLD) {
                         return styles.warning;
                       }
                     }
