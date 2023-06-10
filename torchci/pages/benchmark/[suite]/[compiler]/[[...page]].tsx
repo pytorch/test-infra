@@ -67,7 +67,7 @@ const ROW_HEIGHT = 38;
 const ACCURACY_HEADER = "Accuracy";
 const SPEEDUP_HEADER = `Performance speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
 const ABS_LATENCY_HEADER = `Absolute execution time (millisecond)`;
-const COMPILATION_LATENCY_HEADER = `Compilation latency in seconds`;
+const COMPILATION_LATENCY_HEADER = `Compilation latency (seconds)`;
 const MEMORY_HEADER = `Peak memory compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // The number of digit after decimal to display on the detail page
@@ -558,6 +558,33 @@ function ModelPanel({
               headerName: ABS_LATENCY_HEADER,
               flex: 1,
               cellClassName: (params: GridCellParams<any>) => {
+                const v = params.value;
+                if (v === undefined || v.r === 0) {
+                  return "";
+                }
+
+                const l = Number(v.l);
+                const r = Number(v.r);
+
+                if (lCommit === rCommit) {
+                  return "";
+                } else {
+                  if (l === 0 || l === r) {
+                    // 0 means the model isn't run at all
+                    return "";
+                  }
+
+                  // Decreasing more than x%
+                  if (r - l > RELATIVE_THRESHOLD * r) {
+                    return styles.ok;
+                  }
+
+                  // Increasing more than x%
+                  if (l - r > RELATIVE_THRESHOLD * r) {
+                    return styles.error;
+                  }
+                }
+
                 return "";
               },
               renderCell: (params: GridRenderCellParams<any>) => {
