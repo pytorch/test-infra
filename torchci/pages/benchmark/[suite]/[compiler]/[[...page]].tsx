@@ -422,12 +422,12 @@ function ModelPanel({
                   }
 
                   // Increasing more than x%
-                  if (l - r > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
                   // Decreasing more than x%
-                  if (r - l > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
                 }
@@ -478,12 +478,12 @@ function ModelPanel({
                   }
 
                   // Decreasing more than x%
-                  if (r - l > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
                   // Increasing more than x%
-                  if (l - r > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
 
@@ -536,12 +536,12 @@ function ModelPanel({
                   }
 
                   // Increasing more than x%
-                  if (l - r > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                  if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
                   }
 
                   // Decreasing more than x%
-                  if (r - l > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                  if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
                 }

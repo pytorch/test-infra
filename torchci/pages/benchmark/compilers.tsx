@@ -78,10 +78,12 @@ export const MODES = ["training", "inference"];
 export const DTYPES = ["amp"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
+// Relative thresholds
+export const RELATIVE_THRESHOLD = 0.05;
+
 // Thresholds
 export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
-export const COMPILATION_lATENCY_THRESHOLD = 0.9;
 export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
 
@@ -1066,12 +1068,12 @@ function SummaryPanel({
                       }
 
                       // Increasing more than x%
-                      if (l - r > (1.0 - ACCURACY_THRESHOLD / 100) * r) {
+                      if (l - r > RELATIVE_THRESHOLD * r) {
                         return styles.ok;
                       }
 
                       // Decreasing more than x%
-                      if (r - l > (1.0 - ACCURACY_THRESHOLD / 100) * r) {
+                      if (r - l > RELATIVE_THRESHOLD * r) {
                         return styles.error;
                       }
 
@@ -1160,12 +1162,12 @@ function SummaryPanel({
                       }
 
                       // Increasing more than x%
-                      if (l - r > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                      if (l - r > RELATIVE_THRESHOLD * r) {
                         return styles.ok;
                       }
 
                       // Decreasing more than x%
-                      if (r - l > (1.0 - SPEEDUP_THRESHOLD) * r) {
+                      if (r - l > RELATIVE_THRESHOLD * r) {
                         return styles.error;
                       }
 
@@ -1258,12 +1260,12 @@ function SummaryPanel({
                       }
 
                       // Decreasing more than x%
-                      if (r - l > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                      if (r - l > RELATIVE_THRESHOLD * r) {
                         return styles.ok;
                       }
 
                       // Increasing more than x%
-                      if (l - r > (1.0 - COMPILATION_lATENCY_THRESHOLD) * r) {
+                      if (l - r > RELATIVE_THRESHOLD * r) {
                         return styles.error;
                       }
 
@@ -1354,12 +1356,12 @@ function SummaryPanel({
                       }
 
                       // Increasing more than x%
-                      if (l - r > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                      if (l - r > RELATIVE_THRESHOLD * r) {
                         return styles.ok;
                       }
 
                       // Decreasing more than x%
-                      if (r - l > (1.0 - COMPRESSION_RATIO_THRESHOLD) * r) {
+                      if (r - l > RELATIVE_THRESHOLD * r) {
                         return styles.error;
                       }
 
