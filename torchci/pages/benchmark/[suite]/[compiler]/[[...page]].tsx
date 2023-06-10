@@ -54,7 +54,7 @@ import {
   WORKFLOW_ID_TO_COMMIT,
   SHA_DISPLAY_LENGTH,
   HELP_LINK,
-  COMPILATION_lATENCY_THRESHOLD,
+  RELATIVE_THRESHOLD,
 } from "../../compilers";
 import { CompilerPerformanceData } from "lib/types";
 import styles from "components/metrics.module.css";
