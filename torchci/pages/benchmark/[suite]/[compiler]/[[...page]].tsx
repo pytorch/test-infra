@@ -544,6 +544,10 @@ function ModelPanel({
                   if (r - l > RELATIVE_THRESHOLD * r) {
                     return styles.error;
                   }
+
+                  if (l < COMPRESSION_RATIO_THRESHOLD) {
+                    return styles.warning;
+                  }
                 }
 
                 return "";
