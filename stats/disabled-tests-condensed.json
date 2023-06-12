@@ -540,6 +540,13 @@
       "mac"
     ]
   ],
+  "test_basic (__main__.TestNvFuserDynamo)": [
+    "103403",
+    "https://github.com/pytorch/pytorch/issues/103403",
+    [
+      "linux"
+    ]
+  ],
   "test_basic (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
     "103404",
     "https://github.com/pytorch/pytorch/issues/103404",
