@@ -1893,6 +1893,13 @@
       "linux"
     ]
   ],
+  "test_dtype_correctness (__main__.TestNvFuserDynamo)": [
+    "103440",
+    "https://github.com/pytorch/pytorch/issues/103440",
+    [
+      "linux"
+    ]
+  ],
   "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
     "71248",
     "https://github.com/pytorch/pytorch/issues/71248",
@@ -2283,13 +2290,6 @@
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
-    [
-      "linux"
-    ]
-  ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
     [
       "linux"
     ]
