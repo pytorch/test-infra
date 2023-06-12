@@ -959,15 +959,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_empty_strided_cuda_int32 (__main__.TestInductorOpInfoCUDA)": [
-    "102117",
-    "https://github.com/pytorch/pytorch/issues/102117",
-    [
-      "linux",
-      "rocm",
-      "inductor"
-    ]
-  ],
   "test_comprehensive_empty_strided_cuda_int64 (__main__.TestInductorOpInfoCUDA)": [
     "102044",
     "https://github.com/pytorch/pytorch/issues/102044",
@@ -2612,6 +2603,13 @@
     "https://github.com/pytorch/pytorch/issues/94541",
     [
       "linux"
+    ]
+  ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
+    "103414",
+    "https://github.com/pytorch/pytorch/issues/103414",
+    [
+      "rocm"
     ]
   ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
