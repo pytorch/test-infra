@@ -540,7 +540,7 @@
       "mac"
     ]
   ],
-  "test_basic (__main__.TestNvFuserDynamo)": [
+  "test_basic (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
     "103404",
     "https://github.com/pytorch/pytorch/issues/103404",
     [
@@ -2324,7 +2324,7 @@
     "93064",
     "https://github.com/pytorch/pytorch/issues/93064",
     [
-      "linux"
+      "inductor"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
