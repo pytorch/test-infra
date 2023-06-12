@@ -181,6 +181,11 @@
       "rocm"
     ]
   ],
+  "test_aliased_param_return_cpu (__main__.CpuTests)": [
+    "103466",
+    "https://github.com/pytorch/pytorch/issues/103466",
+    []
+  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -2138,6 +2143,13 @@
   "test_grad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98677",
     "https://github.com/pytorch/pytorch/issues/98677",
+    [
+      "linux"
+    ]
+  ],
+  "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
+    "98678",
+    "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
     ]
