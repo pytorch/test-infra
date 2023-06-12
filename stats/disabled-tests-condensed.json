@@ -540,6 +540,13 @@
       "mac"
     ]
   ],
+  "test_basic (__main__.TestNvFuserDynamo)": [
+    "103404",
+    "https://github.com/pytorch/pytorch/issues/103404",
+    [
+      "linux"
+    ]
+  ],
   "test_batch_norm_2d_cpu (__main__.CpuTests)": [
     "103063",
     "https://github.com/pytorch/pytorch/issues/103063",
@@ -2119,13 +2126,6 @@
   "test_grad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98677",
     "https://github.com/pytorch/pytorch/issues/98677",
-    [
-      "linux"
-    ]
-  ],
-  "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
-    "98678",
-    "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
     ]
