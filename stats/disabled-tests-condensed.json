@@ -554,6 +554,13 @@
       "rocm"
     ]
   ],
+  "test_batch_norm_implicit_dtype_promotion (__main__.TestNvFuserDynamo)": [
+    "103420",
+    "https://github.com/pytorch/pytorch/issues/103420",
+    [
+      "linux"
+    ]
+  ],
   "test_bernoulli1_cpu (__main__.CpuTests)": [
     "103064",
     "https://github.com/pytorch/pytorch/issues/103064",
@@ -2309,6 +2316,13 @@
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
+    [
+      "linux"
+    ]
+  ],
+  "test_lognormal_kstest_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93064",
+    "https://github.com/pytorch/pytorch/issues/93064",
     [
       "linux"
     ]
