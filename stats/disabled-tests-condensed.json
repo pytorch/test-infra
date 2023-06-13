@@ -2664,6 +2664,13 @@
       "rocm"
     ]
   ],
+  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
+    "96550",
+    "https://github.com/pytorch/pytorch/issues/96550",
+    [
+      "rocm"
+    ]
+  ],
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "98025",
     "https://github.com/pytorch/pytorch/issues/98025",
@@ -3084,6 +3091,13 @@
   "test_variant_consistency_jit_linalg_lu_factor_cuda_complex64 (__main__.TestJitCUDA)": [
     "86732",
     "https://github.com/pytorch/pytorch/issues/86732",
+    [
+      "linux"
+    ]
+  ],
+  "test_variant_consistency_jit_linalg_lu_factor_cuda_float32 (__main__.TestJitCUDA)": [
+    "86839",
+    "https://github.com/pytorch/pytorch/issues/86839",
     [
       "linux"
     ]
