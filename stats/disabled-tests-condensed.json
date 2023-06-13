@@ -743,14 +743,6 @@
       "mac"
     ]
   ],
-  "test_caching_pinned_memory (__main__.TestCuda)": [
-    "79508",
-    "https://github.com/pytorch/pytorch/issues/79508",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_call_fork_in_jit_with_profiling (__main__.TensorPipeJitRpcTestWithSpawn)": [
     "60998",
     "https://github.com/pytorch/pytorch/issues/60998",
@@ -2150,13 +2142,6 @@
   "test_gradgrad_nn_GroupNorm_cuda_float64 (__main__.TestModuleCUDA)": [
     "98678",
     "https://github.com/pytorch/pytorch/issues/98678",
-    [
-      "linux"
-    ]
-  ],
-  "test_graph_concurrent_replay (__main__.TestCuda)": [
-    "93165",
-    "https://github.com/pytorch/pytorch/issues/93165",
     [
       "linux"
     ]
