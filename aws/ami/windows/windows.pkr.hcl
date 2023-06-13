@@ -40,6 +40,15 @@ source "amazon-ebs" "windows_ebs_builder" {
 build {
   sources = ["source.amazon-ebs.windows_ebs_builder"]
 
+  # Uninstall Windows Defender, it brings more trouble than it's worth
+  provisioner "powershell" {
+    elevated_user     = "SYSTEM"
+    elevated_password = ""
+    scripts = [
+      "${path.root}/scripts/Helpers/Uninstall-WinDefend.ps1",
+    ]
+  }
+
   # Install sshd_config
   provisioner "file" {
     source      = "${path.root}/configs/sshd_config"
