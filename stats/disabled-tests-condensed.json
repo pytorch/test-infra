@@ -2359,6 +2359,13 @@
       "windows"
     ]
   ],
+  "test_mem_get_info (__main__.TestCuda)": [
+    "103495",
+    "https://github.com/pytorch/pytorch/issues/103495",
+    [
+      "rocm"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -2924,6 +2931,13 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
+    ]
+  ],
+  "test_streaming_backwards_sync (__main__.TestCuda)": [
+    "103494",
+    "https://github.com/pytorch/pytorch/issues/103494",
+    [
+      "rocm"
     ]
   ],
   "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
