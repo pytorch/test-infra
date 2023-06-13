@@ -21,7 +21,7 @@ if (${env:INSTALL_WINDOWS_SDK} -eq "1") {
 }
 
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") {
-    $existingPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -products "Microsoft.VisualStudio.Product.BuildTools" -version "[${env:VS_VERSION}, ${VS_VERSION_major + 1})" -property installationPath
+    $existingPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -products "Microsoft.VisualStudio.Product.BuildTools" -version "[${env:VS_VERSION}, $($VS_VERSION_major + 1))" -property installationPath
     if (($existingPath -ne $null) -and (!${env:CIRCLECI})) {
         echo "Found correctly versioned existing BuildTools installation in $existingPath"
         exit 0
@@ -36,7 +36,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-if ($pathToRemove -ne $null) {
+if (($null -ne $pathToRemove) -and (${env:VS_UNINSTALL_PREVIOUS} -eq "1")) {
     echo "Uninstalling $pathToRemove."
     $VS_UNINSTALL_ARGS = @("uninstall", "--installPath", "`"$pathToRemove`"", "--quiet","--wait")
     $process = Start-Process "${PWD}\vs_installer.exe" -ArgumentList $VS_UNINSTALL_ARGS -NoNewWindow -Wait -PassThru
