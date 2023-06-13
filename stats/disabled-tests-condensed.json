@@ -3054,6 +3054,13 @@
       "linux"
     ]
   ],
+  "test_type_conversions (__main__.TestCuda)": [
+    "103534",
+    "https://github.com/pytorch/pytorch/issues/103534",
+    [
+      "rocm"
+    ]
+  ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
     "60494",
     "https://github.com/pytorch/pytorch/issues/60494",
