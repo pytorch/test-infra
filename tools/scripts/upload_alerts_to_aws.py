@@ -7,7 +7,6 @@ import io
 import json
 import os
 from typing import Any, Dict, List
-import pprint
 
 import boto3  # type: ignore[import]
 import rockset  # type: ignore[import]
