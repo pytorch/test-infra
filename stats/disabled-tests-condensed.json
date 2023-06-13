@@ -221,13 +221,6 @@
       "linux"
     ]
   ],
-  "test_all_reduce_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98275",
-    "https://github.com/pytorch/pytorch/issues/98275",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
