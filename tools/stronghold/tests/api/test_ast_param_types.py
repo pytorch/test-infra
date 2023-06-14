@@ -1,7 +1,7 @@
 """Tests the api.ast module, specific to parameter types."""
 
 import pathlib
-from typing import List, Optional, Dict, Tuple, Union
+from typing import List, Optional, Dict, Tuple
 
 import api
 import api.ast
@@ -25,6 +25,7 @@ def test_none(tmp_path: pathlib.Path) -> None:
     params = extractParameterTypes(source.make_file(tmp_path, func))
     assert params == [None]
 
+
 def test_named_types(tmp_path: pathlib.Path) -> None:
     def func(a: int, b: float, c: List, /):
         pass  # pragma: no cover
@@ -35,6 +36,7 @@ def test_named_types(tmp_path: pathlib.Path) -> None:
         api.types.TypeName('float'),
         api.types.TypeName('List'),
     ]
+
 
 def test_constant_types(tmp_path: pathlib.Path) -> None:
     def func(a: None, b: True, c: False, /):
@@ -49,7 +51,9 @@ def test_constant_types(tmp_path: pathlib.Path) -> None:
 
 
 def test_generic_types(tmp_path: pathlib.Path) -> None:
-    def func(a: List[int], b: Dict[str, int], c: Tuple[int, str], d: List[Dict[str, int]], /):
+    def func(
+        a: List[int], b: Dict[str, int], c: Tuple[int, str], d: List[Dict[str, int]], /
+    ):
         pass
 
     params = extractParameterTypes(source.make_file(tmp_path, func))

@@ -431,8 +431,11 @@ def test_parameter_type_change_positional(tmp_path: pathlib.Path) -> None:
 
     assert api.compatibility.check(before, after) == [
         api.violations.ParameterTypeChanged(
-            func=func.__name__, parameter="a", line=1,
-            type_before='int', type_after='str',
+            func=func.__name__,
+            parameter="a",
+            line=1,
+            type_before='int',
+            type_after='str',
         )
     ]
 
@@ -450,8 +453,11 @@ def test_parameter_type_change_named(tmp_path: pathlib.Path) -> None:
 
     assert api.compatibility.check(before, after) == [
         api.violations.ParameterTypeChanged(
-            func=func.__name__, parameter="a", line=1,
-            type_before='int', type_after='str',
+            func=func.__name__,
+            parameter="a",
+            line=1,
+            type_before='int',
+            type_after='str',
         )
     ]
 

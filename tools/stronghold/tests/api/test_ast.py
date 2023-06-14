@@ -1,7 +1,6 @@
 """Tests the api.ast module."""
 
 import pathlib
-from typing import List
 
 import api
 import api.ast
@@ -31,8 +30,12 @@ def test_extract_positional(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=True, keyword=False, required=True, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=True,
+                    keyword=False,
+                    required=True,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -51,8 +54,12 @@ def test_extract_positional_with_default(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=True, keyword=False, required=False, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=True,
+                    keyword=False,
+                    required=False,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -71,8 +78,12 @@ def test_extract_flexible(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=True, keyword=True, required=True, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=True,
+                    keyword=True,
+                    required=True,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -91,8 +102,12 @@ def test_extract_flexible_with_default(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=True, keyword=True, required=False, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=True,
+                    keyword=True,
+                    required=False,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -111,8 +126,12 @@ def test_extract_keyword(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=False, keyword=True, required=True, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=False,
+                    keyword=True,
+                    required=True,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -131,8 +150,12 @@ def test_extract_keyword_with_default(tmp_path: pathlib.Path) -> None:
         'func': api.Parameters(
             parameters=[
                 api.Parameter(
-                    name='x', positional=False, keyword=True, required=False, line=1,
-                    annotation=api.types.TypeName('int')
+                    name='x',
+                    positional=False,
+                    keyword=True,
+                    required=False,
+                    line=1,
+                    annotation=api.types.TypeName('int'),
                 )
             ],
             variadic_args=False,
@@ -214,7 +237,7 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     keyword=False,
                     required=True,
                     line=3,
-                    annotation=api.types.TypeName('int')
+                    annotation=api.types.TypeName('int'),
                 ),
                 api.Parameter(
                     name='b',
@@ -222,7 +245,7 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     keyword=True,
                     required=False,
                     line=3,
-                    annotation=api.types.TypeName('float')
+                    annotation=api.types.TypeName('float'),
                 ),
                 api.Parameter(
                     name='c',
@@ -230,7 +253,7 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     keyword=True,
                     required=True,
                     line=3,
-                    annotation=api.types.TypeName('int')
+                    annotation=api.types.TypeName('int'),
                 ),
             ],
             variadic_args=True,
