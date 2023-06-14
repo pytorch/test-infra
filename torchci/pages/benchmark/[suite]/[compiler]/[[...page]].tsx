@@ -119,7 +119,7 @@ function CommitPanel({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   data = AugmentData(data);
-  data = data ? data.filter(e => e.suite === suite) : data;
+  data = data ? data.filter((e: CompilerPerformanceData) => e.suite === suite) : data;
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -947,7 +947,7 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   lData = AugmentData(lData);
-  lData = lData ? lData.filter(e => e.suite === suite) : lData;
+  lData = lData ? lData.filter((e: CompilerPerformanceData) => e.suite === suite) : lData;
 
   const queryParamsWithR: RocksetParam[] = [
     {
@@ -975,7 +975,7 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   rData = AugmentData(rData);
-  rData = rData ? rData.filter(e => e.suite === suite) : rData;
+  rData = rData ? rData.filter((e: CompilerPerformanceData) => e.suite === suite) : rData;
 
   if (lData === undefined || lData.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;

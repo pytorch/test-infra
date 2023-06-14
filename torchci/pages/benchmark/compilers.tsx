@@ -1666,9 +1666,9 @@ function SuiteGraphPanel({
 }
 
 // Generate extra entries for reporting purposes
-export function AugmentData(data) {
+export function AugmentData(data: CompilerPerformanceData[]) {
   if (data === undefined) return data;
-  const groups = {
+  const groups: { [key: string]: { [key: string]: Set<string> } } = {
     dynamic: {
       torchbench: new Set([
         'nanogpt_generate',
@@ -1705,10 +1705,10 @@ export function AugmentData(data) {
 
   function GenerateGroup(data: CompilerPerformanceData[], n: string) {
     const l = groups[n];
-    return data.filter(e => {return e.suite in l && l[e.suite].has(e.name)}).map(e => { return ({...e, suite: n}) });
+    return data.filter((e: CompilerPerformanceData) => {return e.suite in l && l[e.suite].has(e.name)}).map(e => { return ({...e, suite: n}) });
   }
 
-  return [].concat(data, ...Object.keys(groups).map(n => GenerateGroup(data, n)));
+  return ([] as CompilerPerformanceData[]).concat(data, ...Object.keys(groups).map(n => GenerateGroup(data, n)));
 }
 
 function Report({
