@@ -1126,13 +1126,6 @@
       "linux"
     ]
   ],
-  "test_conv_bn_fuse_cpu (__main__.CpuTests)": [
-    "102537",
-    "https://github.com/pytorch/pytorch/issues/102537",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
     "98681",
     "https://github.com/pytorch/pytorch/issues/98681",
