@@ -608,11 +608,12 @@ export function BranchAndCommitPicker({
     if (data !== undefined && data.length !== 0) {
       const branches = groupCommitByBranch(data);
 
-      // The main branch could have no commit which happens when people are experimenting
-      // on their own branches
+      // The selected branch could have no commit which happens when people are experimenting
+      // on their own branches or switching around to different configuration
       if (branches[branch] === undefined || branches[branch].length === 0) {
-        branch = Object.keys(branches)[0];
-        // Fallback to the first available branch found in result
+        branch =
+          MAIN_BRANCH in branches ? MAIN_BRANCH : Object.keys(branches)[0];
+        // Fallback to the main branch or the first available branch found in result
         setBranch(branch);
       }
       const branchCommits = branches[branch].map((r: any) => r.head_sha);
@@ -652,11 +653,7 @@ export function BranchAndCommitPicker({
   // The main branch could have no commit which happens when people are experimenting
   // on their own branches
   if (branches[branch] === undefined || branches[branch].length === 0) {
-    return (
-      <div>
-        Found no commit for this configurations.
-      </div>
-    );
+    return <div>Found no commit for this configurations.</div>;
   }
 
   function handleBranchChange(e: SelectChangeEvent<string>) {
@@ -670,7 +667,9 @@ export function BranchAndCommitPicker({
   }
 
   // Sort it so that the main branch comes first
-  const displayBranches = Object.keys(branches).sort((x, y) => branches[y][0].display_priority - branches[x][0].display_priority);
+  const displayBranches = Object.keys(branches).sort(
+    (x, y) => branches[y][0].display_priority - branches[x][0].display_priority
+  );
   return (
     <div>
       <FormControl>
@@ -684,12 +683,11 @@ export function BranchAndCommitPicker({
           onChange={handleBranchChange}
           id={`branch-picker-select-${commit}`}
         >
-          {displayBranches
-            .map((b: string) => (
-              <MenuItem key={`${b}-${commit}`} value={b}>
-                {b}
-              </MenuItem>
-            ))}
+          {displayBranches.map((b: string) => (
+            <MenuItem key={`${b}-${commit}`} value={b}>
+              {b}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
 
@@ -826,7 +824,7 @@ function CommitPanel({
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
           if (SUITES[suite].startsWith("[")) {
-            return <></>
+            return <></>;
           }
           const name = suite.includes("timm") ? "timm" : suite;
           return (
@@ -1697,48 +1695,56 @@ export function AugmentData(data: CompilerPerformanceData[]) {
       torchbench: new Set([
         // _generate variants are good; they do E2E autoregressive
         // generation and will induce varying context length.
-        'cm3leon_generate',
-        'nanogpt_generate',
-        'hf_T5_generate',
-        'nanogpt_generate',
+        "cm3leon_generate",
+        "nanogpt_generate",
+        "hf_T5_generate",
+        "nanogpt_generate",
         // detection models are ok-ish; the good news is they call
         // nonzero internally and exercise dynamic shapes that way,
         // the bad news is we may not run enough iterations with
         // varying data to get varying numbers of bounding boxes.
-        'detectron2_fcos_r_50_fpn',
-        'vision_maskrcnn',
+        "detectron2_fcos_r_50_fpn",
+        "vision_maskrcnn",
         // this recommendation model internally uses sparse tensors
         // but once again it's not clear that dynamic shapes is exercised
         // on this sparsity
-        'dlrm',
+        "dlrm",
         // these language models are only running a single next
         // word prediction, we're NOT testing dynamic sequence length
         // performance
-        'llama',
-        'BERT_pytorch',
-        'hf_T5',
+        "llama",
+        "BERT_pytorch",
+        "hf_T5",
         // the GNN benchmarks only one run one batch so you
         // aren't actually triggering dynamism (and we didn't
         // explicitly mark something as dynamic)
-        'basic_gnn_edgecnn',
-        'basic_gnn_gcn',
-        'basic_gnn_gin',
-        'basic_gnn_sage',
+        "basic_gnn_edgecnn",
+        "basic_gnn_gcn",
+        "basic_gnn_gin",
+        "basic_gnn_sage",
       ]),
-      huggingface: new Set([
-      ]),
+      huggingface: new Set([]),
     },
     blueberries: {
-      torchbench: new Set(['nanogpt_generate', 'llama']),
-    }
+      torchbench: new Set(["nanogpt_generate", "llama"]),
+    },
   };
 
   function GenerateGroup(data: CompilerPerformanceData[], n: string) {
     const l = groups[n];
-    return data.filter((e: CompilerPerformanceData) => {return e.suite in l && l[e.suite].has(e.name)}).map(e => { return ({...e, suite: n}) });
+    return data
+      .filter((e: CompilerPerformanceData) => {
+        return e.suite in l && l[e.suite].has(e.name);
+      })
+      .map((e) => {
+        return { ...e, suite: n };
+      });
   }
 
-  return ([] as CompilerPerformanceData[]).concat(data, ...Object.keys(groups).map(n => GenerateGroup(data, n)));
+  return ([] as CompilerPerformanceData[]).concat(
+    data,
+    ...Object.keys(groups).map((n) => GenerateGroup(data, n))
+  );
 }
 
 function Report({
@@ -1857,7 +1863,6 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         suite={suite}
-        mode={mode}
         branch={lBranch}
         lCommit={lCommit}
         rCommit={rCommit}
