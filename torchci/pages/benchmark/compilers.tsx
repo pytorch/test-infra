@@ -73,6 +73,8 @@ export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
+  dynamic: "[Dynamic]",
+  blueberries: "[Blueberries]",
 };
 export const MODES = ["training", "inference"];
 export const DTYPES = ["amp"];
@@ -595,9 +597,10 @@ export function BranchAndCommitPicker({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   useEffect(() => {
     if (data !== undefined) {
@@ -750,9 +753,10 @@ function CommitPanel({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -802,6 +806,9 @@ function CommitPanel({
         . The running logs per shard are:{" "}
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
+          if (SUITES[suite].startsWith("[")) {
+            return <></>
+          }
           const name = suite.includes("timm") ? "timm" : suite;
           return (
             <LogLinks
@@ -1441,9 +1448,10 @@ function SuiteGraphPanel({
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   if (error !== undefined) {
     return (
@@ -1657,6 +1665,52 @@ function SuiteGraphPanel({
   );
 }
 
+// Generate extra entries for reporting purposes
+export function AugmentData(data) {
+  if (data === undefined) return data;
+  const groups = {
+    dynamic: {
+      torchbench: new Set([
+        'nanogpt_generate',
+        'llama',
+        'BERT_pytorch',
+        'basic_gnn_edgecnn',
+        'basic_gnn_gcn',
+        'basic_gnn_gin',
+        'basic_gnn_sage',
+        'cm3leon_generate',
+        'detectron2_fcos_r_50_fpn',
+        'dlrm',
+        'hf_Bert',
+        'hf_Bert_large',
+        'hf_GPT2',
+        'hf_GPT2_large',
+        'hf_T5',
+        'hf_T5_generate',
+        'hf_T5_large',
+        'llama',
+        'nanogpt_generate',
+        'vision_maskrcnn',
+      ]),
+      huggingface: new Set([
+        'GPT2ForSequenceClassification',
+        'T5ForConditionalGeneration',
+        'T5Small',
+      ]),
+    },
+    blueberries: {
+      torchbench: new Set(['nanogpt_generate', 'llama']),
+    }
+  };
+
+  function GenerateGroup(data: CompilerPerformanceData[], n: string) {
+    const l = groups[n];
+    return data.filter(e => {return e.suite in l && l[e.suite].has(e.name)}).map(e => { return ({...e, suite: n}) });
+  }
+
+  return [].concat(data, ...Object.keys(groups).map(n => GenerateGroup(data, n)));
+}
+
 function Report({
   queryParams,
   startTime,
@@ -1709,9 +1763,10 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
+  let { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  lData = AugmentData(lData);
 
   const queryParamsWithR: RocksetParam[] = [
     {
@@ -1735,9 +1790,10 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+  let { data: rData, error: rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  rData = AugmentData(rData);
 
   if (
     lData === undefined ||

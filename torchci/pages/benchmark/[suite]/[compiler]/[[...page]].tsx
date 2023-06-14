@@ -44,6 +44,7 @@ import {
   COMPRESSION_RATIO_THRESHOLD,
   PASSING_ACCURACY,
   DIFF_HEADER,
+  AugmentData,
   ModePicker,
   MODES,
   LogLinks,
@@ -114,9 +115,11 @@ function CommitPanel({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
+  data = data ? data.filter(e => e.suite === suite) : data;
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -643,9 +646,10 @@ function GraphPanel({
     JSON.stringify(queryParamsWithBranch)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -939,9 +943,11 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
+  let { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  lData = AugmentData(lData);
+  lData = lData ? lData.filter(e => e.suite === suite) : lData;
 
   const queryParamsWithR: RocksetParam[] = [
     {
@@ -965,9 +971,11 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+  let { data: rData, error: rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  rData = AugmentData(rData);
+  rData = rData ? rData.filter(e => e.suite === suite) : rData;
 
   if (lData === undefined || lData.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -1128,11 +1136,6 @@ export default function Page() {
       name: "granularity",
       type: "string",
       value: granularity,
-    },
-    {
-      name: "suites",
-      type: "string",
-      value: suite,
     },
     {
       name: "mode",
