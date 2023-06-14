@@ -62,7 +62,7 @@ import CopyLink from "components/CopyLink";
 
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
-const ROW_HEIGHT = 38;
+const ROW_HEIGHT = 48;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
