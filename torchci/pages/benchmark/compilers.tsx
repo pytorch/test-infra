@@ -1670,21 +1670,41 @@ export function AugmentData(data: CompilerPerformanceData[]) {
   if (data === undefined) return data;
   const groups: { [key: string]: { [key: string]: Set<string> } } = {
     dynamic: {
+      // NB: Not all of these actually exercise dynamic shapes,
+      // so our numbers may be over-inflated.  Threats to validity
+      // listed below.  Note that in all cases they are run with
+      // dynamic batch size, so you are at least getting some
+      // information that way.
       torchbench: new Set([
+        // _generate variants are good; they do E2E autoregressive
+        // generation and will induce varying context length.
+        'cm3leon_generate',
         'nanogpt_generate',
+        'hf_T5_generate',
+        'nanogpt_generate',
+        // detection models are ok-ish; the good news is they call
+        // nonzero internally and exercise dynamic shapes that way,
+        // the bad news is we may not run enough iterations with
+        // varying data to get varying numbers of bounding boxes.
+        'detectron2_fcos_r_50_fpn',
+        'vision_maskrcnn',
+        // this recommendation model internally uses sparse tensors
+        // but once again it's not clear that dynamic shapes is exercised
+        // on this sparsity
+        'dlrm',
+        // these language models are only running a single next
+        // word prediction, we're NOT testing dynamic sequence length
+        // performance
         'llama',
         'BERT_pytorch',
+        'hf_T5',
+        // the GNN benchmarks only one run one batch so you
+        // aren't actually triggering dynamism (and we didn't
+        // explicitly mark something as dynamic)
         'basic_gnn_edgecnn',
         'basic_gnn_gcn',
         'basic_gnn_gin',
         'basic_gnn_sage',
-        'cm3leon_generate',
-        'detectron2_fcos_r_50_fpn',
-        'dlrm',
-        'hf_T5',
-        'hf_T5_generate',
-        'nanogpt_generate',
-        'vision_maskrcnn',
       ]),
       huggingface: new Set([
       ]),
