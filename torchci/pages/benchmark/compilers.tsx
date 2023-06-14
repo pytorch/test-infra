@@ -77,7 +77,7 @@ export const SUITES: { [k: string]: string } = {
   blueberries: "[Blueberries]",
 };
 export const MODES = ["training", "inference"];
-export const DTYPES = ["amp"];
+export const DTYPES = ["amp", "float16", "bfloat16"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 // Relative thresholds
