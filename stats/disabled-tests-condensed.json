@@ -2719,6 +2719,15 @@
       "linux"
     ]
   ],
+  "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
+    "100728",
+    "https://github.com/pytorch/pytorch/issues/100728",
+    [
+      "win",
+      "mac",
+      "rocm"
+    ]
+  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
