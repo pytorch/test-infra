@@ -575,8 +575,6 @@ function groupCommitByBranch(data: any) {
 
 export function BranchAndCommitPicker({
   queryParams,
-  mode,
-  setMode,
   branch,
   setBranch,
   commit,
@@ -586,8 +584,6 @@ export function BranchAndCommitPicker({
   timeRange,
 }: {
   queryParams: RocksetParam[];
-  mode: string;
-  setMode: any;
   branch: string;
   setBranch: any;
   commit: string;
@@ -599,19 +595,8 @@ export function BranchAndCommitPicker({
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
 
-  // Query both training and inference modes commits here, then filter them
-  // later to avoid having no data in the default training mode
-  const queryParamsMode: RocksetParam[] = [
-    {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    ...queryParams,
-  ];
-
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParamsMode)
+    JSON.stringify(queryParams)
   )}`;
 
   let { data, error } = useSWR(url, fetcher, {
@@ -1415,7 +1400,6 @@ function GraphPanel({
   queryParams,
   granularity,
   suite,
-  mode,
   branch,
   lCommit,
   rCommit,
@@ -1423,7 +1407,6 @@ function GraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
-  mode: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -1435,7 +1418,6 @@ function GraphPanel({
       queryParams={queryParams}
       granularity={granularity}
       suite={suite}
-      mode={mode}
       branch={branch}
       lCommit={lCommit}
       rCommit={rCommit}
@@ -1447,7 +1429,6 @@ function SuiteGraphPanel({
   queryParams,
   granularity,
   suite,
-  mode,
   branch,
   lCommit,
   rCommit,
@@ -1455,7 +1436,6 @@ function SuiteGraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
-  mode: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -1464,11 +1444,6 @@ function SuiteGraphPanel({
   const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithSuite: RocksetParam[] = [
-    {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
     {
       name: "suites",
       type: "string",
@@ -1798,11 +1773,6 @@ function Report({
 
   const queryParamsWithL: RocksetParam[] = [
     {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    {
       name: "suites",
       type: "string",
       value: Object.keys(SUITES).join(","),
@@ -1829,16 +1799,6 @@ function Report({
   lData = AugmentData(lData);
 
   const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
     {
       name: "branches",
       type: "string",
@@ -2015,6 +1975,11 @@ export default function Page() {
       value: granularity,
     },
     {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
       name: "dtypes",
       type: "string",
       value: dtype,
@@ -2054,8 +2019,6 @@ export default function Page() {
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           queryParams={queryParams}
-          mode={mode}
-          setMode={setMode}
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
@@ -2069,8 +2032,6 @@ export default function Page() {
         </Divider>
         <BranchAndCommitPicker
           queryParams={queryParams}
-          mode={mode}
-          setMode={setMode}
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
