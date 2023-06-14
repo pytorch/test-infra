@@ -20,6 +20,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
+    "77317",
+    "https://github.com/pytorch/pytorch/issues/77317",
+    [
+      "linux"
+    ]
+  ],
   "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
     "100643",
     "https://github.com/pytorch/pytorch/issues/100643",
@@ -856,6 +863,13 @@
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
+    [
+      "linux"
+    ]
+  ],
+  "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
+    "85012",
+    "https://github.com/pytorch/pytorch/issues/85012",
     [
       "linux"
     ]
@@ -2560,6 +2574,13 @@
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
+    [
+      "linux"
+    ]
+  ],
+  "test_save_graph_repro (__main__.TestAfterAot)": [
+    "99602",
+    "https://github.com/pytorch/pytorch/issues/99602",
     [
       "linux"
     ]
