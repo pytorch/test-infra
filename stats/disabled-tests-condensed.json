@@ -20,32 +20,11 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
-    "77317",
-    "https://github.com/pytorch/pytorch/issues/77317",
-    [
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
     "100643",
     "https://github.com/pytorch/pytorch/issues/100643",
     [
       "rocm"
-    ]
-  ],
-  "test_DistributedDataParallel_non_default_stream (__main__.TestDistBackendWithSpawn)": [
-    "76428",
-    "https://github.com/pytorch/pytorch/issues/76428",
-    [
-      "linux"
-    ]
-  ],
-  "test_DistributedDataParallel_with_amp_and_grad_is_view (__main__.TestDistBackendWithSpawn)": [
-    "77294",
-    "https://github.com/pytorch/pytorch/issues/77294",
-    [
-      "linux"
     ]
   ],
   "test_Dropout1d_cpu (__main__.TestNNDeviceTypeCPU)": [
@@ -188,27 +167,6 @@
       "linux"
     ]
   ],
-  "test_all_gather_multigpu (__main__.TestDistBackendWithSpawn)": [
-    "81029",
-    "https://github.com/pytorch/pytorch/issues/81029",
-    [
-      "linux"
-    ]
-  ],
-  "test_all_gather_multigpu_complex (__main__.TestDistBackendWithSpawn)": [
-    "81023",
-    "https://github.com/pytorch/pytorch/issues/81023",
-    [
-      "linux"
-    ]
-  ],
-  "test_all_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
-    "98508",
-    "https://github.com/pytorch/pytorch/issues/98508",
-    [
-      "linux"
-    ]
-  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -235,34 +193,6 @@
     "https://github.com/pytorch/pytorch/issues/98875",
     [
       "linux"
-    ]
-  ],
-  "test_all_to_all_single_bfp16 (__main__.DistQuantizationTests)": [
-    "93933",
-    "https://github.com/pytorch/pytorch/issues/93933",
-    [
-      "rocm"
-    ]
-  ],
-  "test_all_to_all_single_equal_split_cuda (__main__.TestDistBackendWithSpawn)": [
-    "81030",
-    "https://github.com/pytorch/pytorch/issues/81030",
-    [
-      "linux"
-    ]
-  ],
-  "test_all_to_all_single_equal_split_full_group_cuda (__main__.TestDistBackendWithSpawn)": [
-    "81004",
-    "https://github.com/pytorch/pytorch/issues/81004",
-    [
-      "linux"
-    ]
-  ],
-  "test_all_to_all_single_fp16 (__main__.DistQuantizationTests)": [
-    "93931",
-    "https://github.com/pytorch/pytorch/issues/93931",
-    [
-      "rocm"
     ]
   ],
   "test_always_alive_values (jit.test_freezing.TestMKLDNNReinplacing)": [
@@ -378,13 +308,6 @@
       "rocm"
     ]
   ],
-  "test_async_function_raise_async (__main__.TensorPipeRpcTest)": [
-    "76907",
-    "https://github.com/pytorch/pytorch/issues/76907",
-    [
-      "linux"
-    ]
-  ],
   "test_atomic_add_bf16 (__main__.CPUReproTests)": [
     "102305",
     "https://github.com/pytorch/pytorch/issues/102305",
@@ -399,13 +322,6 @@
       "linux",
       "win",
       "windows"
-    ]
-  ],
-  "test_average_parameters (__main__.TestDistBackendWithSpawn)": [
-    "93929",
-    "https://github.com/pytorch/pytorch/issues/93929",
-    [
-      "rocm"
     ]
   ],
   "test_avg_pool2d1_cpu (__main__.CpuTests)": [
@@ -493,13 +409,6 @@
   "test_backward_multiple_output_tensors (__main__.TensorPipeDistAutogradTest)": [
     "77516",
     "https://github.com/pytorch/pytorch/issues/77516",
-    [
-      "linux"
-    ]
-  ],
-  "test_backward_multiple_round_trips (__main__.TensorPipeDistAutogradTest)": [
-    "77453",
-    "https://github.com/pytorch/pytorch/issues/77453",
     [
       "linux"
     ]
@@ -675,26 +584,12 @@
       "linux"
     ]
   ],
-  "test_broadcast_cuda (__main__.TestDistBackendWithSpawn)": [
-    "81028",
-    "https://github.com/pytorch/pytorch/issues/81028",
-    [
-      "linux"
-    ]
-  ],
   "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
     "103178",
     "https://github.com/pytorch/pytorch/issues/103178",
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_broadcast_object_list (__main__.TestDistBackendWithSpawn)": [
-    "82847",
-    "https://github.com/pytorch/pytorch/issues/82847",
-    [
-      "linux"
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
@@ -909,20 +804,6 @@
       "dynamo"
     ]
   ],
-  "test_collective_shape_mismatch_debug_mode (__main__.ProcessGroupGlooWrapperTest)": [
-    "98547",
-    "https://github.com/pytorch/pytorch/issues/98547",
-    [
-      "linux"
-    ]
-  ],
-  "test_collectives_op_mismatch_debug_mode (__main__.ProcessGroupGlooWrapperTest)": [
-    "98525",
-    "https://github.com/pytorch/pytorch/issues/98525",
-    [
-      "linux"
-    ]
-  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
@@ -975,20 +856,6 @@
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
-    [
-      "linux"
-    ]
-  ],
-  "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
-    "85012",
-    "https://github.com/pytorch/pytorch/issues/85012",
-    [
-      "linux"
-    ]
-  ],
-  "test_compute_bucket_assignment_by_size_sparse_error_without_logger (__main__.TestDistBackendWithSpawn)": [
-    "85339",
-    "https://github.com/pytorch/pytorch/issues/85339",
     [
       "linux"
     ]
@@ -1589,25 +1456,6 @@
       "linux"
     ]
   ],
-  "test_dataclass_output (__main__.DistributedDataParallelTest)": [
-    "98761",
-    "https://github.com/pytorch/pytorch/issues/98761",
-    []
-  ],
-  "test_ddp_buffer_hook_allreduce (__main__.TestDistBackendWithSpawn)": [
-    "78641",
-    "https://github.com/pytorch/pytorch/issues/78641",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_buffer_hook_allreduce_return_future (__main__.TestDistBackendWithSpawn)": [
-    "77261",
-    "https://github.com/pytorch/pytorch/issues/77261",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
@@ -1616,20 +1464,6 @@
   "test_ddp_comparison_uneven_inputs (__main__.TensorPipeDdpComparisonTest)": [
     "72891",
     "https://github.com/pytorch/pytorch/issues/72891",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_control_flow_same_across_ranks (__main__.TestDistBackendWithSpawn)": [
-    "78235",
-    "https://github.com/pytorch/pytorch/issues/78235",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_device (__main__.TestDistBackendWithSpawn)": [
-    "77324",
-    "https://github.com/pytorch/pytorch/issues/77324",
     [
       "linux"
     ]
@@ -1644,39 +1478,11 @@
     "https://github.com/pytorch/pytorch/issues/60290",
     []
   ],
-  "test_ddp_grad_div_uneven_inputs (__main__.TestDistBackendWithSpawn)": [
-    "78685",
-    "https://github.com/pytorch/pytorch/issues/78685",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
     [
       "rocm"
-    ]
-  ],
-  "test_ddp_hook_parity_allreduce (__main__.TestDistBackendWithSpawn)": [
-    "77293",
-    "https://github.com/pytorch/pytorch/issues/77293",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_hook_parity_powerSGD (__main__.TestDistBackendWithSpawn)": [
-    "77378",
-    "https://github.com/pytorch/pytorch/issues/77378",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_ignore_params_arg (__main__.TestDistBackendWithSpawn)": [
-    "77325",
-    "https://github.com/pytorch/pytorch/issues/77325",
-    [
-      "linux"
     ]
   ],
   "test_ddp_new_tensor_in_fwd_static_graph (__main__.TestDistBackendWithSpawn)": [
@@ -1734,11 +1540,6 @@
     [
       "rocm"
     ]
-  ],
-  "test_default_store_timeout_gloo (__main__.TimeoutTest)": [
-    "74714",
-    "https://github.com/pytorch/pytorch/issues/74714",
-    []
   ],
   "test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
     "79886",
@@ -1804,27 +1605,6 @@
   "test_different_graph_across_ranks (__main__.TestDistBackendWithSpawn)": [
     "78748",
     "https://github.com/pytorch/pytorch/issues/78748",
-    [
-      "linux"
-    ]
-  ],
-  "test_dist_autograd_profiling (__main__.TensorPipeDistAutogradTest)": [
-    "77318",
-    "https://github.com/pytorch/pytorch/issues/77318",
-    [
-      "linux"
-    ]
-  ],
-  "test_dist_optim (__main__.TensorPipeDistOptimizerTest)": [
-    "72997",
-    "https://github.com/pytorch/pytorch/issues/72997",
-    [
-      "linux"
-    ]
-  ],
-  "test_dist_optim_none_grads (__main__.TensorPipeDistOptimizerTest)": [
-    "77075",
-    "https://github.com/pytorch/pytorch/issues/77075",
     [
       "linux"
     ]
@@ -1944,48 +1724,6 @@
       "linux"
     ]
   ],
-  "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
-    "82632",
-    "https://github.com/pytorch/pytorch/issues/82632",
-    [
-      "linux"
-    ]
-  ],
-  "test_find_unused_parameters_kwarg_debug_info (__main__.DistributedDataParallelTest)": [
-    "83301",
-    "https://github.com/pytorch/pytorch/issues/83301",
-    [
-      "linux"
-    ]
-  ],
-  "test_find_unused_parameters_kwarg_debug_off (__main__.DistributedDataParallelTest)": [
-    "82385",
-    "https://github.com/pytorch/pytorch/issues/82385",
-    [
-      "linux"
-    ]
-  ],
-  "test_find_unused_parameters_kwarg_grad_is_view_debug_detail (__main__.DistributedDataParallelTest)": [
-    "82979",
-    "https://github.com/pytorch/pytorch/issues/82979",
-    [
-      "linux"
-    ]
-  ],
-  "test_find_unused_parameters_kwarg_grad_is_view_debug_info (__main__.DistributedDataParallelTest)": [
-    "82400",
-    "https://github.com/pytorch/pytorch/issues/82400",
-    [
-      "linux"
-    ]
-  ],
-  "test_find_unused_parameters_kwarg_grad_is_view_debug_off (__main__.DistributedDataParallelTest)": [
-    "82500",
-    "https://github.com/pytorch/pytorch/issues/82500",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
@@ -2026,13 +1764,6 @@
     "https://github.com/pytorch/pytorch/issues/101757",
     [
       "inductor"
-    ]
-  ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
-    [
-      "linux"
     ]
   ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
@@ -2086,11 +1817,6 @@
     [
       "linux"
     ]
-  ],
-  "test_future_wait_twice (__main__.TensorPipeRpcTest)": [
-    "69480",
-    "https://github.com/pytorch/pytorch/issues/69480",
-    []
   ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
@@ -2286,6 +2012,13 @@
       "linux"
     ]
   ],
+  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "93070",
+    "https://github.com/pytorch/pytorch/issues/93070",
+    [
+      "linux"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -2408,15 +2141,6 @@
       "linux"
     ]
   ],
-  "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
-    "88468",
-    "https://github.com/pytorch/pytorch/issues/88468",
-    [
-      "linux",
-      "macos",
-      "mac"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
     "88475",
     "https://github.com/pytorch/pytorch/issues/88475",
@@ -2486,13 +2210,6 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
-    [
-      "linux"
-    ]
-  ],
-  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
-    "101067",
-    "https://github.com/pytorch/pytorch/issues/101067",
     [
       "linux"
     ]
@@ -2843,13 +2560,6 @@
   "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "81962",
     "https://github.com/pytorch/pytorch/issues/81962",
-    [
-      "linux"
-    ]
-  ],
-  "test_save_graph_repro (__main__.TestAfterAot)": [
-    "99602",
-    "https://github.com/pytorch/pytorch/issues/99602",
     [
       "linux"
     ]
