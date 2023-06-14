@@ -53,14 +53,14 @@ def get_recent_alerts(orgname, reponame):
                                                         version=RELEVANT_QUERIES_VERSION, 
                                                         parameters=query_parameters)
     return api_response["results"]
-def merge_alerts(current_alerts, new_alerts):
+def merge_alerts(old_alerts, new_alerts):
     merged_alerts = []
     current_alert_keys = set()
     for alert in new_alerts:
         key = (alert["AlertObject"], alert["AlertType"])
         current_alert_keys.add(key)
         merged_alerts.append(alert)
-    for alert in current_alerts:
+    for alert in old_alerts:
         key = (alert["AlertObject"], alert["AlertType"])
         if key not in current_alert_keys and not alert["closed"]:
             alert["closed"] = True
@@ -89,8 +89,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     timestamp = datetime.datetime.utcnow().isoformat()
     new_alerts = append_metadata(args.alerts, args.org, args.repo, timestamp)
-    current_alerts = get_recent_alerts(args.org, args.repo)
-    data = merge_alerts(current_alerts, new_alerts)
+    old_alerts = get_recent_alerts(args.org, args.repo)
+    data = merge_alerts(old_alerts, new_alerts)
     upload_to_s3(       
         bucket_name="torchci-alerts",
         key=f"alerts/{args.org}/{args.repo}/{str(timestamp)}",
