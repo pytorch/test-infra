@@ -73,6 +73,8 @@ export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
+  dynamic: "[Dynamic]",
+  blueberries: "[Blueberries]",
 };
 export const MODES = ["training", "inference"];
 export const DTYPES = ["amp", "float16", "bfloat16"];
@@ -612,9 +614,10 @@ export function BranchAndCommitPicker({
     JSON.stringify(queryParamsMode)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   useEffect(() => {
     if (data !== undefined && data.length !== 0) {
@@ -784,9 +787,10 @@ function CommitPanel({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -836,6 +840,9 @@ function CommitPanel({
         . The running logs per shard are:{" "}
         {Object.keys(SUITES).map((suite: string) => {
           // Hack alert: The test configuration uses timm instead of timm_model as its output
+          if (SUITES[suite].startsWith("[")) {
+            return <></>
+          }
           const name = suite.includes("timm") ? "timm" : suite;
           return (
             <LogLinks
@@ -1485,9 +1492,10 @@ function SuiteGraphPanel({
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  data = AugmentData(data);
 
   if (error !== undefined) {
     return (
@@ -1701,6 +1709,63 @@ function SuiteGraphPanel({
   );
 }
 
+// Generate extra entries for reporting purposes
+export function AugmentData(data: CompilerPerformanceData[]) {
+  if (data === undefined) return data;
+  const groups: { [key: string]: { [key: string]: Set<string> } } = {
+    dynamic: {
+      // NB: Not all of these actually exercise dynamic shapes,
+      // so our numbers may be over-inflated.  Threats to validity
+      // listed below.  Note that in all cases they are run with
+      // dynamic batch size, so you are at least getting some
+      // information that way.
+      torchbench: new Set([
+        // _generate variants are good; they do E2E autoregressive
+        // generation and will induce varying context length.
+        'cm3leon_generate',
+        'nanogpt_generate',
+        'hf_T5_generate',
+        'nanogpt_generate',
+        // detection models are ok-ish; the good news is they call
+        // nonzero internally and exercise dynamic shapes that way,
+        // the bad news is we may not run enough iterations with
+        // varying data to get varying numbers of bounding boxes.
+        'detectron2_fcos_r_50_fpn',
+        'vision_maskrcnn',
+        // this recommendation model internally uses sparse tensors
+        // but once again it's not clear that dynamic shapes is exercised
+        // on this sparsity
+        'dlrm',
+        // these language models are only running a single next
+        // word prediction, we're NOT testing dynamic sequence length
+        // performance
+        'llama',
+        'BERT_pytorch',
+        'hf_T5',
+        // the GNN benchmarks only one run one batch so you
+        // aren't actually triggering dynamism (and we didn't
+        // explicitly mark something as dynamic)
+        'basic_gnn_edgecnn',
+        'basic_gnn_gcn',
+        'basic_gnn_gin',
+        'basic_gnn_sage',
+      ]),
+      huggingface: new Set([
+      ]),
+    },
+    blueberries: {
+      torchbench: new Set(['nanogpt_generate', 'llama']),
+    }
+  };
+
+  function GenerateGroup(data: CompilerPerformanceData[], n: string) {
+    const l = groups[n];
+    return data.filter((e: CompilerPerformanceData) => {return e.suite in l && l[e.suite].has(e.name)}).map(e => { return ({...e, suite: n}) });
+  }
+
+  return ([] as CompilerPerformanceData[]).concat(data, ...Object.keys(groups).map(n => GenerateGroup(data, n)));
+}
+
 function Report({
   queryParams,
   startTime,
@@ -1758,9 +1823,10 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
+  let { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  lData = AugmentData(lData);
 
   const queryParamsWithR: RocksetParam[] = [
     {
@@ -1789,9 +1855,10 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+  let { data: rData, error: rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  rData = AugmentData(rData);
 
   if (
     lData === undefined ||
