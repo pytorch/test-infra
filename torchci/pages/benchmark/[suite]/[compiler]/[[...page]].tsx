@@ -63,6 +63,7 @@ import CopyLink from "components/CopyLink";
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
+const MIN_ENTRIES = 10;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
@@ -270,9 +271,10 @@ function ModelPanel({
     };
   });
 
+  const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
     <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid item xs={12} lg={12} height={data.length * ROW_HEIGHT + ROW_GAP}>
+      <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
           data={data}
