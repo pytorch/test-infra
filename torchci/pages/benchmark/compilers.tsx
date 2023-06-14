@@ -75,7 +75,7 @@ export const SUITES: { [k: string]: string } = {
   timm_models: "TIMM models",
 };
 export const MODES = ["training", "inference"];
-export const DTYPES = ["amp"];
+export const DTYPES = ["amp", "float16", "bfloat16"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
 // Relative thresholds
@@ -563,6 +563,8 @@ function groupCommitByBranch(data: any) {
     branches[b].push({
       head_sha: r.head_sha,
       event_time: r.event_time,
+      // This is used to sort the list of branches to show the main branch first
+      display_priority: DEFAULT_BRANCHES.includes(r.head_branch) ? 99 : 1,
     });
   });
 
@@ -571,6 +573,8 @@ function groupCommitByBranch(data: any) {
 
 export function BranchAndCommitPicker({
   queryParams,
+  mode,
+  setMode,
   branch,
   setBranch,
   commit,
@@ -580,6 +584,8 @@ export function BranchAndCommitPicker({
   timeRange,
 }: {
   queryParams: RocksetParam[];
+  mode: string;
+  setMode: any;
   branch: string;
   setBranch: any;
   commit: string;
@@ -591,8 +597,19 @@ export function BranchAndCommitPicker({
   const queryName = "compilers_benchmark_performance_branches";
   const queryCollection = "inductor";
 
+  // Query both training and inference modes commits here, then filter them
+  // later to avoid having no data in the default training mode
+  const queryParamsMode: RocksetParam[] = [
+    {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    ...queryParams,
+  ];
+
   const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(queryParams)
+    JSON.stringify(queryParamsMode)
   )}`;
 
   const { data, error } = useSWR(url, fetcher, {
@@ -600,8 +617,16 @@ export function BranchAndCommitPicker({
   });
 
   useEffect(() => {
-    if (data !== undefined) {
+    if (data !== undefined && data.length !== 0) {
       const branches = groupCommitByBranch(data);
+
+      // The main branch could have no commit which happens when people are experimenting
+      // on their own branches
+      if (branches[branch] === undefined || branches[branch].length === 0) {
+        branch = Object.keys(branches)[0];
+        // Fallback to the first available branch found in result
+        setBranch(branch);
+      }
       const branchCommits = branches[branch].map((r: any) => r.head_sha);
 
       if (
@@ -631,11 +656,20 @@ export function BranchAndCommitPicker({
     );
   }
 
-  if (data === undefined) {
+  if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
   const branches = groupCommitByBranch(data);
+  // The main branch could have no commit which happens when people are experimenting
+  // on their own branches
+  if (branches[branch] === undefined || branches[branch].length === 0) {
+    return (
+      <div>
+        Found no commit for this configurations.
+      </div>
+    );
+  }
 
   function handleBranchChange(e: SelectChangeEvent<string>) {
     const branch: string = e.target.value;
@@ -647,6 +681,8 @@ export function BranchAndCommitPicker({
     setCommit(e.target.value);
   }
 
+  // Sort it so that the main branch comes first
+  const displayBranches = Object.keys(branches).sort((x, y) => branches[y][0].display_priority - branches[x][0].display_priority);
   return (
     <div>
       <FormControl>
@@ -660,9 +696,7 @@ export function BranchAndCommitPicker({
           onChange={handleBranchChange}
           id={`branch-picker-select-${commit}`}
         >
-          <MenuItem value={MAIN_BRANCH}>main</MenuItem>
-          {Object.keys(branches)
-            .filter((b: string) => !DEFAULT_BRANCHES.includes(b))
+          {displayBranches
             .map((b: string) => (
               <MenuItem key={`${b}-${commit}`} value={b}>
                 {b}
@@ -1374,6 +1408,7 @@ function GraphPanel({
   queryParams,
   granularity,
   suite,
+  mode,
   branch,
   lCommit,
   rCommit,
@@ -1381,6 +1416,7 @@ function GraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
+  mode: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -1392,6 +1428,7 @@ function GraphPanel({
       queryParams={queryParams}
       granularity={granularity}
       suite={suite}
+      mode={mode}
       branch={branch}
       lCommit={lCommit}
       rCommit={rCommit}
@@ -1403,6 +1440,7 @@ function SuiteGraphPanel({
   queryParams,
   granularity,
   suite,
+  mode,
   branch,
   lCommit,
   rCommit,
@@ -1410,6 +1448,7 @@ function SuiteGraphPanel({
   queryParams: RocksetParam[];
   granularity: Granularity;
   suite: string;
+  mode: string;
   branch: string;
   lCommit: string;
   rCommit: string;
@@ -1418,6 +1457,11 @@ function SuiteGraphPanel({
   const queryName = "compilers_benchmark_performance";
 
   const queryParamsWithSuite: RocksetParam[] = [
+    {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
     {
       name: "suites",
       type: "string",
@@ -1689,6 +1733,11 @@ function Report({
 
   const queryParamsWithL: RocksetParam[] = [
     {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
+    {
       name: "suites",
       type: "string",
       value: Object.keys(SUITES).join(","),
@@ -1714,6 +1763,11 @@ function Report({
   });
 
   const queryParamsWithR: RocksetParam[] = [
+    {
+      name: "mode",
+      type: "string",
+      value: mode,
+    },
     {
       name: "suites",
       type: "string",
@@ -1776,6 +1830,7 @@ function Report({
         queryParams={queryParams}
         granularity={granularity}
         suite={suite}
+        mode={mode}
         branch={lBranch}
         lCommit={lCommit}
         rCommit={rCommit}
@@ -1893,11 +1948,6 @@ export default function Page() {
       value: granularity,
     },
     {
-      name: "mode",
-      type: "string",
-      value: mode,
-    },
-    {
       name: "dtypes",
       type: "string",
       value: dtype,
@@ -1937,6 +1987,8 @@ export default function Page() {
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           queryParams={queryParams}
+          mode={mode}
+          setMode={setMode}
           branch={rBranch}
           setBranch={setRBranch}
           commit={rCommit}
@@ -1950,6 +2002,8 @@ export default function Page() {
         </Divider>
         <BranchAndCommitPicker
           queryParams={queryParams}
+          mode={mode}
+          setMode={setMode}
           branch={lBranch}
           setBranch={setLBranch}
           commit={lCommit}
