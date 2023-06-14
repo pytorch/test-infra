@@ -6,5 +6,13 @@
     "periodic",
     "linux-focal-rocm5.4.2-py3.8",
     "test"
+  ],
+  "pull / linux-bionic-cuda11.8-py3.10-gcc9 / test (distributed)": [
+    "huydhn",
+    "103612",
+    "https://github.com/pytorch/pytorch/issues/103612",
+    "pull",
+    "linux-bionic-cuda11.8-py3.10-gcc9",
+    "test (distributed)"
   ]
 }
