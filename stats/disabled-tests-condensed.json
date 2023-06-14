@@ -408,6 +408,13 @@
       "rocm"
     ]
   ],
+  "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
+    "103625",
+    "https://github.com/pytorch/pytorch/issues/103625",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -2153,6 +2160,15 @@
     [
       "asan",
       "linux"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
+    "88468",
+    "https://github.com/pytorch/pytorch/issues/88468",
+    [
+      "linux",
+      "macos",
+      "mac"
     ]
   ],
   "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
