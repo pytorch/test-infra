@@ -6,7 +6,6 @@ from collections.abc import Iterable, Mapping, Sequence
 import difflib
 import pathlib
 import tempfile
-from typing import Optional
 
 import api
 import api.ast
@@ -158,14 +157,14 @@ def _check_by_position(
     after_param_names = [param.name for param in after_params]
 
     if before_param_names == after_param_names:
-        for before, after in zip(before_params, after_params):
-            if not _check_type_compatibility(before.annotation, after.annotation):
+        for p_before, p_after in zip(before_params, after_params):
+            if not _check_type_compatibility(p_before.annotation, p_after.annotation):
                 yield api.violations.ParameterTypeChanged(
                     func=func,
-                    parameter=before.name,
-                    line=after.line,
-                    type_before=str(before.annotation),
-                    type_after=str(after.annotation),
+                    parameter=p_before.name,
+                    line=p_after.line,
+                    type_before=str(p_before.annotation),
+                    type_after=str(p_after.annotation),
                 )
         return
 
@@ -247,7 +246,9 @@ def _check_variadic_parameters(
         yield api.violations.KwArgsDeleted(func, line=after.line)
 
 
-def _check_type_compatibility(type_before: Optional, type_after: Optional) -> bool:
+def _check_type_compatibility(
+    type_before: api.types.TypeHint, type_after: api.types.TypeHint
+) -> bool:
     """Checks that the type annotations are compatible.
     Returns True if compatible.
     """
@@ -314,4 +315,4 @@ def _check_type_compatibility(type_before: Optional, type_after: Optional) -> bo
             if not _check_type_compatibility(type_before_arg, type_after_arg):
                 return False
 
-        return True
+    return True

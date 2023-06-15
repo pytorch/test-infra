@@ -5,7 +5,7 @@ from api.types import TypeName, Constant, Generic, Attribute, Unknown
 from api.compatibility import _check_type_compatibility
 
 
-def test_none():
+def test_none() -> None:
     assert _check_type_compatibility(TypeName('int'), None) is True
 
     assert (
@@ -25,7 +25,7 @@ def test_none():
     )
 
 
-def test_simple_types():
+def test_simple_types() -> None:
     assert (
         _check_type_compatibility(
             TypeName('int'),
@@ -71,7 +71,7 @@ def test_simple_types():
     )
 
 
-def test_unknown_types():
+def test_unknown_types() -> None:
     assert (
         _check_type_compatibility(
             TypeName('int'),
@@ -89,7 +89,7 @@ def test_unknown_types():
     )
 
 
-def test_constant_types():
+def test_constant_types() -> None:
     assert (
         _check_type_compatibility(
             Constant('None'),
@@ -142,7 +142,7 @@ def test_constant_types():
     )
 
 
-def test_generic_types():
+def test_generic_types() -> None:
     assert (
         _check_type_compatibility(
             Generic(

@@ -10,7 +10,9 @@ import api.types
 from testing import source
 
 
-def extractParameterTypes(tmp_path: pathlib.Path) -> List[Optional[api.types.TypeHint]]:
+def extract_parameter_types(
+    tmp_path: pathlib.Path,
+) -> List[Optional[api.types.TypeHint]]:
     """Extracts the parameter types from a function definition."""
     funcs = api.ast.extract(tmp_path)
     if not funcs:
@@ -19,18 +21,18 @@ def extractParameterTypes(tmp_path: pathlib.Path) -> List[Optional[api.types.Typ
 
 
 def test_none(tmp_path: pathlib.Path) -> None:
-    def func(a, /):
+    def func(a, /) -> None:  # type: ignore
         pass  # pragma: no cover
 
-    params = extractParameterTypes(source.make_file(tmp_path, func))
+    params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [None]
 
 
 def test_named_types(tmp_path: pathlib.Path) -> None:
-    def func(a: int, b: float, c: List, /):
+    def func(a: int, b: float, c: List, /) -> None:  # type: ignore
         pass  # pragma: no cover
 
-    params = extractParameterTypes(source.make_file(tmp_path, func))
+    params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
         api.types.TypeName('int'),
         api.types.TypeName('float'),
@@ -39,10 +41,10 @@ def test_named_types(tmp_path: pathlib.Path) -> None:
 
 
 def test_constant_types(tmp_path: pathlib.Path) -> None:
-    def func(a: None, b: True, c: False, /):
+    def func(a: None, b: True, c: False, /) -> None:  # type: ignore
         pass  # pragma: no cover
 
-    params = extractParameterTypes(source.make_file(tmp_path, func))
+    params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
         api.types.Constant('None'),
         api.types.Constant('True'),
@@ -53,10 +55,10 @@ def test_constant_types(tmp_path: pathlib.Path) -> None:
 def test_generic_types(tmp_path: pathlib.Path) -> None:
     def func(
         a: List[int], b: Dict[str, int], c: Tuple[int, str], d: List[Dict[str, int]], /
-    ):
+    ) -> None:
         pass
 
-    params = extractParameterTypes(source.make_file(tmp_path, func))
+    params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
         api.types.Generic(
             base=api.types.TypeName('List'),
@@ -83,10 +85,10 @@ def test_generic_types(tmp_path: pathlib.Path) -> None:
 
 
 def test_attribute_types(tmp_path: pathlib.Path) -> None:
-    def func(a: api.types.TypeName, b: api.types.Attribute, /):
+    def func(a: api.types.TypeName, b: api.types.Attribute, /) -> None:
         pass
 
-    params = extractParameterTypes(source.make_file(tmp_path, func))
+    params = extract_parameter_types(source.make_file(tmp_path, func))
     assert params == [
         api.types.Attribute(
             value=api.types.Attribute(
@@ -106,13 +108,13 @@ def test_attribute_types(tmp_path: pathlib.Path) -> None:
 
 
 def test_unknown_types(tmp_path: pathlib.Path) -> None:
-    def func2():
+    def func2() -> None:
         pass
 
-    def func1(a: func2(), b: lambda x: x, /):
+    def func1(a: func2(), b: lambda x: x, /) -> None:  # type: ignore
         pass
 
-    params = extractParameterTypes(source.make_file(tmp_path, func1))
+    params = extract_parameter_types(source.make_file(tmp_path, func1))
 
     assert len(params) == 2
     assert isinstance(params[0], api.types.Unknown)

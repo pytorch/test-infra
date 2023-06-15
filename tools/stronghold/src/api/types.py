@@ -12,7 +12,7 @@ class TypeName:
 
     name: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -24,7 +24,7 @@ class Constant:
 
     value: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
 
@@ -37,7 +37,7 @@ class Generic:
     base: Union[TypeName, 'Attribute']
     arguments: List[TypeHint]
 
-    def __str__(self):
+    def __str__(self) -> str:
         arguments_str = ', '.join(str(arg) for arg in self.arguments)
         return f"{str(self.base)}[{arguments_str}]"
 
@@ -50,7 +50,7 @@ class Tuple:
 
     arguments: List[TypeHint]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ', '.join(str(arg) for arg in self.arguments)
 
 
@@ -63,7 +63,7 @@ class Attribute:
     value: Union[TypeName, 'Attribute']
     attr: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{str(self.value)}.{self.attr}"
 
 
@@ -75,14 +75,14 @@ class Unknown:
 
     raw: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.raw
 
 
-TypeHint = Union[TypeName, Constant, Generic, Tuple, Attribute, Unknown]
+TypeHint = Union[TypeName, Constant, Generic, Tuple, Attribute, Unknown, None]
 
 
-def annotation_to_dataclass(annotation) -> Optional[TypeHint]:
+def annotation_to_dataclass(annotation: Optional[ast.expr]) -> TypeHint:
     """Converts an AST annotation to a dataclass."""
     if annotation is None:
         return None
@@ -98,12 +98,12 @@ def annotation_to_dataclass(annotation) -> Optional[TypeHint]:
         arguments = annotation_to_dataclass(annotation.slice)
         # either a single argument or a tuple
         return (
-            Generic(base, [arguments])
+            Generic(base, [arguments])  # type: ignore
             if not isinstance(arguments, Tuple)
-            else Generic(base, arguments.arguments)
+            else Generic(base, arguments.arguments)  # type: ignore
         )
     elif isinstance(annotation, ast.Attribute):
         value = annotation_to_dataclass(annotation.value)
-        return Attribute(value, annotation.attr)
+        return Attribute(value, annotation.attr)  # type: ignore
     else:
         return Unknown(str(annotation))
