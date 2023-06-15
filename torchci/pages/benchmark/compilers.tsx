@@ -602,7 +602,6 @@ export function BranchAndCommitPicker({
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  data = AugmentData(data);
 
   useEffect(() => {
     if (data !== undefined && data.length !== 0) {
