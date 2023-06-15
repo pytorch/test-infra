@@ -63,6 +63,7 @@ import CopyLink from "components/CopyLink";
 const GRAPH_ROW_HEIGHT = 245;
 const ROW_GAP = 30;
 const ROW_HEIGHT = 48;
+const MIN_ENTRIES = 10;
 
 // Headers
 const ACCURACY_HEADER = "Accuracy";
@@ -119,7 +120,9 @@ function CommitPanel({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   data = AugmentData(data);
-  data = data ? data.filter((e: CompilerPerformanceData) => e.suite === suite) : data;
+  data = data
+    ? data.filter((e: CompilerPerformanceData) => e.suite === suite)
+    : data;
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -268,9 +271,10 @@ function ModelPanel({
     };
   });
 
+  const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
     <Grid container spacing={2} style={{ height: "100%" }}>
-      <Grid item xs={12} lg={12} height={data.length * ROW_HEIGHT + ROW_GAP}>
+      <Grid item xs={12} lg={12} height={minEntries * ROW_HEIGHT + ROW_GAP}>
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -947,7 +951,9 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   lData = AugmentData(lData);
-  lData = lData ? lData.filter((e: CompilerPerformanceData) => e.suite === suite) : lData;
+  lData = lData
+    ? lData.filter((e: CompilerPerformanceData) => e.suite === suite)
+    : lData;
 
   const queryParamsWithR: RocksetParam[] = [
     {
@@ -975,7 +981,9 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   rData = AugmentData(rData);
-  rData = rData ? rData.filter((e: CompilerPerformanceData) => e.suite === suite) : rData;
+  rData = rData
+    ? rData.filter((e: CompilerPerformanceData) => e.suite === suite)
+    : rData;
 
   if (lData === undefined || lData.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
