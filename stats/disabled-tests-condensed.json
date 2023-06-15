@@ -980,13 +980,6 @@
       "rocm"
     ]
   ],
-  "test_custom_stream (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
-    "79750",
-    "https://github.com/pytorch/pytorch/issues/79750",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
     "69662",
     "https://github.com/pytorch/pytorch/issues/69662",
