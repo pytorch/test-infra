@@ -69,32 +69,11 @@
       "linux"
     ]
   ],
-  "test_abs_cpu (__main__.CpuTests)": [
-    "102572",
-    "https://github.com/pytorch/pytorch/issues/102572",
-    [
-      "rocm"
-    ]
-  ],
-  "test_accuracy_vs_strict_accuracy (__main__.MinifierTests)": [
-    "102301",
-    "https://github.com/pytorch/pytorch/issues/102301",
-    [
-      "rocm"
-    ]
-  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
     [
       "dynamo"
-    ]
-  ],
-  "test_adaptive_avg_pool2d1_cpu (__main__.CpuTests)": [
-    "102588",
-    "https://github.com/pytorch/pytorch/issues/102588",
-    [
-      "rocm"
     ]
   ],
   "test_adaptive_avg_pool2d2_cpu (__main__.CpuTests)": [
@@ -118,44 +97,9 @@
       "rocm"
     ]
   ],
-  "test_add_const_int_cpu (__main__.CpuTests)": [
-    "102607",
-    "https://github.com/pytorch/pytorch/issues/102607",
-    [
-      "rocm"
-    ]
-  ],
-  "test_add_inplace_permuted_cpu (__main__.CpuTests)": [
-    "102612",
-    "https://github.com/pytorch/pytorch/issues/102612",
-    [
-      "rocm"
-    ]
-  ],
   "test_addmm_cpu (__main__.CpuTests)": [
     "102837",
     "https://github.com/pytorch/pytorch/issues/102837",
-    [
-      "rocm"
-    ]
-  ],
-  "test_after_aot_cpu_accuracy_error (__main__.MinifierTests)": [
-    "102327",
-    "https://github.com/pytorch/pytorch/issues/102327",
-    [
-      "rocm"
-    ]
-  ],
-  "test_after_aot_cpu_compile_error (__main__.MinifierTests)": [
-    "102345",
-    "https://github.com/pytorch/pytorch/issues/102345",
-    [
-      "rocm"
-    ]
-  ],
-  "test_alexnet_prefix_cpu (__main__.CpuTests)": [
-    "102743",
-    "https://github.com/pytorch/pytorch/issues/102743",
     [
       "rocm"
     ]
@@ -224,13 +168,6 @@
       "macos"
     ]
   ],
-  "test_arange1_cpu (__main__.CpuTests)": [
-    "102634",
-    "https://github.com/pytorch/pytorch/issues/102634",
-    [
-      "rocm"
-    ]
-  ],
   "test_arange2_cpu (__main__.CpuTests)": [
     "102885",
     "https://github.com/pytorch/pytorch/issues/102885",
@@ -252,30 +189,9 @@
       "rocm"
     ]
   ],
-  "test_arange5_cpu (__main__.CpuTests)": [
-    "102651",
-    "https://github.com/pytorch/pytorch/issues/102651",
-    [
-      "rocm"
-    ]
-  ],
   "test_arange6_cpu (__main__.CpuTests)": [
     "102955",
     "https://github.com/pytorch/pytorch/issues/102955",
-    [
-      "rocm"
-    ]
-  ],
-  "test_argmax_argmin1_cpu (__main__.CpuTests)": [
-    "102686",
-    "https://github.com/pytorch/pytorch/issues/102686",
-    [
-      "rocm"
-    ]
-  ],
-  "test_argmax_argmin2_cpu (__main__.CpuTests)": [
-    "102709",
-    "https://github.com/pytorch/pytorch/issues/102709",
     [
       "rocm"
     ]
@@ -294,13 +210,6 @@
       "rocm"
     ]
   ],
-  "test_argmax_to_float_cpu (__main__.CpuTests)": [
-    "102742",
-    "https://github.com/pytorch/pytorch/issues/102742",
-    [
-      "rocm"
-    ]
-  ],
   "test_as_strided_cpu (__main__.CpuTests)": [
     "102883",
     "https://github.com/pytorch/pytorch/issues/102883",
@@ -311,13 +220,6 @@
   "test_as_strided_scatter_cpu (__main__.CpuTests)": [
     "102776",
     "https://github.com/pytorch/pytorch/issues/102776",
-    [
-      "rocm"
-    ]
-  ],
-  "test_atomic_add_bf16 (__main__.CPUReproTests)": [
-    "102305",
-    "https://github.com/pytorch/pytorch/issues/102305",
     [
       "rocm"
     ]
@@ -501,13 +403,6 @@
   "test_bernoulli2_cpu (__main__.CpuTests)": [
     "103062",
     "https://github.com/pytorch/pytorch/issues/103062",
-    [
-      "rocm"
-    ]
-  ],
-  "test_bf16_neg_abs (__main__.CPUReproTests)": [
-    "102348",
-    "https://github.com/pytorch/pytorch/issues/102348",
     [
       "rocm"
     ]
@@ -720,13 +615,6 @@
       "rocm"
     ]
   ],
-  "test_cat_mul (__main__.CPUReproTests)": [
-    "102321",
-    "https://github.com/pytorch/pytorch/issues/102321",
-    [
-      "rocm"
-    ]
-  ],
   "test_cat_of_loops_and_extern_kernel_cpu (__main__.CpuTests)": [
     "103144",
     "https://github.com/pytorch/pytorch/issues/103144",
@@ -761,13 +649,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_channel_shuffle_cl_output (__main__.CPUReproTests)": [
-    "102347",
-    "https://github.com/pytorch/pytorch/issues/102347",
-    [
-      "rocm"
     ]
   ],
   "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
@@ -835,13 +716,6 @@
   "test_compare_cpu_linalg_pinv_singular_cuda_float32 (__main__.TestCommonCUDA)": [
     "102678",
     "https://github.com/pytorch/pytorch/issues/102678",
-    [
-      "rocm"
-    ]
-  ],
-  "test_compile_api (__main__.TestInductorConfig)": [
-    "102302",
-    "https://github.com/pytorch/pytorch/issues/102302",
     [
       "rocm"
     ]
@@ -1036,328 +910,6 @@
       "mac"
     ]
   ],
-  "test_cpu_broadcast1_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102306",
-    "https://github.com/pytorch/pytorch/issues/102306",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102307",
-    "https://github.com/pytorch/pytorch/issues/102307",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102308",
-    "https://github.com/pytorch/pytorch/issues/102308",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_dense (__main__.SweepInputsCpuTest)": [
-    "102324",
-    "https://github.com/pytorch/pytorch/issues/102324",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_double (__main__.SweepInputsCpuTest)": [
-    "102349",
-    "https://github.com/pytorch/pytorch/issues/102349",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_int (__main__.SweepInputsCpuTest)": [
-    "102351",
-    "https://github.com/pytorch/pytorch/issues/102351",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_strided (__main__.SweepInputsCpuTest)": [
-    "102323",
-    "https://github.com/pytorch/pytorch/issues/102323",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast1_transposed (__main__.SweepInputsCpuTest)": [
-    "102322",
-    "https://github.com/pytorch/pytorch/issues/102322",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102352",
-    "https://github.com/pytorch/pytorch/issues/102352",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102364",
-    "https://github.com/pytorch/pytorch/issues/102364",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102404",
-    "https://github.com/pytorch/pytorch/issues/102404",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_dense (__main__.SweepInputsCpuTest)": [
-    "102350",
-    "https://github.com/pytorch/pytorch/issues/102350",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_double (__main__.SweepInputsCpuTest)": [
-    "102362",
-    "https://github.com/pytorch/pytorch/issues/102362",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_int (__main__.SweepInputsCpuTest)": [
-    "102405",
-    "https://github.com/pytorch/pytorch/issues/102405",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_strided (__main__.SweepInputsCpuTest)": [
-    "102365",
-    "https://github.com/pytorch/pytorch/issues/102365",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast2_transposed (__main__.SweepInputsCpuTest)": [
-    "102366",
-    "https://github.com/pytorch/pytorch/issues/102366",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102403",
-    "https://github.com/pytorch/pytorch/issues/102403",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_dense (__main__.SweepInputsCpuTest)": [
-    "102406",
-    "https://github.com/pytorch/pytorch/issues/102406",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_double (__main__.SweepInputsCpuTest)": [
-    "102488",
-    "https://github.com/pytorch/pytorch/issues/102488",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_broadcast3_int (__main__.SweepInputsCpuTest)": [
-    "102489",
-    "https://github.com/pytorch/pytorch/issues/102489",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102490",
-    "https://github.com/pytorch/pytorch/issues/102490",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102506",
-    "https://github.com/pytorch/pytorch/issues/102506",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102503",
-    "https://github.com/pytorch/pytorch/issues/102503",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_dense (__main__.SweepInputsCpuTest)": [
-    "102505",
-    "https://github.com/pytorch/pytorch/issues/102505",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_double (__main__.SweepInputsCpuTest)": [
-    "102528",
-    "https://github.com/pytorch/pytorch/issues/102528",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_int (__main__.SweepInputsCpuTest)": [
-    "102527",
-    "https://github.com/pytorch/pytorch/issues/102527",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_strided (__main__.SweepInputsCpuTest)": [
-    "102573",
-    "https://github.com/pytorch/pytorch/issues/102573",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_dense_transposed (__main__.SweepInputsCpuTest)": [
-    "102589",
-    "https://github.com/pytorch/pytorch/issues/102589",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102529",
-    "https://github.com/pytorch/pytorch/issues/102529",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102605",
-    "https://github.com/pytorch/pytorch/issues/102605",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102491",
-    "https://github.com/pytorch/pytorch/issues/102491",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_dense (__main__.SweepInputsCpuTest)": [
-    "102632",
-    "https://github.com/pytorch/pytorch/issues/102632",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_double (__main__.SweepInputsCpuTest)": [
-    "102571",
-    "https://github.com/pytorch/pytorch/issues/102571",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_int (__main__.SweepInputsCpuTest)": [
-    "102586",
-    "https://github.com/pytorch/pytorch/issues/102586",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_strided (__main__.SweepInputsCpuTest)": [
-    "102608",
-    "https://github.com/pytorch/pytorch/issues/102608",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_double_transposed (__main__.SweepInputsCpuTest)": [
-    "102504",
-    "https://github.com/pytorch/pytorch/issues/102504",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102536",
-    "https://github.com/pytorch/pytorch/issues/102536",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102652",
-    "https://github.com/pytorch/pytorch/issues/102652",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102574",
-    "https://github.com/pytorch/pytorch/issues/102574",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_dense (__main__.SweepInputsCpuTest)": [
-    "102587",
-    "https://github.com/pytorch/pytorch/issues/102587",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_double (__main__.SweepInputsCpuTest)": [
-    "102711",
-    "https://github.com/pytorch/pytorch/issues/102711",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_int (__main__.SweepInputsCpuTest)": [
-    "102606",
-    "https://github.com/pytorch/pytorch/issues/102606",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_strided (__main__.SweepInputsCpuTest)": [
-    "102746",
-    "https://github.com/pytorch/pytorch/issues/102746",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_int_transposed (__main__.SweepInputsCpuTest)": [
-    "102633",
-    "https://github.com/pytorch/pytorch/issues/102633",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102635",
-    "https://github.com/pytorch/pytorch/issues/102635",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102650",
-    "https://github.com/pytorch/pytorch/issues/102650",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_strided_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102779",
     "https://github.com/pytorch/pytorch/issues/102779",
@@ -1365,37 +917,9 @@
       "rocm"
     ]
   ],
-  "test_cpu_strided_dense (__main__.SweepInputsCpuTest)": [
-    "102712",
-    "https://github.com/pytorch/pytorch/issues/102712",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_double (__main__.SweepInputsCpuTest)": [
-    "102744",
-    "https://github.com/pytorch/pytorch/issues/102744",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_int (__main__.SweepInputsCpuTest)": [
-    "102526",
-    "https://github.com/pytorch/pytorch/issues/102526",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_strided_strided (__main__.SweepInputsCpuTest)": [
     "102777",
     "https://github.com/pytorch/pytorch/issues/102777",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_transposed (__main__.SweepInputsCpuTest)": [
-    "102649",
-    "https://github.com/pytorch/pytorch/issues/102649",
     [
       "rocm"
     ]
@@ -1435,23 +959,9 @@
       "rocm"
     ]
   ],
-  "test_cpu_transposed_int (__main__.SweepInputsCpuTest)": [
-    "102685",
-    "https://github.com/pytorch/pytorch/issues/102685",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_transposed_strided (__main__.SweepInputsCpuTest)": [
     "102828",
     "https://github.com/pytorch/pytorch/issues/102828",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_transposed_transposed (__main__.SweepInputsCpuTest)": [
-    "102710",
-    "https://github.com/pytorch/pytorch/issues/102710",
     [
       "rocm"
     ]
@@ -1461,13 +971,6 @@
     "https://github.com/pytorch/pytorch/issues/103309",
     [
       "linux"
-    ]
-  ],
-  "test_cuda_lstm (__main__.FakeTensorTest)": [
-    "99952",
-    "https://github.com/pytorch/pytorch/issues/99952",
-    [
-      "rocm"
     ]
   ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
@@ -1513,44 +1016,9 @@
       "rocm"
     ]
   ],
-  "test_ddp_new_tensor_in_fwd_static_graph (__main__.TestDistBackendWithSpawn)": [
-    "78338",
-    "https://github.com/pytorch/pytorch/issues/78338",
-    [
-      "linux"
-    ]
-  ],
   "test_ddp_profiling_autograd_profiler (__main__.TestDistBackendWithSpawn)": [
     "77342",
     "https://github.com/pytorch/pytorch/issues/77342",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_returns_tensor_with_no_grad (__main__.TestDistBackendWithSpawn)": [
-    "78595",
-    "https://github.com/pytorch/pytorch/issues/78595",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_uneven_input_join_disable (__main__.TestDistBackendWithSpawn)": [
-    "78684",
-    "https://github.com/pytorch/pytorch/issues/78684",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_uneven_inputs (__main__.TestDistBackendWithSpawn)": [
-    "75648",
-    "https://github.com/pytorch/pytorch/issues/75648",
-    [
-      "linux"
-    ]
-  ],
-  "test_ddp_uneven_inputs_stop_iteration_sync_bn (__main__.TestDistBackendWithSpawn)": [
-    "78113",
-    "https://github.com/pytorch/pytorch/issues/78113",
     [
       "linux"
     ]
@@ -1560,13 +1028,6 @@
     "https://github.com/pytorch/pytorch/issues/101787",
     [
       "dynamo"
-    ]
-  ],
-  "test_dedup_global (__main__.ReproTests)": [
-    "102304",
-    "https://github.com/pytorch/pytorch/issues/102304",
-    [
-      "rocm"
     ]
   ],
   "test_delayed_optim_step_offload_true_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
@@ -1927,62 +1388,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_config_changes_warning (__main__.TestInductorConfig)": [
-    "102326",
-    "https://github.com/pytorch/pytorch/issues/102326",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_bare_module (__main__.TestStandaloneInductor)": [
-    "102303",
-    "https://github.com/pytorch/pytorch/issues/102303",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_export1 (__main__.TestStandaloneInductor)": [
-    "102325",
-    "https://github.com/pytorch/pytorch/issues/102325",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_export2 (__main__.TestStandaloneInductor)": [
-    "102346",
-    "https://github.com/pytorch/pytorch/issues/102346",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_fx (__main__.TestStandaloneInductor)": [
-    "102363",
-    "https://github.com/pytorch/pytorch/issues/102363",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_fx_dict_input (__main__.TestStandaloneInductor)": [
-    "102381",
-    "https://github.com/pytorch/pytorch/issues/102381",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_make_fx (__main__.TestStandaloneInductor)": [
-    "102487",
-    "https://github.com/pytorch/pytorch/issues/102487",
-    [
-      "rocm"
-    ]
-  ],
-  "test_inductor_via_op_with_multiple_outputs (__main__.TestStandaloneInductor)": [
-    "102502",
-    "https://github.com/pytorch/pytorch/issues/102502",
-    [
-      "rocm"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -2218,13 +1623,6 @@
       "rocm"
     ]
   ],
-  "test_nccl_high_priority_stream (__main__.TestDistBackendWithSpawn)": [
-    "81022",
-    "https://github.com/pytorch/pytorch/issues/81022",
-    [
-      "linux"
-    ]
-  ],
   "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
     "93865",
     "https://github.com/pytorch/pytorch/issues/93865",
@@ -2335,13 +1733,6 @@
       "linux"
     ]
   ],
-  "test_output_unused_in_loss_dict_module (__main__.TestDistBackendWithSpawn)": [
-    "78112",
-    "https://github.com/pytorch/pytorch/issues/78112",
-    [
-      "linux"
-    ]
-  ],
   "test_pca_lowrank_cuda (__main__.TestLinalgCUDA)": [
     "102567",
     "https://github.com/pytorch/pytorch/issues/102567",
@@ -2412,13 +1803,6 @@
       "rocm"
     ]
   ],
-  "test_post_localSGD_optimizer_parity (__main__.TestDistBackendWithSpawn)": [
-    "77123",
-    "https://github.com/pytorch/pytorch/issues/77123",
-    [
-      "linux"
-    ]
-  ],
   "test_post_localSGD_optimizer_parity_grad_is_view (__main__.TestDistBackendWithSpawn)": [
     "77292",
     "https://github.com/pytorch/pytorch/issues/77292",
@@ -2438,13 +1822,6 @@
     "https://github.com/pytorch/pytorch/issues/75139",
     [
       "rocm"
-    ]
-  ],
-  "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
-    "84886",
-    "https://github.com/pytorch/pytorch/issues/84886",
-    [
-      "linux"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
@@ -2594,13 +1971,6 @@
       "dynamo"
     ]
   ],
-  "test_rref_as_arg_synchronization3 (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
-    "81962",
-    "https://github.com/pytorch/pytorch/issues/81962",
-    [
-      "linux"
-    ]
-  ],
   "test_save_graph_repro (__main__.TestAfterAot)": [
     "99602",
     "https://github.com/pytorch/pytorch/issues/99602",
@@ -2674,25 +2044,11 @@
       "rocm"
     ]
   ],
-  "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
-    "94880",
-    "https://github.com/pytorch/pytorch/issues/94880",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
-    ]
-  ],
-  "test_sum_fp16 (__main__.TestCuda)": [
-    "99953",
-    "https://github.com/pytorch/pytorch/issues/99953",
-    [
-      "rocm"
     ]
   ],
   "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
@@ -2738,27 +2094,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_tiny_half_norm_ (__main__.TestCuda)": [
-    "94897",
-    "https://github.com/pytorch/pytorch/issues/94897",
-    [
-      "rocm"
-    ]
-  ],
-  "test_to_cpu_blocking_by_default (__main__.TestCuda)": [
-    "94956",
-    "https://github.com/pytorch/pytorch/issues/94956",
-    [
-      "rocm"
-    ]
-  ],
-  "test_to_non_blocking (__main__.TestCuda)": [
-    "94967",
-    "https://github.com/pytorch/pytorch/issues/94967",
-    [
-      "rocm"
     ]
   ],
   "test_torch_guards_stack_frame_register_inlining_deep (__main__.StaticDefaultDynamicShapesMiscTests)": [
