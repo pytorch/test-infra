@@ -1761,6 +1761,13 @@
       "rocm"
     ]
   ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
+    "97940",
+    "https://github.com/pytorch/pytorch/issues/97940",
+    [
+      "rocm"
+    ]
+  ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96760",
     "https://github.com/pytorch/pytorch/issues/96760",
