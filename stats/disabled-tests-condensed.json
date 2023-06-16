@@ -90,20 +90,6 @@
       "rocm"
     ]
   ],
-  "test_add_const_float_cpu (__main__.CpuTests)": [
-    "102838",
-    "https://github.com/pytorch/pytorch/issues/102838",
-    [
-      "rocm"
-    ]
-  ],
-  "test_addmm_cpu (__main__.CpuTests)": [
-    "102837",
-    "https://github.com/pytorch/pytorch/issues/102837",
-    [
-      "rocm"
-    ]
-  ],
   "test_aliased_buffer_reuse_cpu (__main__.CpuTests)": [
     "102866",
     "https://github.com/pytorch/pytorch/issues/102866",
@@ -280,13 +266,6 @@
     "https://github.com/pytorch/pytorch/issues/38317",
     []
   ],
-  "test_backward_multiple_output_tensors (__main__.TensorPipeDistAutogradTest)": [
-    "77516",
-    "https://github.com/pytorch/pytorch/issues/77516",
-    [
-      "linux"
-    ]
-  ],
   "test_backward_rref (__main__.TensorPipeDistAutogradTestWithSpawn)": [
     "59798",
     "https://github.com/pytorch/pytorch/issues/59798",
@@ -301,13 +280,6 @@
     "59794",
     "https://github.com/pytorch/pytorch/issues/59794",
     []
-  ],
-  "test_backward_unused_tensors (__main__.TensorPipeDistAutogradTest)": [
-    "77556",
-    "https://github.com/pytorch/pytorch/issues/77556",
-    [
-      "linux"
-    ]
   ],
   "test_baddbmm_cpu (__main__.CpuTests)": [
     "103046",
@@ -879,13 +851,6 @@
       "mac"
     ]
   ],
-  "test_cpu_transposed_double (__main__.SweepInputsCpuTest)": [
-    "102836",
-    "https://github.com/pytorch/pytorch/issues/102836",
-    [
-      "rocm"
-    ]
-  ],
   "test_create_script_module_on_remote (__main__.TensorPipeJitRpcTest)": [
     "103309",
     "https://github.com/pytorch/pytorch/issues/103309",
@@ -899,11 +864,6 @@
     [
       "rocm"
     ]
-  ],
-  "test_ddp_comparison (__main__.TensorPipeDdpComparisonTest)": [
-    "69662",
-    "https://github.com/pytorch/pytorch/issues/69662",
-    []
   ],
   "test_ddp_comparison_uneven_inputs (__main__.TensorPipeDdpComparisonTest)": [
     "72891",
@@ -1000,13 +960,6 @@
   "test_device_map_gpu_default_to_non_default (__main__.TensorPipeTensorPipeAgentCudaRpcTest)": [
     "80008",
     "https://github.com/pytorch/pytorch/issues/80008",
-    [
-      "linux"
-    ]
-  ],
-  "test_different_graph_across_ranks (__main__.TestDistBackendWithSpawn)": [
-    "78748",
-    "https://github.com/pytorch/pytorch/issues/78748",
     [
       "linux"
     ]
@@ -1209,13 +1162,6 @@
   "test_fsdp_tp_checkpoint_integration (__main__.TestTPFSDPIntegration)": [
     "101162",
     "https://github.com/pytorch/pytorch/issues/101162",
-    [
-      "linux"
-    ]
-  ],
-  "test_future_passed_between_python_and_jit (__main__.TensorPipeJitRpcTest)": [
-    "84046",
-    "https://github.com/pytorch/pytorch/issues/84046",
     [
       "linux"
     ]
@@ -1728,13 +1674,6 @@
     "https://github.com/pytorch/pytorch/issues/98025",
     [
       "rocm"
-    ]
-  ],
-  "test_post_localSGD_optimizer_parity_grad_is_view (__main__.TestDistBackendWithSpawn)": [
-    "77292",
-    "https://github.com/pytorch/pytorch/issues/77292",
-    [
-      "linux"
     ]
   ],
   "test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)": [
