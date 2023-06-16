@@ -215,7 +215,7 @@ function DisableIssue({
   let linkText = isDisabledTest
     ? "Disable test"
     : issueTitle.includes("UNSTABLE")
-    ? "Unstable job"
+    ? "Mark unstable job"
     : "Disable job";
   let buttonStyle = "";
 
