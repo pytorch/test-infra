@@ -1,11 +1,4 @@
 {
-  "test_AllenaiLongformerBase_repro_cpu (__main__.CpuTests)": [
-    "102865",
-    "https://github.com/pytorch/pytorch/issues/102865",
-    [
-      "rocm"
-    ]
-  ],
   "test_Conv2d_dilated_cuda_tf32 (__main__.TestNN)": [
     "102727",
     "https://github.com/pytorch/pytorch/issues/102727",
@@ -90,13 +83,6 @@
       "rocm"
     ]
   ],
-  "test_aliased_buffer_reuse_cpu (__main__.CpuTests)": [
-    "102866",
-    "https://github.com/pytorch/pytorch/issues/102866",
-    [
-      "rocm"
-    ]
-  ],
   "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
     "98480",
     "https://github.com/pytorch/pytorch/issues/98480",
@@ -150,13 +136,6 @@
   "test_arange2_cpu (__main__.CpuTests)": [
     "102885",
     "https://github.com/pytorch/pytorch/issues/102885",
-    [
-      "rocm"
-    ]
-  ],
-  "test_arange3_cpu (__main__.CpuTests)": [
-    "102864",
-    "https://github.com/pytorch/pytorch/issues/102864",
     [
       "rocm"
     ]
@@ -518,6 +497,13 @@
       "rocm"
     ]
   ],
+  "test_call_parent_non_class_methods_from_child_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103778",
+    "https://github.com/pytorch/pytorch/issues/103778",
+    [
+      "linux"
+    ]
+  ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "102191",
     "https://github.com/pytorch/pytorch/issues/102191",
@@ -717,6 +703,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_cond_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103779",
+    "https://github.com/pytorch/pytorch/issues/103779",
+    [
+      "linux"
     ]
   ],
   "test_cond_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
