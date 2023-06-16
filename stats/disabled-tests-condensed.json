@@ -153,13 +153,6 @@
       "linux"
     ]
   ],
-  "test_any_cpu (__main__.CpuTests)": [
-    "102778",
-    "https://github.com/pytorch/pytorch/issues/102778",
-    [
-      "rocm"
-    ]
-  ],
   "test_aot_autograd_exhaustive_as_strided_scatter_cpu_float32 (__main__.TestEagerFusionOpInfoCPU)": [
     "85879",
     "https://github.com/pytorch/pytorch/issues/85879",
@@ -213,13 +206,6 @@
   "test_as_strided_cpu (__main__.CpuTests)": [
     "102883",
     "https://github.com/pytorch/pytorch/issues/102883",
-    [
-      "rocm"
-    ]
-  ],
-  "test_as_strided_scatter_cpu (__main__.CpuTests)": [
-    "102776",
-    "https://github.com/pytorch/pytorch/issues/102776",
     [
       "rocm"
     ]
@@ -501,6 +487,14 @@
       "rocm"
     ]
   ],
+  "test_build_tuple_unpack (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103723",
+    "https://github.com/pytorch/pytorch/issues/103723",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
     "102071",
     "https://github.com/pytorch/pytorch/issues/102071",
@@ -524,6 +518,15 @@
       "linux",
       "asan",
       "mac"
+    ]
+  ],
+  "test_build_tuple_unpack_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103722",
+    "https://github.com/pytorch/pytorch/issues/103722",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
@@ -908,20 +911,6 @@
     [
       "macos",
       "mac"
-    ]
-  ],
-  "test_cpu_strided_broadcast3 (__main__.SweepInputsCpuTest)": [
-    "102779",
-    "https://github.com/pytorch/pytorch/issues/102779",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_strided_strided (__main__.SweepInputsCpuTest)": [
-    "102777",
-    "https://github.com/pytorch/pytorch/issues/102777",
-    [
-      "rocm"
     ]
   ],
   "test_cpu_transposed_broadcast1 (__main__.SweepInputsCpuTest)": [
@@ -1476,13 +1465,6 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "inductor"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "102775",
-    "https://github.com/pytorch/pytorch/issues/102775",
-    [
-      "linux"
     ]
   ],
   "test_masked_bmm (__main__.TestMatMul)": [
@@ -2211,13 +2193,6 @@
     "https://github.com/pytorch/pytorch/issues/103072",
     [
       "linux"
-    ]
-  ],
-  "test_vjpvmap___rmatmul___cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "101828",
-    "https://github.com/pytorch/pytorch/issues/101828",
-    [
-      "rocm"
     ]
   ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
