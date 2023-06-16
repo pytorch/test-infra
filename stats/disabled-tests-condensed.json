@@ -1924,6 +1924,13 @@
       "linux"
     ]
   ],
+  "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "102629",
+    "https://github.com/pytorch/pytorch/issues/102629",
+    [
+      "rocm"
+    ]
+  ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91488",
     "https://github.com/pytorch/pytorch/issues/91488",
