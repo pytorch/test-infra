@@ -22,29 +22,5 @@
     "pull",
     "linux-bionic-cuda12.1-py3.10-gcc9",
     "test (deploy)"
-  ],
-  "pull / win-vs2019-cpu-py3 / build": [
-    "huydhn",
-    "103729",
-    "https://github.com/pytorch/pytorch/issues/103729",
-    "pull",
-    "win-vs2019-cpu-py3",
-    "build"
-  ],
-  "trunk / win-vs2019-cpu-py3 / build": [
-    "huydhn",
-    "103732",
-    "https://github.com/pytorch/pytorch/issues/103732",
-    "trunk",
-    "win-vs2019-cpu-py3",
-    "build"
-  ],
-  "trunk / win-vs2019-cuda11.8-py3 / build": [
-    "huydhn",
-    "103733",
-    "https://github.com/pytorch/pytorch/issues/103733",
-    "trunk",
-    "win-vs2019-cuda11.8-py3",
-    "build"
   ]
 }
