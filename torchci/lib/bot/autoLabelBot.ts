@@ -6,10 +6,6 @@ const titleRegexToLabel: [RegExp, string][] = [
   [/vulkan/gi, "module: vulkan"],
   [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
-
-  // TODO: See if we can support multiple labels here
-  [/DISABLED\s+.*\s+\/\s+.*/g, "skipped"],
-  [/DISABLED\s+.*\s+\/\s+.*/g, "module: ci"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
   [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
 ];
