@@ -60,7 +60,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {eventTime}
       <TestInsightsLink job={job} separator={" | "} />
       <DisableTest job={job} label={"skipped"} />
-      <DisableJob job={job} label={"skipped"} />
+      <UnstableJob job={job} label={"unstable"} />
     </span>
   );
 }
@@ -150,13 +150,13 @@ function transformJobName(jobName?: string) {
   return jobName;
 }
 
-function formatDisableJobBody() {
+function formatUnstableJobBody() {
   return encodeURIComponent(
     "> Please provide a brief reason on why you need to disable/unstable this job."
   );
 }
 
-function DisableJob({ job, label }: { job: JobData; label: string }) {
+function UnstableJob({ job, label }: { job: JobData; label: string }) {
   const swrKey = isFailure(job.conclusion) ? `/api/issue/${label}` : null;
   const { data } = useSWR(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
@@ -183,8 +183,8 @@ function DisableJob({ job, label }: { job: JobData; label: string }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
-  const issueTitle = `DISABLED ${jobName}`;
-  const issueBody = formatDisableJobBody();
+  const issueTitle = `UNSTABLE ${jobName}`;
+  const issueBody = formatUnstableJobBody();
 
   const issues: IssueData[] = data.issues;
   const matchingIssues = issues.filter((issue) =>
