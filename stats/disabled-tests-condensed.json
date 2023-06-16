@@ -689,13 +689,6 @@
       "rocm"
     ]
   ],
-  "test_compare_cpu_linalg_pinv_singular_cuda_float32 (__main__.TestCommonCUDA)": [
-    "102678",
-    "https://github.com/pytorch/pytorch/issues/102678",
-    [
-      "rocm"
-    ]
-  ],
   "test_complex_fallback_cpu (__main__.CpuTests)": [
     "103225",
     "https://github.com/pytorch/pytorch/issues/103225",
@@ -1990,13 +1983,6 @@
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
-    ]
-  ],
-  "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "102629",
-    "https://github.com/pytorch/pytorch/issues/102629",
-    [
-      "rocm"
     ]
   ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
