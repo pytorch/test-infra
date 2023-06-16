@@ -151,7 +151,7 @@ function transformJobName(jobName?: string) {
 
 function formatUnstableJobBody() {
   return encodeURIComponent(
-    "> Please provide a brief reason on why you need to disable/unstable this job."
+    "> Please provide a brief reason on why you need to mark this job as unstable."
   );
 }
 
