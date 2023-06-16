@@ -69,6 +69,13 @@
       "linux"
     ]
   ],
+  "test_activations (__main__.DistElementwiseOpsTest)": [
+    "103736",
+    "https://github.com/pytorch/pytorch/issues/103736",
+    [
+      "linux"
+    ]
+  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
@@ -175,13 +182,6 @@
       "rocm"
     ]
   ],
-  "test_arange4_cpu (__main__.CpuTests)": [
-    "102798",
-    "https://github.com/pytorch/pytorch/issues/102798",
-    [
-      "rocm"
-    ]
-  ],
   "test_arange6_cpu (__main__.CpuTests)": [
     "102955",
     "https://github.com/pytorch/pytorch/issues/102955",
@@ -243,13 +243,6 @@
   "test_avg_pool2d4_cpu (__main__.CpuTests)": [
     "102975",
     "https://github.com/pytorch/pytorch/issues/102975",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d5_cpu (__main__.CpuTests)": [
-    "102799",
-    "https://github.com/pytorch/pytorch/issues/102799",
     [
       "rocm"
     ]
@@ -403,13 +396,6 @@
   "test_binary_op__foreach_sub_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "103310",
     "https://github.com/pytorch/pytorch/issues/103310",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_op__foreach_sub_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
-    "102797",
-    "https://github.com/pytorch/pytorch/issues/102797",
     [
       "rocm"
     ]
@@ -913,20 +899,6 @@
       "mac"
     ]
   ],
-  "test_cpu_transposed_broadcast1 (__main__.SweepInputsCpuTest)": [
-    "102800",
-    "https://github.com/pytorch/pytorch/issues/102800",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_transposed_broadcast2 (__main__.SweepInputsCpuTest)": [
-    "102801",
-    "https://github.com/pytorch/pytorch/issues/102801",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_transposed_broadcast3 (__main__.SweepInputsCpuTest)": [
     "102816",
     "https://github.com/pytorch/pytorch/issues/102816",
@@ -1399,13 +1371,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "102115",
     "https://github.com/pytorch/pytorch/issues/102115",
@@ -1690,6 +1655,13 @@
   "test_operator_linalg_lu_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
     "101909",
     "https://github.com/pytorch/pytorch/issues/101909",
+    [
+      "linux"
+    ]
+  ],
+  "test_operator_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "91685",
+    "https://github.com/pytorch/pytorch/issues/91685",
     [
       "linux"
     ]
