@@ -4,6 +4,8 @@ import React from "react";
 import { IssueData, JobData } from "../lib/types";
 import styles from "./JobLinks.module.css";
 import TestInsightsLink from "./TestInsights";
+import { useSession } from "next-auth/react";
+import { isFailure } from "../lib/JobClassifierUtil";
 
 export default function JobLinks({ job }: { job: JobData }) {
   const rawLogs =
@@ -47,6 +49,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       </span>
     ) : null;
 
+  const authenticated = useSession().status === "authenticated";
   return (
     <span>
       {rawLogs}
@@ -55,7 +58,8 @@ export default function JobLinks({ job }: { job: JobData }) {
       {durationS}
       {eventTime}
       <TestInsightsLink job={job} separator={" | "} />
-      <DisableIssue job={job} />
+      <DisableTest job={job} label={"skipped"} />
+      {authenticated && <UnstableJob job={job} label={"unstable"} />}
     </span>
   );
 }
@@ -76,7 +80,7 @@ function getTestName(failureCapture: string) {
   return null;
 }
 
-function formatIssueBody(failureCaptures: string) {
+function formatDisableTestBody(failureCaptures: string) {
   const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
     failureCaptures
   )}`;
@@ -85,9 +89,9 @@ function formatIssueBody(failureCaptures: string) {
 This test was disabled because it is failing on master ([recent examples](${examplesURL})).`);
 }
 
-function DisableIssue({ job }: { job: JobData }) {
+function DisableTest({ job, label }: { job: JobData; label: string }) {
   const hasFailureClassification = job.failureLine != null;
-  const swrKey = hasFailureClassification ? "/api/issue/skipped" : null;
+  const swrKey = hasFailureClassification ? `/api/issue/${label}` : null;
   const { data } = useSWR(swrKey, fetcher, {
     // Set a 60s cache for the request, so that lots of tooltip hovers don't
     // spam the backend. Since actually mutating the state (through filing a
@@ -109,33 +113,132 @@ function DisableIssue({ job }: { job: JobData }) {
   }
   // - If we don't yet have any data, show a loading state.
   if (data === undefined) {
-    return <span>{" | "} checking for disable issues.</span>;
+    return <span>{" | "} checking for disable tests</span>;
   }
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
   const issueTitle = `DISABLED ${testName}`;
+  const issueBody = formatDisableTestBody(job.failureCaptures!);
+
   const issues: IssueData[] = data.issues;
-  let issueLink;
-  let linkText;
-  let buttonStyle;
   const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+
+  return (
+    <DisableIssue
+      matchingIssues={matchingIssues}
+      issueTitle={issueTitle}
+      issueBody={issueBody}
+      isDisabledTest={true}
+    />
+  );
+}
+
+const jobNameRe = /^(.*) \(([^,]*),.*\)/;
+function transformJobName(jobName?: string) {
+  if (jobName == undefined) {
+    return null;
+  }
+
+  // We want to have the job name in the following format WORKFLOW / JOB (CONFIG)
+  const jobNameMatch = jobName.match(jobNameRe);
+  if (jobNameMatch !== null) {
+    return `${jobNameMatch[1]} (${jobNameMatch[2]})`;
+  }
+
+  return jobName;
+}
+
+function formatUnstableJobBody() {
+  return encodeURIComponent(
+    "> Please provide a brief reason on why you need to mark this job as unstable."
+  );
+}
+
+function UnstableJob({ job, label }: { job: JobData; label: string }) {
+  const swrKey = isFailure(job.conclusion) ? `/api/issue/${label}` : null;
+  const { data } = useSWR(swrKey, fetcher, {
+    // Set a 60s cache for the request, so that lots of tooltip hovers don't
+    // spam the backend. Since actually mutating the state (through filing a
+    // disable issue) is a pretty heavy operation, 60s of staleness is fine.
+    dedupingInterval: 60 * 1000,
+    refreshInterval: 60 * 1000, // refresh every minute
+  });
+
+  if (!isFailure(job.conclusion)) {
+    return null;
+  }
+
+  const jobName = transformJobName(job.name);
+  // Ignore invalid job name
+  if (jobName === null) {
+    return null;
+  }
+
+  // If we don't yet have any data, show a loading state.
+  if (data === undefined) {
+    return <span>{" | "} checking for disable jobs</span>;
+  }
+
+  // At this point, we should show something. Search the existing disable issues
+  // for a matching one.
+  const issueTitle = `UNSTABLE ${jobName}`;
+  const issueBody = formatUnstableJobBody();
+
+  const issues: IssueData[] = data.issues;
+  const matchingIssues = issues.filter((issue) =>
+    issueTitle.includes(issue.title)
+  );
+
+  return (
+    <DisableIssue
+      matchingIssues={matchingIssues}
+      issueTitle={issueTitle}
+      issueBody={issueBody}
+      isDisabledTest={false}
+    />
+  );
+}
+
+function DisableIssue({
+  matchingIssues,
+  issueTitle,
+  issueBody,
+  isDisabledTest,
+}: {
+  matchingIssues: IssueData[];
+  issueTitle: string;
+  issueBody: string;
+  isDisabledTest: boolean;
+}) {
+  let issueLink = `https://github.com/pytorch/pytorch/issues/new?title=${issueTitle}&body=${issueBody}`;
+  let linkText = isDisabledTest
+    ? "Disable test"
+    : issueTitle.includes("UNSTABLE")
+    ? "Mark unstable job"
+    : "Disable job";
+  let buttonStyle = "";
 
   if (matchingIssues.length !== 0) {
     // There is a matching issue, show that in the tooltip box.
     const matchingIssue = matchingIssues[0];
     if (matchingIssue.state === "open") {
-      linkText = "Test is disabled";
+      linkText = isDisabledTest
+        ? "Test is disabled"
+        : issueTitle.includes("UNSTABLE")
+        ? "Job is unstable"
+        : "Job is disabled";
     } else {
       buttonStyle = styles.closedDisableIssueButton;
-      linkText = "Previously disabled";
+      linkText = isDisabledTest
+        ? "Previously disabled test"
+        : issueTitle.includes("UNSTABLE")
+        ? "Previously unstable job"
+        : "Previously disabled job";
     }
     issueLink = matchingIssues[0].html_url;
   } else {
     // No matching issue, show a link to create one.
-    const issueBody = formatIssueBody(job.failureCaptures!);
-    linkText = "Disable test";
-    issueLink = `https://github.com/pytorch/pytorch/issues/new?title=${issueTitle}&body=${issueBody}`;
     buttonStyle = styles.disableTestButton;
   }
 
