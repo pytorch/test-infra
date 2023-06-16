@@ -49,8 +49,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       </span>
     ) : null;
 
-  const session = useSession();
-
+  const authenticated = useSession().status === "authenticated";
   return (
     <span>
       {rawLogs}
@@ -60,7 +59,7 @@ export default function JobLinks({ job }: { job: JobData }) {
       {eventTime}
       <TestInsightsLink job={job} separator={" | "} />
       <DisableTest job={job} label={"skipped"} />
-      <UnstableJob job={job} label={"unstable"} />
+      {authenticated && <UnstableJob job={job} label={"unstable"} />}
     </span>
   );
 }
