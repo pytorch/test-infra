@@ -83,13 +83,6 @@
       "dynamo"
     ]
   ],
-  "test_adaptive_avg_pool2d2_cpu (__main__.CpuTests)": [
-    "102825",
-    "https://github.com/pytorch/pytorch/issues/102825",
-    [
-      "rocm"
-    ]
-  ],
   "test_adaptive_avg_pool2d_low_prec_cpu (__main__.CpuTests)": [
     "102884",
     "https://github.com/pytorch/pytorch/issues/102884",
@@ -189,13 +182,6 @@
       "rocm"
     ]
   ],
-  "test_argmax_argmin_with_duplicates_cpu (__main__.CpuTests)": [
-    "102829",
-    "https://github.com/pytorch/pytorch/issues/102829",
-    [
-      "rocm"
-    ]
-  ],
   "test_argmax_min_int32_cpu (__main__.CpuTests)": [
     "102954",
     "https://github.com/pytorch/pytorch/issues/102954",
@@ -243,13 +229,6 @@
   "test_avg_pool2d4_cpu (__main__.CpuTests)": [
     "102975",
     "https://github.com/pytorch/pytorch/issues/102975",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d6_cpu (__main__.CpuTests)": [
-    "102827",
-    "https://github.com/pytorch/pytorch/issues/102827",
     [
       "rocm"
     ]
@@ -386,9 +365,9 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_int32 (__main__.TestForeachCUDA)": [
-    "102824",
-    "https://github.com/pytorch/pytorch/issues/102824",
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
+    "98998",
+    "https://github.com/pytorch/pytorch/issues/98998",
     [
       "rocm"
     ]
@@ -542,6 +521,14 @@
     "60998",
     "https://github.com/pytorch/pytorch/issues/60998",
     []
+  ],
+  "test_call_parent_non_class_methods_from_child (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103742",
+    "https://github.com/pytorch/pytorch/issues/103742",
+    [
+      "asan",
+      "linux"
+    ]
   ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
@@ -899,23 +886,9 @@
       "mac"
     ]
   ],
-  "test_cpu_transposed_dense (__main__.SweepInputsCpuTest)": [
-    "102826",
-    "https://github.com/pytorch/pytorch/issues/102826",
-    [
-      "rocm"
-    ]
-  ],
   "test_cpu_transposed_double (__main__.SweepInputsCpuTest)": [
     "102836",
     "https://github.com/pytorch/pytorch/issues/102836",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cpu_transposed_strided (__main__.SweepInputsCpuTest)": [
-    "102828",
-    "https://github.com/pytorch/pytorch/issues/102828",
     [
       "rocm"
     ]
@@ -1273,6 +1246,13 @@
     "https://github.com/pytorch/pytorch/issues/94507",
     [
       "inductor"
+    ]
+  ],
+  "test_gpt2_tiny (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_True_dynamic_shapes_True)": [
+    "103743",
+    "https://github.com/pytorch/pytorch/issues/103743",
+    [
+      "linux"
     ]
   ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
