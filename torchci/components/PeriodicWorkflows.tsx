@@ -5,7 +5,8 @@ import useSWR from "swr";
 import { fetcherWithToken } from "lib/GeneralUtils";
 import { Octokit } from "octokit";
 
-const SUPPORTED_PERIODIC_WORKFLOWS: { [k: string]: string } = {
+const SUPPORTED_WORKFLOWS: { [k: string]: string } = {
+  trunk: "Run trunk jobs",
   periodic: "Run periodic jobs",
   slow: "Run slow jobs",
 };
@@ -60,7 +61,7 @@ function PeriodicWorkflow({
       key={workflow}
       onClick={() => {
         setIsTriggered(true);
-        setMessage(`Tag ${workflow} ${sha}`);
+        setMessage(`Trigger ${workflow} jobs on ${sha}. Refreshing the page`);
       }}
     >
       <input
@@ -96,10 +97,14 @@ export default function PeriodicWorkflows({
     return <></>;
   }
 
-  const missingWorkflows = _.filter(
-    Object.keys(SUPPORTED_PERIODIC_WORKFLOWS),
-    (workflow) => !hasWorkflow(jobs, workflow)
-  );
+  let missingWorkflows: string[] = [];
+  // If this list has already been filled out, just use it
+  if (missingWorkflows.length === 0) {
+    missingWorkflows = _.filter(
+      Object.keys(SUPPORTED_WORKFLOWS),
+      (workflow) => !hasWorkflow(jobs, workflow)
+    );
+  }
   // If this commit has already run all those workflows, there is no need to show
   // this section
   if (missingWorkflows.length === 0) {
@@ -115,9 +120,7 @@ export default function PeriodicWorkflows({
 
   const messages = Object.fromEntries(
     missingWorkflows.map((workflow) => {
-      const [message, setMessage] = useState(
-        SUPPORTED_PERIODIC_WORKFLOWS[workflow]
-      );
+      const [message, setMessage] = useState(SUPPORTED_WORKFLOWS[workflow]);
       return [workflow, [message, setMessage]];
     })
   );

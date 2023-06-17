@@ -14,13 +14,13 @@ export default async function handler(
     return res.status(403);
   }
 
-  const repoOwner = req.query["repoOwner"] as string;
-  const repoName = req.query["repoName"] as string;
+  const owner = req.query["repoOwner"] as string;
+  const repo = req.query["repoName"] as string;
   const workflow = req.query["workflow"] as string;
   const sha = req.query["sha"] as string;
   if (
-    repoOwner === undefined ||
-    repoName === undefined ||
+    owner === undefined ||
+    repo === undefined ||
     workflow === undefined ||
     sha === undefined
   ) {
@@ -30,48 +30,38 @@ export default async function handler(
   // Create an octokit instance using the provided token
   const octokit = await getOctokitWithUserToken(authorization as string);
   // Return right away if the credential is invalid
-  const user = await octokit
-    .request("GET /user")
-    .catch(() => res.status(403).end());
+  const user = await octokit.rest.users.getAuthenticated();
   if (
     user === undefined ||
-    user["data"] === undefined ||
-    user["data"]["login"] === undefined
+    user.data === undefined ||
+    user.data.login === undefined
   ) {
     return res.status(403);
   }
 
-  const login = user["data"]["login"];
-  const permission = await octokit
-    .request(
-      "GET /repos/{repoOwner}/{repoName}/collaborators/{login}/permission",
-      {
-        repoOwner: repoOwner,
-        repoName: repoName,
-        login: login,
-      }
-    )
-    .catch(() => {});
+  const username = user.data.login;
+  const permission = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    owner,
+    repo,
+    username,
+  });
   if (
     permission === undefined ||
-    permission["data"] === undefined ||
-    permission["data"]["permission"] === undefined
+    permission.data === undefined ||
+    permission.data.permission === undefined
   ) {
     return res.status(403);
   }
-  if (!hasWritePermission(permission["data"]["permission"])) {
+  if (!hasWritePermission(permission.data.permission)) {
     return res.status(403);
   }
 
   const tag = `ciflow/${workflow}/${sha}`;
-  const matchingRefs = await octokit
-    .request("GET /repos/{repoOwner}/{repoName}/git/matching-refs/{ref}", {
-      repoOwner: repoOwner,
-      repoName: repoName,
-      ref: `tags/${tag}`,
-    })
-    .catch(() => {});
-
+  const matchingRefs = await octokit.rest.git.listMatchingRefs({
+    owner,
+    repo,
+    ref: `tags/${tag}`,
+  });
   if (matchingRefs !== undefined && matchingRefs.data.length > 0) {
     return res.status(200);
   }
@@ -79,14 +69,12 @@ export default async function handler(
   // NB: OAuth token could not be used to create a tag atm due to PyTorch org restriction. So we need to use
   // the bot token from this point onward. The good news is that it's confirmed that the user has either
   // write or admin permission when this part of the code is reached
-  const botOctokit = await getOctokit(repoOwner, repoName);
-  const result = await botOctokit
-    .request("POST /repos/{repoOwner}/{repoName}/git/refs", {
-      repoOwner: repoOwner,
-      repoName: repoName,
-      ref: `refs/tags/${tag}`,
-      sha: sha,
-    })
-    .catch((error) => console.log(error));
-  return res.status(200).end();
+  const botOctokit = await getOctokit(owner, repo);
+  const result = await botOctokit.rest.git.createRef({
+    owner,
+    repo,
+    ref: `refs/tags/${tag}`,
+    sha: sha,
+  });
+  return res.status(result === undefined ? 400 : 200);
 }
