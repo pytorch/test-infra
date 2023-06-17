@@ -41,6 +41,7 @@ function CommitInfo({
       repoName={repoName}
       commit={commit}
       jobs={jobs}
+      isCommitPage={false}
     />
   );
 }

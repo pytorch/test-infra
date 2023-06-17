@@ -40,6 +40,7 @@ export function CommitInfo({
         repoName={repoName}
         commit={commit}
         jobs={jobs}
+        isCommitPage={true}
       />
     </div>
   );

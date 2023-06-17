@@ -57,11 +57,13 @@ export default function CommitStatus({
   repoName,
   commit,
   jobs,
+  isCommitPage,
 }: {
   repoOwner: string;
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
+  isCommitPage: boolean;
 }) {
   const session = useSession();
   const isAuthenticated = session.status === "authenticated";
@@ -108,7 +110,7 @@ export default function CommitStatus({
         pred={(job) => job.conclusion === "pending"}
       />
       <WorkflowsContainer jobs={jobs} />
-      {isAuthenticated && (
+      {isAuthenticated && isCommitPage && (
         <PeriodicWorkflows
           repoOwner={repoOwner}
           repoName={repoName}
