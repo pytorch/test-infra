@@ -76,5 +76,5 @@ export default async function handler(
     ref: `refs/tags/${tag}`,
     sha: sha,
   });
-  return res.status(result === undefined ? 400 : 200);
+  return res.status(result === undefined ? 400 : 200).json({});
 }

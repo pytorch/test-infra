@@ -25,10 +25,7 @@ function PeriodicWorkflow({
   repoName,
   workflow,
   sha,
-  isTriggered,
-  setIsTriggered,
-  message,
-  setMessage,
+  jobs,
 }: {
   accessToken: string;
   userName: string;
@@ -36,15 +33,18 @@ function PeriodicWorkflow({
   repoName: string;
   workflow: string;
   sha: string;
-  isTriggered: boolean;
-  setIsTriggered: any;
-  message: string;
-  setMessage: any;
+  jobs: JobData[];
 }) {
+  const [alreadyRun, setAlreadyRun] = useState(
+    hasWorkflow(jobs, workflow) !== undefined
+  );
+  const [isClicked, setIsClicked] = useState(false);
+  const [message, setMessage] = useState(SUPPORTED_WORKFLOWS[workflow]);
+
   const url = `/api/github/tags/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
   const { data, error } = useSWR(
-    [isTriggered ? url : null, accessToken],
+    [isClicked && !alreadyRun ? url : null, accessToken],
     fetcherWithToken,
     {
       revalidateOnFocus: false,
@@ -57,21 +57,27 @@ function PeriodicWorkflow({
   );
 
   return (
-    <div
-      key={workflow}
-      onClick={() => {
-        setIsTriggered(true);
-        setMessage(`Trigger ${workflow} jobs on ${sha}. Refreshing the page`);
-      }}
-    >
-      <input
-        type="checkbox"
-        disabled={isTriggered}
-        name={workflow}
-        checked={isTriggered}
-        onChange={() => {}}
-      />
-      <label htmlFor={workflow}> {message}</label>
+    <div>
+      {!alreadyRun && (
+        <div
+          key={workflow}
+          onClick={() => {
+            setIsClicked(true);
+            setMessage(
+              `Trigger ${workflow} jobs on ${sha}. Please refresh the page after a few minutes to see the jobs.`
+            );
+          }}
+        >
+          <input
+            type="checkbox"
+            disabled={isClicked}
+            name={workflow}
+            checked={isClicked}
+            onChange={() => {}}
+          />
+          <label htmlFor={workflow}> {message}</label>
+        </div>
+      )}
     </div>
   );
 }
@@ -97,41 +103,13 @@ export default function PeriodicWorkflows({
     return <></>;
   }
 
-  let missingWorkflows: string[] = [];
-  // If this list has already been filled out, just use it
-  if (missingWorkflows.length === 0) {
-    missingWorkflows = _.filter(
-      Object.keys(SUPPORTED_WORKFLOWS),
-      (workflow) => !hasWorkflow(jobs, workflow)
-    );
-  }
-  // If this commit has already run all those workflows, there is no need to show
-  // this section
-  if (missingWorkflows.length === 0) {
-    return <></>;
-  }
-
-  const triggers = Object.fromEntries(
-    missingWorkflows.map((workflow) => {
-      const [isTriggered, setIsTriggered] = useState(false);
-      return [workflow, [isTriggered, setIsTriggered]];
-    })
-  );
-
-  const messages = Object.fromEntries(
-    missingWorkflows.map((workflow) => {
-      const [message, setMessage] = useState(SUPPORTED_WORKFLOWS[workflow]);
-      return [workflow, [message, setMessage]];
-    })
-  );
-
   const userName = session["user"]["name"];
   const accessToken = session["accessToken"];
 
   return (
     <div>
       <h2>Run more jobs?</h2>
-      {missingWorkflows.map((workflow) => (
+      {Object.keys(SUPPORTED_WORKFLOWS).map((workflow) => (
         <PeriodicWorkflow
           key={workflow}
           userName={userName}
@@ -140,10 +118,7 @@ export default function PeriodicWorkflows({
           repoName={repoName}
           workflow={workflow}
           sha={commit.sha}
-          isTriggered={triggers[workflow][0] as boolean}
-          setIsTriggered={triggers[workflow][1] as any}
-          message={messages[workflow][0] as string}
-          setMessage={messages[workflow][1] as any}
+          jobs={jobs}
         />
       ))}
       <br />
