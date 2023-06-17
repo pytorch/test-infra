@@ -40,48 +40,54 @@ function PeriodicWorkflow({
   message: string;
   setMessage: any;
 }) {
-  const octokit = new Octokit({
-    auth: accessToken,
-  });
+  const url = `/api/github/tags/${repoOwner}/${repoName}/${workflow}/${sha}`;
+  // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
+  const { data, error } = useSWR(
+    [isTriggered ? url : null, accessToken],
+    fetcherWithToken,
+    {
+      revalidateOnFocus: false,
+      revalidateOnMount: false,
+      revalidateOnReconnect: false,
+      refreshWhenOffline: false,
+      refreshWhenHidden: false,
+      refreshInterval: 0,
+    }
+  );
 
-  const [tags, setTags] = useState(undefined);
+  const [tags, setTags] = useState();
   // TIL: Here is the way to call an async function inside React
-  useEffect(() => {
-    async function fetchTags() {
-      await octokit
-        .request("GET /repos/{repoOwner}/{repoName}/git/tags/{sha}", {
-          repoOwner: repoOwner,
-          repoName: repoName,
-          sha: sha,
-        })
-        .then((r) => {
-          console.log(r);
-          setTags(r);
-        })
-        .catch((r) => console.log(r));
-    }
-
-    async function createTag() {
-      const tag = `${sha}-debug`;
-
-      await octokit
-        .request("POST /repos/{repoOwner}/{repoName}/git/tags", {
-          repoOwner: repoOwner,
-          repoName: repoName,
-          tag: tag,
-          message: `Tag ${tag} created by ${userName}`,
-          object: sha,
-          type: "commit",
-        })
-        .then((r) => console.log(r))
-        .catch((r) => console.log(r));
-    }
-
-    fetchTags();
-    if (tags === undefined) {
-      createTag();
-    }
-  }, [isTriggered]);
+  //  useEffect(() => {
+  //    async function fetchTags() {
+  //      await octokit.request("GET /repos/{repoOwner}/{repoName}/git/tags/{sha}", {
+  //        repoOwner: repoOwner,
+  //        repoName: repoName,
+  //        sha: sha,
+  //      })
+  //      .then(r => setTags(r))
+  //      .catch(r => console.log(r));
+  //    }
+  //
+  //    async function createTag() {
+  //      const tag = `${sha}-debug`;
+  //
+  //      await octokit.request("POST /repos/{repoOwner}/{repoName}/git/tags", {
+  //        repoOwner: repoOwner,
+  //        repoName: repoName,
+  //        tag: tag,
+  //        message: `Tag ${tag} created by ${userName}`,
+  //        object: sha,
+  //        type: "commit",
+  //      })
+  //      .then(r => console.log(r))
+  //      .catch(r => console.log(r));
+  //    }
+  //
+  //    fetchTags();
+  //    if (tags === undefined) {
+  //      createTag();
+  //    }
+  //  }, [isTriggered]);
 
   return (
     <div
