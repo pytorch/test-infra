@@ -5,10 +5,12 @@ import useSWR from "swr";
 import { fetcherWithToken } from "lib/GeneralUtils";
 import { Octokit } from "octokit";
 
-const SUPPORTED_WORKFLOWS: { [k: string]: string } = {
-  trunk: "Run trunk jobs",
-  periodic: "Run periodic jobs",
-  slow: "Run slow jobs",
+const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
+  "pytorch/pytorch": {
+    trunk: "Run trunk jobs",
+    periodic: "Run periodic jobs",
+    slow: "Run slow jobs",
+  },
 };
 
 function hasWorkflow(jobs: JobData[], workflow: string) {
@@ -39,7 +41,10 @@ function PeriodicWorkflow({
     hasWorkflow(jobs, workflow) !== undefined
   );
   const [isClicked, setIsClicked] = useState(false);
-  const [message, setMessage] = useState(SUPPORTED_WORKFLOWS[workflow]);
+
+  const repo = `${repoOwner}/${repoName}`;
+  const supportedWorkflows = SUPPORTED_WORKFLOWS[repo];
+  const [message, setMessage] = useState(supportedWorkflows[workflow]);
 
   const url = `/api/github/tags/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
@@ -103,13 +108,19 @@ export default function PeriodicWorkflows({
     return <></>;
   }
 
+  const repo = `${repoOwner}/${repoName}`;
+  if (!(repo in SUPPORTED_WORKFLOWS)) {
+    return <></>;
+  }
+
+  const supportedWorkflows = SUPPORTED_WORKFLOWS[repo];
   const userName = session["user"]["name"];
   const accessToken = session["accessToken"];
 
   return (
     <div>
       <h2>Run more jobs?</h2>
-      {Object.keys(SUPPORTED_WORKFLOWS).map((workflow) => (
+      {Object.keys(supportedWorkflows).map((workflow) => (
         <PeriodicWorkflow
           key={workflow}
           userName={userName}

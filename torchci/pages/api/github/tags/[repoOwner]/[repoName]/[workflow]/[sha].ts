@@ -11,7 +11,7 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === undefined) {
-    return res.status(403);
+    return res.status(403).end();
   }
 
   const owner = req.query["repoOwner"] as string;
@@ -24,7 +24,7 @@ export default async function handler(
     workflow === undefined ||
     sha === undefined
   ) {
-    return res.status(400);
+    return res.status(400).end();
   }
 
   // Create an octokit instance using the provided token
@@ -36,7 +36,7 @@ export default async function handler(
     user.data === undefined ||
     user.data.login === undefined
   ) {
-    return res.status(403);
+    return res.status(403).end();
   }
 
   const username = user.data.login;
@@ -50,10 +50,10 @@ export default async function handler(
     permission.data === undefined ||
     permission.data.permission === undefined
   ) {
-    return res.status(403);
+    return res.status(403).end();
   }
   if (!hasWritePermission(permission.data.permission)) {
-    return res.status(403);
+    return res.status(403).end();
   }
 
   const tag = `ciflow/${workflow}/${sha}`;
@@ -63,7 +63,7 @@ export default async function handler(
     ref: `tags/${tag}`,
   });
   if (matchingRefs !== undefined && matchingRefs.data.length > 0) {
-    return res.status(200);
+    return res.status(200).end();
   }
 
   // NB: OAuth token could not be used to create a tag atm due to PyTorch org restriction. So we need to use
@@ -76,5 +76,5 @@ export default async function handler(
     ref: `refs/tags/${tag}`,
     sha: sha,
   });
-  return res.status(result === undefined ? 400 : 200).json({});
+  return res.status(result === undefined ? 400 : 200).end();
 }
