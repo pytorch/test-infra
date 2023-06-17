@@ -35,7 +35,14 @@ function CommitInfo({
   }
   const { commit, jobs } = data;
 
-  return <CommitStatus commit={commit} jobs={jobs} />;
+  return (
+    <CommitStatus
+      repoOwner={repoOwner}
+      repoName={repoName}
+      commit={commit}
+      jobs={jobs}
+    />
+  );
 }
 
 function CommitHeader({

@@ -12,6 +12,8 @@ import {
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import useScrollTo from "lib/useScrollTo";
+import PeriodicWorkflows from "./PeriodicWorkflows";
+import { useSession } from "next-auth/react";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
   useScrollTo();
@@ -51,12 +53,19 @@ function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
 }
 
 export default function CommitStatus({
+  repoOwner,
+  repoName,
   commit,
   jobs,
 }: {
+  repoOwner: string;
+  repoName: string;
   commit: CommitData;
   jobs: JobData[];
 }) {
+  const session = useSession();
+  const isAuthenticated = session.status === "authenticated";
+
   return (
     <>
       <VersionControlLinks
@@ -99,6 +108,15 @@ export default function CommitStatus({
         pred={(job) => job.conclusion === "pending"}
       />
       <WorkflowsContainer jobs={jobs} />
+      {isAuthenticated && (
+        <PeriodicWorkflows
+          repoOwner={repoOwner}
+          repoName={repoName}
+          commit={commit}
+          jobs={jobs}
+          session={session.data}
+        />
+      )}
     </>
   );
 }

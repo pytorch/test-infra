@@ -1,5 +1,5 @@
 import { Octokit, App } from "octokit";
-import { createAppAuth } from "@octokit/auth-app";
+import { createAppAuth, createOAuthUserAuth } from "@octokit/auth-app";
 import { CommitData } from "./types";
 
 // Retrieve an Octokit instance authenticated as PyTorchBot's installation on
@@ -26,6 +26,21 @@ export async function getOctokit(
       appId: process.env.APP_ID,
       privateKey,
       installationId: installation.data.id,
+    },
+  });
+}
+
+export async function getOctokitWithUserToken(
+  owner: string,
+  repo: string,
+  token: string
+): Promise<Octokit> {
+  return new Octokit({
+    authStrategy: createOAuthUserAuth,
+    auth: {
+      type: "token",
+      token: token,
+      tokenType: "oauth",
     },
   });
 }
