@@ -1794,6 +1794,13 @@
       "mac"
     ]
   ],
+  "test_reduce_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98274",
+    "https://github.com/pytorch/pytorch/issues/98274",
+    [
+      "linux"
+    ]
+  ],
   "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98024",
     "https://github.com/pytorch/pytorch/issues/98024",
