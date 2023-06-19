@@ -126,20 +126,6 @@
       "macos"
     ]
   ],
-  "test_arange6_cpu (__main__.CpuTests)": [
-    "102955",
-    "https://github.com/pytorch/pytorch/issues/102955",
-    [
-      "rocm"
-    ]
-  ],
-  "test_argmax_min_int32_cpu (__main__.CpuTests)": [
-    "102954",
-    "https://github.com/pytorch/pytorch/issues/102954",
-    [
-      "rocm"
-    ]
-  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
@@ -147,13 +133,6 @@
       "linux",
       "win",
       "windows"
-    ]
-  ],
-  "test_avg_pool2d1_cpu (__main__.CpuTests)": [
-    "102956",
-    "https://github.com/pytorch/pytorch/issues/102956",
-    [
-      "rocm"
     ]
   ],
   "test_avg_pool2d2_cpu (__main__.CpuTests)": [
@@ -1155,6 +1134,13 @@
   "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
     "94531",
     "https://github.com/pytorch/pytorch/issues/94531",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94508",
+    "https://github.com/pytorch/pytorch/issues/94508",
     [
       "linux"
     ]
