@@ -14,13 +14,5 @@
     "pull",
     "linux-bionic-cuda11.8-py3.10-gcc9",
     "test (distributed)"
-  ],
-  "pull / linux-bionic-cuda12.1-py3.10-gcc9 / test (deploy)": [
-    "huydhn",
-    "103654",
-    "https://github.com/pytorch/pytorch/issues/103654",
-    "pull",
-    "linux-bionic-cuda12.1-py3.10-gcc9",
-    "test (deploy)"
   ]
 }
