@@ -295,7 +295,12 @@ function GroupViewCheckBox({
           setUseGrouping(!useGrouping);
         }}
       >
-        <input type="checkbox" name="groupView" checked={useGrouping} />
+        <input
+          type="checkbox"
+          name="groupView"
+          checked={useGrouping}
+          onChange={() => {}}
+        />
         <label htmlFor="groupView"> Use grouped view</label>
       </div>
     </>
@@ -316,7 +321,12 @@ function UnstableCheckBox({
           setHideUnstable(!hideUnstable);
         }}
       >
-        <input type="checkbox" name="hideUnstable" checked={hideUnstable} />
+        <input
+          type="checkbox"
+          name="hideUnstable"
+          checked={hideUnstable}
+          onChange={() => {}}
+        />
         <label htmlFor="hideUnstable"> Hide unstable jobs</label>
       </div>
     </>
