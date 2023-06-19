@@ -148,27 +148,6 @@
       "windows"
     ]
   ],
-  "test_avg_pool2d2_cpu (__main__.CpuTests)": [
-    "102974",
-    "https://github.com/pytorch/pytorch/issues/102974",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d3_cpu (__main__.CpuTests)": [
-    "102976",
-    "https://github.com/pytorch/pytorch/issues/102976",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d4_cpu (__main__.CpuTests)": [
-    "102975",
-    "https://github.com/pytorch/pytorch/issues/102975",
-    [
-      "rocm"
-    ]
-  ],
   "test_avg_pool2d7_cpu (__main__.CpuTests)": [
     "103029",
     "https://github.com/pytorch/pytorch/issues/103029",
