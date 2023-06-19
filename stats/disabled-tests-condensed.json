@@ -34,6 +34,19 @@
       "linux"
     ]
   ],
+  "test_MaxUnpool_index_errors_case1_cuda (__main__.TestPoolingNNDeviceTypeCUDA)": [
+    "103854",
+    "https://github.com/pytorch/pytorch/issues/103854",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>"
+    ]
+  ],
   "test_MaxUnpool_index_errors_case2_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "81841",
     "https://github.com/pytorch/pytorch/issues/81841",
@@ -821,6 +834,13 @@
     "https://github.com/pytorch/pytorch/issues/92131",
     [
       "rocm"
+    ]
+  ],
+  "test_ddp_checkpointing_weight_sharing_use_reentrant_False (__main__.DistributedDataParallelTest)": [
+    "103855",
+    "https://github.com/pytorch/pytorch/issues/103855",
+    [
+      "linux"
     ]
   ],
   "test_ddp_dist_autograd_local_vs_remote (__main__.TensorPipeDdpComparisonTestWithSpawn)": [
