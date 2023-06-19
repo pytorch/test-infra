@@ -801,6 +801,13 @@
       "mac"
     ]
   ],
+  "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
+    "103863",
+    "https://github.com/pytorch/pytorch/issues/103863",
+    [
+      "linux"
+    ]
+  ],
   "test_create_script_module_on_remote (__main__.TensorPipeJitRpcTest)": [
     "103309",
     "https://github.com/pytorch/pytorch/issues/103309",
