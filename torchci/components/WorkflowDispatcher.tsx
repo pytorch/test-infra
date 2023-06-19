@@ -20,7 +20,7 @@ function hasWorkflow(jobs: JobData[], workflow: string) {
   );
 }
 
-function PeriodicWorkflow({
+function Workflow({
   accessToken,
   userName,
   repoOwner,
@@ -46,7 +46,7 @@ function PeriodicWorkflow({
   const supportedWorkflows = SUPPORTED_WORKFLOWS[repo];
   const [message, setMessage] = useState(supportedWorkflows[workflow]);
 
-  const url = `/api/github/tags/${repoOwner}/${repoName}/${workflow}/${sha}`;
+  const url = `/api/github/dispatch/${repoOwner}/${repoName}/${workflow}/${sha}`;
   // Only want to tag the commit once https://swr.vercel.app/docs/revalidation
   const { data, error } = useSWR(
     [isClicked && !alreadyRun ? url : null, accessToken],
@@ -87,7 +87,7 @@ function PeriodicWorkflow({
   );
 }
 
-export default function PeriodicWorkflows({
+export default function WorkflowDispatcher({
   repoOwner,
   repoName,
   commit,
@@ -121,7 +121,7 @@ export default function PeriodicWorkflows({
     <div>
       <h2>Run more jobs?</h2>
       {Object.keys(supportedWorkflows).map((workflow) => (
-        <PeriodicWorkflow
+        <Workflow
           key={workflow}
           userName={userName}
           accessToken={accessToken}

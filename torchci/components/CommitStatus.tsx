@@ -12,7 +12,7 @@ import {
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
 import useScrollTo from "lib/useScrollTo";
-import PeriodicWorkflows from "./PeriodicWorkflows";
+import WorkflowDispatcher from "./WorkflowDispatcher";
 import { useSession } from "next-auth/react";
 
 function WorkflowsContainer({ jobs }: { jobs: JobData[] }) {
@@ -111,7 +111,7 @@ export default function CommitStatus({
       />
       <WorkflowsContainer jobs={jobs} />
       {isAuthenticated && isCommitPage && (
-        <PeriodicWorkflows
+        <WorkflowDispatcher
           repoOwner={repoOwner}
           repoName={repoName}
           commit={commit}

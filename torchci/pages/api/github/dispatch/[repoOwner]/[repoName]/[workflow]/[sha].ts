@@ -1,9 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
-
-function hasWritePermission(permission: string) {
-  return permission === "admin" || permission === "write";
-}
+import { hasWritePermissionsUsingOctokit } from "lib/bot/utils";
 
 export default async function handler(
   req: NextApiRequest,
@@ -40,19 +37,13 @@ export default async function handler(
   }
 
   const username = user.data.login;
-  const permission = await octokit.rest.repos.getCollaboratorPermissionLevel({
-    owner,
-    repo,
+  const hasWritePermissions = await hasWritePermissionsUsingOctokit(
+    octokit,
     username,
-  });
-  if (
-    permission === undefined ||
-    permission.data === undefined ||
-    permission.data.permission === undefined
-  ) {
-    return res.status(403).end();
-  }
-  if (!hasWritePermission(permission.data.permission)) {
+    owner,
+    repo
+  );
+  if (!hasWritePermissions) {
     return res.status(403).end();
   }
 
