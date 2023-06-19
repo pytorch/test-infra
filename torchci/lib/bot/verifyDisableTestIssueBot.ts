@@ -16,6 +16,7 @@ export const supportedPlatforms = new Set([
   "mac",
   "macos",
   "rocm",
+  "slow",
   "win",
   "windows",
   "dynamo",
