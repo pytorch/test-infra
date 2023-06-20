@@ -816,6 +816,11 @@
     "https://github.com/pytorch/pytorch/issues/103872",
     []
   ],
+  "test_ddp_checkpointing_weight_sharing_use_reentrant_False (__main__.TestDDPWithWorkWrapper)": [
+    "103876",
+    "https://github.com/pytorch/pytorch/issues/103876",
+    []
+  ],
   "test_ddp_dist_autograd_local_vs_remote (__main__.TensorPipeDdpComparisonTestWithSpawn)": [
     "60274",
     "https://github.com/pytorch/pytorch/issues/60274",
