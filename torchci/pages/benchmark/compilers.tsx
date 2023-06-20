@@ -76,7 +76,12 @@ export const SUITES: { [k: string]: string } = {
   dynamic: "[Dynamic]",
   blueberries: "[Blueberries]",
 };
-export const MODES = ["training", "inference"];
+export const DEFAULT_MODE = "training";
+// The value is the default dtype for that mode
+export const MODES: { [k: string]: string } = {
+  training: "amp",
+  inference: "bfloat16",
+};
 export const DTYPES = ["amp", "float16", "bfloat16"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
 
@@ -492,9 +497,19 @@ export function SuitePicker({
   );
 }
 
-export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
+export function ModePicker({
+  mode,
+  setMode,
+  setDType,
+}: {
+  mode: string;
+  setMode: any;
+  setDType: any;
+}) {
   function handleChange(e: SelectChangeEvent<string>) {
-    setMode(e.target.value);
+    const selectedMode = e.target.value;
+    setMode(selectedMode);
+    setDType(selectedMode in MODES ? MODES[selectedMode] : "amp");
   }
 
   return (
@@ -508,7 +523,7 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
           onChange={handleChange}
           id="mode-picker-select"
         >
-          {MODES.map((mode) => (
+          {Object.keys(MODES).map((mode) => (
             <MenuItem key={mode} value={mode}>
               {mode}
             </MenuItem>
@@ -553,6 +568,7 @@ export function DTypePicker({
 }
 
 function groupCommitByBranch(data: any) {
+  const dedups: { [k: string]: Set<string> } = {};
   const branches: { [k: string]: any[] } = {};
   data.forEach((r: any) => {
     const b = DEFAULT_BRANCHES.includes(r.head_branch)
@@ -560,6 +576,10 @@ function groupCommitByBranch(data: any) {
       : r.head_branch;
     if (!(b in branches)) {
       branches[b] = [];
+      dedups[b] = new Set<string>();
+    }
+    if (dedups[b].has(r.head_sha)) {
+      return;
     }
 
     branches[b].push({
@@ -568,6 +588,7 @@ function groupCommitByBranch(data: any) {
       // This is used to sort the list of branches to show the main branch first
       display_priority: DEFAULT_BRANCHES.includes(r.head_branch) ? 99 : 1,
     });
+    dedups[b].add(r.head_sha);
   });
 
   return branches;
@@ -713,21 +734,13 @@ export function BranchAndCommitPicker({
   );
 }
 
-export function LogLinks({
-  key,
-  suite,
-  logs,
-}: {
-  key: string;
-  suite: string;
-  logs: any;
-}) {
+export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
   return (
     <>
       {" "}
       {SUITES[suite]} (
       {logs.map((log: any) => (
-        <a key={`${key}-${log.index}`} href={log.url}>
+        <a key={log.url} href={log.url}>
           #{log.index}
           {log.index === log.total ? "" : ", "}
         </a>
@@ -772,7 +785,6 @@ function CommitPanel({
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  data = AugmentData(data);
 
   if (data === undefined || data.length === 0) {
     return <></>;
@@ -821,11 +833,11 @@ function CommitPanel({
         </a>
         . The running logs per shard are:{" "}
         {Object.keys(SUITES).map((suite: string) => {
+          const name = suite.includes("timm") ? "timm" : suite;
           // Hack alert: The test configuration uses timm instead of timm_model as its output
           if (SUITES[suite].startsWith("[")) {
-            return <></>;
+            return <span key={`log-${name}`}></span>;
           }
-          const name = suite.includes("timm") ? "timm" : suite;
           return (
             <LogLinks
               key={`log-${name}`}
@@ -1467,7 +1479,6 @@ function SuiteGraphPanel({
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  data = AugmentData(data);
 
   if (error !== undefined) {
     return (
@@ -1881,8 +1892,8 @@ export default function Page() {
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [mode, setMode] = useState<string>(MODES[0]);
-  const [dtype, setDType] = useState<string>(DTYPES[0]);
+  const [mode, setMode] = useState<string>(DEFAULT_MODE);
+  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -2019,7 +2030,7 @@ export default function Page() {
           setGranularity={setGranularity}
         />
         <SuitePicker suite={suite} setSuite={setSuite} />
-        <ModePicker mode={mode} setMode={setMode} />
+        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           queryParams={queryParams}

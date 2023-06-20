@@ -46,6 +46,7 @@ import {
   DIFF_HEADER,
   AugmentData,
   ModePicker,
+  DEFAULT_MODE,
   MODES,
   LogLinks,
   JOB_NAME_REGEX,
@@ -1049,8 +1050,8 @@ export default function Page() {
   const [timeRange, setTimeRange] = useState<number>(LAST_N_DAYS);
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
-  const [mode, setMode] = useState<string>(MODES[0]);
-  const [dtype, setDType] = useState<string>(DTYPES[0]);
+  const [mode, setMode] = useState<string>(DEFAULT_MODE);
+  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -1194,7 +1195,7 @@ export default function Page() {
           granularity={granularity}
           setGranularity={setGranularity}
         />
-        <ModePicker mode={mode} setMode={setMode} />
+        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           branch={rBranch}
