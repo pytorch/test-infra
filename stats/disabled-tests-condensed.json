@@ -156,23 +156,9 @@
       "rocm"
     ]
   ],
-  "test_avg_pool2d_backward3_cpu (__main__.CpuTests)": [
-    "103044",
-    "https://github.com/pytorch/pytorch/issues/103044",
-    [
-      "rocm"
-    ]
-  ],
   "test_avg_pool2d_backward4_cpu (__main__.CpuTests)": [
     "103028",
     "https://github.com/pytorch/pytorch/issues/103028",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d_backward_cpu (__main__.CpuTests)": [
-    "103045",
-    "https://github.com/pytorch/pytorch/issues/103045",
     [
       "rocm"
     ]
@@ -203,13 +189,6 @@
     "59794",
     "https://github.com/pytorch/pytorch/issues/59794",
     []
-  ],
-  "test_baddbmm_cpu (__main__.CpuTests)": [
-    "103046",
-    "https://github.com/pytorch/pytorch/issues/103046",
-    [
-      "rocm"
-    ]
   ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
@@ -1072,6 +1051,13 @@
       "inductor"
     ]
   ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1162,6 +1148,13 @@
   "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
     "94625",
     "https://github.com/pytorch/pytorch/issues/94625",
+    [
+      "linux"
+    ]
+  ],
+  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93063",
+    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
