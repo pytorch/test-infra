@@ -232,13 +232,6 @@
       "rocm"
     ]
   ],
-  "test_bernoulli2_cpu (__main__.CpuTests)": [
-    "103062",
-    "https://github.com/pytorch/pytorch/issues/103062",
-    [
-      "rocm"
-    ]
-  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "98998",
     "https://github.com/pytorch/pytorch/issues/98998",
