@@ -7,7 +7,7 @@ from typing import Optional, List, Tuple
 
 from .common import LintViolation, deep_multi_replace
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 class TorchVisitor(cst.CSTVisitor):
