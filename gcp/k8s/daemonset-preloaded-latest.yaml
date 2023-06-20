@@ -105,7 +105,7 @@ spec:
         # https://github.com/pytorch/test-infra/blob/main/.github/actions/setup-nvidia/action.yml#L10
         # It also has to match with the versions supported by Google COS at
         # https://cloud.google.com/container-optimized-os/docs/release-notes/m101
-        command: ['/cos-gpu-installer', 'install', '--version=525.60.13']
+        command: ['/cos-gpu-installer', 'install', '--version=latest']
       containers:
       - image: "gcr.io/google-containers/pause:2.0"
         name: pause
