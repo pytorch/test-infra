@@ -2021,13 +2021,6 @@
       "dynamo"
     ]
   ],
-  "test_vjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "103072",
-    "https://github.com/pytorch/pytorch/issues/103072",
-    [
-      "linux"
-    ]
-  ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86770",
     "https://github.com/pytorch/pytorch/issues/86770",
