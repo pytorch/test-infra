@@ -253,20 +253,6 @@
       "rocm"
     ]
   ],
-  "test_bmm1_cpu (__main__.CpuTests)": [
-    "103098",
-    "https://github.com/pytorch/pytorch/issues/103098",
-    [
-      "rocm"
-    ]
-  ],
-  "test_bmm2_cpu (__main__.CpuTests)": [
-    "103097",
-    "https://github.com/pytorch/pytorch/issues/103097",
-    [
-      "rocm"
-    ]
-  ],
   "test_bool_cpu (__main__.CpuTests)": [
     "103122",
     "https://github.com/pytorch/pytorch/issues/103122",
@@ -428,13 +414,6 @@
     "https://github.com/pytorch/pytorch/issues/91491",
     [
       "linux"
-    ]
-  ],
-  "test_cat_cpu (__main__.CpuTests)": [
-    "103096",
-    "https://github.com/pytorch/pytorch/issues/103096",
-    [
-      "rocm"
     ]
   ],
   "test_cat_extern_kernel_cpu (__main__.CpuTests)": [
