@@ -670,6 +670,15 @@
       "linux"
     ]
   ],
+  "test_cond_export (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103871",
+    "https://github.com/pytorch/pytorch/issues/103871",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_cond_export (__main__.DynamicShapesMiscTests)": [
     "102032",
     "https://github.com/pytorch/pytorch/issues/102032",
