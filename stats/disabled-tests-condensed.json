@@ -1063,11 +1063,6 @@
       "rocm"
     ]
   ],
-  "test_forward_overlap (__main__.TestForwardOverlapWorldSizeTwo)": [
-    "71183",
-    "https://github.com/pytorch/pytorch/issues/71183",
-    []
-  ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
     "69659",
     "https://github.com/pytorch/pytorch/issues/69659",
