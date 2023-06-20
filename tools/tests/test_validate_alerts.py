@@ -1,7 +1,7 @@
 from unittest import TestCase, main
 import json
 import jsonschema
-import tools.scripts.validate_alerts as validate_alerts
+import tools.alerts.validate_alerts as validate_alerts
 
 # valid json data
 valid_json = json.dumps([
