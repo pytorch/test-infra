@@ -28,13 +28,13 @@ runs:
     - name: Run Script to Validate Alerts
       shell: bash
       run: | 
-        python3 _test-infra/tools/scripts/validate_alerts.py --alerts '${{ inputs.alerts }}'
+        python3 _test-infra/tools/alerts/validate_alerts.py --alerts '${{ inputs.alerts }}'
 
     - name: Run Script to Upload Alerts
       shell: bash
       if: github.event_name != 'pull_request'
       run: |
-       python3 _test-infra/tools/scripts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
+       python3 _test-infra/tools/alerts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
 
     - name: Cleanup
       run: |
