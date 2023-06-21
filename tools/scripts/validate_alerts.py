@@ -1,8 +1,10 @@
 import argparse
+from collections import defaultdict
 import json
 import jsonschema
+import copy
 
-ALERT_SCHEMA = {
+BASE_ALERT_SCHEMA = {
     "type": "array",
     "items": {
         "type": "object",
@@ -12,9 +14,18 @@ ALERT_SCHEMA = {
             "OncallTeams": { "type": "array", "items": { "type": "string" } },
             "OncallIndividuals": { "type": "array", "items": { "type": "string" } },
             "Flags": { "type": "array", "items": { "type": "string" } },
-        }
+            "branch": { "type": "string" },
+        },
+        "additionalProperties": True,
+        "required": ["AlertType", "AlertObject", "OncallTeams", "OncallIndividuals", "Flags", "branch"],
     }
 }
+
+EXTRA_ALERT_PROPERTIES = {
+    "RecurentlyFailingJobAlert" : {
+            "sha": { "type": "string" },
+        }
+    }
 
 def validate_json(json_string):
     try:
@@ -23,8 +34,15 @@ def validate_json(json_string):
     except ValueError as e:
         raise ValueError(f"The input string is not a valid JSON: Error: {e}")
 def validate_schema(json_string):
+    all_alerts_schemas = defaultdict(lambda: copy.deepcopy(BASE_ALERT_SCHEMA))
+    for alert_type, alert_schema_add_on in EXTRA_ALERT_PROPERTIES.items():
+        all_alerts_schemas[alert_type]["items"]["properties"].update(alert_schema_add_on)
+        all_alerts_schemas[alert_type]["items"]["additionalProperties"] = False
+        for property in alert_schema_add_on.keys():
+            all_alerts_schemas[alert_type]["items"]["required"].append(property)
     json_object = json.loads(json_string)
-    jsonschema.validate(instance=json_object, schema=ALERT_SCHEMA)
+    for alert in json_object:
+        jsonschema.validate(instance=[alert], schema=all_alerts_schemas[alert["AlertType"]])
 
 
 def main():
