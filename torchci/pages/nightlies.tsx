@@ -1,34 +1,22 @@
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
-import {
-  GridRenderCellParams,
-  GridValueFormatterParams,
-} from "@mui/x-data-grid";
 import useSWR from "swr";
 import {
   Grid,
   Paper,
-  TextField,
   Typography,
   Stack,
   Skeleton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  SelectChangeEvent,
 } from "@mui/material";
-import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
 
 import TablePanel from "components/metrics/panels/TablePanel";
-import { durationDisplay } from "components/TimeUtils";
+import { TimeRangePicker } from "pages/metrics";
 
 function NightlyJobsRedPanel({ params, repo }: { params: RocksetParam[], repo: string }) {
 
@@ -84,132 +72,6 @@ function NightlyJobsRedPanel({ params, repo }: { params: RocksetParam[], repo: s
         option={options}
       />
     </Paper>
-  );
-}
-
-function TimePicker({ label, value, setValue }: any) {
-  return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <DateTimePicker
-        renderInput={(props) => <TextField {...props} />}
-        label={label}
-        value={value}
-        onChange={(newValue) => {
-          setValue(newValue);
-        }}
-      />
-    </LocalizationProvider>
-  );
-}
-
-/**
- * Allows the user to pick from common time ranges, or manually set their own.
- */
-export function TimeRangePicker({
-  startTime,
-  setStartTime,
-  stopTime,
-  setStopTime,
-  timeRange,
-  setTimeRange,
-  setGranularity,
-}: {
-  startTime: dayjs.Dayjs;
-  setStartTime: any;
-  stopTime: dayjs.Dayjs;
-  setStopTime: any;
-  timeRange: any;
-  setTimeRange: any;
-  setGranularity?: any;
-}) {
-  function updateTimeRange() {
-    if (timeRange === -1) {
-      return;
-    }
-    const startTime = dayjs().subtract(timeRange, "day");
-    setStartTime(startTime);
-    const stopTime = dayjs();
-    setStopTime(stopTime);
-  }
-
-  // Keep the current time range updated.
-  useEffect(() => {
-    const id = setInterval(updateTimeRange, 1000 * 60 * 5 /*5 minutes*/);
-    return () => clearInterval(id);
-  }, [timeRange, updateTimeRange]);
-
-  function handleChange(e: SelectChangeEvent<number>) {
-    setTimeRange(e.target.value as number);
-    // The user wants to set a custom time, don't change the start and stop
-    // time.
-    if (e.target.value !== -1) {
-      const startTime = dayjs().subtract(e.target.value as number, "day");
-      setStartTime(startTime);
-      const stopTime = dayjs();
-      setStopTime(stopTime);
-    }
-
-    if (setGranularity === undefined) {
-      return;
-    }
-
-    // When setGranularity is provided, this picker can use it to switch to a
-    // bigger granularity automatically when a longer time range is selected.
-    // The users can still select a smaller granularity if they want to
-    switch (e.target.value as number) {
-      case 1:
-      case 3:
-      case 7:
-      case 14:
-        setGranularity("hour");
-        break;
-      case 30:
-        setGranularity("day");
-        break;
-      case 90:
-      case 180:
-      case 365:
-        setGranularity("week");
-        break;
-    }
-  }
-
-  return (
-    <>
-      <FormControl>
-        <InputLabel id="time-picker-select-label">Time Range</InputLabel>
-        <Select
-          value={timeRange}
-          label="Time Range"
-          labelId="time-picker-select-label"
-          onChange={handleChange}
-        >
-          <MenuItem value={1}>Last 1 Day</MenuItem>
-          <MenuItem value={3}>Last 3 Days</MenuItem>
-          <MenuItem value={7}>Last 7 Days</MenuItem>
-          <MenuItem value={14}>Last 14 Days</MenuItem>
-          <MenuItem value={30}>Last Month</MenuItem>
-          <MenuItem value={90}>Last Quarter</MenuItem>
-          <MenuItem value={180}>Last Half</MenuItem>
-          <MenuItem value={365}>Last Year</MenuItem>
-          <MenuItem value={-1}>Custom</MenuItem>
-        </Select>
-      </FormControl>
-      {timeRange === -1 && (
-        <>
-          <TimePicker
-            label={"Start Time"}
-            value={startTime}
-            setValue={setStartTime}
-          />
-          <TimePicker
-            label={"Stop Time"}
-            value={stopTime}
-            setValue={setStopTime}
-          />
-        </>
-      )}
-    </>
   );
 }
 
