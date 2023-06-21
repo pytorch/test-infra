@@ -11,10 +11,8 @@ import {
 } from "@mui/material";
 
 import { useState } from "react";
-
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
-
 import TablePanel from "components/metrics/panels/TablePanel";
 import { TimeRangePicker } from "pages/metrics";
 
