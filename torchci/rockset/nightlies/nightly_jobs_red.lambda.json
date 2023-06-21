@@ -4,27 +4,22 @@
     {
       "name": "granularity",
       "type": "string",
-      "value": "hour"
+      "value": "day"
     },
     {
       "name": "startTime",
       "type": "string",
-      "value": "2022-02-09T00:06:32.839Z"
+      "value": "2023-05-01T00:00:38.270Z"
     },
     {
       "name": "stopTime",
       "type": "string",
-      "value": "2022-02-16T00:06:32.839Z"
+      "value": "2023-06-17T20:20:38.270Z"
     },
     {
       "name": "timezone",
       "type": "string",
       "value": "America/Los_Angeles"
-    },
-    {
-      "name": "repo",
-      "type": "string",
-      "value": "pytorch"
     }
   ],
   "description": ""
