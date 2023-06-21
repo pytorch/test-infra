@@ -204,6 +204,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
+    "100159",
+    "https://github.com/pytorch/pytorch/issues/100159",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_sub_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "103310",
     "https://github.com/pytorch/pytorch/issues/103310",
@@ -358,27 +365,6 @@
     "https://github.com/pytorch/pytorch/issues/91491",
     [
       "linux"
-    ]
-  ],
-  "test_cat_inplace_cpu (__main__.CpuTests)": [
-    "103143",
-    "https://github.com/pytorch/pytorch/issues/103143",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cat_of_loops_and_extern_kernel_cpu (__main__.CpuTests)": [
-    "103144",
-    "https://github.com/pytorch/pytorch/issues/103144",
-    [
-      "rocm"
-    ]
-  ],
-  "test_cat_upcasting_cpu (__main__.CpuTests)": [
-    "103145",
-    "https://github.com/pytorch/pytorch/issues/103145",
-    [
-      "rocm"
     ]
   ],
   "test_cauchy_cpu (__main__.CpuTests)": [
