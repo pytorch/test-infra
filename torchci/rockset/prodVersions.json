@@ -84,5 +84,13 @@
     "runner_utilization": "2dfc4f9c16e51da0",
     "runner_utilization_by_repo": "2ca7468c6f158924",
     "runner_utilization_by_activity": "343929e0ebeee379"
+  },
+  "nightlies": {
+    "nightly_jobs_red": "5835691828438191",
+    "nightly_jobs_red_by_name": "bb6eeb316157ed2b",
+    "nightly_jobs_red_by_platform": "d5ab478e83ff2dae",
+    "nightly_jobs_red_past_day": "e74af839c37e1517",
+    "validation_jobs_red": "ac8dee6e6b76916d",
+    "validation_jobs_red_past_day": "aecb798a574ba2ff"
   }
 }

@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/validation_jobs_red_past_day.sql",
+  "default_parameters": [
+    {
+      "name": "channel",
+      "type": "string",
+      "value": "release"
+    }
+  ],
+  "description": ""
+}

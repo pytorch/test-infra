@@ -1,0 +1,16 @@
+{
+  "sql_path": "__sql/nightly_jobs_red_by_name.sql",
+  "default_parameters": [
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-06-16T00:00:38.270Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-06-16T20:20:38.270Z"
+    }
+  ],
+  "description": ""
+}
