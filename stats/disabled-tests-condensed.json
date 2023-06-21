@@ -183,6 +183,14 @@
       "linux"
     ]
   ],
+  "test_batch_norm_implicit_dtype_promotion (__main__.TestNvFuserDynamo)": [
+    "103980",
+    "https://github.com/pytorch/pytorch/issues/103980",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_batch_norm_implicit_dtype_promotion (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
     "103420",
     "https://github.com/pytorch/pytorch/issues/103420",
@@ -592,6 +600,14 @@
   "test_cond_export_single_arg_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102165",
     "https://github.com/pytorch/pytorch/issues/102165",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_cond_nested (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103979",
+    "https://github.com/pytorch/pytorch/issues/103979",
     [
       "asan",
       "linux"
