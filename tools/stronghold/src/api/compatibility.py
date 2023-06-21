@@ -117,14 +117,14 @@ def _check_by_name(
             )
             continue
         if not _check_type_compatibility(
-            before_param.annotation, after_param.annotation
+            before_param.type_annotation, after_param.type_annotation
         ):
             yield api.violations.ParameterTypeChanged(
                 func=func,
                 parameter=name,
                 line=after.line,
-                type_before=str(before_param.annotation),
-                type_after=str(after_param.annotation),
+                type_before=str(before_param.type_annotation),
+                type_after=str(after_param.type_annotation),
             )
         assert after_param.name == name
 
@@ -158,13 +158,15 @@ def _check_by_position(
 
     if before_param_names == after_param_names:
         for p_before, p_after in zip(before_params, after_params):
-            if not _check_type_compatibility(p_before.annotation, p_after.annotation):
+            if not _check_type_compatibility(
+                p_before.type_annotation, p_after.type_annotation
+            ):
                 yield api.violations.ParameterTypeChanged(
                     func=func,
                     parameter=p_before.name,
                     line=p_after.line,
-                    type_before=str(p_before.annotation),
-                    type_after=str(p_after.annotation),
+                    type_before=str(p_before.type_annotation),
+                    type_after=str(p_after.type_annotation),
                 )
         return
 

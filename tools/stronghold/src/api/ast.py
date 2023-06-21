@@ -50,7 +50,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
             keyword=False,
             required=i < num_required,
             line=arg.lineno,
-            annotation=api.types.annotation_to_dataclass(arg.annotation),
+            type_annotation=api.types.annotation_to_dataclass(arg.annotation),
         )
         for i, arg in enumerate(args.posonlyargs)
     ]
@@ -63,7 +63,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
             keyword=True,
             required=i < num_required,
             line=arg.lineno,
-            annotation=api.types.annotation_to_dataclass(arg.annotation),
+            type_annotation=api.types.annotation_to_dataclass(arg.annotation),
         )
         for i, arg in enumerate(args.args, start=len(args.posonlyargs))
     ]
@@ -77,7 +77,7 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
             keyword=True,
             required=args.kw_defaults[i] is None,
             line=arg.lineno,
-            annotation=api.types.annotation_to_dataclass(arg.annotation),
+            type_annotation=api.types.annotation_to_dataclass(arg.annotation),
         )
         for i, arg in enumerate(args.kwonlyargs)
     ]

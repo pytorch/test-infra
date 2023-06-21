@@ -39,4 +39,4 @@ class Parameter:
     # Which line the parameter is defined on.
     line: int
     # Type annotation (relies on ast.annotation types)
-    annotation: Optional[api.types.TypeHint] = None
+    type_annotation: Optional[api.types.TypeHint] = None

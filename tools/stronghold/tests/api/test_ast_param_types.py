@@ -17,7 +17,9 @@ def extract_parameter_types(
     funcs = api.ast.extract(tmp_path)
     if not funcs:
         return []
-    return [param.annotation for func in funcs.values() for param in func.parameters]
+    return [
+        param.type_annotation for func in funcs.values() for param in func.parameters
+    ]
 
 
 def test_none(tmp_path: pathlib.Path) -> None:
