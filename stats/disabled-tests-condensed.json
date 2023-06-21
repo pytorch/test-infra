@@ -27,13 +27,6 @@
       "rocm"
     ]
   ],
-  "test_Dropout1d_cpu (__main__.TestNNDeviceTypeCPU)": [
-    "84186",
-    "https://github.com/pytorch/pytorch/issues/84186",
-    [
-      "linux"
-    ]
-  ],
   "test_MaxUnpool_index_errors_case1_cuda (__main__.TestPoolingNNDeviceTypeCUDA)": [
     "103854",
     "https://github.com/pytorch/pytorch/issues/103854",
