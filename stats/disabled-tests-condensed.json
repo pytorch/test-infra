@@ -190,7 +190,7 @@
       "linux"
     ]
   ],
-  "test_batch_norm_implicit_dtype_promotion (__main__.TestNvFuserDynamo)": [
+  "test_batch_norm_implicit_dtype_promotion (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
     "103420",
     "https://github.com/pytorch/pytorch/issues/103420",
     [
@@ -247,7 +247,8 @@
     "https://github.com/pytorch/pytorch/issues/103723",
     [
       "asan",
-      "linux"
+      "linux",
+      "rocm"
     ]
   ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
