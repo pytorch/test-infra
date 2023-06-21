@@ -1,4 +1,12 @@
 {
+  "Upload Alerts to AWS/Rockset / upload-alerts": [
+    "PaliC",
+    "103998",
+    "https://github.com/pytorch/pytorch/issues/103998",
+    "Upload Alerts to AWS",
+    "Rockset",
+    "upload-alerts"
+  ],
   "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
     "huydhn",
     "102789",
