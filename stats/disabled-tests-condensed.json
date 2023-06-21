@@ -142,27 +142,6 @@
       "windows"
     ]
   ],
-  "test_avg_pool2d7_cpu (__main__.CpuTests)": [
-    "103029",
-    "https://github.com/pytorch/pytorch/issues/103029",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d8_cpu (__main__.CpuTests)": [
-    "103027",
-    "https://github.com/pytorch/pytorch/issues/103027",
-    [
-      "rocm"
-    ]
-  ],
-  "test_avg_pool2d_backward4_cpu (__main__.CpuTests)": [
-    "103028",
-    "https://github.com/pytorch/pytorch/issues/103028",
-    [
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
@@ -228,27 +207,6 @@
   "test_binary_op__foreach_sub_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "103310",
     "https://github.com/pytorch/pytorch/issues/103310",
-    [
-      "rocm"
-    ]
-  ],
-  "test_bitwise2_cpu (__main__.CpuTests)": [
-    "103076",
-    "https://github.com/pytorch/pytorch/issues/103076",
-    [
-      "rocm"
-    ]
-  ],
-  "test_bitwise3_cpu (__main__.CpuTests)": [
-    "103077",
-    "https://github.com/pytorch/pytorch/issues/103077",
-    [
-      "rocm"
-    ]
-  ],
-  "test_bitwise_cpu (__main__.CpuTests)": [
-    "103078",
-    "https://github.com/pytorch/pytorch/issues/103078",
     [
       "rocm"
     ]
@@ -584,6 +542,15 @@
       "linux"
     ]
   ],
+  "test_cond (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103936",
+    "https://github.com/pytorch/pytorch/issues/103936",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_cond (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101826",
     "https://github.com/pytorch/pytorch/issues/101826",
@@ -652,6 +619,15 @@
     "https://github.com/pytorch/pytorch/issues/95270",
     [
       "linux"
+    ]
+  ],
+  "test_cond_export_single_arg_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
+    "103937",
+    "https://github.com/pytorch/pytorch/issues/103937",
+    [
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_cond_export_single_arg_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
@@ -821,6 +797,14 @@
   "test_delayed_optim_step_offload_true_no_shard (__main__.TestParityWithDDP)": [
     "82490",
     "https://github.com/pytorch/pytorch/issues/82490",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
+    "79885",
+    "https://github.com/pytorch/pytorch/issues/79885",
     [
       "linux",
       "rocm"
@@ -1215,6 +1199,13 @@
     "https://github.com/pytorch/pytorch/issues/102113",
     [
       "inductor"
+    ]
+  ],
+  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95148",
+    "https://github.com/pytorch/pytorch/issues/95148",
+    [
+      "linux"
     ]
   ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
