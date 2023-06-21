@@ -26,7 +26,7 @@ FROM
             AND workflow.name NOT IN ('cron', 'Bandit', 'tests')
             AND push.ref = 'refs/heads/nightly'
             AND push.repository.owner.name = 'pytorch'
-            AND push.repository.name = 'pytorch'
+            AND push.repository.name = :repo
             AND job._event_time >= PARSE_DATETIME_ISO8601(:startTime)
             AND job._event_time < PARSE_DATETIME_ISO8601(:stopTime)
     ) as all_job
