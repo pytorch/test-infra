@@ -142,6 +142,13 @@
       "linux"
     ]
   ],
+  "test_backward_ddp_outside_uneven_inputs (__main__.TensorPipeDdpUnderDistAutogradTest)": [
+    "104011",
+    "https://github.com/pytorch/pytorch/issues/104011",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
     "38317",
     "https://github.com/pytorch/pytorch/issues/38317",
@@ -369,13 +376,6 @@
       "linux"
     ]
   ],
-  "test_cauchy_cpu (__main__.CpuTests)": [
-    "103180",
-    "https://github.com/pytorch/pytorch/issues/103180",
-    [
-      "rocm"
-    ]
-  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
@@ -408,20 +408,6 @@
     "https://github.com/pytorch/pytorch/issues/79510",
     [
       "linux"
-    ]
-  ],
-  "test_clamp_cpu (__main__.CpuTests)": [
-    "103179",
-    "https://github.com/pytorch/pytorch/issues/103179",
-    [
-      "rocm"
-    ]
-  ],
-  "test_clamp_type_promotion_cpu (__main__.CpuTests)": [
-    "103206",
-    "https://github.com/pytorch/pytorch/issues/103206",
-    [
-      "rocm"
     ]
   ],
   "test_class_compile (__main__.TestRecursiveScript)": [
@@ -640,13 +626,6 @@
     "https://github.com/pytorch/pytorch/issues/102863",
     [
       "linux"
-    ]
-  ],
-  "test_constant_pad_3d_cpu (__main__.CpuTests)": [
-    "103207",
-    "https://github.com/pytorch/pytorch/issues/103207",
-    [
-      "rocm"
     ]
   ],
   "test_constant_pad_float64_cpu (__main__.CpuTests)": [
@@ -1644,6 +1623,16 @@
     "https://github.com/pytorch/pytorch/issues/82501",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_public_api_surface (__main__.TestFXAPIBackwardCompatibility)": [
+    "104012",
+    "https://github.com/pytorch/pytorch/issues/104012",
+    [
+      "linux",
+      "mac",
+      "macos",
       "rocm"
     ]
   ],
