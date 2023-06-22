@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 import dataclasses
+from typing import Optional
+import api.types
 
 
 @dataclasses.dataclass
@@ -36,3 +38,5 @@ class Parameter:
     required: bool
     # Which line the parameter is defined on.
     line: int
+    # Type annotation (relies on ast.annotation types)
+    type_annotation: Optional[api.types.TypeHint] = None
