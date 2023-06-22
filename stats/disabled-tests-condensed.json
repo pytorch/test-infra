@@ -6,13 +6,6 @@
       "linux"
     ]
   ],
-  "test_Conv2d_no_bias_cuda_tf32 (__main__.TestNN)": [
-    "102291",
-    "https://github.com/pytorch/pytorch/issues/102291",
-    [
-      "linux"
-    ]
-  ],
   "test_DistributedDataParallel (__main__.TestDistBackendWithSpawn)": [
     "77317",
     "https://github.com/pytorch/pytorch/issues/77317",
