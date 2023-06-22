@@ -32,8 +32,11 @@ def check_range(
         if file.name.startswith('_'):
             # Ignore internal modules.
             continue
-        if any(dir.name.startswith('test') for dir in file.parents):
-            # Ignore test packages.
+        if any(dir.name == 'test' for dir in file.parents):
+            # Ignore tests (not part of PyTorch package).
+            continue
+        if any(dir.name == 'benchmarks' for dir in file.parents):
+            # Ignore benchmarks (not part of PyTorch package).
             continue
         if file.name.startswith('test_') or file.stem.endswith('_test'):
             # Ignore test files.
