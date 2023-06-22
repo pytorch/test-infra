@@ -37,7 +37,7 @@ def check_range(
             continue
         if any(dir.name == 'benchmarks' for dir in file.parents):
             # Ignore benchmarks (not part of PyTorch package).
-            continue            
+            continue
         if file.name.startswith('test_') or file.stem.endswith('_test'):
             # Ignore test files.
             continue
