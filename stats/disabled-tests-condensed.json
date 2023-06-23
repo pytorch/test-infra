@@ -226,13 +226,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_sub_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
-    "103310",
-    "https://github.com/pytorch/pytorch/issues/103310",
-    [
-      "rocm"
-    ]
-  ],
   "test_bmm_1d_mesh (__main__.TestEinsumStrategies)": [
     "104086",
     "https://github.com/pytorch/pytorch/issues/104086",
