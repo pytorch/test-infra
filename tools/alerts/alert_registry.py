@@ -68,6 +68,36 @@ def handle_recurrently_failing_jobs(alerts: List[Dict[str, Any]]) -> Any:
         update_issue(issue, existing_alerts[-1])
     return issue
 
+@register_alert("Metric Threshold")
+def handle_threshold_exceeded_alert(alerts: List[Dict[str, Any]]) -> Any:
+    _assert_same_repo_and_type(alerts)
+    _assert_same_branch(alerts)
+    repo = alerts[0]["repo"]
+    issues = []
+    for alert in alerts:
+        issue = generate_metric_threshold_alert(alerts)
+        existing_alerts = fetch_alerts_filter(repo, [PYTORCH_ALERT_LABEL], alerts[0]["AlertType"])
+        clear_alerts(existing_alerts[:-1])
+        if len(existing_alerts) == 0:
+            existing_alerts.push(issue)
+            create_issue(issue)
+        else:
+            update_issue(issue, existing_alerts[-1])
+        issues.append(issue)
+    return issues
+
+def generate_metric_threshold_alert(alert: Dict[str, Any]) -> Any:
+    issue = {}
+    has_increased = alert["flags"]
+    measurement_name = alert["MeasurementName"]
+
+    issue["title"] = f"[{alert[0]['repo']}] [{alert[0]['AlertType']}] [Branch: {alert[0]['branch']}] [TEST ALERT PAY NO ATTENTION TO THIS] "
+    issue["body"] = f"{measurement_name} has {'increased above' if has_increased else 'decreased below'} by {alert['ThresholdDescription']}%! \n"
+    issue["labels"] = [PYTORCH_ALERT_LABEL, alerts[0]["AlertType"]]
+    issue["state"] = "open"
+    return issue
+
+
 def generate_failed_job_hud_link(failed_job_name: str) -> str:
     # TODO: I don't think minihud is universal across multiple repositories
     #       would be good to just replace this with something that is

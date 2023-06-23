@@ -21,9 +21,13 @@ BASE_ALERT_SCHEMA = {
     }
 }
 
-EXTRA_ALERT_PROPERTIES = {
+EXTRA_PROPERTIES = {
     "RecurentlyFailingJobAlert" : {
             "sha": { "type": "string" },
+        },
+    "ThresholdAlert" : {
+        "MeasurementName": { "type": "string" },
+        "ThresholdDescription": { "type": "string" },
         }
     }
 
@@ -35,7 +39,7 @@ def validate_json(json_string):
         raise ValueError(f"The input string is not a valid JSON: Error: {e}")
 def validate_schema(json_string):
     all_alerts_schemas = defaultdict(lambda: copy.deepcopy(BASE_ALERT_SCHEMA))
-    for alert_type, alert_schema_add_on in EXTRA_ALERT_PROPERTIES.items():
+    for alert_type, alert_schema_add_on in EXTRA_PROPERTIES.items():
         all_alerts_schemas[alert_type]["items"]["properties"].update(alert_schema_add_on)
         all_alerts_schemas[alert_type]["items"]["additionalProperties"] = False
         for property in alert_schema_add_on.keys():
