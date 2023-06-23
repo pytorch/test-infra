@@ -1080,6 +1080,14 @@
       "linux"
     ]
   ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_graph_concurrent_replay (__main__.TestCuda)": [
     "104055",
     "https://github.com/pytorch/pytorch/issues/104055",
