@@ -86,6 +86,21 @@ def handle_threshold_exceeded_alert(alerts: List[Dict[str, Any]]) -> Any:
         issues.append(issue)
     return issues
 
+@register_alert("QueueAlert")
+def handle_queue_alert(alerts: List[Dict[str, Any]]) -> Any:
+    _assert_same_repo_and_type(alerts)
+    _assert_same_branch(alerts)
+    repo = alerts[0]["repo"]
+    issue = generate_queue_alert(alerts)
+    existing_alerts = fetch_alerts_filter(repo, [PYTORCH_ALERT_LABEL], alerts[0]["AlertType"])
+    clear_alerts(existing_alerts[:-1])
+    if len(existing_alerts) == 0:
+        existing_alerts.push(issue)
+        create_issue(issue)
+    else:
+        update_issue(issue, existing_alerts[-1])
+    return issue
+
 def generate_metric_threshold_alert(alert: Dict[str, Any]) -> Any:
     issue = {}
     has_increased = alert["flags"]
@@ -145,5 +160,40 @@ def generate_failed_job_issue(
     body += "Please review the errors and revert if needed."
     issue["body"] = body
     issue["labels"] = [PYTORCH_ALERT_LABEL, alerts[0]["AlertType"]]
+
+    return issue
+
+
+def gen_queue_info_str(alert: Dict) -> str:
+    return f"- {alert['machine']}, {alert['count']} machines, {round(alert['hours'], 2)} hours\n"
+
+def generate_queue_alert(alerts: List[Dict]) -> Any:
+    alerts.sort(key=lambda a: a['machine'])
+    body = "These machines had long queues (exact numbers may be out of date):\n"
+    closed_alerts = []
+    for alert in alerts:
+        if alert["closed"]:
+            closed_alerts.append(alert)
+            continue
+        body += gen_queue_info_str(alerts)
+    body += "\nPlease look at the hud metrics page for more info."
+
+    issue = {}
+    if len(closed_alerts) == len(alerts):
+        issue["state"] = "closed"
+    else:
+        issue["state"] = "open"
+    issue["title"] = f"[{alerts[0]['repo']}] [{alerts[0]['AlertType']}] [Branch: {alerts[0]['branch']}] [TEST ALERT PAY NO ATTENTION TO THIS] There are {len(alerts)} machines with long queues"
+    issue["body"] = body
+    issue["labels"] = [PYTORCH_ALERT_LABEL, alerts[0]["AlertType"]]
+
+    closed_alerts.sort(key=lambda a: a["timestamp"])
+    if len(closed_alerts) > 5:
+        closed_alerts = closed_alerts[:5]
+    if len(closed_alerts) > 0:
+        issue["body"] += "\nThese machines stopped queueing recently:\n"
+        for alert in closed_alerts:
+            issue["body"] += gen_queue_info_str(alert)
+        issue["body"] += "\n"
 
     return issue
