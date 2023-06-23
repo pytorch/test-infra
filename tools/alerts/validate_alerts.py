@@ -28,6 +28,11 @@ EXTRA_PROPERTIES = {
     "ThresholdAlert" : {
         "MeasurementName": { "type": "string" },
         "ThresholdDescription": { "type": "string" },
+        },
+    "QueryAlert" : {
+        "Machine": { "type": "string" },
+        "Count": { "type": "number" },
+        "Hours": { "type": "number" },
         }
     }
 
