@@ -69,13 +69,6 @@
       "dynamo"
     ]
   ],
-  "test_all_gather_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98480",
-    "https://github.com/pytorch/pytorch/issues/98480",
-    [
-      "linux"
-    ]
-  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -963,11 +956,6 @@
       "rocm"
     ]
   ],
-  "test_fs_pool (__main__.TestMultiprocessing)": [
-    "69659",
-    "https://github.com/pytorch/pytorch/issues/69659",
-    []
-  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
@@ -1202,13 +1190,6 @@
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
     []
-  ],
-  "test_launch_user_script (__main__.TestDistributedLaunch)": [
-    "79488",
-    "https://github.com/pytorch/pytorch/issues/79488",
-    [
-      "linux"
-    ]
   ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "78377",
