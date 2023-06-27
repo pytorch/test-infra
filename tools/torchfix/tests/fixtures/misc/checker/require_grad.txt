@@ -1,2 +1,2 @@
-3:1 TOR002 Likely typo `require_grad` in assignment.
-4:1 TOR002 Likely typo `require_grad` in assignment.
+3:1 TOR002 Likely typo `require_grad` in assignment. Did you mean `requires_grad`?
+4:1 TOR002 Likely typo `require_grad` in assignment. Did you mean `requires_grad`?
