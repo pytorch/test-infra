@@ -11,7 +11,7 @@ class TorchRequireGradVisitor(TorchVisitor):
     """
 
     ERROR_CODE = "TOR002"
-    MESSAGE = "Likely typo `require_grad` in assignment."
+    MESSAGE = "Likely typo `require_grad` in assignment. Did you mean `requires_grad`?"
 
     def visit_Assign(self, node):
         # Look for any assignment with `require_grad` attribute on the left
