@@ -1788,13 +1788,6 @@
       "win"
     ]
   ],
-  "test_streaming_backwards_sync (__main__.TestCuda)": [
-    "103494",
-    "https://github.com/pytorch/pytorch/issues/103494",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -1857,6 +1850,13 @@
   "test_tiny_half_norm_ (__main__.TestCuda)": [
     "94897",
     "https://github.com/pytorch/pytorch/issues/94897",
+    [
+      "rocm"
+    ]
+  ],
+  "test_to_cpu_blocking_by_default (__main__.TestCuda)": [
+    "94956",
+    "https://github.com/pytorch/pytorch/issues/94956",
     [
       "rocm"
     ]
