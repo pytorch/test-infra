@@ -14,5 +14,13 @@
     "periodic",
     "linux-focal-rocm5.4.2-py3.8",
     "test"
+  ],
+  "pull / linux-bionic-cuda12.1-py3.10-gcc9-bazel-test / build-and-test (default)": [
+    "huydhn",
+    "104279",
+    "https://github.com/pytorch/pytorch/issues/104279",
+    "pull",
+    "linux-bionic-cuda12.1-py3.10-gcc9-bazel-test",
+    "build-and-test (default)"
   ]
 }
