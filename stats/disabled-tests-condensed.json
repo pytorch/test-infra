@@ -1246,6 +1246,13 @@
       "rocm"
     ]
   ],
+  "test_mem_get_info (__main__.TestCudaMultiGPU)": [
+    "104244",
+    "https://github.com/pytorch/pytorch/issues/104244",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1793,6 +1800,13 @@
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
+    ]
+  ],
+  "test_sum_fp16 (__main__.TestCuda)": [
+    "99953",
+    "https://github.com/pytorch/pytorch/issues/99953",
+    [
+      "rocm"
     ]
   ],
   "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
