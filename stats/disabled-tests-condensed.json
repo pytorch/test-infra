@@ -1033,13 +1033,6 @@
       "linux"
     ]
   ],
-  "test_gpt2_tiny (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_True_dynamic_shapes_False)": [
-    "103950",
-    "https://github.com/pytorch/pytorch/issues/103950",
-    [
-      "linux"
-    ]
-  ],
   "test_gpt2_tiny (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_True_dynamic_shapes_True)": [
     "103743",
     "https://github.com/pytorch/pytorch/issues/103743",
