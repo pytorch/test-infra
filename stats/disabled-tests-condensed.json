@@ -538,6 +538,14 @@
       "linux"
     ]
   ],
+  "test_cond_export_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
+    "104313",
+    "https://github.com/pytorch/pytorch/issues/104313",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101851",
     "https://github.com/pytorch/pytorch/issues/101851",
@@ -1158,13 +1166,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100614",
     "https://github.com/pytorch/pytorch/issues/100614",
@@ -1779,6 +1780,13 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
+    ]
+  ],
+  "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
+    "94880",
+    "https://github.com/pytorch/pytorch/issues/94880",
+    [
+      "rocm"
     ]
   ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
