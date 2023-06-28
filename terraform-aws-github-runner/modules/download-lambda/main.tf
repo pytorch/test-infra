@@ -1,7 +1,7 @@
 terraform {
   required_version = ">= 1.5"
   required_providers {
-    null = "~> 3.1"
+    null = "~> 3.2.1"
   }
 }
 
