@@ -22,11 +22,12 @@ jobs:
       name: Setup TFLint
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
+        tflint_version: 0.47.0
 
     - name: Install Terraform
       uses: hashicorp/setup-terraform@v2
       with:
-          terraform_version: 1.2.9
+        terraform_version: 1.5.1
 
     - name: Show version
       run: tflint --version
