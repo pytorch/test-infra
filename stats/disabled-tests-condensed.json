@@ -121,6 +121,13 @@
       "windows"
     ]
   ],
+  "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
+    "104328",
+    "https://github.com/pytorch/pytorch/issues/104328",
+    [
+      "linux"
+    ]
+  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
@@ -1084,6 +1091,15 @@
       "linux"
     ]
   ],
+  "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
+    "68643",
+    "https://github.com/pytorch/pytorch/issues/68643",
+    [
+      "macos",
+      "linux",
+      "win"
+    ]
+  ],
   "test_index_add_correctness (__main__.TestTorch)": [
     "91184",
     "https://github.com/pytorch/pytorch/issues/91184",
@@ -1157,6 +1173,13 @@
     "https://github.com/pytorch/pytorch/issues/102115",
     [
       "inductor"
+    ]
+  ],
+  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93061",
+    "https://github.com/pytorch/pytorch/issues/93061",
+    [
+      "linux"
     ]
   ],
   "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1278,6 +1301,44 @@
     "77023",
     "https://github.com/pytorch/pytorch/issues/77023",
     []
+  ],
+  "test_min_cut_partitioner (__main__.TestPartitioning)": [
+    "104323",
+    "https://github.com/pytorch/pytorch/issues/104323",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_min_cut_partitioner_output_tensor_shape_tensor (__main__.TestPartitioning)": [
+    "104326",
+    "https://github.com/pytorch/pytorch/issues/104326",
+    [
+      "linux",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_min_cut_partitioner_recomputable_ops (__main__.TestPartitioning)": [
+    "104327",
+    "https://github.com/pytorch/pytorch/issues/104327",
+    [
+      "asan",
+      "linux",
+      "win",
+      "windows"
+    ]
+  ],
+  "test_min_cut_partitioner_save_shape (__main__.TestPartitioning)": [
+    "104324",
+    "https://github.com/pytorch/pytorch/issues/104324",
+    [
+      "linux",
+      "win",
+      "windows"
+    ]
   ],
   "test_mm_batching (test_jit.TestScript)": [
     "91496",
@@ -1643,6 +1704,14 @@
     "https://github.com/pytorch/pytorch/issues/75406",
     [
       "mac"
+    ]
+  ],
+  "test_recompute_partitioning (__main__.TestPartitioning)": [
+    "104325",
+    "https://github.com/pytorch/pytorch/issues/104325",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
