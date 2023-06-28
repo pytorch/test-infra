@@ -1,4 +1,4 @@
-# Check no crash on no-value import
+# Check no crash on no-module import
 from . import residue_constants as rc
 
 import torch
