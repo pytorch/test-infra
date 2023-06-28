@@ -219,6 +219,13 @@
       "rocm"
     ]
   ],
+  "test_binary_op__foreach_add_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
+    "98046",
+    "https://github.com/pytorch/pytorch/issues/98046",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
     "100159",
     "https://github.com/pytorch/pytorch/issues/100159",
@@ -470,13 +477,6 @@
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
-    [
-      "linux"
-    ]
-  ],
-  "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
-    "85012",
-    "https://github.com/pytorch/pytorch/issues/85012",
     [
       "linux"
     ]
@@ -1196,13 +1196,6 @@
       "linux"
     ]
   ],
-  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "93070",
-    "https://github.com/pytorch/pytorch/issues/93070",
-    [
-      "linux"
-    ]
-  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1783,13 +1776,6 @@
     "https://github.com/pytorch/pytorch/issues/86433",
     [
       "dynamo"
-    ]
-  ],
-  "test_save_graph_repro (__main__.TestAfterAot)": [
-    "99602",
-    "https://github.com/pytorch/pytorch/issues/99602",
-    [
-      "linux"
     ]
   ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
