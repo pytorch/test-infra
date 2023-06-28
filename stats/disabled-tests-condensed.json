@@ -665,13 +665,6 @@
       "linux"
     ]
   ],
-  "test_create_script_module_on_remote (__main__.TensorPipeJitRpcTest)": [
-    "103309",
-    "https://github.com/pytorch/pytorch/issues/103309",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_memory_leak_detection (__main__.TestCuda)": [
     "103999",
     "https://github.com/pytorch/pytorch/issues/103999",
