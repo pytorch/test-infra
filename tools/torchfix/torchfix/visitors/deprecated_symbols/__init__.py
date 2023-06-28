@@ -89,7 +89,7 @@ class _UpdateFunctorchImports(cst.CSTTransformer):
     def leave_ImportFrom(
         self, node: cst.ImportFrom, updated_node: cst.ImportFrom
     ) -> cst.ImportFrom:
-        if node.module.value == "functorch" and all(
+        if node.module is not None and node.module.value == "functorch" and all(
             name.name.value in self.REPLACEMENTS for name in node.names
         ):
             self.changed = True
