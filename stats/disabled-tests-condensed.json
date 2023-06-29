@@ -1583,13 +1583,6 @@
       "rocm"
     ]
   ],
-  "test_post_localSGD_optimizer_step_reload (__main__.TestDistBackendWithSpawn)": [
-    "84886",
-    "https://github.com/pytorch/pytorch/issues/84886",
-    [
-      "linux"
-    ]
-  ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
     "91493",
     "https://github.com/pytorch/pytorch/issues/91493",
@@ -1924,13 +1917,6 @@
     "https://github.com/pytorch/pytorch/issues/98618",
     [
       "linux"
-    ]
-  ],
-  "test_type_conversions (__main__.TestCuda)": [
-    "103534",
-    "https://github.com/pytorch/pytorch/issues/103534",
-    [
-      "rocm"
     ]
   ],
   "test_udf_remote_message_delay_timeout_to_self (__main__.FaultyFaultyAgentRpcTestWithSpawn)": [
