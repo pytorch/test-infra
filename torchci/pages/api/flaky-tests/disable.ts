@@ -276,7 +276,7 @@ export function getWorkflowJobNames(test: FlakyTestData): string[] {
 
 export function getPlatformsAffected(workflowJobNames: string[]): string[] {
   const platformsToSkip: string[] = [];
-  supportedPlatforms.forEach((platform: string) =>
+  Array.from(supportedPlatforms.keys()).forEach((platform: string) =>
     workflowJobNames.forEach((workflowJobNames) => {
       if (
         workflowJobNames.includes(platform) &&
@@ -381,15 +381,26 @@ export async function getTestOwnerLabels(
     labels.push("module: unknown");
   }
 
-  let platforms = getPlatformsAffected(getWorkflowJobNames(test));
-  if (platforms.includes("dynamo") || platforms.includes("inductor")) {
-    labels.push("oncall: pt2");
-  }
+  labels.push(
+    ...getPlatformLabels(getPlatformsAffected(getWorkflowJobNames(test)))
+  );
 
   if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
     labels.push("triaged");
   }
   return { labels, additionalErrMessage };
+}
+
+export function getPlatformLabels(platforms: string[]): string[] {
+  let labels = new Set(
+    platforms.map((platform) => supportedPlatforms.get(platform))
+  );
+  if (labels.size !== 1) {
+    return [];
+  }
+  return Array.from(labels).filter(
+    (platform) => platform !== undefined
+  ) as string[];
 }
 
 export function wasRecent(test: FlakyTestData) {

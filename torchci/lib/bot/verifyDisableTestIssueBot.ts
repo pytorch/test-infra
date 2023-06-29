@@ -1,5 +1,7 @@
 import { Context, Probot } from "probot";
 import { hasWritePermissions } from "./utils";
+import { getPlatformLabels } from "pages/api/flaky-tests/disable";
+import _ from "lodash";
 
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
@@ -10,17 +12,17 @@ export const disabledTestIssueTitle = new RegExp(
 );
 export const pytorchBotId = 54816060;
 
-export const supportedPlatforms = new Set([
-  "asan",
-  "linux",
-  "mac",
-  "macos",
-  "rocm",
-  "slow",
-  "win",
-  "windows",
-  "dynamo",
-  "inductor",
+export const supportedPlatforms = new Map([
+  ["asan", undefined],
+  ["linux", undefined],
+  ["mac", "module: macos"],
+  ["macos", "module: macos"],
+  ["rocm", "module: rocm"],
+  ["slow", undefined],
+  ["win", "module: windows"],
+  ["windows", "module: windows"],
+  ["dynamo", "oncall: pt2"],
+  ["inductor", "oncall: pt2"],
 ]);
 
 async function getValidationComment(
@@ -41,6 +43,18 @@ async function getValidationComment(
     }
   }
   return [0, ""];
+}
+
+export function getExpectedLabels(
+  platforms: string[],
+  labels: string[]
+): string[] {
+  let supportedPlatformLabels = Array.from(supportedPlatforms.values());
+  let nonIssuePlatformLabels = labels.filter(
+    (label) => !supportedPlatformLabels.includes(label)
+  );
+  let expectedPlatformLabels = getPlatformLabels(platforms);
+  return nonIssuePlatformLabels.concat(expectedPlatformLabels);
 }
 
 export function parseBody(body: string): [Set<string>, Set<string>] {
@@ -150,7 +164,7 @@ export function formValidationComment(
     "action will disable the test for all platforms if no platforms list is specified. \n";
   body +=
     "```\nPlatforms: case-insensitive, list, of, platforms\n```\nWe currently support the following platforms: ";
-  body += `${Array.from(supportedPlatforms)
+  body += `${Array.from(supportedPlatforms.keys())
     .sort((a, b) => a.localeCompare(b))
     .join(", ")}.</body>`;
 
@@ -218,6 +232,7 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const authorized =
       context.payload["issue"]["user"]["id"] === pytorchBotId ||
       (await hasWritePermissions(context, username));
+    const labels = context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
 
     const validationComment = isDisabledTest(title)
       ? formValidationComment(username, authorized, target, platforms)
@@ -251,6 +266,17 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
         issue_number: number,
         state: "closed",
       });
+    } else {
+      // check labels, add labels as needed
+      let expectedLabels = getExpectedLabels(Array.from(platforms[0]), labels);
+      if (!_.isEqual(new Set(expectedLabels), new Set(labels))) {
+        await context.octokit.issues.setLabels({
+          owner,
+          repo,
+          issue_number: number,
+          labels: expectedLabels,
+        });
+      }
     }
   });
 }

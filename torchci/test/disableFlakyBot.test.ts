@@ -126,6 +126,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
+          "module: rocm",
           "triaged",
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
@@ -272,6 +273,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
+          "module: windows",
           "triaged",
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
@@ -301,6 +303,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
           "skipped",
           "module: flaky-tests",
           "module: fft",
+          "module: windows",
           "triaged",
         ]);
         expect(JSON.stringify(body.body)).toContain("Platforms: ");
@@ -580,7 +583,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(additionalErrMessage).toEqual(undefined);
-    expect(labels).toEqual(["module: fft", "triaged"]);
+    expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -599,7 +602,11 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels } = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["oncall: distributed"]);
+    expect(labels).toEqual([
+      "oncall: distributed",
+      "module: windows",
+      "triaged",
+    ]);
 
     if (!scope.isDone()) {
       console.error("pending mocks: %j", scope.pendingMocks());
@@ -619,7 +626,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: unknown"]);
+    expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
@@ -638,7 +645,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: unknown"]);
+    expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
@@ -668,7 +675,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: unknown"]);
+    expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(
       "Error: Error retrieving file_a.py: 404, file_a: 404"
     );
@@ -690,7 +697,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: fft", "triaged"]);
+    expect(labels).toEqual(["module: fft", "module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
@@ -716,7 +723,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestAcrossJobA);
-    expect(labels).toEqual(["module: fft", "triaged"]);
+    expect(labels).toEqual(["module: fft", "module: rocm", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
@@ -756,6 +763,38 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: unknown", "oncall: pt2"]);
+
+    handleScope(scope);
+  });
+
+  test("getTestOwnerLabels: unique platforms get labels", async () => {
+    const test = { ...flakyTestA };
+    test.jobNames = ["rocm"];
+
+    let scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/main/test/${test.file}`)
+      .reply(200, Buffer.from(`import blah;\nrest of file`));
+
+    let { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(test);
+    expect(additionalErrMessage).toEqual(undefined);
+    expect(labels).toEqual(["module: unknown", "module: rocm", "triaged"]);
+
+    handleScope(scope);
+  });
+
+  test("getTestOwnerLabels: multiple platforms do not get labels", async () => {
+    const test = { ...flakyTestA };
+    test.jobNames = ["rocm", "linux"];
+
+    let scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/main/test/${test.file}`)
+      .reply(200, Buffer.from(`import blah;\nrest of file`));
+
+    let { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(test);
+    expect(additionalErrMessage).toEqual(undefined);
+    expect(labels).toEqual(["module: unknown"]);
 
     handleScope(scope);
   });
