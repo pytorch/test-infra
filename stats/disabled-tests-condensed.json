@@ -672,6 +672,19 @@
       "linux"
     ]
   ],
+  "test_cuda_assert_should_stop_common_device_type_test_suite_cuda (__main__.TestTestingCUDA)": [
+    "104413",
+    "https://github.com/pytorch/pytorch/issues/104413",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCuda)": [
     "103999",
     "https://github.com/pytorch/pytorch/issues/103999",
@@ -1108,6 +1121,19 @@
       "rocm",
       "win",
       "windows"
+    ]
+  ],
+  "test_index_out_of_bounds_exception_cuda (__main__.TestCuda)": [
+    "104414",
+    "https://github.com/pytorch/pytorch/issues/104414",
+    [
+      "<fill this in or delete. valid labels are: asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows.>"
     ]
   ],
   "test_index_put_accumulate_large_tensor_cpu (__main__.TestIndexingCPU)": [
