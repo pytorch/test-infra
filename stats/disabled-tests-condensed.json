@@ -1400,6 +1400,13 @@
       "rocm"
     ]
   ],
+  "test_nccl_init_abort (__main__.TestDistBackendWithSpawn)": [
+    "104416",
+    "https://github.com/pytorch/pytorch/issues/104416",
+    [
+      "rocm"
+    ]
+  ],
   "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
     "93865",
     "https://github.com/pytorch/pytorch/issues/93865",
@@ -1569,13 +1576,6 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
     "100033",
     "https://github.com/pytorch/pytorch/issues/100033",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
-    "96550",
-    "https://github.com/pytorch/pytorch/issues/96550",
     [
       "rocm"
     ]
