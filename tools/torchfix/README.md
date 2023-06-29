@@ -25,9 +25,9 @@ To install a release version from PyPI, run `pip install torchfix`.
 ## Usage
 
 After the installation, TorchFix will be available as a Flake8 plugin, so running
-Flake8 normally will run TorchFix linter.
+Flake8 normally will run the TorchFix linter.
 
-To see only TorchFix warnings without the rest of Flake8 linters, you can run
+To see only TorchFix warnings without the rest of the Flake8 linters, you can run
 `flake8 --isolated --select=TOR`
 
 TorchFix can also be run as a standalone program: `torchfix --ignore-stderr .`
