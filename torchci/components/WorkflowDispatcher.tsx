@@ -8,6 +8,7 @@ import { Octokit } from "octokit";
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
     trunk: "Run trunk jobs",
+    inductor: "Run inductor jobs",
     periodic: "Run periodic jobs",
     slow: "Run slow jobs",
   },
