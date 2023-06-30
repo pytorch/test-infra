@@ -657,7 +657,7 @@
       "inductor/test_cpu_repro": 113.001
     }
   },
-  "linux-focal-rocm5.5-py3.8": {
+  "linux-focal-rocm5.6-py3.8": {
     "distributed": {
       "distributed/_composable/fully_shard/test_fully_shard_init": 68.47399999999999,
       "distributed/_composable/fully_shard/test_fully_shard_mixed_precision": 13.576,
