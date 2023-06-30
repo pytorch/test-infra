@@ -55,13 +55,6 @@
       "linux"
     ]
   ],
-  "test_activations (__main__.DistElementwiseOpsTest)": [
-    "103736",
-    "https://github.com/pytorch/pytorch/issues/103736",
-    [
-      "linux"
-    ]
-  ],
   "test_adamax (__main__.TestOptim)": [
     "86474",
     "https://github.com/pytorch/pytorch/issues/86474",
@@ -866,6 +859,13 @@
       "linux"
     ]
   ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1221,13 +1221,6 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "inductor"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "102775",
-    "https://github.com/pytorch/pytorch/issues/102775",
-    [
-      "linux"
     ]
   ],
   "test_masked_bmm (__main__.TestMatMul)": [
