@@ -1223,6 +1223,13 @@
       "inductor"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "102775",
+    "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux"
+    ]
+  ],
   "test_masked_bmm (__main__.TestMatMul)": [
     "84586",
     "https://github.com/pytorch/pytorch/issues/84586",
