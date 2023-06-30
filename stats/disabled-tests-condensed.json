@@ -1872,6 +1872,11 @@
       "linux"
     ]
   ],
+  "test_trace_buffer_slice (__main__.TestFX)": [
+    "74208",
+    "https://github.com/pytorch/pytorch/issues/74208",
+    []
+  ],
   "test_trace_dependencies (test_analyze.TestAnalyze)": [
     "81213",
     "https://github.com/pytorch/pytorch/issues/81213",
