@@ -13,13 +13,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel_SyncBatchNorm_Single_Input_Per_Process (__main__.TestDistBackendWithSpawn)": [
-    "100643",
-    "https://github.com/pytorch/pytorch/issues/100643",
-    [
-      "rocm"
-    ]
-  ],
   "test_MaxUnpool_index_errors_case1_cuda (__main__.TestPoolingNNDeviceTypeCUDA)": [
     "103854",
     "https://github.com/pytorch/pytorch/issues/103854",
@@ -780,13 +773,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_detect_ddp_is_actually_static (__main__.TestDistBackendWithSpawn)": [
-    "78767",
-    "https://github.com/pytorch/pytorch/issues/78767",
-    [
-      "linux"
     ]
   ],
   "test_doc_examples (__main__.TestTypeHints)": [
