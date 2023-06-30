@@ -866,13 +866,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101748",
-    "https://github.com/pytorch/pytorch/issues/101748",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1406,6 +1399,13 @@
     "https://github.com/pytorch/pytorch/issues/96088",
     [
       "linux"
+    ]
+  ],
+  "test_nnc_correctness_frac_cpu_bfloat16 (__main__.TestNNCOpInfoCPU)": [
+    "104454",
+    "https://github.com/pytorch/pytorch/issues/104454",
+    [
+      "asan"
     ]
   ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
