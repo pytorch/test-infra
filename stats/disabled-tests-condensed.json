@@ -314,14 +314,6 @@
     "https://github.com/pytorch/pytorch/issues/60998",
     []
   ],
-  "test_call_parent_non_class_methods_from_child (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103742",
-    "https://github.com/pytorch/pytorch/issues/103742",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
