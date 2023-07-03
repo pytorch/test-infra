@@ -33,12 +33,15 @@ runs:
   using: composite
   steps:
       - name: Remove repository directory (if exists)
-        shell: bash -l {0}
-        env:
-          REPOSITORY: ${{ inputs.repository }}
-        run: |
-          set -euxo pipefail
-          rm -rf "${REPOSITORY}"
+        uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
+        with:
+          shell: bash
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            set -euxo pipefail
+            rm -rf "${{ inputs.repository }}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
@@ -74,10 +77,15 @@ runs:
           miniconda-version: "py39_4.12.0"
           python-version: 3.9
       - name: Clean conda environment
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          conda clean --all --quiet --yes
+        uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
+        with:
+          shell: bash
+          timeout_minutes: 5
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            set -euxo pipefail
+            conda clean --all --quiet --yes
       - name: Reset channel priority
         shell: bash -l {0}
         run: |
