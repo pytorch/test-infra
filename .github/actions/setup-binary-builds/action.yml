@@ -33,15 +33,12 @@ runs:
   using: composite
   steps:
       - name: Remove repository directory (if exists)
-        uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
-        with:
-          shell: bash
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 30
-          command: |
-            set -euxo pipefail
-            rm -rf "${{ inputs.repository }}"
+        shell: bash
+        env:
+          REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euxo pipefail
+          rm -rf "${REPOSITORY}"
       - uses: actions/checkout@v3
         with:
           repository: ${{ inputs.repository }}
@@ -49,7 +46,7 @@ runs:
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
       - name: Log Available Webhook Fields
-        shell: bash -l {0}
+        shell: bash
         run: |
           echo "ENV VARS"
           echo "${GITHUB_REF_NAME}"
@@ -62,7 +59,7 @@ runs:
           echo "${{ github.ref }}"
           echo "${{ github.base_ref }}"
       - name: Set artifact name
-        shell: bash -l {0}
+        shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
@@ -77,23 +74,18 @@ runs:
           miniconda-version: "py39_4.12.0"
           python-version: 3.9
       - name: Clean conda environment
-        uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
-        with:
-          shell: bash
-          timeout_minutes: 5
-          max_attempts: 3
-          retry_wait_seconds: 30
-          command: |
-            set -euxo pipefail
-            conda clean --all --quiet --yes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          conda clean --all --quiet --yes
       - name: Reset channel priority
-        shell: bash -l {0}
+        shell: bash
         run: |
           set -euxo pipefail
           conda config --set channel_priority false
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
-        shell: bash -l {0}
+        shell: bash
         run: |
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
@@ -109,7 +101,7 @@ runs:
           cat "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
-        shell: bash -l {0}
+        shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
