@@ -428,6 +428,11 @@ function ModelPanel({
                     return "";
                   }
 
+                  // It didn't error in the past, but now it does error
+                  if (r === 0) {
+                    return styles.error;
+                  }
+
                   // Increasing more than x%
                   if (l - r > RELATIVE_THRESHOLD * r) {
                     return styles.ok;
