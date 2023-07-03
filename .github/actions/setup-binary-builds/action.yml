@@ -74,18 +74,19 @@ runs:
           miniconda-version: "py39_4.12.0"
           python-version: 3.9
       - name: Clean conda environment
-        shell: bash
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
+          conda info | grep -i 'base environment'
           conda clean --all --quiet --yes
       - name: Reset channel priority
-        shell: bash
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           conda config --set channel_priority false
       - name: Generate file from pytorch_pkg_helpers
         working-directory: ${{ inputs.repository }}
-        shell: bash
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           CONDA_ENV="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}"
@@ -101,7 +102,7 @@ runs:
           cat "${BUILD_ENV_FILE}"
           echo "BUILD_ENV_FILE=${BUILD_ENV_FILE}" >> "${GITHUB_ENV}"
       - name: Setup conda environment for build
-        shell: bash
+        shell: bash -l {0}
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
