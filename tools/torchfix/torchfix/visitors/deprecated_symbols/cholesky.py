@@ -1,5 +1,5 @@
 import libcst as cst
-from ...common import call_with_name_changes, TorchVisitor
+from ...common import TorchVisitor
 
 
 def call_replacement_cholesky(node: cst.Call) -> cst.CSTNode:
@@ -7,9 +7,6 @@ def call_replacement_cholesky(node: cst.Call) -> cst.CSTNode:
     Replace `torch.cholesky(A)` with `torch.linalg.cholesky(A)` and
     `torch.cholesky(A, upper=True)` with `torch.linalg.cholesky(A).mH`.
     """
-    replacement = call_with_name_changes(
-        node, "torch.cholesky", "torch.linalg.cholesky"
-    )
     input_arg = TorchVisitor.get_specific_arg(node, "input", 0).with_changes(
         comma=cst.MaybeSentinel.DEFAULT
     )
