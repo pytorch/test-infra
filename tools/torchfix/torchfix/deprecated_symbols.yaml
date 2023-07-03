@@ -13,7 +13,6 @@
 - name: torch.cholesky
   deprecate_pr: https://github.com/pytorch/pytorch/pull/57725
   remove_pr:
-  replacement: torch.linalg.cholesky
 
 - name: torch.ger
   deprecate_pr: TBA
