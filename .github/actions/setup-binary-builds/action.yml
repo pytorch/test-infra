@@ -77,6 +77,7 @@ runs:
         shell: bash -l {0}
         run: |
           set -euxo pipefail
+          conda info | grep -i 'base environment'
           conda clean --all --quiet --yes
       - name: Reset channel priority
         shell: bash -l {0}
