@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import sys
 import libcst as cst
+from libcst.metadata import QualifiedNameProvider, WhitespaceInclusivePositionProvider
 from typing import Optional, List
 from abc import ABC
 
@@ -34,8 +35,8 @@ class LintViolation:
 
 class TorchVisitor(cst.BatchableCSTVisitor, ABC):
     METADATA_DEPENDENCIES = (
-        cst.metadata.QualifiedNameProvider,
-        cst.metadata.WhitespaceInclusivePositionProvider,
+        QualifiedNameProvider,
+        WhitespaceInclusivePositionProvider,
     )
 
     def __init__(self):
@@ -69,9 +70,7 @@ class TorchVisitor(cst.BatchableCSTVisitor, ABC):
         if isinstance(node.func, cst.Call):
             return None
 
-        name_metadata = list(
-            self.get_metadata(cst.metadata.QualifiedNameProvider, node)
-        )
+        name_metadata = list(self.get_metadata(QualifiedNameProvider, node))
         if not name_metadata:
             return None
         qualified_name = name_metadata[0].name
