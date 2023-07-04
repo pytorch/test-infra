@@ -46,7 +46,7 @@ def main() -> None:
         if args.ignore_stderr:
             context = contextlib.redirect_stderr(io.StringIO())
         else:
-            # Should ger rid of this code eventually.
+            # Should get rid of this code eventually.
             context = contextlib.nullcontext()  # type: ignore
         with context:
             result = codemod.parallel_exec_transform_with_prettyprint(
