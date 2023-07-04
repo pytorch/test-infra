@@ -16,6 +16,10 @@ jobs:
       - name: Install requirements
         run: |
           pip3 install -r tools/torchfix/requirements-dev.txt
+      - name: Install TorchFix
+        run: |
+          cd tools/torchfix
+          pip3 install .
       - name: Run pytest
         run: |
           cd tools/torchfix
