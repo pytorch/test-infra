@@ -916,13 +916,6 @@
       "inductor"
     ]
   ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1000,9 +993,9 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
+  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94508",
+    "https://github.com/pytorch/pytorch/issues/94508",
     [
       "linux"
     ]
@@ -1755,6 +1748,13 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
+    ]
+  ],
+  "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
+    "94953",
+    "https://github.com/pytorch/pytorch/issues/94953",
+    [
+      "linux"
     ]
   ],
   "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
