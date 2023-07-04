@@ -80,7 +80,7 @@ class TorchVisitor(cst.BatchableCSTVisitor, ABC):
 
 def call_with_name_changes(
     node: cst.Call, old_qualified_name: str, new_qualified_name: str
-) -> cst.Call:
+) -> Optional[cst.Call]:
     """
     Return new `Call` node with name changes.
     """
@@ -90,7 +90,7 @@ def call_with_name_changes(
     # If the only difference is the last name part.
     if old_begin == new_begin:
         replacement = node.with_deep_changes(
-            old_node=node.func.attr,
+            old_node=cst.ensure_type(node.func, cst.Attribute).attr,
             value=new_last,
         )
 

@@ -24,3 +24,7 @@ jobs:
         run: |
           cd tools/torchfix
           flake8
+      - name: Run
+        run: |
+          cd tools/torchfix
+          mypy .
