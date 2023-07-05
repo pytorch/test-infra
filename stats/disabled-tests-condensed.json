@@ -13,13 +13,6 @@
       "linux"
     ]
   ],
-  "test_MaxUnpool_index_errors_case1_cuda (__main__.TestPoolingNNDeviceTypeCUDA)": [
-    "103854",
-    "https://github.com/pytorch/pytorch/issues/103854",
-    [
-      "slow"
-    ]
-  ],
   "test_MaxUnpool_index_errors_case2_cuda (__main__.TestNNDeviceTypeCUDA)": [
     "81841",
     "https://github.com/pytorch/pytorch/issues/81841",
