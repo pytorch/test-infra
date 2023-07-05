@@ -177,6 +177,8 @@ jobs:
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
+          export OLD_PATH=${PATH}
+          export PATH="${CONDA_PREFIX}/bin:${PATH}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
           ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}"
@@ -189,6 +191,7 @@ jobs:
             ${CONDA_RUN_SMOKE} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
 
+          export PATH=${OLD_PATH}
           conda env remove -p "${CONDA_ENV_SMOKE}"
       - name: Upload package to conda
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
