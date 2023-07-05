@@ -47,7 +47,9 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     fetchDisabledNonFlakyTests(),
   ]);
 
-  const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs).concat(flakyTestsAcrossFileReruns);
+  const allFlakyTests = flakyTests
+    .concat(flakyTestsAcrossJobs)
+    .concat(flakyTestsAcrossFileReruns);
   // If the test is flaky only on PRs, we should not disable it yet.
   const flakyTestsOnTrunk = filterThreshold(
     filterOutPRFlakyTests(allFlakyTests)

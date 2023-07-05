@@ -120,6 +120,7 @@ where
     and t.invoking_file = :invoking_file
     and t.file = :file
     and t._event_time > CURRENT_TIMESTAMP() - HOURS(:numHours)
+    and t.skipped is null
 GROUP BY
     name,
     suite,
@@ -144,6 +145,7 @@ from
   workflow_job j join workflow_run w on w.id = j.run_id
 where
   ARRAY_CONTAINS(SPLIT(:job_ids, ','), CAST(j.id as STRING))
+  and j.name not like '%rerun_disabled_tests%'
 `;
 
   // Get every distinct failed test on master in the past numHours (usually not a lot)
@@ -232,6 +234,9 @@ where
     (accum: Map<string, FlakyTestData>, curr) => {
       const key = `${curr.file} ${curr.suite} ${curr.name} ${curr.invoking_file}`;
       const val = accum.get(key);
+      if (!workflowJobMap.has(curr.job_id)) {
+        return accum;
+      }
       const job_info = workflowJobMap.get(curr.job_id);
       if (val === undefined) {
         accum.set(key, {
