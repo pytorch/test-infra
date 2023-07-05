@@ -178,7 +178,7 @@ jobs:
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
           export OLD_PATH=${PATH}
-          export PATH="${CONDA_PREFIX}/bin:${PATH}"
+          export PATH="${CONDA_ENV_SMOKE}/bin:${PATH}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
           ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}"
