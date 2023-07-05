@@ -1007,6 +1007,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "93063",
+    "https://github.com/pytorch/pytorch/issues/93063",
+    [
+      "linux"
+    ]
+  ],
   "test_gpt2_tiny (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_True_dynamic_shapes_True)": [
     "103743",
     "https://github.com/pytorch/pytorch/issues/103743",
@@ -1125,13 +1132,6 @@
     "https://github.com/pytorch/pytorch/issues/102113",
     [
       "inductor"
-    ]
-  ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
     ]
   ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
