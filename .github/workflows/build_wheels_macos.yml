@@ -182,7 +182,7 @@ jobs:
             grep "Requires-Dist: torch (==.*)" -r .
           )
           export OLD_PATH=${PATH}
-          export PATH="${CONDA_ENV_SMOKE}/bin:${PATH}"
+          export PATH="${CONDA_ENV}/bin:${PATH}"
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           ${CONDA_RUN} pip install numpy
