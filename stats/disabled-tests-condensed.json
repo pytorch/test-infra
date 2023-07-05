@@ -1169,6 +1169,13 @@
       "linux"
     ]
   ],
+  "test_inverse_errors_large_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "93070",
+    "https://github.com/pytorch/pytorch/issues/93070",
+    [
+      "linux"
+    ]
+  ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
     "66528",
     "https://github.com/pytorch/pytorch/issues/66528",
@@ -1492,13 +1499,6 @@
       "rocm"
     ]
   ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "101522",
-    "https://github.com/pytorch/pytorch/issues/101522",
-    [
-      "rocm"
-    ]
-  ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex64 (__main__.TestForeachCUDA)": [
     "97956",
     "https://github.com/pytorch/pytorch/issues/97956",
@@ -1708,13 +1708,6 @@
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
-    [
-      "linux"
-    ]
-  ],
-  "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
-    "96282",
-    "https://github.com/pytorch/pytorch/issues/96282",
     [
       "linux"
     ]
