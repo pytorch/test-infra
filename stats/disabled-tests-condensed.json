@@ -169,14 +169,6 @@
       "linux"
     ]
   ],
-  "test_batch_norm_implicit_dtype_promotion (__main__.TestNvFuserDynamo)": [
-    "103980",
-    "https://github.com/pytorch/pytorch/issues/103980",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_batch_norm_implicit_dtype_promotion (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
     "103420",
     "https://github.com/pytorch/pytorch/issues/103420",
