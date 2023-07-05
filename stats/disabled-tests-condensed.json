@@ -1918,13 +1918,6 @@
       "linux"
     ]
   ],
-  "test_versioned_div_tensor_inplace (jit.test_save_load_for_op_version.TestSaveLoadForOpVersion)": [
-    "88719",
-    "https://github.com/pytorch/pytorch/issues/88719",
-    [
-      "dynamo"
-    ]
-  ],
   "test_vmapjvpall_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86770",
     "https://github.com/pytorch/pytorch/issues/86770",
