@@ -1463,6 +1463,13 @@
       "rocm"
     ]
   ],
+  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
+    "101522",
+    "https://github.com/pytorch/pytorch/issues/101522",
+    [
+      "rocm"
+    ]
+  ],
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex64 (__main__.TestForeachCUDA)": [
     "97956",
     "https://github.com/pytorch/pytorch/issues/97956",
@@ -1899,6 +1906,13 @@
   "test_vmapvjpvjp_linalg_lu_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "86929",
     "https://github.com/pytorch/pytorch/issues/86929",
+    [
+      "linux"
+    ]
+  ],
+  "test_vmapvjpvjp_linalg_lu_factor_ex_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "104737",
+    "https://github.com/pytorch/pytorch/issues/104737",
     [
       "linux"
     ]
