@@ -1534,16 +1534,6 @@
       "rocm"
     ]
   ],
-  "test_public_api_surface (__main__.TestFXAPIBackwardCompatibility)": [
-    "104012",
-    "https://github.com/pytorch/pytorch/issues/104012",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
