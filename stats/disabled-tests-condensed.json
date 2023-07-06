@@ -623,6 +623,13 @@
       "rocm"
     ]
   ],
+  "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
+    "104695",
+    "https://github.com/pytorch/pytorch/issues/104695",
+    [
+      "linux"
+    ]
+  ],
   "test_cuda_variable_sharing (__main__.TestMultiprocessing)": [
     "92131",
     "https://github.com/pytorch/pytorch/issues/92131",
