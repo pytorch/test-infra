@@ -80,6 +80,7 @@ on:
       no-sudo:
         description: If set to any value, don't use sudo to clean the workspace
         required: false
+        default: false
         type: boolean
 jobs:
   job:
@@ -105,7 +106,7 @@ jobs:
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
         run: |
-          if [ -z "${NO_SUDO}" ]; then
+          if [[ "${NO_SUDO}" == "false" ]]; then
             echo "::group::Cleanup with-sudo debug output"
             sudo rm -rfv "${GITHUB_WORKSPACE}"
           else
