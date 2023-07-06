@@ -5,12 +5,12 @@ on:
       - .github/workflows/check-alerts.yml
       - torchci/scripts/check_alerts.py
       - torchci/scripts/queue_alert.py
+      - torchci/scripts/no_flaky_tests_alert.py
   schedule:
     # Every 5 minutes
     - cron: "*/5 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
-
 
 jobs:
   update-alerts:
@@ -19,20 +19,16 @@ jobs:
         include:
           - repo: pytorch/pytorch
             branch: main
-            with_flaky_test_alerting: YES
             job_filter_regex: ""
           - repo: pytorch/pytorch
             branch: nightly
-            with_flaky_test_alerting: NO
             job_filter_regex: ""
           - repo: pytorch/builder
             branch: main
-            with_flaky_test_alerting: NO
             job_filter_regex: ".*nightly.pypi.binary.size.validation|cron / release /"
     env:
       REPO_TO_CHECK: ${{ matrix.repo }}
       BRANCH_TO_CHECK: ${{ matrix.branch }}
-      WITH_FLAKY_TEST_ALERT: ${{ matrix.with_flaky_test_alerting }}
       JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
@@ -72,6 +68,27 @@ jobs:
       - name: Check for alerts and creates issue
         run: |
           python3 torchci/scripts/queue_alert.py
+        env:
+          # NOTE: Should be a blank string for pull requests
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  no-flaky-tests-alert:
+    env:
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install requests
+        run: |
+           pip3 install requests setuptools
+      - name: Run tests
+        if: ${{ github.event_name == 'pull_request'}}
+        run: |
+          python3 torchci/scripts/test_no_flaky_tests_alert.py
+      - name: Check for alerts and creates issue
+        run: |
+          python3 torchci/scripts/no_flaky_tests_alert.py
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
