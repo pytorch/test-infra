@@ -77,6 +77,11 @@ on:
         description: "List of secrets to be exported to environment variables"
         type: string
         default: ''
+      no-sudo:
+        description: If set to any value, don't use sudo to clean the workspace
+        required: false
+        default: false
+        type: boolean
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -98,9 +103,17 @@ jobs:
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
         run: |
-          echo "::group::Cleanup debug output"
-          sudo rm -rfv "${GITHUB_WORKSPACE}"
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            echo "::group::Cleanup with-sudo debug output"
+            sudo rm -rfv "${GITHUB_WORKSPACE}"
+          else
+            echo "::group::Cleanup no-sudo debug output"
+            rm -rfv "${GITHUB_WORKSPACE}"
+          fi
+
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
 
