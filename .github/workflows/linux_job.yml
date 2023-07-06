@@ -80,7 +80,6 @@ on:
       no-sudo:
         description: If set to any value, don't use sudo to clean the workspace
         required: false
-        default: false
 jobs:
   job:
     name: ${{ inputs.job-name }}
