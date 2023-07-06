@@ -1,0 +1,39 @@
+name: Trigger nightly builds for domains
+
+on:
+  schedule:
+    # every night at 4:30AM
+    - cron: 30 4 * * *
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "What domain to trigger"
+        required: true
+        type: choice
+        default: all
+        options:
+          - vision
+          - audio
+          - text
+          - all
+
+jobs:
+  tag_nightly_vision:
+    if:  inputs.domain == 'text' || inputs.domain == 'all'
+    name: Trigger nightly text build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+          repository: pytorch/text
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+      - run: |
+          git checkout origin/main
+          git fetch origin nightly
+          HEAD_COMMIT_HASH=$(git rev-parse HEAD)
+          NIGHTLY_DATE=$(date +"%Y-%m-%d")
+          # shellcheck disable=SC1083
+          NIGHTLY_RELEASE_COMMIT=$(git commit-tree -p FETCH_HEAD HEAD^{tree} -m "${NIGHTLY_DATE} nightly release (${HEAD_COMMIT_HASH})")
+          # shellcheck disable=SC1083
+          git push -f origin "${NIGHTLY_RELEASE_COMMIT}:nightly"
