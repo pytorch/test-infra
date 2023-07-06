@@ -29,6 +29,8 @@ jobs:
           repository: pytorch/text
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
       - run: |
+          git config --global user.email "pytorchbot@pytorch.com"
+          git config --global user.name "pytorchbot"
           git checkout origin/main
           git fetch origin nightly
           HEAD_COMMIT_HASH=$(git rev-parse HEAD)
