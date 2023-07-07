@@ -93,6 +93,41 @@ const failedC = {
   failure_captures: ["a"],
 };
 
+const failedD = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as failedD but has a different shard ID
+const failedE = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as unstable A but without the unstable suffix
+const failedF = {
+  name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
 const unstableA = {
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
@@ -101,7 +136,7 @@ const unstableA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_captures: ["a", "b"],
 };
 
 const sev: IssueData = {
@@ -377,7 +412,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, failedA)
+        new Map().set(failedA.name, [failedA])
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
