@@ -402,7 +402,7 @@ describe("verify-disable-test-issue-bot", () => {
     const payload = requireDeepCopy("./fixtures/issues.opened.json");
     payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
     payload.issue.user.id = pytorchBotId;
-    payload.issue.body = "Platforms: rocm"
+    payload.issue.body = "Platforms: rocm";
 
     const owner = payload.repository.owner.login;
     const repo = payload.repository.name;
@@ -421,7 +421,6 @@ describe("verify-disable-test-issue-bot", () => {
       )
       .reply(200, []);
 
-
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
     handleScope(scope);
@@ -431,7 +430,7 @@ describe("verify-disable-test-issue-bot", () => {
     const payload = requireDeepCopy("./fixtures/issues.opened.json");
     payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
     payload.issue.user.id = pytorchBotId;
-    payload.issue.body = "Platforms: rocm"
+    payload.issue.body = "Platforms: rocm";
     payload.issue.labels = [
       {
         name: "random label",
@@ -453,10 +452,9 @@ describe("verify-disable-test-issue-bot", () => {
       )
       .reply(200)
       .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
-        _.isEqual(body.labels, [ "random label", "module: rocm"])
+        _.isEqual(body.labels, ["random label", "module: rocm"])
       )
       .reply(200, []);
-
 
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 

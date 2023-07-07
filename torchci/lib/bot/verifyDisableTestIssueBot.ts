@@ -13,16 +13,16 @@ export const disabledTestIssueTitle = new RegExp(
 export const pytorchBotId = 54816060;
 
 export const supportedPlatforms = new Map([
-  ["asan", undefined],
-  ["linux", undefined],
-  ["mac", "module: macos"],
-  ["macos", "module: macos"],
-  ["rocm", "module: rocm"],
-  ["slow", undefined],
-  ["win", "module: windows"],
-  ["windows", "module: windows"],
-  ["dynamo", "oncall: pt2"],
-  ["inductor", "oncall: pt2"],
+  ["asan", []],
+  ["linux", []],
+  ["mac", ["module: macos"]],
+  ["macos", ["module: macos"]],
+  ["rocm", ["module: rocm"]],
+  ["slow", []],
+  ["win", ["module: windows"]],
+  ["windows", ["module: windows"]],
+  ["dynamo", ["oncall: pt2"]],
+  ["inductor", ["oncall: pt2"]],
 ]);
 
 async function getValidationComment(
@@ -49,7 +49,7 @@ export function getExpectedLabels(
   platforms: string[],
   labels: string[]
 ): string[] {
-  let supportedPlatformLabels = Array.from(supportedPlatforms.values());
+  let supportedPlatformLabels = Array.from(supportedPlatforms.values()).flat();
   let nonIssuePlatformLabels = labels.filter(
     (label) => !supportedPlatformLabels.includes(label)
   );
@@ -232,7 +232,8 @@ export default function verifyDisableTestIssueBot(app: Probot): void {
     const authorized =
       context.payload["issue"]["user"]["id"] === pytorchBotId ||
       (await hasWritePermissions(context, username));
-    const labels = context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
+    const labels =
+      context.payload["issue"]["labels"]?.map((l) => l["name"]) ?? [];
 
     const validationComment = isDisabledTest(title)
       ? formValidationComment(username, authorized, target, platforms)

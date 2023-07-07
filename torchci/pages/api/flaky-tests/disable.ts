@@ -11,6 +11,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { retryRequest } from "lib/bot/utils";
 import { Octokit } from "octokit";
 import dayjs from "dayjs";
+import _ from "lodash";
 
 const NUM_HOURS = 3;
 const NUM_HOURS_ACROSS_JOBS = 72;
@@ -392,15 +393,15 @@ export async function getTestOwnerLabels(
 }
 
 export function getPlatformLabels(platforms: string[]): string[] {
-  let labels = new Set(
-    platforms.map((platform) => supportedPlatforms.get(platform))
-  );
-  if (labels.size !== 1) {
-    return [];
+  let labels = undefined;
+  for (const platform of platforms) {
+    if (labels === undefined) {
+      labels = supportedPlatforms.get(platform);
+    } else if (!_.isEqual(supportedPlatforms.get(platform), labels)) {
+      return [];
+    }
   }
-  return Array.from(labels).filter(
-    (platform) => platform !== undefined
-  ) as string[];
+  return labels ?? [];
 }
 
 export function wasRecent(test: FlakyTestData) {
