@@ -26,7 +26,6 @@ export default function ReproductionCommand({
   return (
     <span>
       {separator}
-      <a>Copy Repro</a>
       <CopyLink textToCopy={testName} />
     </span>
   );
