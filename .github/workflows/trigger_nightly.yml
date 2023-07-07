@@ -8,7 +8,7 @@ on:
     inputs:
       domain:
         description: "What domain to trigger"
-        required: true
+        required: false
         type: choice
         default: all
         options:
