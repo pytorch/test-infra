@@ -25,10 +25,10 @@ jobs:
       matrix:
         include:
         - repository: pytorch/audio
-          pre-script: packaging/ffmpeg/build.bat
+          pre-script: ""
           env-script: packaging/vc_env_helper.bat
-          cache-path: /third_party/ffmpeg
-          cache-key: windows-ffmpeg
+          cache-path: ""
+          cache-key: ""
           wheel-build-params: "--plat-name win_amd64"
           post-script: ""
           smoke-test-script: test/smoke_test/smoke_test.py

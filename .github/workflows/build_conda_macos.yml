@@ -133,10 +133,8 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
-            export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
-          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} conda build \
             -c defaults \

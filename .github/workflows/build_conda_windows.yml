@@ -150,8 +150,6 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
-          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
-          export USE_FFMPEG="1"
 
           #conda install -yq conda-build "conda-package-handling!=1.5.0"
           #bash packaging/build_conda.sh
@@ -208,7 +206,6 @@ jobs:
             ${CONDA_RUN_SMOKE} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi

@@ -25,9 +25,9 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            cache-path: /third_party/ffmpeg
-            cache-key: windows-ffmpeg
-            pre-script: packaging/ffmpeg/build.bat
+            cache-path: ""
+            cache-key: ""
+            pre-script: ""
             post-script: ""
             smoke-test-script: test/smoke_test/smoke_test.py
             conda-package-directory: packaging/torchaudio
