@@ -15,38 +15,36 @@ export default function useTableFilter(params: HudParams) {
     document.addEventListener("keydown", (e) => {
       if (e.code === "Escape") {
         setJobFilter(null);
+        router.push(formatHudUrlForRoute("hud", params), undefined, {
+          shallow: true,
+        });
       }
     });
   }, []);
-  const handleInput = useCallback((f: any) => {
-    setJobFilter(f);
-  }, []);
-  const handleSubmit = useCallback(() => {
-    if (jobFilter === "") {
-      router.push(formatHudUrlForRoute("hud", params), undefined, {
-        shallow: true,
-      });
-    } else {
+  const handleInput = useCallback(
+    (f: any) => {
+      setJobFilter(f);
       router.push(
         formatHudUrlForRoute("hud", {
           ...params,
-          nameFilter: jobFilter ?? undefined,
+          nameFilter: f ?? undefined,
         }),
         undefined,
         {
           shallow: true,
         }
       );
-    }
-  }, [params, router, jobFilter]);
+    },
+    [params, router]
+  );
+  const handleSubmit = () => {};
 
   // We have to use an effect hook here because query params are undefined at
   // static generation time; they only become available after hydration.
   useEffect(() => {
     const filterValue = (router.query.name_filter as string) || "";
     setJobFilter(filterValue);
-    handleInput(filterValue);
-  }, [router.query.name_filter, handleInput]);
+  }, [router.query.name_filter]);
 
   return { jobFilter, handleSubmit, handleInput, normalizedJobFilter };
 }

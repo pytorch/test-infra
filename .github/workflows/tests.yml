@@ -27,7 +27,7 @@ jobs:
         echo ::group::setup Python environment
         python -m venv .venv/
         source .venv/bin/activate
-        pip install pip==23.0.1 pytest==7.2.0 rockset==1.0.3
+        pip install pip==23.0.1 pytest==7.2.0 rockset==1.0.3 jsonschema==4.17.3
         echo ::endgroup::
         
         # Test tools

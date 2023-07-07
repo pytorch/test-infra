@@ -58,6 +58,7 @@ export interface RowData extends CommitData {
   jobs: JobData[];
   groupedJobs?: Map<string, GroupData>;
   isForcedMerge: boolean | false;
+  isForcedMergeWithFailures: boolean | false;
   nameToJobs?: Map<string, JobData>;
 }
 
@@ -148,6 +149,7 @@ export interface JobsPerCommitData {
 }
 
 export interface CompilerPerformanceData {
+  abs_latency: number;
   accuracy: string;
   compilation_latency: number;
   compiler: string;

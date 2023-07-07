@@ -335,10 +335,10 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
 
-  test("merge -ic command on pull request triggers dispatch and like", async () => {
+  test("merge -i command on pull request triggers dispatch and like", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic";
+    event.payload.comment.body = "@pytorchbot merge -i";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -360,6 +360,34 @@ describe("merge-bot", () => {
         return true;
       })
       .reply(200, {});
+    await probot.receive(event);
+
+    handleScope(scope);
+  });
+
+  test("merge -ic command on pull request returns deprecation message and fails", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+
+    event.payload.comment.body = "@pytorchbot merge -ic";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const pr_number = event.payload.issue.number;
+    const comment_number = event.payload.comment.id;
+    const scope = nock("https://api.github.com")
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+          return true;
+        }
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(JSON.stringify(body)).toContain("deprecated");
+        return true;
+      })
+      .reply(200);
     await probot.receive(event);
 
     handleScope(scope);
@@ -607,7 +635,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic -f '[MINOR] Fix lint'";
+    event.payload.comment.body = "@pytorchbot merge -i -f '[MINOR] Fix lint'";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -616,7 +644,7 @@ describe("merge-bot", () => {
     const scope = nock("https://api.github.com")
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
         expect(JSON.stringify(body)).toContain(
-          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -ic/--ignore-current"
+          "@pytorchbot merge: error: argument -f/--force: not allowed with argument -i/--ignore-current"
         );
         return true;
       })
@@ -630,7 +658,7 @@ describe("merge-bot", () => {
   test("merge fail because mutually exclusive options without force merge reason", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchbot merge -ic -f";
+    event.payload.comment.body = "@pytorchbot merge -i -f";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
@@ -811,7 +839,7 @@ describe("merge-bot", () => {
   test("merge with ignore current flag using CLI", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
-    event.payload.comment.body = "@pytorchmergebot merge -ic";
+    event.payload.comment.body = "@pytorchmergebot merge -i";
 
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;

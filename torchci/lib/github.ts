@@ -30,6 +30,12 @@ export async function getOctokit(
   });
 }
 
+export async function getOctokitWithUserToken(token: string): Promise<Octokit> {
+  return new Octokit({
+    auth: token,
+  });
+}
+
 const PR_REGEX = /Pull Request resolved: .*?(\d+)/;
 const PHAB_REGEX = /Differential Revision: (D.*)/;
 const EXPORTED_PHAB_REGEX = /Differential Revision: \[(.*)\]/;

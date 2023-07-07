@@ -6,6 +6,11 @@
       "Effect": "Allow",
       "Action": ["s3:GetObject", "s3:GetObjectAcl"],
       "Resource": ["${s3_arn}/*"]
-    }
+    },
+    {
+      "Effect":"Allow",
+      "Action":["s3:ListBucket","s3:GetBucketLocation"],
+      "Resource":"${s3_arn}"
+   }
   ]
 }

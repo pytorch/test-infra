@@ -35,7 +35,13 @@ export function CommitInfo({
   return (
     <div>
       <h2>{commit.commitTitle}</h2>
-      <CommitStatus commit={commit} jobs={jobs} />
+      <CommitStatus
+        repoOwner={repoOwner}
+        repoName={repoName}
+        commit={commit}
+        jobs={jobs}
+        isCommitPage={true}
+      />
     </div>
   );
 }

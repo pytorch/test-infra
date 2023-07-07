@@ -53,20 +53,37 @@ export default async function fetchHud(params: HudParams): Promise<{
       {
         parameters: [
           {
-            name: "issueUrls",
+            name: "shas",
             type: "string",
-            value: _.map(commits, (commit) => {
-              // Get the PR number to figure out if this is forced merged
-              return `https://api.github.com/repos/${params.repoOwner}/${params.repoName}/issues/${commit.prNum}`;
-            }).join(","),
+            value: shas.join(","),
+          },
+          {
+            name: "owner",
+            type: "string",
+            value: params.repoOwner,
+          },
+          {
+            name: "project",
+            type: "string",
+            value: params.repoName,
           },
         ],
       }
     );
-  const forcedMergePrNums = new Set(
-    _.map(filterForcedMergePr.results, (result) => {
-      return result.issue_url.split("/").pop();
+  const forcedMergeShas = new Set(
+    _.map(filterForcedMergePr.results, (r) => {
+      return r.merge_commit_sha;
     })
+  );
+  const forcedMergeWithFailuresShas = new Set(
+    _.map(
+      _.filter(filterForcedMergePr.results, (r) => {
+        return r.force_merge_with_failures !== 0;
+      }),
+      (r) => {
+        return r.merge_commit_sha;
+      }
+    )
   );
 
   const commitsBySha = _.keyBy(commits, "sha");
@@ -137,10 +154,8 @@ export default async function fetchHud(params: HudParams): Promise<{
     const row: RowData = {
       ...commit,
       jobs: jobs,
-      // Revert commits won't have any associated PR number
-      isForcedMerge: forcedMergePrNums.has(
-        commit.prNum !== null ? commit.prNum.toString() : ""
-      ),
+      isForcedMerge: forcedMergeShas.has(commit.sha),
+      isForcedMergeWithFailures: forcedMergeWithFailuresShas.has(commit.sha),
     };
     shaGrid.push(row);
   });

@@ -75,6 +75,11 @@ function NavBar() {
               </Link>
             </li>
             <li>
+              <Link prefetch={false} href="/nightlies">
+                Nightly
+              </Link>
+            </li>
+            <li>
               <Link prefetch={false} href="/reliability">
                 Failures Metric
               </Link>
@@ -87,7 +92,7 @@ function NavBar() {
             </li> */}
             <li>
               <Link prefetch={false} href="/failedjobs/pytorch/pytorch/main">
-                Failures Classfier
+                Failures Classifier
               </Link>
             </li>
             <li>

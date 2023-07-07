@@ -73,7 +73,7 @@ export async function updateDrciComments(
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
       getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
@@ -85,6 +85,7 @@ export async function updateDrciComments(
       failedJobs,
       flakyJobs,
       brokenTrunkJobs,
+      unstableJobs,
       pr_info.head_sha,
       pr_info.merge_base,
       `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
@@ -209,13 +210,19 @@ export function constructResultsComment(
   failedJobs: RecentWorkflowsData[],
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
+  unstableJobs: RecentWorkflowsData[],
   sha: string,
   merge_base: string,
   hud_pr_url: string
 ): string {
   let output = `\n`;
-  const unrelatedFailureCount = flakyJobs.length + brokenTrunkJobs.length;
-  const failing = failedJobs.length + flakyJobs.length + brokenTrunkJobs.length;
+  const unrelatedFailureCount =
+    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const failing =
+    failedJobs.length +
+    flakyJobs.length +
+    brokenTrunkJobs.length +
+    unstableJobs.length;
   const headerPrefix = `## `;
   const pendingIcon = `:hourglass_flowing_sand:`;
   const successIcon = `:white_check_mark:`;
@@ -234,7 +241,8 @@ export function constructResultsComment(
   const hasAnyFailing = failing > 0;
   const hasSignificantFailures = failedJobs.length > 0;
   const hasPending = pending > 0;
-  const hasUnrelatedFailures = flakyJobs.length + brokenTrunkJobs.length;
+  const hasUnrelatedFailures =
+    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
 
   let icon = "";
   if (hasSignificantFailures) {
@@ -299,6 +307,21 @@ export function constructResultsComment(
     "Rebase onto the `viable/strict` branch to avoid these failures",
     true
   );
+  output += constructResultsJobsSections(
+    hud_pr_url,
+    "UNSTABLE",
+    `The following ${pluralize(
+      "job",
+      unstableJobs.length
+    )} failed but ${pluralize(
+      "was",
+      unstableJobs.length,
+      "were"
+    )} likely due to flakiness present on trunk and has been marked as unstable`,
+    unstableJobs,
+    "",
+    true
+  );
   return output;
 }
 
@@ -324,16 +347,20 @@ export function getWorkflowJobsStatuses(
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
+  unstableJobs: RecentWorkflowsData[];
 } {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
+  const unstableJobs: RecentWorkflowsData[] = [];
   for (const [name, job] of prInfo.jobs) {
     if (job.conclusion === null && job.completed_at === null) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
-      if (
+      if (job.name !== undefined && job.name.includes("unstable")) {
+        unstableJobs.push(job);
+      } else if (
         baseJobs.get(job.name)?.conclusion == job.conclusion &&
         isEqual(job.failure_captures, baseJobs.get(job.name)?.failure_captures)
       ) {
@@ -345,7 +372,7 @@ export function getWorkflowJobsStatuses(
       }
     }
   }
-  return { pending, failedJobs, flakyJobs, brokenTrunkJobs };
+  return { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs };
 }
 
 export function reorganizeWorkflows(

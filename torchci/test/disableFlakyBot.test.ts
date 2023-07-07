@@ -3,6 +3,7 @@ import * as utils from "./utils";
 import * as disableFlakyTestBot from "../pages/api/flaky-tests/disable";
 import dayjs from "dayjs";
 import { handleScope } from "./common";
+import { IssueData } from "lib/types";
 
 nock.disableNetConnect();
 
@@ -111,7 +112,7 @@ describe("Disable Flaky Test Bot Across Jobs", () => {
 
   test("Create new issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -259,7 +260,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -288,7 +289,7 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 
   test("previously undetected flaky test should create an issue on main", async () => {
     const scope = nock("https://raw.githubusercontent.com")
-      .get(`/pytorch/pytorch/master/test/${flakyTestB.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestB.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
@@ -485,6 +486,8 @@ describe("Disable Flaky Test Bot Integration Tests", () => {
 });
 
 describe("Disable Flaky Test Bot Unit Tests", () => {
+  const octokit = utils.testOctokit();
+
   beforeEach(() => {});
 
   afterEach(() => {
@@ -568,17 +571,14 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should return proper module and be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestA.file,
-        flakyTestA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(additionalErrMessage).toEqual(undefined);
     expect(labels).toEqual(["module: fft", "triaged"]);
 
@@ -590,7 +590,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: owned test file should route to oncall and NOT be triaged", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -598,10 +598,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         )
       );
 
-    const { labels } = await disableFlakyTestBot.getTestOwnerLabels(
-      flakyTestA.file,
-      flakyTestA.invoking_file
-    );
+    const { labels } = await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["oncall: distributed"]);
 
     if (!scope.isDone()) {
@@ -612,7 +609,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: un-owned test file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(
@@ -621,10 +618,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestA.file,
-        flakyTestA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -636,17 +630,14 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: ill-formatted file should return module: unknown", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from("line1\nline2\nline3\nstill no owners\nline4\nlastline\n")
       );
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestA.file,
-        flakyTestA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -658,28 +649,25 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: retry getting file fails all times", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.invoking_file}.py`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.invoking_file}.py`)
       .reply(404);
 
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestA.file,
-        flakyTestA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: unknown"]);
     expect(additionalErrMessage).toEqual(
       "Error: Error retrieving file_a.py: 404, file_a: 404"
@@ -693,18 +681,15 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: retry getting file", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestA.file}`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
       );
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestA.file,
-        flakyTestA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
     expect(labels).toEqual(["module: fft", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -716,24 +701,21 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
   test("getTestOwnerLabels: fallback to invoking file when retrieving file", async () => {
     const scope = nock("https://raw.githubusercontent.com/")
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/${flakyTestAcrossJobA.file}`)
+      .get(`/pytorch/pytorch/main/test/${flakyTestAcrossJobA.file}`)
       .reply(404)
-      .get(`/pytorch/pytorch/master/test/nn/test_convolution.py`)
+      .get(`/pytorch/pytorch/main/test/nn/test_convolution.py`)
       .reply(
         200,
         Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
       );
     const { labels, additionalErrMessage } =
-      await disableFlakyTestBot.getTestOwnerLabels(
-        flakyTestAcrossJobA.file,
-        flakyTestAcrossJobA.invoking_file
-      );
+      await disableFlakyTestBot.getTestOwnerLabels(flakyTestAcrossJobA);
     expect(labels).toEqual(["module: fft", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
@@ -741,6 +723,41 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
       console.error("pending mocks: %j", scope.pendingMocks());
     }
     scope.done();
+  });
+
+  test("getTestOwnerLabels: give dynamo and inductor oncall: pt2 label", async () => {
+    const test = { ...flakyTestA };
+    test.jobNames = ["dynamo linux"];
+
+    let scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/main/test/${test.file}`)
+      .reply(
+        200,
+        Buffer.from(`# Owner(s): ["module: fft"]\nimport blah;\nrest of file`)
+      );
+
+    let { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(test);
+    expect(additionalErrMessage).toEqual(undefined);
+    expect(labels).toEqual(["module: fft", "oncall: pt2", "triaged"]);
+
+    handleScope(scope);
+  });
+
+  test("getTestOwnerLabels: give dynamo and inductor oncall: pt2 label, unknown owner", async () => {
+    const test = { ...flakyTestA };
+    test.jobNames = ["inductor linux"];
+
+    let scope = nock("https://raw.githubusercontent.com/")
+      .get(`/pytorch/pytorch/main/test/${test.file}`)
+      .reply(200, Buffer.from(`import blah;\nrest of file`));
+
+    let { labels, additionalErrMessage } =
+      await disableFlakyTestBot.getTestOwnerLabels(test);
+    expect(additionalErrMessage).toEqual(undefined);
+    expect(labels).toEqual(["module: unknown", "oncall: pt2"]);
+
+    handleScope(scope);
   });
 
   test("getLatestTrunkJobURL: should return URL of last trunk job if it exists", async () => {
@@ -805,27 +822,48 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     ]);
   });
 
-  test("getPlatformsAffected: should correctly triage dyanmo", async () => {
-    let workflowJobs = ["linux rocm", "dynamo linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "rocm",
-      "dynamo",
-    ]);
+  test("getPlatformsAffected: should correctly triage dyanmo and inductor", async () => {
+    function expectJobsToDisablePlatforms(jobs: string[], platforms: string[]) {
+      expect(disableFlakyTestBot.getPlatformsAffected(jobs)).toEqual(platforms);
+    }
 
-    workflowJobs = ["dynamo linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "dynamo",
-    ]);
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "inductor linux", "linux"],
+      ["linux", "rocm"]
+    );
 
-    workflowJobs = ["linux rocm", "dynamo linux", "linux"];
-    console.log(disableFlakyTestBot.getPlatformsAffected(workflowJobs));
-    expect(disableFlakyTestBot.getPlatformsAffected(workflowJobs)).toEqual([
-      "linux",
-      "rocm",
-      "dynamo",
-    ]);
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "inductor linux"],
+      ["rocm", "dynamo", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["dynamo linux", "inductor linux"],
+      ["dynamo", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "dynamo linux", "linux"],
+      ["linux", "rocm"]
+    );
+
+    expectJobsToDisablePlatforms(
+      ["linux rocm", "inductor linux", "linux"],
+      ["linux", "rocm"]
+    );
+
+    expectJobsToDisablePlatforms(["dynamo linux", "linux"], ["linux"]);
+
+    expectJobsToDisablePlatforms(["inductor linux", "linux"], ["linux"]);
+
+    expectJobsToDisablePlatforms(
+      ["inductor linux", "rocm linux"],
+      ["rocm", "inductor"]
+    );
+
+    expectJobsToDisablePlatforms(["inductor linux"], ["inductor"]);
+
+    expectJobsToDisablePlatforms(["dynamo linux"], ["dynamo"]);
   });
 
   test("getIssueBodyForFlakyTest: should contain Platforms line", async () => {
@@ -857,5 +895,46 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
         flakyTests
       )
     ).toEqual([nonFlakyTestZ]);
+  });
+
+  test("dedupFlakyTestIssues favors correct issues", async () => {
+    const openSmall: IssueData = {
+      number: 1,
+      title: "",
+      html_url: "",
+      state: "open",
+      body: "",
+      updated_at: "",
+      author_association: "MEMBER",
+    };
+    const closedSmall: IssueData = { ...openSmall, number: 2, state: "closed" };
+    const openBig: IssueData = { ...openSmall, number: 3 };
+    const closedBig: IssueData = { ...openSmall, number: 4, state: "closed" };
+
+    async function helper(
+      input: IssueData[],
+      expected: IssueData,
+      closed: IssueData[]
+    ) {
+      const scope = nock("https://api.github.com");
+      for (const issue of closed) {
+        scope.patch(`/repos/pytorch/pytorch/issues/${issue.number}`).reply(200);
+      }
+      expect(
+        await disableFlakyTestBot.dedupFlakyTestIssues(octokit, input)
+      ).toEqual([expected]);
+      scope.done();
+    }
+
+    // Definitely not the entire range of possibilities
+    await helper([openSmall], openSmall, []);
+    await helper([openSmall, closedSmall], openSmall, []);
+    await helper([openSmall, openBig, closedSmall], openBig, [openSmall]);
+    await helper([openSmall, openBig], openBig, [openSmall]);
+    await helper([openSmall, openBig, closedBig, closedSmall], openBig, [
+      openSmall,
+    ]);
+    await helper([closedSmall, closedBig], closedBig, []);
+    await helper([closedSmall, openSmall], openSmall, []);
   });
 });

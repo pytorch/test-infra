@@ -1,0 +1,11 @@
+{
+  "sql_path": "__sql/nightly_jobs_red_past_day.sql",
+  "default_parameters": [
+    {
+      "name": "repo",
+      "type": "string",
+      "value": "pytorch"
+    }
+  ],
+  "description": ""
+}

@@ -5,9 +5,10 @@
     "commit_jobs_query": "cc524c5036e78794",
     "disabled_non_flaky_tests": "f909abf9eec15b56",
     "commit_failed_jobs": "7e5b39f3ec22b89f",
-    "filter_forced_merge_pr": "5cdaa020d6b71414",
+    "filter_forced_merge_pr": "98786319ff984d95",
     "flaky_tests": "9f7a1abcebb7f027",
     "flaky_tests_across_jobs": "474e5454bda0c5bb",
+    "get_relevant_alerts": "727014a49bef2c20",
     "individual_test_stats_per_workflow_per_oncall": "559b6735965f1eb2",
     "individual_test_times_per_oncall_per_workflow": "6b63c3dde3032bea",
     "flaky_workflows_jobs": "d5783ef1fe73fa5b",
@@ -19,7 +20,7 @@
     "test_time_per_oncall": "a85f4d3243d90f51",
     "test_time_and_price_per_oncall": "7af6d14035a19439",
     "test_times_per_workflow_type": "3ab0de839b95d22c",
-    "issue_query": "e30d683c63d74f22",
+    "issue_query": "e4d338de89980044",
     "failure_samples_query": "18e7e696b4949f05",
     "num_commits_master": "e4a864147cf3bf44",
     "recent_pr_workflows_query": "dc6152f7ab81a336",
@@ -27,7 +28,7 @@
     "unclassified": "1b31a2d8f4ab7230",
     "test_insights_overview": "42dbd5232f45fd53",
     "test_insights_latest_runs": "1871833a91cb8b1b",
-    "master_commit_red_jobs": "4ec75f3db61627a8"
+    "master_commit_red_jobs": "4869b467679a616a"
   },
   "pytorch_dev_infra_kpis": {
     "monthly_contribution_stats": "c1a8751a22f6b6ce",
@@ -52,18 +53,18 @@
     "last_successful_jobs": "2e04949378c58607",
     "last_successful_workflow": "5d22927dd0b0956b",
     "log_captures_count": "7365d7871017530a",
-    "master_commit_red_avg": "e1aa2fa86a1840b0",
-    "master_commit_red": "56f27a7db8cf8d86",
-    "master_commit_red_percent": "dec5590156bf6a4c",
-    "master_commit_red_percent_groups": "ebda9595c8357e51",
-    "master_jobs_red_avg": "084ae0664e81bc00",
-    "master_jobs_red": "44c34a7f339dff68",
+    "master_commit_red_avg": "6f518a3b3f37c527",
+    "master_commit_red": "a723cd26c84c6ca1",
+    "master_commit_red_percent": "5c1de222caaf3a9e",
+    "master_commit_red_percent_groups": "601949da23f80a28",
+    "master_jobs_red_avg": "7df76d4b0d79e067",
+    "master_jobs_red": "778468e0c94428ff",
     "number_of_force_pushes": "7c12c25f00d85d5d",
     "num_tests_run": "148e44c8f1ab7517",
     "queued_jobs_by_label": "52ab0f4570516f6b",
     "queued_jobs": "7b5ef18c1273bab2",
     "reverts": "f5bc84a10c4065a3",
-    "top_reds": "dddc995859014109",
+    "top_reds": "f1a1f5012d419fc2",
     "tts_avg": "2dd4a04e091c58aa",
     "tts_percentile": "912c8ad61a1772a4",
     "tts_duration_historical": "88c02c6e25d59854",
@@ -76,12 +77,20 @@
     "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
   },
   "inductor": {
-    "compilers_benchmark_performance": "f024488f6696575d",
-    "compilers_benchmark_performance_branches": "f259d06862b41888"
+    "compilers_benchmark_performance": "d43601277905c4a0",
+    "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc"
   },
   "utilization": {
     "runner_utilization": "2dfc4f9c16e51da0",
     "runner_utilization_by_repo": "2ca7468c6f158924",
     "runner_utilization_by_activity": "343929e0ebeee379"
+  },
+  "nightlies": {
+    "nightly_jobs_red": "d49bc5633c5aac10",
+    "nightly_jobs_red_by_name": "bb6eeb316157ed2b",
+    "nightly_jobs_red_by_platform": "d5ab478e83ff2dae",
+    "nightly_jobs_red_past_day": "e74af839c37e1517",
+    "validation_jobs_red": "ac8dee6e6b76916d",
+    "validation_jobs_red_past_day": "aecb798a574ba2ff"
   }
 }
