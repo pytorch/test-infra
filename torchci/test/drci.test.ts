@@ -12,6 +12,7 @@ import {
 import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
+import { removeJobNameSuffix } from "lib/jobUtils";
 
 nock.disableNetConnect();
 
@@ -418,6 +419,25 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(1);
+  });
+
+  test("test shard id and suffix in job name are handled correctly", async () => {
+    const originalWorkflows = [failedA, failedD, failedF];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const baseJobs = new Map();
+    baseJobs.set(removeJobNameSuffix(failedD.name), [failedE]);
+    baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
+
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 
   test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
