@@ -915,6 +915,13 @@
       "linux"
     ]
   ],
+  "test_full_precision_in_eval (__main__.TestFSDPMixedPrecisionSharded)": [
+    "104804",
+    "https://github.com/pytorch/pytorch/issues/104804",
+    [
+      "linux"
+    ]
+  ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
     "82866",
     "https://github.com/pytorch/pytorch/issues/82866",
