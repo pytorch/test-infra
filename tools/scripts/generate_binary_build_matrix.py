@@ -268,7 +268,7 @@ def generate_libtorch_matrix(
                 arches += mod.CUDA_ARCHES
             elif os == "windows":
                 arches += mod.CUDA_ARCHES
-        
+
         if with_rocm == ENABLE:
             if os == "linux":
                 arches += mod.ROCM_ARCHES
