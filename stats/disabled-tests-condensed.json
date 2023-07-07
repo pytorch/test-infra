@@ -1006,14 +1006,6 @@
       "linux"
     ]
   ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_graph_concurrent_replay (__main__.TestCuda)": [
     "104055",
     "https://github.com/pytorch/pytorch/issues/104055",
@@ -1714,6 +1706,13 @@
   "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
     "94953",
     "https://github.com/pytorch/pytorch/issues/94953",
+    [
+      "linux"
+    ]
+  ],
+  "test_split_tensor (__main__.TestDTensorPlacementTypes)": [
+    "104769",
+    "https://github.com/pytorch/pytorch/issues/104769",
     [
       "linux"
     ]
