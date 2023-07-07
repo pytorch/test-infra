@@ -1006,6 +1006,14 @@
       "linux"
     ]
   ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_graph_concurrent_replay (__main__.TestCuda)": [
     "104055",
     "https://github.com/pytorch/pytorch/issues/104055",
@@ -1279,15 +1287,6 @@
       "macos"
     ]
   ],
-  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
-    "88466",
-    "https://github.com/pytorch/pytorch/issues/88466",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_4 (__main__.MutationExportTests)": [
     "88467",
     "https://github.com/pytorch/pytorch/issues/88467",
@@ -1479,13 +1478,6 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96760",
     "https://github.com/pytorch/pytorch/issues/96760",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
-    "100033",
-    "https://github.com/pytorch/pytorch/issues/100033",
     [
       "rocm"
     ]
