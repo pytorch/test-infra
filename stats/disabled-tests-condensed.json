@@ -1076,6 +1076,14 @@
       "linux"
     ]
   ],
+  "test_init_rpc_twice (__main__.TensorPipeRpcTest)": [
+    "74180",
+    "https://github.com/pytorch/pytorch/issues/74180",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
     "103285",
     "https://github.com/pytorch/pytorch/issues/103285",
