@@ -3,7 +3,7 @@ import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
-  ", [0-9]+, [0-9]+, (.+)\\)"
+  ", [0-9]+, [0-9]+, .+\\)"
 );
 
 export function isFailedJob(job: JobData) {
