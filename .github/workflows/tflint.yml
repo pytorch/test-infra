@@ -26,7 +26,8 @@ jobs:
     - name: Install Terraform
       uses: hashicorp/setup-terraform@v2
       with:
-          terraform_version: 1.2.9
+        terraform_version: 1.5.1
+        terraform_wrapper: false
 
     - name: Show version
       run: tflint --version

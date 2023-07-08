@@ -26,6 +26,8 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
+            cache-path: /third_party/ffmpeg
+            cache-key: linux-ffmpeg
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test/smoke_test.py
@@ -53,3 +55,5 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+      cache-path: ${{ matrix.cache-path }}
+      cache-key: ${{ matrix.cache-key }}

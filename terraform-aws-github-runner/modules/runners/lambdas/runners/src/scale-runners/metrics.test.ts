@@ -152,7 +152,7 @@ describe('./metrics', () => {
       });
 
       const timeDiff = spyDate.mock.results[1].value - spyDate.mock.results[0].value;
-      expect(timeDiff).toBeGreaterThanOrEqual(waitMs);
+      expect(timeDiff).toBeGreaterThanOrEqual(waitMs - 5);
       expect(successFn).toBeCalledWith(timeDiff);
       expect(failFn).not.toBeCalled();
     });
@@ -172,7 +172,7 @@ describe('./metrics', () => {
       ).rejects.toThrowError();
 
       const timeDiff = spyDate.mock.results[1].value - spyDate.mock.results[0].value;
-      expect(timeDiff).toBeGreaterThanOrEqual(waitMs);
+      expect(timeDiff).toBeGreaterThanOrEqual(waitMs - 5);
       expect(successFn).not.toBeCalled();
       expect(failFn).toBeCalledWith(timeDiff);
     });

@@ -25,6 +25,8 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
+            cache-path: /third_party/ffmpeg
+            cache-key: macos-m1-ffmpeg
             pre-script: packaging/pre_build_script.sh
             post-script: packaging/post_build_script.sh
             conda-package-directory: packaging/torchaudio
@@ -33,11 +35,15 @@ jobs:
           - repository: pytorch/vision
             pre-script: ""
             post-script: ""
+            cache-path: ""
+            cache-key: ""
             conda-package-directory: packaging/torchvision
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
           - repository: pytorch/text
             pre-script: packaging/install_torchdata.sh
+            cache-path: ""
+            cache-key: ""
             post-script: ""
             conda-package-directory: packaging/torchtext
             smoke-test-script: test/smoke_tests/smoke_tests.py
@@ -57,5 +63,7 @@ jobs:
       runner-type: macos-m1-12
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
+      cache-path: ${{ matrix.cache-path }}
+      cache-key: ${{ matrix.cache-key }}
     secrets:
       CONDA_PYTORCHBOT_TOKEN: ${{ secrets.CONDA_PYTORCHBOT_TOKEN }}

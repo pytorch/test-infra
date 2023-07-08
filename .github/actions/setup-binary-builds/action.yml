@@ -33,7 +33,7 @@ runs:
   using: composite
   steps:
       - name: Remove repository directory (if exists)
-        shell: bash -l {0}
+        shell: bash
         env:
           REPOSITORY: ${{ inputs.repository }}
         run: |
@@ -46,7 +46,7 @@ runs:
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
       - name: Log Available Webhook Fields
-        shell: bash -l {0}
+        shell: bash
         run: |
           echo "ENV VARS"
           echo "${GITHUB_REF_NAME}"
@@ -59,7 +59,7 @@ runs:
           echo "${{ github.ref }}"
           echo "${{ github.base_ref }}"
       - name: Set artifact name
-        shell: bash -l {0}
+        shell: bash
         env:
           PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
@@ -77,6 +77,7 @@ runs:
         shell: bash -l {0}
         run: |
           set -euxo pipefail
+          conda info | grep -i 'base environment'
           conda clean --all --quiet --yes
       - name: Reset channel priority
         shell: bash -l {0}

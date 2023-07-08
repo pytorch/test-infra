@@ -1,0 +1,42 @@
+name: 'Verify and Upload Alerts'
+description: 'Verifies and Uploads a set of alerts to AWS'
+inputs:
+  alerts:
+    description: 'JSON string to which represents alerts. It must conform to the alerting schema [put link here]'
+    required: true
+  organization:
+    description: 'GitHub organization alerts are for'
+    required: true
+  repo:
+    description: 'GitHub repository alerts are for'
+    required: true
+    
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout pytorch/test-infra repository
+      uses: actions/checkout@v3
+      with:
+        repository: pytorch/test-infra
+        path: _test-infra
+    - name: Install Dependencies
+      run: |
+        pip3 install jsonschema
+        pip3 install boto3==1.19.12
+        pip3 install rockset==1.0.3
+      shell: bash
+    - name: Run Script to Validate Alerts
+      shell: bash
+      run: | 
+        python3 _test-infra/tools/alerts/validate_alerts.py --alerts '${{ inputs.alerts }}'
+
+    - name: Run Script to Upload Alerts
+      shell: bash
+      if: github.event_name != 'pull_request'
+      run: |
+       python3 _test-infra/tools/alerts/upload_alerts_to_aws.py --alerts '${{ inputs.alerts }}' --org "${{ inputs.organization }}" --repo "${{ inputs.repo }}"
+
+    - name: Cleanup
+      run: |
+        rm -rf _test-infra
+      shell: bash

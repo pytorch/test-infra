@@ -4,49 +4,59 @@ import re
 import subprocess
 import sys
 
+
 def run_cmd_or_die(cmd):
-    print(f'Running command: {cmd}')
-    p = subprocess.Popen("/bin/bash", stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True)
-    p.stdin.write('set -e\n')
+    print(f"Running command: {cmd}")
+    p = subprocess.Popen(
+        "/bin/bash",
+        stdout=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+    )
+    p.stdin.write("set -e\n")
     p.stdin.write(cmd)
-    p.stdin.write('\nexit $?\n')
+    p.stdin.write("\nexit $?\n")
     p.stdin.close()
 
-    result = ''
+    result = ""
     while p.poll() is None:
         line = p.stdout.readline()
         if line:
-            print(line, end='')
+            print(line, end="")
         result += line
 
     # Read any remaining output
     for line in p.stdout:
-        print(line, end='')
+        print(line, end="")
         result += line
 
     exit_code = p.returncode
     if exit_code != 0:
-        raise RuntimeError(f'Command {cmd} failed with exit code {exit_code}')
+        raise RuntimeError(f"Command {cmd} failed with exit code {exit_code}")
     return result
 
 
 def main():
-    all_secrets = json.loads(os.environ['ALL_SECRETS'])
-    secrets_names = [x for x in sys.argv[1].split(' ') if x]
+    all_secrets = json.loads(os.environ["ALL_SECRETS"])
+    secrets_names = [x for x in sys.argv[1].split(" ") if x]
     if not secrets_names:
         secrets_names = [x for x in all_secrets.keys()]
     secrets_u_names = [
-        re.sub(r'[^a-zA-Z0-9_]', '', f'SECRET_{x.upper()}'.replace('-', '_'))
+        re.sub(r"[^a-zA-Z0-9_]", "", f"SECRET_{x.upper()}".replace("-", "_"))
         for x in secrets_names
     ]
 
     for sname, senv in zip(secrets_names, secrets_u_names):
         try:
-            os.environ[senv] = str(all_secrets[sname])
-        except KeyError:
-            print(f'Could not set {senv} from secret {sname}')
+            os.environ[senv] = str(all_secrets.get(sname, ""))
+        except KeyError as e:
+            print(f"Could not set {senv} from secret {sname}: {e}")
 
-    container_name = run_cmd_or_die(f'''
+    container_name = (
+        run_cmd_or_die(
+            f"""
     docker run \
         -e PR_NUMBER \
         -e RUNNER_ARTIFACT_DIR=/artifacts \
@@ -73,9 +83,13 @@ def main():
         -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
         -w /work \
         "{ os.environ.get('DOCKER_IMAGE', '') }"
-    ''').replace('\n', '').strip()
-    run_cmd_or_die(f'docker exec -t {container_name} /exec')
+    """
+        )
+        .replace("\n", "")
+        .strip()
+    )
+    run_cmd_or_die(f"docker exec -t {container_name} /exec")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -26,12 +26,12 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.8", "3.9", "3.10", "3.11"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.7", "11.8", "12.1"],
+    "nightly": ["11.8", "12.1"],
     "test": ["11.7", "11.8"],
     "release": ["11.7", "11.8"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["5.3", "5.4.2"],
+    "nightly": ["5.4.2", "5.5"],
     "test": ["5.3", "5.4.2"],
     "release": ["5.3", "5.4.2"],
 }
@@ -197,7 +197,7 @@ def get_libtorch_install_command(os: str, channel: str, gpu_arch_type: str, libt
     return f"{get_base_download_url_for_repo('libtorch', channel, gpu_arch_type, desired_cuda)}/{build_name}"
 
 def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arch_version: str, desired_cuda: str, python_version: str) -> str:
-    if channel == RELEASE and ((gpu_arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos"))):
+    if channel == RELEASE and ((gpu_arch_version == "11.7" and os == "linux") or (gpu_arch_type == "cpu" and (os == "windows" or os == "macos" or os == "macos-arm64"))):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"

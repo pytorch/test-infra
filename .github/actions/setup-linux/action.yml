@@ -74,5 +74,14 @@ runs:
         echo "does=${needs}" >> $GITHUB_OUTPUT
 
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      uses: ./test-infra/.github/actions/setup-nvidia
+      uses: pytorch/test-infra/.github/actions/setup-nvidia@main
       if: ${{ steps.needs-nvidia-driver.outputs.does == 1 }}
+
+    - name: Kill any existing containers, clean up images
+      shell: bash
+      run: |
+        # ignore expansion of "docker ps -q" since it could be empty
+        # shellcheck disable=SC2046
+        docker stop $(docker ps -q) || true
+        # Prune all of the docker images
+        docker system prune -af

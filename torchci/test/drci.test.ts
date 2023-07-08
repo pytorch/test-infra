@@ -93,6 +93,17 @@ const failedC = {
   failure_captures: ["a"],
 };
 
+const unstableA = {
+  name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a"],
+};
+
 const sev: IssueData = {
   number: 85362,
   title: "docker pulls failing with no space left on disk",
@@ -151,6 +162,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const failureInfo = updateDrciBot.constructResultsComment(
       pending,
       failedJobs,
+      [],
       [],
       [],
       pr_1001.head_sha,
@@ -226,6 +238,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -269,6 +282,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -308,6 +322,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -342,6 +357,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -351,13 +367,13 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
   });
 
-  test("test flaky jobs and broken trunk jobs are filtered out", async () => {
-    const originalWorkflows = [failedA, failedB];
+  test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
+    const originalWorkflows = [failedA, failedB, unstableA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { failedJobs, brokenTrunkJobs, flakyJobs } =
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
       updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
@@ -366,38 +382,43 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
+    expect(unstableJobs.length).toBe(1);
   });
 
-  test("test flaky jobs and broken trunk jobs are included in the comment", async () => {
+  test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
     const failureInfoComment = updateDrciBot.constructResultsComment(
       1,
       [failedA],
       [failedB],
       [failedC],
+      [unstableA],
       "random head sha",
       "random base sha",
       "hudlink"
     );
     const expectToContain = [
-      "1 New Failure, 1 Pending, 2 Unrelated Failures",
+      "1 New Failure, 1 Pending, 3 Unrelated Failures",
       "The following job has failed",
       "The following job failed but was likely due to flakiness present on trunk",
       "The following job failed but was present on the merge base random base sha",
+      "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
       failedA.name,
       failedB.name,
       failedC.name,
+      unstableA.name,
     ];
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
   });
 
-  test("test flaky jobs and broken trunk jobs don't affect the Dr. CI icon", async () => {
+  test("test flaky, broken trunk, unstable jobs don't affect the Dr. CI icon", async () => {
     const failureInfoComment = updateDrciBot.constructResultsComment(
       1,
       [],
       [failedB],
       [failedC],
+      [unstableA],
       "random head sha",
       "random base sha",
       "hudlink"
@@ -405,9 +426,10 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const expectToContain = [
       ":hourglass_flowing_sand:",
-      "1 Pending, 2 Unrelated Failures",
+      "1 Pending, 3 Unrelated Failures",
       failedB.name,
       failedC.name,
+      unstableA.name,
     ];
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))

@@ -1,6 +1,7 @@
 .vscode
 .venv
 .idea
+.lintbin
 
 *.env
 *.zip

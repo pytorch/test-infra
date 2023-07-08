@@ -16,6 +16,7 @@ WITH all_jobs AS (
         )
         AND job.name NOT LIKE '%rerun_disabled_tests%'
         AND job.name NOT LIKE '%mem_leak_check%'
+        AND job.name NOT LIKE '%unstable%'
         AND workflow.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
         AND push.ref IN ('refs/heads/master', 'refs/heads/main')
         AND push.repository.owner.name = 'pytorch'

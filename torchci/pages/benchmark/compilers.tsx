@@ -43,6 +43,11 @@ const ROW_GAP = 100;
 const ROW_HEIGHT = 38;
 const PASSRATE_DISPLAY_NAME_REGEX = new RegExp("^([0-9]+)%,\\s.+$");
 
+// A help link to explain the metrics used in the dashboard
+export const HELP_LINK =
+  "https://pytorch.org/docs/main/compile/performance-dashboard.html";
+
+export const SHA_DISPLAY_LENGTH = 10;
 export const LAST_N_DAYS = 7;
 export const HUD_PREFIX = "/pytorch/pytorch/commit";
 export const TIME_FIELD_NAME = "granularity_bucket";
@@ -68,22 +73,34 @@ export const SUITES: { [k: string]: string } = {
   torchbench: "Torchbench",
   huggingface: "Huggingface",
   timm_models: "TIMM models",
+  dynamic: "[Dynamic]",
+  blueberries: "[Blueberries]",
 };
-export const MODES = ["training", "inference"];
-export const DTYPES = ["amp"];
+export const DEFAULT_MODE = "training";
+// The value is the default dtype for that mode
+export const MODES: { [k: string]: string } = {
+  training: "amp",
+  inference: "bfloat16",
+};
+export const DTYPES = ["amp", "float16", "bfloat16"];
 export const PASSING_ACCURACY = ["pass", "pass_due_to_skip", "eager_variation"];
+
+// Relative thresholds
+export const RELATIVE_THRESHOLD = 0.05;
 
 // Thresholds
 export const ACCURACY_THRESHOLD = 90.0;
 export const SPEEDUP_THRESHOLD = 0.95;
-export const COMPILATION_lATENCY_THRESHOLD_IN_SECONDS = 120;
 export const COMPRESSION_RATIO_THRESHOLD = 0.9;
+
+// The number of digit after decimal to display on the summary page
+const SCALE = 2;
 
 // Headers
 export const DIFF_HEADER = "Base value (L) → New value (R)";
 const PASSRATE_HEADER = `Passrate (threshold = ${ACCURACY_THRESHOLD}%)`;
 const GEOMEAN_HEADER = `Geometric mean speedup (threshold = ${SPEEDUP_THRESHOLD}x)`;
-const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds) (threshold = ${COMPILATION_lATENCY_THRESHOLD_IN_SECONDS}s)`;
+const COMPILATION_LATENCY_HEADER = `Mean compilation time (seconds)`;
 const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${COMPRESSION_RATIO_THRESHOLD}x)`;
 
 // Keep the mapping from workflow ID to commit, so that we can use it to
@@ -92,6 +109,7 @@ const MEMORY_HEADER = `Peak memory footprint compression ratio (threshold = ${CO
 // already returns close to the 6MB data transfer limit. I need to figure
 // out a way to compress the data later
 export const COMMIT_TO_WORKFLOW_ID: { [k: string]: number } = {};
+export const WORKFLOW_ID_TO_COMMIT: { [k: number]: string } = {};
 
 function getPassingModels(data: CompilerPerformanceData[]) {
   const models: { [k: string]: any } = {};
@@ -230,7 +248,7 @@ function geomean(data: number[]) {
   data.forEach((v) => {
     gm *= v;
   });
-  return Math.pow(gm, 1.0 / data.length).toFixed(2);
+  return Math.pow(gm, 1.0 / data.length).toFixed(SCALE);
 }
 
 function computeGeomean(
@@ -362,7 +380,7 @@ function computeCompilationTime(
               workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
-              compilation_latency: m.toFixed(2),
+              compilation_latency: m.toFixed(SCALE),
             });
           }
         );
@@ -435,7 +453,7 @@ function computeMemoryCompressionRatio(
               workflow_id: workflowId,
               suite: suite,
               compiler: compiler,
-              compression_ratio: m.toFixed(2),
+              compression_ratio: m.toFixed(SCALE),
             });
           }
         );
@@ -479,9 +497,19 @@ export function SuitePicker({
   );
 }
 
-export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
+export function ModePicker({
+  mode,
+  setMode,
+  setDType,
+}: {
+  mode: string;
+  setMode: any;
+  setDType: any;
+}) {
   function handleChange(e: SelectChangeEvent<string>) {
-    setMode(e.target.value);
+    const selectedMode = e.target.value;
+    setMode(selectedMode);
+    setDType(selectedMode in MODES ? MODES[selectedMode] : "amp");
   }
 
   return (
@@ -495,7 +523,7 @@ export function ModePicker({ mode, setMode }: { mode: string; setMode: any }) {
           onChange={handleChange}
           id="mode-picker-select"
         >
-          {MODES.map((mode) => (
+          {Object.keys(MODES).map((mode) => (
             <MenuItem key={mode} value={mode}>
               {mode}
             </MenuItem>
@@ -540,6 +568,7 @@ export function DTypePicker({
 }
 
 function groupCommitByBranch(data: any) {
+  const dedups: { [k: string]: Set<string> } = {};
   const branches: { [k: string]: any[] } = {};
   data.forEach((r: any) => {
     const b = DEFAULT_BRANCHES.includes(r.head_branch)
@@ -547,12 +576,19 @@ function groupCommitByBranch(data: any) {
       : r.head_branch;
     if (!(b in branches)) {
       branches[b] = [];
+      dedups[b] = new Set<string>();
+    }
+    if (dedups[b].has(r.head_sha)) {
+      return;
     }
 
     branches[b].push({
       head_sha: r.head_sha,
       event_time: r.event_time,
+      // This is used to sort the list of branches to show the main branch first
+      display_priority: DEFAULT_BRANCHES.includes(r.head_branch) ? 99 : 1,
     });
+    dedups[b].add(r.head_sha);
   });
 
   return branches;
@@ -584,13 +620,22 @@ export function BranchAndCommitPicker({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
   useEffect(() => {
-    if (data !== undefined) {
+    if (data !== undefined && data.length !== 0) {
       const branches = groupCommitByBranch(data);
+
+      // The selected branch could have no commit which happens when people are experimenting
+      // on their own branches or switching around to different configuration
+      if (branches[branch] === undefined || branches[branch].length === 0) {
+        branch =
+          MAIN_BRANCH in branches ? MAIN_BRANCH : Object.keys(branches)[0];
+        // Fallback to the main branch or the first available branch found in result
+        setBranch(branch);
+      }
       const branchCommits = branches[branch].map((r: any) => r.head_sha);
 
       if (
@@ -606,6 +651,7 @@ export function BranchAndCommitPicker({
 
       data.forEach((r: any) => {
         COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+        WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
       });
     }
   }, [data]);
@@ -619,11 +665,16 @@ export function BranchAndCommitPicker({
     );
   }
 
-  if (data === undefined) {
+  if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
   const branches = groupCommitByBranch(data);
+  // The main branch could have no commit which happens when people are experimenting
+  // on their own branches
+  if (branches[branch] === undefined || branches[branch].length === 0) {
+    return <div>Found no commit for this configurations.</div>;
+  }
 
   function handleBranchChange(e: SelectChangeEvent<string>) {
     const branch: string = e.target.value;
@@ -635,6 +686,10 @@ export function BranchAndCommitPicker({
     setCommit(e.target.value);
   }
 
+  // Sort it so that the main branch comes first
+  const displayBranches = Object.keys(branches).sort(
+    (x, y) => branches[y][0].display_priority - branches[x][0].display_priority
+  );
   return (
     <div>
       <FormControl>
@@ -648,14 +703,11 @@ export function BranchAndCommitPicker({
           onChange={handleBranchChange}
           id={`branch-picker-select-${commit}`}
         >
-          <MenuItem value={MAIN_BRANCH}>main</MenuItem>
-          {Object.keys(branches)
-            .filter((b: string) => !DEFAULT_BRANCHES.includes(b))
-            .map((b: string) => (
-              <MenuItem key={`${b}-${commit}`} value={b}>
-                {b}
-              </MenuItem>
-            ))}
+          {displayBranches.map((b: string) => (
+            <MenuItem key={`${b}-${commit}`} value={b}>
+              {b}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
 
@@ -672,7 +724,7 @@ export function BranchAndCommitPicker({
         >
           {branches[branch].map((r: any) => (
             <MenuItem key={r.head_sha} value={r.head_sha}>
-              {r.head_sha.substring(0, 7)} (
+              {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
             </MenuItem>
           ))}
@@ -682,21 +734,13 @@ export function BranchAndCommitPicker({
   );
 }
 
-export function LogLinks({
-  key,
-  suite,
-  logs,
-}: {
-  key: string;
-  suite: string;
-  logs: any;
-}) {
+export function LogLinks({ suite, logs }: { suite: string; logs: any }) {
   return (
     <>
       {" "}
       {SUITES[suite]} (
       {logs.map((log: any) => (
-        <a key={`${key}-${log.index}`} href={log.url}>
+        <a key={log.url} href={log.url}>
           #{log.index}
           {log.index === log.total ? "" : ", "}
         </a>
@@ -707,15 +751,21 @@ export function LogLinks({
 }
 
 function CommitPanel({
-  branch,
-  commit,
+  lBranch,
+  lCommit,
+  lDate,
+  rBranch,
+  rCommit,
+  rDate,
   workflowId,
-  date,
 }: {
-  branch: string;
-  commit: string;
+  lBranch: string;
+  lCommit: string;
+  lDate: string;
+  rBranch: string;
+  rCommit: string;
+  rDate: string;
   workflowId: number;
-  date: string;
 }) {
   const queryCollection = "commons";
   const queryName = "get_workflow_jobs";
@@ -732,7 +782,7 @@ function CommitPanel({
     JSON.stringify(queryParams)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
@@ -771,15 +821,23 @@ function CommitPanel({
   return (
     <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
       <Typography fontSize={"1rem"} fontStyle={"italic"}>
-        *This report was generated by CI running on PyTorch {branch} branch at
+        *This report was generated by CI running on PyTorch {lBranch} branch at
         commit{" "}
-        <a href={`${HUD_PREFIX}/${commit}#inductor-a100-perf-nightly`}>
-          {commit.substring(0, 7)}
+        <a href={`${HUD_PREFIX}/${lCommit}#inductor-a100-perf-nightly`}>
+          {lCommit.substring(0, SHA_DISPLAY_LENGTH)}
         </a>{" "}
-        on {dayjs(date).format("YYYY/MM/DD")}. The running logs per shard are:{" "}
+        on {dayjs(lDate).format("YYYY/MM/DD")} comparing with {rBranch} branch
+        at commit{" "}
+        <a href={`${HUD_PREFIX}/${rCommit}#inductor-a100-perf-nightly`}>
+          {rCommit.substring(0, SHA_DISPLAY_LENGTH)}
+        </a>
+        . The running logs per shard are:{" "}
         {Object.keys(SUITES).map((suite: string) => {
-          // Hack alert: The test configuration uses timm instead of timm_model as its output
           const name = suite.includes("timm") ? "timm" : suite;
+          // Hack alert: The test configuration uses timm instead of timm_model as its output
+          if (SUITES[suite].startsWith("[")) {
+            return <span key={`log-${name}`}></span>;
+          }
           return (
             <LogLinks
               key={`log-${name}`}
@@ -891,6 +949,7 @@ function extractPercentage(value: string) {
 function SummaryPanel({
   startTime,
   stopTime,
+  granularity,
   mode,
   dtype,
   lBranch,
@@ -902,6 +961,7 @@ function SummaryPanel({
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
+  granularity: Granularity;
   mode: string;
   dtype: string;
   lBranch: string;
@@ -982,6 +1042,7 @@ function SummaryPanel({
                 ? PASSRATE_HEADER
                 : `${PASSRATE_HEADER} ${DIFF_HEADER}`
             }
+            helpLink={HELP_LINK}
             data={Object.values(passrate).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1000,7 +1061,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = extractPercentage(v.l);
                     const r = extractPercentage(v.r);
@@ -1014,8 +1075,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {v.r} → {v.l}{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {v.r} → {v.l}
                         </a>
                       );
                     }
@@ -1036,19 +1096,21 @@ function SummaryPanel({
                     if (lCommit === rCommit || r === undefined) {
                       return l >= ACCURACY_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < ACCURACY_THRESHOLD && r >= ACCURACY_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < ACCURACY_THRESHOLD && r < ACCURACY_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < ACCURACY_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1070,6 +1132,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={GEOMEAN_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(geomean).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1088,10 +1151,10 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
-                    const l = Number(v.l).toFixed(2);
-                    const r = Number(v.r).toFixed(2);
+                    const l = Number(v.l).toFixed(SCALE);
+                    const r = Number(v.r).toFixed(SCALE);
 
                     if (
                       lCommit === rCommit ||
@@ -1103,8 +1166,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }
@@ -1127,19 +1189,21 @@ function SummaryPanel({
                     if (lCommit === rCommit) {
                       return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                     } else {
-                      if (l >= SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
-                        return styles.ok;
-                      }
-
-                      if (l < SPEEDUP_THRESHOLD && r >= SPEEDUP_THRESHOLD) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (l < SPEEDUP_THRESHOLD && r < SPEEDUP_THRESHOLD) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < SPEEDUP_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1161,6 +1225,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={COMPILATION_LATENCY_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(compTime).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1179,7 +1244,7 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
                     const l = Number(v.l).toFixed(0);
                     const r = Number(v.r).toFixed(0);
@@ -1194,10 +1259,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}s → {l}s{" "}
-                          {Number(l) > Number(r) && Number(r) != 0
-                            ? "\uD83D\uDD3A"
-                            : ""}
+                          {r}s → {l}s
                         </a>
                       );
                     }
@@ -1218,33 +1280,20 @@ function SummaryPanel({
                     const r = Number(v.r);
 
                     if (lCommit === rCommit) {
-                      return l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                        ? styles.warning
-                        : "";
+                      return "";
                     } else {
-                      if (
-                        l <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r <= COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS &&
-                        r > COMPILATION_lATENCY_THRESHOLD_IN_SECONDS
-                      ) {
-                        return styles.warning;
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
                       }
                     }
 
@@ -1265,6 +1314,7 @@ function SummaryPanel({
         >
           <TablePanelWithData
             title={MEMORY_HEADER}
+            helpLink={HELP_LINK}
             data={Object.values(memory).sort((a: any, b: any) =>
               a["compiler"].localeCompare(b["compiler"])
             )}
@@ -1283,10 +1333,10 @@ function SummaryPanel({
                     const url = `/benchmark/${suite}/${
                       DISPLAY_NAMES_TO_COMPILER_NAMES[params.row.compiler] ??
                       params.row.compiler
-                    }?startTime=${startTime}&stopTime=${stopTime}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
+                    }?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`;
 
-                    const l = Number(v.l).toFixed(2);
-                    const r = Number(v.r).toFixed(2);
+                    const l = Number(v.l).toFixed(SCALE);
+                    const r = Number(v.r).toFixed(SCALE);
 
                     if (
                       lCommit === rCommit ||
@@ -1298,8 +1348,7 @@ function SummaryPanel({
                     } else {
                       return (
                         <a href={url}>
-                          {r}x → {l}x{" "}
-                          {Number(l) < Number(r) ? "\uD83D\uDD3B" : ""}
+                          {r}x → {l}x
                         </a>
                       );
                     }
@@ -1324,28 +1373,21 @@ function SummaryPanel({
                         ? ""
                         : styles.warning;
                     } else {
-                      if (
-                        l >= COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.ok;
-                      }
-
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r >= COMPRESSION_RATIO_THRESHOLD
-                      ) {
-                        return styles.error;
-                      }
-
                       if (l === r) {
                         return "";
                       }
 
-                      if (
-                        l < COMPRESSION_RATIO_THRESHOLD &&
-                        r < COMPRESSION_RATIO_THRESHOLD
-                      ) {
+                      // Increasing more than x%
+                      if (l - r > RELATIVE_THRESHOLD * r) {
+                        return styles.ok;
+                      }
+
+                      // Decreasing more than x%
+                      if (r - l > RELATIVE_THRESHOLD * r) {
+                        return styles.error;
+                      }
+
+                      if (l < COMPRESSION_RATIO_THRESHOLD) {
                         return styles.warning;
                       }
                     }
@@ -1434,7 +1476,7 @@ function SuiteGraphPanel({
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
-  const { data, error } = useSWR(url, fetcher, {
+  let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 
@@ -1650,6 +1692,71 @@ function SuiteGraphPanel({
   );
 }
 
+// Generate extra entries for reporting purposes
+export function AugmentData(data: CompilerPerformanceData[]) {
+  if (data === undefined) return data;
+  const groups: { [key: string]: { [key: string]: Set<string> } } = {
+    dynamic: {
+      // NB: Not all of these actually exercise dynamic shapes,
+      // so our numbers may be over-inflated.  Threats to validity
+      // listed below.  Note that in all cases they are run with
+      // dynamic batch size, so you are at least getting some
+      // information that way.
+      torchbench: new Set([
+        // _generate variants are good; they do E2E autoregressive
+        // generation and will induce varying context length.
+        "cm3leon_generate",
+        "nanogpt_generate",
+        "hf_T5_generate",
+        "nanogpt_generate",
+        // detection models are ok-ish; the good news is they call
+        // nonzero internally and exercise dynamic shapes that way,
+        // the bad news is we may not run enough iterations with
+        // varying data to get varying numbers of bounding boxes.
+        "detectron2_fcos_r_50_fpn",
+        "vision_maskrcnn",
+        // this recommendation model internally uses sparse tensors
+        // but once again it's not clear that dynamic shapes is exercised
+        // on this sparsity
+        "dlrm",
+        // these language models are only running a single next
+        // word prediction, we're NOT testing dynamic sequence length
+        // performance
+        "llama",
+        "BERT_pytorch",
+        "hf_T5",
+        // the GNN benchmarks only one run one batch so you
+        // aren't actually triggering dynamism (and we didn't
+        // explicitly mark something as dynamic)
+        "basic_gnn_edgecnn",
+        "basic_gnn_gcn",
+        "basic_gnn_gin",
+        "basic_gnn_sage",
+      ]),
+      huggingface: new Set([]),
+    },
+    blueberries: {
+      torchbench: new Set(["nanogpt_generate", "llama"]),
+    },
+  };
+
+  function GenerateGroup(data: CompilerPerformanceData[], n: string) {
+    const l = groups[n];
+    return data
+      .filter((e: CompilerPerformanceData) => {
+        return e.suite in l && l[e.suite].has(e.name);
+      })
+      .map((e) => {
+        return { ...e, suite: n };
+      });
+  }
+
+  return ([] as CompilerPerformanceData[]).concat(
+    data,
+    ...Object.keys(groups).map((n) => GenerateGroup(data, n))
+  );
+}
+
 function Report({
   queryParams,
   startTime,
@@ -1702,16 +1809,12 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  const { data: lData, error: lError } = useSWR(lUrl, fetcher, {
+  let { data: lData, error: lError } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  lData = AugmentData(lData);
 
   const queryParamsWithR: RocksetParam[] = [
-    {
-      name: "suites",
-      type: "string",
-      value: Object.keys(SUITES).join(","),
-    },
     {
       name: "branches",
       type: "string",
@@ -1728,9 +1831,10 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  const { data: rData, error: rError } = useSWR(rUrl, fetcher, {
+  let { data: rData, error: rError } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
+  rData = AugmentData(rData);
 
   if (
     lData === undefined ||
@@ -1744,14 +1848,18 @@ function Report({
   return (
     <div>
       <CommitPanel
-        branch={lBranch}
-        commit={lCommit}
+        lBranch={lBranch}
+        lCommit={lCommit}
+        lDate={lData[0].granularity_bucket}
+        rBranch={rBranch}
+        rCommit={rCommit}
+        rDate={rData[0].granularity_bucket}
         workflowId={lData[0].workflow_id}
-        date={lData[0].granularity_bucket}
       />
       <SummaryPanel
         startTime={startTime}
         stopTime={stopTime}
+        granularity={granularity}
         mode={mode}
         dtype={dtype}
         lBranch={lBranch}
@@ -1784,8 +1892,8 @@ export default function Page() {
 
   const [granularity, setGranularity] = useState<Granularity>("hour");
   const [suite, setSuite] = useState<string>(Object.keys(SUITES)[0]);
-  const [mode, setMode] = useState<string>(MODES[0]);
-  const [dtype, setDType] = useState<string>(DTYPES[0]);
+  const [mode, setMode] = useState<string>(DEFAULT_MODE);
+  const [dtype, setDType] = useState<string>(MODES[DEFAULT_MODE]);
   const [lBranch, setLBranch] = useState<string>(MAIN_BRANCH);
   const [lCommit, setLCommit] = useState<string>("");
   const [rBranch, setRBranch] = useState<string>(MAIN_BRANCH);
@@ -1810,6 +1918,12 @@ export default function Page() {
       if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
         setTimeRange(-1);
       }
+    }
+
+    const granularity: Granularity =
+      (router.query.granularity as Granularity) ?? undefined;
+    if (granularity !== undefined) {
+      setGranularity(granularity);
     }
 
     const suite: string = (router.query.suite as string) ?? undefined;
@@ -1847,7 +1961,11 @@ export default function Page() {
       setRCommit(rCommit);
     }
 
-    setBaseUrl(`${window.location.host}${router.asPath.replace(/\?.+/, "")}`);
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
   }, [router.query]);
 
   const queryParams: RocksetParam[] = [
@@ -1894,7 +2012,7 @@ export default function Page() {
             startTime.toString()
           )}&stopTime=${encodeURIComponent(
             stopTime.toString()
-          )}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
+          )}&granularity=${granularity}&suite=${suite}&mode=${mode}&dtype=${dtype}&lBranch=${lBranch}&lCommit=${lCommit}&rBranch=${rBranch}&rCommit=${rCommit}`}
         />
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -1905,13 +2023,14 @@ export default function Page() {
           setStopTime={setStopTime}
           timeRange={timeRange}
           setTimeRange={setTimeRange}
+          setGranularity={setGranularity}
         />
         <GranularityPicker
           granularity={granularity}
           setGranularity={setGranularity}
         />
         <SuitePicker suite={suite} setSuite={setSuite} />
-        <ModePicker mode={mode} setMode={setMode} />
+        <ModePicker mode={mode} setMode={setMode} setDType={setDType} />
         <DTypePicker dtype={dtype} setDType={setDType} />
         <BranchAndCommitPicker
           queryParams={queryParams}

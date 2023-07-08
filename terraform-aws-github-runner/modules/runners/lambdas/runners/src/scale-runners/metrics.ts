@@ -1222,6 +1222,42 @@ export class ScaleDownMetrics extends Metrics {
   }
 
   /* istanbul ignore next */
+  runnerGhOfflineFoundRepo(repo: Repo, total: number) {
+    const dimensions = this.getRepoDim(repo);
+    this.addEntry('run.ghRunner.perRepo.offline.found', total, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineRemovedRepo(repo: Repo) {
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.ghRunner.perRepo.offline.removed.success', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineRemovedFailureRepo(repo: Repo) {
+    const dimensions = this.getRepoDim(repo);
+    this.countEntry('run.ghRunner.perRepo.offline.removed.failure', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineFoundOrg(org: string, total: number) {
+    const dimensions = new Map([['Org', org]]);
+    this.addEntry('run.ghRunner.perOrg.offline.found', total, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineRemovedOrg(org: string) {
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.ghRunner.perOrg.offline.removed.success', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
+  runnerGhOfflineRemovedFailureOrg(org: string) {
+    const dimensions = new Map([['Org', org]]);
+    this.countEntry('run.ghRunner.perOrg.offline.removed.failure', 1, dimensions);
+  }
+
+  /* istanbul ignore next */
   runnerTerminateSuccess(ec2Runner: RunnerInfo) {
     this.countEntry('run.ec2Runners.terminate.total');
     this.countEntry('run.ec2Runners.terminate.success');
