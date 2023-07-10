@@ -7,6 +7,7 @@ import { Grid, Paper, Typography, Stack, Skeleton } from "@mui/material";
 import { useState } from "react";
 import { RocksetParam } from "lib/rockset";
 import { fetcher } from "lib/GeneralUtils";
+
 import TablePanel from "components/metrics/panels/TablePanel";
 import { TimeRangePicker } from "pages/metrics";
 
@@ -75,11 +76,14 @@ function NightlyJobsRedPanel({
 function ValidationRedPanel({
   params,
   channel,
+  query_type,
 }: {
   params: RocksetParam[];
   channel: string;
+  query_type: string;
 }) {
-  const url = `/api/query/nightlies/validation_jobs_red?parameters=${encodeURIComponent(
+
+  const url = `/api/query/nightlies/`+query_type+`_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify([
       ...params,
       {
@@ -105,11 +109,12 @@ function ValidationRedPanel({
 
   const options: EChartsOption = {
     title: {
-      text:
-        channel.charAt(0).toUpperCase() +
-        channel.slice(1) +
-        " validation workflows failures, by day",
-      subtext: "Installation of PyTorch, Vision and Audio an smoke test",
+      text: channel.charAt(0).toUpperCase()+
+      channel.slice(1)+
+      " "+
+      query_type.charAt(0).toUpperCase()+
+      query_type.slice(1)+
+      " workflows failures"
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
@@ -215,9 +220,30 @@ export default function Page() {
         />
       </Stack>
 
+      
+
       <Grid container spacing={2}>
+        
         <Grid item xs={6} height={ROW_HEIGHT}>
           <NightlyJobsRedPanel params={timeParams} repo={"pytorch"} />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TablePanel
+            title={"Nightly PyTorch build jobs for past 24hrs"}
+            queryName={"nightly_jobs_red_past_day"}
+            queryParams={[{
+                name: "repo",
+                type: "string",
+                value: "pytorch",
+              }]}
+            queryCollection="nightlies"
+            columns={[
+              { field: "COUNT", headerName: "Count", flex: 1 },
+              { field: "name", headerName: "Name", flex: 4 },
+            ]}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+          />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
@@ -225,92 +251,14 @@ export default function Page() {
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
-          <NightlyJobsRedPanel params={timeParams} repo={"audio"} />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <NightlyJobsRedPanel params={timeParams} repo={"text"} />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <ValidationRedPanel params={timeParams} channel={"release"} />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <ValidationRedPanel params={timeParams} channel={"nightly"} />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Release failed validation jobs for past 24hrs"}
-            queryName={"validation_jobs_red_past_day"}
-            queryParams={[
-              {
-                name: "channel",
-                type: "string",
-                value: "release",
-              },
-            ]}
-            queryCollection="nightlies"
-            columns={[
-              { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "name", headerName: "Name", flex: 4 },
-            ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Nightly failed validation jobs for past 24hrs"}
-            queryName={"validation_jobs_red_past_day"}
-            queryParams={[
-              {
-                name: "channel",
-                type: "string",
-                value: "nightly",
-              },
-            ]}
-            queryCollection="nightlies"
-            columns={[
-              { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "name", headerName: "Name", flex: 4 },
-            ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Nightly PyTorch build jobs for past 24hrs"}
-            queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
-                name: "repo",
-                type: "string",
-                value: "pytorch",
-              },
-            ]}
-            queryCollection="nightlies"
-            columns={[
-              { field: "COUNT", headerName: "Count", flex: 1 },
-              { field: "name", headerName: "Name", flex: 4 },
-            ]}
-            dataGridProps={{ getRowId: (el: any) => el.name }}
-          />
-        </Grid>
-
-        <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Vision build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
+            queryParams={[{
                 name: "repo",
                 type: "string",
                 value: "vision",
-              },
-            ]}
+              }]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -318,19 +266,21 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el.name }}
           />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <NightlyJobsRedPanel params={timeParams} repo={"audio"} />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
             title={"Nightly Audio build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[
-              {
+            queryParams={[{
                 name: "repo",
                 type: "string",
                 value: "audio",
-              },
-            ]}
+              }]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -338,6 +288,10 @@ export default function Page() {
             ]}
             dataGridProps={{ getRowId: (el: any) => el.name }}
           />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <NightlyJobsRedPanel params={timeParams} repo={"text"} />
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
@@ -349,8 +303,69 @@ export default function Page() {
                 name: "repo",
                 type: "string",
                 value: "text",
-              },
+              }]}
+            queryCollection="nightlies"
+            columns={[
+              { field: "COUNT", headerName: "Count", flex: 1 },
+              { field: "name", headerName: "Name", flex: 4 },
             ]}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <ValidationRedPanel params={timeParams} channel={"release"} query_type={"validation"}/>
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TablePanel
+            title={"Release failed validation jobs for past 24hrs"}
+            queryName={"validation_jobs_red_past_day"}
+            queryParams={[{
+                name: "channel",
+                type: "string",
+                value: "release",
+              }]}
+            queryCollection="nightlies"
+            columns={[
+              { field: "COUNT", headerName: "Count", flex: 1 },
+              { field: "name", headerName: "Name", flex: 4 },
+            ]}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <ValidationRedPanel params={timeParams} channel={"nightly"} query_type={"validation"}/>
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TablePanel
+            title={"Nightly failed validation jobs for past 24hrs"}
+            queryName={"validation_jobs_red_past_day"}
+            queryParams={[{
+                name: "channel",
+                type: "string",
+                value: "nightly",
+              }]}
+            queryCollection="nightlies"
+            columns={[
+              { field: "COUNT", headerName: "Count", flex: 1 },
+              { field: "name", headerName: "Name", flex: 4 },
+            ]}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+          />
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <ValidationRedPanel params={timeParams} channel={""} query_type={"docker"}/>
+        </Grid>
+
+        <Grid item xs={6} height={ROW_HEIGHT}>
+          <TablePanel
+            title={"Docker failed  jobs for past 24hrs"}
+            queryName={"docker_jobs_red_past_day"}
+            queryParams={[]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
