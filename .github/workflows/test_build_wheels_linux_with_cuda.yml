@@ -26,10 +26,6 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            cache-path: ""
-            cache-key: ""
-            pre-script: ""
-            post-script: ""
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
           - repository: pytorch/vision

@@ -24,10 +24,6 @@ jobs:
       matrix:
         include:
           - repository: pytorch/audio
-            cache-path: ""
-            cache-key: ""
-            pre-script: ""
-            post-script: ""
             conda-package-directory: packaging/torchaudio
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
