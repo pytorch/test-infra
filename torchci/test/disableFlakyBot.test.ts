@@ -645,7 +645,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
+    expect(labels).toEqual(["module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(undefined);
 
     if (!scope.isDone()) {
@@ -675,7 +675,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
 
     const { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(flakyTestA);
-    expect(labels).toEqual(["module: unknown", "module: windows", "triaged"]);
+    expect(labels).toEqual(["module: windows", "triaged"]);
     expect(additionalErrMessage).toEqual(
       "Error: Error retrieving file_a.py: 404, file_a: 404"
     );
@@ -762,7 +762,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
-    expect(labels).toEqual(["module: unknown", "oncall: pt2"]);
+    expect(labels).toEqual(["oncall: pt2"]);
 
     handleScope(scope);
   });
@@ -778,7 +778,7 @@ describe("Disable Flaky Test Bot Unit Tests", () => {
     let { labels, additionalErrMessage } =
       await disableFlakyTestBot.getTestOwnerLabels(test);
     expect(additionalErrMessage).toEqual(undefined);
-    expect(labels).toEqual(["module: unknown", "module: rocm", "triaged"]);
+    expect(labels).toEqual(["module: rocm", "triaged"]);
 
     handleScope(scope);
   });

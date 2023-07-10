@@ -378,13 +378,13 @@ export async function getTestOwnerLabels(
     additionalErrMessage = `${err}`;
   }
 
-  if (labels.length === 0) {
-    labels.push("module: unknown");
-  }
-
   labels.push(
     ...getPlatformLabels(getPlatformsAffected(getWorkflowJobNames(test)))
   );
+
+  if (labels.length === 0) {
+    labels.push("module: unknown");
+  }
 
   if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
     labels.push("triaged");
