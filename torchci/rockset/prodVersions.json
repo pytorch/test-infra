@@ -86,6 +86,8 @@
     "runner_utilization_by_activity": "343929e0ebeee379"
   },
   "nightlies": {
+    "docker_jobs_red": "5ccfc6bee649dc8a",
+    "docker_jobs_red_past_day": "13b52e7005825031",
     "nightly_jobs_red": "d49bc5633c5aac10",
     "nightly_jobs_red_by_name": "bb6eeb316157ed2b",
     "nightly_jobs_red_by_platform": "d5ab478e83ff2dae",
