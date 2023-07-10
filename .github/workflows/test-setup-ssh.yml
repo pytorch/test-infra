@@ -16,7 +16,6 @@ jobs:
       - run: |
           cd setup-ssh
           yarn install
-          node -v
       - run: |
           cd setup-ssh
           yarn run all
