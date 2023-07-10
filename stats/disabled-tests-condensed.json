@@ -162,13 +162,6 @@
       "rocm"
     ]
   ],
-  "test_binary_op__foreach_clamp_max_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "100159",
-    "https://github.com/pytorch/pytorch/issues/100159",
-    [
-      "rocm"
-    ]
-  ],
   "test_bmm_1d_mesh (__main__.TestEinsumStrategies)": [
     "104086",
     "https://github.com/pytorch/pytorch/issues/104086",
@@ -635,6 +628,27 @@
     "https://github.com/pytorch/pytorch/issues/92131",
     [
       "rocm"
+    ]
+  ],
+  "test_custom_op_cpu_dynamic_shapes_cpp_wrapper (__main__.DynamicShapesCppWrapperCpuTests)": [
+    "104854",
+    "https://github.com/pytorch/pytorch/issues/104854",
+    [
+      "linux"
+    ]
+  ],
+  "test_custom_op_cuda (__main__.CudaTests)": [
+    "104856",
+    "https://github.com/pytorch/pytorch/issues/104856",
+    [
+      "inductor"
+    ]
+  ],
+  "test_custom_op_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
+    "104855",
+    "https://github.com/pytorch/pytorch/issues/104855",
+    [
+      "linux"
     ]
   ],
   "test_ddp_checkpointing_weight_sharing_use_reentrant_False (__main__.TestDDPWithWorkSubclass)": [
