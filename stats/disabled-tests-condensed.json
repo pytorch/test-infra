@@ -644,6 +644,14 @@
       "inductor"
     ]
   ],
+  "test_custom_op_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
+    "104878",
+    "https://github.com/pytorch/pytorch/issues/104878",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_custom_op_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
     "104855",
     "https://github.com/pytorch/pytorch/issues/104855",
