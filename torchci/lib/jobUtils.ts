@@ -2,6 +2,10 @@ import { JobData } from "lib/types";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
 
+export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
+  ", [0-9]+, [0-9]+, .+\\)"
+);
+
 export function isFailedJob(job: JobData) {
   return (
     job.conclusion === "failure" ||
@@ -79,4 +83,15 @@ export async function getFlakyJobsFromPreviousWorkflow(
 
   // The query returns all the flaky jobs from the previous workflow
   return flakyJobs;
+}
+
+export function removeJobNameSuffix(
+  jobName: string,
+  replaceWith: string = ")"
+): string {
+  if (!jobName) {
+    return jobName;
+  }
+
+  return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
