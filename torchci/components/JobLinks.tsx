@@ -4,6 +4,7 @@ import React from "react";
 import { IssueData, JobData } from "../lib/types";
 import styles from "./JobLinks.module.css";
 import TestInsightsLink from "./TestInsights";
+import ReproductionCommand from "./ReproductionCommand";
 import { useSession } from "next-auth/react";
 import { isFailure } from "../lib/JobClassifierUtil";
 
@@ -60,6 +61,13 @@ export default function JobLinks({ job }: { job: JobData }) {
       <TestInsightsLink job={job} separator={" | "} />
       <DisableTest job={job} label={"skipped"} />
       {authenticated && <UnstableJob job={job} label={"unstable"} />}
+      {authenticated && job.failureLine && (
+        <ReproductionCommand
+          job={job}
+          separator={" | "}
+          testName={getTestName(job.failureLine)}
+        />
+      )}
     </span>
   );
 }

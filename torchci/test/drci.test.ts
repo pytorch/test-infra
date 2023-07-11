@@ -12,6 +12,7 @@ import {
 import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
+import { removeJobNameSuffix } from "lib/jobUtils";
 
 nock.disableNetConnect();
 
@@ -93,6 +94,41 @@ const failedC = {
   failure_captures: ["a"],
 };
 
+const failedD = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as failedD but has a different shard ID
+const failedE = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as unstable A but without the unstable suffix
+const failedF = {
+  name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
 const unstableA = {
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
@@ -101,7 +137,7 @@ const unstableA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_captures: ["a", "b"],
 };
 
 const sev: IssueData = {
@@ -377,12 +413,31 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, failedA)
+        new Map().set(failedA.name, [failedA])
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(1);
+  });
+
+  test("test shard id and suffix in job name are handled correctly", async () => {
+    const originalWorkflows = [failedA, failedD, failedF];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const baseJobs = new Map();
+    baseJobs.set(removeJobNameSuffix(failedD.name), [failedE]);
+    baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
+
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 
   test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {

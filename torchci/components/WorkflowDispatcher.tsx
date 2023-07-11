@@ -15,6 +15,9 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
 };
 
 function hasWorkflow(jobs: JobData[], workflow: string) {
+  // A custom hack for inductor as ciflow/inductor is used to trigger both
+  // inductor and inductor-periodic workflows
+  workflow = workflow === "inductor" ? "inductor-periodic" : workflow;
   return _.find(
     jobs,
     (job) => job.name !== undefined && job.name.startsWith(workflow)

@@ -12,6 +12,7 @@ from ...common import (
 from .range import call_replacement_range
 from .cholesky import call_replacement_cholesky
 from .chain_matmul import call_replacement_chain_matmul
+from .qr import call_replacement_qr
 
 
 class TorchDeprecatedSymbolsVisitor(TorchVisitor):
@@ -34,6 +35,7 @@ class TorchDeprecatedSymbolsVisitor(TorchVisitor):
             "torch.cholesky": call_replacement_cholesky,
             "torch.range": call_replacement_range,
             "torch.chain_matmul": call_replacement_chain_matmul,
+            "torch.qr": call_replacement_qr,
         }
         replacement = None
 

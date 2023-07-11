@@ -2,13 +2,7 @@ import dayjs from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { EChartsOption } from "echarts";
 import useSWR from "swr";
-import {
-  Grid,
-  Paper,
-  Typography,
-  Stack,
-  Skeleton,
-} from "@mui/material";
+import { Grid, Paper, Typography, Stack, Skeleton } from "@mui/material";
 
 import { useState } from "react";
 import { RocksetParam } from "lib/rockset";
@@ -16,10 +10,15 @@ import { fetcher } from "lib/GeneralUtils";
 import TablePanel from "components/metrics/panels/TablePanel";
 import { TimeRangePicker } from "pages/metrics";
 
-function NightlyJobsRedPanel({ params, repo }: { params: RocksetParam[], repo: string }) {
-
+function NightlyJobsRedPanel({
+  params,
+  repo,
+}: {
+  params: RocksetParam[];
+  repo: string;
+}) {
   let repo_p = params.find(({ name }) => name == "repo");
-  if(repo_p && repo) repo_p.value = repo; 
+  if (repo_p && repo) repo_p.value = repo;
 
   const url = `/api/query/nightlies/nightly_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify(params)
@@ -34,7 +33,7 @@ function NightlyJobsRedPanel({ params, repo }: { params: RocksetParam[], repo: s
   }
 
   const options: EChartsOption = {
-    title: { text: "% "+repo+" nightly jobs failures" },
+    title: { text: "% " + repo + " nightly jobs failures" },
     grid: { top: 48, right: 8, bottom: 24, left: 36 },
     dataset: { source: data },
     xAxis: { type: "time" },
@@ -73,7 +72,13 @@ function NightlyJobsRedPanel({ params, repo }: { params: RocksetParam[], repo: s
   );
 }
 
-function ValidationRedPanel({ params, channel }: { params: RocksetParam[], channel: string }) {
+function ValidationRedPanel({
+  params,
+  channel,
+}: {
+  params: RocksetParam[];
+  channel: string;
+}) {
   const url = `/api/query/nightlies/validation_jobs_red?parameters=${encodeURIComponent(
     JSON.stringify([
       ...params,
@@ -100,7 +105,10 @@ function ValidationRedPanel({ params, channel }: { params: RocksetParam[], chann
 
   const options: EChartsOption = {
     title: {
-      text: channel.charAt(0).toUpperCase()+channel.slice(1)+" validation workflows failures, by day",
+      text:
+        channel.charAt(0).toUpperCase() +
+        channel.slice(1) +
+        " validation workflows failures, by day",
       subtext: "Installation of PyTorch, Vision and Audio an smoke test",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -236,11 +244,13 @@ export default function Page() {
           <TablePanel
             title={"Release failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "channel",
                 type: "string",
                 value: "release",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -254,11 +264,13 @@ export default function Page() {
           <TablePanel
             title={"Nightly failed validation jobs for past 24hrs"}
             queryName={"validation_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "channel",
                 type: "string",
                 value: "nightly",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -272,11 +284,13 @@ export default function Page() {
           <TablePanel
             title={"Nightly PyTorch build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "repo",
                 type: "string",
                 value: "pytorch",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -290,11 +304,13 @@ export default function Page() {
           <TablePanel
             title={"Nightly Vision build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "repo",
                 type: "string",
                 value: "vision",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -308,11 +324,13 @@ export default function Page() {
           <TablePanel
             title={"Nightly Audio build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "repo",
                 type: "string",
                 value: "audio",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -326,11 +344,13 @@ export default function Page() {
           <TablePanel
             title={"Nightly Text build jobs for past 24hrs"}
             queryName={"nightly_jobs_red_past_day"}
-            queryParams={[{
+            queryParams={[
+              {
                 name: "repo",
                 type: "string",
                 value: "text",
-              }]}
+              },
+            ]}
             queryCollection="nightlies"
             columns={[
               { field: "COUNT", headerName: "Count", flex: 1 },
@@ -342,7 +362,9 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
-            title={"Failed nightly jobs for PyTorch and Domains for selected time range"}
+            title={
+              "Failed nightly jobs for PyTorch and Domains for selected time range"
+            }
             queryName={"nightly_jobs_red_by_name"}
             queryParams={timeParams}
             queryCollection="nightlies"
@@ -356,7 +378,9 @@ export default function Page() {
 
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TablePanel
-            title={"Failed nightly jobs for PyTorch and Domains for selected time range by platform"}
+            title={
+              "Failed nightly jobs for PyTorch and Domains for selected time range by platform"
+            }
             queryName={"nightly_jobs_red_by_platform"}
             queryParams={timeParams}
             queryCollection="nightlies"
