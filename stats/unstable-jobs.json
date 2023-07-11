@@ -15,22 +15,6 @@
     "cuda11.8-py3.10-gcc7-sm86",
     "test (inductor_torchbench)"
   ],
-  "linux-binary-manywheel / manywheel-py3_8-cuda11_8": [
-    "huydhn",
-    "104727",
-    "https://github.com/pytorch/pytorch/issues/104727",
-    "linux-binary-manywheel",
-    "manywheel-py3_8-cuda11_8",
-    ""
-  ],
-  "linux-binary-manywheel / manywheel-py3_8-cuda12_1-with-pypi-cudnn": [
-    "huydhn",
-    "104728",
-    "https://github.com/pytorch/pytorch/issues/104728",
-    "linux-binary-manywheel",
-    "manywheel-py3_8-cuda12_1-with-pypi-cudnn",
-    ""
-  ],
   "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
     "huydhn",
     "102789",
