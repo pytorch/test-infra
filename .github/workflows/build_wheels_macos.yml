@@ -139,12 +139,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
-            export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
@@ -193,10 +191,7 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
-            echo $DYLD_FALLBACK_LIBRARY_PATH
-
-            ${CONDA_RUN} conda install --yes --quiet ffmpeg
+            ${CONDA_RUN} conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           export PATH=${OLD_PATH}
