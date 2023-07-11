@@ -1729,13 +1729,6 @@
       "linux"
     ]
   ],
-  "test_sum_fp16 (__main__.TestCuda)": [
-    "99953",
-    "https://github.com/pytorch/pytorch/issues/99953",
-    [
-      "rocm"
-    ]
-  ],
   "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
     "102629",
     "https://github.com/pytorch/pytorch/issues/102629",
@@ -1779,13 +1772,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_tiny_half_norm_ (__main__.TestCuda)": [
-    "94897",
-    "https://github.com/pytorch/pytorch/issues/94897",
-    [
-      "rocm"
     ]
   ],
   "test_to_cpu_blocking_by_default (__main__.TestCuda)": [
