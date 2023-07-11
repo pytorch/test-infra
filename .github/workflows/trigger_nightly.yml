@@ -19,7 +19,7 @@ on:
 
 jobs:
   tag_nightly_vision:
-    if:  inputs.domain == 'text' || inputs.domain == 'all'
+    if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
     name: Trigger nightly text build
     runs-on: ubuntu-latest
     steps:
