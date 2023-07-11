@@ -107,6 +107,7 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+          os: windows
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache

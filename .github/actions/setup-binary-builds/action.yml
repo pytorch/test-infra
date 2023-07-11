@@ -28,6 +28,10 @@ inputs:
     required: false
     type: boolean
     default: false
+  os:
+    description: Operating System
+    required: true
+    type: string
 
 runs:
   using: composite
@@ -45,6 +49,9 @@ runs:
           ref: ${{ inputs.ref }}
           submodules: ${{ inputs.submodules }}
           path: ${{ inputs.repository }}
+      - name: Setup Linux
+        if: ${{ inputs.os == 'linux' }}
+        uses: ./test-infra/.github/actions/setup-linux
       - name: Log Available Webhook Fields
         shell: bash
         run: |

@@ -110,6 +110,7 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
+          os: windows
       - name: Install torch dependency
         run: |
           source "${BUILD_ENV_FILE}"
