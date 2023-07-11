@@ -373,16 +373,16 @@ function isBrokenTrunk(
     return false;
   }
 
-  return (
-    baseJobs.get(jobNameNoSuffix)!.filter((baseJob) => {
-      if (
-        baseJob.conclusion == job.conclusion &&
-        isEqual(baseJob.failure_captures, job.failure_captures)
-      ) {
-        return true;
-      }
-    }).length !== 0
-  );
+  return baseJobs.get(jobNameNoSuffix)!.some((baseJob) => {
+    if (
+      baseJob.conclusion == job.conclusion &&
+      isEqual(baseJob.failure_captures, job.failure_captures)
+    ) {
+      return true;
+    }
+
+    return false;
+  });
 }
 
 export function getWorkflowJobsStatuses(
