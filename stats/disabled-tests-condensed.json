@@ -86,26 +86,6 @@
       "linux"
     ]
   ],
-  "test_backward_multiple_output_tensors (__main__.DistAutogradTestWithSpawn)": [
-    "38317",
-    "https://github.com/pytorch/pytorch/issues/38317",
-    []
-  ],
-  "test_backward_rref (__main__.TensorPipeDistAutogradTestWithSpawn)": [
-    "59798",
-    "https://github.com/pytorch/pytorch/issues/59798",
-    []
-  ],
-  "test_backward_rref_multi (__main__.TensorPipeDistAutogradTestWithSpawn)": [
-    "59768",
-    "https://github.com/pytorch/pytorch/issues/59768",
-    []
-  ],
-  "test_backward_rref_nested (__main__.TensorPipeDistAutogradTestWithSpawn)": [
-    "59794",
-    "https://github.com/pytorch/pytorch/issues/59794",
-    []
-  ],
   "test_barrier_timeout_group (__main__.TestDistBackendWithSpawn)": [
     "70755",
     "https://github.com/pytorch/pytorch/issues/70755",
@@ -252,11 +232,6 @@
       "mac"
     ]
   ],
-  "test_call_fork_in_jit_with_profiling (__main__.TensorPipeJitRpcTestWithSpawn)": [
-    "60998",
-    "https://github.com/pytorch/pytorch/issues/60998",
-    []
-  ],
   "test_call_parent_non_class_methods_from_child (__main__.AutomaticDynamicShapesMiscTests)": [
     "103742",
     "https://github.com/pytorch/pytorch/issues/103742",
@@ -326,11 +301,6 @@
       "mac",
       "macos"
     ]
-  ],
-  "test_checkpoint_fsdp_wrapping_cpu_offload_CPUOffload(offload_params=True)_offload_activations_True (__main__.TestFSDPCheckpoint)": [
-    "71349",
-    "https://github.com/pytorch/pytorch/issues/71349",
-    []
   ],
   "test_checkpoint_trigger (__main__.TestCheckpoint)": [
     "97402",
@@ -498,13 +468,6 @@
       "rocm"
     ]
   ],
-  "test_cond_export_single_arg (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "95270",
-    "https://github.com/pytorch/pytorch/issues/95270",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_export_single_arg_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
     "103937",
     "https://github.com/pytorch/pytorch/issues/103937",
@@ -566,40 +529,11 @@
       "rocm"
     ]
   ],
-  "test_conv_backend_cudnn1d_transposed_has_bias_True_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "77124",
-    "https://github.com/pytorch/pytorch/issues/77124",
-    [
-      "linux"
-    ]
-  ],
-  "test_conv_backend_cudnn3d_transposed_has_bias_False_strided_False_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "80318",
-    "https://github.com/pytorch/pytorch/issues/80318",
-    [
-      "linux"
-    ]
-  ],
-  "test_conv_backend_slow3d_transposed_has_bias_False_strided_True_contiguous_False_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "80248",
-    "https://github.com/pytorch/pytorch/issues/80248",
-    [
-      "linux"
-    ]
-  ],
   "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
     "98681",
     "https://github.com/pytorch/pytorch/issues/98681",
     [
       "linux"
-    ]
-  ],
-  "test_cpp_wrapper_cpu (__main__.CpuTests)": [
-    "97194",
-    "https://github.com/pytorch/pytorch/issues/97194",
-    [
-      "macos",
-      "mac"
     ]
   ],
   "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
