@@ -13,6 +13,13 @@
       "linux"
     ]
   ],
+  "test_adam_weight_decay (__main__.CompiledOptimizerTests)": [
+    "104936",
+    "https://github.com/pytorch/pytorch/issues/104936",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -865,6 +872,11 @@
       "rocm"
     ]
   ],
+  "test_fs_pool (__main__.TestMultiprocessing)": [
+    "69659",
+    "https://github.com/pytorch/pytorch/issues/69659",
+    []
+  ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
     "https://github.com/pytorch/pytorch/issues/91467",
@@ -1252,6 +1264,15 @@
   "test_module_attribute_mutation_violation_negative_2 (__main__.MutationExportTests)": [
     "88475",
     "https://github.com/pytorch/pytorch/issues/88475",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_module_attribute_mutation_violation_negative_3 (__main__.MutationExportTests)": [
+    "88466",
+    "https://github.com/pytorch/pytorch/issues/88466",
     [
       "linux",
       "mac",
