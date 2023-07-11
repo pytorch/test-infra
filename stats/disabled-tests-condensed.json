@@ -142,13 +142,6 @@
       "rocm"
     ]
   ],
-  "test_bmm_1d_mesh (__main__.TestEinsumStrategies)": [
-    "104086",
-    "https://github.com/pytorch/pytorch/issues/104086",
-    [
-      "linux"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
