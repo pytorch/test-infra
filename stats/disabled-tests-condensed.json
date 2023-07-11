@@ -788,6 +788,13 @@
     "https://github.com/pytorch/pytorch/issues/69660",
     []
   ],
+  "test_find_unused_parameters_kwarg_debug_detail (__main__.DistributedDataParallelTest)": [
+    "82632",
+    "https://github.com/pytorch/pytorch/issues/82632",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
