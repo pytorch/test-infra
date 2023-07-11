@@ -1004,13 +1004,6 @@
       "rocm"
     ]
   ],
-  "test_graph_concurrent_replay (__main__.TestCuda)": [
-    "104055",
-    "https://github.com/pytorch/pytorch/issues/104055",
-    [
-      "rocm"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
