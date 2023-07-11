@@ -14,6 +14,9 @@ install()
 
 async function run(): Promise<void> {
   try {
+    core.info(
+      'Please see https://github.com/pytorch/pytorch/wiki/Debugging-using-with-ssh-for-Github-Actions for more info.'
+    )
     const activateWithLabel: boolean = core.getBooleanInput(
       'activate-with-label'
     )
