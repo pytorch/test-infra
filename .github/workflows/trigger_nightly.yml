@@ -19,8 +19,6 @@ on:
 
 jobs:
   trigger:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
