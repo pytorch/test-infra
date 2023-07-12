@@ -352,7 +352,7 @@ def generate_wheels_matrix(
 
     upload_to_base_bucket = "yes"
     if arches is None:
-        # Define default compute archivectures
+        # Define default compute architectures
         arches = ["cpu"]
 
         if with_cuda == ENABLE:
@@ -399,6 +399,41 @@ GENERATING_FUNCTIONS_BY_PACKAGE_TYPE = {
     "libtorch": generate_libtorch_matrix,
 }
 
+def generate_build_matrix(
+        package_type: str,
+        operating_system: str,
+        channel: str,
+        with_cuda: str,
+        limit_pr_builds: str) -> Dict[str, List[Dict[str, str]]]:
+    includes = []
+
+    package_types = package_type.split(",")
+    if len(package_types) == 1:
+        package_types = PACKAGE_TYPES if package_type == "all" else [package_type]
+
+    channels = CUDA_ARCHES_DICT.keys() if channel == "all" else [channel]
+
+    for channel in channels:
+        for package in package_types:
+            initialize_globals(channel)
+            if package == "wheel":
+                includes.extend(
+                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
+                                                                channel,
+                                                                with_cuda,
+                                                                limit_pr_builds == "true")
+                    )
+            else:
+                includes.extend(
+                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
+                                                                channel,
+                                                                with_cuda,
+                                                                limit_pr_builds == "true")
+                    )
+
+    return {"include": includes}
+
+
 def main(args) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -441,34 +476,15 @@ def main(args) -> None:
 
 
     options = parser.parse_args(args)
-    includes = []
 
-    package_types = options.package_type.split(",")
-    if len(package_types) == 1:
-        package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
+    build_matrix = generate_build_matrix(
+            options.package_type,
+            options.operating_system,
+            options.channel,
+            options.with_cuda,
+            options.limit_pr_builds)
 
-    channels = CUDA_ARCHES_DICT.keys() if options.channel == "all" else [options.channel]
-
-    for channel in channels:
-        for package in package_types:
-            initialize_globals(channel)
-            if package == "wheel":
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
-                                                                channel,
-                                                                options.with_cuda,
-                                                                options.limit_pr_builds == "true")
-                    )
-            else:
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
-                                                                channel,
-                                                                options.with_cuda,
-                                                                options.limit_pr_builds == "true")
-                    )
-
-
-    print(json.dumps({"include": includes}))
+    print(json.dumps(build_matrix))
 
 if __name__ == "__main__":
     main(sys.argv[1:])
