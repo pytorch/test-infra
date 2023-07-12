@@ -1,27 +1,26 @@
 name: Trigger nightly builds
 
 inputs:
-  github-secret:
+  token:
     description: GitHub token
     required: true
   repository:
     required: true
     description: 'Which repo to checkout'
     default: false
-  branch:
+  ref:
     description: Branch to cut from
     required: true
 
 jobs:
   nightly:
     name: Trigger nightly build
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ inputs.ref }}
           repository: ${{ inputs.repository }}
-          token: ${{ inputs.github-secret }}
+          token: ${{ inputs.token }}
       - run: |
           git config --global user.email "pytorchbot@pytorch.com"
           git config --global user.name "pytorchbot"
