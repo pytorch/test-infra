@@ -16,35 +16,33 @@ on:
           - audio
           - text
           - all
-
 jobs:
   trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
-        with:
-          repository: "pytorch/test-infra"
-          ref: ""
-          path: test-infra
-      - name: Trigger nightly text build
-        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
-        uses: ./test-infra/.github/actions/trigger-nightly
-        with:
-          ref: main
-          repository: pytorch/text
-          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
       - name: Trigger nightly audio build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
-        uses: ./test-infra/.github/actions/trigger-nightly
+        uses: ./.github/actions/trigger-nightly
         with:
           ref: main
           repository: pytorch/audio
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: audio
+      - name: Trigger nightly text build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/text
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: text
       - name: Trigger nightly vision build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
-        uses: ./test-infra/.github/actions/trigger-nightly
+        uses: ./.github/actions/trigger-nightly
         with:
           ref: main
           repository: pytorch/vision
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: vision
