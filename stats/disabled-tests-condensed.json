@@ -975,13 +975,6 @@
       "linux"
     ]
   ],
-  "test_gpt2_tiny (__main__.TestFxToOnnxWithOnnxRuntime_op_level_debug_True_dynamic_shapes_True)": [
-    "103743",
-    "https://github.com/pytorch/pytorch/issues/103743",
-    [
-      "linux"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1014,6 +1007,13 @@
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
+    [
+      "linux"
+    ]
+  ],
+  "test_homogeneous_attributes (__main__.TestFSDPMiscMultiThread)": [
+    "105024",
+    "https://github.com/pytorch/pytorch/issues/105024",
     [
       "linux"
     ]
@@ -1715,13 +1715,6 @@
       "linux"
     ]
   ],
-  "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
-    "94880",
-    "https://github.com/pytorch/pytorch/issues/94880",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
@@ -1777,6 +1770,13 @@
   "test_tiny_half_norm_ (__main__.TestCuda)": [
     "94897",
     "https://github.com/pytorch/pytorch/issues/94897",
+    [
+      "rocm"
+    ]
+  ],
+  "test_to_cpu_blocking_by_default (__main__.TestCuda)": [
+    "94956",
+    "https://github.com/pytorch/pytorch/issues/94956",
     [
       "rocm"
     ]
