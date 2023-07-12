@@ -1102,6 +1102,13 @@
       "inductor"
     ]
   ],
+  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93061",
+    "https://github.com/pytorch/pytorch/issues/93061",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100614",
     "https://github.com/pytorch/pytorch/issues/100614",
@@ -1597,14 +1604,6 @@
     "https://github.com/pytorch/pytorch/issues/98024",
     [
       "linux"
-    ]
-  ],
-  "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
-    "86735",
-    "https://github.com/pytorch/pytorch/issues/86735",
-    [
-      "win",
-      "windows"
     ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
