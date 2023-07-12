@@ -416,20 +416,12 @@ def generate_build_matrix(
     for channel in channels:
         for package in package_types:
             initialize_globals(channel)
-            if package == "wheel":
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
-                                                                channel,
-                                                                with_cuda,
-                                                                limit_pr_builds == "true")
-                    )
-            else:
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
-                                                                channel,
-                                                                with_cuda,
-                                                                limit_pr_builds == "true")
-                    )
+            includes.extend(
+                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
+                                                            channel,
+                                                            with_cuda,
+                                                            limit_pr_builds == "true")
+                )
 
     return {"include": includes}
 
