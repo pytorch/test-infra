@@ -18,27 +18,30 @@ on:
           - all
 
 jobs:
-  tag_nightly_text:
-    if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
-    name: Trigger nightly text build
-    uses: ./test-infra/.github/actions/trigger-nightly
-    with:
-      ref: main
-      repository: pytorch/text
-      token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-  tag_nightly_vision:
-    if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
-    name: Trigger nightly vision build
-    uses: ./test-infra/.github/actions/trigger-nightly
-    with:
-      ref: main
-      repository: pytorch/vision
-      token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-  tag_nightly_audio:
-    if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
-    name: Trigger nightly audio build
-    uses: ./test-infra/.github/actions/trigger-nightly
-    with:
-      ref: main
-      repository: pytorch/audio
-      token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+  trigger:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Trigger nightly text build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
+        uses: ./test-infra/.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/text
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+      - name: Trigger nightly audio build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
+        uses: ./test-infra/.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/audio
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+      - name: Trigger nightly vision build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
+        uses: ./test-infra/.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/vision
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
