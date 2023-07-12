@@ -11,6 +11,10 @@ inputs:
   ref:
     description: Branch to cut from
     required: true
+  path:
+    description: Path to use for checkout
+    required: true
+
 
 runs:
   using: composite
@@ -20,9 +24,11 @@ runs:
         ref: ${{ inputs.ref }}
         repository: ${{ inputs.repository }}
         token: ${{ inputs.token }}
+        path: ${{ inputs.path }}
     - name: Create nightly commit
       shell: bash
       run: |
+        pushd ${{ inputs.path }}
         git config --global user.email "pytorchbot@pytorch.com"
         git config --global user.name "pytorchbot"
         git fetch origin nightly
@@ -32,3 +38,4 @@ runs:
         NIGHTLY_RELEASE_COMMIT=$(git commit-tree -p FETCH_HEAD HEAD^{tree} -m "${NIGHTLY_DATE} nightly release (${HEAD_COMMIT_HASH})")
         # shellcheck disable=SC1083
         git push -f origin "${NIGHTLY_RELEASE_COMMIT}:nightly"
+        popd
