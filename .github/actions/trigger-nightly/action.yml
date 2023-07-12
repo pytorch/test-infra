@@ -12,10 +12,9 @@ inputs:
     description: Branch to cut from
     required: true
 
-jobs:
-  nightly:
-    name: Trigger nightly build
-    steps:
+runs:
+  using: composite
+  steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.ref }}
