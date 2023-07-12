@@ -1,0 +1,34 @@
+name: Trigger nightly builds
+
+inputs:
+  github-secret:
+    description: GitHub token
+    required: true
+  repository:
+    required: true
+    description: 'Which repo to checkout'
+    default: false
+  branch:
+    description: Branch to cut from
+    required: true
+
+jobs:
+  nightly:
+    name: Trigger nightly build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.branch }}
+          repository: ${{ inputs.repository }}
+          token: ${{ inputs.github-secret }}
+      - run: |
+          git config --global user.email "pytorchbot@pytorch.com"
+          git config --global user.name "pytorchbot"
+          git fetch origin nightly
+          HEAD_COMMIT_HASH=$(git rev-parse HEAD)
+          NIGHTLY_DATE=$(date +"%Y-%m-%d")
+          # shellcheck disable=SC1083
+          NIGHTLY_RELEASE_COMMIT=$(git commit-tree -p FETCH_HEAD HEAD^{tree} -m "${NIGHTLY_DATE} nightly release (${HEAD_COMMIT_HASH})")
+          # shellcheck disable=SC1083
+          git push -f origin "${NIGHTLY_RELEASE_COMMIT}:nightly"
