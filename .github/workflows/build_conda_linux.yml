@@ -90,6 +90,8 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - name: Setup Linux
+        uses: ./test-infra/.github/actions/setup-linux
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
