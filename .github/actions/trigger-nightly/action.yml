@@ -20,7 +20,9 @@ runs:
         ref: ${{ inputs.ref }}
         repository: ${{ inputs.repository }}
         token: ${{ inputs.token }}
-    - run: |
+    - name: Create nightly commit
+      shell: bash
+      run: |
         git config --global user.email "pytorchbot@pytorch.com"
         git config --global user.name "pytorchbot"
         git fetch origin nightly
