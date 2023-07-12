@@ -578,13 +578,6 @@
       "linux"
     ]
   ],
-  "test_custom_op_cuda (__main__.CudaTests)": [
-    "104856",
-    "https://github.com/pytorch/pytorch/issues/104856",
-    [
-      "inductor"
-    ]
-  ],
   "test_custom_op_cuda_cuda_wrapper (__main__.TestCudaWrapper)": [
     "104878",
     "https://github.com/pytorch/pytorch/issues/104878",
