@@ -13,6 +13,13 @@
       "linux"
     ]
   ],
+  "test_DistributedDataParallel_SyncBatchNorm (__main__.TestDistBackendWithSpawn)": [
+    "105084",
+    "https://github.com/pytorch/pytorch/issues/105084",
+    [
+      "rocm"
+    ]
+  ],
   "test_adam_weight_decay (__main__.CompiledOptimizerTests)": [
     "104936",
     "https://github.com/pytorch/pytorch/issues/104936",
