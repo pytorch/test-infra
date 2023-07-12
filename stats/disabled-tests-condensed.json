@@ -1781,6 +1781,13 @@
       "rocm"
     ]
   ],
+  "test_to_non_blocking (__main__.TestCuda)": [
+    "94967",
+    "https://github.com/pytorch/pytorch/issues/94967",
+    [
+      "rocm"
+    ]
+  ],
   "test_torch_guards_stack_frame_register_inlining_deep (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102705",
     "https://github.com/pytorch/pytorch/issues/102705",
