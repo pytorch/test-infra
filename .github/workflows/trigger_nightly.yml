@@ -22,6 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: "pytorch/test-infra"
+          ref: ""
+          path: test-infra
       - name: Trigger nightly text build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
         uses: ./test-infra/.github/actions/trigger-nightly
