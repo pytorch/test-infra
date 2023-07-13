@@ -80,7 +80,6 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="windows",
             cuda=True,
             rocm=True,
-            reference_output_file="build_matrix_windows_wheel_cuda.json",
             reference_output_file="build_matrix_windows_conda_cuda.json",
         )
 
