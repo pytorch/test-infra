@@ -1341,6 +1341,13 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
+  "test_nested (__main__.TestQuantizeJit)": [
+    "105120",
+    "https://github.com/pytorch/pytorch/issues/105120",
+    [
+      "rocm"
+    ]
+  ],
   "test_nn_sequential_invocation_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "96088",
     "https://github.com/pytorch/pytorch/issues/96088",
@@ -1686,6 +1693,13 @@
     "https://github.com/pytorch/pytorch/issues/61670",
     []
   ],
+  "test_single_linear (__main__.TestQuantizeJit)": [
+    "105121",
+    "https://github.com/pytorch/pytorch/issues/105121",
+    [
+      "rocm"
+    ]
+  ],
   "test_sparse_addmm_cpu_bfloat16 (__main__.TestSparseCPU)": [
     "73145",
     "https://github.com/pytorch/pytorch/issues/73145",
@@ -1733,6 +1747,13 @@
     "https://github.com/pytorch/pytorch/issues/91489",
     [
       "linux"
+    ]
+  ],
+  "test_svd_cuda_float32 (__main__.TestLinalgCUDA)": [
+    "105118",
+    "https://github.com/pytorch/pytorch/issues/105118",
+    [
+      "rocm"
     ]
   ],
   "test_svd_cuda_float64 (__main__.TestLinalgCUDA)": [
@@ -1839,6 +1860,13 @@
     "https://github.com/pytorch/pytorch/issues/98618",
     [
       "linux"
+    ]
+  ],
+  "test_unary_ops (__main__.TestTensorExprFuser)": [
+    "105119",
+    "https://github.com/pytorch/pytorch/issues/105119",
+    [
+      "rocm"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
