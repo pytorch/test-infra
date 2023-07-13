@@ -492,6 +492,7 @@ def main(args) -> None:
             options.operating_system,
             options.channel,
             options.with_cuda,
+            options.with_rocm,
             options.limit_pr_builds)
 
     print(json.dumps(build_matrix))

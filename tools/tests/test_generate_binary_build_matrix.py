@@ -10,13 +10,14 @@ ASSETS_DIR = "tools/tests/assets"
 
 class GenerateBuildMatrixTest(TestCase):
     def matrix_compare_helper(
-        self, package_type, operating_system, cuda, reference_output_file
+        self, package_type, operating_system, cuda, rocm, reference_output_file
     ):
         out = generate_build_matrix(
             package_type,
             operating_system,
             "nightly",
             "enable" if cuda else "disable",
+            "enable" if rocm else "disable",
             "false",
         )
 
@@ -33,6 +34,7 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="wheel",
             operating_system="linux",
             cuda=True,
+            rocm=True,
             reference_output_file="build_matrix_linux_wheel_cuda.json",
         )
 
@@ -41,6 +43,7 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="conda",
             operating_system="linux",
             cuda=True,
+            rocm=True,
             reference_output_file="build_matrix_linux_conda_cuda.json",
         )
 
@@ -49,6 +52,7 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="wheel",
             operating_system="macos",
             cuda=False,
+            rocm=False,
             reference_output_file="build_matrix_macos_wheel.json",
         )
 
@@ -57,6 +61,7 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="conda",
             operating_system="macos",
             cuda=False,
+            rocm=False,
             reference_output_file="build_matrix_macos_conda.json",
         )
 
@@ -65,6 +70,7 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="wheel",
             operating_system="windows",
             cuda=True,
+            rocm=True,
             reference_output_file="build_matrix_windows_wheel_cuda.json",
         )
 
@@ -73,7 +79,18 @@ class GenerateBuildMatrixTest(TestCase):
             package_type="conda",
             operating_system="windows",
             cuda=True,
+            rocm=True,
+            reference_output_file="build_matrix_windows_wheel_cuda.json",
             reference_output_file="build_matrix_windows_conda_cuda.json",
+        )
+
+    def test_linux_wheel_cuda_norocm(self):
+        self.matrix_compare_helper(
+            package_type="wheel",
+            operating_system="linux",
+            cuda=True,
+            rocm=False,
+            reference_output_file="build_matrix_linux_wheel_cuda_norocm.json",
         )
 
 
