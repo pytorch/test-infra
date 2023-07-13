@@ -239,6 +239,13 @@
       "mac"
     ]
   ],
+  "test_bwd_sees_fwd_pg (__main__.TestCollectivesWithBaseClass)": [
+    "105106",
+    "https://github.com/pytorch/pytorch/issues/105106",
+    [
+      "linux"
+    ]
+  ],
   "test_call_parent_non_class_methods_from_child (__main__.AutomaticDynamicShapesMiscTests)": [
     "103742",
     "https://github.com/pytorch/pytorch/issues/103742",
