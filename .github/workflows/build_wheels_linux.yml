@@ -99,7 +99,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - name: Setup Nvidia
-        if: ${{ GPU_ARCH_TYPE == "cuda" }}
+        if: ${{ env.GPU_ARCH_TYPE == "cuda" }}
         uses: ./test-infra/.github/actions/setup-nvidia@main
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
