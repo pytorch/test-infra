@@ -543,7 +543,7 @@
       "linux"
     ]
   ],
-  "test_conv (__main__.TestQuantizeJit)": [
+  "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
     [
@@ -564,7 +564,7 @@
       "linux"
     ]
   ],
-  "test_conv_transpose (__main__.TestQuantizeJit)": [
+  "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105124",
     "https://github.com/pytorch/pytorch/issues/105124",
     [
@@ -1362,7 +1362,7 @@
     "https://github.com/pytorch/pytorch/issues/67881",
     []
   ],
-  "test_nested (__main__.TestQuantizeJit)": [
+  "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105120",
     "https://github.com/pytorch/pytorch/issues/105120",
     [
@@ -1433,7 +1433,7 @@
       "rocm"
     ]
   ],
-  "test_observer_with_ignored_function (__main__.TestQuantizeJit)": [
+  "test_observer_with_ignored_function (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105123",
     "https://github.com/pytorch/pytorch/issues/105123",
     [
@@ -1721,7 +1721,7 @@
     "https://github.com/pytorch/pytorch/issues/61670",
     []
   ],
-  "test_single_linear (__main__.TestQuantizeJit)": [
+  "test_single_linear (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105121",
     "https://github.com/pytorch/pytorch/issues/105121",
     [
