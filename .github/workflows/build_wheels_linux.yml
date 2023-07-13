@@ -73,6 +73,7 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      GPU_ARCH_TYPE: ${{ matrix.gpu_arch_type }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
     name: ${{ matrix.build_name }}
@@ -97,8 +98,9 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
-      - name: Setup Linux
-        uses: ./test-infra/.github/actions/setup-linux
+      - name: Setup Nvidia
+        if: ${{ GPU_ARCH_TYPE == "cuda" }}
+        uses: ./test-infra/.github/actions/setup-nvidia@main
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
