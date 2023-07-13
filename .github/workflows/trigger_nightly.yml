@@ -2,8 +2,8 @@ name: Trigger nightly builds for domains
 
 on:
   schedule:
-    # every night at 4:30AM
-    - cron: 30 4 * * *
+    # every night at 11:30AM UTC, 7:30AM EST, 4:30AM PST
+    - cron: 30 11 * * *
   workflow_dispatch:
     inputs:
       domain:
