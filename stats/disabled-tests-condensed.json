@@ -165,13 +165,6 @@
       "windows"
     ]
   ],
-  "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98048",
-    "https://github.com/pytorch/pytorch/issues/98048",
-    [
-      "linux"
-    ]
-  ],
   "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
     "103178",
     "https://github.com/pytorch/pytorch/issues/103178",
