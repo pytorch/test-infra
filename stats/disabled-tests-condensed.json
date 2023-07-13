@@ -1735,6 +1735,13 @@
       "linux"
     ]
   ],
+  "test_svd_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "105117",
+    "https://github.com/pytorch/pytorch/issues/105117",
+    [
+      "rocm"
+    ]
+  ],
   "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
     "102629",
     "https://github.com/pytorch/pytorch/issues/102629",
