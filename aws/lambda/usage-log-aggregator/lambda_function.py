@@ -20,7 +20,7 @@ PYTORCH = "pytorch"
 #  the exact number later
 MAX_ARTIFACTS = 50
 JOB_NAME_REGEX = re.compile(
-    r"^(?P<job>.+)\s/\s.+\((?P<s_name>[^,]+),\s(?P<s_id>[^,]+),\s(?P<s_count>[^,]+),\s(?P<platform>[^,]+)\)$"
+    r"^(?P<job>.+)\s/\s.+\((?P<s_name>[^,]+),\s(?P<s_id>[^,]+),\s(?P<s_count>[^,]+),\s(?P<platform>[^,]+)[,\)]"
 )
 # One minute according to the rule https://pandas.pydata.org/docs/reference/api/pandas.Series.resample.html
 RESAMPLING_WINDOW = "1T"
@@ -195,7 +195,7 @@ async def aggregate(body: str, context: Any) -> str:
 
     prefix = await _get_usage_log_prefix(job_name=job_name)
     if not prefix:
-        return json.dumps({"error": "Failed to read from S3"})
+        return json.dumps({"error": f"Failed to parse job name {job_name}"})
 
     # Tne params should contain a list of workflow ids and job ids of the same length. Normally, they come from
     # Rockset query test_insights_latest_runs
@@ -238,20 +238,14 @@ def lambda_handler(event: Any, context: Any):
 
 if os.getenv("DEBUG", "0") == "1":
     mock_body = {
-        "jobName": "win-vs2019-cpu-py3 / test (functorch, 1, 1, windows.4xlarge)",
+        "jobName": "win-vs2019-cpu-py3 / test (functorch, 1, 1, windows.4xlarge, mem_leak_check)",
         "workflowIds": [
             "3190793389",
             "3190721571",
-            "3190637266",
-            "3190634736", "3190506239", "3190443293", "3189983758", "3189709206", "3189651768", "3189512294",
-            "3189428641", "3189345038", "3189314334", "3189282022", "3189125171", "3189013497", "3188150968",
-            "3188140050", "3188068038", "3188079769"
         ],
         "jobIds": [
             8725009912,
             8724904966,
-            8724811861, 8724762262, 8724298558, 8724203742, 8722636066, 8721853447, 8721609722, 8721288973, 8720825008,
-            8720594880, 8720515505, 8720468097, 8720016748, 8719644525, 8717292485, 8717237728, 8716982768, 8717015257
         ]
     }
     # For local development
