@@ -418,6 +418,13 @@
       "macos"
     ]
   ],
+  "test_cond (__main__.DynamicShapesMiscTests)": [
+    "105128",
+    "https://github.com/pytorch/pytorch/issues/105128",
+    [
+      "linux"
+    ]
+  ],
   "test_cond (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101826",
     "https://github.com/pytorch/pytorch/issues/101826",
@@ -1156,6 +1163,13 @@
     "https://github.com/pytorch/pytorch/issues/93070",
     [
       "linux"
+    ]
+  ],
+  "test_jvp_ScaleGradGenVmapAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
+    "105129",
+    "https://github.com/pytorch/pytorch/issues/105129",
+    [
+      "dynamo"
     ]
   ],
   "test_keypoint_rcnn (__main__.TestONNXRuntime_opset11)": [
