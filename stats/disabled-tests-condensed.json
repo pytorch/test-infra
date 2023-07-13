@@ -543,6 +543,13 @@
       "linux"
     ]
   ],
+  "test_conv (__main__.TestQuantizeJit)": [
+    "105125",
+    "https://github.com/pytorch/pytorch/issues/105125",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv3d_64bit_indexing_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
     "104366",
     "https://github.com/pytorch/pytorch/issues/104366",
@@ -555,6 +562,13 @@
     "https://github.com/pytorch/pytorch/issues/98681",
     [
       "linux"
+    ]
+  ],
+  "test_conv_transpose (__main__.TestQuantizeJit)": [
+    "105124",
+    "https://github.com/pytorch/pytorch/issues/105124",
+    [
+      "rocm"
     ]
   ],
   "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
@@ -1408,6 +1422,13 @@
   "test_nvfuser_correctness_masked_sum (__main__.TestCudaFuserOpInfoCUDA)": [
     "88687",
     "https://github.com/pytorch/pytorch/issues/88687",
+    [
+      "rocm"
+    ]
+  ],
+  "test_observer_with_ignored_function (__main__.TestQuantizeJit)": [
+    "105123",
+    "https://github.com/pytorch/pytorch/issues/105123",
     [
       "rocm"
     ]
