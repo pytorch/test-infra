@@ -100,7 +100,7 @@ jobs:
           path: test-infra
       - name: Setup Nvidia
         if: ${{ env.GPU_ARCH_TYPE == 'cuda' }}
-        uses: ./test-infra/.github/actions/setup-nvidia@main
+        uses: ./test-infra/.github/actions/setup-nvidia
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
