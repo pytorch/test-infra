@@ -15,6 +15,7 @@ on:
           - vision
           - audio
           - text
+          - torchrec
           - all
 jobs:
   trigger:
@@ -46,3 +47,11 @@ jobs:
           repository: pytorch/vision
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: vision
+      - name: Trigger nightly torchrec build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchrec' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchrec
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchrec
