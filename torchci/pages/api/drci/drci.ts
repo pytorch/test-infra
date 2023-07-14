@@ -185,7 +185,6 @@ export async function getBaseCommitJobs(
       jobsByShaByName.get(sha).get(jobNameNoSuffix).push(job);
     }
   }
-  console.log(jobsByShaByName);
 
   return jobsByShaByName;
 }
