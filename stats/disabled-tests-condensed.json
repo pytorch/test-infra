@@ -844,6 +844,13 @@
       "linux"
     ]
   ],
+  "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
+    "105199",
+    "https://github.com/pytorch/pytorch/issues/105199",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101770",
     "https://github.com/pytorch/pytorch/issues/101770",
