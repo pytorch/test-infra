@@ -1218,13 +1218,6 @@
       "windows"
     ]
   ],
-  "test_masked_scatter_large_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "104365",
-    "https://github.com/pytorch/pytorch/issues/104365",
-    [
-      "rocm"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1445,6 +1438,13 @@
     "https://github.com/pytorch/pytorch/issues/105123",
     [
       "rocm"
+    ]
+  ],
+  "test_onnx_dynamo_export_raises_when_model_contains_unsupported_fx_nodes (__main__.TestFxPasses)": [
+    "105200",
+    "https://github.com/pytorch/pytorch/issues/105200",
+    [
+      "linux"
     ]
   ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
