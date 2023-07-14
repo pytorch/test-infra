@@ -585,6 +585,13 @@
       "linux"
     ]
   ],
+  "test_cross_entropy_large_tensor_reduction_mean_cuda (__main__.TestNNDeviceTypeCUDA)": [
+    "105253",
+    "https://github.com/pytorch/pytorch/issues/105253",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCuda)": [
     "103999",
     "https://github.com/pytorch/pytorch/issues/103999",
@@ -952,6 +959,13 @@
     "https://github.com/pytorch/pytorch/issues/104804",
     [
       "linux"
+    ]
+  ],
+  "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
+    "105254",
+    "https://github.com/pytorch/pytorch/issues/105254",
+    [
+      "rocm"
     ]
   ],
   "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
