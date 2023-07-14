@@ -13,6 +13,7 @@ import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
+import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 
 nock.disableNetConnect();
 
@@ -509,5 +510,22 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(header.includes("Python docs built from this PR")).toBeTruthy();
     expect(header.includes("C++ docs built from this PR")).toBeFalsy();
     expect(header.includes("bot commands wiki")).toBeFalsy();
+  });
+
+  test("test getBaseCommitJobs", async () => {
+    const originalWorkflows = [failedA, failedB];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const mock = jest.spyOn(fetchRecentWorkflows, "fetchFailedJobsFromCommits");
+    mock.mockImplementation(() => Promise.resolve([failedA, failedB]));
+
+    const baseCommitJobs = await updateDrciBot.getBaseCommitJobs(workflowsByPR);
+    expect(baseCommitJobs).toMatchObject(
+      new Map().set(
+        failedA.head_sha,
+        new Map().set(failedA.name, [failedA]).set(failedB.name, [failedB])
+      )
+    );
   });
 });
