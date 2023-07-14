@@ -1740,6 +1740,7 @@ export function AugmentData(data: CompilerPerformanceData[]) {
     },
   };
 
+  
   function GenerateGroup(data: CompilerPerformanceData[], n: string) {
     const l = groups[n];
     return data
