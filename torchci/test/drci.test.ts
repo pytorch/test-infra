@@ -527,5 +527,16 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         new Map().set(failedA.name, [failedA]).set(failedB.name, [failedB])
       )
     );
+
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(
+        workflowsByPR.get(1001)!,
+        [],
+        baseCommitJobs.get(failedA.head_sha)!
+      );
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 });
