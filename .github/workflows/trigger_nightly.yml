@@ -2,8 +2,8 @@ name: Trigger nightly builds for domains
 
 on:
   schedule:
-    # every night at 4:30AM
-    - cron: 30 4 * * *
+    # every night at 11:30AM UTC, 7:30AM EST, 4:30AM PST
+    - cron: 30 11 * * *
   workflow_dispatch:
     inputs:
       domain:
@@ -16,26 +16,33 @@ on:
           - audio
           - text
           - all
-
 jobs:
-  tag_nightly_text:
-    if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
-    name: Trigger nightly text build
+  trigger:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
+      - name: Trigger nightly audio build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/audio
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: audio
+      - name: Trigger nightly text build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
         with:
           ref: main
           repository: pytorch/text
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
-      - run: |
-          git config --global user.email "pytorchbot@pytorch.com"
-          git config --global user.name "pytorchbot"
-          git checkout origin/main
-          git fetch origin nightly
-          HEAD_COMMIT_HASH=$(git rev-parse HEAD)
-          NIGHTLY_DATE=$(date +"%Y-%m-%d")
-          # shellcheck disable=SC1083
-          NIGHTLY_RELEASE_COMMIT=$(git commit-tree -p FETCH_HEAD HEAD^{tree} -m "${NIGHTLY_DATE} nightly release (${HEAD_COMMIT_HASH})")
-          # shellcheck disable=SC1083
-          git push -f origin "${NIGHTLY_RELEASE_COMMIT}:nightly"
+          path: text
+      - name: Trigger nightly vision build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/vision
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: vision
