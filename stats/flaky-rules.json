@@ -14,5 +14,9 @@
   { 
     "name": "distributed/_tensor/test_dtensor_ops",
     "captures": ["RuntimeError: distributed/_tensor/test_dtensor_ops failed! Received signal: SIGSEGV"]
+  },
+  {
+    "name": "macos",
+    "captures": ["ModuleNotFoundError: No module named 'sympy'"]
   }
 ]
