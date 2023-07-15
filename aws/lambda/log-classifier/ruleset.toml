@@ -98,7 +98,7 @@ pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'inductor model failure'
-pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
+pattern = '^([A-Za-z0-9_]+) +(FAIL|IMRPOVED): *(.*)$'
 
 [[rule]]
 name = 'NVIDIA installation failure'
