@@ -1461,13 +1461,6 @@
       "rocm"
     ]
   ],
-  "test_onnx_dynamo_export_raises_when_model_contains_unsupported_fx_nodes (__main__.TestFxPasses)": [
-    "105200",
-    "https://github.com/pytorch/pytorch/issues/105200",
-    [
-      "linux"
-    ]
-  ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
