@@ -3,17 +3,18 @@ name: Calculate docker image
 description: Determine docker image to pull, building a new one if necessary.
 
 inputs:
-  docker-build-dir:
-    description: |
-      The directory containing the build.sh shell script to build the docker image.
-      The script parameters can be passed to docker build similar to how it is used
-      in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
-    required: true
   docker-image-name:
     description: |
       The name of a docker image, like `pytorch-linux-focal-linter`. A fullname
       with ECR prefix is also supported.
     required: true
+  docker-build-dir:
+    description: |
+      The directory containing the build.sh shell script to build the docker image.
+      The script parameters can be passed to docker build similar to how it is used
+      in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
+    required: false
+    default: .ci/docker
   always-rebuild:
     description: If set to any value, always build a fresh docker image.
     required: false
