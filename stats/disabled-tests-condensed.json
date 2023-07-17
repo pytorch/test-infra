@@ -1796,6 +1796,13 @@
       "linux"
     ]
   ],
+  "test_super_resolution_cuda (__main__.TestModels)": [
+    "105332",
+    "https://github.com/pytorch/pytorch/issues/105332",
+    [
+      "linux"
+    ]
+  ],
   "test_svd_cuda_float32 (__main__.TestLinalgCUDA)": [
     "105118",
     "https://github.com/pytorch/pytorch/issues/105118",
