@@ -145,18 +145,6 @@ jobs:
         with:
           github-secret: ${{ github.token }}
 
-      - name: Calculate docker image
-        id: calculate-docker-image
-        uses: huydhn/test-infra/.github/actions/calculate-docker-image@calculate-docker-image
-        with:
-          docker-image-name: ${{ env.DOCKER_IMAGE }}
-          docker-build-dir: ${{ inputs.docker-build-dir }}
-
-      - name: Pull docker image
-        uses: ./test-infra/.github/actions/pull-docker-image
-        with:
-          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
-
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
@@ -165,6 +153,20 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
+
+      - name: Calculate docker image
+        id: calculate-docker-image
+        uses: huydhn/test-infra/.github/actions/calculate-docker-image@calculate-docker-image
+        # This needs to be where the repository is checked out
+        working-directory: ${{ inputs.repository || github.repository }}
+        with:
+          docker-image-name: ${{ env.DOCKER_IMAGE }}
+          docker-build-dir: ${{ inputs.docker-build-dir }}
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
