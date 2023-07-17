@@ -27,18 +27,19 @@ outputs:
     description: The docker image to use for the rest of the workflow
     value: ${{ steps.calculate-image.outputs.docker-image }}
 
+env:
+  DOCKER_REGISTRY: "308535385114.dkr.ecr.us-east-1.amazonaws.com"
+
 runs:
   using: composite
-  env:
-    DOCKER_REGISTRY: "308535385114.dkr.ecr.us-east-1.amazonaws.com"
-    DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
-    REPO_NAME: ${{ github.event.repository.name }}
   steps:
     - name: Calculate docker image
       shell: bash
       id: calculate-image
       env:
+        REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_IMAGE_NAME: ${{ inputs.docker-image-name }}
+        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
       run: |
         set -ex
 
@@ -59,6 +60,7 @@ runs:
       id: check-image
       if: ${{ !inputs.always-rebuild }}
       env:
+        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
@@ -94,6 +96,7 @@ runs:
     - name: Build and push docker image
       if: inputs.always-rebuild || steps.check-image.outputs.rebuild
       env:
+        REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_PUSH: ${{ inputs.push }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
       working-directory: ${{ inputs.docker-build-dir }}
