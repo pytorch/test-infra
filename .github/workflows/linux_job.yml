@@ -47,6 +47,13 @@ on:
         description: Identifies the Docker image by name.
         default: "pytorch/conda-builder"
         type: string
+      docker-build-dir:
+        description: |
+          The directory containing the build.sh shell script to build the docker image.
+          The script parameters can be passed to docker build similar to how it is used
+          in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
+        default: ".ci/docker"
+        type: string
       gpu-arch-type:
         description: "GPU arch type to use"
         default: "cpu"
@@ -138,10 +145,17 @@ jobs:
         with:
           github-secret: ${{ github.token }}
 
+      - name: Calculate docker image
+        id: calculate-docker-image
+        uses: huydhn/test-infra/.github/actions/calculate-docker-image@calculate-docker-image
+        with:
+          docker-image-name: ${{ env.DOCKER_IMAGE }}
+          docker-build-dir: ${{ inputs.docker-build-dir }}
+
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
         with:
-          docker-image: ${{ env.DOCKER_IMAGE }}
+          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
