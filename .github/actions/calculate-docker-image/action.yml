@@ -23,7 +23,7 @@ inputs:
     description: If set to any value, always build a fresh docker image.
     required: false
   push:
-    description: If set to any value, push the image to ECR.
+    description: If set to true, push the image to ECR.
     required: false
 
 outputs:
