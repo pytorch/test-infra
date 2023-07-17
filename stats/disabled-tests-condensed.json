@@ -1105,6 +1105,14 @@
       "rocm"
     ]
   ],
+  "test_inductor_bucketize_add_autotune_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
+    "105310",
+    "https://github.com/pytorch/pytorch/issues/105310",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
