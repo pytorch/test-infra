@@ -47,12 +47,14 @@ runs:
       run: |
         set -ex
 
-        # If the docker build directory doesn't exist, the action will gracefully
-        # return the docker image name as it is. The pull docker image step could
-        # then download the pre-built image as usual
-        if [[ ! -d "${DOCKER_BUILD_DIR}" ]]; then
+        # If the docker build directory or the build script doesn't exist, the action will
+        # gracefully return the docker image name as it is.  Pulling docker image in Linux
+        # job could then download the pre-built image as usual
+        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_BUILD_DIR}/build.sh" ]]; then
           echo "skip=true" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
+
+          echo "There is no Docker build script in ${REPO_NAME} repo, skipping..."
           exit 0
         else
           echo "skip=false" >> "${GITHUB_OUTPUT}"
@@ -88,6 +90,7 @@ runs:
           exit 0
         fi
 
+        # NB: This part requires a full checkout
         if [[ "$BASE_REVISION" = "$(git rev-parse HEAD)" ]]; then
           # if we're on the base branch then use the parent commit
           MERGE_BASE=$(git rev-parse HEAD~)
