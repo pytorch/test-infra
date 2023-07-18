@@ -12,12 +12,13 @@ inputs:
     description: |
       The directory containing the build.sh shell script to build the docker image.
       The script parameters can be passed to docker build similar to how it is used
-      in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
-    required: false
+      in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
     default: .ci/docker
+  working-directory:
+    description: The working directory where the repo is checked out.
+    default: .
   docker-registry:
     description: The registry to store the image after it is built.
-    required: false
     default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
   always-rebuild:
     description: If set to any value, always build a fresh docker image.
@@ -35,8 +36,9 @@ runs:
   using: composite
   steps:
     - name: Calculate docker image
-      shell: bash
       id: calculate-image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_IMAGE_NAME: ${{ inputs.docker-image-name }}
@@ -58,8 +60,9 @@ runs:
         fi
 
     - name: Check if image should be built
-      shell: bash
       id: check-image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
       if: ${{ !inputs.always-rebuild }}
       env:
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
@@ -96,14 +99,14 @@ runs:
         echo "rebuild=yes" >> "${GITHUB_OUTPUT}"
 
     - name: Build and push docker image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
       if: inputs.always-rebuild || steps.check-image.outputs.rebuild
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_PUSH: ${{ inputs.push }}
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_REGISTRY: ${{ inputs.docker-registry }}
-      working-directory: ${{ inputs.docker-build-dir }}
-      shell: bash
       run: |
         set -ex
 
