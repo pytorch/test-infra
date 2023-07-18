@@ -49,9 +49,8 @@ on:
         type: string
       docker-build-dir:
         description: |
-          The directory containing the build.sh shell script to build the docker image.
-          The script parameters can be passed to docker build similar to how it is used
-          in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
+          The directory containing the build.sh shell script to build the docker image. The
+          path is relative to where the repo is checked out.
         default: ".ci/docker"
         type: string
       gpu-arch-type:
@@ -157,11 +156,11 @@ jobs:
       - name: Calculate docker image
         id: calculate-docker-image
         uses: huydhn/test-infra/.github/actions/calculate-docker-image@calculate-docker-image
-        # This needs to be where the repository is checked out
-        working-directory: ${{ inputs.repository || github.repository }}
         with:
           docker-image-name: ${{ env.DOCKER_IMAGE }}
           docker-build-dir: ${{ inputs.docker-build-dir }}
+          # This needs to be where the repository is checked out
+          working-directory: ${{ inputs.repository || github.repository }}
 
       - name: Pull docker image
         uses: ./test-infra/.github/actions/pull-docker-image
