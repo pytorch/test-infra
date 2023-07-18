@@ -187,6 +187,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
+          DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
         run: |
           set -ex
           {
