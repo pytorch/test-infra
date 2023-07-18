@@ -600,6 +600,13 @@
       "rocm"
     ]
   ],
+  "test_cross_entropy_large_tensor_reduction_none_cuda (__main__.TestNNDeviceTypeCUDA)": [
+    "105447",
+    "https://github.com/pytorch/pytorch/issues/105447",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCuda)": [
     "103999",
     "https://github.com/pytorch/pytorch/issues/103999",
@@ -1004,13 +1011,6 @@
   "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
     "94531",
     "https://github.com/pytorch/pytorch/issues/94531",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
     [
       "linux"
     ]
@@ -1783,13 +1783,6 @@
     "https://github.com/pytorch/pytorch/issues/73173",
     [
       "win"
-    ]
-  ],
-  "test_sparse_triangular_solve_cuda_float32 (__main__.TestSparseCSRCUDA)": [
-    "94953",
-    "https://github.com/pytorch/pytorch/issues/94953",
-    [
-      "linux"
     ]
   ],
   "test_split_tensor (__main__.TestDTensorPlacementTypes)": [
