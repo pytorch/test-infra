@@ -74,7 +74,7 @@ runs:
       id: check-image
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      if: ${{ steps.calculate-image.outputs.skip != 'true' }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
       env:
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
