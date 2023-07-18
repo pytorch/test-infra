@@ -50,7 +50,7 @@ runs:
         # If the docker build directory doesn't exist, the action will gracefully
         # return the docker image name as it is. The pull docker image step could
         # then download the pre-built image as usual
-        if[[ ! -d "${DOCKER_BUILD_DIR}" ]]; then
+        if [[ ! -d "${DOCKER_BUILD_DIR}" ]]; then
           echo "skip=true" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
           exit 0
