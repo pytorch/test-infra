@@ -83,14 +83,16 @@ runs:
         DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
         DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
       run: |
-        set -ex
+        set +e
+        set -x
 
         # Check if image already exists, if it does then skip building it
         if docker manifest inspect "${DOCKER_IMAGE}"; then
           exit 0
         fi
 
-        # NB: This part requires a full checkout
+        # NB: This part requires a full checkout. Otherwise, the merge base will
+        # be empty.  The default action would be to continue rebuild the image
         if [[ "$BASE_REVISION" = "$(git rev-parse HEAD)" ]]; then
           # if we're on the base branch then use the parent commit
           MERGE_BASE=$(git rev-parse HEAD~)
@@ -99,10 +101,18 @@ runs:
           MERGE_BASE=$(git merge-base HEAD "$BASE_REVISION")
         fi
 
+        if [[ -z "${MERGE_BASE}" ]]; then
+          echo "rebuild=true" >> "${GITHUB_OUTPUT}"
+
+          echo "Finding merge base only works with full checkout, please set fetch-depth to 0, continuing ..."
+          exit 0
+        fi
+
         if ! git rev-parse "${MERGE_BASE}:${DOCKER_BUILD_DIR}"; then
           echo "Directory '${DOCKER_BUILD_DIR}' not found in commit $MERGE_BASE, you should rebase onto a more recent commit"
           exit 1
         fi
+
         PREVIOUS_DOCKER_TAG=$(git rev-parse "${MERGE_BASE}:${DOCKER_BUILD_DIR}")
         # If no image exists but the hash is the same as the previous hash then we should error out here
         if [[ "${PREVIOUS_DOCKER_TAG}" == "${DOCKER_TAG}" ]]; then
