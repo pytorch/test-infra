@@ -1792,13 +1792,6 @@
       "win"
     ]
   ],
-  "test_split_tensor (__main__.TestDTensorPlacementTypes)": [
-    "104769",
-    "https://github.com/pytorch/pytorch/issues/104769",
-    [
-      "linux"
-    ]
-  ],
   "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
     "94880",
     "https://github.com/pytorch/pytorch/issues/94880",
