@@ -1022,6 +1022,13 @@
       "linux"
     ]
   ],
+  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94625",
+    "https://github.com/pytorch/pytorch/issues/94625",
+    [
+      "linux"
+    ]
+  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
