@@ -74,7 +74,7 @@ runs:
       id: check-image
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      if: ${{ !steps.calculate-image.outputs.skip && !inputs.always-rebuild }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
       env:
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -112,7 +112,7 @@ runs:
     - name: Build and push docker image
       shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
-      if: ${{ !steps.calculate-image.outputs.skip && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_PUSH: ${{ inputs.push }}
