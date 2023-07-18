@@ -47,6 +47,17 @@ runs:
       run: |
         set -ex
 
+        # If the docker build directory doesn't exist, the action will gracefully
+        # return the docker image name as it is. The pull docker image step could
+        # then download the pre-built image as usual
+        if[[ ! -d "${DOCKER_BUILD_DIR}" ]]; then
+          echo "skip=true" >> "${GITHUB_OUTPUT}"
+          echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
+          exit 0
+        else
+          echo "skip=false" >> "${GITHUB_OUTPUT}"
+        fi
+
         if [[ "${DOCKER_IMAGE_NAME}" == *"${DOCKER_REGISTRY}/${REPO_NAME}"* ]]; then
           # The docker image name already includes the ECR prefix and tag, so we can just
           # use it as it is, but first let's extract the tag
@@ -63,7 +74,7 @@ runs:
       id: check-image
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      if: ${{ !inputs.always-rebuild }}
+      if: ${{ !steps.calculate-image.outputs.skip && !inputs.always-rebuild }}
       env:
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -96,12 +107,12 @@ runs:
           echo "         Will re-build docker image to store in local cache, TTS may be longer"
         fi
 
-        echo "rebuild=yes" >> "${GITHUB_OUTPUT}"
+        echo "rebuild=true" >> "${GITHUB_OUTPUT}"
 
     - name: Build and push docker image
       shell: bash
       working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
-      if: inputs.always-rebuild || steps.check-image.outputs.rebuild
+      if: ${{ !steps.calculate-image.outputs.skip && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
       env:
         REPO_NAME: ${{ github.event.repository.name }}
         DOCKER_PUSH: ${{ inputs.push }}
