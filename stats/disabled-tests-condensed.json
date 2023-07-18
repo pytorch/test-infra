@@ -338,6 +338,14 @@
       "windows"
     ]
   ],
+  "test_closure_out_of_scope_cell (__main__.MiscTests)": [
+    "105444",
+    "https://github.com/pytorch/pytorch/issues/105444",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_closure_out_of_scope_cell_with_mutation (__main__.AutomaticDynamicShapesMiscTests)": [
     "104433",
     "https://github.com/pytorch/pytorch/issues/104433",
@@ -991,6 +999,13 @@
     "https://github.com/pytorch/pytorch/issues/93049",
     [
       "inductor"
+    ]
+  ],
+  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94531",
+    "https://github.com/pytorch/pytorch/issues/94531",
+    [
+      "linux"
     ]
   ],
   "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
