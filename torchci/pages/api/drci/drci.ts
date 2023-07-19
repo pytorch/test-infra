@@ -137,7 +137,7 @@ async function addMergeBaseCommits(
   });
 }
 
-async function getBaseCommitJobs(
+export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
 ): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
@@ -169,12 +169,12 @@ async function getBaseCommitJobs(
   // the unstable suffix. The former is not needed because the tests could be
   // run by another shard and failed the same way. The unstable suffix is also
   // not needed because it's there only to decorate the job name.
-  Object.keys(jobsBySha).forEach((sha: string) => {
+  for (const sha of jobsBySha.keys()) {
     if (!jobsByShaByName.has(sha)) {
       jobsByShaByName.set(sha, new Map());
     }
 
-    Object.keys(jobsBySha.get(sha)).forEach((jobName: string) => {
+    for (const jobName of jobsBySha.get(sha).keys()) {
       const jobNameNoSuffix = removeJobNameSuffix(jobName);
       const job = jobsBySha.get(sha).get(jobName);
 
@@ -182,9 +182,9 @@ async function getBaseCommitJobs(
         jobsByShaByName.get(sha).set(jobNameNoSuffix, []);
       }
 
-      jobsByShaByName.get(sha).get(jobNameNoSuffix).add(job);
-    });
-  });
+      jobsByShaByName.get(sha).get(jobNameNoSuffix).push(job);
+    }
+  }
 
   return jobsByShaByName;
 }
