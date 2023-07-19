@@ -2,11 +2,11 @@
   "name": "torchci2",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "test": "jest",
+    "dev": "npx next dev",
+    "build": "npx next build",
+    "start": "npx next start",
+    "lint": "npx next lint",
+    "test": "npx jest",
     "format": "yarn prettier --write ."
   },
   "dependencies": {
