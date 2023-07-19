@@ -5,7 +5,6 @@ import useSWR from "swr";
 import _ from "lodash";
 import {
   Grid,
-  Paper,
   Skeleton,
   Stack,
   Typography,
@@ -17,7 +16,6 @@ import {
   Divider,
 } from "@mui/material";
 import {
-  GridValueFormatterParams,
   GridCellParams,
   GridRenderCellParams,
 } from "@mui/x-data-grid";

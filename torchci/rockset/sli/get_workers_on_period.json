@@ -1,0 +1,16 @@
+{
+    "sql_path": "__sql/get_workers_on_period.sql",
+    "default_parameters": [
+        {
+            "name": "startTime",
+            "type": "string",
+            "value": ""
+        },
+        {
+            "name": "stopTime",
+            "type": "string",
+            "value": ""
+        }
+    ],
+    "description": "List the workers available on a given period"
+}
