@@ -1166,13 +1166,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "102115",
     "https://github.com/pytorch/pytorch/issues/102115",
