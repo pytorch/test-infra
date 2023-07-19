@@ -1029,13 +1029,6 @@
       "linux"
     ]
   ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
-    [
-      "linux"
-    ]
-  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
@@ -1694,6 +1687,13 @@
   "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98024",
     "https://github.com/pytorch/pytorch/issues/98024",
+    [
+      "linux"
+    ]
+  ],
+  "test_rekey_optim_state_dict_to_names (__main__.TestFSDPOptimState)": [
+    "105510",
+    "https://github.com/pytorch/pytorch/issues/105510",
     [
       "linux"
     ]
