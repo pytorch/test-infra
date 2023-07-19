@@ -593,6 +593,46 @@
       "rocm"
     ]
   ],
+  "test_conversions_all_patterns_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105544",
+    "https://github.com/pytorch/pytorch/issues/105544",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105541",
+    "https://github.com/pytorch/pytorch/issues/105541",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105540",
+    "https://github.com/pytorch/pytorch/issues/105540",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105545",
+    "https://github.com/pytorch/pytorch/issues/105545",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105543",
+    "https://github.com/pytorch/pytorch/issues/105543",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
     "103863",
     "https://github.com/pytorch/pytorch/issues/103863",
@@ -1218,6 +1258,14 @@
     "https://github.com/pytorch/pytorch/issues/78377",
     [
       "macos"
+    ]
+  ],
+  "test_linear_inference_mode_False_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105542",
+    "https://github.com/pytorch/pytorch/issues/105542",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_lobpcg (__main__.TestAutograd)": [
