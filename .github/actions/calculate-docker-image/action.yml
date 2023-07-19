@@ -1,0 +1,164 @@
+name: Calculate docker image
+
+description: Determine docker image to pull, building a new one if necessary.
+
+inputs:
+  docker-image-name:
+    description: |
+      The name of a docker image, like `pytorch-linux-focal-linter`. A fullname
+      with ECR prefix is also supported.
+    required: true
+  docker-build-dir:
+    description: |
+      The directory containing the build.sh shell script to build the docker image.
+      The script parameters can be passed to docker build similar to how it is used
+      in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
+    default: .ci/docker
+  working-directory:
+    description: The working directory where the repo is checked out.
+    default: .
+  docker-registry:
+    description: The registry to store the image after it is built.
+    default: 308535385114.dkr.ecr.us-east-1.amazonaws.com
+  always-rebuild:
+    description: If set to any value, always build a fresh docker image.
+    required: false
+  push:
+    description: If set to true, push the image to ECR.
+    required: false
+
+outputs:
+  docker-image:
+    description: The docker image to use for the rest of the workflow
+    value: ${{ steps.calculate-image.outputs.docker-image }}
+
+runs:
+  using: composite
+  steps:
+    - name: Calculate docker image
+      id: calculate-image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        REPO_NAME: ${{ github.event.repository.name }}
+        DOCKER_IMAGE_NAME: ${{ inputs.docker-image-name }}
+        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      run: |
+        set -ex
+
+        # If the docker build directory or the build script doesn't exist, the action will
+        # gracefully return the docker image name as it is.  Pulling docker image in Linux
+        # job could then download the pre-built image as usual
+        if [[ ! -d "${DOCKER_BUILD_DIR}" ]] || [[ ! -f "${DOCKER_BUILD_DIR}/build.sh" ]]; then
+          echo "skip=true" >> "${GITHUB_OUTPUT}"
+          echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
+
+          echo "There is no Docker build script in ${REPO_NAME} repo, skipping..."
+          exit 0
+        else
+          echo "skip=false" >> "${GITHUB_OUTPUT}"
+        fi
+
+        if [[ "${DOCKER_IMAGE_NAME}" == *"${DOCKER_REGISTRY}/${REPO_NAME}"* ]]; then
+          # The docker image name already includes the ECR prefix and tag, so we can just
+          # use it as it is, but first let's extract the tag
+          DOCKER_TAG=$(echo "${DOCKER_IMAGE_NAME}" | awk -F '[:,]' '{print $2}')
+          echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
+        else
+          DOCKER_TAG=$(git rev-parse HEAD:"${DOCKER_BUILD_DIR}")
+          echo "docker-tag=${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "docker-image=${DOCKER_REGISTRY}/${REPO_NAME}/${DOCKER_IMAGE_NAME}:${DOCKER_TAG}" >> "${GITHUB_OUTPUT}"
+        fi
+
+    - name: Check if image should be built
+      id: check-image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && !inputs.always-rebuild }}
+      env:
+        DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
+        BASE_REVISION: ${{ github.event.pull_request.base.sha || github.sha }}
+        DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
+        DOCKER_TAG: ${{ steps.calculate-image.outputs.docker-tag }}
+      run: |
+        set +e
+        set -x
+
+        # Check if image already exists, if it does then skip building it
+        if docker manifest inspect "${DOCKER_IMAGE}"; then
+          exit 0
+        fi
+
+        # NB: This part requires a full checkout. Otherwise, the merge base will
+        # be empty.  The default action would be to continue rebuild the image
+        if [[ "$BASE_REVISION" = "$(git rev-parse HEAD)" ]]; then
+          # if we're on the base branch then use the parent commit
+          MERGE_BASE=$(git rev-parse HEAD~)
+        else
+          # otherwise we're on a PR, so use the most recent base commit
+          MERGE_BASE=$(git merge-base HEAD "$BASE_REVISION")
+        fi
+
+        if [[ -z "${MERGE_BASE}" ]]; then
+          echo "rebuild=true" >> "${GITHUB_OUTPUT}"
+
+          echo "Finding merge base only works with full checkout, please set fetch-depth to 0, continuing ..."
+          exit 0
+        fi
+
+        if ! git rev-parse "${MERGE_BASE}:${DOCKER_BUILD_DIR}"; then
+          echo "Directory '${DOCKER_BUILD_DIR}' not found in commit $MERGE_BASE, you should rebase onto a more recent commit"
+          exit 1
+        fi
+
+        PREVIOUS_DOCKER_TAG=$(git rev-parse "${MERGE_BASE}:${DOCKER_BUILD_DIR}")
+        # If no image exists but the hash is the same as the previous hash then we should error out here
+        if [[ "${PREVIOUS_DOCKER_TAG}" == "${DOCKER_TAG}" ]]; then
+          echo "WARNING: Something has gone wrong and the previous image isn't available for the merge-base of your branch"
+          echo "         Will re-build docker image to store in local cache, TTS may be longer"
+        fi
+
+        echo "rebuild=true" >> "${GITHUB_OUTPUT}"
+
+    - name: Build and push docker image
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      env:
+        REPO_NAME: ${{ github.event.repository.name }}
+        DOCKER_PUSH: ${{ inputs.push }}
+        DOCKER_IMAGE: ${{ steps.calculate-image.outputs.docker-image }}
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      run: |
+        set -ex
+
+        login() {
+          aws ecr get-authorization-token --region us-east-1 --output text --query 'authorizationData[].authorizationToken' |
+            base64 -d |
+            cut -d: -f2 |
+            docker login -u AWS --password-stdin "$1"
+        }
+
+        retry () {
+          $*  || (sleep 1 && $*) || (sleep 2 && $*)
+        }
+
+        # Only run these steps if not on github actions
+        if [[ -z "${GITHUB_ACTIONS}" ]]; then
+          retry login "${DOCKER_REGISTRY}"
+          # Logout on exit
+          trap "docker logout ${DOCKER_REGISTRY}" EXIT
+        fi
+
+        IMAGE_NAME=$(echo ${DOCKER_IMAGE#"${DOCKER_REGISTRY}/${REPO_NAME}/"} | awk -F '[:,]' '{print $1}')
+        # Build new image
+        ./build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}"
+
+        if [ "${DOCKER_PUSH:-false}" == "true" ]; then
+          # Only push if docker image doesn't exist already
+          if ! docker manifest inspect "${DOCKER_IMAGE}" >/dev/null 2>/dev/null; then
+            docker push "${DOCKER_IMAGE}"
+          fi
+        fi
