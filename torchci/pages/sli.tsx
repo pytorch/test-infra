@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useEffect, useState } from "react";
 import {
     Autocomplete,
+    Checkbox,
     FormControl,
     Grid,
     InputLabel,
@@ -15,6 +16,8 @@ import {
     TextField,
     Typography,
   } from "@mui/material";
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import { RocksetParam } from "lib/rockset";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
@@ -22,6 +25,9 @@ import { durationDisplay } from "components/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
 
 const ROW_HEIGHT = 600;
+
+const icon = <CheckBoxOutlineBlankIcon fontSize="small" />;
+const checkedIcon = <CheckBoxIcon fontSize="small" />;
 
 function TimePicker({ label, value, setValue }: any) {
   return (
@@ -51,7 +57,7 @@ export function TtsPercentilePicker({
   
     return (
       <>
-        <FormControl>
+        <FormControl sx={{ m: 1, minWidth: 80 }} size="small">
           <InputLabel id="tts-percentile-picker-select-label">
             Percentile
           </InputLabel>
@@ -62,14 +68,12 @@ export function TtsPercentilePicker({
             onChange={handleChange}
           >
             <MenuItem value="avg">avg</MenuItem>
-            <MenuItem value="p25">p25</MenuItem>
             <MenuItem value="p50">p50</MenuItem>
             <MenuItem value="p80">p80</MenuItem>
             <MenuItem value="p90">p90</MenuItem>
             <MenuItem value="p95">p95</MenuItem>
             <MenuItem value="p99">p99</MenuItem>
-            <MenuItem value="p99.9">p99.9</MenuItem>
-            <MenuItem value="max">p100</MenuItem>
+            <MenuItem value="max">max</MenuItem>
           </Select>
         </FormControl>
       </>
@@ -121,7 +125,7 @@ export function TimeRangePicker({
   
     return (
       <>
-        <FormControl>
+        <FormControl sx={{ m: 1, minWidth: 140 }} size="small">
           <InputLabel id="time-picker-select-label">Time Range</InputLabel>
           <Select
             value={timeRange}
@@ -159,12 +163,16 @@ export function TimeRangePicker({
 }
 
 function WorkerTypePicker({
+    workerTypes,
+    setWorkerTypes,
     queryParams,
   }: {
+    workerTypes: string[];
+    setWorkerTypes: any;
     queryParams: RocksetParam[];
   }) {
-    const queryName = "compilers_benchmark_performance_branches";
-    const queryCollection = "inductor";
+    const queryName = "get_workers_on_period";
+    const queryCollection = "metrics";
 
     const url = `/api/query/${queryCollection}/${queryName}?parameters=${encodeURIComponent(
       JSON.stringify(queryParams)
@@ -187,18 +195,13 @@ function WorkerTypePicker({
         return <Skeleton variant={"rectangular"} height={"100%"} />;
     }
 
-    function handleChange(e: SelectChangeEvent<string>) {
-        console.log("selected");
+    function handleChange(event: any, newValue: any) {
+        setWorkerTypes(newValue.map((worker: any) => worker.title));
     }
 
-    const labels = [
-        { label: "CPU", value: "cpu" },
-        { label: "GPU", value: "gpu" },
-        { label: "TPU", value: "tpu" },
-        { label: "FPGA", value: "fpga" },
-        { label: "ASIC", value: "asic" },
-        { label: "Other", value: "other" },
-    ];
+    const labels = data.map((worker: any) => {
+        return { title: worker.machine_type, value: worker.machine_type };
+    });
 
     return (
         <>
@@ -206,16 +209,22 @@ function WorkerTypePicker({
                 multiple
                 id="tags-outlined"
                 options={labels}
-                getOptionLabel={(option) => option.label}
-                defaultValue={[labels[1]]}
-                filterSelectedOptions
+                disableCloseOnSelect
+                getOptionLabel={(option) => option.title}
+                defaultValue={workerTypes.map((wt: string) => {
+                    return { title: wt, value: wt };
+                })}
+                fullWidth
+                size="small"
+                onChange={handleChange}
                 renderInput={(params) => (
                     <TextField
                         {...params}
-                        label="filterSelectedOptions"
-                        placeholder="Favorites"
+                        label="Worker Types"
+                        placeholder=""
                     />
                 )}
+                isOptionEqualToValue={(option, value) => option.title === value.title}
             />
         </>
     );
@@ -224,7 +233,8 @@ function WorkerTypePicker({
 export default function Page() {
     const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
     const [stopTime, setStopTime] = useState(dayjs());
-    const [timeRange, setTimeRange] = useState<number>(7);
+    const [timeRange, setTimeRange] = useState<number>(30);
+    const [workerTypes, setWorkerTypes] = useState<string[]>(["all"]);
 
     const timeParams: RocksetParam[] = [
       {
@@ -243,9 +253,9 @@ export default function Page() {
 
     return (
       <div>
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <Typography fontSize={"2rem"} fontWeight={"bold"}>
-            PyTorch GHA Worker SLI
+        <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
+          <Typography fontSize={"2rem"} fontWeight={"bold"} sx={{ mb: 1, minWidth: 280 }}>
+            GHA Workers SLI
           </Typography>
           <TimeRangePicker
             startTime={startTime}
@@ -260,6 +270,8 @@ export default function Page() {
             setTtsPercentile={setTtsPercentile}
           />
           <WorkerTypePicker
+            workerTypes={workerTypes}
+            setWorkerTypes={setWorkerTypes}
             queryParams={[
                 {
                   name: "timezone",
@@ -274,19 +286,29 @@ export default function Page() {
         <Grid item xs={6} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"GHA Worker Queue Time"}
-            queryName={"queue_times_historical"}
+            queryName={"queue_times_historical_pct"}
             queryParams={[
               {
                 name: "timezone",
                 type: "string",
                 value: Intl.DateTimeFormat().resolvedOptions().timeZone,
               },
+              {
+                name: "pctile",
+                type: "string",
+                value: ttsPercentile,
+              },
+              {
+                name: "workersTypes",
+                type: "string",
+                value: workerTypes.join(","),
+              },
               ...timeParams,
             ]}
             granularity={"hour"}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
-            yAxisFieldName={"avg_queue_s"}
+            yAxisFieldName={`queue_s_${ttsPercentile}`}
             yAxisRenderer={durationDisplay}
           />
         </Grid>

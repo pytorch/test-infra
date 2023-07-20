@@ -4,8 +4,8 @@ WITH workers AS (
     FROM
         metrics.queue_times_24h_stats qts
     WHERE
-        qts._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-        AND qts._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+        qts._event_time >= PARSE_DATETIME_ISO8601(:startTime) AT TIME ZONE :timezone
+        AND qts._event_time < PARSE_DATETIME_ISO8601(:stopTime) AT TIME ZONE :timezone
 )
 SELECT
     w.machine_type

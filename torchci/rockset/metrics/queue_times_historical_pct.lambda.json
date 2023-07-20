@@ -1,0 +1,31 @@
+{
+    "sql_path": "__sql/queue_times_historical.sql",
+    "default_parameters": [
+      {
+        "name": "startTime",
+        "type": "string",
+        "value": "2022-05-13T00:06:32.839Z"
+      },
+      {
+        "name": "stopTime",
+        "type": "string",
+        "value": "2022-05-21T00:06:32.839Z"
+      },
+      {
+        "name": "timezone",
+        "type": "string",
+        "value": "America/Los_Angeles"
+      },
+      {
+        "name": "pctile",
+        "type": "string",
+        "value": "queue_s_p50"
+      },
+      {
+        "name": "workersTypes",
+        "type": "string",
+        "value": "all"
+      }
+    ],
+    "description": "get computed statistics for a set of runner types in a time range"
+  }
