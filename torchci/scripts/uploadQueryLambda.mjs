@@ -13,7 +13,18 @@ async function readJSON(path) {
 const prodVersions = await readJSON("rockset/prodVersions.json");
 const prodVersionsNew = await readJSON("rockset/prodVersions.json");
 
-async function upload(workspace, queryName) {
+function equalParametersList(paramsA, paramsB) {
+  const diff = paramsA.find((a) => {
+    const b = paramsB.find((b) => b.name == a.name);
+    if (!b) {
+      return true;
+    }
+    return a.value != b.value || a.type != b.type;
+  });
+  return diff === undefined;
+}
+
+async function upload(workspace, queryName, queryLambdas) {
   const config = await readJSON(
     `./rockset/${workspace}/${queryName}.lambda.json`
   );
@@ -22,7 +33,38 @@ async function upload(workspace, queryName) {
     "utf8"
   );
 
-  const res = await client.queryLambdas.updateQueryLambda(
+  const queryLambda = queryLambdas
+    .get(workspace, new Map())
+    .get(queryName, undefined);
+
+  if (!queryLambda) {
+    const resCreate = await client.queryLambdas.createQueryLambda(workspace, {
+      name: queryName,
+      description: config.description,
+      sql: {
+        query,
+        default_parameters: config.default_parameters,
+      },
+    });
+    const newVersion = resCreate.data.version;
+    prodVersionsNew[workspace][queryName] = newVersion;
+    console.log(`Created ${workspace}.${queryName} to version ${newVersion}`);
+    return;
+  }
+
+  if (
+    queryLambda.description == config.description &&
+    equalParametersList(
+      queryLambda.default_parameters,
+      config.default_parameters
+    ) &&
+    queryLambda.query == query
+  ) {
+    console.log(`No change to ${workspace}.${queryName}`);
+    return;
+  }
+
+  const resUp = await client.queryLambdas.updateQueryLambda(
     workspace,
     queryName,
     {
@@ -34,16 +76,31 @@ async function upload(workspace, queryName) {
     }
   );
 
-  const newVersion = res.data.version;
+  const newVersion = resUp.data.version;
   prodVersionsNew[workspace][queryName] = newVersion;
 
   console.log(`Updated ${workspace}.${queryName} to version ${newVersion}`);
 }
 
+const resListQueryLambdas = await client.queryLambdas.listAllQueryLambdas();
+const queryLambdas = new Map();
+resListQueryLambdas.data.forEach((queryLambda) => {
+  const workspace = queryLambda.workspace;
+  const queryName = queryLambda.name;
+  if (!queryLambdas.has(workspace)) {
+    queryLambdas.set(workspace, new Map());
+  }
+  queryLambdas.get(workspace).set(queryName, {
+    description: queryLambda.latest_version.description,
+    default_parameters: queryLambda.latest_version.sql.default_parameters,
+    query: queryLambda.latest_version.sql.query,
+  });
+});
+
 const tasks = [];
 Object.keys(prodVersions).forEach((workspace) => {
   Object.entries(prodVersions[workspace]).forEach(([queryName, _]) =>
-    tasks.push(upload(workspace, queryName))
+    tasks.push(upload(workspace, queryName, queryLambdas))
   );
 });
 await Promise.all(tasks);

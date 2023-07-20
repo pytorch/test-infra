@@ -70,6 +70,11 @@ function NavBar() {
               </Link>
             </li>
             <li>
+              <Link prefetch={false} href="/sli">
+                SLIs
+              </Link>
+            </li>
+            <li>
               <Link prefetch={false} href="/tts">
                 TTS
               </Link>

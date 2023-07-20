@@ -1,0 +1,21 @@
+{
+    "sql_path": "__sql/get_workers_on_period.sql",
+    "default_parameters": [
+        {
+            "name": "startTime",
+            "type": "string",
+            "value": "2022-05-13T00:06:32.839Z"
+          },
+          {
+            "name": "stopTime",
+            "type": "string",
+            "value": "2022-05-21T00:06:32.839Z"
+          },
+          {
+            "name": "timezone",
+            "type": "string",
+            "value": "America/Los_Angeles"
+          }
+    ],
+    "description": "List the workers available on a given period"
+}
