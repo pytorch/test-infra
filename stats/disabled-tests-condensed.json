@@ -20,6 +20,13 @@
       "rocm"
     ]
   ],
+  "test_adadelta_recompile (__main__.CompiledOptimizerTests)": [
+    "105649",
+    "https://github.com/pytorch/pytorch/issues/105649",
+    [
+      "linux"
+    ]
+  ],
   "test_adam_weight_decay (__main__.CompiledOptimizerTests)": [
     "104936",
     "https://github.com/pytorch/pytorch/issues/104936",
