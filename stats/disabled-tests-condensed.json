@@ -34,6 +34,14 @@
       "linux"
     ]
   ],
+  "test_adam_recompile (__main__.CompiledOptimizerTests)": [
+    "105681",
+    "https://github.com/pytorch/pytorch/issues/105681",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_adam_weight_decay (__main__.CompiledOptimizerTests)": [
     "104936",
     "https://github.com/pytorch/pytorch/issues/104936",
@@ -1219,6 +1227,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_inline_dict_mutation (__main__.MiscTests)": [
+    "105680",
+    "https://github.com/pytorch/pytorch/issues/105680",
+    [
+      "linux"
     ]
   ],
   "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
