@@ -6,7 +6,7 @@ const createJestConfig = nextJest({
 
 const customJestConfig = {
   moduleDirectories: ["node_modules", "<rootDir>/"],
-  reporters: ['<rootDir>/test/reporter.js'],
+  reporters: ["<rootDir>/test/reporter.js"],
 };
 
 module.exports = createJestConfig(customJestConfig);

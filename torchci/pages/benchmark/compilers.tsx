@@ -15,10 +15,7 @@ import {
   SelectChangeEvent,
   Divider,
 } from "@mui/material";
-import {
-  GridCellParams,
-  GridRenderCellParams,
-} from "@mui/x-data-grid";
+import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import React from "react";
 import { useState, useEffect } from "react";
 import { RocksetParam } from "lib/rockset";

@@ -14,8 +14,8 @@ const prodVersions = await readJSON("rockset/prodVersions.json");
 const prodVersionsNew = await readJSON("rockset/prodVersions.json");
 
 function equalParametersList(paramsA, paramsB) {
-  const diff = paramsA.find(a => {
-    const b = paramsB.find(b => b.name == a.name);
+  const diff = paramsA.find((a) => {
+    const b = paramsB.find((b) => b.name == a.name);
     if (!b) {
       return true;
     }
@@ -33,7 +33,9 @@ async function upload(workspace, queryName, queryLambdas) {
     "utf8"
   );
 
-  const queryLambda = queryLambdas.get(workspace, new Map()).get(queryName, undefined);
+  const queryLambda = queryLambdas
+    .get(workspace, new Map())
+    .get(queryName, undefined);
 
   if (!queryLambda) {
     const resCreate = await client.queryLambdas.createQueryLambda(workspace, {
@@ -52,7 +54,10 @@ async function upload(workspace, queryName, queryLambdas) {
 
   if (
     queryLambda.description == config.description &&
-    equalParametersList(queryLambda.default_parameters, config.default_parameters) &&
+    equalParametersList(
+      queryLambda.default_parameters,
+      config.default_parameters
+    ) &&
     queryLambda.query == query
   ) {
     console.log(`No change to ${workspace}.${queryName}`);
