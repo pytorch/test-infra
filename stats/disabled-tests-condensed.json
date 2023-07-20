@@ -639,6 +639,14 @@
       "slow"
     ]
   ],
+  "test_conversions_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105667",
+    "https://github.com/pytorch/pytorch/issues/105667",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_conversions_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105543",
     "https://github.com/pytorch/pytorch/issues/105543",
@@ -973,6 +981,13 @@
       "inductor"
     ]
   ],
+  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
+    "94487",
+    "https://github.com/pytorch/pytorch/issues/94487",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "93045",
     "https://github.com/pytorch/pytorch/issues/93045",
@@ -1263,6 +1278,14 @@
   "test_linear_inference_mode_False_cuda (__main__.TestSparseSemiStructuredCUDA)": [
     "105542",
     "https://github.com/pytorch/pytorch/issues/105542",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105668",
+    "https://github.com/pytorch/pytorch/issues/105668",
     [
       "linux",
       "slow"
