@@ -49,6 +49,13 @@
       "linux"
     ]
   ],
+  "test_adamw_recompile (__main__.CompiledOptimizerTests)": [
+    "105692",
+    "https://github.com/pytorch/pytorch/issues/105692",
+    [
+      "linux"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
