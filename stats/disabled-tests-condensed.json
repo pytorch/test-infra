@@ -209,15 +209,6 @@
       "rocm"
     ]
   ],
-  "test_build_tuple_unpack (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103723",
-    "https://github.com/pytorch/pytorch/issues/103723",
-    [
-      "asan",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
     "102071",
     "https://github.com/pytorch/pytorch/issues/102071",
@@ -289,14 +280,6 @@
     [
       "linux",
       "mac"
-    ]
-  ],
-  "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
-    "101852",
-    "https://github.com/pytorch/pytorch/issues/101852",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
@@ -462,15 +445,6 @@
       "linux"
     ]
   ],
-  "test_cond (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101826",
-    "https://github.com/pytorch/pytorch/issues/101826",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_cond_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
     "103779",
     "https://github.com/pytorch/pytorch/issues/103779",
@@ -510,14 +484,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
-    "104313",
-    "https://github.com/pytorch/pytorch/issues/104313",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "101851",
     "https://github.com/pytorch/pytorch/issues/101851",
@@ -545,14 +511,6 @@
   "test_cond_export_single_arg_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102165",
     "https://github.com/pytorch/pytorch/issues/102165",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_cond_nested (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103979",
-    "https://github.com/pytorch/pytorch/issues/103979",
     [
       "asan",
       "linux"
@@ -754,11 +712,6 @@
     "https://github.com/pytorch/pytorch/issues/60274",
     []
   ],
-  "test_ddp_dist_autograd_local_vs_remote_gpu (__main__.TensorPipeCudaDdpComparisonTestWithSpawn)": [
-    "60290",
-    "https://github.com/pytorch/pytorch/issues/60290",
-    []
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -841,13 +794,6 @@
       "linux"
     ]
   ],
-  "test_dtensor_op_db_empty_like_cpu_float32 (__main__.TestDTensorOpsCPU)": [
-    "93844",
-    "https://github.com/pytorch/pytorch/issues/93844",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_empty_permuted_cpu_float32 (__main__.TestDTensorOpsCPU)": [
     "95395",
     "https://github.com/pytorch/pytorch/issues/95395",
@@ -879,13 +825,6 @@
   "test_dtype_correctness (__main__.TestNvFuserDynamo)": [
     "103440",
     "https://github.com/pytorch/pytorch/issues/103440",
-    [
-      "linux"
-    ]
-  ],
-  "test_dtypes__masked_amin_cuda (__main__.TestCommonCUDA)": [
-    "71248",
-    "https://github.com/pytorch/pytorch/issues/71248",
     [
       "linux"
     ]
@@ -1388,11 +1327,6 @@
     "https://github.com/pytorch/pytorch/issues/77020",
     []
   ],
-  "test_meta_linalg_ldl_factor_cuda_complex64 (__main__.TestMetaCUDA)": [
-    "77024",
-    "https://github.com/pytorch/pytorch/issues/77024",
-    []
-  ],
   "test_meta_linalg_ldl_factor_ex_cuda (__main__.TestMetaCUDA)": [
     "77021",
     "https://github.com/pytorch/pytorch/issues/77021",
@@ -1486,11 +1420,6 @@
     [
       "linux"
     ]
-  ],
-  "test_nested (__main__.ForkTest)": [
-    "67881",
-    "https://github.com/pytorch/pytorch/issues/67881",
-    []
   ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105120",
@@ -1855,13 +1784,6 @@
       "mac"
     ]
   ],
-  "test_shuffle (__main__.TestDataLoader2)": [
-    "74390",
-    "https://github.com/pytorch/pytorch/issues/74390",
-    [
-      "linux"
-    ]
-  ],
   "test_shuffle_iterdatapipe (__main__.TestFunctionalIterDataPipe)": [
     "74877",
     "https://github.com/pytorch/pytorch/issues/74877",
@@ -2154,10 +2076,5 @@
     [
       "rocm"
     ]
-  ],
-  "test_zero_redundancy_optimizer (__main__.TestZeroRedundancyOptimizerDistributed)": [
-    "67289",
-    "https://github.com/pytorch/pytorch/issues/67289",
-    []
   ]
 }
