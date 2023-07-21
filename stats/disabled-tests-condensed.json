@@ -1833,6 +1833,13 @@
       "linux"
     ]
   ],
+  "test_rprop_recompile (__main__.CompiledOptimizerTests)": [
+    "105718",
+    "https://github.com/pytorch/pytorch/issues/105718",
+    [
+      "linux"
+    ]
+  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
@@ -2038,6 +2045,13 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
+    ]
+  ],
+  "test_unhandled_exception_in_dynamo2 (__main__.DynamicShapesMiscTests)": [
+    "101259",
+    "https://github.com/pytorch/pytorch/issues/101259",
+    [
+      "linux"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
