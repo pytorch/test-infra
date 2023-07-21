@@ -1826,6 +1826,13 @@
       "dynamo"
     ]
   ],
+  "test_rmsprop_recompile (__main__.CompiledOptimizerTests)": [
+    "105703",
+    "https://github.com/pytorch/pytorch/issues/105703",
+    [
+      "linux"
+    ]
+  ],
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
