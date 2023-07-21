@@ -1017,13 +1017,6 @@
       "linux"
     ]
   ],
-  "test_forward_overlap (__main__.TestForwardOverlapWorldSizeOne)": [
-    "79017",
-    "https://github.com/pytorch/pytorch/issues/79017",
-    [
-      "rocm"
-    ]
-  ],
   "test_fs_pool (__main__.TestMultiprocessing)": [
     "69659",
     "https://github.com/pytorch/pytorch/issues/69659",
@@ -1197,6 +1190,14 @@
       "macos"
     ]
   ],
+  "test_indices_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105745",
+    "https://github.com/pytorch/pytorch/issues/105745",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_inductor (__main__.TransformationTest)": [
     "100432",
     "https://github.com/pytorch/pytorch/issues/100432",
@@ -1295,6 +1296,14 @@
     "https://github.com/pytorch/pytorch/issues/78377",
     [
       "macos"
+    ]
+  ],
+  "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105746",
+    "https://github.com/pytorch/pytorch/issues/105746",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_linear_inference_mode_False_cuda (__main__.TestSparseSemiStructuredCUDA)": [
@@ -1472,13 +1481,6 @@
       "rocm"
     ]
   ],
-  "test_nccl_init_abort (__main__.TestDistBackendWithSpawn)": [
-    "104416",
-    "https://github.com/pytorch/pytorch/issues/104416",
-    [
-      "rocm"
-    ]
-  ],
   "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
     "93865",
     "https://github.com/pytorch/pytorch/issues/93865",
@@ -1648,13 +1650,6 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float16 (__main__.TestForeachCUDA)": [
     "97940",
     "https://github.com/pytorch/pytorch/issues/97940",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "96760",
-    "https://github.com/pytorch/pytorch/issues/96760",
     [
       "rocm"
     ]
