@@ -31,6 +31,14 @@
     "linux-focal-cpu-py3.8-gcc7-inductor",
     "test (inductor_huggingface_dynamic_cpu_accuracy)"
   ],
+  "periodic / linux-bionic-cuda11.8-py3.9-gcc7 / test (multigpu)": [
+    "PaliC",
+    "105762",
+    "https://github.com/pytorch/pytorch/issues/105762",
+    "periodic",
+    "linux-bionic-cuda11.8-py3.9-gcc7",
+    "test (multigpu)"
+  ],
   "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
     "huydhn",
     "102789",
@@ -38,6 +46,14 @@
     "periodic",
     "linux-focal-rocm5.4.2-py3.8",
     "test"
+  ],
+  "periodic / linux-focal-rocm5.6-py3.8 / test (distributed)": [
+    "PaliC",
+    "105761",
+    "https://github.com/pytorch/pytorch/issues/105761",
+    "periodic",
+    "linux-focal-rocm5.6-py3.8",
+    "test (distributed)"
   ],
   "pull / linux-bionic-cuda11.8-py3.10-gcc9 / test (distributed)": [
     "huydhn",
