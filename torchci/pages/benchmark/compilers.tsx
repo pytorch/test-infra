@@ -57,11 +57,18 @@ export const JOB_NAME_REGEX = new RegExp(
 // After https://github.com/pytorch/pytorch/pull/96986, there is no perf data
 // for eager and aot_eager because they are not run anymore (not needed)
 export const COMPILER_NAMES_TO_DISPLAY_NAMES: { [k: string]: string } = {
-  inductor: "inductor_with_cudagraphs",
-  inductor_no_cudagraphs: "inductor_default",
+  inductor: "cudagraphs",
+  inductor_with_cudagraphs: "cudagraphs",
+  inductor_dynamic: "cudagraphs_dynamic",
+  inductor_no_cudagraphs: "default",
+  inductor_cpp_wrapper: "cpp_wrapper",
 };
 export const DISPLAY_NAMES_TO_COMPILER_NAMES: { [k: string]: string } = {
   inductor_default: "inductor_no_cudagraphs",
+  default: "inductor_no_cudagraphs",
+  cudagraphs: "inductor_with_cudagraphs",
+  cudagraphs_dynamic: "inductor_dynamic",
+  cpp_wrapper: "inductor_cpp_wrapper",
 };
 export const BLOCKLIST_COMPILERS = ["aot_eager", "eager"];
 export const SUITES: { [k: string]: string } = {
@@ -1017,7 +1024,7 @@ function SummaryPanel({
   const columns = [
     {
       field: "compiler",
-      headerName: "Compiler",
+      headerName: "Inductor config",
       flex: 1,
     },
   ];
