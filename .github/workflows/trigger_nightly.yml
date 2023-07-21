@@ -16,6 +16,7 @@ on:
           - audio
           - text
           - torchrec
+          - data
           - all
 jobs:
   trigger:
@@ -31,6 +32,14 @@ jobs:
           repository: pytorch/audio
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: audio
+      - name: Trigger nightly data build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'data' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/data
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: data
       - name: Trigger nightly text build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
