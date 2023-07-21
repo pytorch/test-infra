@@ -1043,7 +1043,7 @@
       "linux"
     ]
   ],
-  "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
+  "test_fused_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
     "105254",
     "https://github.com/pytorch/pytorch/issues/105254",
     [
