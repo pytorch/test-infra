@@ -23,14 +23,6 @@
     "linux-focal-cpu-py3.8-gcc7-inductor",
     "test (inductor_huggingface_cpu_accuracy)"
   ],
-  "inductor / linux-focal-cpu-py3.8-gcc7-inductor / test (inductor_huggingface_dynamic_cpu_accuracy)": [
-    "PaliC",
-    "105482",
-    "https://github.com/pytorch/pytorch/issues/105482",
-    "inductor",
-    "linux-focal-cpu-py3.8-gcc7-inductor",
-    "test (inductor_huggingface_dynamic_cpu_accuracy)"
-  ],
   "periodic / linux-bionic-cuda11.8-py3.9-gcc7 / test (multigpu)": [
     "PaliC",
     "105762",
