@@ -1396,7 +1396,7 @@
       "macos"
     ]
   ],
-  "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
+  "test_multi_tensor_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
     "105820",
     "https://github.com/pytorch/pytorch/issues/105820",
     [
