@@ -380,13 +380,6 @@
       "rocm"
     ]
   ],
-  "test_compare_cpu_linalg_pinv_singular_cuda_float32 (__main__.TestCommonCUDA)": [
-    "102678",
-    "https://github.com/pytorch/pytorch/issues/102678",
-    [
-      "rocm"
-    ]
-  ],
   "test_compile_vmap_hessian_cuda (__main__.TestCompileTransformsCUDA)": [
     "105013",
     "https://github.com/pytorch/pytorch/issues/105013",
@@ -1870,13 +1863,6 @@
   "test_svd_cuda_float64 (__main__.TestLinalgCUDA)": [
     "105117",
     "https://github.com/pytorch/pytorch/issues/105117",
-    [
-      "rocm"
-    ]
-  ],
-  "test_svd_lowrank_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "102629",
-    "https://github.com/pytorch/pytorch/issues/102629",
     [
       "rocm"
     ]
