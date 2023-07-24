@@ -28,6 +28,7 @@ jobs:
       runner: macos-m1-12
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: "true"
       timeout: 60
       script: |
         conda create --yes --quiet -n test python=3.8
@@ -58,6 +59,7 @@ jobs:
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       repository: pytorch/vision
+      submodules: "recursive"
       ref: main
       timeout: 60
       script: |
