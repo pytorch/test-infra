@@ -14,6 +14,7 @@ jobs:
       runner: windows.4xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: "recursive"
       job-name: "win-py3.8-cpu"
       script: |
         conda create --yes --quiet -n test python=3.8
@@ -27,6 +28,7 @@ jobs:
       runner: windows.8xlarge.nvidia.gpu
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: "true"
       job-name: "win-py3.8-cu117"
       timeout: 60
       script: |

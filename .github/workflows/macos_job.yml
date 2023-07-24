@@ -31,6 +31,12 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      submodules:
+        description:
+          Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
+          recursively checkout everything
+        default: ""
+        type: string
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
         default: ""
@@ -92,6 +98,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
+          submodules: ${{ inputs.submodules }}
 
       - name: Setup useful environment variables
         working-directory: ${{ inputs.repository }}
@@ -99,7 +106,7 @@ jobs:
           RUNNER_ARTIFACT_DIR="${RUNNER_TEMP}/artifacts"
           mkdir -p "${RUNNER_ARTIFACT_DIR}"
           echo "RUNNER_ARTIFACT_DIR=${RUNNER_ARTIFACT_DIR}" >> "${GITHUB_ENV}"
-          
+
           RUNNER_TEST_RESULTS_DIR="${RUNNER_TEMP}/test-results"
           mkdir -p "${RUNNER_TEST_RESULTS_DIR}"
           echo "RUNNER_TEST_RESULTS_DIR=${RUNNER_TEST_RESULTS_DIR}" >> "${GITHUB_ENV}"
