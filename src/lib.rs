@@ -24,14 +24,16 @@ pub mod path;
 pub mod persistent_data;
 pub mod rage;
 pub mod render;
+pub mod sapling;
+pub mod version_control;
 
-use git::get_changed_files;
-use git::get_git_root;
+#[cfg(test)]
+pub mod testing;
+
 use git::get_paths_from_cmd;
 use lint_message::LintMessage;
 use render::PrintedLintErrors;
 
-use crate::git::get_merge_base_with;
 use crate::render::render_lint_messages_oneline;
 
 fn group_lints_by_file(
@@ -151,6 +153,7 @@ pub enum RenderOpt {
 }
 
 pub fn do_lint(
+    repo: &version_control::Repo,
     linters: Vec<Linter>,
     paths_opt: PathsOpt,
     should_apply_patches: bool,
@@ -166,15 +169,14 @@ pub fn do_lint(
 
     let mut files = match paths_opt {
         PathsOpt::Auto => {
-            let git_root = get_git_root()?;
             let relative_to = match revision_opt {
                 RevisionOpt::Head => None,
                 RevisionOpt::Revision(revision) => Some(revision),
                 RevisionOpt::MergeBaseWith(merge_base_with) => {
-                    Some(get_merge_base_with(&git_root, &merge_base_with)?)
+                    Some(repo.get_merge_base_with(&merge_base_with)?)
                 }
             };
-            get_changed_files(&git_root, relative_to.as_deref())?
+            repo.get_changed_files(relative_to.as_deref())?
         }
         PathsOpt::PathsCmd(paths_cmd) => get_paths_from_cmd(&paths_cmd)?,
         PathsOpt::Paths(paths) => get_paths_from_input(paths)?,
