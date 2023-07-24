@@ -692,13 +692,6 @@
       "slow"
     ]
   ],
-  "test_custom_op_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
-    "104855",
-    "https://github.com/pytorch/pytorch/issues/104855",
-    [
-      "linux"
-    ]
-  ],
   "test_custom_op_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "104858",
     "https://github.com/pytorch/pytorch/issues/104858",
@@ -1401,6 +1394,13 @@
     [
       "linux",
       "macos"
+    ]
+  ],
+  "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
+    "105820",
+    "https://github.com/pytorch/pytorch/issues/105820",
+    [
+      "rocm"
     ]
   ],
   "test_nadam (__main__.TestOptim)": [
