@@ -692,14 +692,6 @@
       "slow"
     ]
   ],
-  "test_custom_op_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
-    "104858",
-    "https://github.com/pytorch/pytorch/issues/104858",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_ddp_dist_autograd_local_vs_remote (__main__.TensorPipeDdpComparisonTestWithSpawn)": [
     "60274",
     "https://github.com/pytorch/pytorch/issues/60274",
@@ -914,6 +906,13 @@
     "https://github.com/pytorch/pytorch/issues/101771",
     [
       "inductor"
+    ]
+  ],
+  "test_fn_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93082",
+    "https://github.com/pytorch/pytorch/issues/93082",
+    [
+      "linux"
     ]
   ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1394,6 +1393,13 @@
     [
       "linux",
       "macos"
+    ]
+  ],
+  "test_multi_tensor_optimizers_with_large_tensors (__main__.TestOptim)": [
+    "105825",
+    "https://github.com/pytorch/pytorch/issues/105825",
+    [
+      "rocm"
     ]
   ],
   "test_multi_tensor_optimizers_with_large_tensors (optim.test_optim.TestOptim)": [
