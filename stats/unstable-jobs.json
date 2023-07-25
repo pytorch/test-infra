@@ -31,14 +31,6 @@
     "linux-focal-rocm5.6-py3.8",
     "test (distributed)"
   ],
-  "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default)": [
-    "DanilBaibak",
-    "105908",
-    "https://github.com/pytorch/pytorch/issues/105908",
-    "pull",
-    "linux-bionic-cuda12.1-py3.10-gcc9-sm86",
-    "test (default)"
-  ],
   "trunk / linux-focal-rocm5.6-py3.8 / test (default)": [
     "huydhn",
     "105280",
