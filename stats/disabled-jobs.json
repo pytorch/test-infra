@@ -23,6 +23,14 @@
     "win-vs2019-cuda11.8-py3",
     "build"
   ],
+  "pull / linux-bionic-cuda11.8-py3.10-gcc9 / build": [
+    "PaliC",
+    "105973",
+    "https://github.com/pytorch/pytorch/issues/105973",
+    "pull",
+    "linux-bionic-cuda11.8-py3.10-gcc9",
+    "build"
+  ],
   "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / build": [
     "PaliC",
     "105968",
