@@ -1,12 +1,4 @@
 {
-  "Upload Alerts to AWS/Rockset / upload-alerts": [
-    "PaliC",
-    "103998",
-    "https://github.com/pytorch/pytorch/issues/103998",
-    "Upload Alerts to AWS",
-    "Rockset",
-    "upload-alerts"
-  ],
   "inductor / cuda11.8-py3.10-gcc7-sm86 / test (inductor_torchbench)": [
     "jeanschmidt",
     "104337",
