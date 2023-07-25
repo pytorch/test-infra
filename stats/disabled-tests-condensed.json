@@ -1310,6 +1310,20 @@
       "windows"
     ]
   ],
+  "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_128_is_causal_False_dropout_p_0_0_bfloat16_scale_l1_cuda_bfloat16 (__main__.TestSDPACUDA)": [
+    "105974",
+    "https://github.com/pytorch/pytorch/issues/105974",
+    [
+      "linux"
+    ]
+  ],
+  "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_32_is_causal_False_dropout_p_0_0_float32_scale_None_cuda_float32 (__main__.TestSDPACUDA)": [
+    "105975",
+    "https://github.com/pytorch/pytorch/issues/105975",
+    [
+      "linux"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
