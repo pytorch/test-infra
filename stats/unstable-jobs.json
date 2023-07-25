@@ -39,22 +39,6 @@
     "linux-focal-rocm5.6-py3.8",
     "test (distributed)"
   ],
-  "pull / linux-bionic-cuda11.8-py3.10-gcc9 / test (distributed)": [
-    "huydhn",
-    "103612",
-    "https://github.com/pytorch/pytorch/issues/103612",
-    "pull",
-    "linux-bionic-cuda11.8-py3.10-gcc9",
-    "test (distributed)"
-  ],
-  "pull / linux-focal-py3.8-gcc7 / test (distributed)": [
-    "huydhn",
-    "105670",
-    "https://github.com/pytorch/pytorch/issues/105670",
-    "pull",
-    "linux-focal-py3.8-gcc7",
-    "test (distributed)"
-  ],
   "trunk / linux-focal-rocm5.6-py3.8 / test (default)": [
     "huydhn",
     "105280",
