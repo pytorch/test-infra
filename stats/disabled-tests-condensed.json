@@ -1386,6 +1386,30 @@
       "linux"
     ]
   ],
+  "test_mm_sparse_first_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106014",
+    "https://github.com/pytorch/pytorch/issues/106014",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_NT_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106015",
+    "https://github.com/pytorch/pytorch/issues/106015",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106016",
+    "https://github.com/pytorch/pytorch/issues/106016",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_mobilenet_v2 (__main__.TestNumericSuiteEager)": [
     "100439",
     "https://github.com/pytorch/pytorch/issues/100439",
