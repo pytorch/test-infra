@@ -51,6 +51,14 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -99,25 +107,15 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: false
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Run pre-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          PRE_SCRIPT: ${{ inputs.pre-script }}
+      - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
-        run: |
-          source "${BUILD_ENV_FILE}"
-          C:/Jenkins/Miniconda3/Scripts/activate.bat ${CONDA_ENV}
-
-          if [[ ! -f ${PRE_SCRIPT} ]]; then
-            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            if [[ ${PRE_SCRIPT} == *.bat ]]; then
-              ${PRE_SCRIPT}
-            else
-              source ${PRE_SCRIPT}
-            fi
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          cache-path: ${{ inputs.cache-path }}
+          cache-key: ${{ inputs.cache-key }}
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.pre-script }}
+          is_windows: 'enabled'
       - name: Setup base environment variables
         run: |
           # //\\// means replace every backslash with slash
@@ -152,8 +150,6 @@ jobs:
           source "${BUILD_ENV_FILE}"
           export VSTOOLCHAIN_PACKAGE=vs2019
           export VSDEVCMD_ARGS=''
-          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
-          export USE_FFMPEG="1"
 
           #conda install -yq conda-build "conda-package-handling!=1.5.0"
           #bash packaging/build_conda.sh
@@ -173,19 +169,13 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
-      - name: Run post-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          POST_SCRIPT: ${{ inputs.post-script }}
+      - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
-        run: |
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${POST_SCRIPT} ]]; then
-            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.post-script }}
+          is_windows: 'enabled'
       - name: Smoke Test
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -216,7 +206,6 @@ jobs:
             ${CONDA_RUN_SMOKE} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi

@@ -6,6 +6,8 @@ const titleRegexToLabel: [RegExp, string][] = [
   [/vulkan/gi, "module: vulkan"],
   [/vulkan/gi, "ciflow/periodic"], // Vulkan tests are run periodically
   [/DISABLED\s+test.*\(.*\)/g, "skipped"],
+  [/UNSTABLE\s+.*\s+\/\s+.*/g, "unstable"],
+  [/UNSTABLE\s+.*\s+\/\s+.*/g, "module: ci"],
 ];
 
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
@@ -58,7 +60,7 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   // nn_frontend => also did not exist
   [/test\/test_nn.py/gi, "release notes: nn"],
   [/test\/test_module.py/gi, "release notes: nn"],
-  [/torch\/optim/gi, "release notes: nn"],
+  [/torch\/optim/gi, "release notes: optim"],
   [/tools\/nn\/modules/gi, "release notes: nn"],
   [/tools\/nn\/functional.py/gi, "release notes: nn"],
   // jit

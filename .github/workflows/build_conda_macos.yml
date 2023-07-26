@@ -55,6 +55,14 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
     secrets:
       CONDA_PYTORCHBOT_TOKEN:
         description: "Access Token needed to upload binaries to anaconda"
@@ -106,20 +114,14 @@ jobs:
         run: |
           set -euxo pipefail
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
-      - name: Run pre-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          PRE_SCRIPT: ${{ inputs.pre-script }}
+      - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${PRE_SCRIPT} ]]; then
-            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          cache-path: ${{ inputs.cache-path }}
+          cache-key: ${{ inputs.cache-key }}
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.pre-script }}
       - name: Setup base environment variables
         run: |
           set -euxo pipefail
@@ -131,10 +133,8 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
-            export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
-          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} conda build \
             -c defaults \
@@ -150,20 +150,12 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/distr/
-      - name: Run post-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          POST_SCRIPT: ${{ inputs.post-script }}
+      - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${POST_SCRIPT} ]]; then
-            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.post-script }}
       - name: Smoke Test
         shell: bash -l {0}
         env:
@@ -183,6 +175,8 @@ jobs:
           export CONDA_ENV_SMOKE="${RUNNER_TEMP}/pytorch_pkg_helpers_${GITHUB_RUN_ID}_smoke"
           conda create --yes --quiet --prefix "${CONDA_ENV_SMOKE}" python="${PYTHON_VERSION}"
           export CONDA_RUN_SMOKE="conda run -p ${CONDA_ENV_SMOKE}"
+          export OLD_PATH=${PATH}
+          export PATH="${CONDA_ENV_SMOKE}/bin:${PATH}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
           ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}"
@@ -195,6 +189,7 @@ jobs:
             ${CONDA_RUN_SMOKE} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
 
+          export PATH=${OLD_PATH}
           conda env remove -p "${CONDA_ENV_SMOKE}"
       - name: Upload package to conda
         if: ${{ (inputs.trigger-event == 'push' && env.CHANNEL != 'test') || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}

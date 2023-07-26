@@ -1,0 +1,65 @@
+name: Run Script with optional cache using github actions cache
+
+description: Cache path on host using github actions cache
+inputs:
+  cache-path:
+    description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+    default: ""
+    type: string
+  cache-key:
+    description: "The key created when saving a cache and the key used to search for a cache."
+    default: ""
+    type: string
+  script:
+    description: "Script to run"
+    default: ""
+    type: string
+  repository:
+    description: 'Repository to checkout, defaults to ""'
+    default: ""
+    type: string
+  is_windows:
+    description: 'Is executing on windows'
+    default: 'disabled'
+    type: string
+
+runs:
+  using: composite
+  steps:
+    # Use the same trick from https://github.com/marketplace/actions/setup-miniconda
+    # to refresh the cache daily. This is kind of optional though
+    - name: Get date
+      id: get-date
+      shell: bash
+      run: |
+        echo "today=$(/bin/date -u '+%Y%m%d')d" >> "${GITHUB_OUTPUT}"
+    - name: Run cache action
+      if: ${{ inputs.cache-path != '' }}
+      id: run-cache-action
+      uses: actions/cache@v3
+      with:
+        path: '${{ github.workspace }}/${{ inputs.repository }}${{ inputs.cache-path }}'
+        key: '${{ inputs.cache-key }}-${{ steps.get-date.outputs.today }}'
+    - name: Run script
+      shell: bash -l {0}
+      working-directory: ${{ inputs.repository }}
+      env:
+        SCRIPT: ${{ inputs.script }}
+      if: ${{ inputs.cache-path == '' || steps.run-cache-action.outputs.cache-hit != 'true' }}
+      run: |
+        # Windows scripts needs cleanup on audio and vision, todo remove this once resolved
+        if [[ ${{ inputs.is_windows }} == 'disabled' ]]; then
+          set -euxo pipefail
+        fi
+        source "${BUILD_ENV_FILE}"
+
+        if [[ ! -f ${SCRIPT} ]]; then
+          echo "::error::Specified script file (${SCRIPT}) not found, not going execute it"
+          exit 1
+        else
+          if [[ ${SCRIPT} == *.bat ]]; then
+            ${CONDA_RUN} ${SCRIPT}
+          else
+            ${CONDA_RUN} bash ${SCRIPT}
+          fi
+        fi

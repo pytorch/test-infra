@@ -47,6 +47,9 @@ export async function scaleDown(): Promise<void> {
       return;
     }
 
+    const foundOrgs = new Set<string>();
+    const foundRepos = new Set<string>();
+
     for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
 
@@ -54,6 +57,7 @@ export async function scaleDown(): Promise<void> {
       for (const ec2runner of runners) {
         // REPO assigned runners
         if (ec2runner.repo !== undefined) {
+          foundRepos.add(ec2runner.repo);
           const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
           // if configured to repo, don't mess with organization runners
           if (!Config.Instance.enableOrganizationRunners) {
@@ -68,6 +72,7 @@ export async function scaleDown(): Promise<void> {
           }
           // ORG assigned runners
         } else if (ec2runner.org !== undefined) {
+          foundOrgs.add(ec2runner.org);
           const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
           // if configured to org, don't mess with repo runners
           if (Config.Instance.enableOrganizationRunners) {
@@ -167,6 +172,43 @@ export async function scaleDown(): Promise<void> {
           }
         } else {
           metrics.runnerTerminateSkipped(ec2runner);
+        }
+      }
+    }
+
+    if (Config.Instance.enableOrganizationRunners) {
+      for (const org of foundOrgs) {
+        const offlineGhRunners = (await listGithubRunnersOrg(org, metrics)).filter(
+          (r) => r.status.toLowerCase() === 'offline',
+        );
+        metrics.runnerGhOfflineFoundOrg(org, offlineGhRunners.length);
+
+        for (const ghRunner of offlineGhRunners) {
+          try {
+            await removeGithubRunnerOrg(ghRunner.id, org, metrics);
+            metrics.runnerGhOfflineRemovedOrg(org);
+          } catch (e) {
+            console.warn(`Failed to remove offline runner ${ghRunner.id} for org ${org}`, e);
+            metrics.runnerGhOfflineRemovedFailureOrg(org);
+          }
+        }
+      }
+    } else {
+      for (const repoString of foundRepos) {
+        const repo = getRepo(repoString);
+        const offlineGhRunners = (await listGithubRunnersRepo(repo, metrics)).filter(
+          (r) => r.status.toLowerCase() === 'offline',
+        );
+        metrics.runnerGhOfflineFoundRepo(repo, offlineGhRunners.length);
+
+        for (const ghRunner of offlineGhRunners) {
+          try {
+            await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
+            metrics.runnerGhOfflineRemovedRepo(repo);
+          } catch (e) {
+            console.warn(`Failed to remove offline runner ${ghRunner.id} for repo ${repo}`, e);
+            metrics.runnerGhOfflineRemovedFailureRepo(repo);
+          }
         }
       }
     }

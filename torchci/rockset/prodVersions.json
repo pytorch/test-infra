@@ -8,6 +8,7 @@
     "filter_forced_merge_pr": "98786319ff984d95",
     "flaky_tests": "9f7a1abcebb7f027",
     "flaky_tests_across_jobs": "474e5454bda0c5bb",
+    "get_relevant_alerts": "727014a49bef2c20",
     "individual_test_stats_per_workflow_per_oncall": "559b6735965f1eb2",
     "individual_test_times_per_oncall_per_workflow": "6b63c3dde3032bea",
     "flaky_workflows_jobs": "d5783ef1fe73fa5b",
@@ -27,7 +28,7 @@
     "unclassified": "1b31a2d8f4ab7230",
     "test_insights_overview": "42dbd5232f45fd53",
     "test_insights_latest_runs": "1871833a91cb8b1b",
-    "master_commit_red_jobs": "4ec75f3db61627a8"
+    "master_commit_red_jobs": "4869b467679a616a"
   },
   "pytorch_dev_infra_kpis": {
     "monthly_contribution_stats": "c1a8751a22f6b6ce",
@@ -52,36 +53,48 @@
     "last_successful_jobs": "2e04949378c58607",
     "last_successful_workflow": "5d22927dd0b0956b",
     "log_captures_count": "7365d7871017530a",
-    "master_commit_red_avg": "e1aa2fa86a1840b0",
-    "master_commit_red": "56f27a7db8cf8d86",
-    "master_commit_red_percent": "dec5590156bf6a4c",
-    "master_commit_red_percent_groups": "ebda9595c8357e51",
-    "master_jobs_red_avg": "084ae0664e81bc00",
-    "master_jobs_red": "44c34a7f339dff68",
+    "master_commit_red_avg": "6f518a3b3f37c527",
+    "master_commit_red": "a723cd26c84c6ca1",
+    "master_commit_red_percent": "5c1de222caaf3a9e",
+    "master_commit_red_percent_groups": "601949da23f80a28",
+    "master_jobs_red_avg": "7df76d4b0d79e067",
+    "master_jobs_red": "778468e0c94428ff",
     "number_of_force_pushes": "7c12c25f00d85d5d",
     "num_tests_run": "148e44c8f1ab7517",
     "queued_jobs_by_label": "52ab0f4570516f6b",
     "queued_jobs": "7b5ef18c1273bab2",
     "reverts": "f5bc84a10c4065a3",
-    "top_reds": "dddc995859014109",
+    "top_reds": "f1a1f5012d419fc2",
     "tts_avg": "2dd4a04e091c58aa",
     "tts_percentile": "912c8ad61a1772a4",
     "tts_duration_historical": "88c02c6e25d59854",
     "tts_duration_historical_percentile": "f6824cbe03e1b6d8",
     "strict_lag_sec": "e0ab723990d6f2a2",
-    "queue_times_historical": "7f4d6599362e70ba",
+    "queue_times_historical": "f4a5f7cab1f00b24",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
     "workflow_load": "48428f8a7c541b76",
-    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
+    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f",
+    "get_workers_on_period": "ae5cf853350477c7",
+    "queue_times_historical_pct": "f815ad1732928bb6"
   },
   "inductor": {
-    "compilers_benchmark_performance": "f024488f6696575d",
-    "compilers_benchmark_performance_branches": "f259d06862b41888"
+    "compilers_benchmark_performance": "04773901fc1135d4",
+    "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc"
   },
   "utilization": {
     "runner_utilization": "2dfc4f9c16e51da0",
     "runner_utilization_by_repo": "2ca7468c6f158924",
     "runner_utilization_by_activity": "343929e0ebeee379"
+  },
+  "nightlies": {
+    "docker_jobs_red": "5ccfc6bee649dc8a",
+    "docker_jobs_red_past_day": "13b52e7005825031",
+    "nightly_jobs_red": "d49bc5633c5aac10",
+    "nightly_jobs_red_by_name": "bb6eeb316157ed2b",
+    "nightly_jobs_red_by_platform": "d5ab478e83ff2dae",
+    "nightly_jobs_red_past_day": "e74af839c37e1517",
+    "validation_jobs_red": "ac8dee6e6b76916d",
+    "validation_jobs_red_past_day": "aecb798a574ba2ff"
   }
 }

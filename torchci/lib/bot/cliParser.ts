@@ -42,14 +42,20 @@ const merge = commands.add_parser("merge", {
 const mergeOption = merge.add_mutually_exclusive_group();
 mergeOption.add_argument("-f", "--force", {
   metavar: "MESSAGE",
-  help: `Merge without checking anything. This requires a reason for auditting purpose, for example:
-@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'`,
-});
-mergeOption.add_argument("-ic", "--ignore-current", {
-  action: "store_true",
   help:
-    "Merge while ignore the currently failing jobs.  If there are no pending checks, use -f/--force " +
-    "since this will fail.",
+    `Merge without checking anything. This requires a reason for auditting purpose, for example:
+@pytorchbot merge -f 'Minor update to fix lint. Expecting all PR tests to pass'` +
+    "\n\n" +
+    "Please use `-f` as last resort, prefer `--ignore-current` to continue the merge ignoring current failures. " +
+    "This will allow currently pending tests to finish and report signal before the merge.",
+});
+mergeOption.add_argument("-i", "--ignore-current", {
+  action: "store_true",
+  help: "Merge while ignoring the currently failing jobs.  Behaves like -f if there are no pending jobs.",
+});
+merge.add_argument("-ic", {
+  action: "store_true",
+  help: "Old flag for --ignore-current. Deprecated in favor of -i.",
 });
 merge.add_argument("-r", "--rebase", {
   help:

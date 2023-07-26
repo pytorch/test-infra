@@ -51,6 +51,14 @@ on:
         description: "Script for Smoke Test for a specific domain"
         default: ""
         type: string
+      cache-path:
+        description: "The path(s) on the runner to cache or restore. The path is relative to repository."
+        default: ""
+        type: string
+      cache-key:
+        description: "The key created when saving a cache and the key used to search for a cache."
+        default: ""
+        type: string
     secrets:
       AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
         description: "AWS Access Key passed from caller workflow"
@@ -110,20 +118,14 @@ jobs:
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
           ${CONDA_RUN} ${PIP_INSTALL_TORCH}
-      - name: Run pre-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          PRE_SCRIPT: ${{ inputs.pre-script }}
+      - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${PRE_SCRIPT} ]]; then
-            echo "::error::Specified pre-script file (${PRE_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${PRE_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          cache-path: ${{ inputs.cache-path }}
+          cache-key: ${{ inputs.cache-key }}
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.pre-script }}
       - name: Build clean
         working-directory: ${{ inputs.repository }}
         run: |
@@ -137,12 +139,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
-            export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
@@ -156,20 +156,12 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
-      - name: Run post-script
-        working-directory: ${{ inputs.repository }}
-        env:
-          POST_SCRIPT: ${{ inputs.post-script }}
+      - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
-        run: |
-          set -euxo pipefail
-          source "${BUILD_ENV_FILE}"
-          if [[ ! -f ${POST_SCRIPT} ]]; then
-            echo "::error::Specified post-script file (${POST_SCRIPT}) not found, not going execute it"
-            exit 1
-          else
-            ${CONDA_RUN} bash "${POST_SCRIPT}"
-          fi
+        uses: ./test-infra/.github/actions/run-script-with-cache
+        with:
+          repository: ${{ inputs.repository  }}
+          script: ${{ inputs.post-script }}
       - name: Smoke Test
         shell: bash -l {0}
         env:
@@ -187,6 +179,8 @@ jobs:
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )
+          export OLD_PATH=${PATH}
+          export PATH="${CONDA_ENV}/bin:${PATH}"
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           ${CONDA_RUN} pip install numpy
@@ -197,12 +191,10 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
-            echo $DYLD_FALLBACK_LIBRARY_PATH
-
-            ${CONDA_RUN} conda install --yes --quiet ffmpeg
+            ${CONDA_RUN} conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+          export PATH=${OLD_PATH}
       - name: Upload package to pytorch.org
         if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}

@@ -221,7 +221,11 @@ function FailedJobs({
           </summary>
           <ul>
             {_.map(groupedJobsByFailure, (jobs, failure) => (
-              <FailedJobsByFailure jobs={jobs} annotations={annotations} />
+              <FailedJobsByFailure
+                key={failure}
+                jobs={jobs}
+                annotations={annotations}
+              />
             ))}
           </ul>
         </details>

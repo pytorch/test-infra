@@ -237,7 +237,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   async handleMerge(
     forceMessage: string,
     ignore_current: boolean,
-    rebase: string | boolean
+    rebase: string | boolean,
+    ic: boolean
   ) {
     const extra_data = {
       forceMessage,
@@ -255,6 +256,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         rejection_reason =
           "This PR needs to be approved by an authorized maintainer before merge.";
       }
+    }
+
+    if (ic) {
+      rejection_reason =
+        "`-ic` flag is deprecated, please use `-i` instead for the same effect.";
     }
 
     if (rejection_reason) {
@@ -421,7 +427,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         return await this.handleMerge(
           args.force,
           args.ignore_current,
-          args.rebase
+          args.rebase,
+          args.ic
         );
       case "rebase": {
         if (!args.branch) {

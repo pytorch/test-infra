@@ -1,6 +1,7 @@
 .vscode
 .venv
 .idea
+.lintbin
 
 *.env
 *.zip
@@ -8,35 +9,31 @@
 
 __pycache__
 
-**/.DS_Store
+.DS_Store
 *.pem
 
-**/.terraform/*
-*.tfstate
-*.tfstate.*
+.terraform
+*.tfstate*
 crash.log
-*.tfvars
-*.tfvars.json
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
+*.tfvars*
+override.tf*
+*_override.tf*
 .terraformrc
 terraform.rc
 
 aws/websites/metrics.pytorch.org/vars.yml
 
-aws/lambda/github-webhook-rds-sync/python/*
-aws/lambda/github-webhook-rds-sync/hooks/*
-aws/lambda/rds-proxy/python/*
+aws/lambda/github-webhook-rds-sync/python/
+aws/lambda/github-webhook-rds-sync/hooks/
+aws/lambda/rds-proxy/python/
 
 .vercel
 torchci/api/log/classify/target/
 torchci/api/log/classify/Cargo.lock
-**/*.rs.bk
+*.rs.bk
 
 node_modules/
 
 setup-ssh/yarn-error.log*
-setup-ssh/lib/**/*
-setup-ssh/__tests__/runner/*
+setup-ssh/lib/
+setup-ssh/__tests__/runner/

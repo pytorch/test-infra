@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "torchci/**"
+      - ".github/workflows/torchci.yml"
   push:
     branches:
       - main
@@ -18,14 +19,11 @@ jobs:
       - uses: actions/checkout@v3
       - run: yarn install --frozen-lockfile
       - run: yarn lint
+      - name: yarn prettier --check .
+        run: |
+          yarn prettier --check . || (echo "Please run yarn format" && exit 1)
       - run: yarn tsc
       - run: yarn test
       - run: yarn node scripts/checkRockset.mjs
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
-      - run: |
-          yarn format
-          git_status=$(git status --porcelain)
-          if [[ "${git_status}" ]]; then
-            echo "Dirty git status after running formatting, did you run 'yarn format'?"
-          fi

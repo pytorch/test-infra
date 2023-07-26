@@ -90,4 +90,5 @@ jobs:
 
         pytest | tee "${GITHUB_STEP_SUMMARY}"
 
+      docker-image: python:3.11.0-bullseye # note: must include git
       runner: linux.large

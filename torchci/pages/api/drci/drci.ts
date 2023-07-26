@@ -20,6 +20,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
+import { removeJobNameSuffix } from "lib/jobUtils";
 
 interface PRandJobs {
   head_sha: string;
@@ -73,7 +74,7 @@ export async function updateDrciComments(
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
-    const { pending, failedJobs, flakyJobs, brokenTrunkJobs } =
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
       getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
@@ -85,6 +86,7 @@ export async function updateDrciComments(
       failedJobs,
       flakyJobs,
       brokenTrunkJobs,
+      unstableJobs,
       pr_info.head_sha,
       pr_info.merge_base,
       `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
@@ -135,9 +137,9 @@ async function addMergeBaseCommits(
   });
 }
 
-async function getBaseCommitJobs(
+export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
-): Promise<Map<string, Map<string, RecentWorkflowsData>>> {
+): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
   let baseShas = [];
   for (const [_, pr_info] of workflowsByPR) {
@@ -161,7 +163,30 @@ async function getBaseCommitJobs(
       jobsBySha.get(job.head_sha).set(job.name, job);
     }
   }
-  return jobsBySha;
+
+  const jobsByShaByName = new Map();
+  // regroup the list of failed jobs one more time to remove the shard ID and
+  // the unstable suffix. The former is not needed because the tests could be
+  // run by another shard and failed the same way. The unstable suffix is also
+  // not needed because it's there only to decorate the job name.
+  for (const sha of jobsBySha.keys()) {
+    if (!jobsByShaByName.has(sha)) {
+      jobsByShaByName.set(sha, new Map());
+    }
+
+    for (const jobName of jobsBySha.get(sha).keys()) {
+      const jobNameNoSuffix = removeJobNameSuffix(jobName);
+      const job = jobsBySha.get(sha).get(jobName);
+
+      if (!jobsByShaByName.get(sha).has(jobNameNoSuffix)) {
+        jobsByShaByName.get(sha).set(jobNameNoSuffix, []);
+      }
+
+      jobsByShaByName.get(sha).get(jobNameNoSuffix).push(job);
+    }
+  }
+
+  return jobsByShaByName;
 }
 
 function constructResultsJobsSections(
@@ -209,13 +234,19 @@ export function constructResultsComment(
   failedJobs: RecentWorkflowsData[],
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
+  unstableJobs: RecentWorkflowsData[],
   sha: string,
   merge_base: string,
   hud_pr_url: string
 ): string {
   let output = `\n`;
-  const unrelatedFailureCount = flakyJobs.length + brokenTrunkJobs.length;
-  const failing = failedJobs.length + flakyJobs.length + brokenTrunkJobs.length;
+  const unrelatedFailureCount =
+    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
+  const failing =
+    failedJobs.length +
+    flakyJobs.length +
+    brokenTrunkJobs.length +
+    unstableJobs.length;
   const headerPrefix = `## `;
   const pendingIcon = `:hourglass_flowing_sand:`;
   const successIcon = `:white_check_mark:`;
@@ -234,7 +265,8 @@ export function constructResultsComment(
   const hasAnyFailing = failing > 0;
   const hasSignificantFailures = failedJobs.length > 0;
   const hasPending = pending > 0;
-  const hasUnrelatedFailures = flakyJobs.length + brokenTrunkJobs.length;
+  const hasUnrelatedFailures =
+    flakyJobs.length + brokenTrunkJobs.length + unstableJobs.length;
 
   let icon = "";
   if (hasSignificantFailures) {
@@ -299,6 +331,21 @@ export function constructResultsComment(
     "Rebase onto the `viable/strict` branch to avoid these failures",
     true
   );
+  output += constructResultsJobsSections(
+    hud_pr_url,
+    "UNSTABLE",
+    `The following ${pluralize(
+      "job",
+      unstableJobs.length
+    )} failed but ${pluralize(
+      "was",
+      unstableJobs.length,
+      "were"
+    )} likely due to flakiness present on trunk and has been marked as unstable`,
+    unstableJobs,
+    "",
+    true
+  );
   return output;
 }
 
@@ -315,28 +362,52 @@ function isFlaky(
   );
 }
 
+function isBrokenTrunk(
+  job: RecentWorkflowsData,
+  baseJobs: Map<string, RecentWorkflowsData[]>
+): boolean {
+  const jobNameNoSuffix = removeJobNameSuffix(job.name);
+
+  // This job doesn't exist in the base commit, thus not a broken trunk failure
+  if (!baseJobs.has(jobNameNoSuffix)) {
+    return false;
+  }
+
+  return baseJobs.get(jobNameNoSuffix)!.some((baseJob) => {
+    if (
+      baseJob.conclusion == job.conclusion &&
+      isEqual(baseJob.failure_captures, job.failure_captures)
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 export function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
-  baseJobs: Map<string, RecentWorkflowsData>
+  baseJobs: Map<string, RecentWorkflowsData[]>
 ): {
   pending: number;
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
+  unstableJobs: RecentWorkflowsData[];
 } {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
+  const unstableJobs: RecentWorkflowsData[] = [];
   for (const [name, job] of prInfo.jobs) {
     if (job.conclusion === null && job.completed_at === null) {
       pending++;
     } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
-      if (
-        baseJobs.get(job.name)?.conclusion == job.conclusion &&
-        isEqual(job.failure_captures, baseJobs.get(job.name)?.failure_captures)
-      ) {
+      if (job.name !== undefined && job.name.includes("unstable")) {
+        unstableJobs.push(job);
+      } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
       } else if (isFlaky(job, flakyRules)) {
         flakyJobs.push(job);
@@ -345,7 +416,7 @@ export function getWorkflowJobsStatuses(
       }
     }
   }
-  return { pending, failedJobs, flakyJobs, brokenTrunkJobs };
+  return { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs };
 }
 
 export function reorganizeWorkflows(

@@ -98,7 +98,7 @@ pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
 
 [[rule]]
 name = 'inductor model failure'
-pattern = '^(\S*) *(fail_accuracy|fail_to_run|eager_variation|0\.0000)$'
+pattern = '^([a-zA-Z0-9_]+) +(fail_accuracy|fail_to_run|eager_variation|0\.0000|(?:(?:FAIL|IMPROVED): +(?:.*)))$'
 
 [[rule]]
 name = 'NVIDIA installation failure'
@@ -171,6 +171,10 @@ pattern = 'Library not loaded: .*$'
 [[rule]]
 name = 'Bad response status code'
 pattern = '^##\[error\]Response status code does not indicate success: .*$'
+
+[[rule]]
+name = 'Python Test timeout (KeyboardInterrupt)'
+pattern = '!+ KeyboardInterrupt !+'
 
 [[rule]]
 name = 'Python Test File RuntimeError'

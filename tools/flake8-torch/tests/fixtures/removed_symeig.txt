@@ -1,2 +1,0 @@
-4:8 TOR201 Use of removed function torch.symeig
-5:8 TOR201 Use of removed function torch.symeig

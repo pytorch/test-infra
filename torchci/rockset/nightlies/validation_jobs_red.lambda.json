@@ -1,0 +1,31 @@
+{
+  "sql_path": "__sql/validation_jobs_red.sql",
+  "default_parameters": [
+    {
+      "name": "channel",
+      "type": "string",
+      "value": "release"
+    },
+    {
+      "name": "granularity",
+      "type": "string",
+      "value": "day"
+    },
+    {
+      "name": "startTime",
+      "type": "string",
+      "value": "2023-06-19T00:00:38.270Z"
+    },
+    {
+      "name": "stopTime",
+      "type": "string",
+      "value": "2023-06-20T20:20:38.270Z"
+    },
+    {
+      "name": "timezone",
+      "type": "string",
+      "value": "America/Los_Angeles"
+    }
+  ],
+  "description": ""
+}

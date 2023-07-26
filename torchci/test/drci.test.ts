@@ -12,6 +12,8 @@ import {
 import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
+import { removeJobNameSuffix } from "lib/jobUtils";
+import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 
 nock.disableNetConnect();
 
@@ -93,6 +95,52 @@ const failedC = {
   failure_captures: ["a"],
 };
 
+const failedD = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as failedD but has a different shard ID
+const failedE = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as unstable A but without the unstable suffix
+const failedF = {
+  name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+const unstableA = {
+  name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
 const sev: IssueData = {
   number: 85362,
   title: "docker pulls failing with no space left on disk",
@@ -151,6 +199,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const failureInfo = updateDrciBot.constructResultsComment(
       pending,
       failedJobs,
+      [],
       [],
       [],
       pr_1001.head_sha,
@@ -226,6 +275,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -269,6 +319,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -308,6 +359,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -342,6 +394,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedJobs,
       [],
       [],
+      [],
       pr_1001.head_sha,
       "random sha",
       "hudlink"
@@ -351,53 +404,77 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
   });
 
-  test("test flaky jobs and broken trunk jobs are filtered out", async () => {
-    const originalWorkflows = [failedA, failedB];
+  test("test flaky, broken trunk, and unstable jobs are filtered out", async () => {
+    const originalWorkflows = [failedA, failedB, unstableA];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { failedJobs, brokenTrunkJobs, flakyJobs } =
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
       updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, failedA)
+        new Map().set(failedA.name, [failedA])
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
+    expect(unstableJobs.length).toBe(1);
   });
 
-  test("test flaky jobs and broken trunk jobs are included in the comment", async () => {
+  test("test shard id and suffix in job name are handled correctly", async () => {
+    const originalWorkflows = [failedA, failedD, failedF];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const baseJobs = new Map();
+    baseJobs.set(removeJobNameSuffix(failedD.name), [failedE]);
+    baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
+
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
     const failureInfoComment = updateDrciBot.constructResultsComment(
       1,
       [failedA],
       [failedB],
       [failedC],
+      [unstableA],
       "random head sha",
       "random base sha",
       "hudlink"
     );
     const expectToContain = [
-      "1 New Failure, 1 Pending, 2 Unrelated Failures",
+      "1 New Failure, 1 Pending, 3 Unrelated Failures",
       "The following job has failed",
       "The following job failed but was likely due to flakiness present on trunk",
       "The following job failed but was present on the merge base random base sha",
+      "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
       failedA.name,
       failedB.name,
       failedC.name,
+      unstableA.name,
     ];
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
   });
 
-  test("test flaky jobs and broken trunk jobs don't affect the Dr. CI icon", async () => {
+  test("test flaky, broken trunk, unstable jobs don't affect the Dr. CI icon", async () => {
     const failureInfoComment = updateDrciBot.constructResultsComment(
       1,
       [],
       [failedB],
       [failedC],
+      [unstableA],
       "random head sha",
       "random base sha",
       "hudlink"
@@ -405,9 +482,10 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 
     const expectToContain = [
       ":hourglass_flowing_sand:",
-      "1 Pending, 2 Unrelated Failures",
+      "1 Pending, 3 Unrelated Failures",
       failedB.name,
       failedC.name,
+      unstableA.name,
     ];
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
@@ -432,5 +510,33 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(header.includes("Python docs built from this PR")).toBeTruthy();
     expect(header.includes("C++ docs built from this PR")).toBeFalsy();
     expect(header.includes("bot commands wiki")).toBeFalsy();
+  });
+
+  test("test getBaseCommitJobs", async () => {
+    const originalWorkflows = [failedA, failedB];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const mock = jest.spyOn(fetchRecentWorkflows, "fetchFailedJobsFromCommits");
+    mock.mockImplementation(() => Promise.resolve([failedA, failedB]));
+
+    const baseCommitJobs = await updateDrciBot.getBaseCommitJobs(workflowsByPR);
+    expect(baseCommitJobs).toMatchObject(
+      new Map().set(
+        failedA.head_sha,
+        new Map().set(failedA.name, [failedA]).set(failedB.name, [failedB])
+      )
+    );
+
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(
+        workflowsByPR.get(1001)!,
+        [],
+        baseCommitJobs.get(failedA.head_sha)!
+      );
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 });

@@ -41,3 +41,10 @@ jobs:
           --url 'https://www.torch-ci.com/api/drci/drci' \
           --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
           --data 'repo=audio'
+
+      - name: Retrieve rockset query results and update Dr. CI comments for the Tutorials repo
+        run: |
+          curl --request POST \
+          --url 'https://www.torch-ci.com/api/drci/drci' \
+          --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+          --data 'repo=tutorials'

@@ -1,0 +1,66 @@
+name: Trigger nightly builds for domains
+
+on:
+  schedule:
+    # every night at 11:30AM UTC, 7:30AM EST, 4:30AM PST
+    - cron: 30 11 * * *
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "What domain to trigger"
+        required: false
+        type: choice
+        default: all
+        options:
+          - vision
+          - audio
+          - text
+          - torchrec
+          - data
+          - all
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v3
+      - name: Trigger nightly audio build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'audio' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/audio
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: audio
+      - name: Trigger nightly data build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'data' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/data
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: data
+      - name: Trigger nightly text build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'text' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/text
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: text
+      - name: Trigger nightly vision build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'vision' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/vision
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: vision
+      - name: Trigger nightly torchrec build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchrec' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchrec
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchrec

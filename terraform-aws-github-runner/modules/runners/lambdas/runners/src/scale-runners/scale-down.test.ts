@@ -165,18 +165,20 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
-      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false }),
-      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false }),
-      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true }),
-      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
-      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
-      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false }),
-      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
-      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
-      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
-      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false }),
-      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false }),
+      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true, status: 'online' }),
+      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true, status: 'online' }),
+      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false, status: 'online' }),
+      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true, status: 'online' }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
+      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0013', name: 'remove-offline-01', busy: false, status: 'offline' }),
+      mockRunner({ id: '0014', name: 'remove-offline-02', busy: false, status: 'offline' }),
     ] as GhRunners;
     const listRunnersRet = [
       {
@@ -420,13 +422,13 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(15);
+      expect(mockedListGithubRunnersOrg).toBeCalledTimes(16);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
       expect(mockedGetRunnerTypes).toBeCalledTimes(4);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
-      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(3);
+      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
@@ -438,6 +440,14 @@ describe('scale-down', () => {
       {
         const { awsR, ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-01');
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, theOrg, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-02');
+        expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, theOrg, metrics);
       }
 
       expect(mockedTerminateRunner).toBeCalledTimes(5);
@@ -478,18 +488,20 @@ describe('scale-down', () => {
       ['keep-lt-min-no-ghrunner', { is_ephemeral: false } as RunnerType],
     ]);
     const ghRunners = [
-      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false }),
-      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false }),
-      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true }),
-      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true }),
-      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false }),
-      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true }),
-      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false }),
-      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false }),
-      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false }),
-      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false }),
-      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false }),
-      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false }),
+      mockRunner({ id: '0001', name: 'keep-this-not-min-time-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0002', name: 'keep-this-not-min-time-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0003', name: 'keep-this-is-busy-01', busy: true, status: 'online' }),
+      mockRunner({ id: '0004', name: 'keep-this-is-busy-02', busy: true, status: 'online' }),
+      mockRunner({ id: '0005', name: 'keep-this-not-min-time-03', busy: false, status: 'online' }),
+      mockRunner({ id: '0006', name: 'keep-this-is-busy-03', busy: true, status: 'online' }),
+      mockRunner({ id: '0007', name: 'remove-ephemeral-01-fail-ghr', busy: false, status: 'online' }),
+      mockRunner({ id: '0008', name: 'keep-min-runners-not-oldest-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0009', name: 'keep-min-runners-oldest-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0010', name: 'keep-min-runners-not-oldest-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0011', name: 'keep-min-runners-oldest-02', busy: false, status: 'online' }),
+      mockRunner({ id: '0012', name: 'keep-lt-min-no-ghrunner-01', busy: false, status: 'online' }),
+      mockRunner({ id: '0013', name: 'remove-offline-01', busy: false, status: 'offline' }),
+      mockRunner({ id: '0014', name: 'remove-offline-02', busy: false, status: 'offline' }),
     ] as GhRunners;
     const listRunnersRet = [
       {
@@ -728,13 +740,13 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(15);
+      expect(mockedListGithubRunnersRepo).toBeCalledTimes(16);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
       expect(mockedGetRunnerTypes).toBeCalledTimes(4);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
-      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(3);
+      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
       {
         const { ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
@@ -745,6 +757,14 @@ describe('scale-down', () => {
       }
       {
         const { ghR } = getRunnerPair('remove-ephemeral-01-fail-ghr');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-01');
+        expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
+      }
+      {
+        const { ghR } = getRunnerPair('remove-offline-02');
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
 

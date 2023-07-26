@@ -13,7 +13,7 @@ runs:
         # This needs to be run before checking out PyTorch to avoid locking the working directory.
         # Below is the list of commands that could lock $GITHUB_WORKSPACE gathered from sysinternals
         # handle tool
-        $processes = "python", "ninja", "cl", "nvcc", "cmd", "sccache"
+        $processes = "python", "ninja", "cl", "nvcc", "cmd", "sccache", "git"
         Foreach ($process In $processes) {
           Try {
             # https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/stop-process

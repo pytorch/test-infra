@@ -11,8 +11,8 @@ SELECT
 FROM
     metrics.queue_times_historical q
 WHERE
-    q._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-    AND q._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+    q._event_time >= PARSE_DATETIME_ISO8601(:startTime) AT TIME ZONE :timezone
+    AND q._event_time < PARSE_DATETIME_ISO8601(:stopTime) AT TIME ZONE :timezone
 GROUP BY
     granularity_bucket,
     q.machine_type

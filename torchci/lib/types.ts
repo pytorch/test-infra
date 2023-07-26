@@ -149,6 +149,7 @@ export interface JobsPerCommitData {
 }
 
 export interface CompilerPerformanceData {
+  abs_latency: number;
   accuracy: string;
   compilation_latency: number;
   compiler: string;

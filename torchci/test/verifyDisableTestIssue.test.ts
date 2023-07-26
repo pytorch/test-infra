@@ -3,7 +3,12 @@ import * as utils from "./utils";
 import myProbotApp, * as bot from "../lib/bot/verifyDisableTestIssueBot";
 import nock from "nock";
 import { requireDeepCopy, handleScope } from "./common";
-import { pytorchBotId } from "../lib/bot/verifyDisableTestIssueBot";
+import {
+  pytorchBotId,
+  disabledKey,
+  unstableKey,
+} from "../lib/bot/verifyDisableTestIssueBot";
+import _ from "lodash";
 
 nock.disableNetConnect();
 
@@ -17,8 +22,13 @@ describe("verify-disable-test-issue", () => {
 
   test("issue opened with title starts w/ DISABLED: unauthorized", async () => {
     let title = "DISABLED pull / linux-bionic-py3.8-clang9";
-    const jobName = bot.parseTitle(title);
-    let comment = bot.formJobValidationComment("mock-user", false, jobName);
+    const jobName = bot.parseTitle(title, disabledKey);
+    let comment = bot.formJobValidationComment(
+      "mock-user",
+      false,
+      jobName,
+      disabledKey
+    );
 
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(
@@ -30,7 +40,7 @@ describe("verify-disable-test-issue", () => {
     const body = "Platforms:linux,macos";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
 
     comment = bot.formValidationComment(
       "mock-user",
@@ -51,7 +61,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:win\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(["win"]), new Set()]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
@@ -77,7 +87,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:windows, ROCm, ASAN\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([
       new Set(["windows", "rocm", "asan"]),
       new Set(),
@@ -108,7 +118,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever yay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(), new Set()]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
@@ -134,7 +144,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:everything\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(), new Set(["everything"])]);
     expect(testName).toEqual("testMethodName (testClass.TestSuite)");
 
@@ -166,7 +176,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(), new Set()]);
     expect(testName).toEqual(
       "testMethodName   (quantization.core.test_workflow_ops.TestFakeQuantizeOps)"
@@ -189,7 +199,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(), new Set()]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
@@ -210,7 +220,7 @@ describe("verify-disable-test-issue", () => {
     const body = "whatever\nPlatforms:all of them\nyay";
 
     const platforms = bot.parseBody(body);
-    const testName = bot.parseTitle(title);
+    const testName = bot.parseTitle(title, disabledKey);
     expect(platforms).toMatchObject([new Set(), new Set(["all of them"])]);
     expect(testName).toEqual("testMethodName   cuz it borked");
 
@@ -264,13 +274,60 @@ describe("verify-disable-test-issue", () => {
   test("issue opened with title starts w/ DISABLED: to disable a job", async () => {
     const title = "DISABLED pull / linux-bionic-py3.8-clang9";
 
-    const jobName = bot.parseTitle(title);
+    const jobName = bot.parseTitle(title, disabledKey);
     expect(jobName).toEqual("pull / linux-bionic-py3.8-clang9");
 
-    let comment = bot.formJobValidationComment("mock-user", true, jobName);
+    let comment = bot.formJobValidationComment(
+      "mock-user",
+      true,
+      jobName,
+      disabledKey
+    );
     expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
     expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
+  });
+
+  test("issue opened with title starts w/ UNSTABLE: to mark a job as unstable", async () => {
+    const title = "UNSTABLE windows-binary-libtorch-release";
+
+    const jobName = bot.parseTitle(title, unstableKey);
+    expect(jobName).toEqual("windows-binary-libtorch-release");
+
+    let comment = bot.formJobValidationComment(
+      "mock-user",
+      true,
+      jobName,
+      unstableKey
+    );
+    expect(comment.includes("<!-- validation-comment-start -->")).toBeTruthy();
+    expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
+    expect(comment.includes("ERROR")).toBeFalsy();
+  });
+
+  test("various getExpectedLabels tests", async () => {
+    expect(await bot.getExpectedLabels(["linux"], ["random"])).toEqual([
+      "random",
+    ]);
+    expect(await bot.getExpectedLabels(["inductor"], ["random"])).toEqual([
+      "random",
+      "oncall: pt2",
+    ]);
+    expect(
+      await bot.getExpectedLabels(["linux"], ["random", "module: rocm"])
+    ).toEqual(["random"]);
+    expect(
+      await bot.getExpectedLabels(["rocm"], ["random", "module: rocm"])
+    ).toEqual(["random", "module: rocm"]);
+    expect(
+      await bot.getExpectedLabels(
+        ["dynamo", "inductor"],
+        ["random", "module: rocm"]
+      )
+    ).toEqual(["random", "oncall: pt2"]);
+    expect(
+      await bot.getExpectedLabels(["linux", "rocm"], ["random", "module: rocm"])
+    ).toEqual(["random"]);
   });
 });
 
@@ -336,6 +393,99 @@ describe("verify-disable-test-issue-bot", () => {
       )
       .reply(200);
 
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with missing labels gets labels", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200)
+      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+        _.isEqual(body.labels, ["module: rocm"])
+      )
+      .reply(200, []);
+
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with wrong labels gets correct labels", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+    payload.issue.labels = [
+      {
+        name: "random label",
+      },
+      {
+        name: "module: windows",
+      },
+    ];
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200)
+      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+        _.isEqual(body.labels, ["random label", "module: rocm"])
+      )
+      .reply(200, []);
+
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with correct labels doesn't change", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+    payload.issue.labels = [
+      {
+        name: "module: rocm",
+      },
+      {
+        name: "random label",
+      },
+    ];
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200);
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
     handleScope(scope);
