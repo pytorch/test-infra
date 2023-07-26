@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Dict, Any, List
 import rockset  # type: ignore[import]
 import datetime
@@ -47,40 +48,31 @@ def get_failed_tests():
     return failed_tests.results
 
 
+def run_command(command):
+    cwd = REPO_ROOT / ".." / "pytorch"
+    subprocess.check_output(
+        command.split(" "),
+        cwd=cwd,
+    ).decode("utf-8").strip()
+
+
 def get_merge_bases(failed_tests):
     merge_bases = {}
-    cwd = REPO_ROOT / ".." / "pytorch"
+    all_shas = " ".join(test["head_sha"] for test in failed_tests)
+
+    run_command(
+        f"git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules origin {all_shas}"
+    )
 
     for test in failed_tests:
         sha = test["head_sha"]
         if sha in merge_bases:
             continue
         try:
-            merge_base = (
-                subprocess.check_output(
-                    f"git merge-base main {sha}".split(" "),
-                    cwd=cwd,
-                )
-                .decode("utf-8")
-                .strip()
-            )
+            merge_base = run_command(f"git merge-base main {sha}")
             if merge_base == sha:
-                merge_base = (
-                    subprocess.check_output(
-                        f"git rev-parse {sha}^".split(" "),
-                        cwd=cwd,
-                    )
-                    .decode("utf-8")
-                    .strip()
-                )
-            changed_files = (
-                subprocess.check_output(
-                    f"git diff {sha} {merge_base} --name-only".split(" "),
-                    cwd=cwd,
-                )
-                .decode("utf-8")
-                .strip()
-            )
+                merge_base = run_command(f"git rev-parse {sha}^")
+            changed_files = run_command(f"git diff {sha} {merge_base} --name-only")
             merge_bases[sha] = {
                 "merge_base": merge_base,
                 "changed_files": changed_files.splitlines(),
@@ -95,4 +87,4 @@ def get_merge_bases(failed_tests):
 if __name__ == "__main__":
     failed_tests = get_failed_tests()
     merge_bases = get_merge_bases(failed_tests)
-    print(merge_bases)
+    print(json.dumps(merge_bases, indent=2))
