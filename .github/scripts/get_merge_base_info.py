@@ -61,7 +61,7 @@ def get_merge_bases(failed_tests):
     all_shas = " ".join(test["head_sha"] for test in failed_tests)
 
     run_command(
-        f"git -c protocol.version=2 fetch --no-tags --prune --progress --no-recurse-submodules origin {all_shas}"
+        f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
     )
 
     for test in failed_tests:
