@@ -1080,13 +1080,6 @@
       "linux"
     ]
   ],
-  "test_homogeneous_attributes (__main__.TestFSDPMiscMultiThread)": [
-    "105024",
-    "https://github.com/pytorch/pytorch/issues/105024",
-    [
-      "linux"
-    ]
-  ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
     "68643",
     "https://github.com/pytorch/pytorch/issues/68643",
@@ -1994,6 +1987,13 @@
     "https://github.com/pytorch/pytorch/issues/98618",
     [
       "linux"
+    ]
+  ],
+  "test_triton_template_with_epilogues_and_dynamic_shape (__main__.TestDoBench)": [
+    "106026",
+    "https://github.com/pytorch/pytorch/issues/106026",
+    [
+      "rocm"
     ]
   ],
   "test_unary_ops (__main__.TestTensorExprFuser)": [
