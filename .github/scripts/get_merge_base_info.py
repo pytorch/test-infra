@@ -50,7 +50,7 @@ def get_failed_tests():
 
 def run_command(command):
     cwd = REPO_ROOT / ".." / "pytorch"
-    subprocess.check_output(
+    return subprocess.check_output(
         command.split(" "),
         cwd=cwd,
     ).decode("utf-8").strip()
