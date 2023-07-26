@@ -3,6 +3,9 @@ import rockset  # type: ignore[import]
 import datetime
 import os
 import subprocess
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 FAILED_TESTS_QUERY = """
 SELECT
@@ -41,12 +44,12 @@ def get_failed_tests():
             ),
         },
     )
-    print(failed_tests)
     return failed_tests.results
 
 
 def get_merge_bases(failed_tests):
     merge_bases = {}
+    cwd = REPO_ROOT / ".." / "pytorch"
 
     for test in failed_tests:
         sha = test["head_sha"]
@@ -56,7 +59,7 @@ def get_merge_bases(failed_tests):
             merge_base = (
                 subprocess.check_output(
                     f"git merge-base main {sha}".split(" "),
-                    cwd="/Users/csl/zzzzzzzz/pytorch",
+                    cwd=cwd,
                 )
                 .decode("utf-8")
                 .strip()
@@ -65,7 +68,7 @@ def get_merge_bases(failed_tests):
                 merge_base = (
                     subprocess.check_output(
                         f"git rev-parse {sha}^".split(" "),
-                        cwd="pytorch",
+                        cwd=cwd,
                     )
                     .decode("utf-8")
                     .strip()
@@ -73,7 +76,7 @@ def get_merge_bases(failed_tests):
             changed_files = (
                 subprocess.check_output(
                     f"git diff {sha} {merge_base} --name-only".split(" "),
-                    cwd="pytorch",
+                    cwd=cwd,
                 )
                 .decode("utf-8")
                 .strip()
@@ -84,8 +87,8 @@ def get_merge_bases(failed_tests):
             }
         except KeyboardInterrupt:
             break
-        except Exception:
-            print(f"{sha} failed??")
+        except Exception as e:
+            print(e)
     return merge_bases
 
 
