@@ -54,6 +54,10 @@ output "launch_template_version_linux_nvidia" {
   value = aws_launch_template.linux_runner_nvidia.latest_version
 }
 
+output "launch_template_version_linux_arm64" {
+  value = aws_launch_template.linux_arm64_runner.latest_version
+}
+
 output "launch_template_version_windows" {
   value = aws_launch_template.windows_runner.latest_version
 }

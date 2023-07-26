@@ -141,6 +141,7 @@ module "runners" {
   launch_template_version_linux          = module.runners_instances.launch_template_version_linux
   launch_template_version_windows        = module.runners_instances.launch_template_version_windows
   launch_template_version_linux_nvidia   = module.runners_instances.launch_template_version_linux_nvidia
+  launch_template_version_linux_arm64   = module.runners_instances.launch_template_version_linux_arm64
 
   logging_retention_in_days        = var.logging_retention_in_days
   scale_up_lambda_concurrency      = var.scale_up_lambda_concurrency
