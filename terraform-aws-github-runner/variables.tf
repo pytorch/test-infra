@@ -282,7 +282,7 @@ variable "enable_cloudwatch_agent" {
   default     = true
 }
 
-variable "nvidia_driveer_install" {
+variable "nvidia_driver_install" {
   description = "Preinstall nvidia driver on GPU machines."
   type        = bool
   default     = false
