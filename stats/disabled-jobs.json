@@ -1,44 +1,4 @@
 {
-  "inductor-periodic / cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks / build": [
-    "PaliC",
-    "105969",
-    "https://github.com/pytorch/pytorch/issues/105969",
-    "inductor-periodic",
-    "cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks",
-    "build"
-  ],
-  "periodic / linux-bionic-cuda11.8-py3.10-gcc7-debug / build": [
-    "PaliC",
-    "105970",
-    "https://github.com/pytorch/pytorch/issues/105970",
-    "periodic",
-    "linux-bionic-cuda11.8-py3.10-gcc7-debug",
-    "build"
-  ],
-  "periodic / win-vs2019-cuda11.8-py3 / build": [
-    "PaliC",
-    "105971",
-    "https://github.com/pytorch/pytorch/issues/105971",
-    "periodic",
-    "win-vs2019-cuda11.8-py3",
-    "build"
-  ],
-  "pull / linux-bionic-cuda11.8-py3.10-gcc9 / build": [
-    "PaliC",
-    "105973",
-    "https://github.com/pytorch/pytorch/issues/105973",
-    "pull",
-    "linux-bionic-cuda11.8-py3.10-gcc9",
-    "build"
-  ],
-  "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / build": [
-    "PaliC",
-    "105968",
-    "https://github.com/pytorch/pytorch/issues/105968",
-    "pull",
-    "linux-bionic-cuda12.1-py3.10-gcc9-sm86",
-    "build"
-  ],
   "pull / linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test": [
     "PaliC",
     "105967",
