@@ -1,0 +1,31 @@
+name: Update merge base info for failed tests
+
+on:
+  pull_request:
+
+jobs:
+  update-merge-base-info-for-failed-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pytorch/test-infra
+        uses: actions/checkout@v3
+        with:
+          path: test-infra
+
+      - name: Checkout pytorch/pytorch
+        uses: actions/checkout@v3
+        with:
+          repository: pytorch/pytorch
+          path: pytorch
+          fetch-depth: 0
+
+      - name: Install Dependencies
+        run: |
+          pip3 install boto3==1.19.12
+          pip3 install rockset==1.0.3
+
+      - name: Run script
+        run: |
+          python3 test-infra/.github/scripts/get_merge_base_info.py
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
