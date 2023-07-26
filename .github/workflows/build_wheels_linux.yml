@@ -75,10 +75,9 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
+      DOCKER_IMAGE: ${{ matrix.container_image }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    container:
-      image: ${{ matrix.container_image }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -96,10 +95,21 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
+
+      #- name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
+      #  id: install-nvidia-driver
+      #  uses: pytorch/test-infra/.github/actions/setup-nvidia@main
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ matrix.container_image }}
+
       - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
@@ -107,6 +117,7 @@ jobs:
           ref: ${{ inputs.ref }}
           setup-miniconda: true
           python-version: ${{ env.PYTHON_VERSION }}
+
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
         working-directory: ${{ inputs.repository }}
