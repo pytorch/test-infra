@@ -1182,6 +1182,13 @@
       "linux"
     ]
   ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "100520",
+    "https://github.com/pytorch/pytorch/issues/100520",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_grad_div_trunc_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "102113",
     "https://github.com/pytorch/pytorch/issues/102113",
@@ -1930,20 +1937,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_tiny_half_norm_ (__main__.TestCuda)": [
-    "94897",
-    "https://github.com/pytorch/pytorch/issues/94897",
-    [
-      "rocm"
-    ]
-  ],
-  "test_to_cpu_blocking_by_default (__main__.TestCuda)": [
-    "94956",
-    "https://github.com/pytorch/pytorch/issues/94956",
-    [
-      "rocm"
     ]
   ],
   "test_to_non_blocking (__main__.TestCuda)": [
