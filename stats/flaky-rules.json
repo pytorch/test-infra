@@ -20,7 +20,7 @@
     "captures": ["ModuleNotFoundError: No module named 'sympy'"]
   },
   {
-    "name": "healthcheck",
+    "name": "linux",
     "captures": ["##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled."]
   }
 ]
