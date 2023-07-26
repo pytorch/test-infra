@@ -22,5 +22,9 @@
   {
     "name": "linux",
     "captures": ["The runner has received a shutdown signal"]
+  },
+  {
+    "name": "win",
+    "captures": ["The process cannot access the file .+ because it is being used by another process"]
   }
 ]
