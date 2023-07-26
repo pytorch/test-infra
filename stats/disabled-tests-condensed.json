@@ -42,13 +42,6 @@
       "slow"
     ]
   ],
-  "test_adam_weight_decay (__main__.CompiledOptimizerTests)": [
-    "104936",
-    "https://github.com/pytorch/pytorch/issues/104936",
-    [
-      "linux"
-    ]
-  ],
   "test_adamw_recompile (__main__.CompiledOptimizerTests)": [
     "105692",
     "https://github.com/pytorch/pytorch/issues/105692",
@@ -550,6 +543,14 @@
     "https://github.com/pytorch/pytorch/issues/104366",
     [
       "rocm"
+    ]
+  ],
+  "test_conv_bn_folding_cuda (__main__.FreezingCudaTests)": [
+    "106040",
+    "https://github.com/pytorch/pytorch/issues/106040",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
@@ -1396,6 +1397,30 @@
       "slow"
     ]
   ],
+  "test_mm_sparse_first_T_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106037",
+    "https://github.com/pytorch/pytorch/issues/106037",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_T_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106039",
+    "https://github.com/pytorch/pytorch/issues/106039",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106038",
+    "https://github.com/pytorch/pytorch/issues/106038",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_mobilenet_v2 (__main__.TestNumericSuiteEager)": [
     "100439",
     "https://github.com/pytorch/pytorch/issues/100439",
@@ -1954,13 +1979,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_to_non_blocking (__main__.TestCuda)": [
-    "94967",
-    "https://github.com/pytorch/pytorch/issues/94967",
-    [
-      "rocm"
     ]
   ],
   "test_torch_guards_stack_frame_register_inlining_deep (__main__.StaticDefaultDynamicShapesMiscTests)": [
