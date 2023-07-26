@@ -1890,13 +1890,6 @@
       "win"
     ]
   ],
-  "test_streaming_backwards_sync_graph_root (__main__.TestCuda)": [
-    "94880",
-    "https://github.com/pytorch/pytorch/issues/94880",
-    [
-      "rocm"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
