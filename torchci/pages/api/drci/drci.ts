@@ -356,9 +356,15 @@ function isFlaky(
   return masterFlakyJobs.some(
     (masterFlakyJob) =>
       job.name.includes(masterFlakyJob.name) &&
-      masterFlakyJob.captures.every((capture) =>
-        job.failure_captures?.includes(capture)
-      )
+      masterFlakyJob.captures.every((capture: string) => {
+        const captureRegex = new RegExp(capture);
+        return (
+          job.failure_captures &&
+          job.failure_captures.some((failureCapture) =>
+            failureCapture.match(captureRegex)
+          )
+        );
+      })
   );
 }
 
