@@ -17,7 +17,7 @@ jobs:
         with:
           repository: pytorch/pytorch
           path: pytorch
-          ref: main
+          fetch-depth: 0
 
       - name: Install Dependencies
         run: |
@@ -29,3 +29,7 @@ jobs:
           python3 test-infra/.github/scripts/get_merge_base_info.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
+  cancel-in-progress: true
