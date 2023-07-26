@@ -821,13 +821,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -1754,6 +1747,13 @@
       "mac"
     ]
   ],
+  "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
+    "103345",
+    "https://github.com/pytorch/pytorch/issues/103345",
+    [
+      "linux"
+    ]
+  ],
   "test_reduce_full_group_max (__main__.TestDistBackendWithSpawn)": [
     "75168",
     "https://github.com/pytorch/pytorch/issues/75168",
@@ -2013,6 +2013,13 @@
   "test_unhandled_exception_in_dynamo2 (__main__.DynamicShapesMiscTests)": [
     "101259",
     "https://github.com/pytorch/pytorch/issues/101259",
+    [
+      "linux"
+    ]
+  ],
+  "test_unhandled_exception_in_dynamo2 (__main__.MiscTests)": [
+    "106028",
+    "https://github.com/pytorch/pytorch/issues/106028",
     [
       "linux"
     ]
