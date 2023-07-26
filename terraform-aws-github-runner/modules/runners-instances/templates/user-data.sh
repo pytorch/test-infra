@@ -21,6 +21,12 @@ yum install -y curl jq git
 USER_NAME=ec2-user
 ${install_config_runner}
 
+%{ if install_nvidia_driver ~}
+sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
+sudo /bin/bash /tmp/nvidia_driver -s --no-drm
+sudo rm -fv /tmp/nvidia_driver
+%{ endif ~}
+
 ${post_install}
 
 ./svc.sh start
