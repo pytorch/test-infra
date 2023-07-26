@@ -244,6 +244,11 @@ variable "launch_template_name_linux_nvidia" {
   type        = string
 }
 
+variable "launch_template_name_linux_arm64" {
+  description = "Name of the launch template to use for linux arm64 runners. If not set a launch template will be created."
+  type        = string
+}
+
 variable "launch_template_name_windows" {
   description = "Name of the launch template to use for windows runners. If not set a launch template will be created."
   type        = string
@@ -256,6 +261,11 @@ variable "launch_template_version_linux" {
 
 variable "launch_template_version_linux_nvidia" {
   description = "Version of the launch template to use for linux nvidia runners. If not set the latest version will be used."
+  type        = string
+}
+
+variable "launch_template_version_linux_arm64" {
+  description = "Version of the launch template to use for linux arm64 runners. If not set the latest version will be used."
   type        = string
 }
 

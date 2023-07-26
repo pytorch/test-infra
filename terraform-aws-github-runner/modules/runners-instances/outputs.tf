@@ -38,6 +38,10 @@ output "launch_template_name_linux_nvidia" {
   value = aws_launch_template.linux_runner_nvidia.name
 }
 
+output "launch_template_name_linux_arm64" {
+  value = aws_launch_template.linux_arm64_runner.name
+}
+
 output "launch_template_name_windows" {
   value = aws_launch_template.windows_runner.name
 }

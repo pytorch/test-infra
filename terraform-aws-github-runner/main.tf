@@ -136,6 +136,7 @@ module "runners" {
 
   launch_template_name_linux             = module.runners_instances.launch_template_name_linux
   launch_template_name_linux_nvidia      = module.runners_instances.launch_template_name_linux_nvidia
+  launch_template_name_linux_arm64       = module.runners_instances.launch_template_name_linux_arm64
   launch_template_name_windows           = module.runners_instances.launch_template_name_windows
   launch_template_version_linux          = module.runners_instances.launch_template_version_linux
   launch_template_version_windows        = module.runners_instances.launch_template_version_windows
