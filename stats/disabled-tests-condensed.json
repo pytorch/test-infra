@@ -851,6 +851,13 @@
     "https://github.com/pytorch/pytorch/issues/69660",
     []
   ],
+  "test_find_unused_parameters_kwarg_grad_is_view_debug_detail (__main__.DistributedDataParallelTest)": [
+    "82979",
+    "https://github.com/pytorch/pytorch/issues/82979",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "105199",
     "https://github.com/pytorch/pytorch/issues/105199",
