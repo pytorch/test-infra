@@ -130,6 +130,33 @@ const failedF = {
   failure_captures: ["a", "b"],
 };
 
+// Some additional mock samples for flaky rules regex match
+const failedG = {
+  name: "win-vs2019-cpu-py3 / build",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: [
+    "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
+  ],
+};
+
+const failedH = {
+  name: "cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks / test (dynamo_eager_huggingface, 1, 1, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: [
+    "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+  ],
+};
+
 const unstableA = {
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
@@ -420,6 +447,35 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(1);
+  });
+
+  test(" test flaky rule regex", async () => {
+    const originalWorkflows = [failedA, failedG, failedH];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [
+          {
+            name: "win",
+            captures: [
+              "The process cannot access the file .+ because it is being used by another process",
+            ],
+          },
+          {
+            name: "linux",
+            captures: ["The runner has received a shutdown signal"],
+          },
+        ],
+        new Map()
+      );
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(2);
+    expect(unstableJobs.length).toBe(0);
   });
 
   test("test shard id and suffix in job name are handled correctly", async () => {
