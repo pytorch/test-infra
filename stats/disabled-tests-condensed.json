@@ -727,14 +727,6 @@
       "rocm"
     ]
   ],
-  "test_delayed_optim_step_offload_true_no_shard (__main__.TestParityWithDDP)": [
-    "82490",
-    "https://github.com/pytorch/pytorch/issues/82490",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
     "79885",
     "https://github.com/pytorch/pytorch/issues/79885",
@@ -820,6 +812,13 @@
     "https://github.com/pytorch/pytorch/issues/103236",
     [
       "linux"
+    ]
+  ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
+    [
+      "dynamo"
     ]
   ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
@@ -1081,6 +1080,13 @@
       "linux"
     ]
   ],
+  "test_homogeneous_attributes (__main__.TestFSDPMiscMultiThread)": [
+    "105024",
+    "https://github.com/pytorch/pytorch/issues/105024",
+    [
+      "linux"
+    ]
+  ],
   "test_ind_worker_queue (__main__.TestIndividualWorkerQueue)": [
     "68643",
     "https://github.com/pytorch/pytorch/issues/68643",
@@ -1202,13 +1208,6 @@
     "https://github.com/pytorch/pytorch/issues/102115",
     [
       "inductor"
-    ]
-  ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
     ]
   ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
