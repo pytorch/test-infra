@@ -1690,6 +1690,13 @@
       "linux"
     ]
   ],
+  "test_profiler_cuda_sync_events (__main__.TestProfiler)": [
+    "106027",
+    "https://github.com/pytorch/pytorch/issues/106027",
+    [
+      "rocm"
+    ]
+  ],
   "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
     "100728",
     "https://github.com/pytorch/pytorch/issues/100728",
