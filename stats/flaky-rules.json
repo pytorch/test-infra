@@ -26,5 +26,9 @@
   {
     "name": "win",
     "captures": ["The process cannot access the file .+ because it is being used by another process"]
+  },
+  {
+    "name": "macos",
+    "captures": ["Failure: There is only .+ free space left in .+, which is less than the minimum requirement of"]
   }
 ]
