@@ -16,8 +16,8 @@ FROM
     join workflow_job j on t.job_id = j.id
     left outer join commons.merge_bases mb on j.head_sha = mb.sha
 where
-    t._event_time > CURRENT_TIMESTAMP() - DAYS(25)
-    and mb.merge_base is null
+    mb.merge_base is null
+limit 1000
 """
 
 
