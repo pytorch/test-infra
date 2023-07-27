@@ -21,7 +21,7 @@
   },
   {
     "name": "linux",
-    "captures": ["The runner has received a shutdown signal"]
+    "captures": ["##\\[error\\]The runner has received a shutdown signal"]
   },
   {
     "name": "win",
