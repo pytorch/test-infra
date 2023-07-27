@@ -96,7 +96,7 @@ def get_merge_bases(failed_tests):
             print(e)
 
     docs = []
-    for sha, info in merge_bases:
+    for sha, info in merge_bases.items():
         docs.append({
             "sha": sha,
             **info
