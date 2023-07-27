@@ -41,7 +41,7 @@ name = 'GHA job was cancelled'
 pattern = '^##\[error\]The operation was canceled.'
 
 [[rule]]
-name = 'MacOS disk space issue'
+name = 'Runner disk space issue'
 pattern = '^Failure: There is only .+ free space left in .+, which is less than the minimum requirement of'
 
 [[rule]]
