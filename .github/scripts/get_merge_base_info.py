@@ -19,6 +19,9 @@ SELECT
 FROM
     commons.failed_tests_run t
     join workflow_job j on t.job_id = j.id
+where
+    t._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
+    and t._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
 """
 
 
@@ -37,7 +40,7 @@ def get_failed_tests():
         FAILED_TESTS_QUERY,
         {
             "stopTime": current_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "startTime": (current_time - datetime.timedelta(days=2)).strftime(
+            "startTime": (current_time - datetime.timedelta(days=30)).strftime(
                 "%Y-%m-%dT%H:%M:%S.000Z"
             ),
         },
