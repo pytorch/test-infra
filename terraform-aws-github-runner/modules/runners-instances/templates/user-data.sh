@@ -23,19 +23,18 @@ ${install_config_runner}
 
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
-    set +e
-    DISTRIBUTION=$(. /etc/os-release;echo $ID$VERSION_ID)
-    if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
-        sudo yum groupinstall -y "Development Tools"
-        # ensure our kernel install is the same as our underlying kernel,
-        # groupinstall "Development Tools" has a habit of mismatching kernel headers
-        sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
-        sudo modprobe backlight
-    fi
-    sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
-    sudo /bin/bash /tmp/nvidia_driver -s --no-drm
-    sudo rm -fv /tmp/nvidia_driver
-    set -e
+set +e
+os_id=$(awk -F= '/^ID/{print $2}' /etc/os-release)
+if ! [[ "$os_id" =~ ^ubuntu.* ]]; then
+    echo Installing Development Tools
+    sudo yum groupinstall -y "Development Tools"
+    sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
+    sudo modprobe backlight
+fi
+sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
+sudo /bin/bash /tmp/nvidia_driver -s --no-drm
+sudo rm -fv /tmp/nvidia_driver
+set -e
 %{ endif ~}
 
 ${post_install}
