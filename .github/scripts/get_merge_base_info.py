@@ -40,7 +40,7 @@ def get_failed_tests():
         FAILED_TESTS_QUERY,
         {
             "stopTime": current_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "startTime": (current_time - datetime.timedelta(days=30)).strftime(
+            "startTime": (current_time - datetime.timedelta(days=2)).strftime(
                 "%Y-%m-%dT%H:%M:%S.000Z"
             ),
         },
