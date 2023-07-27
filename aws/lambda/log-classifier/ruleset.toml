@@ -41,6 +41,10 @@ name = 'GHA job was cancelled'
 pattern = '^##\[error\]The operation was canceled.'
 
 [[rule]]
+name = 'Runner disk space issue'
+pattern = '^Failure: There is only .+ free space left in .+, which is less than the minimum requirement of'
+
+[[rule]]
 name = 'make build failure'
 pattern = '''^Makefile:\d+: recipe for target '.+' failed'''
 
