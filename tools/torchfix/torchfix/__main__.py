@@ -43,7 +43,7 @@ def main() -> None:
 
     # Filter out files that don't have "torch" string in them.
     # This avoids expensive parsing.
-    MARKER = "torch" #  this will catch import torch or functorch
+    MARKER = "torch"  # this will catch import torch or functorch
     torch_files = []
     for file in files:
         with open(file) as f:
