@@ -176,6 +176,12 @@ variable "enable_cloudwatch_agent" {
   default     = true
 }
 
+variable "nvidia_driver_install" {
+  description = "Preinstall nvidia driver on GPU machines."
+  type        = bool
+  default     = false
+}
+
 variable "ghes_url" {
   description = "GitHub Enterprise Server URL. DO NOT SET IF USING PUBLIC GITHUB"
   type        = string
