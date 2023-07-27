@@ -1,5 +1,5 @@
 #!/bin/bash -xe
-
+set -x
 exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
 
 ${pre_install}
@@ -21,6 +21,7 @@ yum install -y curl jq git
 USER_NAME=ec2-user
 ${install_config_runner}
 
+echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 set +e
 sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
