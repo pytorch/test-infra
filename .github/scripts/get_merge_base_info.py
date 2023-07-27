@@ -48,6 +48,19 @@ def get_failed_tests():
     return failed_tests.results
 
 
+def upload_to_rockset(
+    collection: str, docs: List[Any], workspace: str = "commons"
+) -> None:
+    client = rockset.RocksetClient(
+        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+    )
+    client.Documents.add_documents(
+        collection=collection,
+        data=docs,
+        workspace=workspace,
+    )
+
+
 def run_command(command):
     cwd = REPO_ROOT / ".." / "pytorch"
     return subprocess.check_output(
@@ -81,7 +94,14 @@ def get_merge_bases(failed_tests):
             break
         except Exception as e:
             print(e)
-    return merge_bases
+
+    docs = []
+    for sha, info in merge_bases:
+        docs.append({
+            "sha": sha,
+            **info
+        })
+    return docs
 
 
 if __name__ == "__main__":
