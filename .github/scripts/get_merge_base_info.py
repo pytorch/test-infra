@@ -107,6 +107,7 @@ def get_merge_bases(failed_tests):
 
 
 if __name__ == "__main__":
-    failed_tests = get_failed_tests()
-    merge_bases = get_merge_bases(failed_tests)
-    print(json.dumps(merge_bases, indent=2))
+    for i in range(10):
+        failed_tests = get_failed_tests()
+        merge_bases = get_merge_bases(failed_tests)
+        # print(json.dumps(merge_bases, indent=2))
