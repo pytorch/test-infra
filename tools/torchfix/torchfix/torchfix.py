@@ -8,7 +8,7 @@ from .visitors.deprecated_symbols import (
     _UpdateFunctorchImports,
 )
 
-from .visitors.performance import TorchSynchronizedDataLoaderVisitor, TorchExtraCUDACopyPatternVisitor
+from .visitors.performance import TorchSynchronizedDataLoaderVisitor
 from .visitors.misc import TorchRequireGradVisitor
 
 __version__ = "0.0.2"
@@ -20,8 +20,7 @@ def GET_ALL_VISITORS():
     return [
         TorchDeprecatedSymbolsVisitor(DEPRECATED_CONFIG_PATH),
         TorchRequireGradVisitor(),
-        #TorchSynchronizedDataLoaderVisitor(),
-        TorchExtraCUDACopyPatternVisitor(),
+        TorchSynchronizedDataLoaderVisitor(),
     ]
 
 
