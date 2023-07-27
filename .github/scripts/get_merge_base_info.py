@@ -10,18 +10,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 FAILED_TESTS_QUERY = """
 SELECT
-    distinct t.invoking_file,
-    t.name,
-    t.classname,
-    t.file,
-    j.head_sha,
-    j.name as job_name
+    DISTINCT j.head_sha,
 FROM
     commons.failed_tests_run t
     join workflow_job j on t.job_id = j.id
+    left outer join commons.merge_bases mb on j.head_sha = mb.sha
 where
-    t._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
-    and t._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
+    t._event_time > CURRENT_TIMESTAMP() - DAYS(5)
+    and mb.merge_base is null
 """
 
 
@@ -40,7 +36,7 @@ def get_failed_tests():
         FAILED_TESTS_QUERY,
         {
             "stopTime": current_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "startTime": (current_time - datetime.timedelta(days=2)).strftime(
+            "startTime": (current_time - datetime.timedelta(days=5)).strftime(
                 "%Y-%m-%dT%H:%M:%S.000Z"
             ),
         },
@@ -76,6 +72,7 @@ def get_merge_bases(failed_tests):
         run_command(
             f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
         )
+        print(f"{i}/{len(failed_tests)}")
 
     for test in failed_tests:
         sha = test["head_sha"]
