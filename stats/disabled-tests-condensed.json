@@ -622,6 +622,13 @@
       "slow"
     ]
   ],
+  "test_convolution_as_mm (__main__.TestSelectAlgorithm)": [
+    "106108",
+    "https://github.com/pytorch/pytorch/issues/106108",
+    [
+      "linux"
+    ]
+  ],
   "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
     "103863",
     "https://github.com/pytorch/pytorch/issues/103863",
@@ -1630,13 +1637,6 @@
     "https://github.com/pytorch/pytorch/issues/91494",
     [
       "linux"
-    ]
-  ],
-  "test_pca_lowrank_cuda (__main__.TestLinalgCUDA)": [
-    "102567",
-    "https://github.com/pytorch/pytorch/issues/102567",
-    [
-      "rocm"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
