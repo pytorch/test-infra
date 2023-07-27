@@ -5,7 +5,7 @@
   },
   {
     "name": "rocm",
-    "captures": ["##\\[error\\]The action has timed out."]
+    "captures": ["The action has timed out."]
   },
   { 
     "name": "bazel",
@@ -21,7 +21,7 @@
   },
   {
     "name": "linux",
-    "captures": ["##\\[error\\]The runner has received a shutdown signal"]
+    "captures": ["The runner has received a shutdown signal"]
   },
   {
     "name": "win",
