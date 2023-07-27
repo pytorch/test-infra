@@ -19,9 +19,6 @@ SELECT
 FROM
     commons.failed_tests_run t
     join workflow_job j on t.job_id = j.id
-where
-    t._event_time >= PARSE_TIMESTAMP_ISO8601(:startTime)
-    and t._event_time < PARSE_TIMESTAMP_ISO8601(:stopTime)
 """
 
 
@@ -101,6 +98,11 @@ def get_merge_bases(failed_tests):
             "sha": sha,
             **info
         })
+    upload_to_rockset(
+        collection="merge_bases",
+        docs=docs,
+        workspace="commons"
+    )
     return docs
 
 
