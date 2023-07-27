@@ -37,6 +37,20 @@ data "aws_ami" "runner_ami_linux" {
   owners = var.ami_owners_linux
 }
 
+data "aws_ami" "runner_ami_linux_arm64" {
+  most_recent = "true"
+
+  dynamic "filter" {
+    for_each = var.ami_filter_linux_arm64
+    content {
+      name   = filter.key
+      values = filter.value
+    }
+  }
+
+  owners = var.ami_owners_linux_arm64
+}
+
 data "aws_ami" "runner_ami_windows" {
   most_recent = "true"
 
@@ -156,7 +170,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
 
   instance_initiated_shutdown_behavior = "terminate"
 
-  image_id      = data.aws_ami.runner_ami_linux.id
+  image_id      = data.aws_ami.runner_ami_linux_arm64.id
   instance_type = var.instance_type
   key_name      = var.key_name
 
