@@ -68,11 +68,11 @@ def run_command(command):
 
 def get_merge_bases(failed_tests):
     merge_bases = {}
-    all_shas = " ".join(test["head_sha"] for test in failed_tests)
-
-    run_command(
-        f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
-    )
+    for i in range(0, len(failed_tests), 100):
+        all_shas = " ".join(test['head_sha'] for test in failed_tests[i:i + 100])
+        run_command(
+            f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
+        )
 
     for test in failed_tests:
         sha = test["head_sha"]
