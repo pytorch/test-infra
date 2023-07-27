@@ -34,7 +34,7 @@ class TorchChecker:
     def __init__(self, tree, lines):
         # Filter out files that don't have "torch" string in them.
         # This avoids expensive parsing.
-        MARKER = "torch" # this will catch import torch or functorch
+        MARKER = "torch" #  this will catch import torch or functorch
         has_marker = False
         self.module = None
         for line in lines:
