@@ -13,13 +13,6 @@
       "linux"
     ]
   ],
-  "test_DistributedDataParallel_SyncBatchNorm (__main__.TestDistBackendWithSpawn)": [
-    "105084",
-    "https://github.com/pytorch/pytorch/issues/105084",
-    [
-      "rocm"
-    ]
-  ],
   "test_adadelta_recompile (__main__.CompiledOptimizerTests)": [
     "105649",
     "https://github.com/pytorch/pytorch/issues/105649",
@@ -148,20 +141,6 @@
     "https://github.com/pytorch/pytorch/issues/103420",
     [
       "linux"
-    ]
-  ],
-  "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
-    "104034",
-    "https://github.com/pytorch/pytorch/issues/104034",
-    [
-      "rocm"
-    ]
-  ],
-  "test_benchmark_choice_in_subproc (__main__.TestDoBench)": [
-    "104083",
-    "https://github.com/pytorch/pytorch/issues/104083",
-    [
-      "rocm"
     ]
   ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
@@ -369,13 +348,6 @@
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
-    [
-      "rocm"
-    ]
-  ],
-  "test_compile_vmap_hessian_cuda (__main__.TestCompileTransformsCUDA)": [
-    "105013",
-    "https://github.com/pytorch/pytorch/issues/105013",
     [
       "rocm"
     ]
@@ -867,13 +839,6 @@
   "test_find_unused_parameters_kwarg_grad_is_view_debug_detail (__main__.DistributedDataParallelTest)": [
     "82979",
     "https://github.com/pytorch/pytorch/issues/82979",
-    [
-      "linux"
-    ]
-  ],
-  "test_fn_fwgrad_bwgrad_linalg_lu_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
-    "105199",
-    "https://github.com/pytorch/pytorch/issues/105199",
     [
       "linux"
     ]
@@ -1941,20 +1906,6 @@
     "https://github.com/pytorch/pytorch/issues/105332",
     [
       "linux"
-    ]
-  ],
-  "test_svd_cuda_float32 (__main__.TestLinalgCUDA)": [
-    "105118",
-    "https://github.com/pytorch/pytorch/issues/105118",
-    [
-      "rocm"
-    ]
-  ],
-  "test_svd_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "105117",
-    "https://github.com/pytorch/pytorch/issues/105117",
-    [
-      "rocm"
     ]
   ],
   "test_switch_inputs_to_inplace (jit.test_freezing.TestMKLDNNReinplacing)": [
