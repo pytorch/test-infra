@@ -349,17 +349,23 @@ export function constructResultsComment(
   return output;
 }
 
-function isFlaky(
-  job: RecentWorkflowsData,
-  masterFlakyJobs: FlakyRule[]
-): boolean {
-  return masterFlakyJobs.some(
-    (masterFlakyJob) =>
-      job.name.includes(masterFlakyJob.name) &&
-      masterFlakyJob.captures.every((capture) =>
-        job.failure_captures?.includes(capture)
-      )
-  );
+function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
+  return flakyRules.some((flakyRule) => {
+    const jobNameRegex = new RegExp(flakyRule.name);
+
+    return (
+      job.name.match(jobNameRegex) &&
+      flakyRule.captures.every((capture: string) => {
+        const captureRegex = new RegExp(capture);
+        return (
+          job.failure_captures &&
+          job.failure_captures.some((failureCapture) =>
+            failureCapture.match(captureRegex)
+          )
+        );
+      })
+    );
+  });
 }
 
 function isBrokenTrunk(

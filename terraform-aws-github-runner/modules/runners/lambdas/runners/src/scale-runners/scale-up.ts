@@ -72,9 +72,14 @@ export async function scaleUp(
       console.info(`Runner label '${runnerLabel}' was not found in config for ` + `${repo.owner}/${repo.repo}`);
       continue;
     }
-    if (
-      await allRunnersBusy(runnerType.runnerTypeName, repo, runnerType.is_ephemeral, runnerType.max_available, metrics)
-    ) {
+    const runnersToCreate = await allRunnersBusy(
+      runnerType.runnerTypeName,
+      repo,
+      runnerType.is_ephemeral,
+      runnerType.max_available,
+      metrics,
+    );
+    for (let i = 0; i < runnersToCreate; i++) {
       try {
         const createRunnerParams: RunnerInputParameters = {
           environment: Config.Instance.environment,
@@ -106,7 +111,8 @@ export async function scaleUp(
         /* istanbul ignore next */
         console.error(`Error spinning up instance of type ${runnerType.runnerTypeName}: ${e}`);
       }
-    } else {
+    }
+    if (!runnersToCreate) {
       console.info('There are available runners, no new runners will be created');
     }
   }
@@ -185,7 +191,7 @@ async function allRunnersBusy(
   isEphemeral: boolean,
   maxAvailable: number,
   metrics: ScaleUpMetrics,
-): Promise<boolean> {
+): Promise<number> {
   const ghRunners = Config.Instance.enableOrganizationRunners
     ? await listGithubRunnersOrg(repo.owner, metrics)
     : await listGithubRunnersRepo(repo, metrics);
@@ -214,15 +220,21 @@ async function allRunnersBusy(
       metrics.ghRunnersRepoMaxHit(repo, runnerType);
     }
     console.info(`Max runners hit [${runnerType}], ${busyCount}/${runnersWithLabel.length}/${ghRunners.length}`);
-    return false;
+    return 0;
   }
 
   // Have a fail safe just in case we're likely to need more runners
   const availableCount = runnersWithLabel.length - busyCount;
   if (availableCount < Config.Instance.minAvailableRunners) {
     console.info(`Available (${availableCount}) runners is bellow minimum ${Config.Instance.minAvailableRunners}`);
-    return true;
+    // It is impossible to accumulate runners if we know that the one we're creating will be terminated.
+    if (isEphemeral) {
+      const ratio: number = availableCount / (Config.Instance.minAvailableRunners * 1.3);
+      return Math.random() < ratio ? 2 : 1;
+    } else {
+      return 1;
+    }
   }
 
-  return false;
+  return 0;
 }

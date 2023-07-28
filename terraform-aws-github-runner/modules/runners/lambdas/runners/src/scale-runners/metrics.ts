@@ -986,7 +986,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.busy', 1, dimensions);
     }
@@ -1009,7 +1008,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.free', 1, dimensions);
     }
@@ -1030,7 +1028,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.notFound', 1, dimensions);
     }
   }
@@ -1052,7 +1049,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.busy', 1, dimensions);
     }
@@ -1075,7 +1071,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.found', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.free', 1, dimensions);
     }
@@ -1096,7 +1091,6 @@ export class ScaleDownMetrics extends Metrics {
 
       dimensions.clear();
       dimensions.set('RunnerType', ec2Runner.runnerType);
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
       this.countEntry('run.ec2runners.perRunnerType.notFound', 1, dimensions);
     }
   }
