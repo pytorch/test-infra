@@ -24,8 +24,7 @@ ${install_config_runner}
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 set +e
-os_id=$(awk -F= '/^ID=/{print $2}' /etc/os-release)
-os_version=$(awk -F= '/^VERSION=/{print $2}' /etc/os-release)
+os_id=$(. /etc/os-release;echo $ID$VERSION_ID)
 if ! [[ "$os_id" =~ ^amzn.* ]]; then
     echo Installing Development Tools
     sudo yum groupinstall -y "Development Tools"
@@ -38,7 +37,7 @@ sudo rm -fv /tmp/nvidia_driver
 if ! [[ "$os_id" =~ ^amzn.* ]]; then
     echo Installing nvidia-docker tools
     sudo yum install -y yum-utils
-    sudo yum-config-manager --add-repo https://nvidia.github.io/nvidia-docker/${os_id}${os_version}/nvidia-docker.repo
+    sudo yum-config-manager --add-repo https://nvidia.github.io/nvidia-docker/$os_id/nvidia-docker.repo
     sudo yum install -y nvidia-docker2
     sudo systemctl restart docker
 fi
