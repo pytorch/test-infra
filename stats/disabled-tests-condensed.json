@@ -1058,6 +1058,13 @@
       "linux"
     ]
   ],
+  "test_get_classifications_pending_unstable (__main__.TestBypassFailures)": [
+    "106204",
+    "https://github.com/pytorch/pytorch/issues/106204",
+    [
+      "linux"
+    ]
+  ],
   "test_gpu_simple (__main__.TensorPipeCudaDistAutogradTest)": [
     "70753",
     "https://github.com/pytorch/pytorch/issues/70753",
