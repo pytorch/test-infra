@@ -189,6 +189,8 @@ mod tests {
 
     // Should properly detect changes in the commit (and not check other files)
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn doesnt_detect_unchanged() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;
@@ -219,6 +221,8 @@ mod tests {
     // Files that were deleted in the commit should not be checked, since
     // obviously they are gone.
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn deleted_files_in_commit() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;
@@ -250,6 +254,8 @@ mod tests {
     // Files that were deleted/moved in the working tree should not be checked,
     // since obviously they are gone.
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn moved_files_working_tree() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;
@@ -277,6 +283,8 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn relative_revision() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;
@@ -327,6 +335,8 @@ mod tests {
     // File deletions should work correctly even if a relative revision is
     // specified.
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn deleted_files_relative_revision() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;
@@ -358,6 +368,8 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // remove when sapling installation is better
+    #[cfg_attr(target_os = "linux", ignore)] // remove when sapling installation is better
     fn merge_base_with() -> Result<()> {
         let git = testing::GitCheckout::new()?;
         git.write_file("test_1.txt", "Initial commit")?;

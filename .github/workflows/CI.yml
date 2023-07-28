@@ -29,9 +29,21 @@ jobs:
         run: |
           git config --global user.email "fake@email.com"
           git config --global user.name "mr fake"
-      - run: cargo test
+      - name: Install and initialize sapling on macos
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install sapling
+          sl config --user ui.username "mr fake <fake@email.com>"
+      - name: Run cargo test
+        uses: nick-fields/retry@v2.8.2
         env:
           TMPDIR: ${{ runner.temp }}
+        timeout_minutes: 10
+        max_attempts: 10
+        retry_wait_seconds: 90
+        command: |
+          cargo test
+
 
   linux:
     runs-on: ubuntu-latest
