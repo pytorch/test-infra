@@ -25,7 +25,7 @@ echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 set +e
 os_id=$(. /etc/os-release;echo $ID$VERSION_ID)
-if ! [[ "$os_id" =~ ^amzn.* ]]; then
+if [[ "$os_id" =~ ^amzn.* ]]; then
     echo Installing Development Tools
     sudo yum groupinstall -y "Development Tools"
     sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
@@ -34,7 +34,7 @@ fi
 sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-535.54.03.run"
 sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
-if ! [[ "$os_id" =~ ^amzn.* ]]; then
+if [[ "$os_id" =~ ^amzn.* ]]; then
     echo Installing nvidia-docker tools
     sudo yum install -y yum-utils
     sudo yum-config-manager --add-repo https://nvidia.github.io/nvidia-docker/$os_id/nvidia-docker.repo
