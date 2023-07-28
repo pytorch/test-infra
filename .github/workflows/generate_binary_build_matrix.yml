@@ -27,13 +27,10 @@ on:
         description: "Build with Cuda?"
         default: "enable"
         type: string
-      # ========================================================================
-      # TODO: Remove this once we can ensure that no one is using this anymore
-      limit-win-builds:
-        description: "Limit windows builds to single python/cuda config"
-        default: "disable"
+      with-rocm:
+        description: "Build with Cuda?"
+        default: "enable"
         type: string
-      # ========================================================================
     outputs:
       matrix:
         description: "Generated build matrix"
@@ -61,6 +58,7 @@ jobs:
           OS: ${{ inputs.os }}
           CHANNEL: ${{ inputs.channel }}
           WITH_CUDA: ${{ inputs.with-cuda }}
+          WITH_ROCM: ${{ inputs.with-rocm }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}
