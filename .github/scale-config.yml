@@ -86,6 +86,11 @@ runner_types:
     instance_type: c5.large
     is_ephemeral: false
     os: linux
+  linux.arm64.2xlarge:
+    disk_size: 256
+    instance_type: t4g.2xlarge
+    is_ephemeral: false
+    os: linux
   windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
