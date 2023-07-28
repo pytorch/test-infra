@@ -11,6 +11,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { retryRequest } from "lib/bot/utils";
 import { Octokit } from "octokit";
 import dayjs from "dayjs";
+import _ from "lodash";
 
 const NUM_HOURS = 3;
 const NUM_HOURS_ACROSS_JOBS = 72;
@@ -47,7 +48,9 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     fetchDisabledNonFlakyTests(),
   ]);
 
-  const allFlakyTests = flakyTests.concat(flakyTestsAcrossJobs).concat(flakyTestsAcrossFileReruns);
+  const allFlakyTests = flakyTests
+    .concat(flakyTestsAcrossJobs)
+    .concat(flakyTestsAcrossFileReruns);
   // If the test is flaky only on PRs, we should not disable it yet.
   const flakyTestsOnTrunk = filterThreshold(
     filterOutPRFlakyTests(allFlakyTests)
@@ -274,7 +277,7 @@ export function getWorkflowJobNames(test: FlakyTestData): string[] {
 
 export function getPlatformsAffected(workflowJobNames: string[]): string[] {
   const platformsToSkip: string[] = [];
-  supportedPlatforms.forEach((platform: string) =>
+  Array.from(supportedPlatforms.keys()).forEach((platform: string) =>
     workflowJobNames.forEach((workflowJobNames) => {
       if (
         workflowJobNames.includes(platform) &&
@@ -375,19 +378,30 @@ export async function getTestOwnerLabels(
     additionalErrMessage = `${err}`;
   }
 
+  labels.push(
+    ...getPlatformLabels(getPlatformsAffected(getWorkflowJobNames(test)))
+  );
+
   if (labels.length === 0) {
     labels.push("module: unknown");
-  }
-
-  let platforms = getPlatformsAffected(getWorkflowJobNames(test));
-  if (platforms.includes("dynamo") || platforms.includes("inductor")) {
-    labels.push("oncall: pt2");
   }
 
   if (labels.some((x) => x.startsWith("module: ") && x !== "module: unknown")) {
     labels.push("triaged");
   }
   return { labels, additionalErrMessage };
+}
+
+export function getPlatformLabels(platforms: string[]): string[] {
+  let labels = undefined;
+  for (const platform of platforms) {
+    if (labels === undefined) {
+      labels = supportedPlatforms.get(platform);
+    } else if (!_.isEqual(supportedPlatforms.get(platform), labels)) {
+      return [];
+    }
+  }
+  return labels ?? [];
 }
 
 export function wasRecent(test: FlakyTestData) {

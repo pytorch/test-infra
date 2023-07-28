@@ -423,9 +423,16 @@ function ModelPanel({
                 if (lCommit === rCommit) {
                   return l >= SPEEDUP_THRESHOLD ? "" : styles.warning;
                 } else {
-                  if (l === 0 || l === r) {
+                  // l is the new value, r is the old value
+
+                  if (l === r) {
                     // 0 means the model isn't run at all
                     return "";
+                  }
+
+                  // It didn't error in the past, but now it does error
+                  if (l === 0) {
+                    return styles.error;
                   }
 
                   // Increasing more than x%

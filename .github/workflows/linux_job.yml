@@ -31,6 +31,12 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      submodules:
+        description:
+          Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
+          recursively checkout everything
+        default: ""
+        type: string
       ref:
         description: 'Reference to checkout, defaults to "nightly"'
         default: ""
@@ -46,6 +52,13 @@ on:
       docker-image:
         description: Identifies the Docker image by name.
         default: "pytorch/conda-builder"
+        type: string
+      docker-build-dir:
+        description: |
+          The directory containing the build.sh shell script to build the docker image.
+          The script parameters can be passed to docker build similar to how it is used
+          in PyTorch, i.e. build.sh "${IMAGE_NAME}" -t "${DOCKER_IMAGE}".
+        default: ".ci/docker"
         type: string
       gpu-arch-type:
         description: "GPU arch type to use"
@@ -77,6 +90,11 @@ on:
         description: "List of secrets to be exported to environment variables"
         type: string
         default: ''
+      no-sudo:
+        description: If set to any value, don't use sudo to clean the workspace
+        required: false
+        default: false
+        type: boolean
 jobs:
   job:
     name: ${{ inputs.job-name }}
@@ -98,9 +116,17 @@ jobs:
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
         run: |
-          echo "::group::Cleanup debug output"
-          sudo rm -rfv "${GITHUB_WORKSPACE}"
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            echo "::group::Cleanup with-sudo debug output"
+            sudo rm -rfv "${GITHUB_WORKSPACE}"
+          else
+            echo "::group::Cleanup no-sudo debug output"
+            rm -rfv "${GITHUB_WORKSPACE}"
+          fi
+
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
 
@@ -125,11 +151,6 @@ jobs:
         with:
           github-secret: ${{ github.token }}
 
-      - name: Pull docker image
-        uses: ./test-infra/.github/actions/pull-docker-image
-        with:
-          docker-image: ${{ env.DOCKER_IMAGE }}
-
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
         uses: actions/checkout@v3
         with:
@@ -138,6 +159,21 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
+          submodules: ${{ inputs.submodules }}
+
+      - name: Calculate docker image
+        id: calculate-docker-image
+        uses: ./test-infra/.github/actions/calculate-docker-image
+        with:
+          docker-image-name: ${{ env.DOCKER_IMAGE }}
+          docker-build-dir: ${{ inputs.docker-build-dir }}
+          # This needs to be where the repository is checked out
+          working-directory: ${{ inputs.repository || github.repository }}
+
+      - name: Pull docker image
+        uses: ./test-infra/.github/actions/pull-docker-image
+        with:
+          docker-image: ${{ steps.calculate-docker-image.outputs.docker-image }}
 
       - name: Download artifacts (if any)
         uses: actions/download-artifact@v3
@@ -159,6 +195,7 @@ jobs:
         working-directory: ${{ inputs.repository }}
         env:
           ALL_SECRETS: ${{ toJSON(secrets) }}
+          DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
         run: |
           set -ex
           {
@@ -205,16 +242,18 @@ jobs:
           fail-on-empty: false
 
       - name: Chown repository directory
-        if: ${{ always() }}
+        if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
+          ALPINE_IMAGE: ${{ inputs.runner == 'linux.t4g.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
-        if: ${{ always() }}
+        if: always()
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ env.RUNNER_TEMP }}
+          ALPINE_IMAGE: ${{ inputs.runner == 'linux.t4g.2xlarge' && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Prepare artifacts for upload
         working-directory: ${{ inputs.repository }}

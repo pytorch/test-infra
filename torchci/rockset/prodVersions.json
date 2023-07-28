@@ -28,7 +28,8 @@
     "unclassified": "1b31a2d8f4ab7230",
     "test_insights_overview": "42dbd5232f45fd53",
     "test_insights_latest_runs": "1871833a91cb8b1b",
-    "master_commit_red_jobs": "4869b467679a616a"
+    "master_commit_red_jobs": "4869b467679a616a",
+    "weekly_force_merge_stats": "2ed8067060ebc9ca"
   },
   "pytorch_dev_infra_kpis": {
     "monthly_contribution_stats": "c1a8751a22f6b6ce",
@@ -70,14 +71,16 @@
     "tts_duration_historical": "88c02c6e25d59854",
     "tts_duration_historical_percentile": "f6824cbe03e1b6d8",
     "strict_lag_sec": "e0ab723990d6f2a2",
-    "queue_times_historical": "7f4d6599362e70ba",
+    "queue_times_historical": "f4a5f7cab1f00b24",
     "workflow_duration_avg": "7bae00900097a486",
     "workflow_duration_percentile": "0b28cf65de7cfe07",
     "workflow_load": "48428f8a7c541b76",
-    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f"
+    "completed_pr_jobs_aggregate": "7b6b27eeca4dfc6f",
+    "get_workers_on_period": "ae5cf853350477c7",
+    "queue_times_historical_pct": "f815ad1732928bb6"
   },
   "inductor": {
-    "compilers_benchmark_performance": "d43601277905c4a0",
+    "compilers_benchmark_performance": "04773901fc1135d4",
     "compilers_benchmark_performance_branches": "8896fe6bbd61e7dc"
   },
   "utilization": {
@@ -86,6 +89,8 @@
     "runner_utilization_by_activity": "343929e0ebeee379"
   },
   "nightlies": {
+    "docker_jobs_red": "5ccfc6bee649dc8a",
+    "docker_jobs_red_past_day": "13b52e7005825031",
     "nightly_jobs_red": "d49bc5633c5aac10",
     "nightly_jobs_red_by_name": "bb6eeb316157ed2b",
     "nightly_jobs_red_by_platform": "d5ab478e83ff2dae",

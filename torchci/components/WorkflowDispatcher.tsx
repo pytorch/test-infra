@@ -8,12 +8,16 @@ import { Octokit } from "octokit";
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
   "pytorch/pytorch": {
     trunk: "Run trunk jobs",
+    inductor: "Run inductor jobs",
     periodic: "Run periodic jobs",
     slow: "Run slow jobs",
   },
 };
 
 function hasWorkflow(jobs: JobData[], workflow: string) {
+  // A custom hack for inductor as ciflow/inductor is used to trigger both
+  // inductor and inductor-periodic workflows
+  workflow = workflow === "inductor" ? "inductor-periodic" : workflow;
   return _.find(
     jobs,
     (job) => job.name !== undefined && job.name.startsWith(workflow)

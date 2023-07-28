@@ -1,6 +1,9 @@
+# Check no crash on no-module import
+from . import residue_constants as rc
+
 import torch
 import functorch
-from torch.func import (
+from functorch import (
     vmap,
     grad,
     vjp,
@@ -19,20 +22,20 @@ def model(feature_vec):
     return feature_vec.dot(weights).relu()
 
 examples = torch.randn(batch_size, feature_size)
-result = torch.func.vmap(model)(examples)
+result = functorch.vmap(model)(examples)
 print(result)
 
 # Non-runnable, just to check name changes.
 def f():
-    td_out = torch.func.vmap(tdmodule, (None, 0))(td, params)
-    torch.func.vmap()
-    torch.func.grad()
-    torch.func.vjp()
-    torch.func.jvp()
-    torch.func.jacrev()
-    torch.func.jacfwd()
-    torch.func.hessian()
-    torch.func.functionalize()
+    td_out = functorch.vmap(tdmodule, (None, 0))(td, params)
+    functorch.vmap()
+    functorch.grad()
+    functorch.vjp()
+    functorch.jvp()
+    functorch.jacrev()
+    functorch.jacfwd()
+    functorch.hessian()
+    functorch.functionalize()
 
 # Don't modify these, change the imports in the beginning
 def f():

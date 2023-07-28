@@ -31,7 +31,7 @@ CUDA_ARCHES_DICT = {
     "release": ["11.7", "11.8"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["5.4.2", "5.5"],
+    "nightly": ["5.5", "5.6"],
     "test": ["5.3", "5.4.2"],
     "release": ["5.3", "5.4.2"],
 }
@@ -203,7 +203,7 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str, limit_pr_builds: bool) -> List[Dict[str, str]]:
+def generate_conda_matrix(os: str, channel: str, with_cuda: str, with_rocm: str, limit_pr_builds: bool) -> List[Dict[str, str]]:
     ret: List[Dict[str, str]] = []
     arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
@@ -247,6 +247,7 @@ def generate_libtorch_matrix(
     os: str,
     channel: str,
     with_cuda: str,
+    with_rocm: str,
     limit_pr_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
@@ -265,9 +266,13 @@ def generate_libtorch_matrix(
         if with_cuda == ENABLE:
             if os == "linux":
                 arches += mod.CUDA_ARCHES
-                arches += mod.ROCM_ARCHES
             elif os == "windows":
                 arches += mod.CUDA_ARCHES
+
+        if with_rocm == ENABLE:
+            if os == "linux":
+                arches += mod.ROCM_ARCHES
+
 
     if abi_versions is None:
         if os == "windows":
@@ -336,6 +341,7 @@ def generate_wheels_matrix(
     os: str,
     channel: str,
     with_cuda: str,
+    with_rocm: str,
     limit_pr_builds: bool,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
@@ -352,15 +358,19 @@ def generate_wheels_matrix(
 
     upload_to_base_bucket = "yes"
     if arches is None:
-        # Define default compute archivectures
+        # Define default compute architectures
         arches = ["cpu"]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os == "linux":
-                arches += mod.CUDA_ARCHES + mod.ROCM_ARCHES
+                arches += mod.CUDA_ARCHES
             elif os == "windows":
                 arches += mod.CUDA_ARCHES
+
+        if with_rocm == ENABLE:
+            if os == "linux":
+                arches += mod.ROCM_ARCHES
 
     if limit_pr_builds:
         python_versions = [ python_versions[0] ]
@@ -399,6 +409,35 @@ GENERATING_FUNCTIONS_BY_PACKAGE_TYPE = {
     "libtorch": generate_libtorch_matrix,
 }
 
+def generate_build_matrix(
+        package_type: str,
+        operating_system: str,
+        channel: str,
+        with_cuda: str,
+        with_rocm: str,
+        limit_pr_builds: str) -> Dict[str, List[Dict[str, str]]]:
+    includes = []
+
+    package_types = package_type.split(",")
+    if len(package_types) == 1:
+        package_types = PACKAGE_TYPES if package_type == "all" else [package_type]
+
+    channels = CUDA_ARCHES_DICT.keys() if channel == "all" else [channel]
+
+    for channel in channels:
+        for package in package_types:
+            initialize_globals(channel)
+            includes.extend(
+                GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](operating_system,
+                                                            channel,
+                                                            with_cuda,
+                                                            with_rocm,
+                                                            limit_pr_builds == "true")
+                )
+
+    return {"include": includes}
+
+
 def main(args) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -427,6 +466,13 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_CUDA", ENABLE),
     )
+    parser.add_argument(
+        "--with-rocm",
+        help="Build with Rocm?",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("WITH_ROCM", ENABLE),
+    )
     # By default this is false for this script but expectation is that the caller
     # workflow will default this to be true most of the time, where a pull
     # request is synchronized and does not contain the label "ciflow/binaries/all"
@@ -439,36 +485,17 @@ def main(args) -> None:
     )
 
 
-
     options = parser.parse_args(args)
-    includes = []
 
-    package_types = options.package_type.split(",")
-    if len(package_types) == 1:
-        package_types = PACKAGE_TYPES if options.package_type == "all" else [options.package_type]
+    build_matrix = generate_build_matrix(
+            options.package_type,
+            options.operating_system,
+            options.channel,
+            options.with_cuda,
+            options.with_rocm,
+            options.limit_pr_builds)
 
-    channels = CUDA_ARCHES_DICT.keys() if options.channel == "all" else [options.channel]
-
-    for channel in channels:
-        for package in package_types:
-            initialize_globals(channel)
-            if package == "wheel":
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
-                                                                channel,
-                                                                options.with_cuda,
-                                                                options.limit_pr_builds == "true")
-                    )
-            else:
-                includes.extend(
-                    GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](options.operating_system,
-                                                                channel,
-                                                                options.with_cuda,
-                                                                options.limit_pr_builds == "true")
-                    )
-
-
-    print(json.dumps({"include": includes}))
+    print(json.dumps(build_matrix))
 
 if __name__ == "__main__":
     main(sys.argv[1:])

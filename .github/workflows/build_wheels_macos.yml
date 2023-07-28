@@ -139,12 +139,10 @@ jobs:
           source "${BUILD_ENV_FILE}"
 
           if [[ "${{ inputs.package-name }}" = "torchaudio" ]]; then
-            export USE_FFMPEG="1"
             export USE_OPENMP="0"
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-          export FFMPEG_ROOT="${PWD}/third_party/ffmpeg"
 
           ${CONDA_RUN} python3 setup.py bdist_wheel
       - name: Delocate wheel
@@ -181,6 +179,8 @@ jobs:
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )
+          export OLD_PATH=${PATH}
+          export PATH="${CONDA_ENV}/bin:${PATH}"
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           ${CONDA_RUN} pip install numpy
@@ -191,12 +191,10 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            export DYLD_FALLBACK_LIBRARY_PATH="${PWD}/${{ inputs.repository }}/third_party/ffmpeg/lib"
-            echo $DYLD_FALLBACK_LIBRARY_PATH
-
-            ${CONDA_RUN} conda install --yes --quiet ffmpeg
+            ${CONDA_RUN} conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
+          export PATH=${OLD_PATH}
       - name: Upload package to pytorch.org
         if: ${{ (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
         shell: bash -l {0}

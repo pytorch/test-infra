@@ -12,6 +12,8 @@ import {
 import { IssueData } from "lib/types";
 import { testOctokit } from "./utils";
 import dayjs from "dayjs";
+import { removeJobNameSuffix } from "lib/jobUtils";
+import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 
 nock.disableNetConnect();
 
@@ -93,6 +95,68 @@ const failedC = {
   failure_captures: ["a"],
 };
 
+const failedD = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 1, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as failedD but has a different shard ID
+const failedE = {
+  name: "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 3, 5, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Same as unstable A but without the unstable suffix
+const failedF = {
+  name: "win-vs2019-cpu-py3 / test (default, 2, 3, windows.4xlarge)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: ["a", "b"],
+};
+
+// Some additional mock samples for flaky rules regex match
+const failedG = {
+  name: "win-vs2019-cpu-py3 / build",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: [
+    "The process cannot access the file 'C:\\actions-runner\\_work\\_actions\\mock' because it is being used by another process.",
+  ],
+};
+
+const failedH = {
+  name: "cuda12.1-py3.10-gcc9-sm86-periodic-dynamo-benchmarks / test (dynamo_eager_huggingface, 1, 1, linux.g5.4xlarge.nvidia.gpu)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: [
+    "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+  ],
+};
+
 const unstableA = {
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
@@ -101,7 +165,7 @@ const unstableA = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
-  failure_captures: ["a"],
+  failure_captures: ["a", "b"],
 };
 
 const sev: IssueData = {
@@ -377,12 +441,60 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
-        new Map().set(failedA.name, failedA)
+        new Map().set(failedA.name, [failedA])
       );
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(1);
     expect(flakyJobs.length).toBe(1);
     expect(unstableJobs.length).toBe(1);
+  });
+
+  test(" test flaky rule regex", async () => {
+    const originalWorkflows = [failedA, failedG, failedH];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(
+        pr_1001,
+        [
+          {
+            name: "win",
+            captures: [
+              "The process cannot access the file .+ because it is being used by another process",
+            ],
+          },
+          {
+            name: "linux",
+            captures: ["The runner has received a shutdown signal"],
+          },
+        ],
+        new Map()
+      );
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(2);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test shard id and suffix in job name are handled correctly", async () => {
+    const originalWorkflows = [failedA, failedD, failedF];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+
+    const baseJobs = new Map();
+    baseJobs.set(removeJobNameSuffix(failedD.name), [failedE]);
+    baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
+
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+    expect(failedJobs.length).toBe(1);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 
   test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
@@ -454,5 +566,33 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(header.includes("Python docs built from this PR")).toBeTruthy();
     expect(header.includes("C++ docs built from this PR")).toBeFalsy();
     expect(header.includes("bot commands wiki")).toBeFalsy();
+  });
+
+  test("test getBaseCommitJobs", async () => {
+    const originalWorkflows = [failedA, failedB];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const mock = jest.spyOn(fetchRecentWorkflows, "fetchFailedJobsFromCommits");
+    mock.mockImplementation(() => Promise.resolve([failedA, failedB]));
+
+    const baseCommitJobs = await updateDrciBot.getBaseCommitJobs(workflowsByPR);
+    expect(baseCommitJobs).toMatchObject(
+      new Map().set(
+        failedA.head_sha,
+        new Map().set(failedA.name, [failedA]).set(failedB.name, [failedB])
+      )
+    );
+
+    const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
+      updateDrciBot.getWorkflowJobsStatuses(
+        workflowsByPR.get(1001)!,
+        [],
+        baseCommitJobs.get(failedA.head_sha)!
+      );
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
   });
 });

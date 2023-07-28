@@ -19,12 +19,14 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 │   └── websites                         # Several websites supported by TestInfra
 │       ├── download.pytorch.org
 │       └── metrics.pytorch.org
+├── setup-ssh                            # Shh access setup to CI workers
 ├── stats                                # CI related stats commited automatically by a bot
+├── terraform-aws-github-runner          # Terraform modules and templates used in CI
 ├── tools                                # Tools and scripts
 |   ├── clang-tidy-checks
 |   └── scripts
-└── torchci                              # Code for hud.pytorch.org and our pytorch bots which run there   
-    └── pages 
+└── torchci                              # Code for hud.pytorch.org and our pytorch bots which run there
+    └── pages
 ```
 
 ## Setting up your Dev environment to locally run hud.pytorch.org
@@ -36,7 +38,7 @@ $ git clone --recursive https://github.com/pytorch/test-infra
     a. Copy `torchci/.env.example` to `torchci/.env.local` to create a local copy of your environmnet variables. This will NOT be checked into git
 
     b. For every environment setting defined in there, copy over the corresponding value [from Vercel](https://vercel.com/fbopensource/torchci/settings/environment-variables) (this requires access to our Vercel deployment)
-    
+
 3. From `torchci` run `yarn dev` to start the dev server. The local endpoint will be printed on the console, it'll most likely be `http://localhost:3000`. You can find more useful yarn commands in `package.json` under the `scripts` section.
 
 ## Linting

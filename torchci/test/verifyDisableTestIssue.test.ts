@@ -8,6 +8,7 @@ import {
   disabledKey,
   unstableKey,
 } from "../lib/bot/verifyDisableTestIssueBot";
+import _ from "lodash";
 
 nock.disableNetConnect();
 
@@ -303,6 +304,31 @@ describe("verify-disable-test-issue", () => {
     expect(comment.includes(`~15 minutes, \`${jobName}\``)).toBeTruthy();
     expect(comment.includes("ERROR")).toBeFalsy();
   });
+
+  test("various getExpectedLabels tests", async () => {
+    expect(await bot.getExpectedLabels(["linux"], ["random"])).toEqual([
+      "random",
+    ]);
+    expect(await bot.getExpectedLabels(["inductor"], ["random"])).toEqual([
+      "random",
+      "oncall: pt2",
+    ]);
+    expect(
+      await bot.getExpectedLabels(["linux"], ["random", "module: rocm"])
+    ).toEqual(["random"]);
+    expect(
+      await bot.getExpectedLabels(["rocm"], ["random", "module: rocm"])
+    ).toEqual(["random", "module: rocm"]);
+    expect(
+      await bot.getExpectedLabels(
+        ["dynamo", "inductor"],
+        ["random", "module: rocm"]
+      )
+    ).toEqual(["random", "oncall: pt2"]);
+    expect(
+      await bot.getExpectedLabels(["linux", "rocm"], ["random", "module: rocm"])
+    ).toEqual(["random"]);
+  });
 });
 
 describe("verify-disable-test-issue-bot", () => {
@@ -367,6 +393,99 @@ describe("verify-disable-test-issue-bot", () => {
       )
       .reply(200);
 
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with missing labels gets labels", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200)
+      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+        _.isEqual(body.labels, ["module: rocm"])
+      )
+      .reply(200, []);
+
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with wrong labels gets correct labels", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+    payload.issue.labels = [
+      {
+        name: "random label",
+      },
+      {
+        name: "module: windows",
+      },
+    ];
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200)
+      .put(`/repos/${owner}/${repo}/issues/${number}/labels`, (body) =>
+        _.isEqual(body.labels, ["random label", "module: rocm"])
+      )
+      .reply(200, []);
+
+    await probot.receive({ name: "issues", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("issue with correct labels doesn't change", async () => {
+    const payload = requireDeepCopy("./fixtures/issues.opened.json");
+    payload.issue.title = "DISABLED testMethodName (testClass.TestSuite)";
+    payload.issue.user.id = pytorchBotId;
+    payload.issue.body = "Platforms: rocm";
+    payload.issue.labels = [
+      {
+        name: "module: rocm",
+      },
+      {
+        name: "random label",
+      },
+    ];
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const number = payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${number}/comments?per_page=10`)
+      .reply(200, [])
+      .post(
+        `/repos/${owner}/${repo}/issues/${number}/comments`,
+        (body) => !body.body.includes("don't have permission")
+      )
+      .reply(200);
     await probot.receive({ name: "issues", payload: payload, id: "2" });
 
     handleScope(scope);

@@ -1,12 +1,11 @@
 import argparse
 import libcst.codemod as codemod
 
-from .torchfix import TorchCodemod
 import contextlib
 import sys
 import io
 
-
+from .torchfix import TorchCodemod
 from .common import CYAN, ENDC
 
 
@@ -41,17 +40,30 @@ def main() -> None:
     args = parser.parse_args()
 
     files = codemod.gather_files(args.path)
+
+    # Filter out files that don't have "torch" string in them.
+    # This avoids expensive parsing.
+    MARKER = "torch"  # this will catch import torch or functorch
+    torch_files = []
+    for file in files:
+        with open(file, errors='replace') as f:
+            for line in f:
+                if MARKER in line:
+                    torch_files.append(file)
+                    break
+
     command_instance = TorchCodemod(codemod.CodemodContext())
     DIFF_CONTEXT = 5
     try:
         if args.ignore_stderr:
             context = contextlib.redirect_stderr(io.StringIO())
         else:
-            context = contextlib.nullcontext()
+            # Should get rid of this code eventually.
+            context = contextlib.nullcontext()  # type: ignore
         with context:
             result = codemod.parallel_exec_transform_with_prettyprint(
                 command_instance,
-                files,
+                torch_files,
                 jobs=args.jobs,
                 unified_diff=(None if args.fix else DIFF_CONTEXT),
                 hide_progress=True,

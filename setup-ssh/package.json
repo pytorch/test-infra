@@ -26,7 +26,7 @@
     "@actions/core": "^1.6.0",
     "@actions/github": "^5.0.0",
     "@actions/http-client": "^1.0.11",
-    "@octokit/rest": "^18.9.1",
+    "@octokit/rest": "^20.0.1",
     "@types/source-map-support": "^0.5.4",
     "source-map-support": "^0.5.19"
   },
@@ -34,7 +34,7 @@
     "@types/node": "^18.11.18",
     "@types/tmp": "^0.2.1",
     "@typescript-eslint/parser": "^4.29.2",
-    "@vercel/ncc": "^0.29.1",
+    "@vercel/ncc": "^0.36.1",
     "eslint": "^7.32.0",
     "eslint-plugin-github": "^4.2.0",
     "eslint-plugin-jest": "^27.2.0",

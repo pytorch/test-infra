@@ -42,6 +42,7 @@ jobs:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: "recursive"
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
@@ -60,6 +61,7 @@ jobs:
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      submodules: "true"
       gpu-arch-type: cuda
       gpu-arch-version: "11.6"
       timeout: 60

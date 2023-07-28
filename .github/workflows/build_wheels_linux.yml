@@ -79,6 +79,7 @@ jobs:
     runs-on: ${{ matrix.validation_runner }}
     container:
       image: ${{ matrix.container_image }}
+      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -140,8 +141,6 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          export FFMPEG_ROOT="${PWD}"/third_party/ffmpeg
-          export USE_FFMPEG="1"
           export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
           ${CONDA_RUN} python setup.py bdist_wheel
       - name: Upload wheel to GitHub
@@ -186,7 +185,6 @@ jobs:
             fi
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            export LD_LIBRARY_PATH="{LD_LIBRARY_PATH}:${{ inputs.repository }}/third_party/ffmpeg/lib"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       - name: Upload package to pytorch.org
