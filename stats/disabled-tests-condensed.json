@@ -1612,6 +1612,13 @@
       "linux"
     ]
   ],
+  "test_outplace_forward_mode_AD__foreach_abs_cuda_complex128 (__main__.TestForeachCUDA)": [
+    "106213",
+    "https://github.com/pytorch/pytorch/issues/106213",
+    [
+      "rocm"
+    ]
+  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
