@@ -1,4 +1,5 @@
 -- gets percentage of total force merges, force merges with failures, and force merges without failures (impatient)
+-- specifically this query tracks the force merges kpi on HUD
 WITH
     issue_comments AS(
         SELECT
@@ -39,9 +40,10 @@ WITH
             m.is_failed,
             m.pr_num,
             m.merge_commit_sha,
-            max(m._event_time) as time,
+            max(c._event_time) as time,
         FROM
-            commons.merges m -- inner join issue_comments c on m.pr_num = c.pr_num
+            commons.merges m
+            inner join issue_comments c on m.pr_num = c.pr_num
         WHERE
             m.owner = 'pytorch'
             AND m.project = 'pytorch'
@@ -138,7 +140,8 @@ WITH
             select
                 granularity_bucket,
                 with_failures_percent as metric,
-                'force merges due to impatience' as name
+                'force merges due to failed tests' as name
+                
             from
                 stats_per_week
         )
@@ -147,7 +150,7 @@ WITH
             select
                 granularity_bucket,
                 impatience_percent as metric,
-                'force merges due to failed tests' as name
+                'force merges due to impatience' as name
             from
                 stats_per_week
         )
