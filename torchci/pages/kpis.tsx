@@ -42,6 +42,21 @@ export default function Kpis() {
     <Grid container spacing={2}>
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
+          title={"% of force merges with failures (Weekly)"}
+          queryName={"force_merge_red_percent"}
+          queryCollection={"metrics"}
+          queryParams={[...timeParams]}
+          granularity={"week"}
+          timeFieldName={"granularity_bucket"}
+          yAxisFieldName={"force_merges_red"}
+          yAxisRenderer={(unit) => {
+            return `${unit * 100} %`;
+          }}
+        />
+      </Grid>
+
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
           title={"% of commits red on trunk (Weekly)"}
           queryName={"master_commit_red_percent"}
           queryCollection={"metrics"}
@@ -66,22 +81,6 @@ export default function Kpis() {
           timeFieldName={"bucket"}
           yAxisFieldName={"count"}
           yAxisRenderer={(unit) => `${unit}`}
-        />
-      </Grid>
-
-      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-        <TimeSeriesPanel
-          title={"% of force merges (Weekly)"}
-          queryName={"weekly_force_merge_stats"}
-          queryCollection={"commons"}
-          queryParams={[...timeParams]}
-          granularity={"week"}
-          timeFieldName={"granularity_bucket"}
-          yAxisFieldName={"metric"}
-          yAxisRenderer={(unit) => {
-            return `${unit} %`;
-          }}
-          groupByFieldName={"name"}
         />
       </Grid>
 
