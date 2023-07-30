@@ -140,7 +140,7 @@ WITH
             select
                 granularity_bucket,
                 with_failures_percent as metric,
-                'force merges due to failed tests' as name
+                'From Failures' as name
                 
             from
                 stats_per_week
@@ -150,7 +150,7 @@ WITH
             select
                 granularity_bucket,
                 impatience_percent as metric,
-                'force merges due to impatience' as name
+                'From Impatience' as name
             from
                 stats_per_week
         )
@@ -159,7 +159,7 @@ WITH
             select
                 granularity_bucket,
                 force_merge_percent as metric,
-                'all force merges' as name
+                'All Force Merges' as name
             from
                 stats_per_week
         )
