@@ -75,6 +75,9 @@ you can run:
 lintrunner -m master
 ```
 
+### `--all-files`
+This will run lint on all files specified in `.lintrunner.toml`.
+
 ## Linter configuration
 `lintrunner` knows which linters to run and how by looking at a configuration
 file, conventionally named `.lintrunner.toml`.
@@ -145,3 +148,18 @@ can return a `LintMessage` with `path = None`.
 In the event a linter exits non-zero, it will be caught by `lintrunner`and
 presented as a “general linter failure” with stdout/stderr shown to the user.
 This should be considered a bug in the linter’s implementation of this protocol.
+
+## Tips for adopting `lintrunner` in a new project
+
+When adopting lintrunner in a previously un-linted project, it may generate a lot
+of lint messages. You can use the `--output oneline` option to make
+`lintrunner` display each lint message in its separate line to quickly navigate
+through them.
+
+Additionally, you can selectively run specific linters with the `--take` option,
+like `--take RUFF,CLANGFORMAT`, to focus on resolving specific lint errors, or
+use `--skip` to skip a long running linter like `MYPY`.
+
+## GitHub Action
+
+To use `lintrunner` in a GitHub workflow, you can consider [`lintrunner-action`](https://github.com/justinchuby/lintrunner-action).
