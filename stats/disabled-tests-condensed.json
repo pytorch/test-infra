@@ -190,13 +190,6 @@
       "macos"
     ]
   ],
-  "test_build_tuple_unpack (__main__.MiscTests)": [
-    "102246",
-    "https://github.com/pytorch/pytorch/issues/102246",
-    [
-      "rocm"
-    ]
-  ],
   "test_build_tuple_unpack_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
     "103722",
     "https://github.com/pytorch/pytorch/issues/103722",
@@ -686,14 +679,6 @@
       "rocm"
     ]
   ],
-  "test_delayed_reduce_scatter_offload_true_shard_grad_op (__main__.TestParityWithDDP)": [
-    "82403",
-    "https://github.com/pytorch/pytorch/issues/82403",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -889,13 +874,6 @@
       "linux"
     ]
   ],
-  "test_full_precision_in_eval (__main__.TestFSDPMixedPrecisionSharded)": [
-    "104804",
-    "https://github.com/pytorch/pytorch/issues/104804",
-    [
-      "linux"
-    ]
-  ],
   "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
     "105754",
     "https://github.com/pytorch/pytorch/issues/105754",
@@ -908,13 +886,6 @@
     "https://github.com/pytorch/pytorch/issues/105254",
     [
       "rocm"
-    ]
-  ],
-  "test_gather_object_subgroup (__main__.TestDistBackendWithSpawn)": [
-    "82866",
-    "https://github.com/pytorch/pytorch/issues/82866",
-    [
-      "linux"
     ]
   ],
   "test_gather_state_dict_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
@@ -1206,6 +1177,31 @@
       "slow"
     ]
   ],
+  "test_list_clearing_cpu (__main__.CpuTests)": [
+    "106285",
+    "https://github.com/pytorch/pytorch/issues/106285",
+    [
+      "linux"
+    ]
+  ],
+  "test_list_clearing_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
+    "106286",
+    "https://github.com/pytorch/pytorch/issues/106286",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
+    ]
+  ],
+  "test_list_clearing_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+    "106284",
+    "https://github.com/pytorch/pytorch/issues/106284",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1218,13 +1214,6 @@
     "https://github.com/pytorch/pytorch/issues/93064",
     [
       "inductor"
-    ]
-  ],
-  "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
-    "102775",
-    "https://github.com/pytorch/pytorch/issues/102775",
-    [
-      "linux"
     ]
   ],
   "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_128_is_causal_False_dropout_p_0_0_bfloat16_scale_l1_cuda_bfloat16 (__main__.TestSDPACUDA)": [
@@ -1709,13 +1698,6 @@
       "mac"
     ]
   ],
-  "test_reduce_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98274",
-    "https://github.com/pytorch/pytorch/issues/98274",
-    [
-      "linux"
-    ]
-  ],
   "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98024",
     "https://github.com/pytorch/pytorch/issues/98024",
@@ -1775,13 +1757,6 @@
   "test_rprop_recompile (__main__.CompiledOptimizerTests)": [
     "105718",
     "https://github.com/pytorch/pytorch/issues/105718",
-    [
-      "linux"
-    ]
-  ],
-  "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98059",
-    "https://github.com/pytorch/pytorch/issues/98059",
     [
       "linux"
     ]
