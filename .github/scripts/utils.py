@@ -1,10 +1,7 @@
 
 from typing import Optional, Dict, Any, List
 import rockset  # type: ignore[import]
-import datetime
 import os
-import subprocess
-from pathlib import Path
 
 def query_rockset(
     query: str, params: Optional[Dict[str, Any]] = None

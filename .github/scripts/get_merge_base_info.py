@@ -18,21 +18,6 @@ where
 """
 
 
-def get_failed_test_shas() -> List[Dict[str, Any]]:
-    current_time = datetime.datetime.now()
-    rockset_date_format = "%Y-%m-%dT%H:%M:%S.000Z"
-    failed_tests = query_rockset(
-        FAILED_TEST_SHAS_QUERY,
-        {
-            "stopTime": current_time.strftime(rockset_date_format),
-            "startTime": (current_time - datetime.timedelta(days=5)).strftime(
-                rockset_date_format
-            ),
-        },
-    )
-    return failed_tests
-
-
 def run_command(command: str) -> str:
     cwd = REPO_ROOT / ".." / "pytorch"
     return (
@@ -78,7 +63,7 @@ def upload_merge_base_info(shas: List[Dict[str, Any]]) -> None:
 
 
 if __name__ == "__main__":
-    failed_test_shas = get_failed_test_shas()
+    failed_test_shas = failed_tests = query_rockset(FAILED_TEST_SHAS_QUERY)
     interval = 100
     print(f"There are {len(failed_test_shas)}, uploading in batches of {interval}")
     for i in range(0, len(failed_test_shas), interval):
