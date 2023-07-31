@@ -2,7 +2,6 @@ from typing import Dict, Any, List
 import datetime
 import subprocess
 from pathlib import Path
-import sys
 from utils import query_rockset, upload_to_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -31,7 +30,7 @@ def get_failed_test_shas() -> List[Dict[str, Any]]:
             ),
         },
     )
-    return failed_tests.results
+    return failed_tests
 
 
 def run_command(command: str) -> str:
