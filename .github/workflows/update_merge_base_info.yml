@@ -24,11 +24,31 @@ jobs:
           pip3 install boto3==1.19.12
           pip3 install rockset==1.0.3
 
-      - name: Run script
+      - name: Get merge base info
         run: |
           python3 test-infra/.github/scripts/get_merge_base_info.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+      - name: Generate file test ratings
+        run: |
+          python3 test-infra/.github/scripts/calculate_file_test_rating.py
+        env:
+          ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
+
+      - name: Push file test rating to test-infra repository
+        # if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "file_test_rating.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: csl/stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating file test rating"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}

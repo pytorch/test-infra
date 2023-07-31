@@ -1,14 +1,12 @@
-import json
-from typing import Optional, Dict, Any, List
-import rockset  # type: ignore[import]
+from typing import Dict, Any, List
 import datetime
-import os
 import subprocess
 from pathlib import Path
+from utils import query_rockset, upload_to_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-FAILED_TESTS_QUERY = """
+FAILED_TEST_SHAS_QUERY = """
 SELECT
     DISTINCT j.head_sha,
 FROM
@@ -17,70 +15,50 @@ FROM
     left outer join commons.merge_bases mb on j.head_sha = mb.sha
 where
     mb.merge_base is null
-limit 1000
 """
 
 
-def query_rockset(
-    query: str, params: Optional[Dict[str, Any]] = None
-) -> List[Dict[str, Any]]:
-    res: List[Dict[str, Any]] = rockset.RocksetClient(
-        host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    ).sql(query, params=params)
-    return res
-
-
-def get_failed_tests():
+def get_failed_test_shas() -> List[Dict[str, Any]]:
     current_time = datetime.datetime.now()
+    rockset_date_format = "%Y-%m-%dT%H:%M:%S.000Z"
     failed_tests = query_rockset(
-        FAILED_TESTS_QUERY,
+        FAILED_TEST_SHAS_QUERY,
         {
-            "stopTime": current_time.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            "stopTime": current_time.strftime(rockset_date_format),
             "startTime": (current_time - datetime.timedelta(days=5)).strftime(
-                "%Y-%m-%dT%H:%M:%S.000Z"
+                rockset_date_format
             ),
         },
     )
     return failed_tests.results
 
 
-def upload_to_rockset(
-    collection: str, docs: List[Any], workspace: str = "commons"
-) -> None:
-    client = rockset.RocksetClient(
-        host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    )
-    client.Documents.add_documents(
-        collection=collection,
-        data=docs,
-        workspace=workspace,
-    )
-
-
-def run_command(command):
+def run_command(command: str) -> str:
     cwd = REPO_ROOT / ".." / "pytorch"
-    return subprocess.check_output(
-        command.split(" "),
-        cwd=cwd,
-    ).decode("utf-8").strip()
-
-
-def get_merge_bases(failed_tests):
-    merge_bases = {}
-    for i in range(0, len(failed_tests), 100):
-        all_shas = " ".join(test['head_sha'] for test in failed_tests[i:i + 100])
-        run_command(
-            f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
+    return (
+        subprocess.check_output(
+            command.split(" "),
+            cwd=cwd,
         )
-        print(f"{i}/{len(failed_tests)}")
+        .decode("utf-8")
+        .strip()
+    )
 
-    for test in failed_tests:
+
+def upload_merge_base_info(shas: List[Dict[str, Any]]) -> None:
+    merge_bases = {}
+    all_shas = " ".join(test["head_sha"] for test in shas[i : i + 100])
+    run_command(
+        f"git -c protocol.version=2 fetch --no-tags --prune --quiet --no-recurse-submodules origin {all_shas}"
+    )
+
+    for test in shas:
         sha = test["head_sha"]
-        if sha in merge_bases:
-            continue
         try:
             merge_base = run_command(f"git merge-base main {sha}")
             if merge_base == sha:
+                # The commit was probably already on main, so take the previous
+                # commit as the merge base
                 merge_base = run_command(f"git rev-parse {sha}^")
             changed_files = run_command(f"git diff {sha} {merge_base} --name-only")
             merge_bases[sha] = {
@@ -94,20 +72,15 @@ def get_merge_bases(failed_tests):
 
     docs = []
     for sha, info in merge_bases.items():
-        docs.append({
-            "sha": sha,
-            **info
-        })
-    upload_to_rockset(
-        collection="merge_bases",
-        docs=docs,
-        workspace="commons"
-    )
+        docs.append({"sha": sha, **info})
+    upload_to_rockset(collection="merge_bases", docs=docs, workspace="commons")
     return docs
 
 
 if __name__ == "__main__":
-    for i in range(10):
-        failed_tests = get_failed_tests()
-        merge_bases = get_merge_bases(failed_tests)
-        # print(json.dumps(merge_bases, indent=2))
+    failed_test_shas = get_failed_test_shas()
+    interval = 100
+    print(f"There are {len(failed_test_shas)}, uploading in batches of {interval}")
+    for i in range(0, len(failed_test_shas), interval):
+        upload_merge_base_info(failed_test_shas[i : i + interval])
+        print(f"{i} to {i + interval} done")
