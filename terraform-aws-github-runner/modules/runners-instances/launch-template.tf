@@ -204,7 +204,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
     post_install                    = var.userdata_post_install
     enable_cloudwatch_agent         = var.enable_cloudwatch_agent
     nvidia_driver_install           = false
-    ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux[0].name : ""
+    ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux_arm64[0].name : ""
     ghes_url                        = var.ghes_url
     install_config_runner           = local.install_config_runner_linux
   }))

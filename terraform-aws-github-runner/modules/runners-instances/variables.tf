@@ -71,7 +71,7 @@ variable "ami_filter_linux_arm64" {
   type        = map(list(string))
 
   default = {
-    name = ["amzn2-ami-hvm-2.*-arm64-gp2"]
+    name = ["al2023-ami-2023.*-kernel-6.1-arm64"]
   }
 }
 
