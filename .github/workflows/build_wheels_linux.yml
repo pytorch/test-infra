@@ -55,6 +55,16 @@ on:
         description: "The key created when saving a cache and the key used to search for a cache."
         default: ""
         type: string
+      architecture:
+        description: Architecure to use for setup-miniconda
+        required: false
+        type: string
+        default: x64
+      setup-miniconda:
+        description: Works as stated in actions/checkout, but the default value is recursive
+        required: false
+        type: boolean
+        default: true
     secrets:
       AWS_PYTORCH_UPLOADER_ACCESS_KEY_ID:
         description: "AWS Access Key passed from caller workflow"
@@ -97,16 +107,34 @@ jobs:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
+      - uses: actions/checkout@v3
+        if: ${{ inputs.architecture == 'ARM64' }}
+        with:
+          # Support the use case where we need to checkout someone's fork
+          repository: "pytorch/builder"
+          ref: "main"
+          path: builder
       - name: Setup SSH
         uses: ./test-infra/.github/actions/setup-ssh
         with:
           github-secret: ${{ github.token }}
+      - name: Set linux aarch64 CI
+        if: ${{ inputs.architecture == 'ARM64' }}
+        shell: bash -l {0}
+        env:
+          DESIRED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          set +e
+          # TODO: Should we move aarch64 scripts to test-infra folder
+          ${GITHUB_WORKSPACE}/builder/aarch64_linux/aarch64_ci_build.sh
+          echo "/opt/conda/bin" >> $GITHUB_PATH
+          set -e
       - uses: ./test-infra/.github/actions/set-channel
       - uses: ./test-infra/.github/actions/setup-binary-builds
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
-          setup-miniconda: true
+          setup-miniconda: ${{ inputs.setup-miniconda }}
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
@@ -134,6 +162,9 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          if [[ ${{ inputs.architecture }} == 'ARM64' ]]; then
+            ${CONDA_RUN} conda install -y libpng jpeg
+          fi
           ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}
@@ -165,6 +196,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
+
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           # Checking that we have a pinned version of torch in our dependency tree
           (
@@ -173,6 +205,7 @@ jobs:
             # Ensure that pytorch version is pinned, should output file where it was found
             grep "Requires-Dist: torch (==.*)" -r .
           )
+
           if [[ (! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT}) ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
             if [[ "${PACKAGE_NAME}" = "torchrec" ]]; then
