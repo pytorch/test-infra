@@ -30,5 +30,9 @@
   {
     "name": "macos",
     "captures": ["Failure: There is only .+ free space left in .+, which is less than the minimum requirement of"]
+  },
+  {
+    "name": "macos",
+    "captures": ["RuntimeError: inductor/test_torchinductor_opinfo .+ Received signal: SIGSEGV"]
   }
 ]
