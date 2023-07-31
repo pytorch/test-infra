@@ -587,6 +587,11 @@
       "rocm"
     ]
   ],
+  "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
+    "106308",
+    "https://github.com/pytorch/pytorch/issues/106308",
+    []
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCuda)": [
     "103999",
     "https://github.com/pytorch/pytorch/issues/103999",
@@ -1550,6 +1555,13 @@
     "https://github.com/pytorch/pytorch/issues/106213",
     [
       "rocm"
+    ]
+  ],
+  "test_outplace_forward_mode_AD__foreach_addcdiv_cuda_complex128 (__main__.TestForeachCUDA)": [
+    "106303",
+    "https://github.com/pytorch/pytorch/issues/106303",
+    [
+      "linux"
     ]
   ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
