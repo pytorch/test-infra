@@ -19,28 +19,20 @@ jobs:
           path: pytorch
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-          check-latest: false
-          cache: pip
-          architecture: x64
-
       - name: Install Dependencies
         run: |
-          pip install boto3==1.19.12
-          pip install rockset==1.0.3
+          pip3 install boto3==1.19.12
+          pip3 install rockset==1.0.3
 
       - name: Get merge base info
         run: |
-          python test-infra/.github/scripts/get_merge_base_info.py
+          python3 test-infra/.github/scripts/get_merge_base_info.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
       - name: Generate file test ratings
         run: |
-          python test-infra/.github/scripts/calculate_file_test_rating.py
+          python3 test-infra/.github/scripts/calculate_file_test_rating.py
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
