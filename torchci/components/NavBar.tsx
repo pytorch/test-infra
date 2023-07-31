@@ -22,10 +22,10 @@ const NavBarDropdown = ({
     >
       <div className={styles.dropdowntitle}>{title} ▾</div>
       <ul className={styles.dropdown} style={dropdownStyle}>
-        {items.map((submenu: any) => (
-          <li>
-            <Link href={submenu.href} prefetch={false}>
-              {submenu.name}
+        {items.map((item: any) => (
+          <li key={item.href}>
+            <Link href={item.href} prefetch={false}>
+              {item.name}
             </Link>
           </li>
         ))}
@@ -66,17 +66,6 @@ function NavBar() {
     //   href: "/testingoverhead"
     // }
   ];
-
-  const otherReposDropdown = [
-    {
-      name: "TorchVision",
-      href: "/hud/pytorch/vision/main"
-    },
-    {
-      name: "TorchAudio",
-      href: "/hud/pytorch/audio/main"
-    }
-  ]
 
   return (
     <div className={styles.navbar}>
