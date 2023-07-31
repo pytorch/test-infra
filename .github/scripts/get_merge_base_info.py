@@ -6,7 +6,7 @@ import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 print(sys.path)
-from utils import query_rockset, upload_to_rockset
+from .utils import query_rockset, upload_to_rockset
 
 FAILED_TEST_SHAS_QUERY = """
 SELECT
