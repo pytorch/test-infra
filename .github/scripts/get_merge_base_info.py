@@ -3,8 +3,10 @@ import datetime
 import subprocess
 from pathlib import Path
 from utils import query_rockset, upload_to_rockset
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, REPO_ROOT)
 
 FAILED_TEST_SHAS_QUERY = """
 SELECT
