@@ -2,7 +2,7 @@ name: Update test times
 
 on:
   schedule:
-    # Every day at 3:05am UTC
+    # Every day at 3:05am UTC approximately 8:05 PM PT (depending on DST)
     - cron: "5 3 * * *"
   # Have the ability to trigger this job manually
   workflow_dispatch:
