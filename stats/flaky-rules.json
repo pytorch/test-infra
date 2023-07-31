@@ -33,6 +33,6 @@
   },
   {
     "name": "macos",
-    "captures": ["RuntimeError: inductor/test_torchinductor_opinfo .+ Received signal: SIGSEGV"]
+    "captures": ["test_torchinductor_opinfo .+ Received signal: SIGSEGV"]
   }
 ]
