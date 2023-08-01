@@ -96,7 +96,7 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
     for revert in res:
         body = revert["body"].splitlines()[0].strip()
         # Exception - "@pytorchbot revert --help" is not a valid command
-        if "--help" in body:
+        if "revert --help" in body:
             continue
 
         try:
