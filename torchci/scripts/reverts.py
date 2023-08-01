@@ -3,14 +3,12 @@ import datetime
 import os
 import re
 import shlex
-import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 from rockset import RocksetClient  # type: ignore[import]
 
-from torchci.scripts.github_analyze import GitCommit  # type: ignore[import]
-from torchci.scripts.github_analyze import GitRepo
+from torchci.scripts.github_analyze import GitCommit, GitRepo  # type: ignore[import]
 
 # Should match the contents produced by trymerge on revert
 RE_REVERT_COMMIT_BODY = r"Reverted .* on behalf of .* due to .* \(\[comment\]\((.*)\)\)"
@@ -43,13 +41,20 @@ WHERE
 """
 
 
-def parse_body(body: str) -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
+def parse_body(revert: Dict[str, str]) -> None:
+    for line in revert["body"].splitlines():
+        parser = argparse.ArgumentParser()
 
-    parser.add_argument("-c", "--classification")
-    parser.add_argument("-m", "--message")
+        parser.add_argument("-c", "--classification")
+        parser.add_argument("-m", "--message")
 
-    return parser.parse_args(shlex.split(" ".join(body.split(" ")[2:])))
+        parsed = parser.parse_args(shlex.split(" ".join(line.strip().split(" ")[2:])))
+        if parsed.classification is None or parsed.message is None:
+            continue
+        revert["code"] = parsed.classification
+        revert["message"] = parsed.message
+        return
+    raise RuntimeError(f"failed to parse {revert['comment_url']}")
 
 
 def format_string_for_markdown_long(
@@ -75,7 +80,7 @@ def get_start_stop_times() -> Tuple[str, str]:
     return start_time, end_time
 
 
-def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
+def get_rockset_reverts(start_time: str, end_time: str) -> Dict[str, Dict[str, str]]:
     params = {
         "startTime": start_time,
         "stopTime": end_time,
@@ -91,27 +96,7 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
     response = client.sql(ROCKSET_REVERT_QUERY, params=params)
     res: List[Dict[str, str]] = response.results
 
-    cleaned_up: List[Dict[str, str]] = []
-    # re-parse message to reduce errors, should really just upload to rockset from pytorchbot or trymerge
-    for revert in res:
-        body = revert["body"].splitlines()[0].strip()
-        try:
-            parse = parse_body(body)
-            if parse.classification is None or parse.message is None:
-                # comment is badly formed
-                continue
-            revert["code"] = parse.classification
-            revert["message"] = parse.message
-            cleaned_up.append(revert)
-        except (Exception, SystemExit) as e:
-            print(
-                f"failed to parse {revert['comment_url']}: {revert['body']}",
-                file=sys.stderr,
-            )
-            print(e, file=sys.stderr)
-            continue
-
-    return cleaned_up
+    return {revert["comment_url"]: revert for revert in res}
 
 
 def get_gitlog_reverts(start_time: str, end_time: str) -> List[GitCommit]:
@@ -147,11 +132,15 @@ def main() -> None:
             classification_dict["manual"].append((gitlog_revert, None))
             continue
         comment_url = comment_match[1]
-        for rockset_revert in rockset_reverts:
-            if rockset_revert["comment_url"] == comment_url:
-                classification_dict[rockset_revert["code"]].append(
-                    (gitlog_revert, rockset_revert)
-                )
+        rockset_revert = rockset_reverts[comment_url]
+        parse_body(rockset_revert)
+        classification_dict[rockset_revert["code"]].append(
+            (gitlog_revert, rockset_revert)
+        )
+
+    assert sum(len(code) for code in classification_dict.values()) == len(
+        gitlog_reverts
+    )
 
     filename = f"{start_time.split('T')[0]}.md"
     with open(filename, "w") as f:
@@ -165,6 +154,11 @@ def main() -> None:
             f.write(f"\n### {CLASSIFICATIONS[classification]} ({len(reverts)})\n\n")
             for commit, rockset_result in reverts:
                 f.write(format_string_for_markdown_long(commit, rockset_result))
+
+    # Probably not a great idea but at least this way I never have to worry
+    # about print to stdout vs stderr
+    with open("revert_file_name.txt", "w") as f:
+        f.write(filename)
     print(filename)
 
 
