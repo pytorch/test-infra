@@ -42,20 +42,22 @@ WHERE
 
 
 def parse_body(revert: Dict[str, str]) -> None:
-    parser = argparse.ArgumentParser(prog="@pytorchbot")
+    parser = argparse.ArgumentParser()
+    subparser = parser.add_subparsers()
+    group = subparser.add_parser("revert")
 
-    parser.add_argument("-c", "--classification")
-    parser.add_argument("-m", "--message")
+    group.add_argument("-c", "--classification")
+    group.add_argument("-m", "--message")
     for line in revert["body"].splitlines():
         try:
-            command = shlex.split(re.sub(r"@pytorch(merge|)bot +revert ", "", line.strip()))
+            command = shlex.split(re.sub(r"@pytorch(merge|)bot", "", line.strip()))
             parsed = parser.parse_args(command)
             if parsed.classification is None or parsed.message is None:
                 continue
             revert["code"] = parsed.classification
             revert["message"] = parsed.message
             return
-        except ValueError:
+        except (ValueError, AttributeError):
             continue
     raise RuntimeError(f"failed to parse {revert['comment_url']}")
 
@@ -76,9 +78,8 @@ def format_string_for_markdown_long(
 
 def get_start_stop_times() -> Tuple[str, str]:
     today = datetime.date.today()
-    weeks = -1  # Change this to test past data, should alwasy <= -1
-    start_time_date = today + datetime.timedelta(days=-today.weekday(), weeks=weeks)
-    end_time_date = today + datetime.timedelta(days=-today.weekday(), weeks=weeks + 1)
+    start_time_date = today + datetime.timedelta(days=-today.weekday(), weeks=-1)
+    end_time_date = today + datetime.timedelta(days=-today.weekday())
     start_time = f"{start_time_date}T00:13:30.000Z"
     end_time = f"{end_time_date}T00:13:30.000Z"
     return start_time, end_time
