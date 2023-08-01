@@ -37,10 +37,6 @@ const NavBarDropdown = ({
 function NavBar() {
   const devInfraDropdown = [
     {
-      name: "KPIs",
-      href: "/kpis",
-    },
-    {
       name: "SLIs",
       href: "/sli",
     },
@@ -49,7 +45,11 @@ function NavBar() {
       href: "/tts",
     },
     {
-      name: "Nightlies",
+      name: "Nightly Branch",
+      href: "/hud/pytorch/pytorch/nightly",
+    },
+    {
+      name: "Nightly Dashboard",
       href: "/nightlies",
     },
     {
@@ -79,11 +79,6 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/minihud">
               MiniHUD
-            </Link>
-          </li>
-          <li>
-            <Link prefetch={false} href="/hud/pytorch/pytorch/nightly">
-              Nightly
             </Link>
           </li>
           <li>
@@ -118,6 +113,11 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/metrics">
               Metrics
+            </Link>
+          </li>
+          <li>
+            <Link prefetch={false} href="/kpis">
+              KPIs
             </Link>
           </li>
           <li>
