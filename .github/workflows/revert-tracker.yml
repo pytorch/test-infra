@@ -5,6 +5,7 @@ on:
   schedule:
     # At 15:10 (8:10 AM PST) on Monday
     - cron: 10 15 * * 1
+  workflow_dispatch:
 
 jobs:
   revert_printer:

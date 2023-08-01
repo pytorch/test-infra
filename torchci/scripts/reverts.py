@@ -95,6 +95,10 @@ def get_rockset_reverts(start_time: str, end_time: str) -> List[Dict[str, str]]:
     # re-parse message to reduce errors, should really just upload to rockset from pytorchbot or trymerge
     for revert in res:
         body = revert["body"].splitlines()[0].strip()
+        # Exception - "@pytorchbot revert --help" is not a valid command
+        if "--help" in body:
+            continue
+
         try:
             parse = parse_body(body)
             if parse.classification is None or parse.message is None:
