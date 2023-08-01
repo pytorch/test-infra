@@ -42,11 +42,11 @@ WHERE
 
 
 def parse_body(revert: Dict[str, str]) -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--classification")
+    parser.add_argument("-m", "--message")
     for line in revert["body"].splitlines():
-        parser = argparse.ArgumentParser()
 
-        parser.add_argument("-c", "--classification")
-        parser.add_argument("-m", "--message")
 
         parsed = parser.parse_args(shlex.split(" ".join(line.strip().split(" ")[2:])))
         if parsed.classification is None or parsed.message is None:
