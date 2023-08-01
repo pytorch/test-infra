@@ -42,13 +42,6 @@
       "linux"
     ]
   ],
-  "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
-    "98049",
-    "https://github.com/pytorch/pytorch/issues/98049",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_1d (__main__.DeviceMeshCollectiveTest)": [
     "98275",
     "https://github.com/pytorch/pytorch/issues/98275",
@@ -1346,6 +1339,30 @@
   "test_mm_sparse_first_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "106038",
     "https://github.com/pytorch/pytorch/issues/106038",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106384",
+    "https://github.com/pytorch/pytorch/issues/106384",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106385",
+    "https://github.com/pytorch/pytorch/issues/106385",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106383",
+    "https://github.com/pytorch/pytorch/issues/106383",
     [
       "linux",
       "slow"
