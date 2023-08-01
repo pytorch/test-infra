@@ -927,9 +927,9 @@
       "inductor"
     ]
   ],
-  "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94508",
-    "https://github.com/pytorch/pytorch/issues/94508",
+  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "94531",
+    "https://github.com/pytorch/pytorch/issues/94531",
     [
       "linux"
     ]
