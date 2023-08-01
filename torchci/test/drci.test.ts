@@ -166,6 +166,7 @@ const failedI = {
   head_sha: "abcdefg",
   id: "1",
   pr_number: 1001,
+  failure_captures: [],
   failure_line:
     "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
 };
