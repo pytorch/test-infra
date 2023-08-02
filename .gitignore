@@ -37,3 +37,5 @@ node_modules/
 setup-ssh/yarn-error.log*
 setup-ssh/lib/
 setup-ssh/__tests__/runner/
+
+**/revert_file_name.txt
