@@ -1077,15 +1077,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_bucketize_add_autotune_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
-    "105310",
-    "https://github.com/pytorch/pytorch/issues/105310",
-    [
-      "linux",
-      "slow",
-      "mac"
-    ]
-  ],
   "test_inductor_bucketize_add_autotune_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
     "105381",
     "https://github.com/pytorch/pytorch/issues/105381",
