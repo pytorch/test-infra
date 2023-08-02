@@ -152,6 +152,13 @@
       "linux"
     ]
   ],
+  "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
+    "104034",
+    "https://github.com/pytorch/pytorch/issues/104034",
+    [
+      "rocm"
+    ]
+  ],
   "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "98998",
     "https://github.com/pytorch/pytorch/issues/98998",
@@ -1220,7 +1227,8 @@
     "106299",
     "https://github.com/pytorch/pytorch/issues/106299",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_list_clearing_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
