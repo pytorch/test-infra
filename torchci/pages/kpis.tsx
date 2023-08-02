@@ -69,19 +69,19 @@ export default function Kpis() {
         />
       </Grid>
 
-    <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
-      <TimeSeriesPanel
-        title={"Time to Red Signal - (Weekly, 2 week rolling avg)"}
-        queryName={"ttrs_weekly"}
-        queryCollection={"pytorch_dev_infra_kpis"}
-        queryParams={[...timeParams]}
-        granularity={"week"}
-        timeFieldName={"bucket"}
-        yAxisFieldName={"ttrs_mins"}
-        yAxisRenderer={(duration) => duration}
-        groupByFieldName={"percentile"}
-      />
-    </Grid>
+      <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
+        <TimeSeriesPanel
+          title={"Time to Red Signal - (Weekly, 2 week rolling avg)"}
+          queryName={"ttrs_weekly"}
+          queryCollection={"pytorch_dev_infra_kpis"}
+          queryParams={[...timeParams]}
+          granularity={"week"}
+          timeFieldName={"bucket"}
+          yAxisFieldName={"ttrs_mins"}
+          yAxisRenderer={(duration) => duration}
+          groupByFieldName={"percentile"}
+        />
+      </Grid>
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
