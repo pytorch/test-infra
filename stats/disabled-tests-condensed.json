@@ -269,6 +269,13 @@
       "linux"
     ]
   ],
+  "test_cat_addmm (__main__.TestDoBench)": [
+    "106451",
+    "https://github.com/pytorch/pytorch/issues/106451",
+    [
+      "rocm"
+    ]
+  ],
   "test_cauchy_kstest_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "93050",
     "https://github.com/pytorch/pytorch/issues/93050",
