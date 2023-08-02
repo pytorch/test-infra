@@ -128,6 +128,7 @@ export interface RecentWorkflowsData {
   head_sha: string;
   pr_number?: number;
   failure_captures: string[];
+  failure_line?: string | null;
 }
 
 export interface TTSChange {
