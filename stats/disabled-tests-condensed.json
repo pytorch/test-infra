@@ -861,6 +861,13 @@
       "rocm"
     ]
   ],
+  "test_forward_mode_AD_linalg_lu_cuda_float64 (__main__.TestFwdGradientsCUDA)": [
+    "86774",
+    "https://github.com/pytorch/pytorch/issues/86774",
+    [
+      "linux"
+    ]
+  ],
   "test_forward_mode_AD_linalg_lu_factor_ex_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
     "103043",
     "https://github.com/pytorch/pytorch/issues/103043",
@@ -953,13 +960,6 @@
   "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
     "94625",
     "https://github.com/pytorch/pytorch/issues/94625",
-    [
-      "linux"
-    ]
-  ],
-  "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "93063",
-    "https://github.com/pytorch/pytorch/issues/93063",
     [
       "linux"
     ]
@@ -1248,6 +1248,13 @@
     "https://github.com/pytorch/pytorch/issues/102775",
     [
       "linux"
+    ]
+  ],
+  "test_masked_scatter_large_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "104365",
+    "https://github.com/pytorch/pytorch/issues/104365",
+    [
+      "rocm"
     ]
   ],
   "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_128_is_causal_False_dropout_p_0_0_bfloat16_scale_l1_cuda_bfloat16 (__main__.TestSDPACUDA)": [
