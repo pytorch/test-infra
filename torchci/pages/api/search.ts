@@ -5,7 +5,6 @@ import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { JobData } from "lib/types";
 import { searchSimilarFailures } from "lib/searchUtils";
 import { Credentials } from "@aws-sdk/types";
-import AWS from "aws-sdk";
 
 const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 

@@ -33,9 +33,9 @@ export async function searchSimilarFailures(
     sort: [
       "_score",
       {
-        "completed_at": "desc",
-      }
-    ]
+        completed_at: "desc",
+      },
+    ],
   };
 
   const response = await client.search({
