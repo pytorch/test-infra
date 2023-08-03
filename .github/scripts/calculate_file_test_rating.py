@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 FAILED_TESTS_QUERY = """
 SELECT
-    distinct t.invoking_file,
+    distinct REPLACE(t.invoking_file, '.', '/') as invoking_file,
     t.name,
     t.classname,
     t.file,
