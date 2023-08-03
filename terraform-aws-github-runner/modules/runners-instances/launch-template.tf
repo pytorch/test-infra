@@ -42,7 +42,7 @@ data "aws_ami" "runner_ami_linux_arm64" {
 
   filter {
     name   = "image-id"
-    values = ["ami-0ea142bd244023692"]
+    values = ["ami-0964d1dc1edd4bd2f"]
   }
 
   filter {
