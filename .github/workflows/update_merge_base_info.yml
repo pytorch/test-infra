@@ -1,10 +1,12 @@
-name: Update merge base info for failed tests
+name: Update test file ratings for TD experiment
 
 on:
   pull_request:
+  schedule:
+    - cron: 5 2 * * 5  # At 02:05 on Friday UTC or about 7pm PT Thursday
 
 jobs:
-  update-merge-base-info-for-failed-tests:
+  update-test-file-ratings:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pytorch/test-infra
@@ -45,7 +47,7 @@ jobs:
           source_file: "file_test_rating.json"
           destination_repo: "pytorch/test-infra"
           destination_folder: "stats"
-          destination_branch: csl/stats
+          destination_branch: generated-stats
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
           commit_message: "Updating file test rating"

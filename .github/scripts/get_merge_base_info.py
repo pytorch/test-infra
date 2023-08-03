@@ -1,5 +1,4 @@
 from typing import Dict, Any, List
-import datetime
 import subprocess
 from pathlib import Path
 from utils import query_rockset, upload_to_rockset
