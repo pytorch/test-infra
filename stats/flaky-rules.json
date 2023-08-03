@@ -34,5 +34,9 @@
   {
     "name": "macos",
     "captures": ["test_torchinductor_opinfo .+ Received signal: SIGSEGV"]
+  },
+  {
+    "name": "win",
+    "captures": ["The operation was canceled"]
   }
 ]
