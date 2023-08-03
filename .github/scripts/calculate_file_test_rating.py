@@ -1,7 +1,7 @@
-from collections import defaultdict
 import json
-import sys
+from collections import defaultdict
 from pathlib import Path
+
 from utils import query_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -25,10 +25,6 @@ select * from merge_bases
 """
 
 
-def print_to_stderr(s: str, flush: bool = False) -> None:
-    print(s, file=sys.stderr, flush=flush)
-
-
 def filter_tests(failed_tests, merge_bases):
     tests_by_sha = defaultdict(list)
     for test in failed_tests:
@@ -50,7 +46,6 @@ def filter_tests(failed_tests, merge_bases):
                 and base_test["name"] == test["name"]
                 and base_test["classname"] == test["classname"]
                 and base_test["file"] == test["file"]
-                # and test2['job_name'].split(",")[0] == test['job_name'].split(",")[0]
             ):
                 present_on_merge_base = True
                 break
@@ -61,7 +56,7 @@ def filter_tests(failed_tests, merge_bases):
 
 def evaluate(tests, merge_bases, rev_mapping):
     # Probably not exhaustive but whatever
-    all_invoking_files = set(test["invoking_file"] for test in tests)
+    all_invoking_files = {test["invoking_file"] for test in tests}
 
     scores = []
     for test in tests[::]:
@@ -82,16 +77,16 @@ def evaluate(tests, merge_bases, rev_mapping):
         else:
             scores.append(1)
 
-    print_to_stderr(f"average: {sum(scores) / len(scores)}")
-    print_to_stderr(f"median: {sorted(scores)[len(scores) // 2]}")
-    print_to_stderr(f"within 10%: {(len([x for x in scores if x < .1]))/len(scores)}")
-    print_to_stderr(f"# of invoking files: {len(all_invoking_files)}")
+    print(f"average: {sum(scores) / len(scores)}")
+    print(f"median: {sorted(scores)[len(scores) // 2]}")
+    print(f"within 10%: {(len([x for x in scores if x < .1]))/len(scores)}")
+    print(f"# of invoking files: {len(all_invoking_files)}")
 
 
 if __name__ == "__main__":
     failed_tests = query_rockset(FAILED_TESTS_QUERY)
     merge_bases = query_rockset(MERGE_BASES_QUERY)
-    print_to_stderr("done querying rockset", flush=True)
+    print("done querying rockset", flush=True)
 
     merge_bases = {s["sha"]: s for s in merge_bases}
     filtered_tests = filter_tests(failed_tests, merge_bases)

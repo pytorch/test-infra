@@ -1,14 +1,18 @@
-
 from typing import Optional, Dict, Any, List
 import rockset  # type: ignore[import]
 import os
 
+
 def query_rockset(
     query: str, params: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
-    res: List[Dict[str, Any]] = rockset.RocksetClient(
-        host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
-    ).sql(query, params=params).results
+    res: List[Dict[str, Any]] = (
+        rockset.RocksetClient(
+            host="api.rs2.usw2.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
+        )
+        .sql(query, params=params)
+        .results
+    )
     return res
 
 
