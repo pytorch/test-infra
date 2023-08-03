@@ -13,14 +13,6 @@
       "linux"
     ]
   ],
-  "test_adam_recompile (__main__.CompiledOptimizerTests)": [
-    "105681",
-    "https://github.com/pytorch/pytorch/issues/105681",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_adamw_recompile (__main__.CompiledOptimizerTests)": [
     "105692",
     "https://github.com/pytorch/pytorch/issues/105692",
@@ -150,13 +142,6 @@
   "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
     "104034",
     "https://github.com/pytorch/pytorch/issues/104034",
-    [
-      "rocm"
-    ]
-  ],
-  "test_binary_op__foreach_add_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "98998",
-    "https://github.com/pytorch/pytorch/issues/98998",
     [
       "rocm"
     ]
@@ -1086,15 +1071,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_bucketize_add_autotune_dynamic_shapes_cuda (__main__.DynamicShapesCodegenCudaTests)": [
-    "105381",
-    "https://github.com/pytorch/pytorch/issues/105381",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -1108,13 +1084,6 @@
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_inline_dict_mutation (__main__.MiscTests)": [
-    "105680",
-    "https://github.com/pytorch/pytorch/issues/105680",
-    [
-      "linux"
     ]
   ],
   "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
