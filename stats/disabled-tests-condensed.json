@@ -569,6 +569,13 @@
       "linux"
     ]
   ],
+  "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
+    "106557",
+    "https://github.com/pytorch/pytorch/issues/106557",
+    [
+      "macos"
+    ]
+  ],
   "test_create_chunk_dtensor (__main__.TestShardUtilsDistributedDTensor)": [
     "103863",
     "https://github.com/pytorch/pytorch/issues/103863",
