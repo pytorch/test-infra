@@ -31,10 +31,10 @@ export async function searchSimilarFailures(
       },
     },
     sort: [
-      "_score",
       {
         completed_at: "desc",
       },
+      "_score",
     ],
   };
 
