@@ -66,15 +66,6 @@ variable "ami_filter_linux" {
   }
 }
 
-variable "ami_filter_linux_arm64" {
-  description = "List of maps used to create the AMI filter for the action runner AMI."
-  type        = map(list(string))
-
-  default = {
-    name = ["al2023-ami-2023.*-kernel-6.1-arm64"]
-  }
-}
-
 variable "ami_filter_windows" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
@@ -85,12 +76,6 @@ variable "ami_filter_windows" {
 }
 
 variable "ami_owners_linux" {
-  description = "The list of owners used to select the AMI of linux action runner instances."
-  type        = list(string)
-  default     = ["amazon"]
-}
-
-variable "ami_owners_linux_arm64" {
   description = "The list of owners used to select the AMI of linux action runner instances."
   type        = list(string)
   default     = ["amazon"]
