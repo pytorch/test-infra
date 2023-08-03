@@ -13,20 +13,6 @@
       "linux"
     ]
   ],
-  "test_adadelta_recompile (__main__.CompiledOptimizerTests)": [
-    "105649",
-    "https://github.com/pytorch/pytorch/issues/105649",
-    [
-      "linux"
-    ]
-  ],
-  "test_adagrad_recompile (__main__.CompiledOptimizerTests)": [
-    "105656",
-    "https://github.com/pytorch/pytorch/issues/105656",
-    [
-      "linux"
-    ]
-  ],
   "test_adam_recompile (__main__.CompiledOptimizerTests)": [
     "105681",
     "https://github.com/pytorch/pytorch/issues/105681",
@@ -875,13 +861,6 @@
     "https://github.com/pytorch/pytorch/issues/101757",
     [
       "inductor"
-    ]
-  ],
-  "test_forward_ad_masked_prod_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "94487",
-    "https://github.com/pytorch/pytorch/issues/94487",
-    [
-      "linux"
     ]
   ],
   "test_forward_mode_AD_linalg_det_singular_cuda_complex128 (__main__.TestFwdGradientsCUDA)": [
@@ -1990,6 +1969,30 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
+    ]
+  ],
+  "test_to_sparse_semi_structured_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106554",
+    "https://github.com/pytorch/pytorch/issues/106554",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_to_sparse_semi_structured_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106552",
+    "https://github.com/pytorch/pytorch/issues/106552",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_to_sparse_semi_structured_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106553",
+    "https://github.com/pytorch/pytorch/issues/106553",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_torch_guards_stack_frame_register_inlining_deep (__main__.StaticDefaultDynamicShapesMiscTests)": [
