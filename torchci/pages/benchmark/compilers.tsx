@@ -1738,7 +1738,15 @@ export function AugmentData(data: CompilerPerformanceData[]) {
       huggingface: new Set([]),
     },
     blueberries: {
-      torchbench: new Set(["nanogpt_generate", "llama", "sam"]),
+      torchbench: new Set([
+        "nanogpt_generate",
+        "llama",
+        "llama_v2_7b_16h",
+        "sam",
+        "clip",
+        "stable_diffusion",
+        "hf_Whisper",
+      ]),
     },
   };
 
