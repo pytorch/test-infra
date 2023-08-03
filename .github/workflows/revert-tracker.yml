@@ -24,8 +24,8 @@ jobs:
         run: |
           cd test-infra
           python3 -m pip install rockset==1.0.3
-          file=$(python3 -m torchci.scripts.reverts)
-          echo "revert_file=$file" >> "${GITHUB_OUTPUT}"
+          python3 -m torchci.scripts.reverts
+          echo "revert_file=$(cat revert_file_name.txt)" >> "${GITHUB_OUTPUT}"
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 

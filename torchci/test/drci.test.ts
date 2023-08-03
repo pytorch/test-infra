@@ -157,6 +157,20 @@ const failedH = {
   ],
 };
 
+// Match with failure line string instead of failure capture array
+const failedI = {
+  name: "macos-12-py3-arm64 / test (default, 2, 3, macos-m1-12)",
+  conclusion: "failure",
+  completed_at: "2022-07-13T19:34:03Z",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: "1",
+  pr_number: 1001,
+  failure_captures: [],
+  failure_line:
+    "RuntimeError: inductor/test_torchinductor_opinfo 2/2 failed! Received signal: SIGSEGV",
+};
+
 const unstableA = {
   name: "win-vs2019-cpu-py3 / test (default, 1, 3, windows.4xlarge, unstable)",
   conclusion: "failure",
@@ -450,7 +464,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test(" test flaky rule regex", async () => {
-    const originalWorkflows = [failedA, failedG, failedH];
+    const originalWorkflows = [failedA, failedG, failedH, failedI];
     const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
       originalWorkflows
     );
@@ -469,12 +483,16 @@ describe("Update Dr. CI Bot Unit Tests", () => {
             name: "linux",
             captures: ["The runner has received a shutdown signal"],
           },
+          {
+            name: "macos",
+            captures: ["test_torchinductor_opinfo .+ Received signal: SIGSEGV"],
+          },
         ],
         new Map()
       );
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(0);
-    expect(flakyJobs.length).toBe(2);
+    expect(flakyJobs.length).toBe(3);
     expect(unstableJobs.length).toBe(0);
   });
 

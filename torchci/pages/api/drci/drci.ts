@@ -357,12 +357,18 @@ function isFlaky(job: RecentWorkflowsData, flakyRules: FlakyRule[]): boolean {
       job.name.match(jobNameRegex) &&
       flakyRule.captures.every((capture: string) => {
         const captureRegex = new RegExp(capture);
-        return (
+        const matchFailureCaptures: boolean =
           job.failure_captures &&
           job.failure_captures.some((failureCapture) =>
             failureCapture.match(captureRegex)
-          )
-        );
+          );
+        const matchFailureLine: boolean =
+          job.failure_line != null &&
+          job.failure_line.match(captureRegex) != null;
+
+        // Accept both failure captures array and failure line string to make sure
+        // that nothing is missing
+        return matchFailureCaptures || matchFailureLine;
       })
     );
   });
