@@ -1,3 +1,6 @@
+-- Used to power the kpi dashboard. 
+-- This collection is populated via the metrics.compute_ttrs_kpi lambda  
+
 SELECT
     *
 FROM
