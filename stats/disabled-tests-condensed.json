@@ -1210,14 +1210,6 @@
       "slow"
     ]
   ],
-  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "105668",
-    "https://github.com/pytorch/pytorch/issues/105668",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_list_clearing_cpu (__main__.CpuTests)": [
     "106285",
     "https://github.com/pytorch/pytorch/issues/106285",
@@ -1819,13 +1811,6 @@
   "test_reduce_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98024",
     "https://github.com/pytorch/pytorch/issues/98024",
-    [
-      "linux"
-    ]
-  ],
-  "test_rekey_optim_state_dict_to_names (__main__.TestFSDPOptimState)": [
-    "105510",
-    "https://github.com/pytorch/pytorch/issues/105510",
     [
       "linux"
     ]
