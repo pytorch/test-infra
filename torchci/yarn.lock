@@ -3250,6 +3250,39 @@ array.prototype.flatmap@^1.2.5:
     es-abstract "^1.19.2"
     es-shim-unscopables "^1.0.0"
 
+ask-sdk-core@^2.14.0:
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/ask-sdk-core/-/ask-sdk-core-2.14.0.tgz#85fce330b513fdb6c3827f47f0795288f2ca96d6"
+  integrity sha512-G2yEKbY+XYTFzJXGRpsg7xJHqqgBcgnKEgklXUMRWRFv10gwHgtWDLLlBV6h4IdysTx782rCVJK/UcHcaGbEpA==
+  dependencies:
+    ask-sdk-runtime "^2.14.0"
+
+ask-sdk-dynamodb-persistence-adapter@^2.14.0:
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/ask-sdk-dynamodb-persistence-adapter/-/ask-sdk-dynamodb-persistence-adapter-2.14.0.tgz#1f6084d508b7ab080d7290bac16501c0a84bde01"
+  integrity sha512-ZEwZ/ijyzUy+U2/L/L3EtFSBbwg3oLqECW3DtWT5udigFnEAFGEtT7j9iQ3sQw1R2NdIE4R3c4ALH+sngWrZdQ==
+  dependencies:
+    aws-sdk "^2.163.0"
+
+ask-sdk-model@^1.29.0:
+  version "1.82.0"
+  resolved "https://registry.yarnpkg.com/ask-sdk-model/-/ask-sdk-model-1.82.0.tgz#0c008bbb77c7722fbe0d0d565c262020836563ee"
+  integrity sha512-Z/6UBihBbC7GO0n7K9Ezf5mIG224gw3V6Nos6dAtp6P70gxrnDKj1RqOBxA5nvQC5oy7xRzj8QkprZ6C+axhyg==
+
+ask-sdk-runtime@^2.14.0:
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/ask-sdk-runtime/-/ask-sdk-runtime-2.14.0.tgz#ac28baf04802c1b0f4961cdb0d805d136f97fa01"
+  integrity sha512-a96pPs1RU3GgXBHplqAVqh2uxEuSYjTD5+XSbHsf6Fz4KhHpgaxJogOIIybjA6O/d1B9sG+6bjHJGzxBJEcccA==
+
+ask-sdk@^2.14.0:
+  version "2.14.0"
+  resolved "https://registry.yarnpkg.com/ask-sdk/-/ask-sdk-2.14.0.tgz#4223dd561666443a985c83f098f28be0281ad566"
+  integrity sha512-EaX1EF59hmtGzuRYybZ9Xyim11PxZwX2T2cYAyBYbv8+v+7gf8gCAmhjXIJV+UA71gIVbtbBEKIFKDhwc+h1rA==
+  dependencies:
+    ask-sdk-core "^2.14.0"
+    ask-sdk-dynamodb-persistence-adapter "^2.14.0"
+    ask-sdk-model "^1.29.0"
+
 ast-types-flow@^0.0.7:
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/ast-types-flow/-/ast-types-flow-0.0.7.tgz#f70b735c6bca1a5c9c22d982c3e39e7feba3bdad"
@@ -3286,6 +3319,22 @@ aws-lambda@^1.0.7:
     commander "^3.0.2"
     js-yaml "^3.14.1"
     watchpack "^2.0.0-beta.10"
+
+aws-sdk@^2.163.0:
+  version "2.1429.0"
+  resolved "https://registry.yarnpkg.com/aws-sdk/-/aws-sdk-2.1429.0.tgz#418d7a4874601182e54b3c04759db1f2f4068342"
+  integrity sha512-xT1BhUvkyOQk4FCAZh8DekvTdEhk6nZraB8r8oQyVUmSXkEM+xQ2uAfnJ4GW6/f9X75Pj/tUqxNQxCgdstYxuw==
+  dependencies:
+    buffer "4.9.2"
+    events "1.1.1"
+    ieee754 "1.1.13"
+    jmespath "0.16.0"
+    querystring "0.2.0"
+    sax "1.2.1"
+    url "0.10.3"
+    util "^0.12.4"
+    uuid "8.0.0"
+    xml2js "0.5.0"
 
 aws-sdk@^2.814.0:
   version "2.1354.0"

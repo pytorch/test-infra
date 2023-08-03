@@ -21,7 +21,7 @@ export async function searchSimilarFailures(
           },
           {
             range: {
-              started_at: {
+              completed_at: {
                 gte: startDate,
                 lte: endDate,
               },
@@ -30,6 +30,12 @@ export async function searchSimilarFailures(
         ],
       },
     },
+    sort: [
+      "_score",
+      {
+        "completed_at": "desc",
+      }
+    ]
   };
 
   const response = await client.search({
@@ -63,6 +69,7 @@ export async function searchSimilarFailures(
       id: data.id,
       branch: data.head_branch,
       workflowId: data.run_id,
+      time: data.completed_at,
       conclusion: data.conclusion,
       htmlUrl: data.html_url,
       failureLine: data.torchci_classification.line,

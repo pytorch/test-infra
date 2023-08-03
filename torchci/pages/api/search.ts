@@ -4,6 +4,8 @@ import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
 import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { JobData } from "lib/types";
 import { searchSimilarFailures } from "lib/searchUtils";
+import { Credentials } from "@aws-sdk/types";
+import AWS from "aws-sdk";
 
 const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 
@@ -24,8 +26,11 @@ export default async function handler(
       region: process.env.OPENSEARCH_REGION as string,
       service: "es",
       getCredentials: () => {
-        const credentialsProvider = defaultProvider();
-        return credentialsProvider();
+        const credentials: Credentials = {
+          accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID as string,
+          secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY as string,
+        };
+        return Promise.resolve(credentials);
       },
     }),
     node: process.env.OPENSEARCH_ENDPOINT,
