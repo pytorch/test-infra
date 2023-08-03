@@ -152,6 +152,15 @@
       "linux"
     ]
   ],
+  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
+    "106543",
+    "https://github.com/pytorch/pytorch/issues/106543",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
     "104034",
     "https://github.com/pytorch/pytorch/issues/104034",
