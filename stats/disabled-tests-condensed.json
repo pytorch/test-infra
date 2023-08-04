@@ -13,13 +13,6 @@
       "linux"
     ]
   ],
-  "test_adamw_recompile (__main__.CompiledOptimizerTests)": [
-    "105692",
-    "https://github.com/pytorch/pytorch/issues/105692",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_1d (__main__.DeviceMeshCollectiveTest)": [
     "98275",
     "https://github.com/pytorch/pytorch/issues/98275",
