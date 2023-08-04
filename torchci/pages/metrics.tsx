@@ -542,16 +542,44 @@ export default function Page() {
           >
             <ScalarPanel
               title={"% force merges due to failed PR checks"}
-              queryName={"force_merge_red_avg"}
-              metricName={"force_merges_red"}
-              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
-              queryParams={timeParams}
+              queryCollection={"commons"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => (value).toFixed(1) + "%"}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "merge_type",
+                  type: "string",
+                  value: "Failure",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 0.055}
             />
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"% force merges due to impatience"}
-              value={"TBD"}
-              valueRenderer={(value) => value}
+              queryCollection={"commons"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => (value).toFixed(1) + "%"}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "merge_type",
+                  type: "string",
+                  value: "Impatience",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 0.055}
             />
           </Stack>

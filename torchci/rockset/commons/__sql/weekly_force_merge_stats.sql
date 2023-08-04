@@ -1,5 +1,12 @@
--- gets percentage of total force merges, force merges with failures, and force merges without failures (impatient)
--- specifically this query tracks the force merges kpi on HUD
+-- Gets percentage of total force merges, force merges with failures, and force merges without failures (impatient)
+-- Specifically this query tracks the force merges kpi and metric on HUD
+--
+-- Special params:
+--   one_bucket: If set to false, bucketizes the results over the requested granularity
+--               otherwise there is not bucketing
+--   merge_type: If set, will return only data about the requested force merge type.
+--               Can be one of: "All", "Impatience", "Failures", or " " (to get everything)
+
 WITH
     issue_comments AS(
         SELECT
@@ -49,7 +56,7 @@ WITH
             AND m.project = 'pytorch'
             AND m.merge_commit_sha != '' -- only consider successful merges
             AND m._event_time >= PARSE_DATETIME_ISO8601(:startTime)
-            AND m._event_time < PARSE_DATETIME_ISO8601(:stopTime) -- AND m.pr_num in 
+            AND m._event_time < PARSE_DATETIME_ISO8601(:stopTime)
         GROUP BY
             m.skip_mandatory_checks,
             m.failed_checks,
@@ -57,16 +64,16 @@ WITH
             m.is_failed,
             m.pr_num,
             m.merge_commit_sha,
-            -- and m.pr_num = 104137
             m.ignore_current_checks
     ),
-    force_merges_with_failed_checks AS (
+    merges_identifying_force_merges AS (
         SELECT
             IF(
                 (skip_mandatory_checks = true)
                 OR (
                     ignore_current = true
                     AND is_failed = false
+                    AND ignored_checks_count > 0 -- if no checks were ignored, it's not a force merge
                 ),
                 1,
                 0
@@ -96,44 +103,34 @@ WITH
             ) AS force_merge_with_failures,
             CAST(time as DATE) as date
         FROM
-            force_merges_with_failed_checks
+            merges_identifying_force_merges
         ORDER BY
             date DESC
     ),
-    stats_per_day as (
+    bucketed_counts as (
         select
-            count(*) as total,
-            sum(force_merge) as total_force_merge_cnt,
-            sum(force_merge_with_failures) as with_failures_cnt,
-            sum(force_merge) - sum(force_merge_with_failures) as impatience_cnt,
-            date,
+            IF(
+                :one_bucket,
+                'Overall',
+                FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, date))
+            ) AS granularity_bucket,
+            SUM(force_merge_with_failures) with_failures_cnt,
+            SUM(force_merge) - SUM(force_merge_with_failures) as impatience_cnt,
+            COUNT(*) as total,
+            SUM(force_merge) as total_force_merge_cnt
         from
             results
-        GROUP BY
-            date
-        ORDER BY
-            date DESC
-    ),
-    weekly_counts as (
-        select
-            FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(: granularity, date)) AS granularity_bucket,
-            SUM(with_failures_cnt) with_failures_cnt,
-            SUM(impatience_cnt) as impatience_cnt,
-            SUM(total) as total,
-            SUM(total_force_merge_cnt) as total_force_merge_cnt
-        from
-            stats_per_day
         group by
             granularity_bucket
     ),
-    stats_per_week as (
+    stats_per_bucket as (
         SELECT
             granularity_bucket,
-            with_failures_cnt * 100 / total as with_failures_percent,
-            impatience_cnt * 100 / total as impatience_percent,
-            total_force_merge_cnt * 100 / total as force_merge_percent,
+            with_failures_cnt * 100.0 / total as with_failures_percent,
+            impatience_cnt * 100.0 / total as impatience_percent,
+            total_force_merge_cnt * 100.0 / total as force_merge_percent,
         from
-            weekly_counts
+            bucketed_counts
     ),
     final_table as (
         (
@@ -141,9 +138,8 @@ WITH
                 granularity_bucket,
                 with_failures_percent as metric,
                 'From Failures' as name
-                
             from
-                stats_per_week
+                stats_per_bucket
         )
         UNION ALL
         (
@@ -152,7 +148,7 @@ WITH
                 impatience_percent as metric,
                 'From Impatience' as name
             from
-                stats_per_week
+                stats_per_bucket
         )
         UNION ALL
         (
@@ -161,10 +157,22 @@ WITH
                 force_merge_percent as metric,
                 'All Force Merges' as name
             from
-                stats_per_week
+                stats_per_bucket
         )
+    ),
+    filtered_result as (
+        select
+            *
+        from
+            final_table
+        WHERE
+            TRIM(:merge_type) = ''
+            OR name like CONCAT('%', :merge_type, '%')
     )
 select
     *
 from
-    final_table
+    filtered_result
+order by
+    granularity_bucket desc,
+    name
