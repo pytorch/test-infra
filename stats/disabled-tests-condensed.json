@@ -1826,13 +1826,6 @@
       "linux"
     ]
   ],
-  "test_rprop_recompile (__main__.CompiledOptimizerTests)": [
-    "105718",
-    "https://github.com/pytorch/pytorch/issues/105718",
-    [
-      "linux"
-    ]
-  ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
     "96282",
     "https://github.com/pytorch/pytorch/issues/96282",
