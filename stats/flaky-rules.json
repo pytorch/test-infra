@@ -41,6 +41,6 @@
   },
   {
     "name": "asan",
-    "captures": ["ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded (cannot open shared object file)"]
+    "captures": ["ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded \\(cannot open shared object file\\)"]
   }
 ]
