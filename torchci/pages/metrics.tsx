@@ -507,13 +507,17 @@ export default function Page() {
       </Stack>
 
       <Grid container spacing={2}>
-
         <Grid item md={6} xs={12} height={ROW_HEIGHT}>
           <MasterCommitRedPanel params={timeParams} />
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanelWithValue
               title={"% commits red on main (broken trunk)"}
               value={brokenTrunkRed}
@@ -530,8 +534,13 @@ export default function Page() {
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
-           <ScalarPanel
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
               title={"% force merges due to failed PR checks"}
               queryName={"force_merge_red_avg"}
               metricName={"force_merges_red"}
@@ -542,29 +551,39 @@ export default function Page() {
             <ScalarPanelWithValue
               title={"% force merges due to impatience"}
               value={"TBD"}
-              valueRenderer={(value) => (value)}
+              valueRenderer={(value) => value}
               badThreshold={(value) => value > 0.055}
             />
           </Stack>
         </Grid>
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanelWithValue
               title={"Time to Red Signal (p90 TTRS - mins)"}
               value={"TBD"}
-              valueRenderer={(value) => (value)}
+              valueRenderer={(value) => value}
               badThreshold={(value) => value > 50}
             />
             <ScalarPanelWithValue
               title={"Time to Red Signal (p75 TTRS - mins)"}
               value={"TBD"}
-              valueRenderer={(value) => (value)}
+              valueRenderer={(value) => value}
               badThreshold={(value) => value > 40}
             />
-            </Stack>
+          </Stack>
         </Grid>
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
               title={"viable/strict lag"}
               queryName={"strict_lag_sec"}
@@ -584,9 +603,13 @@ export default function Page() {
           </Stack>
         </Grid>
 
-
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
               title={"Last main push"}
               queryName={"last_branch_push"}
@@ -618,9 +641,13 @@ export default function Page() {
           </Stack>
         </Grid>
 
-
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
               title={"Last docker build"}
               queryName={"last_successful_workflow"}
@@ -652,12 +679,16 @@ export default function Page() {
               ]}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
-            </Stack>
+          </Stack>
         </Grid>
 
-
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <ScalarPanel
               title={"# reverts"}
               queryName={"reverts"}
@@ -679,13 +710,18 @@ export default function Page() {
         </Grid>
 
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <WorkflowDuration
               percentileParam={percentileParam}
               timeParams={timeParams}
               workflowNames={["pull", "trunk"]}
             />
-            </Stack>
+          </Stack>
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
