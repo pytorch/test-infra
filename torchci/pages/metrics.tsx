@@ -591,16 +591,46 @@ export default function Page() {
             flexWrap="wrap"
             spacing={1}
           >
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"Time to Red Signal (p90 TTRS - mins)"}
-              value={"TBD"}
+              queryCollection={"pytorch_dev_infra_kpis"}
+              queryName={"ttrs_percentiles"}
+              metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "False",
+                },
+                {
+                  name: "percentile_to_get",
+                  type: "float",
+                  value: "0.90",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 50}
             />
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
-              value={"TBD"}
+              queryCollection={"pytorch_dev_infra_kpis"}
+              queryName={"ttrs_percentiles"}
+              metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "False",
+                },
+                {
+                  name: "percentile_to_get",
+                  type: "float",
+                  value: "0.75",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 40}
             />
           </Stack>
