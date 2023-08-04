@@ -16,7 +16,7 @@ yum install -y docker
 service docker start
 usermod -a -G docker ec2-user
 
-yum install -y curl jq git
+yum install -y curl jq git --allowerasing
 
 USER_NAME=ec2-user
 ${install_config_runner}
