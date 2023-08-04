@@ -547,7 +547,22 @@ export default function Page() {
             />
           </Stack>
         </Grid>
-
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+            <ScalarPanelWithValue
+              title={"Time to Red Signal (p90 TTRS - mins)"}
+              value={"TBD"}
+              valueRenderer={(value) => (value)}
+              badThreshold={(value) => value > 50}
+            />
+            <ScalarPanelWithValue
+              title={"Time to Red Signal (p75 TTRS - mins)"}
+              value={"TBD"}
+              valueRenderer={(value) => (value)}
+              badThreshold={(value) => value > 40}
+            />
+            </Stack>
+        </Grid>
         <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
           <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
             <ScalarPanel
