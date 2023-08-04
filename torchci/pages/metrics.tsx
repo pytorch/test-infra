@@ -483,7 +483,7 @@ function JobsDuration({
   );
 }
 
-const ROW_HEIGHT = 340;
+const ROW_HEIGHT = 375;
 
 function getCommitRedMetrics(queryParams: RocksetParam[]) {}
 
@@ -560,72 +560,49 @@ export default function Page() {
       </Stack>
 
       <Grid container spacing={2}>
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <MasterJobsRedPanel params={timeParams} />
+
+        <Grid item md={6} xs={12} height={ROW_HEIGHT}>
+          <MasterCommitRedPanel params={timeParams} />
         </Grid>
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
             <ScalarPanelWithValue
               title={"% commits red on main (broken trunk)"}
               value={brokenTrunkRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
-            <ScalarPanel
-              title={"# commits"}
-              queryName={"num_commits_master"}
-              queryCollection={"commons"}
-              metricName={"num"}
-              valueRenderer={(value) => value}
-              queryParams={timeParams}
-              badThreshold={(_) => false}
-            />
-          </Stack>
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
             <ScalarPanelWithValue
               title={"% commits red on main (flaky)"}
               value={flakyRed}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               badThreshold={(value) => value > 0.2}
             />
-            <ScalarPanel
-              title={"# reverts"}
-              queryName={"reverts"}
-              metricName={"num"}
-              valueRenderer={(value: string) => value}
-              queryParams={timeParams}
-              badThreshold={(value) => value > 10}
-            />
           </Stack>
         </Grid>
 
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
-            <ScalarPanel
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+           <ScalarPanel
               title={"% force merges due to failed PR checks"}
               queryName={"force_merge_red_avg"}
               metricName={"force_merges_red"}
               valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
               queryParams={timeParams}
-              badThreshold={(value) => value > 0.2}
+              badThreshold={(value) => value > 0.055}
             />
-            <WorkflowDuration
-              percentileParam={percentileParam}
-              timeParams={timeParams}
-              workflowNames={["pull", "trunk"]}
+            <ScalarPanelWithValue
+              title={"% force merges due to impatience"}
+              value={"TBD"}
+              valueRenderer={(value) => (value)}
+              badThreshold={(value) => value > 0.055}
             />
           </Stack>
         </Grid>
 
-        <Grid item xs={6} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} />
-        </Grid>
-
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
             <ScalarPanel
               title={"viable/strict lag"}
               queryName={"strict_lag_sec"}
@@ -645,8 +622,9 @@ export default function Page() {
           </Stack>
         </Grid>
 
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
             <ScalarPanel
               title={"Last main push"}
               queryName={"last_branch_push"}
@@ -678,8 +656,9 @@ export default function Page() {
           </Stack>
         </Grid>
 
-        <Grid container item xs={2} justifyContent={"stretch"}>
-          <Stack justifyContent={"space-between"} flexGrow={1}>
+
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
             <ScalarPanel
               title={"Last docker build"}
               queryName={"last_successful_workflow"}
@@ -711,7 +690,40 @@ export default function Page() {
               ]}
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
+            </Stack>
+        </Grid>
+
+
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+            <ScalarPanel
+              title={"# reverts"}
+              queryName={"reverts"}
+              metricName={"num"}
+              valueRenderer={(value: string) => value}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 10}
+            />
+            <ScalarPanel
+              title={"# commits"}
+              queryName={"num_commits_master"}
+              queryCollection={"commons"}
+              metricName={"num"}
+              valueRenderer={(value) => value}
+              queryParams={timeParams}
+              badThreshold={(_) => false}
+            />
           </Stack>
+        </Grid>
+
+        <Grid container item lg={2} md={3} xs={6} justifyContent={"stretch"}>
+          <Stack justifyContent={"space-between"} flexGrow={1} flexWrap="wrap" spacing={1}>
+            <WorkflowDuration
+              percentileParam={percentileParam}
+              timeParams={timeParams}
+              workflowNames={["pull", "trunk"]}
+            />
+            </Stack>
         </Grid>
 
         <Grid item xs={6} height={ROW_HEIGHT}>
