@@ -40,7 +40,8 @@
     "time_to_signal": "ff332d025976c103",
     "strict_lag_historical": "d2a09d13caf8b76a",
     "ci_wait_time": "b1080f26b20ea142",
-    "ttrs_weekly": "4acfa44ce8d0e953"
+    "ttrs_weekly": "4acfa44ce8d0e953",
+    "ttrs_percentiles": "d62f6c09ab8b83f4"
   },
   "metrics": {
     "correlation_matrix": "35c05e04047123f0",
