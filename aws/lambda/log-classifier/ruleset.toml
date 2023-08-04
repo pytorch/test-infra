@@ -157,6 +157,10 @@ name = 'Dependency fetch error'
 pattern = '^Error downloading packages:'
 
 [[rule]]
+name = 'ASAN LD_PRELOAD failure'
+pattern = '^ERROR: ld.so: object .+ from LD_PRELOAD cannot be preloaded'
+
+[[rule]]
 name = 'ASAN failure'
 pattern = '^ERROR: AddressSanitizer'
 
