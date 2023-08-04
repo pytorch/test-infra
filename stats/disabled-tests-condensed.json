@@ -1186,6 +1186,14 @@
       "slow"
     ]
   ],
+  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105668",
+    "https://github.com/pytorch/pytorch/issues/105668",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_list_clearing_cpu (__main__.CpuTests)": [
     "106285",
     "https://github.com/pytorch/pytorch/issues/106285",
@@ -2015,6 +2023,22 @@
     "https://github.com/pytorch/pytorch/issues/106028",
     [
       "linux"
+    ]
+  ],
+  "test_unsupported_dtype_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106618",
+    "https://github.com/pytorch/pytorch/issues/106618",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_values_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "106619",
+    "https://github.com/pytorch/pytorch/issues/106619",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
