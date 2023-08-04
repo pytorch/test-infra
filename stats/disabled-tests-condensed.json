@@ -13,13 +13,6 @@
       "linux"
     ]
   ],
-  "test_all_reduce_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98275",
-    "https://github.com/pytorch/pytorch/issues/98275",
-    [
-      "linux"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -300,14 +293,6 @@
       "windows"
     ]
   ],
-  "test_closure_out_of_scope_cell_with_mutation (__main__.AutomaticDynamicShapesMiscTests)": [
-    "104433",
-    "https://github.com/pytorch/pytorch/issues/104433",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
@@ -403,13 +388,6 @@
       "linux"
     ]
   ],
-  "test_cond_export_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101851",
-    "https://github.com/pytorch/pytorch/issues/101851",
-    [
-      "linux"
-    ]
-  ],
   "test_cond_export_single_arg (__main__.StaticDefaultDynamicShapesMiscTests)": [
     "102585",
     "https://github.com/pytorch/pytorch/issues/102585",
@@ -445,13 +423,6 @@
   "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
     "102882",
     "https://github.com/pytorch/pytorch/issues/102882",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_side_effects_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102863",
-    "https://github.com/pytorch/pytorch/issues/102863",
     [
       "linux"
     ]
@@ -703,13 +674,6 @@
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
-    [
-      "linux"
-    ]
-  ],
-  "test_dtensor_op_db_empty_permuted_cpu_float32 (__main__.TestDTensorOpsCPU)": [
-    "95395",
-    "https://github.com/pytorch/pytorch/issues/95395",
     [
       "linux"
     ]
@@ -1232,13 +1196,6 @@
       "rocm"
     ]
   ],
-  "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_128_is_causal_False_dropout_p_0_0_bfloat16_scale_l1_cuda_bfloat16 (__main__.TestSDPACUDA)": [
-    "105974",
-    "https://github.com/pytorch/pytorch/issues/105974",
-    [
-      "linux"
-    ]
-  ],
   "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_32_is_causal_False_dropout_p_0_0_float32_scale_None_cuda_float32 (__main__.TestSDPACUDA)": [
     "105975",
     "https://github.com/pytorch/pytorch/issues/105975",
@@ -1287,11 +1244,6 @@
   "test_meta_linalg_ldl_factor_ex_cuda_complex128 (__main__.TestMetaCUDA)": [
     "77025",
     "https://github.com/pytorch/pytorch/issues/77025",
-    []
-  ],
-  "test_meta_linalg_ldl_factor_ex_cuda_complex64 (__main__.TestMetaCUDA)": [
-    "77023",
-    "https://github.com/pytorch/pytorch/issues/77023",
     []
   ],
   "test_mm_batching (test_jit.TestScript)": [
@@ -1831,11 +1783,6 @@
     [
       "mac"
     ]
-  ],
-  "test_shutdown_errors (__main__.TensorPipeRpcTestWithSpawn)": [
-    "61670",
-    "https://github.com/pytorch/pytorch/issues/61670",
-    []
   ],
   "test_single_linear (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105121",
