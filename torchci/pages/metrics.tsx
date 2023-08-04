@@ -33,59 +33,6 @@ import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
 import { durationDisplay } from "components/TimeUtils";
 
-function MasterJobsRedPanel({ params }: { params: RocksetParam[] }) {
-  const url = `/api/query/metrics/master_jobs_red?parameters=${encodeURIComponent(
-    JSON.stringify(params)
-  )}`;
-
-  const { data } = useSWR(url, fetcher, {
-    refreshInterval: 5 * 60 * 1000, // refresh every 5 minutes
-  });
-
-  if (data === undefined) {
-    return <Skeleton variant={"rectangular"} height={"100%"} />;
-  }
-
-  const options: EChartsOption = {
-    title: { text: "% main jobs by red" },
-    grid: { top: 48, right: 8, bottom: 24, left: 36 },
-    dataset: { source: data },
-    xAxis: { type: "time" },
-    yAxis: {
-      type: "value",
-      axisLabel: {
-        formatter: (value: number) => {
-          return (value * 100).toString() + "%";
-        },
-      },
-    },
-    series: [
-      {
-        type: "bar",
-        encode: {
-          x: "granularity_bucket",
-          y: "red",
-        },
-      },
-    ],
-    tooltip: {
-      trigger: "axis",
-      valueFormatter: (value: any) => {
-        return (value * 100).toFixed(2) + "%";
-      },
-    },
-  };
-
-  return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
-        style={{ height: "100%", width: "100%" }}
-        option={options}
-      />
-    </Paper>
-  );
-}
-
 function MasterCommitRedPanel({ params }: { params: RocksetParam[] }) {
   const url = `/api/query/metrics/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify([
