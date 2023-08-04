@@ -7,6 +7,7 @@ locals {
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
   userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
   userdata_template_windows              = "${path.module}/templates/user-data.ps1"
+  userdata_template_arm64              = "${path.module}/templates/user-data-arm64.ps"
 
   arm_patch = var.runner_architecture == "arm64" ? templatefile(local.userdata_arm_patch, {}) : ""
   install_config_runner_linux = templatefile(local.userdata_install_config_runner_linux, {
@@ -198,7 +199,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
     )
   }
 
-  user_data = base64encode(templatefile(local.userdata_template, {
+  user_data = base64encode(templatefile(local.userdata_template_arm64, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install
