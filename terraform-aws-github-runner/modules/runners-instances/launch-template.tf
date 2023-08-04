@@ -1,16 +1,23 @@
 locals {
-  instance_profile_path                  = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
-  name_runner                            = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
-  role_path                              = var.role_path == null ? "/${var.environment}/" : var.role_path
-  userdata_arm_patch                     = "${path.module}/templates/arm-runner-patch.tpl"
-  userdata_install_config_runner_linux   = "${path.module}/templates/install-config-runner.sh"
-  userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
-  userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
-  userdata_template_windows              = "${path.module}/templates/user-data.ps1"
-  userdata_template_arm64                = "${path.module}/templates/user-data-arm64.sh"
+  instance_profile_path                      = var.instance_profile_path == null ? "/${var.environment}/" : var.instance_profile_path
+  name_runner                                = var.overrides["name_runner"] == "" ? local.tags["Name"] : var.overrides["name_runner"]
+  role_path                                  = var.role_path == null ? "/${var.environment}/" : var.role_path
+  userdata_arm_patch                         = "${path.module}/templates/arm-runner-patch.tpl"
+  userdata_install_config_runner_linux       = "${path.module}/templates/install-config-runner.sh"
+  userdata_install_config_runner_linux_arm64 = "${path.module}/templates/install-config-runner-linux-arm64.sh"
+  userdata_install_config_runner_windows     = "${path.module}/templates/install-config-runner.ps1"
+  userdata_template                          = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
+  userdata_template_windows                  = "${path.module}/templates/user-data.ps1"
+  userdata_template_arm64                    = "${path.module}/templates/user-data-arm64.sh"
 
   arm_patch = var.runner_architecture == "arm64" ? templatefile(local.userdata_arm_patch, {}) : ""
   install_config_runner_linux = templatefile(local.userdata_install_config_runner_linux, {
+    environment                     = var.environment
+    s3_location_runner_distribution = var.s3_location_runner_binaries_linux
+    run_as_root_user                = var.runner_as_root ? "root" : ""
+    arm_patch                       = local.arm_patch
+  })
+  install_config_runner_linux_arm64 = templatefile(local.userdata_install_config_runner_linux_arm64, {
     environment                     = var.environment
     s3_location_runner_distribution = var.s3_location_runner_binaries_linux
     run_as_root_user                = var.runner_as_root ? "root" : ""
@@ -207,7 +214,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
     nvidia_driver_install           = false
     ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux_arm64[0].name : ""
     ghes_url                        = var.ghes_url
-    install_config_runner           = local.install_config_runner_linux
+    install_config_runner           = local.install_config_runner_linux_arm64
   }))
 
   tags = local.tags
