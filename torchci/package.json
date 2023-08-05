@@ -27,6 +27,7 @@
     "@mui/x-date-pickers": "^5.0.0-alpha.1",
     "@octokit/webhooks": "^9.23.0",
     "@octokit/webhooks-types": "^6.5.0",
+    "@opensearch-project/opensearch": "^2.3.1",
     "@rockset/client": "^0.8.9",
     "@types/minimist": "^1.2.2",
     "ansicolor": "^1.1.100",
