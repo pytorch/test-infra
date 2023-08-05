@@ -601,7 +601,7 @@ export default function Page() {
                 {
                   name: "one_bucket",
                   type: "bool",
-                  value: "False",
+                  value: "True",
                 },
                 {
                   name: "percentile_to_get",
@@ -622,7 +622,7 @@ export default function Page() {
                 {
                   name: "one_bucket",
                   type: "bool",
-                  value: "False",
+                  value: "True",
                 },
                 {
                   name: "percentile_to_get",
