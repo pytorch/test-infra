@@ -1036,13 +1036,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "95148",
-    "https://github.com/pytorch/pytorch/issues/95148",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "102115",
     "https://github.com/pytorch/pytorch/issues/102115",
@@ -1093,14 +1086,6 @@
   "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105746",
     "https://github.com/pytorch/pytorch/issues/105746",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105844",
-    "https://github.com/pytorch/pytorch/issues/105844",
     [
       "linux",
       "slow"
@@ -1501,6 +1486,13 @@
       "rocm"
     ]
   ],
+  "test_op_has_batch_rule_ZeroGradientsGenVmapAutogradFunction_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
+    "106729",
+    "https://github.com/pytorch/pytorch/issues/106729",
+    [
+      "dynamo"
+    ]
+  ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
     "82340",
     "https://github.com/pytorch/pytorch/issues/82340",
@@ -1747,13 +1739,6 @@
     "https://github.com/pytorch/pytorch/issues/86433",
     [
       "dynamo"
-    ]
-  ],
-  "test_rmsprop_recompile (__main__.CompiledOptimizerTests)": [
-    "105703",
-    "https://github.com/pytorch/pytorch/issues/105703",
-    [
-      "linux"
     ]
   ],
   "test_scatter_uneven (__main__.DeviceMeshCollectiveTest)": [
