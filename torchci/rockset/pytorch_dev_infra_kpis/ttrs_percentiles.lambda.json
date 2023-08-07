@@ -1,0 +1,21 @@
+{
+  "sql_path": "__sql/ttrs_percentiles.sql",
+  "default_parameters": [
+    {
+      "name": "from_days_ago",
+      "type": "int",
+      "value": "180"
+    },
+    {
+      "name": "percentile_to_get",
+      "type": "float",
+      "value": "0"
+    },
+    {
+      "name": "to_days_ago",
+      "type": "int",
+      "value": "0"
+    }
+  ],
+  "description": "Computes the TTRS kpi"
+}
