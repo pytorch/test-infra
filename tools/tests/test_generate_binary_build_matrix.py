@@ -10,14 +10,21 @@ ASSETS_DIR = "tools/tests/assets"
 
 class GenerateBuildMatrixTest(TestCase):
     def matrix_compare_helper(
-        self, package_type, operating_system, cuda, rocm, reference_output_file
-    ):
+        self,
+        package_type: str,
+        operating_system: str,
+        cuda: bool,
+        rocm: bool,
+        cpu: bool,
+        reference_output_file: str,
+    ) -> None:
         out = generate_build_matrix(
             package_type,
             operating_system,
             "nightly",
             "enable" if cuda else "disable",
             "enable" if rocm else "disable",
+            "enable" if cpu else "disable",
             "false",
         )
 
@@ -35,6 +42,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="linux",
             cuda=True,
             rocm=True,
+            cpu=True,
             reference_output_file="build_matrix_linux_wheel_cuda.json",
         )
 
@@ -44,6 +52,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="linux",
             cuda=True,
             rocm=True,
+            cpu=True,
             reference_output_file="build_matrix_linux_conda_cuda.json",
         )
 
@@ -53,6 +62,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="macos",
             cuda=False,
             rocm=False,
+            cpu=True,
             reference_output_file="build_matrix_macos_wheel.json",
         )
 
@@ -62,6 +72,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="macos",
             cuda=False,
             rocm=False,
+            cpu=True,
             reference_output_file="build_matrix_macos_conda.json",
         )
 
@@ -71,6 +82,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="windows",
             cuda=True,
             rocm=True,
+            cpu=True,
             reference_output_file="build_matrix_windows_wheel_cuda.json",
         )
 
@@ -80,6 +92,7 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="windows",
             cuda=True,
             rocm=True,
+            cpu=True,
             reference_output_file="build_matrix_windows_conda_cuda.json",
         )
 
@@ -89,7 +102,28 @@ class GenerateBuildMatrixTest(TestCase):
             operating_system="linux",
             cuda=True,
             rocm=False,
+            cpu=True,
             reference_output_file="build_matrix_linux_wheel_cuda_norocm.json",
+        )
+
+    def test_linux_wheel_cuda_nocpu(self):
+        self.matrix_compare_helper(
+            package_type="wheel",
+            operating_system="linux",
+            cuda=True,
+            rocm=True,
+            cpu=False,
+            reference_output_file="build_matrix_linux_wheel_cuda_nocpu.json",
+        )
+
+    def test_linux_wheel_cuda_rocm_nocpu(self):
+        self.matrix_compare_helper(
+            package_type="wheel",
+            operating_system="linux",
+            cuda=True,
+            rocm=True,
+            cpu=False,
+            reference_output_file="build_matrix_linux_wheel_nocpu.json",
         )
 
 
