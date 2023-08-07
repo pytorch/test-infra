@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 import subprocess
 from pathlib import Path
-from utils import query_rockset, upload_to_rockset
+from rockset_utils import query_rockset, upload_to_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -62,7 +62,7 @@ def upload_merge_base_info(shas: List[Dict[str, Any]]) -> None:
 
 
 if __name__ == "__main__":
-    failed_test_shas = failed_tests = query_rockset(FAILED_TEST_SHAS_QUERY)
+    failed_test_shas = query_rockset(FAILED_TEST_SHAS_QUERY)
     interval = 100
     print(f"There are {len(failed_test_shas)}, uploading in batches of {interval}")
     for i in range(0, len(failed_test_shas), interval):

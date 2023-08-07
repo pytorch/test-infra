@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-from utils import query_rockset
+from rockset_utils import query_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -20,12 +20,16 @@ where
     t.file is not null
 """
 
+# See get_merge_base_info for structure, should have sha, merge_base, and
+# changed_files fields
 MERGE_BASES_QUERY = """
 select * from merge_bases
 """
 
 
 def filter_tests(failed_tests, merge_bases):
+    # Remove tests that don't have a merge base or also fail on the merge base.
+
     tests_by_sha = defaultdict(list)
     for test in failed_tests:
         sha = test["head_sha"]
@@ -55,11 +59,14 @@ def filter_tests(failed_tests, merge_bases):
 
 
 def evaluate(tests, merge_bases, rev_mapping):
+    # This function doesn't produce output that is used but is meant to help
+    # evaluate if the currently rating/calculation is good.
+
     # Probably not exhaustive but whatever
     all_invoking_files = {test["invoking_file"] for test in tests}
 
     scores = []
-    for test in tests[::]:
+    for test in tests:
         changed_files = merge_bases[test["head_sha"]]["changed_files"]
 
         prediction = defaultdict(int)
@@ -83,29 +90,21 @@ def evaluate(tests, merge_bases, rev_mapping):
     print(f"# of invoking files: {len(all_invoking_files)}")
 
 
-if __name__ == "__main__":
-    failed_tests = query_rockset(FAILED_TESTS_QUERY)
-    merge_bases = query_rockset(MERGE_BASES_QUERY)
-    print("done querying rockset", flush=True)
-
-    merge_bases = {s["sha"]: s for s in merge_bases}
-    filtered_tests = filter_tests(failed_tests, merge_bases)
+def calculate_ratings(tests, merge_bases):
+    # Should return a mapping of file -> test/invoking file -> score
 
     # Get a mapping of invoking/test file -> list of shas that broke it
-    by_invoking_file = defaultdict(set)
-    for test in filtered_tests[::]:
+    invoking_file_to_shas = defaultdict(set)
+    for test in tests:
         invoking_file = test["invoking_file"]
         sha = test["head_sha"]
-        by_invoking_file[invoking_file].add(sha)
-
-    for test_file in by_invoking_file:
-        by_invoking_file[test_file] = list(by_invoking_file[test_file])
+        invoking_file_to_shas[invoking_file].add(sha)
 
     # Make mapping of invoking/test file -> file -> score
     file_rating = {}
-    for test_file in by_invoking_file:
+    for test_file in invoking_file_to_shas:
         score_dict = defaultdict(int)
-        for sha in by_invoking_file[test_file]:
+        for sha in invoking_file_to_shas[test_file]:
             changed_files = merge_bases[sha]["changed_files"]
             for file in changed_files:
                 score_dict[file] += 1 / len(changed_files)
@@ -116,8 +115,24 @@ if __name__ == "__main__":
     for test_file in file_rating:
         for file in file_rating[test_file]:
             rev_mapping[file][test_file] = file_rating[test_file][file]
+    return rev_mapping
 
-    evaluate(filtered_tests, merge_bases, rev_mapping)
+
+def main() -> None:
+    failed_tests = query_rockset(FAILED_TESTS_QUERY)
+    merge_bases = query_rockset(MERGE_BASES_QUERY)
+    print("done querying rockset", flush=True)
+
+    merge_bases = {s["sha"]: s for s in merge_bases}
+    filtered_tests = filter_tests(failed_tests, merge_bases)
+
+    ratings = calculate_ratings(filtered_tests, merge_bases)
+
+    evaluate(filtered_tests, merge_bases, ratings)
 
     with open("file_test_rating.json", mode="w") as file:
-        json.dump(rev_mapping, file, sort_keys=True, indent=2)
+        json.dump(ratings, file, sort_keys=True, indent=2)
+
+
+if __name__ == "__main__":
+    main()
