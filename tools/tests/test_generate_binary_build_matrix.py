@@ -106,16 +106,6 @@ class GenerateBuildMatrixTest(TestCase):
             reference_output_file="build_matrix_linux_wheel_cuda_norocm.json",
         )
 
-    def test_linux_wheel_cuda_nocpu(self):
-        self.matrix_compare_helper(
-            package_type="wheel",
-            operating_system="linux",
-            cuda=True,
-            rocm=True,
-            cpu=False,
-            reference_output_file="build_matrix_linux_wheel_cuda_nocpu.json",
-        )
-
     def test_linux_wheel_cuda_rocm_nocpu(self):
         self.matrix_compare_helper(
             package_type="wheel",
