@@ -805,13 +805,6 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93082",
-    "https://github.com/pytorch/pytorch/issues/93082",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
@@ -962,6 +955,14 @@
     "https://github.com/pytorch/pytorch/issues/98678",
     [
       "linux"
+    ]
+  ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
