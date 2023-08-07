@@ -85,7 +85,7 @@ export default function Kpis() {
 
       <Grid item xs={12} lg={6} height={ROW_HEIGHT}>
         <TimeSeriesPanel
-          title={"% of force merges (Weekly)"}
+          title={"% of force merges (Weekly, 2 week rolling avg)"}
           queryName={"weekly_force_merge_stats"}
           queryCollection={"commons"}
           queryParams={[...timeParams]}
