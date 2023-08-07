@@ -45,18 +45,32 @@ data "aws_ami" "runner_ami_linux" {
   owners = var.ami_owners_linux
 }
 
+#data "aws_ami" "runner_ami_linux_arm64" {
+#  most_recent = "true"
+#
+#  filter {
+#    name   = "image-id"
+#    values = ["ami-0964d1dc1edd4bd2f"]
+#  }
+#
+#  filter {
+#    name   = "architecture"
+#    values = ["arm64"]
+#  }
+#}
+
 data "aws_ami" "runner_ami_linux_arm64" {
   most_recent = "true"
 
-  filter {
-    name   = "image-id"
-    values = ["ami-0964d1dc1edd4bd2f"]
+  dynamic "filter" {
+    for_each = var.ami_filter_linux_arm64
+    content {
+      name   = filter.key
+      values = filter.value
+    }
   }
 
-  filter {
-    name   = "architecture"
-    values = ["arm64"]
-  }
+  owners = var.ami_owners_linux_arm64
 }
 
 data "aws_ami" "runner_ami_windows" {
