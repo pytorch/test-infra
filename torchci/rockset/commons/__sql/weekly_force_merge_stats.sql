@@ -114,7 +114,7 @@ WITH
                 'Overall',
                 FORMAT_TIMESTAMP('%Y-%m-%d', DATE_TRUNC(:granularity, date))
             ) AS granularity_bucket,
-            SUM(force_merge_with_failures) with_failures_cnt,
+            SUM(force_merge_with_failures) AS with_failures_cnt,
             SUM(force_merge) - SUM(force_merge_with_failures) as impatience_cnt,
             COUNT(*) as total,
             SUM(force_merge) as total_force_merge_cnt
@@ -123,6 +123,29 @@ WITH
         group by
             granularity_bucket
     ),
+    rolling_raw_stats as (
+        -- Average over the past buckets
+        SELECT
+            granularity_bucket,
+            sum(with_failures_cnt) OVER(
+                ORDER BY
+                    granularity_bucket ROWS 1 PRECEDING
+            ) as with_failures_cnt,
+            sum(impatience_cnt) OVER(
+                ORDER BY
+                    granularity_bucket ROWS 1 PRECEDING
+            ) as impatience_cnt,
+            sum(total_force_merge_cnt) OVER(
+                ORDER BY
+                    granularity_bucket ROWS 1 PRECEDING
+            ) as total_force_merge_cnt,
+            sum(total) OVER(
+                ORDER BY
+                    granularity_bucket ROWS 1 PRECEDING
+            ) as total,
+        FROM
+            bucketed_counts
+    ),
     stats_per_bucket as (
         SELECT
             granularity_bucket,
@@ -130,7 +153,7 @@ WITH
             impatience_cnt * 100.0 / total as impatience_percent,
             total_force_merge_cnt * 100.0 / total as force_merge_percent,
         from
-            bucketed_counts
+            rolling_raw_stats
     ),
     final_table as (
         (

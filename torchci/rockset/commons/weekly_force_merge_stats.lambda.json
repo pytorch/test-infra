@@ -9,7 +9,7 @@
     {
       "name": "merge_type",
       "type": "string",
-      "value": " "
+      "value": "  "
     },
     {
       "name": "one_bucket",

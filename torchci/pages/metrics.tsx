@@ -545,7 +545,7 @@ export default function Page() {
               queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
-              valueRenderer={(value) => (value).toFixed(1) + "%"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
               queryParams={[
                 {
                   name: "one_bucket",
@@ -559,14 +559,14 @@ export default function Page() {
                 },
                 ...timeParams,
               ]}
-              badThreshold={(value) => value > 0.055}
+              badThreshold={(value) => value > 8.5}
             />
             <ScalarPanel
               title={"% force merges due to impatience"}
               queryCollection={"commons"}
               queryName={"weekly_force_merge_stats"}
               metricName={"metric"}
-              valueRenderer={(value) => (value).toFixed(1) + "%"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
               queryParams={[
                 {
                   name: "one_bucket",
@@ -580,7 +580,7 @@ export default function Page() {
                 },
                 ...timeParams,
               ]}
-              badThreshold={(value) => value > 0.055}
+              badThreshold={(value) => value > 10}
             />
           </Stack>
         </Grid>
