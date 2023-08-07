@@ -957,14 +957,6 @@
       "linux"
     ]
   ],
-  "test_graph_breaks (__main__.LoggingTests)": [
-    "104098",
-    "https://github.com/pytorch/pytorch/issues/104098",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
