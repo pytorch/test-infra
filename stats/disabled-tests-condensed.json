@@ -501,25 +501,9 @@
       "slow"
     ]
   ],
-  "test_conversions_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105545",
-    "https://github.com/pytorch/pytorch/issues/105545",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conversions_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105667",
     "https://github.com/pytorch/pytorch/issues/105667",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105543",
-    "https://github.com/pytorch/pytorch/issues/105543",
     [
       "linux",
       "slow"
@@ -839,11 +823,6 @@
     [
       "linux"
     ]
-  ],
-  "test_fs_pool (__main__.TestMultiprocessing)": [
-    "69659",
-    "https://github.com/pytorch/pytorch/issues/69659",
-    []
   ],
   "test_fs_preserve_sharing (__main__.TestMultiprocessing)": [
     "91467",
