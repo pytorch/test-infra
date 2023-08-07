@@ -992,6 +992,14 @@
       "macos"
     ]
   ],
+  "test_indices_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105745",
+    "https://github.com/pytorch/pytorch/issues/105745",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_inductor (__main__.TransformationTest)": [
     "100432",
     "https://github.com/pytorch/pytorch/issues/100432",
@@ -1087,6 +1095,14 @@
     "https://github.com/pytorch/pytorch/issues/78377",
     [
       "macos"
+    ]
+  ],
+  "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105746",
+    "https://github.com/pytorch/pytorch/issues/105746",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_linear_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
