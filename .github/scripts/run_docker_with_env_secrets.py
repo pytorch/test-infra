@@ -57,6 +57,9 @@ def main():
     container_name = (
         run_cmd_or_die(
             f"""
+    mkdir /work
+    chmod +w /work
+    
     docker run \
         -e PR_NUMBER \
         -e RUNNER_ARTIFACT_DIR=/artifacts \
