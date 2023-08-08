@@ -36,6 +36,7 @@ ROCM_ARCHES_DICT = {
     "release": ["5.3", "5.4.2"],
 }
 
+CPU_AARCH64_ARCH = ["cpu-aarch64"]
 PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
 PRE_CXX11_ABI = "pre-cxx11"
 CXX11_ABI = "cxx11-abi"
@@ -55,6 +56,7 @@ mod.PYTHON_ARCHES = PYTHON_ARCHES_DICT[NIGHTLY]
 
 LINUX_GPU_RUNNER = "linux.g5.4xlarge.nvidia.gpu"
 LINUX_CPU_RUNNER = "linux.2xlarge"
+LINUX_AARCH64_RUNNER = "linux.t4g.2xlarge"
 WIN_GPU_RUNNER = "windows.8xlarge.nvidia.gpu"
 WIN_CPU_RUNNER = "windows.4xlarge"
 MACOS_M1_RUNNER = "macos-m1-12"
@@ -75,6 +77,8 @@ def arch_type(arch_version: str) -> str:
         return "cuda"
     elif arch_version in mod.ROCM_ARCHES:
         return "rocm"
+    elif arch_version in CPU_AARCH64_ARCH:
+        return "cpu-aarch64"
     else:  # arch_version should always be "cpu" in this case
         return "cpu"
 
@@ -84,6 +88,8 @@ def validation_runner(arch_type: str, os: str) -> str:
             return LINUX_GPU_RUNNER
         else:
             return LINUX_CPU_RUNNER
+    elif os == "linux-aarch64":
+        return LINUX_AARCH64_RUNNER
     elif os == "windows":
         if arch_type == "cuda":
             return WIN_GPU_RUNNER
@@ -115,6 +121,7 @@ def initialize_globals(channel: str):
             for gpu_arch in mod.ROCM_ARCHES
         },
         "cpu": "pytorch/manylinux-builder:cpu",
+        "cpu-aarch64": "quay.io/pypa/manylinux2014_aarch64",
     }
     mod.CONDA_CONTAINER_IMAGES = {
         **{gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}" for gpu_arch in mod.CUDA_ARCHES},
@@ -145,6 +152,7 @@ def initialize_globals(channel: str):
 def translate_desired_cuda(gpu_arch_type: str, gpu_arch_version: str) -> str:
     return {
         "cpu": "cpu",
+        "cpu-aarch64": "cpu",
         "cuda": f"cu{gpu_arch_version.replace('.', '')}",
         "rocm": f"rocm{gpu_arch_version}",
     }.get(gpu_arch_type, gpu_arch_version)
@@ -380,6 +388,11 @@ def generate_wheels_matrix(
         if with_cpu == ENABLE:
             arches += ["cpu"]
 
+        if os == "linux-aarch64":
+            # Only want the one arch as the CPU type is different and
+            # uses different build/test scripts
+            arches = ["cpu-aarch64"]
+
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os == "linux" or os == "windows":
@@ -397,7 +410,12 @@ def generate_wheels_matrix(
     for python_version in python_versions:
         for arch_version in arches:
             gpu_arch_type = arch_type(arch_version)
-            gpu_arch_version = "" if arch_version == "cpu" else arch_version
+            gpu_arch_version = (
+                ""
+                if arch_version == "cpu"
+                or arch_version == "cpu-aarch64"
+                else arch_version
+            )
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             ret.append(
