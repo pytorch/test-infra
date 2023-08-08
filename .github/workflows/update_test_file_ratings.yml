@@ -6,7 +6,7 @@ on:
       - ".github/workflows/update_test_file_ratings.yml"
       - ".github/scripts/calculate_file_test_rating.py"
   schedule:
-    - cron: 5 2 * * *  # At 02:05 UTC every day or about 7pm PT
+    - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
