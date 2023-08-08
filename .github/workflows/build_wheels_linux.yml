@@ -56,7 +56,7 @@ on:
         default: ""
         type: string
       architecture:
-        description: Architecure to use for setup-miniconda
+        description: Architecure to build for x64 for default Linux, or ARM64 for Linux aarch64 builds
         required: false
         type: string
         default: x64
@@ -125,8 +125,8 @@ jobs:
           DESIRED_PYTHON: ${{ matrix.python_version }}
         run: |
           set +e
-          # TODO: Should we move aarch64 scripts to test-infra folder
-          ${GITHUB_WORKSPACE}/builder/aarch64_linux/aarch64_ci_build.sh
+          # TODO: This is temporary aarch64 setup script, this should be integrated into aarch64 docker.
+          ${GITHUB_WORKSPACE}/builder/aarch64_linux/aarch64_ci_setup.sh
           echo "/opt/conda/bin" >> $GITHUB_PATH
           set -e
       - uses: ./test-infra/.github/actions/set-channel
