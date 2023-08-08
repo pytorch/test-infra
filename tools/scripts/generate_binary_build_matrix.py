@@ -203,13 +203,26 @@ def get_wheel_install_command(os: str, channel: str, gpu_arch_type: str, gpu_arc
         whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}" if channel == "nightly" else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
 
-def generate_conda_matrix(os: str, channel: str, with_cuda: str, with_rocm: str, limit_pr_builds: bool) -> List[Dict[str, str]]:
+def generate_conda_matrix(
+    os: str,
+    channel: str,
+    with_cuda: str,
+    with_rocm: str,
+    with_cpu: str,
+    limit_pr_builds: bool
+) -> List[Dict[str, str]]:
+
     ret: List[Dict[str, str]] = []
-    arches = ["cpu"]
     python_versions = list(mod.PYTHON_ARCHES)
 
-    if with_cuda == ENABLE and (os == "linux" or os == "windows"):
-        arches += mod.CUDA_ARCHES
+    arches = []
+
+    if with_cpu == ENABLE:
+        arches += ["cpu"]
+
+    if with_cuda == ENABLE:
+        if os == "linux" or os == "windows":
+            arches += mod.CUDA_ARCHES
 
     if limit_pr_builds:
         python_versions = [ python_versions[0] ]
@@ -248,6 +261,7 @@ def generate_libtorch_matrix(
     channel: str,
     with_cuda: str,
     with_rocm: str,
+    with_cpu: str,
     limit_pr_builds: str,
     abi_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
@@ -261,12 +275,13 @@ def generate_libtorch_matrix(
         return ret
 
     if arches is None:
-        arches = ["cpu"]
+        arches = []
+
+        if with_cpu == ENABLE:
+            arches += ["cpu"]
 
         if with_cuda == ENABLE:
-            if os == "linux":
-                arches += mod.CUDA_ARCHES
-            elif os == "windows":
+            if os == "linux" or os == "windows":
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
@@ -342,6 +357,7 @@ def generate_wheels_matrix(
     channel: str,
     with_cuda: str,
     with_rocm: str,
+    with_cpu: str,
     limit_pr_builds: bool,
     arches: Optional[List[str]] = None,
     python_versions: Optional[List[str]] = None,
@@ -359,18 +375,20 @@ def generate_wheels_matrix(
     upload_to_base_bucket = "yes"
     if arches is None:
         # Define default compute architectures
-        arches = ["cpu"]
+        arches = []
+
+        if with_cpu == ENABLE:
+            arches += ["cpu"]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
-            if os == "linux":
-                arches += mod.CUDA_ARCHES
-            elif os == "windows":
+            if os == "linux" or os == "windows":
                 arches += mod.CUDA_ARCHES
 
         if with_rocm == ENABLE:
             if os == "linux":
                 arches += mod.ROCM_ARCHES
+
 
     if limit_pr_builds:
         python_versions = [ python_versions[0] ]
@@ -415,6 +433,7 @@ def generate_build_matrix(
         channel: str,
         with_cuda: str,
         with_rocm: str,
+        with_cpu: str,
         limit_pr_builds: str) -> Dict[str, List[Dict[str, str]]]:
     includes = []
 
@@ -432,6 +451,7 @@ def generate_build_matrix(
                                                             channel,
                                                             with_cuda,
                                                             with_rocm,
+                                                            with_cpu,
                                                             limit_pr_builds == "true")
                 )
 
@@ -473,6 +493,13 @@ def main(args) -> None:
         choices=[ENABLE, DISABLE],
         default=os.getenv("WITH_ROCM", ENABLE),
     )
+    parser.add_argument(
+        "--with-cpu",
+        help="Build with CPU?",
+        type=str,
+        choices=[ENABLE, DISABLE],
+        default=os.getenv("WITH_CPU", ENABLE),
+    )
     # By default this is false for this script but expectation is that the caller
     # workflow will default this to be true most of the time, where a pull
     # request is synchronized and does not contain the label "ciflow/binaries/all"
@@ -487,12 +514,15 @@ def main(args) -> None:
 
     options = parser.parse_args(args)
 
+    assert (options.with_cuda or options.with_rocm or options.with_cpu), "Must build with either CUDA, ROCM, or CPU support."
+
     build_matrix = generate_build_matrix(
             options.package_type,
             options.operating_system,
             options.channel,
             options.with_cuda,
             options.with_rocm,
+            options.with_cpu,
             options.limit_pr_builds)
 
     print(json.dumps(build_matrix))
