@@ -102,6 +102,19 @@
       "mac"
     ]
   ],
+  "test_base_does_not_require_grad_mode_nothing (__main__.TestAutogradFallback)": [
+    "106754",
+    "https://github.com/pytorch/pytorch/issues/106754",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_basic (__main__.TestNvFuserDynamo)": [
     "103403",
     "https://github.com/pytorch/pytorch/issues/103403",
@@ -1489,6 +1502,13 @@
   "test_op_has_batch_rule_ZeroGradientsGenVmapAutogradFunction_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
     "106729",
     "https://github.com/pytorch/pytorch/issues/106729",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_op_has_batch_rule___getitem___functorch_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
+    "106753",
+    "https://github.com/pytorch/pytorch/issues/106753",
     [
       "dynamo"
     ]
