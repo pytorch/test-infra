@@ -31,6 +31,10 @@ jobs:
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
+          - repository: pytorch/audio
+            smoke-test-script: test/smoke_test/smoke_test.py
+            conda-package-directory: packaging/torchaudio
+            package-name: torchaudio
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
