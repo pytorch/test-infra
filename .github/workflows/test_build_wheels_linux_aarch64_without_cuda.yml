@@ -44,5 +44,5 @@ jobs:
       smoke-test-script: ${{ matrix.smoke-test-script }}
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
-      architecture: ARM64
+      architecture: aarch64
       setup-miniconda: false

@@ -56,10 +56,10 @@ on:
         default: ""
         type: string
       architecture:
-        description: Architecure to build for x64 for default Linux, or ARM64 for Linux aarch64 builds
+        description: Architecture to build for x86_64 for default Linux, or aarch64 for Linux aarch64 builds
         required: false
         type: string
-        default: x64
+        default: x86_64
       setup-miniconda:
         description: Works as stated in actions/checkout, but the default value is recursive
         required: false
@@ -108,7 +108,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: actions/checkout@v3
-        if: ${{ inputs.architecture == 'ARM64' }}
+        if: ${{ inputs.architecture == 'aarch64' }}
         with:
           # Support the use case where we need to checkout someone's fork
           repository: "pytorch/builder"
@@ -119,7 +119,7 @@ jobs:
         with:
           github-secret: ${{ github.token }}
       - name: Set linux aarch64 CI
-        if: ${{ inputs.architecture == 'ARM64' }}
+        if: ${{ inputs.architecture == 'aarch64' }}
         shell: bash -l {0}
         env:
           DESIRED_PYTHON: ${{ matrix.python_version }}
@@ -162,7 +162,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          if [[ ${{ inputs.architecture }} == 'ARM64' ]]; then
+          if [[ ${{ inputs.architecture }} == 'aarch64' ]]; then
             ${CONDA_RUN} conda install -y libpng jpeg
           fi
           ${CONDA_RUN} python setup.py clean
