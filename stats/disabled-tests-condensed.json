@@ -483,6 +483,30 @@
       "rocm"
     ]
   ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106793",
+    "https://github.com/pytorch/pytorch/issues/106793",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106796",
+    "https://github.com/pytorch/pytorch/issues/106796",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106795",
+    "https://github.com/pytorch/pytorch/issues/106795",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_conversions_all_patterns_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105544",
     "https://github.com/pytorch/pytorch/issues/105544",
@@ -502,6 +526,14 @@
   "test_conversions_all_patterns_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105540",
     "https://github.com/pytorch/pytorch/issues/105540",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106797",
+    "https://github.com/pytorch/pytorch/issues/106797",
     [
       "linux",
       "slow"
@@ -1099,9 +1131,9 @@
       "slow"
     ]
   ],
-  "test_linear_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105932",
-    "https://github.com/pytorch/pytorch/issues/105932",
+  "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "106794",
+    "https://github.com/pytorch/pytorch/issues/106794",
     [
       "linux",
       "slow"
@@ -1540,13 +1572,6 @@
       "dynamo",
       "mac",
       "macos"
-    ]
-  ],
-  "test_operator_linalg_lu_factor_cuda_float32 (__main__.TestCompositeComplianceCUDA)": [
-    "91685",
-    "https://github.com/pytorch/pytorch/issues/91685",
-    [
-      "linux"
     ]
   ],
   "test_optional_list (test_jit.TestScript)": [
