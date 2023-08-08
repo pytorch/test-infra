@@ -7,7 +7,7 @@ on:
       - .github/workflows/test_build_wheels_linux.yml
       - .github/workflows/build_wheels_linux.yml
       - .github/workflows/generate_binary_build_matrix.yml
-      - .github/workflows/test_build_wheels_linux_without_cuda.yml
+      - .github/workflows/test_build_wheels_linux_aarch64_without_cuda.yml
       - tools/scripts/generate_binary_build_matrix.py
   workflow_dispatch:
 
@@ -31,6 +31,9 @@ jobs:
             post-script: packaging/post_build_script.sh
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
+          - repository: pytorch/audio
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchaudio
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
