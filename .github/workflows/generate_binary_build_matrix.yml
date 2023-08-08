@@ -28,7 +28,11 @@ on:
         default: "enable"
         type: string
       with-rocm:
-        description: "Build with Cuda?"
+        description: "Build with Rocm?"
+        default: "enable"
+        type: string
+      with-cpu:
+        description: "Build with CPU?"
         default: "enable"
         type: string
     outputs:
@@ -59,6 +63,7 @@ jobs:
           CHANNEL: ${{ inputs.channel }}
           WITH_CUDA: ${{ inputs.with-cuda }}
           WITH_ROCM: ${{ inputs.with-rocm }}
+          WITH_CPU: ${{ inputs.with-cpu }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}

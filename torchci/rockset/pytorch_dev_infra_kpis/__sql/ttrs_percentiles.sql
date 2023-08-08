@@ -1,9 +1,14 @@
--- This query is used to generate the TTRS KPI for the pytorch/pytorch repo.
+-- This query is used to compute the TTRS KPI for the pytorch/pytorch repo.
+--
 -- Results are displayed on HUD in two views:
---   The kpi view, where "percentile_to_get" should be left blank in order to get the three default percentages
---     When percentile_to_get is left at its default value of zero, the query returns p25, p50, p75 and p90 percentiles.
---     Otherwise, it returns only the specified percentile.
---   The metrics view, where the percentile_to_get should be set in order to get just the desired percentile
+--   The kpi view, where percentile_to_get should be left at zero in order to get the default percentiles
+--   The metrics view, where the percentile_to_get and one_bucket should be set in order to get just the desired percentile
+--
+-- This query has two special params:
+--     percentile_to_get: When set, it returns only the specified percentile. Otherwise it returns
+--                 p25, p50, p75 and p90 percentiles.
+--     one_bucket: When set to false, buckets data into weekly percentiles. When true, it treats 
+--                 entire time range as one big bucket and returns percnetiles accordingly
 
 
 WITH
@@ -23,10 +28,10 @@ WITH
             INNER JOIN commons.workflow_run r on j.run_id = r.id
         WHERE
             1 = 1
-            AND j._event_time > (CURRENT_DATETIME() - DAYS(:from_days_ago))
-            AND r._event_time > (CURRENT_DATETIME() - DAYS(:from_days_ago))
-            AND j._event_time < (CURRENT_DATETIME() - DAYS(:to_days_ago))
-            AND r._event_time < (CURRENT_DATETIME() - DAYS(:to_days_ago))
+            AND j._event_time > PARSE_DATETIME_ISO8601(:startTime)
+            AND r._event_time > PARSE_DATETIME_ISO8601(:startTime)
+            AND j._event_time < PARSE_DATETIME_ISO8601(:stopTime)
+            AND r._event_time < PARSE_DATETIME_ISO8601(:stopTime)
             AND LENGTH(r.pull_requests) = 1
             AND r.pull_requests[1].head.repo.name = 'pytorch'
             AND r.name IN ('pull', 'trunk', 'Lint') -- Ensure we don't pull in random PRs we don't care about
@@ -68,7 +73,7 @@ WITH
             js.name as step_name,
             js.conclusion as step_conclusion,
             PARSE_TIMESTAMP_ISO8601(js.completed_at) as failure_time,
-            PARSE_TIMESTAMP_ISO8601(j.started_at) AS start_time,
+            PARSE_TIMESTAMP_ISO8601(js.started_at) AS start_time,
             PARSE_TIMESTAMP_ISO8601(j.completed_at) AS end_time,
             r.name AS workflow_name,
             j.name as job_name,
@@ -140,7 +145,8 @@ WITH
     ),
     workflow_failure_buckets as (
         SELECT
-            DATE_TRUNC('week', start_time) AS bucket,
+            -- When :one_bucket is set to true, we want the ttrs percentile over all the data
+            DATE_TRUNC('week', if(:one_bucket, CURRENT_DATETIME(), start_time)) AS bucket,
             *
         FROM
             workflow_failure
@@ -219,7 +225,9 @@ WITH
         FROM
             ttrs_percentile d
         WHERE
-            d.bucket < CURRENT_TIMESTAMP() - INTERVAL 1 WEEK-- discard the latest bucket, which will have noisy, partial data
+            :one_bucket
+            OR
+            (d.bucket < CURRENT_TIMESTAMP() - INTERVAL 1 WEEK) -- discard the latest bucket, which will have noisy, partial data
         ORDER BY
             bucket ASC,
             ttrs_mins

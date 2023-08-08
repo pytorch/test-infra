@@ -542,17 +542,45 @@ export default function Page() {
           >
             <ScalarPanel
               title={"% force merges due to failed PR checks"}
-              queryName={"force_merge_red_avg"}
-              metricName={"force_merges_red"}
-              valueRenderer={(value) => (value * 100).toFixed(1) + "%"}
-              queryParams={timeParams}
-              badThreshold={(value) => value > 0.055}
+              queryCollection={"commons"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "merge_type",
+                  type: "string",
+                  value: "Failure",
+                },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 8.5}
             />
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"% force merges due to impatience"}
-              value={"TBD"}
-              valueRenderer={(value) => value}
-              badThreshold={(value) => value > 0.055}
+              queryCollection={"commons"}
+              queryName={"weekly_force_merge_stats"}
+              metricName={"metric"}
+              valueRenderer={(value) => value.toFixed(1) + "%"}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "merge_type",
+                  type: "string",
+                  value: "Impatience",
+                },
+                ...timeParams,
+              ]}
+              badThreshold={(value) => value > 10}
             />
           </Stack>
         </Grid>
@@ -563,16 +591,46 @@ export default function Page() {
             flexWrap="wrap"
             spacing={1}
           >
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"Time to Red Signal (p90 TTRS - mins)"}
-              value={"TBD"}
+              queryCollection={"pytorch_dev_infra_kpis"}
+              queryName={"ttrs_percentiles"}
+              metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "percentile_to_get",
+                  type: "float",
+                  value: "0.90",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 50}
             />
-            <ScalarPanelWithValue
+            <ScalarPanel
               title={"Time to Red Signal (p75 TTRS - mins)"}
-              value={"TBD"}
+              queryCollection={"pytorch_dev_infra_kpis"}
+              queryName={"ttrs_percentiles"}
+              metricName={"ttrs_mins"}
               valueRenderer={(value) => value}
+              queryParams={[
+                {
+                  name: "one_bucket",
+                  type: "bool",
+                  value: "True",
+                },
+                {
+                  name: "percentile_to_get",
+                  type: "float",
+                  value: "0.75",
+                },
+                ...timeParams,
+              ]}
               badThreshold={(value) => value > 40}
             />
           </Stack>
