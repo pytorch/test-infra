@@ -27,8 +27,8 @@ resource "random_password" "es_password" {
 }
 
 resource "aws_elasticache_user" "scale_lambda" {
-  user_id       = "${var.environment}-scaleLambda"
-  user_name     = "${var.environment}-scaleLambda"
+  user_id       = "${var.environment}-scalelambda"
+  user_name     = "${var.environment}-scalelambda"
   access_string = "on ~* +@all"
   engine        = "REDIS"
   passwords     = [random_password.es_password.result]
