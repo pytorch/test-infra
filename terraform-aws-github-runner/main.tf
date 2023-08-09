@@ -17,9 +17,10 @@ locals {
     Environment = var.environment
   })
 
-  s3_action_runner_url_linux   = "s3://${module.runner_binaries.bucket.id}/${module.runner_binaries.runner_distribution_object_key_linux}"
-  s3_action_runner_url_windows = "s3://${module.runner_binaries.bucket.id}/${module.runner_binaries.runner_distribution_object_key_windows}"
-  runner_architecture          = substr(var.instance_type, 0, 2) == "a1" || substr(var.instance_type, 1, 2) == "6g" ? "arm64" : "x64"
+  s3_action_runner_url_linux       = "s3://${module.runner_binaries.bucket.id}/${module.runner_binaries.runner_distribution_object_key_linux}"
+  s3_action_runner_url_linux_arm64 = "s3://${module.runner_binaries.bucket.id}/${module.runner_binaries.runner_distribution_object_key_linux_arm64}"
+  s3_action_runner_url_windows     = "s3://${module.runner_binaries.bucket.id}/${module.runner_binaries.runner_distribution_object_key_windows}"
+  runner_architecture              = substr(var.instance_type, 0, 2) == "a1" || substr(var.instance_type, 1, 2) == "6g" ? "arm64" : "x64"
 }
 
 resource "random_string" "random" {
@@ -168,9 +169,10 @@ module "runners_instances" {
     encrypt    = var.encrypt_secrets
   }
 
-  s3_bucket_runner_binaries           = module.runner_binaries.bucket
-  s3_location_runner_binaries_linux   = local.s3_action_runner_url_linux
-  s3_location_runner_binaries_windows = local.s3_action_runner_url_windows
+  s3_bucket_runner_binaries               = module.runner_binaries.bucket
+  s3_location_runner_binaries_linux       = local.s3_action_runner_url_linux
+  s3_location_runner_binaries_linux_arm64 = local.s3_action_runner_url_linux_arm64
+  s3_location_runner_binaries_windows     = local.s3_action_runner_url_windows
 
   instance_type         = var.instance_type
   block_device_mappings = var.block_device_mappings

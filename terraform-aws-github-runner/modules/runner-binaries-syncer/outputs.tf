@@ -6,6 +6,10 @@ output "runner_distribution_object_key_linux" {
   value = local.action_runner_distribution_object_key_linux
 }
 
+output "runner_distribution_object_key_linux_arm64" {
+  value = local.action_runner_distribution_object_key_linux_arm64
+}
+
 output "runner_distribution_object_key_windows" {
   value = local.action_runner_distribution_object_key_windows
 }

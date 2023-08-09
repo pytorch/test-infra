@@ -40,6 +40,11 @@ variable "s3_location_runner_binaries_linux" {
   type        = string
 }
 
+variable "s3_location_runner_binaries_linux_arm64" {
+  description = "S3 location of runner distribution."
+  type        = string
+}
+
 variable "s3_location_runner_binaries_windows" {
   description = "S3 location of runner distribution."
   type        = string
