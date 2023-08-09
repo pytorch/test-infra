@@ -99,6 +99,7 @@ module "runners" {
   vpc_ids              = var.vpc_ids
   vpc_sgs              = var.vpc_sgs
   subnet_vpc_ids       = var.subnet_vpc_ids
+  subnet_azs           = var.subnet_azs
   environment          = var.environment
   tags                 = local.tags
 

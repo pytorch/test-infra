@@ -87,6 +87,13 @@ resource "aws_lambda_function" "scale_up" {
           format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
         ]
       )
+      SUBNET_ID_TO_AZ                       = join(
+        ",",
+        [
+          for subnet_az in var.subnet_azs:
+          format("%s|%s", subnet_az.subnet, subnet_az.az)
+        ]
+      )
     }
   }
 

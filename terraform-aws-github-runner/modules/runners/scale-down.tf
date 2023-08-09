@@ -44,7 +44,44 @@ resource "aws_lambda_function" "scale_down" {
       REDIS_LOGIN                     = var.redis_login
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
-
+      AWS_REGIONS_TO_VPC_IDS                = join(
+        ",",
+        [
+          for region_vpc in var.vpc_ids:
+          format("%s|%s", region_vpc.region, region_vpc.vpc)
+        ]
+      )
+      VPC_ID_TO_SECURITY_GROUP_IDS          = join(
+        ",",
+        concat(
+          [
+            for vpc in var.vpc_ids:
+              format(
+                "%s|%s",
+                vpc.vpc,
+                var.runners_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
+              )
+          ],
+          [
+            for vpc_subnet in var.vpc_sgs:
+              format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
+          ]
+        )
+      )
+      VPC_ID_TO_SUBNET_IDS                  = join(
+        ",",
+        [
+          for vpc_subnet in var.subnet_vpc_ids:
+          format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
+        ]
+      )
+      SUBNET_ID_TO_AZ                       = join(
+        ",",
+        [
+          for subnet_az in var.subnet_azs:
+          format("%s|%s", subnet_az.subnet, subnet_az.az)
+        ]
+      )
     }
   }
 
