@@ -327,6 +327,13 @@
       "rocm"
     ]
   ],
+  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "106913",
+    "https://github.com/pytorch/pytorch/issues/106913",
+    [
+      "rocm"
+    ]
+  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
@@ -472,6 +479,13 @@
   "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105124",
     "https://github.com/pytorch/pytorch/issues/105124",
+    [
+      "rocm"
+    ]
+  ],
+  "test_conv_transposed_large_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
+    "106909",
+    "https://github.com/pytorch/pytorch/issues/106909",
     [
       "rocm"
     ]
