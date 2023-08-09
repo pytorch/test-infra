@@ -81,7 +81,7 @@ def main():
         -v "{ os.environ.get('RUNNER_TEST_RESULTS_DIR', '') }:/test-results" \
         -v "{ os.environ.get('RUNNER_TEMP', '') }/exec_script:/exec" \
         -v "{ os.environ.get('GITHUB_STEP_SUMMARY', '') }":"{ os.environ.get('GITHUB_STEP_SUMMARY', '') }" \
-        -w /work \
+        -w /{ os.environ.get('REPOSITORY', 'work') } \
         "{ os.environ.get('DOCKER_IMAGE', '') }"
     """
         )
