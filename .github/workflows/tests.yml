@@ -29,6 +29,7 @@ jobs:
         source .venv/bin/activate
         pip install pip==23.0.1 pytest==7.2.0 rockset==1.0.3 jsonschema==4.17.3
         echo ::endgroup::
-        
+
+        sleep 300
         # Test tools
         python3 -m unittest discover -vs tools/tests -p 'test_*.py'
