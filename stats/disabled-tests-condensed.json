@@ -490,6 +490,13 @@
       "rocm"
     ]
   ],
+  "test_conv_with_as_strided_cuda (__main__.CudaTests)": [
+    "106918",
+    "https://github.com/pytorch/pytorch/issues/106918",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv_with_as_strided_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "105528",
     "https://github.com/pytorch/pytorch/issues/105528",
