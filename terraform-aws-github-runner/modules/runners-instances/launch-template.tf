@@ -11,7 +11,6 @@ locals {
   userdata_template_arm64                    = "${path.module}/templates/user-data-arm64.sh"
 
   arm_patch = var.runner_architecture == "arm64" ? templatefile(local.userdata_arm_patch, {}) : ""
-#  s3_location_runner_binaries_linux_arm64 = "s3://gh-ci-canary-actions-runner/actions-runner-linux-arm64-2.307.1.tar.gz"
 
   install_config_runner_linux = templatefile(local.userdata_install_config_runner_linux, {
     environment                     = var.environment
@@ -21,7 +20,6 @@ locals {
   })
   install_config_runner_linux_arm64 = templatefile(local.userdata_install_config_runner_linux_arm64, {
     environment                     = var.environment
-#    s3_location_runner_distribution = var.s3_location_runner_binaries_linux
     s3_location_runner_distribution = var.s3_location_runner_binaries_linux_arm64
     run_as_root_user                = var.runner_as_root ? "root" : ""
     arm_patch                       = local.arm_patch
@@ -47,20 +45,6 @@ data "aws_ami" "runner_ami_linux" {
 
   owners = var.ami_owners_linux
 }
-
-#data "aws_ami" "runner_ami_linux_arm64" {
-#  most_recent = "true"
-#
-#  filter {
-#    name   = "image-id"
-#    values = ["ami-0964d1dc1edd4bd2f"]
-#  }
-#
-#  filter {
-#    name   = "architecture"
-#    values = ["arm64"]
-#  }
-#}
 
 data "aws_ami" "runner_ami_linux_arm64" {
   most_recent = "true"
