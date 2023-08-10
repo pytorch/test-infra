@@ -1,20 +1,4 @@
 {
-  "inductor / cuda11.8-py3.10-gcc7-sm86 / test (inductor_torchbench)": [
-    "jeanschmidt",
-    "104337",
-    "https://github.com/pytorch/pytorch/issues/104337",
-    "inductor",
-    "cuda11.8-py3.10-gcc7-sm86",
-    "test (inductor_torchbench)"
-  ],
-  "inductor / cuda11.8-py3.10-gcc7-sm86 / test (inductor_torchbench_dynamic)": [
-    "izaitsevfb",
-    "106898",
-    "https://github.com/pytorch/pytorch/issues/106898",
-    "inductor",
-    "cuda11.8-py3.10-gcc7-sm86",
-    "test (inductor_torchbench_dynamic)"
-  ],
   "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
     "huydhn",
     "102789",
