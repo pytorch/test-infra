@@ -43,6 +43,7 @@ describe('Config', () => {
     process.env.VPC_ID_TO_SECURITY_GROUP_IDS =
       'VPC_1|SG_1,VPC_1|SG_2,VPC_2|SG_3,VPC_2|SG_4,VPC_3|SG_5,VPC_4|SG_6,VPC_5|SG_7';
     process.env.VPC_ID_TO_SUBNET_IDS = 'VPC_1|SN_1,VPC_1|SN_2,VPC_2|SN_3,VPC_2|SN_4,VPC_3|SN_5,VPC_4|SN_6,VPC_5|SN_7';
+    process.env.SUBNET_ID_TO_AZ = 'SN_1|AZ_1,SN_2|AZ_2,SN_3|AZ_1,SN_4|AZ_2,SN_5|AZ_1,SN_6|AZ_2';
 
     expect(Config.Instance.awsRegion).toBe('AWS_REGION');
     expect(Config.Instance.awsRegionsToVpcIds).toEqual(
@@ -95,6 +96,33 @@ describe('Config', () => {
         ['VPC_5', ['SN_7']],
       ]),
     );
+    expect(Config.Instance.subnetIdToVpcId).toEqual(
+      new Map([
+        ['SN_1', 'VPC_1'],
+        ['SN_2', 'VPC_1'],
+        ['SN_3', 'VPC_2'],
+        ['SN_4', 'VPC_2'],
+        ['SN_5', 'VPC_3'],
+        ['SN_6', 'VPC_4'],
+        ['SN_7', 'VPC_5'],
+      ]),
+    );
+    expect(Config.Instance.subnetIdToAZ).toEqual(
+      new Map([
+        ['SN_1', 'AZ_1'],
+        ['SN_2', 'AZ_2'],
+        ['SN_3', 'AZ_1'],
+        ['SN_4', 'AZ_2'],
+        ['SN_5', 'AZ_1'],
+        ['SN_6', 'AZ_2'],
+      ]),
+    );
+    expect(Config.Instance.azToSubnetIds).toEqual(
+      new Map([
+        ['AZ_1', ['SN_1', 'SN_3', 'SN_5']],
+        ['AZ_2', ['SN_2', 'SN_4', 'SN_6']],
+      ]),
+    );
 
     expect(Config.Instance.shuffledAwsRegionInstances.length).toEqual(3);
     expect(Config.Instance.shuffledAwsRegionInstances).toContain('AWS_REGION');
@@ -109,15 +137,6 @@ describe('Config', () => {
     expect(Config.Instance.shuffledVPCsForAwsRegion('AWS_REGION_INSTANCES_2').length).toEqual(2);
     expect(Config.Instance.shuffledVPCsForAwsRegion('AWS_REGION_INSTANCES_2')).toContainEqual('VPC_4');
     expect(Config.Instance.shuffledVPCsForAwsRegion('AWS_REGION_INSTANCES_2')).toContainEqual('VPC_5');
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_1').length).toEqual(2);
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_1')).toContainEqual('SN_1');
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_1')).toContainEqual('SN_2');
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_2').length).toEqual(2);
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_2')).toContainEqual('SN_3');
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_2')).toContainEqual('SN_4');
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_3')).toEqual(['SN_5']);
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_4')).toEqual(['SN_6']);
-    expect(Config.Instance.shuffledSubnetsForVpcId('VPC_5')).toEqual(['SN_7']);
   });
 
   it('check defaults', () => {

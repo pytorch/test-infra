@@ -952,19 +952,34 @@ export class ScaleDownMetrics extends Metrics {
 
   /* istanbul ignore next */
   runnerFound(ec2Runner: RunnerInfo) {
+    const dimensionsRe = new Map([['Region', ec2Runner.awsRegion]]);
+    const dimensionsRt =
+      ec2Runner.runnerType !== undefined ? new Map([['RunnerType', ec2Runner.runnerType]]) : undefined;
+    const dimensionsAz = ec2Runner.az !== undefined ? new Map([['AvailabilityZone', ec2Runner.az]]) : undefined;
+    const dimensionsAzRt =
+      dimensionsRt !== undefined && dimensionsAz !== undefined
+        ? new Map([...dimensionsRt, ...dimensionsAz])
+        : undefined;
+
     this.countEntry('run.ec2runners.total');
+    this.countEntry('run.ec2runners.perRegion.total', 1, dimensionsRe);
 
-    const dimensions = ec2Runner.runnerType !== undefined ? new Map([['RunnerType', ec2Runner.runnerType]]) : undefined;
-
-    if (dimensions !== undefined) {
-      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensions);
+    if (dimensionsRt !== undefined) {
+      this.countEntry('run.ec2runners.perRunnerType.total', 1, dimensionsRt);
+      this.countEntry('run.ec2runners.perRegion.perRunnerType.total', 1, new Map([...dimensionsRt, ...dimensionsRe]));
+    }
+    if (dimensionsAz !== undefined) {
+      this.countEntry('run.ec2runners.perAvailabilityZone.total', 1, dimensionsAz);
+    }
+    if (dimensionsAzRt !== undefined) {
+      this.countEntry('run.ec2runners.perAvailabilityZone.perRunnerType.total', 1, dimensionsAzRt);
     }
 
     if (ec2Runner.launchTime !== undefined) {
       const tm = (Date.now() - ec2Runner.launchTime.getTime()) / 1000;
       this.addEntry('run.ec2runners.runningWallclock', tm);
-      if (dimensions !== undefined) {
-        this.addEntry('run.ec2runners.perRunnerType.runningWallclock', tm, dimensions);
+      if (dimensionsRt !== undefined) {
+        this.addEntry('run.ec2runners.perRunnerType.runningWallclock', tm, dimensionsRt);
       }
     }
   }

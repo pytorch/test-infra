@@ -40,6 +40,9 @@ export class Config {
   readonly secretsManagerSecretsId: string | undefined;
   readonly vpcIdToSecurityGroupIds: Map<string, Array<string>>;
   readonly vpcIdToSubnetIds: Map<string, Array<string>>;
+  readonly subnetIdToVpcId: Map<string, string>;
+  readonly subnetIdToAZ: Map<string, string>;
+  readonly azToSubnetIds: Map<string, Array<string>>;
 
   protected constructor() {
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
@@ -97,6 +100,20 @@ export class Config {
     this.secretsManagerSecretsId = process.env.SECRETSMANAGER_SECRETS_ID;
     this.vpcIdToSecurityGroupIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SECURITY_GROUP_IDS);
     this.vpcIdToSubnetIds = this.getMapFromFlatEnv(process.env.VPC_ID_TO_SUBNET_IDS);
+    this.subnetIdToVpcId = new Map();
+    for (const [vpcId, subnetIds] of this.vpcIdToSubnetIds.entries()) {
+      for (const subnetId of subnetIds) {
+        this.subnetIdToVpcId.set(subnetId, vpcId);
+      }
+    }
+
+    this.subnetIdToAZ = this.getSimpleMapFromFlatEnv(process.env.SUBNET_ID_TO_AZ);
+    this.azToSubnetIds = new Map();
+    for (const [subnetId, az] of this.subnetIdToAZ.entries()) {
+      const arr = this.azToSubnetIds.get(az) || [];
+      arr.push(subnetId);
+      this.azToSubnetIds.set(az, arr);
+    }
   }
 
   static get Instance(): Config {
@@ -109,11 +126,6 @@ export class Config {
 
   shuffledVPCsForAwsRegion(awsRegion: string): Array<string> {
     const arr = Array.from(this.awsRegionsToVpcIds.get(awsRegion) || []);
-    return shuffleArrayInPlace(arr);
-  }
-
-  shuffledSubnetsForVpcId(vpcId: string): Array<string> {
-    const arr = Array.from(this.vpcIdToSubnetIds.get(vpcId) || []);
     return shuffleArrayInPlace(arr);
   }
 
@@ -135,6 +147,19 @@ export class Config {
   get ghesUrlHost(): string {
     /* istanbul ignore next */
     return this.ghesUrl ?? 'https://github.com';
+  }
+
+  protected getSimpleMapFromFlatEnv(envVar: string | undefined): Map<string, string> {
+    const ret: Map<string, string> = new Map();
+
+    (envVar?.split(',') || []).forEach((entry) => {
+      const split = entry.split('|').filter((w) => w.length > 0);
+      if (split.length == 2) {
+        ret.set(split[0], split[1]);
+      }
+    });
+
+    return ret;
   }
 
   protected getMapFromFlatEnv(envVar: string | undefined): Map<string, Array<string>> {
