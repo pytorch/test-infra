@@ -121,7 +121,7 @@ def initialize_globals(channel: str):
             for gpu_arch in mod.ROCM_ARCHES
         },
         "cpu": "pytorch/manylinux-builder:cpu",
-        "cpu-aarch64": "quay.io/pypa/manylinux2014_aarch64",
+        "cpu-aarch64": "pytorch/manylinuxaarch64-builder:cpu-aarch64",
     }
     mod.CONDA_CONTAINER_IMAGES = {
         **{gpu_arch: f"pytorch/conda-builder:cuda{gpu_arch}" for gpu_arch in mod.CUDA_ARCHES},

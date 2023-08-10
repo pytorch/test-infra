@@ -163,7 +163,8 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           if [[ ${{ inputs.architecture }} == 'aarch64' ]]; then
-            ${CONDA_RUN} conda install -y libpng jpeg
+            ${CONDA_RUN} conda install libpng -yq
+            ${CONDA_RUN} conda install -yq ffmpeg=4.2 libjpeg-turbo -c pytorch-nightly
           fi
           ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (bdist_wheel)
