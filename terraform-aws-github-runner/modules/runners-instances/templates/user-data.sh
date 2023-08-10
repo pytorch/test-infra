@@ -12,7 +12,12 @@ amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${ssm_key_cloudwatc
 %{ endif ~}
 
 # Install docker
-amazon-linux-extras install docker
+if [ "$(uname -m)" == "aarch64" ]; then
+  yum install -y docker
+else
+  amazon-linux-extras install docker
+fi
+
 service docker start
 usermod -a -G docker ec2-user
 
