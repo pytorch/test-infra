@@ -80,6 +80,7 @@ jobs:
     runs-on: ${{ matrix.validation_runner }}
     container:
       image: ${{ matrix.container_image }}
+      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
