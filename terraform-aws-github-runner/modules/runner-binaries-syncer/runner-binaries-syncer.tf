@@ -4,14 +4,14 @@ locals {
 }
 
 resource "aws_lambda_function" "syncer" {
-  filename          = local.lambda_zip
-  source_code_hash  = filebase64sha256(local.lambda_zip)
-  function_name     = "${var.environment}-syncer"
-  role              = aws_iam_role.syncer_lambda.arn
-  handler           = "index.handler"
-  runtime           = "nodejs14.x"
-  timeout           = var.lambda_timeout
-  memory_size       = 500
+  filename         = local.lambda_zip
+  source_code_hash = filebase64sha256(local.lambda_zip)
+  function_name    = "${var.environment}-syncer"
+  role             = aws_iam_role.syncer_lambda.arn
+  handler          = "index.handler"
+  runtime          = "nodejs14.x"
+  timeout          = var.lambda_timeout
+  memory_size      = 500
 
   environment {
     variables = {
@@ -21,7 +21,7 @@ resource "aws_lambda_function" "syncer" {
       GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES = var.runner_allow_prerelease_binaries
     }
   }
-  
+
   tags = var.tags
 }
 

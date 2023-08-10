@@ -66,9 +66,9 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux" {
       templatefile(
         "${path.module}/templates/cloudwatch_config.json",
         {
-          aws_region = var.aws_region
-          environment = var.environment
-          logfiles = jsonencode(local.logfiles_linux)
+          aws_region        = var.aws_region
+          environment       = var.environment
+          logfiles          = jsonencode(local.logfiles_linux)
           metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_linux.json", {})
         }
       )
@@ -86,9 +86,9 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux_nvidia" {
       templatefile(
         "${path.module}/templates/cloudwatch_config.json",
         {
-          aws_region = var.aws_region
-          environment = var.environment
-          logfiles = jsonencode(local.logfiles_linux)
+          aws_region        = var.aws_region
+          environment       = var.environment
+          logfiles          = jsonencode(local.logfiles_linux)
           metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_linux_nvidia.json", {})
         }
       )
@@ -135,10 +135,10 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_windows" {
       templatefile(
         "${path.module}/templates/cloudwatch_config.json",
         {
-          aws_region = var.aws_region
-          environment = var.environment
+          aws_region        = var.aws_region
+          environment       = var.environment
           metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_windows.json", {})
-          logfiles = jsonencode(local.logfiles_linux)
+          logfiles          = jsonencode(local.logfiles_linux)
         }
       )
     )

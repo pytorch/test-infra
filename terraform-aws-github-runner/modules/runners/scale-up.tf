@@ -30,67 +30,67 @@ resource "aws_lambda_function" "scale_up" {
 
   environment {
     variables = {
-      CANT_HAVE_ISSUES_LABELS               = join(",", var.cant_have_issues_labels)
-      DATETIME_DEPLOY                       = local.datetime_deploy
-      ENABLE_ORGANIZATION_RUNNERS           = var.enable_organization_runners
-      ENVIRONMENT                           = var.environment
-      GITHUB_APP_CLIENT_ID                  = var.github_app.client_id
-      GITHUB_APP_CLIENT_SECRET              = var.github_app_client_secret
-      GITHUB_APP_ID                         = var.github_app.id
-      GITHUB_APP_KEY_BASE64                 = var.github_app_key_base64
-      KMS_KEY_ID                            = var.encryption.kms_key_id
-      LAMBDA_TIMEOUT                        = var.lambda_timeout_scale_up
-      LAUNCH_TEMPLATE_NAME_LINUX            = var.launch_template_name_linux
-      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA     = var.launch_template_name_linux_nvidia
-      LAUNCH_TEMPLATE_NAME_WINDOWS          = var.launch_template_name_windows
-      LAUNCH_TEMPLATE_VERSION_LINUX         = var.launch_template_version_linux
-      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA  = var.launch_template_version_linux_nvidia
-      LAUNCH_TEMPLATE_VERSION_WINDOWS       = var.launch_template_version_windows
-      MAX_RETRY_SCALEUP_RECORD              = "10"
-      MUST_HAVE_ISSUES_LABELS               = join(",", var.must_have_issues_labels)
-      REDIS_ENDPOINT                        = var.redis_endpoint
-      REDIS_LOGIN                           = var.redis_login
-      RETRY_SCALE_UP_RECORD_DELAY_S         = "60"
-      RETRY_SCALE_UP_RECORD_JITTER_PCT      = "0.5"
-      RETRY_SCALE_UP_RECORD_QUEUE_URL       = var.sqs_build_queue_retry.url
-      RUNNER_EXTRA_LABELS                   = var.runner_extra_labels
-      SECRETSMANAGER_SECRETS_ID             = var.secretsmanager_secrets_id
+      CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
+      DATETIME_DEPLOY                      = local.datetime_deploy
+      ENABLE_ORGANIZATION_RUNNERS          = var.enable_organization_runners
+      ENVIRONMENT                          = var.environment
+      GITHUB_APP_CLIENT_ID                 = var.github_app.client_id
+      GITHUB_APP_CLIENT_SECRET             = var.github_app_client_secret
+      GITHUB_APP_ID                        = var.github_app.id
+      GITHUB_APP_KEY_BASE64                = var.github_app_key_base64
+      KMS_KEY_ID                           = var.encryption.kms_key_id
+      LAMBDA_TIMEOUT                       = var.lambda_timeout_scale_up
+      LAUNCH_TEMPLATE_NAME_LINUX           = var.launch_template_name_linux
+      LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA    = var.launch_template_name_linux_nvidia
+      LAUNCH_TEMPLATE_NAME_WINDOWS         = var.launch_template_name_windows
+      LAUNCH_TEMPLATE_VERSION_LINUX        = var.launch_template_version_linux
+      LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = var.launch_template_version_linux_nvidia
+      LAUNCH_TEMPLATE_VERSION_WINDOWS      = var.launch_template_version_windows
+      MAX_RETRY_SCALEUP_RECORD             = "10"
+      MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
+      REDIS_ENDPOINT                       = var.redis_endpoint
+      REDIS_LOGIN                          = var.redis_login
+      RETRY_SCALE_UP_RECORD_DELAY_S        = "60"
+      RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
+      RETRY_SCALE_UP_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
+      RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
+      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
 
-      AWS_REGIONS_TO_VPC_IDS                = join(
+      AWS_REGIONS_TO_VPC_IDS = join(
         ",",
         [
-          for region_vpc in var.vpc_ids:
+          for region_vpc in var.vpc_ids :
           format("%s|%s", region_vpc.region, region_vpc.vpc)
         ]
       )
-      VPC_ID_TO_SECURITY_GROUP_IDS          = join(
+      VPC_ID_TO_SECURITY_GROUP_IDS = join(
         ",",
         concat(
           [
-            for vpc in var.vpc_ids:
-              format(
-                "%s|%s",
-                vpc.vpc,
-                var.runners_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
-              )
+            for vpc in var.vpc_ids :
+            format(
+              "%s|%s",
+              vpc.vpc,
+              var.runners_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
+            )
           ],
           [
-            for vpc_subnet in var.vpc_sgs:
-              format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
+            for vpc_subnet in var.vpc_sgs :
+            format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
           ]
         )
       )
-      VPC_ID_TO_SUBNET_IDS                  = join(
+      VPC_ID_TO_SUBNET_IDS = join(
         ",",
         [
-          for vpc_subnet in var.subnet_vpc_ids:
+          for vpc_subnet in var.subnet_vpc_ids :
           format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
         ]
       )
-      SUBNET_ID_TO_AZ                       = join(
+      SUBNET_ID_TO_AZ = join(
         ",",
         [
-          for subnet_az in var.subnet_azs:
+          for subnet_az in var.subnet_azs :
           format("%s|%s", subnet_az.subnet, subnet_az.az)
         ]
       )
@@ -102,15 +102,15 @@ resource "aws_lambda_function" "scale_up" {
       var.lambda_security_group_ids,
       [var.runners_security_group_ids[0]]
     )
-    subnet_ids         = var.lambda_subnet_ids
+    subnet_ids = var.lambda_subnet_ids
   }
 }
 
 resource "aws_lambda_alias" "scale_up_lambda_alias" {
-  name               = "provisioned-${aws_lambda_function.scale_up.function_name}"
-  description        = "Alias for provisioned instances of ${aws_lambda_function.scale_up.function_name}"
-  function_name      = aws_lambda_function.scale_up.function_name
-  function_version   = aws_lambda_function.scale_up.version
+  name             = "provisioned-${aws_lambda_function.scale_up.function_name}"
+  description      = "Alias for provisioned instances of ${aws_lambda_function.scale_up.function_name}"
+  function_name    = aws_lambda_function.scale_up.function_name
+  function_version = aws_lambda_function.scale_up.version
 }
 
 resource "aws_lambda_provisioned_concurrency_config" "scale_up_provisioned_concurrency_config" {
