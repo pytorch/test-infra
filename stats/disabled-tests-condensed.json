@@ -568,13 +568,6 @@
       "slow"
     ]
   ],
-  "test_convolution_as_mm (__main__.TestSelectAlgorithm)": [
-    "106108",
-    "https://github.com/pytorch/pytorch/issues/106108",
-    [
-      "linux"
-    ]
-  ],
   "test_cpp_wrapper_cpu (__main__.FreezingCpuTests)": [
     "106557",
     "https://github.com/pytorch/pytorch/issues/106557",
