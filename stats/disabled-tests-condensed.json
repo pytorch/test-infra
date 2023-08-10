@@ -1126,13 +1126,6 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
-    "78377",
-    "https://github.com/pytorch/pytorch/issues/78377",
-    [
-      "macos"
-    ]
-  ],
   "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105746",
     "https://github.com/pytorch/pytorch/issues/105746",
