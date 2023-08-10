@@ -106,9 +106,9 @@ resource "aws_ssm_parameter" "cloudwatch_agent_config_runner_linux_arm64" {
       templatefile(
         "${path.module}/templates/cloudwatch_config.json",
         {
-          aws_region = var.aws_region
-          environment = var.environment
-          logfiles = jsonencode(local.logfiles_linux)
+          aws_region        = var.aws_region
+          environment       = var.environment
+          logfiles          = jsonencode(local.logfiles_linux)
           metrics_collected = templatefile("${path.module}/templates/cloudwatch_config_linux_arm64.json", {})
         }
       )
