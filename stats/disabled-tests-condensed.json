@@ -102,6 +102,19 @@
       "mac"
     ]
   ],
+  "test_base_does_not_require_grad_mode_nothing (__main__.TestAutogradFallback)": [
+    "106754",
+    "https://github.com/pytorch/pytorch/issues/106754",
+    [
+      "asan",
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win",
+      "windows"
+    ]
+  ],
   "test_basic (__main__.TestNvFuserDynamo)": [
     "103403",
     "https://github.com/pytorch/pytorch/issues/103403",
