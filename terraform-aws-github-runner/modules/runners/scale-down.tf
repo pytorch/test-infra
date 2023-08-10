@@ -44,7 +44,44 @@ resource "aws_lambda_function" "scale_down" {
       REDIS_LOGIN                     = var.redis_login
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
-
+      AWS_REGIONS_TO_VPC_IDS = join(
+        ",",
+        [
+          for region_vpc in var.vpc_ids :
+          format("%s|%s", region_vpc.region, region_vpc.vpc)
+        ]
+      )
+      VPC_ID_TO_SECURITY_GROUP_IDS = join(
+        ",",
+        concat(
+          [
+            for vpc in var.vpc_ids :
+            format(
+              "%s|%s",
+              vpc.vpc,
+              var.runners_security_group_ids[local.vpc_id_to_idx[vpc.vpc]]
+            )
+          ],
+          [
+            for vpc_subnet in var.vpc_sgs :
+            format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
+          ]
+        )
+      )
+      VPC_ID_TO_SUBNET_IDS = join(
+        ",",
+        [
+          for vpc_subnet in var.subnet_vpc_ids :
+          format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
+        ]
+      )
+      SUBNET_ID_TO_AZ = join(
+        ",",
+        [
+          for subnet_az in var.subnet_azs :
+          format("%s|%s", subnet_az.subnet, subnet_az.az)
+        ]
+      )
     }
   }
 
@@ -53,7 +90,7 @@ resource "aws_lambda_function" "scale_down" {
       var.lambda_security_group_ids,
       [var.runners_security_group_ids[0]]
     )
-    subnet_ids         = var.lambda_subnet_ids
+    subnet_ids = var.lambda_subnet_ids
   }
 }
 
@@ -91,8 +128,8 @@ resource "aws_iam_role" "scale_down" {
 }
 
 resource "aws_iam_role_policy" "scale_down" {
-  name   = "${var.environment}-lambda-scale-down-policy"
-  role   = aws_iam_role.scale_down.name
+  name = "${var.environment}-lambda-scale-down-policy"
+  role = aws_iam_role.scale_down.name
   policy = templatefile("${path.module}/policies/lambda-scale-down.json", {
     arn_ssm_parameters = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/${var.environment}-*"
   })

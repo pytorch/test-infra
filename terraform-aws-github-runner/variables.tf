@@ -30,6 +30,12 @@ variable "subnet_vpc_ids" {
   default     = []
 }
 
+variable "subnet_azs" {
+  description = "The relation between subnet and azs. keys; 'subnet' 'az'"
+  type        = list(map(string))
+  default     = []
+}
+
 variable "tags" {
   description = "Map of tags that will be added to created resources. By default resources will be tagged with name and environment."
   type        = map(string)
