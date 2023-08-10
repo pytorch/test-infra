@@ -34,6 +34,11 @@ jobs:
           - repository: pytorch/audio
             smoke-test-script: test/smoke_test/smoke_test.py
             package-name: torchaudio
+          - repository: pytorch/data
+            pre-script: packaging/pre_build_script_linux.sh
+            post-script: packaging/post_build_script_linux.sh
+            smoke-test-script: test/smoke_test/smoke_test.py
+            package-name: torchdata
     uses: ./.github/workflows/build_wheels_linux.yml
     name: ${{ matrix.repository }}
     with:
