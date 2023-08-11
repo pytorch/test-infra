@@ -60,10 +60,7 @@
   "test_aot_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
     "106439",
     "https://github.com/pytorch/pytorch/issues/106439",
-    [
-      "asan",
-      "linux"
-    ]
+    []
   ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
