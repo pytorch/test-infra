@@ -459,14 +459,6 @@
       "rocm"
     ]
   ],
-  "test_conv_bn_folding_cuda (__main__.FreezingCudaTests)": [
-    "106040",
-    "https://github.com/pytorch/pytorch/issues/106040",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
     "98681",
     "https://github.com/pytorch/pytorch/issues/98681",
