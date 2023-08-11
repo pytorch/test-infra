@@ -183,26 +183,9 @@
       "macos"
     ]
   ],
-  "test_build_tuple_unpack_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103722",
-    "https://github.com/pytorch/pytorch/issues/103722",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_build_tuple_unpack_dynamic_shapes (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102157",
     "https://github.com/pytorch/pytorch/issues/102157",
-    [
-      "linux",
-      "mac"
-    ]
-  ],
-  "test_build_tuple_unpack_dynamic_shapes_static_default (torch._dynamo.testing.StaticDefaultDynamicShapesMiscTests)": [
-    "102151",
-    "https://github.com/pytorch/pytorch/issues/102151",
     [
       "linux",
       "mac"
@@ -215,27 +198,12 @@
       "mac"
     ]
   ],
-  "test_call_parent_non_class_methods_from_child (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103742",
-    "https://github.com/pytorch/pytorch/issues/103742",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_call_parent_non_class_methods_from_child (torch._dynamo.testing.DynamicShapesMiscTests)": [
     "102034",
     "https://github.com/pytorch/pytorch/issues/102034",
     [
       "linux",
       "mac"
-    ]
-  ],
-  "test_call_parent_non_class_methods_from_child_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103778",
-    "https://github.com/pytorch/pytorch/issues/103778",
-    [
-      "linux"
     ]
   ],
   "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -360,32 +328,9 @@
       "linux"
     ]
   ],
-  "test_cond (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103936",
-    "https://github.com/pytorch/pytorch/issues/103936",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_cond (__main__.DynamicShapesMiscTests)": [
     "105128",
     "https://github.com/pytorch/pytorch/issues/105128",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103779",
-    "https://github.com/pytorch/pytorch/issues/103779",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102118",
-    "https://github.com/pytorch/pytorch/issues/102118",
     [
       "linux"
     ]
@@ -397,45 +342,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_cond_export (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102216",
-    "https://github.com/pytorch/pytorch/issues/102216",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_export_single_arg (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102585",
-    "https://github.com/pytorch/pytorch/issues/102585",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_cond_export_single_arg_automatic_dynamic_shapes (__main__.AutomaticDynamicShapesMiscTests)": [
-    "103937",
-    "https://github.com/pytorch/pytorch/issues/103937",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
-  "test_cond_nested (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "101731",
-    "https://github.com/pytorch/pytorch/issues/101731",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_nested_dynamic_shapes_static_default (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102192",
-    "https://github.com/pytorch/pytorch/issues/102192",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -664,11 +570,6 @@
       "linux"
     ]
   ],
-  "test_ddp_dist_autograd_local_vs_remote (__main__.TensorPipeDdpComparisonTestWithSpawn)": [
-    "60274",
-    "https://github.com/pytorch/pytorch/issues/60274",
-    []
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
@@ -690,29 +591,6 @@
       "dynamo"
     ]
   ],
-  "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
-    "79885",
-    "https://github.com/pytorch/pytorch/issues/79885",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_false_backward_prefetch_post_no_forward_prefetch_shard_grad_op (__main__.TestParityWithDDP)": [
-    "80325",
-    "https://github.com/pytorch/pytorch/issues/80325",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_delayed_reduce_scatter_offload_true_prefetch_pre_none (__main__.TestParityWithDDP)": [
-    "78447",
-    "https://github.com/pytorch/pytorch/issues/78447",
-    [
-      "rocm"
-    ]
-  ],
   "test_doc_examples (__main__.TestTypeHints)": [
     "98259",
     "https://github.com/pytorch/pytorch/issues/98259",
@@ -727,30 +605,9 @@
       "linux"
     ]
   ],
-  "test_dtensor_op_db_linalg_solve_ex_cpu_float32 (__main__.TestDTensorOpsCPU)": [
-    "94559",
-    "https://github.com/pytorch/pytorch/issues/94559",
-    [
-      "linux"
-    ]
-  ],
-  "test_dtensor_op_db_linalg_tensorsolve_cpu_float32 (__main__. TestDTensorOpsCPU)": [
-    "94954",
-    "https://github.com/pytorch/pytorch/issues/94954",
-    [
-      "linux"
-    ]
-  ],
   "test_dtype_correctness (__main__.TestNvFuserDynamo)": [
     "103440",
     "https://github.com/pytorch/pytorch/issues/103440",
-    [
-      "linux"
-    ]
-  ],
-  "test_duplicate_graph_break_warning (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "103236",
-    "https://github.com/pytorch/pytorch/issues/103236",
     [
       "linux"
     ]
@@ -1060,13 +917,6 @@
       "slow"
     ]
   ],
-  "test_inductor (__main__.TransformationTest)": [
-    "100432",
-    "https://github.com/pytorch/pytorch/issues/100432",
-    [
-      "rocm"
-    ]
-  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -1237,13 +1087,6 @@
       "rocm"
     ]
   ],
-  "test_mem_efficient_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_32_is_causal_False_dropout_p_0_0_float32_scale_None_cuda_float32 (__main__.TestSDPACUDA)": [
-    "105975",
-    "https://github.com/pytorch/pytorch/issues/105975",
-    [
-      "linux"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1271,21 +1114,6 @@
     [
       "linux"
     ]
-  ],
-  "test_meta_linalg_ldl_factor_cuda (__main__.TestMetaCUDA)": [
-    "77020",
-    "https://github.com/pytorch/pytorch/issues/77020",
-    []
-  ],
-  "test_meta_linalg_ldl_factor_ex_cuda (__main__.TestMetaCUDA)": [
-    "77021",
-    "https://github.com/pytorch/pytorch/issues/77021",
-    []
-  ],
-  "test_meta_linalg_ldl_factor_ex_cuda_complex128 (__main__.TestMetaCUDA)": [
-    "77025",
-    "https://github.com/pytorch/pytorch/issues/77025",
-    []
   ],
   "test_mm_batching (test_jit.TestScript)": [
     "91496",
@@ -1561,20 +1389,6 @@
       "linux"
     ]
   ],
-  "test_outplace_forward_mode_AD__foreach_abs_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "106213",
-    "https://github.com/pytorch/pytorch/issues/106213",
-    [
-      "rocm"
-    ]
-  ],
-  "test_outplace_forward_mode_AD__foreach_addcdiv_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "106303",
-    "https://github.com/pytorch/pytorch/issues/106303",
-    [
-      "linux"
-    ]
-  ],
   "test_pickle_nn_RNN_eval_mode_cuda_float64 (__main__.TestModuleCUDA)": [
     "94541",
     "https://github.com/pytorch/pytorch/issues/94541",
@@ -1657,18 +1471,6 @@
       "macos"
     ]
   ],
-  "test_python_reference_consistency__refs_bitwise_left_shift_cuda_int32 (__main__.TestCommonCUDA)": [
-    "77598",
-    "https://github.com/pytorch/pytorch/issues/77598",
-    [
-      "linux"
-    ]
-  ],
-  "test_quantized_rnn (test_quanization.PostTrainingDynamicQuantTest)": [
-    "32644",
-    "https://github.com/pytorch/pytorch/issues/32644",
-    []
-  ],
   "test_rand (test_jit.TestScript)": [
     "91495",
     "https://github.com/pytorch/pytorch/issues/91495",
@@ -1681,13 +1483,6 @@
     "https://github.com/pytorch/pytorch/issues/84937",
     [
       "asan"
-    ]
-  ],
-  "test_readall (test_zipfile.ZipfileTest)": [
-    "75406",
-    "https://github.com/pytorch/pytorch/issues/75406",
-    [
-      "mac"
     ]
   ],
   "test_redistribute_sub_mesh (__main__.DTensorMeshTest)": [
@@ -1732,13 +1527,6 @@
       "linux"
     ]
   ],
-  "test_return_nested_function_dynamic_shapes (torch._dynamo.testing.make_test_cls_with_patches.<locals>.DummyTestClass)": [
-    "92477",
-    "https://github.com/pytorch/pytorch/issues/92477",
-    [
-      "linux"
-    ]
-  ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
     "86433",
     "https://github.com/pytorch/pytorch/issues/86433",
@@ -1779,13 +1567,6 @@
     "https://github.com/pytorch/pytorch/issues/104526",
     [
       "linux"
-    ]
-  ],
-  "test_sparse_mask_cpu_bfloat16 (__main__.TestSparseCPU)": [
-    "73173",
-    "https://github.com/pytorch/pytorch/issues/73173",
-    [
-      "win"
     ]
   ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
@@ -1862,13 +1643,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_torch_guards_stack_frame_register_inlining_deep (__main__.StaticDefaultDynamicShapesMiscTests)": [
-    "102705",
-    "https://github.com/pytorch/pytorch/issues/102705",
-    [
-      "linux"
     ]
   ],
   "test_torch_tensor_dtype (test_jit.TestScript)": [
