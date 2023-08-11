@@ -1988,13 +1988,6 @@
       "linux"
     ]
   ],
-  "test_vmapjvpvjp_linalg_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
-    "97256",
-    "https://github.com/pytorch/pytorch/issues/97256",
-    [
-      "rocm"
-    ]
-  ],
   "test_vmapjvpvjp_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "97366",
     "https://github.com/pytorch/pytorch/issues/97366",
