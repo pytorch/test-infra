@@ -4,11 +4,9 @@ locals {
   role_path                            = var.role_path == null ? "/${var.environment}/" : var.role_path
   userdata_arm_patch                   = "${path.module}/templates/arm-runner-patch.tpl"
   userdata_install_config_runner_linux = "${path.module}/templates/install-config-runner.sh"
-  #  userdata_install_config_runner_linux_arm64 = "${path.module}/templates/install-config-runner-linux-arm64.sh"
   userdata_install_config_runner_windows = "${path.module}/templates/install-config-runner.ps1"
   userdata_template                      = var.userdata_template == null ? "${path.module}/templates/user-data.sh" : var.userdata_template
   userdata_template_windows              = "${path.module}/templates/user-data.ps1"
-  #  userdata_template_arm64                    = "${path.module}/templates/user-data-arm64.sh"
 
   arm_patch = var.runner_architecture == "arm64" ? templatefile(local.userdata_arm_patch, {}) : ""
 
