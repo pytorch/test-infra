@@ -15,6 +15,14 @@
     "linux-focal-rocm5.6-py3.8",
     "test (distributed)"
   ],
+  "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
+    "izaitsevfb",
+    "107047",
+    "https://github.com/pytorch/pytorch/issues/107047",
+    "pull",
+    "linux-bionic-py3.8-clang9",
+    "test (dynamo)"
+  ],
   "trunk / linux-focal-rocm5.6-py3.8 / test (default)": [
     "huydhn",
     "105280",
