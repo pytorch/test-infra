@@ -336,7 +336,7 @@ export function constructResultsComment(
       "was",
       flakyJobs.length,
       "were"
-    )} present on the merge base ${merge_base}`,
+    )} present on the merge base`,
     brokenTrunkJobs,
     "Rebase onto the `viable/strict` branch to avoid these failures",
     true
