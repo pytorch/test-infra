@@ -62,6 +62,13 @@
     "https://github.com/pytorch/pytorch/issues/106439",
     []
   ],
+  "test_arithmetic_add (__main__.TestVmapOperators)": [
+    "107043",
+    "https://github.com/pytorch/pytorch/issues/107043",
+    [
+      "dynamo"
+    ]
+  ],
   "test_attn_cuda (__main__.TestMin)": [
     "86710",
     "https://github.com/pytorch/pytorch/issues/86710",
