@@ -146,13 +146,13 @@ def upsert_document(client: OpenSearch, record: Any) -> None:
                             {
                                 "M": {
                                     "conclusion": {
-                                        "NULL": true
+                                        "NULL": True
                                     },
                                     "number": {
                                         "N": "1"
                                     },
                                     "completed_at": {
-                                        "NULL": true
+                                        "NULL": True
                                     },
                                     "name": {
                                         "S": "Set up job"
@@ -192,7 +192,7 @@ def upsert_document(client: OpenSearch, record: Any) -> None:
     # Create index using the table name if it's not there yet
     if not client.indices.exists(index):
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/coerce.html
-        client.indices.create(index, body={"settings": {"index.mapping.coerce": true}})
+        client.indices.create(index, body={"settings": {"index.mapping.coerce": True}})
 
     body = unmarshal({"M": record.get("dynamodb", {}).get("NewImage", {})})
     if not body:
