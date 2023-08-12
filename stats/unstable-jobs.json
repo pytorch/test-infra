@@ -1,4 +1,12 @@
 {
+  "inductor / cuda12.1-py3.10-gcc9-sm86 / test (inductor)": [
+    "huydhn",
+    "107079",
+    "https://github.com/pytorch/pytorch/issues/107079",
+    "inductor",
+    "cuda12.1-py3.10-gcc9-sm86",
+    "test (inductor)"
+  ],
   "periodic / linux-focal-rocm5.4.2-py3.8 / test": [
     "huydhn",
     "102789",
