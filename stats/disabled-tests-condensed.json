@@ -1026,36 +1026,11 @@
       "slow"
     ]
   ],
-  "test_list_clearing_cpu (__main__.CpuTests)": [
-    "106285",
-    "https://github.com/pytorch/pytorch/issues/106285",
-    [
-      "linux"
-    ]
-  ],
   "test_list_clearing_cuda (__main__.CudaTests)": [
     "106299",
     "https://github.com/pytorch/pytorch/issues/106299",
     [
       "inductor",
-      "rocm"
-    ]
-  ],
-  "test_list_clearing_dynamic_shapes_cpu (__main__.DynamicShapesCpuTests)": [
-    "106286",
-    "https://github.com/pytorch/pytorch/issues/106286",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_list_clearing_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
-    "106284",
-    "https://github.com/pytorch/pytorch/issues/106284",
-    [
-      "linux",
       "rocm"
     ]
   ],
@@ -1413,13 +1388,6 @@
   "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
     "96375",
     "https://github.com/pytorch/pytorch/issues/96375",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float64 (__main__.TestForeachCUDA)": [
-    "98025",
-    "https://github.com/pytorch/pytorch/issues/98025",
     [
       "rocm"
     ]
