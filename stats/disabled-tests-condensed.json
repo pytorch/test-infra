@@ -1055,6 +1055,13 @@
       "linux"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107114",
+    "https://github.com/pytorch/pytorch/issues/107114",
+    [
+      "linux"
+    ]
+  ],
   "test_masked_scatter_large_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
     "104365",
     "https://github.com/pytorch/pytorch/issues/104365",
@@ -1611,13 +1618,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
-    [
-      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
