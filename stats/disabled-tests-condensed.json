@@ -978,6 +978,13 @@
       "linux"
     ]
   ],
+  "test_jit_cudnn_extension (__main__.TestCppExtensionJIT)": [
+    "107182",
+    "https://github.com/pytorch/pytorch/issues/107182",
+    [
+      "rocm"
+    ]
+  ],
   "test_jvp_ScaleGradGenVmapAutogradFunction_cpu_float32 (__main__.TestOperatorsCPU)": [
     "105129",
     "https://github.com/pytorch/pytorch/issues/105129",
