@@ -1565,6 +1565,13 @@
       "linux"
     ]
   ],
+  "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
+    "91482",
+    "https://github.com/pytorch/pytorch/issues/91482",
+    [
+      "linux"
+    ]
+  ],
   "test_tensor_requires_grad (test_jit.TestScript)": [
     "91497",
     "https://github.com/pytorch/pytorch/issues/91497",
@@ -1611,13 +1618,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
-    [
-      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
