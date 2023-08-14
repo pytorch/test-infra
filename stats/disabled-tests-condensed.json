@@ -986,6 +986,13 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
+  "test_learnable_forward_per_channel_cpu (__main__.TestFakeQuantizeOps)": [
+    "107155",
+    "https://github.com/pytorch/pytorch/issues/107155",
+    [
+      "macos"
+    ]
+  ],
   "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105746",
     "https://github.com/pytorch/pytorch/issues/105746",
@@ -1619,13 +1626,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
-    [
-      "linux"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
