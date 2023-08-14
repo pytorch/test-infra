@@ -52,10 +52,7 @@
   "test_aot_sequence_nr (__main__.DynamicShapesAotAutogradFallbackTests)": [
     "106440",
     "https://github.com/pytorch/pytorch/issues/106440",
-    [
-      "asan",
-      "linux"
-    ]
+    []
   ],
   "test_aot_sequence_nr_dynamic_shapes (__main__.DynamicShapesAotAutogradFallbackTests)": [
     "106439",
