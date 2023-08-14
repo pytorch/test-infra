@@ -6,7 +6,6 @@ on:
     - cron: "5 3 * * *"
   # Have the ability to trigger this job manually
   workflow_dispatch:
-  pull_request:
 
 defaults:
   run:
@@ -25,19 +24,18 @@ jobs:
       - name: Update test times
         run: |
           python3 scripts/update_test_times.py
-          cat test-times.json
         env:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
-      # - name: Push file to this repository
-      #   uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
-      #   env:
-      #      API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     source_file: 'torchci/test-times.json'
-      #     destination_repo: 'pytorch/test-infra'
-      #     destination_folder: 'stats'
-      #     destination_branch: generated-stats
-      #     user_email: 'test-infra@pytorch.org'
-      #     user_name: 'PyTorch Test Infra'
-      #     commit_message: 'Updating test time stats'
+      - name: Push file to this repository
+        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        env:
+           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: 'torchci/test-times.json'
+          destination_repo: 'pytorch/test-infra'
+          destination_folder: 'stats'
+          destination_branch: generated-stats
+          user_email: 'test-infra@pytorch.org'
+          user_name: 'PyTorch Test Infra'
+          commit_message: 'Updating test time stats'
