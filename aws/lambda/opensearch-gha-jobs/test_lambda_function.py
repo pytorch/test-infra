@@ -34,7 +34,7 @@ def test_extract_dynamodb_table():
     for case in cases:
         arn = case["arn"]
         expected = case["expected"]
-        assert expected == extract_dynamodb_table({"eventSourceARN": arn})
+        TestCase().assertEqual(expected, extract_dynamodb_table({"eventSourceARN": arn}))
 
 
 def test_extract_dynamodb_key():
@@ -87,17 +87,17 @@ def test_extract_dynamodb_key():
     for case in cases:
         input = case["input"]
         expected = case["expected"]
-        assert expected == extract_dynamodb_key(input)
+        TestCase().assertEqual(expected, extract_dynamodb_key(input))
 
 
 def test_to_number():
     v = to_number("3")
-    assert 3 == v
-    assert isinstance(v, int)
+    TestCase().assertEqual(3, v)
+    TestCase().assertTrue(isinstance(v, int))
 
     v = to_number("3.0")
-    assert 3.0 == v
-    assert isinstance(v, float)
+    TestCase().assertEqual(3.0, v)
+    TestCase().assertTrue(isinstance(v, float))
 
 
 def test_unmarshal():
