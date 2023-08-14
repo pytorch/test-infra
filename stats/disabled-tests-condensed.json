@@ -1425,13 +1425,6 @@
       "rocm"
     ]
   ],
-  "test_prim_grad_undefined (test_jit.TestScript)": [
-    "91493",
-    "https://github.com/pytorch/pytorch/issues/91493",
-    [
-      "linux"
-    ]
-  ],
   "test_profiler (__main__.TestJit)": [
     "65521",
     "https://github.com/pytorch/pytorch/issues/65521",
