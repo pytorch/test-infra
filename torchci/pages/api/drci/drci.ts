@@ -299,7 +299,7 @@ export function constructResultsComment(
   output += title;
 
   output += `\nAs of commit ${sha} with merge base ${merge_base}`;
-  const timestamp = new Date(merge_base_date).valueOf() / 1000;
+  const timestamp = Math.floor(new Date(merge_base_date).valueOf() / 1000);
   if (!isNaN(timestamp)) {
     output += ` (<sub><sub><img alt="image" width=70 src="https://img.shields.io/date/${timestamp}?label=&color=FFFFFF&style=flat-square"></sub></sub>)`;
   }
