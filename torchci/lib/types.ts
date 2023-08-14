@@ -18,7 +18,7 @@ export interface JobData {
   queueTimeS?: number;
   failureLine?: string;
   failureLineNumber?: number;
-  failureCaptures?: string;
+  failureCaptures?: string[];
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;

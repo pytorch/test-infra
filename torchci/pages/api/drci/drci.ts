@@ -20,7 +20,7 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
-import { removeJobNameSuffix } from "lib/jobUtils";
+import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
 
 interface PRandJobs {
   head_sha: string;
@@ -385,16 +385,9 @@ function isBrokenTrunk(
     return false;
   }
 
-  return baseJobs.get(jobNameNoSuffix)!.some((baseJob) => {
-    if (
-      baseJob.conclusion == job.conclusion &&
-      isEqual(baseJob.failure_captures, job.failure_captures)
-    ) {
-      return true;
-    }
-
-    return false;
-  });
+  return baseJobs
+    .get(jobNameNoSuffix)!
+    .some((baseJob) => isSameFailure(baseJob, job));
 }
 
 export function getWorkflowJobsStatuses(
