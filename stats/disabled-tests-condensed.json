@@ -1621,6 +1621,13 @@
       "slow"
     ]
   ],
+  "test_torch_tensor_dtype (test_jit.TestScript)": [
+    "91485",
+    "https://github.com/pytorch/pytorch/issues/91485",
+    [
+      "linux"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
