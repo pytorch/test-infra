@@ -94,7 +94,7 @@ function formatDisableTestBody(failureCaptures: string[]) {
   )}`;
   return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
 
-This test was disabled because it is failing on master ([recent examples](${examplesURL})).`);
+This test was disabled because it is failing on main branch ([recent examples](${examplesURL})).`);
 }
 
 function DisableTest({ job, label }: { job: JobData; label: string }) {
