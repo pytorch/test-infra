@@ -1,4 +1,3 @@
-import json
 from unittest import TestCase
 from unittest.mock import Mock
 
@@ -34,7 +33,10 @@ def test_extract_dynamodb_table():
     for case in cases:
         arn = case["arn"]
         expected = case["expected"]
-        TestCase().assertEqual(expected, extract_dynamodb_table({"eventSourceARN": arn}))
+        description = case["description"]
+        TestCase().assertEqual(
+            expected, extract_dynamodb_table({"eventSourceARN": arn}), description
+        )
 
 
 def test_extract_dynamodb_key():
@@ -87,17 +89,18 @@ def test_extract_dynamodb_key():
     for case in cases:
         input = case["input"]
         expected = case["expected"]
-        TestCase().assertEqual(expected, extract_dynamodb_key(input))
+        description = case["description"]
+        TestCase().assertEqual(expected, extract_dynamodb_key(input), description)
 
 
 def test_to_number():
     v = to_number("3")
-    TestCase().assertEqual(3, v)
-    TestCase().assertTrue(isinstance(v, int))
+    TestCase().assertEqual(3, v, "Converting DynamoDB number to int")
+    TestCase().assertTrue(isinstance(v, int), "Converting DynamoDB number to int")
 
     v = to_number("3.0")
-    TestCase().assertEqual(3.0, v)
-    TestCase().assertTrue(isinstance(v, float))
+    TestCase().assertEqual(3.0, v, "Converting DynamoDB number to float")
+    TestCase().assertTrue(isinstance(v, float), "Converting DynamoDB number to float")
 
 
 def test_unmarshal():
