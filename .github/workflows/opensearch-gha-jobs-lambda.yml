@@ -3,6 +3,7 @@ name: Test and deploy opensearch-gha-jobs lambda
 on:
   pull_request:
     paths:
+      - .github/workflows/opensearch-gha-jobs-lambda.yml
       - aws/lambda/opensearch-gha-jobs/**
   push:
     branches:
