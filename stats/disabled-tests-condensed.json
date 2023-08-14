@@ -318,6 +318,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_nn_functional_instance_norm_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
+    "107180",
+    "https://github.com/pytorch/pytorch/issues/107180",
+    [
+      "rocm"
+    ]
+  ],
   "test_compute_local_offset_1d (__main__.UtilTest)": [
     "100032",
     "https://github.com/pytorch/pytorch/issues/100032",
