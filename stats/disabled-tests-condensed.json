@@ -13,6 +13,13 @@
       "linux"
     ]
   ],
+  "test_RNN_dropout_state (__main__.TestNN)": [
+    "107183",
+    "https://github.com/pytorch/pytorch/issues/107183",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -321,6 +328,13 @@
   "test_comprehensive_nn_functional_instance_norm_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "107180",
     "https://github.com/pytorch/pytorch/issues/107180",
+    [
+      "rocm"
+    ]
+  ],
+  "test_comprehensive_tanh_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "107184",
+    "https://github.com/pytorch/pytorch/issues/107184",
     [
       "rocm"
     ]
