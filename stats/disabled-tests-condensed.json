@@ -1011,7 +1011,7 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
-  "test_learnable_forward_per_channel_cpu (__main__.TestFakeQuantizeOps)": [
+  "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
     [
