@@ -6,6 +6,11 @@ on:
     - cron: "5 3 * * *"
   # Have the ability to trigger this job manually
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "torchci/scripts/test_update_test_times.yml"
+      - "torchci/scripts/update_test_times.py"
+      - ".github/workflows/update-test-times.yml"
 
 defaults:
   run:
@@ -21,6 +26,9 @@ jobs:
           pip3 install boto3==1.19.12
           pip3 install rockset==1.0.3
 
+      - name: Run tests
+        run: python3 scripts/test_update_test_times.py
+
       - name: Update test times
         run: |
           python3 scripts/update_test_times.py
@@ -28,6 +36,7 @@ jobs:
           ROCKSET_API_KEY: ${{ secrets.ROCKSET_API_KEY }}
 
       - name: Push file to this repository
+        if: github.event_name != 'pull_request'
         uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
         env:
            API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
