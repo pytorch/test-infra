@@ -301,7 +301,11 @@ jobs:
           # ${{ env.repository }} is $OWNER/$REPO
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
 
-      - name: Clean workspace before tear down
+      - name: Teardown Linux
+        if: ${{ always() }}
+        uses: ./test-infra/.github/actions/teardown-linux
+
+      - name: Clean workspace after tear down
         if: ${{ always() }}
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
@@ -313,7 +317,3 @@ jobs:
             rm -rf "${GITHUB_WORKSPACE}"
           fi
           set -e
-
-      - name: Teardown Linux
-        if: ${{ always() }}
-        uses: ./test-infra/.github/actions/teardown-linux
