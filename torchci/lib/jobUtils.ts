@@ -134,17 +134,13 @@ export function isSameFailure(
     return false;
   }
 
-  if (
+  return (
     jobA.conclusion == jobB.conclusion &&
     isEqual(jobA.failure_captures, jobB.failure_captures)
-  ) {
-    return true;
-  }
-
-  return false;
+  );
 }
 
-export async function querySimilarFailure(
+export async function querySimilarFailures(
   job: RecentWorkflowsData,
   lookbackPeriodInDays: number = 1,
   client?: Client
@@ -193,10 +189,10 @@ export async function querySimilarFailure(
     MIN_SCORE
   );
 
-  return results["jobs"];
+  return "jobs" in results ? results["jobs"] : [];
 }
 
-export async function hasSimilarFailure(
+export async function hasSimilarFailures(
   job: RecentWorkflowsData,
   lookbackPeriodInDays: number = 1
 ): Promise<boolean> {
@@ -204,12 +200,11 @@ export async function hasSimilarFailure(
     return false;
   }
 
-  const records = await querySimilarFailure(job, lookbackPeriodInDays);
+  const records = await querySimilarFailures(job, lookbackPeriodInDays);
   if (records === undefined || records.length === 0) {
     return false;
   }
 
-  let count = 0;
   for (const record of records) {
     // Convert the result in JobData to RecentWorkflowsData used by Dr.CI
     const failure: RecentWorkflowsData = {
@@ -224,11 +219,11 @@ export async function hasSimilarFailure(
       failure_line: record.failureLine,
     };
 
-    // Same job, skipping
+    // Only count different jobs with the same failure
     if (job.id !== failure.id && isSameFailure(job, failure)) {
-      count += 1;
+      return true;
     }
   }
 
-  return count > 0;
+  return false;
 }

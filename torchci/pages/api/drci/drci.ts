@@ -20,7 +20,11 @@ import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
-import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
+import {
+  removeJobNameSuffix,
+  isSameFailure,
+  hasSimilarFailures,
+} from "lib/jobUtils";
 
 interface PRandJobs {
   head_sha: string;
@@ -75,7 +79,7 @@ export async function updateDrciComments(
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
-      getWorkflowJobsStatuses(
+      await getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
         baseCommitJobs.get(pr_info.merge_base) || new Map()
@@ -390,17 +394,17 @@ function isBrokenTrunk(
     .some((baseJob) => isSameFailure(baseJob, job));
 }
 
-export function getWorkflowJobsStatuses(
+export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>
-): {
+): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
-} {
+}> {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
@@ -414,7 +418,7 @@ export function getWorkflowJobsStatuses(
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
-      } else if (isFlaky(job, flakyRules)) {
+      } else if (isFlaky(job, flakyRules) || (await hasSimilarFailures(job))) {
         flakyJobs.push(job);
       } else {
         failedJobs.push(job);
