@@ -309,11 +309,12 @@ jobs:
         if: ${{ always() }}
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
+          REPOSITORY: ${{ inputs.repository || github.repository }}
         run: |
           set +e
           if [[ "${NO_SUDO}" == "false" ]]; then
-            sudo rm -rf "${GITHUB_WORKSPACE}"
+            sudo rm -rf "${GITHUB_WORKSPACE}/${REPOSITORY}"
           else
-            rm -rf "${GITHUB_WORKSPACE}"
+            rm -rf "${GITHUB_WORKSPACE}/${REPOSITORY}"
           fi
           set -e
