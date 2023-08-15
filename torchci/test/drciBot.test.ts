@@ -185,7 +185,16 @@ describe("verify-drci-functionality", () => {
       )
       .reply(200, {})
       .get((url) => url.includes(`/repos/${OWNER}/${REPO}/compare/`))
-      .reply(200, { merge_base_commit: { sha: "dummyMergeBaseSha" } })
+      .reply(200, {
+        merge_base_commit: {
+          sha: "dummyMergeBaseSha",
+          commit: {
+            committer: {
+              date: "2023-08-08T06:03:21Z",
+            },
+          },
+        },
+      })
       .get(`/repos/${OWNER}/${REPO}/issues/1000/comments`)
       .reply(200, [
         {

@@ -9,15 +9,13 @@ import {
   getActiveSEVs,
   formDrciSevBody,
 } from "lib/drciUtils";
-import { IssueData } from "lib/types";
-import { testOctokit } from "./utils";
+import { IssueData, RecentWorkflowsData } from "lib/types";
 import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
 
 nock.disableNetConnect();
 
-const dummyBaseSha = "dummyBaseSha";
 export const successfulA = {
   name: "linux-docs / build-docs (cpp)",
   conclusion: "success",
@@ -212,6 +210,40 @@ const closedSev: IssueData = {
   author_association: "MEMBER",
 };
 
+function constructResultsCommentHelper({
+  pending = 3,
+  failedJobs = [],
+  flakyJobs = [],
+  brokenTrunkJobs = [],
+  unstableJobs = [],
+  sha = "random sha",
+  merge_base = "random_merge_base_sha",
+  merge_base_date = "2023-08-08T06:03:21Z",
+  hud_pr_url = "random hud pr url",
+}: {
+  pending?: number;
+  failedJobs?: RecentWorkflowsData[];
+  flakyJobs?: RecentWorkflowsData[];
+  brokenTrunkJobs?: RecentWorkflowsData[];
+  unstableJobs?: RecentWorkflowsData[];
+  sha?: string;
+  merge_base?: string;
+  merge_base_date?: string;
+  hud_pr_url?: string;
+}) {
+  return updateDrciBot.constructResultsComment(
+    pending,
+    failedJobs,
+    flakyJobs,
+    brokenTrunkJobs,
+    unstableJobs,
+    sha,
+    merge_base,
+    merge_base_date,
+    hud_pr_url
+  );
+}
+
 describe("Update Dr. CI Bot Unit Tests", () => {
   beforeEach(() => {});
 
@@ -237,16 +269,12 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       [],
       new Map()
     );
-    const failureInfo = updateDrciBot.constructResultsComment(
+    const failureInfo = constructResultsCommentHelper({
       pending,
       failedJobs,
-      [],
-      [],
-      [],
-      pr_1001.head_sha,
-      "random sha",
-      "hudlink"
-    );
+      sha: pr_1001.head_sha,
+      hud_pr_url: "hudlink",
+    });
     const failedJobName = failedA.name;
 
     expect(failureInfo.includes("3 New Failures, 1 Pending")).toBeTruthy();
@@ -311,16 +339,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       new Map()
     );
 
-    const failureInfo = updateDrciBot.constructResultsComment(
+    const failureInfo = constructResultsCommentHelper({
       pending,
       failedJobs,
-      [],
-      [],
-      [],
-      pr_1001.head_sha,
-      "random sha",
-      "hudlink"
-    );
+      sha: pr_1001.head_sha,
+    });
     const comment = formDrciComment(1001, "pytorch", "pytorch", failureInfo);
     expect(comment.includes("1 New Failure, 1 Pending")).toBeTruthy();
     expect(comment.includes("Helpful Links")).toBeTruthy();
@@ -355,16 +378,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       new Map()
     );
 
-    const failureInfo = updateDrciBot.constructResultsComment(
+    const failureInfo = constructResultsCommentHelper({
       pending,
       failedJobs,
-      [],
-      [],
-      [],
-      pr_1001.head_sha,
-      "random sha",
-      "hudlink"
-    );
+      sha: pr_1001.head_sha,
+    });
     const comment = formDrciComment(
       1001,
       "pytorch",
@@ -395,16 +413,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       [],
       new Map()
     );
-    const failureInfo = updateDrciBot.constructResultsComment(
+    const failureInfo = constructResultsCommentHelper({
       pending,
       failedJobs,
-      [],
-      [],
-      [],
-      pr_1001.head_sha,
-      "random sha",
-      "hudlink"
-    );
+      sha: pr_1001.head_sha,
+    });
     const comment = formDrciComment(1001, "pytorch", "pytorch", failureInfo);
     expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
     expect(
@@ -430,16 +443,11 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       [],
       new Map()
     );
-    const failureInfo = updateDrciBot.constructResultsComment(
+    const failureInfo = constructResultsCommentHelper({
       pending,
       failedJobs,
-      [],
-      [],
-      [],
-      pr_1001.head_sha,
-      "random sha",
-      "hudlink"
-    );
+      sha: pr_1001.head_sha,
+    });
     const comment = formDrciComment(1001, "pytorch", "pytorch", failureInfo);
     expect(comment.includes("## :link: Helpful Links")).toBeTruthy();
     expect(comment.includes("## :x: 1 New Failure, 1 Pending")).toBeTruthy();
@@ -516,21 +524,19 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("test flaky, broken trunk, and unstable jobs are included in the comment", async () => {
-    const failureInfoComment = updateDrciBot.constructResultsComment(
-      1,
-      [failedA],
-      [failedB],
-      [failedC],
-      [unstableA],
-      "random head sha",
-      "random base sha",
-      "hudlink"
-    );
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      failedJobs: [failedA],
+      flakyJobs: [failedB],
+      brokenTrunkJobs: [failedC],
+      unstableJobs: [unstableA],
+      merge_base: "random base sha",
+    });
     const expectToContain = [
       "1 New Failure, 1 Pending, 3 Unrelated Failures",
       "The following job has failed",
       "The following job failed but was likely due to flakiness present on trunk",
-      "The following job failed but was present on the merge base random base sha",
+      "The following job failed but was present on the merge base",
       "The following job failed but was likely due to flakiness present on trunk and has been marked as unstable",
       failedA.name,
       failedB.name,
@@ -543,16 +549,12 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("test flaky, broken trunk, unstable jobs don't affect the Dr. CI icon", async () => {
-    const failureInfoComment = updateDrciBot.constructResultsComment(
-      1,
-      [],
-      [failedB],
-      [failedC],
-      [unstableA],
-      "random head sha",
-      "random base sha",
-      "hudlink"
-    );
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      flakyJobs: [failedB],
+      brokenTrunkJobs: [failedC],
+      unstableJobs: [unstableA],
+    });
 
     const expectToContain = [
       ":hourglass_flowing_sand:",
@@ -564,6 +566,36 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
+  });
+
+  test("test merge base time shows up in results comment", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      sha: "sha",
+      merge_base: "merge_base",
+      merge_base_date: "2023-08-08T06:03:21Z",
+    });
+    console.log(failureInfoComment);
+    expect(
+      failureInfoComment.includes("commit sha with merge base merge_base")
+    ).toBeTruthy();
+    expect(
+      failureInfoComment.includes(
+        "https://img.shields.io/date/1691474601?label=&color=FFFFFF&style=flat-square"
+      )
+    ).toBeTruthy();
+  });
+
+  test("test bad merge base time is handled correctly", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      sha: "sha",
+      merge_base: "merge_base",
+      merge_base_date: "definitely not a timestamp",
+    });
+    console.log(failureInfoComment);
+    expect(
+      failureInfoComment.includes("commit sha with merge base merge_base")
+    ).toBeTruthy();
+    expect(!failureInfoComment.includes("img")).toBeTruthy();
   });
 
   test("test formDrciHeader for pytorch/pytorch", async () => {
