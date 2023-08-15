@@ -120,10 +120,11 @@ describe("Test removing job name suffix", () => {
   });
 
   test("test querySimilarFailures", async () => {
-    const lookbackPeriodInDays = 1;
+    const baseCommitDate = "";
+    const lookbackPeriodInHours = 24;
     const mockEndDate = dayjs("2023-08-01T00:00:00Z").toISOString();
     const mockStartDate = dayjs(mockEndDate)
-      .subtract(lookbackPeriodInDays, "day")
+      .subtract(lookbackPeriodInHours, "hour")
       .toISOString();
 
     const mockJobData: JobData = {
@@ -158,7 +159,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -169,7 +171,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -180,7 +183,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([]);
@@ -191,7 +195,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toStrictEqual([mockJobData]);
@@ -210,7 +215,8 @@ describe("Test removing job name suffix", () => {
   });
 
   test("test hasSimilarFailures", async () => {
-    const lookbackPeriodInDays = 1;
+    const baseCommitDate = "";
+    const lookbackPeriodInHours = 24;
     const job: RecentWorkflowsData = {
       id: "A",
       name: "A",
@@ -227,7 +233,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(false);
@@ -256,7 +263,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(false);
@@ -269,7 +277,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(false);
@@ -282,7 +291,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(false);
@@ -296,7 +306,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(false);
@@ -310,7 +321,8 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        lookbackPeriodInDays,
+        baseCommitDate,
+        lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
     ).toEqual(true);

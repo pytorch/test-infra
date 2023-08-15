@@ -112,10 +112,8 @@ export function isSameFailure(
   jobB: RecentWorkflowsData
 ): boolean {
   if (
-    jobA === undefined ||
     jobA.name === undefined ||
     jobA.name === "" ||
-    jobB === undefined ||
     jobB.name === undefined ||
     jobB.name === ""
   ) {
@@ -142,20 +140,23 @@ export function isSameFailure(
 
 export async function querySimilarFailures(
   job: RecentWorkflowsData,
-  lookbackPeriodInDays: number = 1,
+  baseCommitDate: string,
+  lookbackPeriodInHours: number = 24,
   client?: Client
 ): Promise<JobData[]> {
   // This function queries HUD to find all similar failures during a period of time
   // before the current job. If a pre-existing job is found with exactly the same
-  // failure and job name and within N days, the failure will be considered flaky
+  // failure and job name, the failure will be considered flaky. The end date is the
+  // when the job finishes while the start date is either the time when the base commit
+  // finishes minus a look-back period of 24 hours.
   if (
-    job === undefined ||
     job.name === undefined ||
     job.name === "" ||
     job.failure_captures === undefined ||
     job.failure_captures.length === 0 ||
     job.completed_at === undefined ||
-    job.completed_at === null
+    job.completed_at === null ||
+    job.completed_at === ""
   ) {
     return [];
   }
@@ -181,7 +182,9 @@ export async function querySimilarFailures(
   // Search for all captured failure
   const failure = job.failure_captures.join(" ");
   const endDate = dayjs(job.completed_at);
-  const startDate = endDate.subtract(lookbackPeriodInDays, "day");
+  const startDate = dayjs(
+    baseCommitDate !== "" ? baseCommitDate : job.completed_at
+  ).subtract(lookbackPeriodInHours, "hour");
 
   const results = await searchSimilarFailures(
     client,
@@ -197,11 +200,17 @@ export async function querySimilarFailures(
 
 export async function hasSimilarFailures(
   job: RecentWorkflowsData,
-  lookbackPeriodInDays: number = 1,
+  baseCommitDate: string,
+  lookbackPeriodInHours: number = 24,
   client?: Client
 ): Promise<boolean> {
-  const records = await querySimilarFailures(job, lookbackPeriodInDays, client);
-  if (records === undefined || records.length === 0) {
+  const records = await querySimilarFailures(
+    job,
+    baseCommitDate,
+    lookbackPeriodInHours,
+    client
+  );
+  if (records.length === 0) {
     return false;
   }
 

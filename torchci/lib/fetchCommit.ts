@@ -51,3 +51,37 @@ export default async function fetchCommit(
     jobs,
   };
 }
+
+export async function fetchBaseCommitTimeStamp(
+  baseCommitSha: string
+): Promise<string> {
+  if (baseCommitSha === "") {
+    return "";
+  }
+
+  const rocksetClient = getRocksetClient();
+  // Decide to get the commit timestamp from merges collection instead because
+  // it's small. But this only works for base commits in trunk. May be we can
+  // refactor this later on to a proper query lambda that handles any commits
+  const rocksetQuery = await rocksetClient.queries.query({
+    sql: {
+      query:
+        "SELECT _event_time AS time FROM commons.merges WHERE merge_commit_sha = :sha",
+      parameters: [
+        {
+          name: "sha",
+          type: "string",
+          value: baseCommitSha,
+        },
+      ],
+      default_row_limit: 1,
+    },
+  });
+
+  if (rocksetQuery.results === undefined || rocksetQuery.results.length === 0) {
+    return "";
+  }
+
+  // There is at most one record
+  return rocksetQuery.results[0].time;
+}

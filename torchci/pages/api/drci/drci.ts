@@ -25,6 +25,7 @@ import {
   isSameFailure,
   hasSimilarFailures,
 } from "lib/jobUtils";
+import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
 
 interface PRandJobs {
   head_sha: string;
@@ -410,6 +411,10 @@ export async function getWorkflowJobsStatuses(
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
+
+  // Get the timestamp of the base commit
+  const baseCommitDate = await fetchBaseCommitTimeStamp(prInfo.merge_base);
+
   for (const [name, job] of prInfo.jobs) {
     if (job.conclusion === null && job.completed_at === null) {
       pending++;
@@ -418,7 +423,10 @@ export async function getWorkflowJobsStatuses(
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
-      } else if (isFlaky(job, flakyRules) || (await hasSimilarFailures(job))) {
+      } else if (
+        isFlaky(job, flakyRules) ||
+        (await hasSimilarFailures(job, baseCommitDate))
+      ) {
         flakyJobs.push(job);
       } else {
         failedJobs.push(job);
