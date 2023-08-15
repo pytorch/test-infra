@@ -135,7 +135,7 @@ export function isSameFailure(
   }
 
   return (
-    jobA.conclusion == jobB.conclusion &&
+    jobA.conclusion === jobB.conclusion &&
     isEqual(jobA.failure_captures, jobB.failure_captures)
   );
 }
@@ -150,8 +150,11 @@ export async function querySimilarFailures(
   // failure and job name and within N days, the failure will be considered flaky
   if (
     job === undefined ||
+    job.name === undefined ||
+    job.name === "" ||
     job.failure_captures === undefined ||
     job.failure_captures.length === 0 ||
+    job.completed_at === undefined ||
     job.completed_at === null
   ) {
     return [];
@@ -177,8 +180,8 @@ export async function querySimilarFailures(
 
   // Search for all captured failure
   const failure = job.failure_captures.join(" ");
-  const startDate = dayjs(job.completed_at);
-  const endDate = startDate.subtract(lookbackPeriodInDays, "day");
+  const endDate = dayjs(job.completed_at);
+  const startDate = endDate.subtract(lookbackPeriodInDays, "day");
 
   const results = await searchSimilarFailures(
     client,
@@ -194,13 +197,10 @@ export async function querySimilarFailures(
 
 export async function hasSimilarFailures(
   job: RecentWorkflowsData,
-  lookbackPeriodInDays: number = 1
+  lookbackPeriodInDays: number = 1,
+  client?: Client
 ): Promise<boolean> {
-  if (job === undefined || job.name === undefined || job.name === "") {
-    return false;
-  }
-
-  const records = await querySimilarFailures(job, lookbackPeriodInDays);
+  const records = await querySimilarFailures(job, lookbackPeriodInDays, client);
   if (records === undefined || records.length === 0) {
     return false;
   }
