@@ -619,8 +619,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("test similar failures marked as flaky", async () => {
-    jest.restoreAllMocks();
-
     const mock = jest.spyOn(jobUtils, "hasSimilarFailures");
     mock.mockImplementation(() => Promise.resolve(true));
 
