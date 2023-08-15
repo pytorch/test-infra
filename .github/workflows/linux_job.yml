@@ -313,8 +313,8 @@ jobs:
         run: |
           set +e
           if [[ "${NO_SUDO}" == "false" ]]; then
-            sudo rm -rf "${GITHUB_WORKSPACE}/${REPOSITORY}"
+            sudo rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
           else
-            rm -rf "${GITHUB_WORKSPACE}/${REPOSITORY}"
+            rm -rf "${GITHUB_WORKSPACE:?}/${REPOSITORY:?}"
           fi
           set -e
