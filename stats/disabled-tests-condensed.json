@@ -20,6 +20,13 @@
       "rocm"
     ]
   ],
+  "test_RNN_input_size_zero (__main__.TestNN)": [
+    "107219",
+    "https://github.com/pytorch/pytorch/issues/107219",
+    [
+      "rocm"
+    ]
+  ],
   "test_all_gather_uneven (__main__.DeviceMeshCollectiveTest)": [
     "98049",
     "https://github.com/pytorch/pytorch/issues/98049",
@@ -416,6 +423,14 @@
     "https://github.com/pytorch/pytorch/issues/105528",
     [
       "rocm"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106793",
+    "https://github.com/pytorch/pytorch/issues/106793",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
