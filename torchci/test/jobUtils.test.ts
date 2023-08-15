@@ -120,7 +120,7 @@ describe("Test removing job name suffix", () => {
   });
 
   test("test querySimilarFailures", async () => {
-    const baseCommitDate = "";
+    const emptyBaseCommitDate = "";
     const lookbackPeriodInHours = 24;
     const mockEndDate = dayjs("2023-08-01T00:00:00Z").toISOString();
     const mockStartDate = dayjs(mockEndDate)
@@ -159,7 +159,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -171,7 +171,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -183,7 +183,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -195,7 +195,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await querySimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -212,10 +212,37 @@ describe("Test removing job name suffix", () => {
         ],
       ])
     );
+
+    mock.mockClear();
+    const baseCommitDate = "2023-07-01T00:00:00Z";
+
+    // Use base commit date
+    expect(
+      await querySimilarFailures(
+        job,
+        baseCommitDate,
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toStrictEqual([mockJobData]);
+    expect(JSON.stringify(mock.mock.calls)).toEqual(
+      JSON.stringify([
+        [
+          "TESTING",
+          job.failure_captures.join(" "),
+          searchUtils.WORKFLOW_JOB_INDEX,
+          dayjs(baseCommitDate)
+            .subtract(lookbackPeriodInHours, "hour")
+            .toISOString(),
+          mockEndDate,
+          searchUtils.MIN_SCORE,
+        ],
+      ])
+    );
   });
 
   test("test hasSimilarFailures", async () => {
-    const baseCommitDate = "";
+    const emptyBaseCommitDate = "";
     const lookbackPeriodInHours = 24;
     const job: RecentWorkflowsData = {
       id: "A",
@@ -233,7 +260,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -263,7 +290,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -277,7 +304,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -291,7 +318,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -306,7 +333,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
@@ -321,7 +348,7 @@ describe("Test removing job name suffix", () => {
     expect(
       await hasSimilarFailures(
         job,
-        baseCommitDate,
+        emptyBaseCommitDate,
         lookbackPeriodInHours,
         "TESTING" as unknown as Client
       )
