@@ -418,14 +418,6 @@
       "rocm"
     ]
   ],
-  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106793",
-    "https://github.com/pytorch/pytorch/issues/106793",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
     "106796",
     "https://github.com/pytorch/pytorch/issues/106796",
