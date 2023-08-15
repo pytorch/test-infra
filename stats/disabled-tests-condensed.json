@@ -836,13 +836,6 @@
       "inductor"
     ]
   ],
-  "test_geometric_kstest_cuda_int32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94531",
-    "https://github.com/pytorch/pytorch/issues/94531",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_int64 (__main__.TestTorchDeviceTypeCUDA)": [
     "94508",
     "https://github.com/pytorch/pytorch/issues/94508",
@@ -1164,6 +1157,30 @@
     "https://github.com/pytorch/pytorch/issues/91496",
     [
       "linux"
+    ]
+  ],
+  "test_mm_sparse_first_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106014",
+    "https://github.com/pytorch/pytorch/issues/106014",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_NT_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106015",
+    "https://github.com/pytorch/pytorch/issues/106015",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_first_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106016",
+    "https://github.com/pytorch/pytorch/issues/106016",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_mm_sparse_second_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
