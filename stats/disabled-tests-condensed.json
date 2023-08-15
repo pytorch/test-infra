@@ -1022,7 +1022,8 @@
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
     [
-      "macos"
+      "macos",
+      "mac"
     ]
   ],
   "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
