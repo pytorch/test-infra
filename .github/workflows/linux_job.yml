@@ -119,6 +119,7 @@ jobs:
         env:
           NO_SUDO: ${{ inputs.no-sudo }}
         run: |
+          set -euxo pipefail
           if [[ "${NO_SUDO}" == "false" ]]; then
             echo "::group::Cleanup with-sudo debug output"
             sudo rm -rfv "${GITHUB_WORKSPACE}"
@@ -299,6 +300,19 @@ jobs:
           path: ${{ env.RUNNER_DOCS_DIR }}
           # ${{ env.repository }} is $OWNER/$REPO
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
+
+      - name: Clean workspace before tear down
+        if: ${{ always() }}
+        env:
+          NO_SUDO: ${{ inputs.no-sudo }}
+        run: |
+          set +e
+          if [[ "${NO_SUDO}" == "false" ]]; then
+            sudo rm -rf "${GITHUB_WORKSPACE}"
+          else
+            rm -rf "${GITHUB_WORKSPACE}"
+          fi
+          set -e
 
       - name: Teardown Linux
         if: ${{ always() }}
