@@ -43,7 +43,7 @@ export default function JobLinks({ job }: { job: JobData }) {
         <a
           target="_blank"
           rel="noreferrer"
-          href={`/failure/${encodeURIComponent(job.failureCaptures[0])}`}
+          href={`/failure/${encodeURIComponent(job.failureCaptures.join(","))}`}
         >
           more like this
         </a>
@@ -90,7 +90,7 @@ function getTestName(failureCapture: string) {
 
 function formatDisableTestBody(failureCaptures: string[]) {
   const examplesURL = `http://torch-ci.com/failure/${encodeURIComponent(
-    failureCaptures[0]
+    failureCaptures.join(",")
   )}`;
   return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
 

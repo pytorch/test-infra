@@ -3,7 +3,7 @@ import {
   hasSimilarFailures,
   querySimilarFailures,
   isSameFailure,
-  isSameHeadBranch
+  isSameHeadBranch,
 } from "../lib/jobUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
@@ -59,64 +59,28 @@ describe("Test removing job name suffix", () => {
   });
 
   test("test isSameHeadBranch", () => {
+    expect(isSameHeadBranch("", "")).toEqual(false);
+
+    expect(isSameHeadBranch("mock-branch", "")).toEqual(false);
+
+    expect(isSameHeadBranch("", "mock-branch")).toEqual(false);
+
+    expect(isSameHeadBranch("mock-branch", "mock-branch")).toEqual(true);
+
+    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/2")).toEqual(false);
+
+    expect(isSameHeadBranch("ciflow/trunk/1", "ciflow/trunk/1")).toEqual(true);
+
+    expect(isSameHeadBranch("gh/user/1/head", "gh/user/2/head")).toEqual(true);
+
+    expect(isSameHeadBranch("gh/user/1/head", "gh/user/1/head")).toEqual(true);
+
     expect(
-      isSameHeadBranch(
-        "", ""
-      )
+      isSameHeadBranch("gh/user/1/head", "gh/another-user/2/head")
     ).toEqual(false);
 
     expect(
-      isSameHeadBranch(
-        "mock-branch", ""
-      )
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch(
-        "", "mock-branch"
-      )
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch(
-        "mock-branch", "mock-branch"
-      )
-    ).toEqual(true);
-
-    expect(
-      isSameHeadBranch(
-        "ciflow/trunk/1", "ciflow/trunk/2"
-      )
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch(
-        "ciflow/trunk/1", "ciflow/trunk/1"
-      )
-    ).toEqual(true);
-
-    expect(
-      isSameHeadBranch(
-        "gh/user/1/head", "gh/user/2/head"
-      )
-    ).toEqual(true);
-
-    expect(
-      isSameHeadBranch(
-        "gh/user/1/head", "gh/user/1/head"
-      )
-    ).toEqual(true);
-
-    expect(
-      isSameHeadBranch(
-        "gh/user/1/head", "gh/another-user/2/head"
-      )
-    ).toEqual(false);
-
-    expect(
-      isSameHeadBranch(
-        "gh/user/1/head", "gh/another-user/1/head"
-      )
+      isSameHeadBranch("gh/user/1/head", "gh/another-user/1/head")
     ).toEqual(false);
   });
 
