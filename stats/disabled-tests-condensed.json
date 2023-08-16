@@ -1068,14 +1068,6 @@
       "slow"
     ]
   ],
-  "test_list_clearing_cuda (__main__.CudaTests)": [
-    "106299",
-    "https://github.com/pytorch/pytorch/issues/106299",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
