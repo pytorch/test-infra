@@ -14,7 +14,7 @@ import { testOctokit } from "./utils";
 import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
-import * as jobUtils from "lib/jobUtils";
+import * as drciUtils from "lib/drciUtils";
 
 nock.disableNetConnect();
 
@@ -215,7 +215,7 @@ const closedSev: IssueData = {
 
 describe("Update Dr. CI Bot Unit Tests", () => {
   beforeEach(() => {
-    const mock = jest.spyOn(jobUtils, "hasSimilarFailures");
+    const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() => Promise.resolve(false));
   });
 
@@ -619,7 +619,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
   });
 
   test("test similar failures marked as flaky", async () => {
-    const mock = jest.spyOn(jobUtils, "hasSimilarFailures");
+    const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
     mock.mockImplementation(() => Promise.resolve(true));
 
     const originalWorkflows = [failedA, failedB];

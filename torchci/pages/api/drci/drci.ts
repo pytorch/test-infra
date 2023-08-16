@@ -15,16 +15,13 @@ import {
   formDrciSevBody,
   FLAKY_RULES_JSON,
   HUD_URL,
+  hasSimilarFailures,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
-import {
-  removeJobNameSuffix,
-  isSameFailure,
-  hasSimilarFailures,
-} from "lib/jobUtils";
+import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
 import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
 
 interface PRandJobs {
