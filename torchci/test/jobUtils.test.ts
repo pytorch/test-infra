@@ -3,6 +3,7 @@ import {
   hasSimilarFailures,
   querySimilarFailures,
   isSameFailure,
+  isSameHeadBranch
 } from "../lib/jobUtils";
 import * as searchUtils from "../lib/searchUtils";
 import { JobData, RecentWorkflowsData } from "lib/types";
@@ -55,6 +56,68 @@ describe("Test removing job name suffix", () => {
     expect(
       removeJobNameSuffix("Test `run_test.py` is usable without boto3/rockset")
     ).toStrictEqual("Test `run_test.py` is usable without boto3/rockset");
+  });
+
+  test("test isSameHeadBranch", () => {
+    expect(
+      isSameHeadBranch(
+        "", ""
+      )
+    ).toEqual(false);
+
+    expect(
+      isSameHeadBranch(
+        "mock-branch", ""
+      )
+    ).toEqual(false);
+
+    expect(
+      isSameHeadBranch(
+        "", "mock-branch"
+      )
+    ).toEqual(false);
+
+    expect(
+      isSameHeadBranch(
+        "mock-branch", "mock-branch"
+      )
+    ).toEqual(true);
+
+    expect(
+      isSameHeadBranch(
+        "ciflow/trunk/1", "ciflow/trunk/2"
+      )
+    ).toEqual(false);
+
+    expect(
+      isSameHeadBranch(
+        "ciflow/trunk/1", "ciflow/trunk/1"
+      )
+    ).toEqual(true);
+
+    expect(
+      isSameHeadBranch(
+        "gh/user/1/head", "gh/user/2/head"
+      )
+    ).toEqual(true);
+
+    expect(
+      isSameHeadBranch(
+        "gh/user/1/head", "gh/user/1/head"
+      )
+    ).toEqual(true);
+
+    expect(
+      isSameHeadBranch(
+        "gh/user/1/head", "gh/another-user/2/head"
+      )
+    ).toEqual(false);
+
+    expect(
+      isSameHeadBranch(
+        "gh/user/1/head", "gh/another-user/1/head"
+      )
+    ).toEqual(false);
   });
 
   test("test isSameFailure", () => {
@@ -242,6 +305,7 @@ describe("Test removing job name suffix", () => {
   });
 
   test("test hasSimilarFailures", async () => {
+    const headBranch = "mock-branch";
     const emptyBaseCommitDate = "";
     const lookbackPeriodInHours = 24;
     const job: RecentWorkflowsData = {
@@ -252,6 +316,7 @@ describe("Test removing job name suffix", () => {
       failure_captures: ["ERROR"],
       conclusion: "failure",
       completed_at: "2023-08-01T00:00:00Z",
+      head_branch: "whatever",
     };
 
     const mock = jest.spyOn(searchUtils, "searchSimilarFailures");
@@ -274,7 +339,7 @@ describe("Test removing job name suffix", () => {
         "linux-bionic-cuda12.1-py3.10-gcc9-sm86 / test (default, 2, 5, linux.g5.4xlarge.nvidia.gpu, unstable)",
       sha: "ABCD",
       id: id,
-      branch: "mock-branch",
+      branch: headBranch,
       workflowId: "12345",
       time: "2023-08-01T00:00:00Z",
       conclusion: "failure",
@@ -297,9 +362,23 @@ describe("Test removing job name suffix", () => {
     ).toEqual(false);
 
     job.id = "0";
+    job.head_branch = headBranch;
+    // Found a match, but it belongs to the same branch, thus from the same PR,
+    // so it will be ignored
+    expect(
+      await hasSimilarFailures(
+        job,
+        emptyBaseCommitDate,
+        lookbackPeriodInHours,
+        "TESTING" as unknown as Client
+      )
+    ).toEqual(false);
+
+    job.id = "0";
     job.name =
       "android-emulator-build-test / build-and-test (default, 1, 1, ubuntu-20.04-16x)";
     job.failure_captures = ["ERROR"];
+    job.head_branch = "whatever";
     // Found a match but it has a different job name
     expect(
       await hasSimilarFailures(

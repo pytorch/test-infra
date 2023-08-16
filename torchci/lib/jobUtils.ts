@@ -16,6 +16,7 @@ import { isEqual } from "lodash";
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
+export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -107,6 +108,25 @@ export function removeJobNameSuffix(
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
 }
 
+export function isSameHeadBranch(
+  branchA: string | null | undefined,
+  branchB: string | null | undefined
+): boolean {
+  if (!branchA || !branchB) {
+    return false;
+  }
+
+  const replaceWith = "";
+  // This function exists because we want to treat all ghstack head branches
+  // as one branch when it comes to finding similar failures. A legit failure
+  // coming from the same job but different commits in the stack shouldn't be
+  // treated as a flaky similar failure
+  const branchANoGhstack = branchA.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+  const branchBNoGhstack = branchB.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+
+  return branchANoGhstack === branchBNoGhstack;
+}
+
 export function isSameFailure(
   jobA: RecentWorkflowsData,
   jobB: RecentWorkflowsData
@@ -125,10 +145,7 @@ export function isSameFailure(
   const jobANameNoSuffix = removeJobNameSuffix(jobA.name);
   const jobBNameNoSuffix = removeJobNameSuffix(jobB.name);
 
-  if (
-    !jobANameNoSuffix.includes(jobBNameNoSuffix) &&
-    !jobBNameNoSuffix.includes(jobANameNoSuffix)
-  ) {
+  if (jobANameNoSuffix !== jobBNameNoSuffix) {
     return false;
   }
 
@@ -224,12 +241,17 @@ export async function hasSimilarFailures(
       completed_at: record.time as string,
       html_url: record.htmlUrl as string,
       head_sha: record.sha as string,
+      head_branch: record.branch as string,
       failure_captures: record.failureCaptures as string[],
       failure_line: record.failureLine,
     };
 
     // Only count different jobs with the same failure
-    if (job.id !== failure.id && isSameFailure(job, failure)) {
+    if (
+      !isSameHeadBranch(job.head_branch, record.branch) &&
+      job.id !== failure.id &&
+      isSameFailure(job, failure)
+    ) {
       return true;
     }
   }

@@ -26,8 +26,9 @@ SELECT
   j.conclusion,
   j.completed_at,
   j.html_url,
+  j.head_branch,
   recent_shas.number AS pr_number,
-  recent_shas.sha AS head_sha,
+  recent_shas.sha AS head_sha,  
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line
 FROM
@@ -44,6 +45,7 @@ SELECT
   w.html_url,
   recent_shas.number AS pr_number,
   w.head_sha,
+  w.head_branch,
   null AS failure_captures,
   null AS failure_line
 FROM
