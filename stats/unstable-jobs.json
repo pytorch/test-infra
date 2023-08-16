@@ -1,12 +1,4 @@
 {
-  "periodic / linux-focal-rocm5.6-py3.8 / test (distributed)": [
-    "PaliC",
-    "105761",
-    "https://github.com/pytorch/pytorch/issues/105761",
-    "periodic",
-    "linux-focal-rocm5.6-py3.8",
-    "test (distributed)"
-  ],
   "pull / linux-bionic-py3.8-clang9 / test (dynamo)": [
     "izaitsevfb",
     "107047",
