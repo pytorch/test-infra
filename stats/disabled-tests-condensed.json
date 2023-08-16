@@ -425,6 +425,13 @@
       "rocm"
     ]
   ],
+  "test_conv_with_as_strided_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
+    "105528",
+    "https://github.com/pytorch/pytorch/issues/105528",
+    [
+      "rocm"
+    ]
+  ],
   "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "106793",
     "https://github.com/pytorch/pytorch/issues/106793",
@@ -1190,30 +1197,6 @@
   "test_mm_sparse_first_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "106038",
     "https://github.com/pytorch/pytorch/issues/106038",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106465",
-    "https://github.com/pytorch/pytorch/issues/106465",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106463",
-    "https://github.com/pytorch/pytorch/issues/106463",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_mm_sparse_second_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106464",
-    "https://github.com/pytorch/pytorch/issues/106464",
     [
       "linux",
       "slow"
