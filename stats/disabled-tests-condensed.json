@@ -668,6 +668,14 @@
       "linux"
     ]
   ],
+  "test_find_or_create_pg (__main__.TestPgTag)": [
+    "107278",
+    "https://github.com/pytorch/pytorch/issues/107278",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_find_unused_parameters_kwarg_grad_is_view_debug_detail (__main__.DistributedDataParallelTest)": [
     "82979",
     "https://github.com/pytorch/pytorch/issues/82979",
@@ -836,13 +844,6 @@
       "inductor"
     ]
   ],
-  "test_geometric_kstest_cuda_int8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "94625",
-    "https://github.com/pytorch/pytorch/issues/94625",
-    [
-      "linux"
-    ]
-  ],
   "test_geometric_kstest_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "93063",
     "https://github.com/pytorch/pytorch/issues/93063",
@@ -953,6 +954,13 @@
   "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
     "103285",
     "https://github.com/pytorch/pytorch/issues/103285",
+    [
+      "linux"
+    ]
+  ],
+  "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "100520",
+    "https://github.com/pytorch/pytorch/issues/100520",
     [
       "linux"
     ]
