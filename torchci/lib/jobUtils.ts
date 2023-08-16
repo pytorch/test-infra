@@ -170,6 +170,7 @@ export async function querySimilarFailures(
     job.name === undefined ||
     job.name === "" ||
     job.failure_captures === undefined ||
+    job.failure_captures === null ||
     job.failure_captures.length === 0 ||
     job.completed_at === undefined ||
     job.completed_at === null ||
