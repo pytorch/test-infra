@@ -28,7 +28,7 @@ SELECT
   j.html_url,
   j.head_branch,
   recent_shas.number AS pr_number,
-  recent_shas.sha AS head_sha,  
+  recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line
 FROM
