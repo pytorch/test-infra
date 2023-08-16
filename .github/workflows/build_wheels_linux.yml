@@ -85,6 +85,7 @@ jobs:
       REF: ${{ inputs.ref }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
+      ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     container:
@@ -108,7 +109,7 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
       - uses: actions/checkout@v3
-        if: ${{ inputs.architecture == 'aarch64' }}
+        if: ${{ env.ARCH == 'aarch64' }}
         with:
           # Support the use case where we need to checkout someone's fork
           repository: "pytorch/builder"
@@ -162,10 +163,6 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          if [[ ${{ inputs.architecture }} == 'aarch64' ]]; then
-            ${CONDA_RUN} conda install libpng -yq
-            ${CONDA_RUN} conda install -yq ffmpeg=4.2 libjpeg-turbo -c pytorch-nightly
-          fi
           ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (bdist_wheel)
         working-directory: ${{ inputs.repository }}

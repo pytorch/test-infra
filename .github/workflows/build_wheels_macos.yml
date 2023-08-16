@@ -183,7 +183,6 @@ jobs:
           export PATH="${CONDA_ENV}/bin:${PATH}"
 
           ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
-          ${CONDA_RUN} pip install numpy
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
@@ -191,7 +190,6 @@ jobs:
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
 
-            ${CONDA_RUN} conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN} python3 "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           export PATH=${OLD_PATH}
