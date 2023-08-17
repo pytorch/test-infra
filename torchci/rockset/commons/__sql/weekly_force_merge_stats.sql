@@ -8,7 +8,7 @@
 --               Can be one of: "All", "Impatience", "Failures", or " " (to get everything)
 
 WITH
-    issue_comments AS(
+    issue_comments AS (
         SELECT
             issue_comment.user.login,
             issue_comment.author_association,
@@ -31,8 +31,7 @@ WITH
             (
                 issue_comment.body LIKE '%pytorchbot merge%'
                 OR issue_comment.body LIKE '%pytorchmergebot merge%'
-            ) -- AND _event_time >= PARSE_DATETIME_ISO8601(:startTime)
-            -- AND _event_time < PARSE_DATETIME_ISO8601(:stopTime)
+            )
             AND issue_comment.user.login NOT LIKE '%pytorch-bot%'
             AND issue_comment.user.login NOT LIKE '%facebook-github-bot%'
             AND issue_comment.user.login NOT LIKE '%pytorchmergebot%'
@@ -43,6 +42,7 @@ WITH
             DISTINCT m.skip_mandatory_checks,
             LENGTH(m.failed_checks) AS failed_checks_count,
             LENGTH(m.ignore_current_checks) as ignored_checks_count,
+            LENGTH(m.pending_checks) AS pending_checks_count,
             m.ignore_current,
             m.is_failed,
             m.pr_num,
@@ -64,12 +64,27 @@ WITH
             m.is_failed,
             m.pr_num,
             m.merge_commit_sha,
-            m.ignore_current_checks
+            m.ignore_current_checks,
+            m.pending_checks
     ),
+    -- A legit force merge needs to satisfy one of the conditions belows:
+    -- 1. skip_mandatory_checks is true (-f) and failed_checks_count > 0 (with failures) or pending_checks_count > 0 (impatience).
+    --    If a force merge is done when there is no failures and all jobs have finished, it's arguably just a regular merge
+    -- 2. ignore_current is true (-i) and is_failed is false (indicating a succesful merge) and ignored_checks_count > 0 (with failures).
+    --    As -i still waits for all remaining jobs to finish, this shouldn't be counted toward force merge due to impatience
+    --
+    -- If none applies, the merge will be counted as a regular merge regardless of the use of -f or -i. We could also
+    -- track that here (regular merges masquerade as force merges) if there is a need
     merges_identifying_force_merges AS (
         SELECT
             IF(
-                (skip_mandatory_checks = true)
+                (
+                  skip_mandatory_checks = true
+                  AND (
+                    failed_checks_count > 0
+                    OR pending_checks_count > 0
+                  )
+                )
                 OR (
                     ignore_current = true
                     AND is_failed = false

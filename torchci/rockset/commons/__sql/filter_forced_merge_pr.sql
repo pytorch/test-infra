@@ -1,12 +1,13 @@
 -- This query is used by fetchHud to get the force merge status of the pull requests so that
 -- they can be highlighted on HUD. Specifically, force merges with failures are highlighted
 -- with a darker shade of orange while regular force merges due to impatience are marked with
---- yellow. The logic needs to be in sync with weekly_force_merge_stats query.
+-- yellow. The logic needs to be in sync with weekly_force_merge_stats query.
 WITH all_merges AS (
   SELECT
     skip_mandatory_checks,
     LENGTH(failed_checks) AS failed_checks_count,
     LENGTH(ignore_current_checks) AS ignored_checks_count,
+    LENGTH(pending_checks) AS pending_checks_count,
     ignore_current,
     is_failed,
     pr_num,
@@ -21,10 +22,24 @@ WITH all_merges AS (
       merge_commit_sha
     )
 ),
+-- A legit force merge needs to satisfy one of the conditions belows:
+-- 1. skip_mandatory_checks is true (-f) and failed_checks_count > 0 (with failures) or pending_checks_count > 0 (impatience).
+--    If a force merge is done when there is no failures and all jobs have finished, it's arguably just a regular merge
+-- 2. ignore_current is true (-i) and is_failed is false (indicating a succesful merge) and ignored_checks_count > 0 (with failures).
+--    As -i still waits for all remaining jobs to finish, this shouldn't be counted toward force merge due to impatience
+--
+-- If none applies, the merge will be counted as a regular merge regardless of the use of -f or -i. We could also
+-- track that here (regular merges masquerade as force merges) if there is a need
 force_merges_with_failed_checks AS (
   SELECT
     IF(
-      (skip_mandatory_checks = true)
+      (
+        skip_mandatory_checks = true
+        AND (
+          failed_checks_count > 0
+          OR pending_checks_count > 0
+        )
+      )
       OR (
         ignore_current = true
         AND is_failed = false
