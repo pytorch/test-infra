@@ -215,21 +215,6 @@
       "mac"
     ]
   ],
-  "test_call_parent_non_class_methods_from_child_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "102191",
-    "https://github.com/pytorch/pytorch/issues/102191",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
-  "test_cat (test_jit.TestScript)": [
-    "91491",
-    "https://github.com/pytorch/pytorch/issues/91491",
-    [
-      "linux"
-    ]
-  ],
   "test_cat_addmm (__main__.TestDoBench)": [
     "106451",
     "https://github.com/pytorch/pytorch/issues/106451",
@@ -349,22 +334,6 @@
     "https://github.com/pytorch/pytorch/issues/100032",
     [
       "linux"
-    ]
-  ],
-  "test_cond (__main__.DynamicShapesMiscTests)": [
-    "105128",
-    "https://github.com/pytorch/pytorch/issues/105128",
-    [
-      "linux"
-    ]
-  ],
-  "test_cond_export (__main__.DynamicShapesMiscTests)": [
-    "102032",
-    "https://github.com/pytorch/pytorch/issues/102032",
-    [
-      "linux",
-      "mac",
-      "macos"
     ]
   ],
   "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
@@ -1130,13 +1099,6 @@
       "linux"
     ]
   ],
-  "test_mm_batching (test_jit.TestScript)": [
-    "91496",
-    "https://github.com/pytorch/pytorch/issues/91496",
-    [
-      "linux"
-    ]
-  ],
   "test_mm_sparse_first_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "106014",
     "https://github.com/pytorch/pytorch/issues/106014",
@@ -1537,13 +1499,6 @@
       "mac"
     ]
   ],
-  "test_request_bailout (test_jit.TestScript)": [
-    "91490",
-    "https://github.com/pytorch/pytorch/issues/91490",
-    [
-      "linux"
-    ]
-  ],
   "test_requires_grad_loop (test_jit.TestScript)": [
     "91492",
     "https://github.com/pytorch/pytorch/issues/91492",
@@ -1652,13 +1607,6 @@
       "mac"
     ]
   ],
-  "test_torch_tensor_dtype (test_jit.TestScript)": [
-    "91485",
-    "https://github.com/pytorch/pytorch/issues/91485",
-    [
-      "linux"
-    ]
-  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
@@ -1690,13 +1638,6 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
-    ]
-  ],
-  "test_unhandled_exception_in_dynamo2 (__main__.DynamicShapesMiscTests)": [
-    "101259",
-    "https://github.com/pytorch/pytorch/issues/101259",
-    [
-      "linux"
     ]
   ],
   "test_unsupported_dtype_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
