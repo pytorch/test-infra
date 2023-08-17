@@ -39,6 +39,11 @@ on:
         required: false
         type: string
         default: disable
+      with_rocm:
+        description: "With rocm enable/disable"
+        required: false
+        type: string
+        default: disable
       install_torch:
         description: "Create new conda environment and preinstall torch"
         required: false
@@ -54,6 +59,7 @@ jobs:
       os: linux
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
+      with-rocm: ${{ inputs.with_rocm }}
   generate-windows-matrix:
     if:  (inputs.os == 'windows' || inputs.os == 'all')
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -62,6 +68,7 @@ jobs:
       os: windows
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
+      with-rocm: ${{ inputs.with_rocm }}
   generate-macos-matrix:
     if:  (inputs.os == 'macos' || inputs.os == 'all')
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -70,6 +77,7 @@ jobs:
       os: macos
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
+      with-rocm: ${{ inputs.with_rocm }}
   generate-macos-arm64-matrix:
     if:  (inputs.os == 'macos-arm64' || inputs.os == 'all')
     uses: ./.github/workflows/generate_binary_build_matrix.yml
@@ -78,6 +86,7 @@ jobs:
       os: macos-arm64
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
+      with-rocm: ${{ inputs.with_rocm }}
   validate-linux:
     if:  (inputs.os == 'linux' || inputs.os == 'all')
     needs: generate-linux-matrix
