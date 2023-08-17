@@ -67,14 +67,16 @@ WITH
             m.ignore_current_checks,
             m.pending_checks
     ),
-    -- A legit force merge needs to satisfy one of the conditions belows:
+    -- A legit force merge needs to satisfy one of the two conditions below:
     -- 1. skip_mandatory_checks is true (-f) and failed_checks_count > 0 (with failures) or pending_checks_count > 0 (impatience).
-    --    If a force merge is done when there is no failures and all jobs have finished, it's arguably just a regular merge
-    -- 2. ignore_current is true (-i) and is_failed is false (indicating a succesful merge) and ignored_checks_count > 0 (with failures).
-    --    As -i still waits for all remaining jobs to finish, this shouldn't be counted toward force merge due to impatience
+    --    Under this condition, if a force merge (-f) is done when there is no failure and all jobs have finished, it's arguably
+    --    just a regular merge in disguise.
+    -- 2. ignore_current is true (-i) and is_failed is false (indicating a successful merge) and ignored_checks_count > 0 (has failures).
+    --    As -i still waits for all remaining jobs to finish, this shouldn't be counted toward force merge due to impatience.
     --
-    -- If none applies, the merge will be counted as a regular merge regardless of the use of -f or -i. We could also
-    -- track that here (regular merges masquerade as force merges) if there is a need
+    -- If none applies, the merge should be counted as a regular merge regardless of the use of -f or -i. We could track that
+    -- (regular merges masquerading as force merges) to understand how devs use (or abuse) these flags, but that's arguably a
+    -- different case altogether.
     merges_identifying_force_merges AS (
         SELECT
             IF(
