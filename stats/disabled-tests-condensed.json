@@ -1217,14 +1217,6 @@
       "linux"
     ]
   ],
-  "test_mobilenet_v3 (__main__.TestNumericSuiteEager)": [
-    "100420",
-    "https://github.com/pytorch/pytorch/issues/100420",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
@@ -1658,30 +1650,6 @@
     "https://github.com/pytorch/pytorch/issues/70546",
     [
       "mac"
-    ]
-  ],
-  "test_to_sparse_semi_structured_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106554",
-    "https://github.com/pytorch/pytorch/issues/106554",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_to_sparse_semi_structured_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106552",
-    "https://github.com/pytorch/pytorch/issues/106552",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_to_sparse_semi_structured_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106553",
-    "https://github.com/pytorch/pytorch/issues/106553",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_torch_tensor_dtype (test_jit.TestScript)": [
