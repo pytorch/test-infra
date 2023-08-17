@@ -1,1 +1,10 @@
-{}
+{
+  "trunk / macos-12-py3-arm64": [
+    "huydhn",
+    "98468",
+    "https://github.com/pytorch/pytorch/issues/98468",
+    "trunk",
+    "macos-12-py3-arm64",
+    ""
+  ]
+}
