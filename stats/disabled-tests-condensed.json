@@ -336,13 +336,6 @@
       "linux"
     ]
   ],
-  "test_cond_side_effects_dynamic_shapes (__main__.DynamicShapesMiscTests)": [
-    "102882",
-    "https://github.com/pytorch/pytorch/issues/102882",
-    [
-      "linux"
-    ]
-  ],
   "test_conv (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105125",
     "https://github.com/pytorch/pytorch/issues/105125",
@@ -897,13 +890,6 @@
       "macos"
     ]
   ],
-  "test_inline_list_mutation (__main__.DynamicShapesMiscTests)": [
-    "103285",
-    "https://github.com/pytorch/pytorch/issues/103285",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_div_floor_rounding_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100520",
     "https://github.com/pytorch/pytorch/issues/100520",
@@ -999,14 +985,6 @@
   "test_linear_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105932",
     "https://github.com/pytorch/pytorch/issues/105932",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "106794",
-    "https://github.com/pytorch/pytorch/issues/106794",
     [
       "linux",
       "slow"
