@@ -138,6 +138,15 @@
       "linux"
     ]
   ],
+  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
+    "106543",
+    "https://github.com/pytorch/pytorch/issues/106543",
+    [
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
   "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
     "104034",
     "https://github.com/pytorch/pytorch/issues/104034",
@@ -376,6 +385,14 @@
     "https://github.com/pytorch/pytorch/issues/105528",
     [
       "rocm"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106793",
+    "https://github.com/pytorch/pytorch/issues/106793",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
