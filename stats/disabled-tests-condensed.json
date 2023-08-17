@@ -795,6 +795,13 @@
       "linux"
     ]
   ],
+  "test_function_back_compat (__main__.TestFXAPIBackwardCompatibility)": [
+    "106337",
+    "https://github.com/pytorch/pytorch/issues/106337",
+    [
+      "linux"
+    ]
+  ],
   "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
     "105754",
     "https://github.com/pytorch/pytorch/issues/105754",
