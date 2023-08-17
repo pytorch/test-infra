@@ -138,15 +138,6 @@
       "linux"
     ]
   ],
-  "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
-    "106543",
-    "https://github.com/pytorch/pytorch/issues/106543",
-    [
-      "linux",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
     "104034",
     "https://github.com/pytorch/pytorch/issues/104034",
@@ -395,13 +386,6 @@
     "https://github.com/pytorch/pytorch/issues/104366",
     [
       "rocm"
-    ]
-  ],
-  "test_conv_bn_fuse_dynamic_shapes_cpu (__main__.DynamicShapesCodegenCpuTests)": [
-    "98681",
-    "https://github.com/pytorch/pytorch/issues/98681",
-    [
-      "linux"
     ]
   ],
   "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
@@ -1012,6 +996,13 @@
     "https://github.com/pytorch/pytorch/issues/66528",
     []
   ],
+  "test_kineto_profiler_with_environment_variable (__main__.TestProfiler)": [
+    "107383",
+    "https://github.com/pytorch/pytorch/issues/107383",
+    [
+      "rocm"
+    ]
+  ],
   "test_learnable_forward_per_channel_cpu (quantization.core.test_workflow_ops.TestFakeQuantizeOps)": [
     "107155",
     "https://github.com/pytorch/pytorch/issues/107155",
@@ -1189,6 +1180,30 @@
   "test_mm_sparse_first_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "106038",
     "https://github.com/pytorch/pytorch/issues/106038",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106384",
+    "https://github.com/pytorch/pytorch/issues/106384",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106385",
+    "https://github.com/pytorch/pytorch/issues/106385",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106383",
+    "https://github.com/pytorch/pytorch/issues/106383",
     [
       "linux",
       "slow"
