@@ -56,14 +56,14 @@ resource "aws_lambda_function" "scale_up" {
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
       SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
 
-      AWS_REGIONS_TO_VPC_IDS = join(
+      AWS_REGIONS_TO_VPC_IDS = sort(distinct(join(
         ",",
         [
           for region_vpc in var.vpc_ids :
           format("%s|%s", region_vpc.region, region_vpc.vpc)
         ]
-      )
-      VPC_ID_TO_SECURITY_GROUP_IDS = join(
+      )))
+      VPC_ID_TO_SECURITY_GROUP_IDS = sort(distinct(join(
         ",",
         concat(
           [
@@ -79,21 +79,21 @@ resource "aws_lambda_function" "scale_up" {
             format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
           ]
         )
-      )
-      VPC_ID_TO_SUBNET_IDS = join(
+      )))
+      VPC_ID_TO_SUBNET_IDS = sort(distinct(join(
         ",",
         [
           for vpc_subnet in var.subnet_vpc_ids :
           format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
         ]
-      )
-      SUBNET_ID_TO_AZ = join(
+      )))
+      SUBNET_ID_TO_AZ = sort(distinct(join(
         ",",
         [
           for subnet_az in var.subnet_azs :
           format("%s|%s", subnet_az.subnet, subnet_az.az)
         ]
-      )
+      )))
     }
   }
 
