@@ -1080,6 +1080,13 @@
       "linux"
     ]
   ],
+  "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "107426",
+    "https://github.com/pytorch/pytorch/issues/107426",
+    [
+      "linux"
+    ]
+  ],
   "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "95172",
     "https://github.com/pytorch/pytorch/issues/95172",
@@ -1747,6 +1754,20 @@
   "test_wait_i_4 (__main__.TestMultiThreadedWait)": [
     "100448",
     "https://github.com/pytorch/pytorch/issues/100448",
+    [
+      "linux"
+    ]
+  ],
+  "test_wait_i_5 (__main__.TestMultiThreadedWait)": [
+    "107424",
+    "https://github.com/pytorch/pytorch/issues/107424",
+    [
+      "linux"
+    ]
+  ],
+  "test_wait_i_6 (__main__.TestMultiThreadedWait)": [
+    "107425",
+    "https://github.com/pytorch/pytorch/issues/107425",
     [
       "linux"
     ]
