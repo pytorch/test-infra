@@ -117,27 +117,6 @@
       "mac"
     ]
   ],
-  "test_basic (__main__.TestNvFuserDynamo)": [
-    "103403",
-    "https://github.com/pytorch/pytorch/issues/103403",
-    [
-      "linux"
-    ]
-  ],
-  "test_basic (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
-    "103404",
-    "https://github.com/pytorch/pytorch/issues/103404",
-    [
-      "linux"
-    ]
-  ],
-  "test_batch_norm_implicit_dtype_promotion (_nvfuser.test_dynamo.TestNvFuserDynamo)": [
-    "103420",
-    "https://github.com/pytorch/pytorch/issues/103420",
-    [
-      "linux"
-    ]
-  ],
   "test_batchnorm_nhwc_cpu (__main__.TestNN)": [
     "106543",
     "https://github.com/pytorch/pytorch/issues/106543",
@@ -373,30 +352,6 @@
       "rocm"
     ]
   ],
-  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106793",
-    "https://github.com/pytorch/pytorch/issues/106793",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106796",
-    "https://github.com/pytorch/pytorch/issues/106796",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_all_patterns_backend_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106795",
-    "https://github.com/pytorch/pytorch/issues/106795",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conversions_all_patterns_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105544",
     "https://github.com/pytorch/pytorch/issues/105544",
@@ -416,14 +371,6 @@
   "test_conversions_all_patterns_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105540",
     "https://github.com/pytorch/pytorch/issues/105540",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "106797",
-    "https://github.com/pytorch/pytorch/issues/106797",
     [
       "linux",
       "slow"
@@ -574,13 +521,6 @@
   "test_dtensor_device_mesh_device_conversion (__main__.DTensorMeshTest)": [
     "100126",
     "https://github.com/pytorch/pytorch/issues/100126",
-    [
-      "linux"
-    ]
-  ],
-  "test_dtype_correctness (__main__.TestNvFuserDynamo)": [
-    "103440",
-    "https://github.com/pytorch/pytorch/issues/103440",
     [
       "linux"
     ]
@@ -966,14 +906,6 @@
   "test_linear_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105932",
     "https://github.com/pytorch/pytorch/issues/105932",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "106794",
-    "https://github.com/pytorch/pytorch/issues/106794",
     [
       "linux",
       "slow"
