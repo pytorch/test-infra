@@ -7,7 +7,6 @@ import {
 import { RecentWorkflowsData } from "lib/types";
 import {
   NUM_MINUTES,
-  REPO,
   formDrciComment,
   OWNER,
   getDrciComment,
@@ -29,6 +28,7 @@ interface PRandJobs {
   pr_number: number;
   jobs: Map<string, RecentWorkflowsData>;
   merge_base: string;
+  merge_base_date: string;
 }
 
 export interface FlakyRule {
@@ -91,6 +91,7 @@ export async function updateDrciComments(
       unstableJobs,
       pr_info.head_sha,
       pr_info.merge_base,
+      pr_info.merge_base_date,
       `${HUD_URL}${OWNER}/${repo}/${pr_info.pr_number}`
     );
 
@@ -136,6 +137,8 @@ async function addMergeBaseCommits(
     });
 
     pr_info.merge_base = diff.data.merge_base_commit.sha;
+    pr_info.merge_base_date =
+      diff.data.merge_base_commit.commit.committer?.date ?? "";
   });
 }
 
@@ -239,6 +242,7 @@ export function constructResultsComment(
   unstableJobs: RecentWorkflowsData[],
   sha: string,
   merge_base: string,
+  merge_base_date: string,
   hud_pr_url: string
 ): string {
   let output = `\n`;
@@ -295,7 +299,13 @@ export function constructResultsComment(
 
   let title = headerPrefix + icon + " " + title_messages.join(", ");
   output += title;
-  output += `\nAs of commit ${sha}:`;
+
+  output += `\nAs of commit ${sha} with merge base ${merge_base}`;
+  const timestamp = Math.floor(new Date(merge_base_date).valueOf() / 1000);
+  if (!isNaN(timestamp)) {
+    output += ` (<sub><sub><img alt="image" width=70 src="https://img.shields.io/date/${timestamp}?label=&color=FFFFFF&style=flat-square"></sub></sub>)`;
+  }
+  output += ":";
 
   if (!hasAnyFailing) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
@@ -328,7 +338,7 @@ export function constructResultsComment(
       "was",
       flakyJobs.length,
       "were"
-    )} present on the merge base ${merge_base}`,
+    )} present on the merge base`,
     brokenTrunkJobs,
     "Rebase onto the `viable/strict` branch to avoid these failures",
     true
@@ -446,6 +456,7 @@ export function reorganizeWorkflows(
         head_sha: workflow.head_sha,
         jobs: new Map(),
         merge_base: "",
+        merge_base_date: "",
       });
     }
     const name = workflow.name!;

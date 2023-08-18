@@ -80,6 +80,7 @@ jobs:
     runs-on: ${{ matrix.validation_runner }}
     container:
       image: ${{ matrix.container_image }}
+      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60
@@ -169,14 +170,21 @@ jobs:
           else
             CONSTRAINTS="cpuonly"
           fi
-          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-"${CHANNEL}" -c nvidia -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}" ${CONSTRAINTS}
+
+          ${CONDA_RUN_SMOKE} conda install \
+            --yes \
+            --quiet \
+            -c pytorch-"${CHANNEL}" \
+            -c nvidia \
+            -c "${CONDA_LOCAL_CHANNEL}" \
+            distr::"${PACKAGE_NAME}" \
+            ${CONSTRAINTS}
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
             ${CONDA_RUN_SMOKE} python3 -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            conda install --yes --quiet 'ffmpeg<5'
             ${CONDA_RUN_SMOKE} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
           conda env remove -p "${CONDA_ENV_SMOKE}"
@@ -189,7 +197,13 @@ jobs:
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} conda install --yes --quiet anaconda-client
-          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload distr/linux-64/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} anaconda \
+            -t "${CONDA_PYTORCHBOT_TOKEN}" \
+            upload distr/linux-64/*.tar.bz2 \
+            -u "pytorch-${CHANNEL}" \
+            --label main \
+            --no-progress \
+            --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

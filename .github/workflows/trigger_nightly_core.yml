@@ -9,6 +9,7 @@ on:
 jobs:
   trigger:
     runs-on: ubuntu-latest
+    environment: trigger-nightly
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
