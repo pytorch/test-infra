@@ -1008,14 +1008,6 @@
       "slow"
     ]
   ],
-  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
-    "105668",
-    "https://github.com/pytorch/pytorch/issues/105668",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1387,13 +1379,6 @@
   "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
     "101522",
     "https://github.com/pytorch/pytorch/issues/101522",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcmul_is_fastpath_True_cuda_float32 (__main__.TestForeachCUDA)": [
-    "96375",
-    "https://github.com/pytorch/pytorch/issues/96375",
     [
       "rocm"
     ]
