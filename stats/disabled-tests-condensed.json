@@ -147,13 +147,6 @@
       "macos"
     ]
   ],
-  "test_benchmark_choice_fail_in_subproc (__main__.TestDoBench)": [
-    "104034",
-    "https://github.com/pytorch/pytorch/issues/104034",
-    [
-      "rocm"
-    ]
-  ],
   "test_bottleneck_cuda (__main__.TestBottleneck)": [
     "85284",
     "https://github.com/pytorch/pytorch/issues/85284",
@@ -913,13 +906,6 @@
       "inductor"
     ]
   ],
-  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93061",
-    "https://github.com/pytorch/pytorch/issues/93061",
-    [
-      "linux"
-    ]
-  ],
   "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "94215",
     "https://github.com/pytorch/pytorch/issues/94215",
@@ -1367,20 +1353,6 @@
     "https://github.com/pytorch/pytorch/issues/94541",
     [
       "linux"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_bfloat16 (__main__.TestForeachCUDA)": [
-    "103414",
-    "https://github.com/pytorch/pytorch/issues/103414",
-    [
-      "rocm"
-    ]
-  ],
-  "test_pointwise_op__foreach_addcdiv_is_fastpath_True_cuda_complex128 (__main__.TestForeachCUDA)": [
-    "101522",
-    "https://github.com/pytorch/pytorch/issues/101522",
-    [
-      "rocm"
     ]
   ],
   "test_post_localSGD_optimizer_parity_with_hierarchical_sgd (__main__.TestDistBackendWithSpawn)": [
