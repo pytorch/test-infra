@@ -585,13 +585,6 @@
       "linux"
     ]
   ],
-  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
-    "101785",
-    "https://github.com/pytorch/pytorch/issues/101785",
-    [
-      "dynamo"
-    ]
-  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
