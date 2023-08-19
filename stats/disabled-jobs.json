@@ -1,10 +1,1 @@
-{
-  "trunk / linux-focal-rocm5.6-py3.8": [
-    "huydhn",
-    "107486",
-    "https://github.com/pytorch/pytorch/issues/107486",
-    "trunk",
-    "linux-focal-rocm5.6-py3.8",
-    ""
-  ]
-}
+{}
