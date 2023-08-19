@@ -747,13 +747,6 @@
       "rocm"
     ]
   ],
-  "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
-    "89763",
-    "https://github.com/pytorch/pytorch/issues/89763",
-    [
-      "linux"
-    ]
-  ],
   "test_homogeneous_attributes (__main__.TestFSDPMiscMultiThread)": [
     "105024",
     "https://github.com/pytorch/pytorch/issues/105024",
