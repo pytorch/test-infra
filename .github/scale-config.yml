@@ -90,6 +90,7 @@ runner_types:
     disk_size: 256
     instance_type: t4g.2xlarge
     is_ephemeral: false
+    max_available: 30
     os: linux
   windows.4xlarge:
     disk_size: 256
