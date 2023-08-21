@@ -135,13 +135,6 @@
       "windows"
     ]
   ],
-  "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
-    "98048",
-    "https://github.com/pytorch/pytorch/issues/98048",
-    [
-      "linux"
-    ]
-  ],
   "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
     "103178",
     "https://github.com/pytorch/pytorch/issues/103178",
@@ -1124,13 +1117,6 @@
     "https://github.com/pytorch/pytorch/issues/68171",
     [
       "dynamo"
-    ]
-  ],
-  "test_nccl_warn_not_in_group_debug_detail (__main__.CommTest)": [
-    "93865",
-    "https://github.com/pytorch/pytorch/issues/93865",
-    [
-      "linux"
     ]
   ],
   "test_nested (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
