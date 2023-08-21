@@ -1,0 +1,49 @@
+{
+  "cpu": {
+    "measurement": [
+      "cpu_usage_idle",
+      "cpu_usage_iowait",
+      "cpu_usage_user",
+      "cpu_usage_system"
+    ],
+    "metrics_collection_interval": 10
+  },
+  "disk": {
+    "measurement": [
+      "free",
+      "total",
+      "used",
+      "used_percent",
+      "inodes_free",
+      "inodes_total"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "*"
+    ]
+  },
+  "diskio": {
+    "measurement": [
+      "io_time"
+    ],
+    "metrics_collection_interval": 10,
+    "resources": [
+      "/"
+    ]
+  },
+  "mem": {
+    "measurement": [
+      "total",
+      "used",
+      "free",
+      "used_percent"
+    ],
+    "metrics_collection_interval": 10
+  },
+  "swap": {
+    "measurement": [
+      "swap_used_percent"
+    ],
+    "metrics_collection_interval": 10
+  }
+}

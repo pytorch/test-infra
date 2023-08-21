@@ -42,9 +42,11 @@ resource "aws_lambda_function" "scale_up" {
       LAMBDA_TIMEOUT                       = var.lambda_timeout_scale_up
       LAUNCH_TEMPLATE_NAME_LINUX           = var.launch_template_name_linux
       LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA    = var.launch_template_name_linux_nvidia
+      LAUNCH_TEMPLATE_NAME_LINUX_ARM64     = var.launch_template_name_linux_arm64
       LAUNCH_TEMPLATE_NAME_WINDOWS         = var.launch_template_name_windows
       LAUNCH_TEMPLATE_VERSION_LINUX        = var.launch_template_version_linux
       LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA = var.launch_template_version_linux_nvidia
+      LAUNCH_TEMPLATE_VERSION_LINUX_ARM64  = var.launch_template_version_linux_arm64
       LAUNCH_TEMPLATE_VERSION_WINDOWS      = var.launch_template_version_windows
       MAX_RETRY_SCALEUP_RECORD             = "10"
       MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)

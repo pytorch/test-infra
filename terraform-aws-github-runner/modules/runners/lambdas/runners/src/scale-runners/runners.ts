@@ -287,7 +287,9 @@ async function addSSMParameterRunnerConfig(
 
 function getLaunchTemplateName(runnerParameters: RunnerInputParameters): Array<string | undefined> {
   if (runnerParameters.runnerType.os === 'linux') {
-    if (runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')) {
+    if (runnerParameters.runnerType.runnerTypeName.includes('.arm64')) {
+      return [Config.Instance.launchTemplateNameLinuxARM64, Config.Instance.launchTemplateVersionLinuxARM64];
+    } else if (runnerParameters.runnerType.runnerTypeName.includes('.nvidia.gpu')) {
       return [Config.Instance.launchTemplateNameLinuxNvidia, Config.Instance.launchTemplateVersionLinuxNvidia];
     } else {
       return [Config.Instance.launchTemplateNameLinux, Config.Instance.launchTemplateVersionLinux];

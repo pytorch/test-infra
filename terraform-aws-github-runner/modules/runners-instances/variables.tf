@@ -40,6 +40,11 @@ variable "s3_location_runner_binaries_linux" {
   type        = string
 }
 
+variable "s3_location_runner_binaries_linux_arm64" {
+  description = "S3 location of runner distribution."
+  type        = string
+}
+
 variable "s3_location_runner_binaries_windows" {
   description = "S3 location of runner distribution."
   type        = string
@@ -64,6 +69,21 @@ variable "ami_filter_linux" {
   default = {
     name = ["amzn2-ami-hvm-2.*-x86_64-ebs"]
   }
+}
+
+variable "ami_filter_linux_arm64" {
+  description = "List of maps used to create the AMI filter for the action runner AMI."
+  type        = map(list(string))
+
+  default = {
+    name = ["amzn2-ami-hvm-2.*-arm64-gp2"]
+  }
+}
+
+variable "ami_owners_linux_arm64" {
+  description = "The list of owners used to select the AMI of linux action runner instances."
+  type        = list(string)
+  default     = ["amazon"]
 }
 
 variable "ami_filter_windows" {
@@ -174,12 +194,6 @@ variable "enable_cloudwatch_agent" {
   description = "Enabling the cloudwatch agent on the ec2 runner instances, the runner contains default config."
   type        = bool
   default     = true
-}
-
-variable "nvidia_driver_install" {
-  description = "Preinstall nvidia driver on GPU machines."
-  type        = bool
-  default     = false
 }
 
 variable "ghes_url" {

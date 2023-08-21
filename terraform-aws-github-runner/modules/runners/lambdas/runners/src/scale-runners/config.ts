@@ -18,9 +18,11 @@ export class Config {
   readonly lambdaTimeout: number;
   readonly launchTemplateNameLinux: string | undefined;
   readonly launchTemplateNameLinuxNvidia: string | undefined;
+  readonly launchTemplateNameLinuxARM64: string | undefined;
   readonly launchTemplateNameWindows: string | undefined;
   readonly launchTemplateVersionLinux: string | undefined;
   readonly launchTemplateVersionLinuxNvidia: string | undefined;
+  readonly launchTemplateVersionLinuxARM64: string | undefined;
   readonly launchTemplateVersionWindows: string | undefined;
   readonly maxRetryScaleUpRecord: number;
   readonly minAvailableRunners: number;
@@ -63,9 +65,11 @@ export class Config {
     this.lambdaTimeout = Number(process.env.LAMBDA_TIMEOUT || '600');
     this.launchTemplateNameLinux = process.env.LAUNCH_TEMPLATE_NAME_LINUX;
     this.launchTemplateNameLinuxNvidia = process.env.LAUNCH_TEMPLATE_NAME_LINUX_NVIDIA;
+    this.launchTemplateNameLinuxARM64 = process.env.LAUNCH_TEMPLATE_NAME_LINUX_ARM64;
     this.launchTemplateNameWindows = process.env.LAUNCH_TEMPLATE_NAME_WINDOWS;
     this.launchTemplateVersionLinux = process.env.LAUNCH_TEMPLATE_VERSION_LINUX;
     this.launchTemplateVersionLinuxNvidia = process.env.LAUNCH_TEMPLATE_VERSION_LINUX_NVIDIA;
+    this.launchTemplateVersionLinuxARM64 = process.env.LAUNCH_TEMPLATE_VERSION_LINUX_ARM64;
     this.launchTemplateVersionWindows = process.env.LAUNCH_TEMPLATE_VERSION_WINDOWS;
     /* istanbul ignore next */
     this.maxRetryScaleUpRecord = Number(process.env.MAX_RETRY_SCALEUP_RECORD || '0');
