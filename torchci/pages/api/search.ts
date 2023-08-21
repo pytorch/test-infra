@@ -3,10 +3,12 @@ import { Client } from "@opensearch-project/opensearch";
 import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
 import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { JobData } from "lib/types";
-import { searchSimilarFailures } from "lib/searchUtils";
+import {
+  searchSimilarFailures,
+  WORKFLOW_JOB_INDEX,
+  MIN_SCORE,
+} from "lib/searchUtils";
 import { Credentials } from "@aws-sdk/types";
-
-const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
 
 export default async function handler(
   req: NextApiRequest,
@@ -17,7 +19,7 @@ export default async function handler(
   const startDate = req.query.startDate as string;
   const endDate = req.query.endDate as string;
   // This is a weird way to satisfy TS2352
-  const minScore = (req.query.minScore as unknown as number) ?? 1.0;
+  const minScore = (req.query.minScore as unknown as number) ?? MIN_SCORE;
 
   // https://opensearch.org/docs/latest/clients/javascript/index
   const client = new Client({

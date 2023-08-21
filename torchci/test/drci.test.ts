@@ -13,6 +13,7 @@ import { IssueData, RecentWorkflowsData } from "lib/types";
 import dayjs from "dayjs";
 import { removeJobNameSuffix } from "lib/jobUtils";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
+import * as drciUtils from "lib/drciUtils";
 
 nock.disableNetConnect();
 
@@ -245,7 +246,10 @@ function constructResultsCommentHelper({
 }
 
 describe("Update Dr. CI Bot Unit Tests", () => {
-  beforeEach(() => {});
+  beforeEach(() => {
+    const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
+    mock.mockImplementation(() => Promise.resolve(false));
+  });
 
   afterEach(() => {
     nock.cleanAll();
@@ -264,7 +268,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -304,7 +308,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -333,7 +337,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -372,7 +376,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -408,7 +412,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -438,7 +442,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       originalWorkflows
     );
     const pr_1001 = workflowsByPR.get(1001)!;
-    const { pending, failedJobs } = updateDrciBot.getWorkflowJobsStatuses(
+    const { pending, failedJobs } = await updateDrciBot.getWorkflowJobsStatuses(
       pr_1001,
       [],
       new Map()
@@ -460,7 +464,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     );
     const pr_1001 = workflowsByPR.get(1001)!;
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
-      updateDrciBot.getWorkflowJobsStatuses(
+      await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [{ name: failedB.name, captures: failedB.failure_captures }],
         new Map().set(failedA.name, [failedA])
@@ -478,7 +482,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     );
     const pr_1001 = workflowsByPR.get(1001)!;
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
-      updateDrciBot.getWorkflowJobsStatuses(
+      await updateDrciBot.getWorkflowJobsStatuses(
         pr_1001,
         [
           {
@@ -516,7 +520,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     baseJobs.set(removeJobNameSuffix(failedF.name), [unstableA]);
 
     const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
-      updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], baseJobs);
     expect(failedJobs.length).toBe(1);
     expect(brokenTrunkJobs.length).toBe(2);
     expect(flakyJobs.length).toBe(0);
@@ -635,7 +639,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     );
 
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
-      updateDrciBot.getWorkflowJobsStatuses(
+      await updateDrciBot.getWorkflowJobsStatuses(
         workflowsByPR.get(1001)!,
         [],
         baseCommitJobs.get(failedA.head_sha)!
@@ -643,6 +647,23 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(failedJobs.length).toBe(0);
     expect(brokenTrunkJobs.length).toBe(2);
     expect(flakyJobs.length).toBe(0);
+    expect(unstableJobs.length).toBe(0);
+  });
+
+  test("test similar failures marked as flaky", async () => {
+    const mock = jest.spyOn(drciUtils, "hasSimilarFailures");
+    mock.mockImplementation(() => Promise.resolve(true));
+
+    const originalWorkflows = [failedA, failedB];
+    const workflowsByPR = await updateDrciBot.reorganizeWorkflows(
+      originalWorkflows
+    );
+    const pr_1001 = workflowsByPR.get(1001)!;
+    const { failedJobs, brokenTrunkJobs, flakyJobs, unstableJobs } =
+      await updateDrciBot.getWorkflowJobsStatuses(pr_1001, [], new Map());
+    expect(failedJobs.length).toBe(0);
+    expect(brokenTrunkJobs.length).toBe(0);
+    expect(flakyJobs.length).toBe(2);
     expect(unstableJobs.length).toBe(0);
   });
 });

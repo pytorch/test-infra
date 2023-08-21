@@ -26,6 +26,7 @@ SELECT
   j.conclusion,
   j.completed_at,
   j.html_url,
+  j.head_branch,
   recent_shas.number AS pr_number,
   recent_shas.sha AS head_sha,
   j.torchci_classification.captures AS failure_captures,
@@ -36,12 +37,13 @@ FROM
   JOIN commons.workflow_run w ON w.id = j.run_id
 UNION
 SELECT
-  null AS workflow_name,
+  null AS workflow_id,
   w.id,
   w.name AS name,
   w.conclusion,
   w.completed_at,
   w.html_url,
+  w.head_branch,
   recent_shas.number AS pr_number,
   w.head_sha,
   null AS failure_captures,

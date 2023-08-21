@@ -7,6 +7,7 @@ SELECT
   j.completed_at,
   j.html_url,
   j.head_sha,
+  j.head_branch,
   j.torchci_classification.captures AS failure_captures,
   j.torchci_classification.line AS failure_line,
 FROM

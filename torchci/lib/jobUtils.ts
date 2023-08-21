@@ -1,10 +1,12 @@
-import { JobData } from "lib/types";
 import getRocksetClient from "./rockset";
 import rocksetVersions from "rockset/prodVersions.json";
+import { isEqual } from "lodash";
+import { RecentWorkflowsData, JobData } from "lib/types";
 
 export const REMOVE_JOB_NAME_SUFFIX_REGEX = new RegExp(
   ", [0-9]+, [0-9]+, .+\\)"
 );
+export const GHSTACK_SUFFIX_REGEX = new RegExp("/[0-9]+/head");
 
 export function isFailedJob(job: JobData) {
   return (
@@ -94,4 +96,51 @@ export function removeJobNameSuffix(
   }
 
   return jobName.replace(REMOVE_JOB_NAME_SUFFIX_REGEX, replaceWith);
+}
+
+export function isSameHeadBranch(
+  branchA: string | null | undefined,
+  branchB: string | null | undefined
+): boolean {
+  if (!branchA || !branchB) {
+    return false;
+  }
+
+  const replaceWith = "";
+  // This function exists because we want to treat all ghstack head branches
+  // as one branch when it comes to finding similar failures. A legit failure
+  // coming from the same job but different commits in the stack shouldn't be
+  // treated as a flaky similar failure
+  const branchANoGhstack = branchA.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+  const branchBNoGhstack = branchB.replace(GHSTACK_SUFFIX_REGEX, replaceWith);
+
+  return branchANoGhstack === branchBNoGhstack;
+}
+
+export function isSameFailure(
+  jobA: RecentWorkflowsData,
+  jobB: RecentWorkflowsData
+): boolean {
+  if (
+    jobA.name === undefined ||
+    jobA.name === "" ||
+    jobB.name === undefined ||
+    jobB.name === ""
+  ) {
+    return false;
+  }
+
+  // Return true if two jobs have the same failures. This is used to figure out
+  // broken trunk and other similar failures
+  const jobANameNoSuffix = removeJobNameSuffix(jobA.name);
+  const jobBNameNoSuffix = removeJobNameSuffix(jobB.name);
+
+  if (jobANameNoSuffix !== jobBNameNoSuffix) {
+    return false;
+  }
+
+  return (
+    jobA.conclusion === jobB.conclusion &&
+    isEqual(jobA.failure_captures, jobB.failure_captures)
+  );
 }

@@ -18,7 +18,7 @@ export interface JobData {
   queueTimeS?: number;
   failureLine?: string;
   failureLineNumber?: number;
-  failureCaptures?: string;
+  failureCaptures?: string[];
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
@@ -126,6 +126,7 @@ export interface RecentWorkflowsData {
   completed_at: string | null;
   html_url: string;
   head_sha: string;
+  head_branch?: string | null;
   pr_number?: number;
   failure_captures: string[];
   failure_line?: string | null;

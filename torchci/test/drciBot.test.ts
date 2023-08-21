@@ -173,6 +173,8 @@ describe("verify-drci-functionality", () => {
       .post((uri) => uri.includes("issue_query"))
       .reply(200, { results: [] })
       .post((url) => url.includes("commit_failed_jobs"))
+      .reply(200, { results: [] })
+      .post((url) => url.includes("self/queries")) // This is the query to get the base commit date
       .reply(200, { results: [] });
 
     const scope = nock("https://api.github.com")

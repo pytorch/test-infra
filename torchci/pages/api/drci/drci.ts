@@ -14,12 +14,14 @@ import {
   formDrciSevBody,
   FLAKY_RULES_JSON,
   HUD_URL,
+  hasSimilarFailures,
 } from "lib/drciUtils";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import { Octokit } from "octokit";
 import { isEqual } from "lodash";
 import { fetchJSON } from "lib/bot/utils";
-import { removeJobNameSuffix } from "lib/jobUtils";
+import { removeJobNameSuffix, isSameFailure } from "lib/jobUtils";
+import { fetchBaseCommitTimeStamp } from "lib/fetchCommit";
 
 interface PRandJobs {
   head_sha: string;
@@ -75,7 +77,7 @@ export async function updateDrciComments(
 
   await forAllPRs(workflowsByPR, async (pr_info: PRandJobs) => {
     const { pending, failedJobs, flakyJobs, brokenTrunkJobs, unstableJobs } =
-      getWorkflowJobsStatuses(
+      await getWorkflowJobsStatuses(
         pr_info,
         flakyRules,
         baseCommitJobs.get(pr_info.merge_base) || new Map()
@@ -395,34 +397,31 @@ function isBrokenTrunk(
     return false;
   }
 
-  return baseJobs.get(jobNameNoSuffix)!.some((baseJob) => {
-    if (
-      baseJob.conclusion == job.conclusion &&
-      isEqual(baseJob.failure_captures, job.failure_captures)
-    ) {
-      return true;
-    }
-
-    return false;
-  });
+  return baseJobs
+    .get(jobNameNoSuffix)!
+    .some((baseJob) => isSameFailure(baseJob, job));
 }
 
-export function getWorkflowJobsStatuses(
+export async function getWorkflowJobsStatuses(
   prInfo: PRandJobs,
   flakyRules: FlakyRule[],
   baseJobs: Map<string, RecentWorkflowsData[]>
-): {
+): Promise<{
   pending: number;
   failedJobs: RecentWorkflowsData[];
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
-} {
+}> {
   let pending = 0;
   const failedJobs: RecentWorkflowsData[] = [];
   const flakyJobs: RecentWorkflowsData[] = [];
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
+
+  // Get the timestamp of the base commit
+  const baseCommitDate = await fetchBaseCommitTimeStamp(prInfo.merge_base);
+
   for (const [name, job] of prInfo.jobs) {
     if (job.conclusion === null && job.completed_at === null) {
       pending++;
@@ -431,7 +430,10 @@ export function getWorkflowJobsStatuses(
         unstableJobs.push(job);
       } else if (isBrokenTrunk(job, baseJobs)) {
         brokenTrunkJobs.push(job);
-      } else if (isFlaky(job, flakyRules)) {
+      } else if (
+        isFlaky(job, flakyRules) ||
+        (await hasSimilarFailures(job, baseCommitDate))
+      ) {
         flakyJobs.push(job);
       } else {
         failedJobs.push(job);
