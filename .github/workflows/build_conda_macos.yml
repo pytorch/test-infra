@@ -179,7 +179,12 @@ jobs:
           export PATH="${CONDA_ENV_SMOKE}/bin:${PATH}"
 
           CONDA_LOCAL_CHANNEL="file://$(readlink -f ${{ inputs.repository }}/distr)"
-          ${CONDA_RUN_SMOKE} conda install -v -y -c pytorch-${CHANNEL} -c "${CONDA_LOCAL_CHANNEL}" distr::"${PACKAGE_NAME}"
+          ${CONDA_RUN_SMOKE} conda install \
+            --quiet \
+            --yes \
+            -c pytorch-${CHANNEL} \
+            -c "${CONDA_LOCAL_CHANNEL}" \
+            distr::"${PACKAGE_NAME}"
 
           if [[ ! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT} ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
@@ -207,7 +212,13 @@ jobs:
           else
             export ARCH_NAME="osx-64"
           fi
-          ${CONDA_RUN} anaconda -t "${CONDA_PYTORCHBOT_TOKEN}" upload "distr/${ARCH_NAME}"/*.tar.bz2 -u "pytorch-${CHANNEL}" --label main --no-progress --force
+          ${CONDA_RUN} anaconda \
+            -t "${CONDA_PYTORCHBOT_TOKEN}" \
+            upload "distr/${ARCH_NAME}"/*.tar.bz2 \
+            -u "pytorch-${CHANNEL}" \
+            --label main \
+            --no-progress \
+            --force
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

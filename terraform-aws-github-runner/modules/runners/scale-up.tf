@@ -60,14 +60,14 @@ resource "aws_lambda_function" "scale_up" {
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
-        [
+        sort(distinct([
           for region_vpc in var.vpc_ids :
           format("%s|%s", region_vpc.region, region_vpc.vpc)
-        ]
+        ]))
       )
       VPC_ID_TO_SECURITY_GROUP_IDS = join(
         ",",
-        concat(
+        sort(distinct(concat(
           [
             for vpc in var.vpc_ids :
             format(
@@ -80,21 +80,21 @@ resource "aws_lambda_function" "scale_up" {
             for vpc_subnet in var.vpc_sgs :
             format("%s|%s", vpc_subnet.vpc, vpc_subnet.sg)
           ]
-        )
+        )))
       )
       VPC_ID_TO_SUBNET_IDS = join(
         ",",
-        [
+        sort(distinct([
           for vpc_subnet in var.subnet_vpc_ids :
           format("%s|%s", vpc_subnet.vpc, vpc_subnet.subnet)
-        ]
+        ]))
       )
       SUBNET_ID_TO_AZ = join(
         ",",
-        [
+        sort(distinct([
           for subnet_az in var.subnet_azs :
           format("%s|%s", subnet_az.subnet, subnet_az.az)
-        ]
+        ]))
       )
     }
   }
