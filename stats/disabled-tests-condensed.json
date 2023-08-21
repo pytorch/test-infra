@@ -739,6 +739,14 @@
       "linux"
     ]
   ],
+  "test_graph_breaks (__main__.LoggingTests)": [
+    "104098",
+    "https://github.com/pytorch/pytorch/issues/104098",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_hf_bert_ddp_inductor (__main__.TestFakeDistributedSingleProc)": [
     "89763",
     "https://github.com/pytorch/pytorch/issues/89763",
@@ -904,6 +912,14 @@
       "slow"
     ]
   ],
+  "test_linear_inference_mode_True_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105668",
+    "https://github.com/pytorch/pytorch/issues/105668",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_lobpcg (__main__.TestAutograd)": [
     "80338",
     "https://github.com/pytorch/pytorch/issues/80338",
@@ -1049,6 +1065,30 @@
   "test_mm_sparse_second_NT_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "106383",
     "https://github.com/pytorch/pytorch/issues/106383",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_T_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106465",
+    "https://github.com/pytorch/pytorch/issues/106465",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_T_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106463",
+    "https://github.com/pytorch/pytorch/issues/106463",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_mm_sparse_second_T_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106464",
+    "https://github.com/pytorch/pytorch/issues/106464",
     [
       "linux",
       "slow"
