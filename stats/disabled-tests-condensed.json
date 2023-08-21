@@ -518,6 +518,13 @@
       "linux"
     ]
   ],
+  "test_encoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
+    "101785",
+    "https://github.com/pytorch/pytorch/issues/101785",
+    [
+      "dynamo"
+    ]
+  ],
   "test_expanded_reduction_cpu (__main__.CpuTests)": [
     "87157",
     "https://github.com/pytorch/pytorch/issues/87157",
@@ -830,13 +837,6 @@
     "https://github.com/pytorch/pytorch/issues/102115",
     [
       "inductor"
-    ]
-  ],
-  "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "94215",
-    "https://github.com/pytorch/pytorch/issues/94215",
-    [
-      "linux"
     ]
   ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
@@ -1360,6 +1360,14 @@
     "https://github.com/pytorch/pytorch/issues/91492",
     [
       "linux"
+    ]
+  ],
+  "test_restore_range_dynamic_shapes (__main__.DynamicShapesSubGraphTests)": [
+    "107572",
+    "https://github.com/pytorch/pytorch/issues/107572",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_rmsprop (optim.test_optim.TestOptim)": [
