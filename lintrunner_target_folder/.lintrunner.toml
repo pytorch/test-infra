@@ -1,0 +1,13 @@
+merge_base_with="main"
+
+[[linter]]
+code = 'RUSTFMT'
+include_patterns = ['**/*.rs']
+command = [
+    'python',
+    'examples/rustfmt_linter.py',
+    '--binary=rustfmt',
+    '--config-path=rustfmt.toml',
+    '--',
+    '@{{PATHSFILE}}'
+]

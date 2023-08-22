@@ -1,0 +1,37 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- ">>> Lint for tests/fixtures/fake_source_file.rs:"
+- ""
+- "  Advice (DUMMY) dummy failure"
+- "    A dummy linter failure"
+- ""
+- "    You can run `lintrunner -a` to apply this patch."
+- ""
+- "     1   1 | foo"
+- "     2   2 | bar"
+- "     2     |-baz"
+- "         3 |+bat"
+- "     4   4 | foo"
+- "     5   5 | bar"
+- "     5     |-baz"
+- "         6 |+bat"
+- "     7   7 | foo"
+- "     8   8 | bar"
+- "     8     |-baz"
+- "         9 |+bat"
+- "    10  10 | foo"
+- "    11  11 | bar"
+- "    11     |-baz"
+- "        12 |+bat"
+- ""
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+

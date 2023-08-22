@@ -1,0 +1,21 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- ">>> General linter failure:"
+- ""
+- "  Error (TESTLINTER) Linter failed"
+- "    Linter failed. This a bug, please file an issue against the linter"
+- "    maintainer."
+- "    "
+- "    CONTEXT:"
+- "    Failed to execute linter command idonotexist with args: []"
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+

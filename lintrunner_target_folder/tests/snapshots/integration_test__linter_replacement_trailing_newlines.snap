@@ -1,0 +1,29 @@
+---
+source: tests/integration_test.rs
+assertion_line: 20
+expression: output_lines
+---
+- "STDOUT:"
+- ""
+- ""
+- "\u001b[1m>>>\u001b[0m Lint for \u001b[4mtests/fixtures/fake_source_file.rs\u001b[0m:"
+- ""
+- "  \u001b[43m\u001b[1mAdvice\u001b[0m (DUMMY) \u001b[4mdummy failure\u001b[0m"
+- "    A dummy linter failure"
+- ""
+- "    \u001b[36mYou can run `lintrunner -a` to apply this patch.\u001b[0m"
+- ""
+- "    \u001b[2m0   \u001b[0m |\u001b[31m\u001b[1m-\u001b[0m\u001b[31mfoo\u001b[0m\u001b[31m\u001b[40m\u001b[4m       \u001b[0m\u001b[31m"
+- "\u001b[0m    \u001b[2m1   \u001b[0m |\u001b[31m\u001b[1m-\u001b[0m\u001b[31mbar\u001b[0m\u001b[31m\u001b[40m\u001b[4m     \u001b[0m\u001b[31m"
+- "\u001b[0m    \u001b[2m2   \u001b[0m |\u001b[31m\u001b[1m-\u001b[0m\u001b[31mbaz\u001b[0m\u001b[31m\u001b[40m\u001b[4m    \u001b[0m\u001b[31m"
+- "\u001b[0m    \u001b[2m3   \u001b[0m |\u001b[31m\u001b[1m-\u001b[0m\u001b[31mfoo\u001b[0m\u001b[31m\u001b[40m\u001b[4m       \u001b[0m\u001b[31m"
+- "\u001b[0m    \u001b[2m   1\u001b[0m |\u001b[32m\u001b[1m+\u001b[0m\u001b[32mfoo\u001b[0m\u001b[32m"
+- "\u001b[0m    \u001b[2m   2\u001b[0m |\u001b[32m\u001b[1m+\u001b[0m\u001b[32mbar\u001b[0m\u001b[32m"
+- "\u001b[0m    \u001b[2m   3\u001b[0m |\u001b[32m\u001b[1m+\u001b[0m\u001b[32mbaz\u001b[0m\u001b[32m"
+- "\u001b[0m    \u001b[2m   4\u001b[0m |\u001b[32m\u001b[1m+\u001b[0m\u001b[32mfoo\u001b[0m\u001b[32m"
+- "\u001b[0m"
+- ""
+- ""
+- "STDERR:"
+- "\u001b[33m\u001b[1mWARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`.\u001b[0m"
+

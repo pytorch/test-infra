@@ -1,0 +1,12 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error:        Config file had invalid schema"
+- "caused_by:             missing field `linter` at line 1 column 1"
+

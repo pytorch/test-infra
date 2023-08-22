@@ -1,0 +1,6 @@
+---
+source: tests/integration_test.rs
+expression: tee_json
+---
+{"path":"tests/fixtures/fake_source_file.rs","line":9,"char":1,"code":"DUMMY","severity":"advice","name":"dummy failure","description":"A dummy linter failure"}
+

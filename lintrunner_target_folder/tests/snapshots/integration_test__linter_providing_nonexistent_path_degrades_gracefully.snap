@@ -1,0 +1,20 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- ">>> Lint for i_dont_exist_wow:"
+- ""
+- "  Advice (DUMMY) dummy failure"
+- "    A dummy linter failure"
+- ""
+- "        Could not retrieve source context: No such file or directory (os error 2)"
+- "        This is typically a linter bug."
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+

@@ -1,0 +1,12 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- "tests/fixtures/fake_source_file.rs:9:1 :Advice A dummy linter failure [DUMMY/dummy failure]"
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+
