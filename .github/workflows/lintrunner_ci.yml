@@ -20,6 +20,9 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./lintrunner
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -42,11 +45,15 @@ jobs:
         max_attempts: 10
         retry_wait_seconds: 90
         command: |
+          cd lintrunner
           cargo test
 
 
   linux:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./lintrunner
     needs: test
     steps:
     - uses: actions/checkout@v3
@@ -66,6 +73,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./lintrunner
     needs: test
     steps:
     - uses: actions/checkout@v3
@@ -84,6 +94,9 @@ jobs:
 
   macos:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: ./lintrunner
     needs: test
     steps:
     - uses: actions/checkout@v3
@@ -103,6 +116,9 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./lintrunner
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [ macos, windows, linux, test ]
     steps:

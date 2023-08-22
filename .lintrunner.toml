@@ -308,3 +308,15 @@ init_command = [
     'ruff==0.0.269',
 ]
 is_formatter = true
+
+[[linter]]
+code = 'RUSTFMT'
+include_patterns = ['**/*.rs']
+command = [
+    'python',
+    'examples/rustfmt_linter.py',
+    '--binary=rustfmt',
+    '--config-path=rustfmt.toml',
+    '--',
+    '@{{PATHSFILE}}'
+]
