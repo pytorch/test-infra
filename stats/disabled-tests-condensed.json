@@ -135,14 +135,6 @@
       "windows"
     ]
   ],
-  "test_broadcast_object_list (__main__.TestCollectivesWithWrapper)": [
-    "103178",
-    "https://github.com/pytorch/pytorch/issues/103178",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
     "102071",
     "https://github.com/pytorch/pytorch/issues/102071",
@@ -788,6 +780,14 @@
       "macos"
     ]
   ],
+  "test_indices_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "105745",
+    "https://github.com/pytorch/pytorch/issues/105745",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
@@ -870,6 +870,14 @@
     [
       "macos",
       "mac"
+    ]
+  ],
+  "test_linear_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "105746",
+    "https://github.com/pytorch/pytorch/issues/105746",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_linear_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
@@ -1159,13 +1167,6 @@
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
-    [
-      "linux"
-    ]
-  ],
-  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
-    "101067",
-    "https://github.com/pytorch/pytorch/issues/101067",
     [
       "linux"
     ]
