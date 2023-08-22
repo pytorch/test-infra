@@ -1,13 +1,14 @@
-use std::{collections::HashSet, convert::TryFrom, io::Write};
+use std::{collections::HashSet, convert::TryFrom, io::Write, path::Path};
 
 use anyhow::{Context, Result};
 use chrono::SecondsFormat;
 use clap::Parser;
 
+use itertools::Itertools;
 use lintrunner::{
     do_init, do_lint,
     init::check_init_changed,
-    lint_config::{get_linters_from_config, LintRunnerConfig},
+    lint_config::{get_linters_from_configs, LintRunnerConfig},
     log_utils::setup_logger,
     path::AbsPath,
     persistent_data::{ExitInfo, PersistentDataStore, RunInfo},
@@ -26,9 +27,17 @@ struct Args {
     #[clap(short, long, parse(from_occurrences), global = true)]
     verbose: u8,
 
-    /// Path to a toml file defining which linters to run
-    #[clap(long, default_value = ".lintrunner.toml", global = true)]
-    config: String,
+    /// Paths to TOML files specifying linters. Configs are merged, with later files overriding earlier ones.
+    /// Except for the first, all files are optional, with missing ones triggering a warning.
+    /// Relative paths are interpreted with respect to the first config file.
+    #[clap(
+        long,
+        global = true,
+        alias = "config",
+        multiple = true,
+        default_value = ".lintrunner.toml, .lintrunner.private.toml"
+    )]
+    configs: String,
 
     /// If set, any suggested patches will be applied
     #[clap(short, long, global = true)]
@@ -127,9 +136,6 @@ enum SubCommand {
 fn do_main() -> Result<i32> {
     let args = Args::parse();
 
-    let config_path = AbsPath::try_from(&args.config)
-        .with_context(|| format!("Could not read lintrunner config at: '{}'", args.config))?;
-
     if args.force_color {
         console::set_colors_enabled(true);
         console::set_colors_enabled_stderr(true);
@@ -152,7 +158,17 @@ fn do_main() -> Result<i32> {
         args: std::env::args().collect(),
         timestamp: chrono::Local::now().to_rfc3339_opts(SecondsFormat::Millis, true),
     };
-    let persistent_data_store = PersistentDataStore::new(&config_path, run_info)?;
+    // clone split by commas and trim whitespace
+    let config_paths: Vec<String> = args
+        .configs
+        .split(",")
+        .map(|path| path.trim().to_string())
+        .collect_vec();
+    // check if first config path exists
+    let primary_config_path = AbsPath::try_from(config_paths[0].clone())
+        .with_context(|| format!("Could not read lintrunner config at: '{}'", config_paths[0]))?;
+
+    let persistent_data_store = PersistentDataStore::new(&primary_config_path, run_info)?;
 
     setup_logger(
         log_level,
@@ -166,9 +182,20 @@ fn do_main() -> Result<i32> {
     let repo = version_control::Repo::new()?;
     debug!("Current rev: {}", repo.get_head()?);
 
-    let cmd = args.cmd.unwrap_or(SubCommand::Lint);
-    let lint_runner_config = LintRunnerConfig::new(&config_path)?;
+    // report config paths which do not exist
+    for path in &config_paths {
+        match AbsPath::try_from(path) {
+            Ok(_) => {},  // do nothing on success
+            Err(_) => eprintln!("Warning: Could not find a lintrunner config at: '{}'. Continuing without using configuration file.", path),
+        }
+    }
 
+    let config_paths: Vec<String> = config_paths
+        .into_iter()
+        .filter(|path| Path::new(&path).exists())
+        .collect();
+    let cmd = args.cmd.unwrap_or(SubCommand::Lint);
+    let lint_runner_config = LintRunnerConfig::new(&config_paths)?;
     let skipped_linters = args.skip.map(|linters| {
         linters
             .split(',')
@@ -203,8 +230,12 @@ fn do_main() -> Result<i32> {
         &lint_runner_config.linters
     };
 
-    let linters =
-        get_linters_from_config(all_linters, skipped_linters, taken_linters, &config_path)?;
+    let linters = get_linters_from_configs(
+        all_linters,
+        skipped_linters,
+        taken_linters,
+        &primary_config_path,
+    )?;
 
     let enable_spinners = args.verbose == 0 && args.output == RenderOpt::Default;
 
@@ -240,7 +271,7 @@ fn do_main() -> Result<i32> {
     let res = match cmd {
         SubCommand::Init { dry_run } => {
             // Just run initialization commands, don't actually lint.
-            do_init(linters, dry_run, &persistent_data_store, &config_path)
+            do_init(linters, dry_run, &persistent_data_store, &config_paths)
         }
         SubCommand::Format => {
             check_init_changed(&persistent_data_store, &lint_runner_config)?;

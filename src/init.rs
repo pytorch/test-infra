@@ -24,7 +24,7 @@ pub fn check_init_changed(
         return Ok(());
     }
     let last_init = last_init.unwrap();
-    let old_config = LintRunnerConfig::new_from_string(&last_init)?;
+    let old_config: LintRunnerConfig = serde_json::from_str(&last_init)?;
 
     let old_init_commands: Vec<_> = old_config.linters.iter().map(|l| &l.init_command).collect();
     let current_init_commands: Vec<_> = current_config

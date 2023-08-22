@@ -43,6 +43,13 @@ every path in the repo is:
 git grep -Il . | xargs lintrunner
 ```
 
+### `--configs`/ `--config`
+"Comma-separated paths to lintrunner configuration files. 
+Multiple files are merged, with later definitions overriding earlier ones. 
+ONLY THE FIRST is required to be present on your machine. 
+Defaults to `lintrunner.toml, lintrunner.private.toml`. Extra configs like `lintrunner.private.toml`
+ are useful for combining project-wide and local configs."
+
 ### `--paths-cmd`
 Some ways to invoke `xargs` will cause multiple `lintrunner` processes to be
 run, increasing lint time (especially on huge path sets). As an alternative that

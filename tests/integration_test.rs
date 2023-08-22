@@ -157,6 +157,88 @@ fn simple_linter() -> Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
+fn simple_linter_two_configs() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
+    let lint_message1 = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let lint_message2 = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "real dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("The real dummy linter failure".to_string()),
+    };
+    let config1 = temp_config_returning_msg(lint_message1)?;
+    let config2 = temp_config_returning_msg(lint_message2)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!(
+        "--config={},{}",
+        config1.path().to_str().unwrap(),
+        config2.path().to_str().unwrap()
+    ));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
+    cmd.assert().failure();
+    assert_output_snapshot("simple_linter_two_configs", &mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
+#[cfg_attr(target_os = "windows", ignore)] // STDERR string is different
+fn simple_linter_succeeds_with_nonexistent_second_config() -> Result<()> {
+    let data_path = tempfile::tempdir()?;
+    let lint_message = LintMessage {
+        path: Some("tests/fixtures/fake_source_file.rs".to_string()),
+        line: Some(9),
+        char: Some(1),
+        code: "DUMMY".to_string(),
+        name: "dummy failure".to_string(),
+        severity: LintSeverity::Advice,
+        original: None,
+        replacement: None,
+        description: Some("A dummy linter failure".to_string()),
+    };
+    let config = temp_config_returning_msg(lint_message)?;
+
+    let mut cmd = Command::cargo_bin("lintrunner")?;
+    cmd.arg(format!(
+        "--config={},{}",
+        config.path().to_str().unwrap(),
+        "NONEXISTENT_CONFIG"
+    ));
+    cmd.arg(format!(
+        "--data-path={}",
+        data_path.path().to_str().unwrap()
+    ));
+    // Run on a file to ensure that the linter is run.
+    cmd.arg("README.md");
+    cmd.assert().failure();
+    assert_output_snapshot("simple_linter_fake_second_config", &mut cmd)?;
+
+    Ok(())
+}
+
+#[test]
 #[cfg_attr(target_os = "windows", ignore)] // path is rendered differently
 fn simple_linter_oneline() -> Result<()> {
     let data_path = tempfile::tempdir()?;
@@ -536,6 +618,9 @@ fn changed_init_causes_warning() -> Result<()> {
         data_path.path().to_str().unwrap()
     ));
     cmd.arg("init");
+    println!("the commadn is {:?}", cmd);
+    println!("the the assert is {:?}", cmd.assert());
+    println!("the result of the command is {:?}", cmd.output()?);
     cmd.assert().success();
 
     let mut cmd = Command::cargo_bin("lintrunner")?;

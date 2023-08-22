@@ -1,7 +1,6 @@
 ---
 source: tests/integration_test.rs
 expression: output_lines
-
 ---
 - "STDOUT:"
 - ""
@@ -10,7 +9,7 @@ expression: output_lines
 - "error: The argument '--paths-cmd <PATHS_CMD>' cannot be used with '<PATHS>...'"
 - ""
 - "USAGE:"
-- "    lintrunner --config <CONFIG> --paths-cmd <PATHS_CMD>"
+- "    lintrunner --configs <CONFIGS>... --paths-cmd <PATHS_CMD>"
 - ""
 - For more information try --help
 

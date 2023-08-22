@@ -17,7 +17,7 @@ pub struct Linter {
     pub exclude_patterns: Vec<Pattern>,
     pub commands: Vec<String>,
     pub init_commands: Option<Vec<String>>,
-    pub config_path: AbsPath,
+    pub primary_config_path: AbsPath,
 }
 
 fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
@@ -39,7 +39,7 @@ fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
 impl Linter {
     fn get_config_dir(&self) -> &Path {
         // Unwrap is fine here because we know this path is absolute and won't be `/`
-        self.config_path.parent().unwrap()
+        self.primary_config_path.parent().unwrap()
     }
 
     fn get_matches(&self, files: &[AbsPath]) -> Vec<AbsPath> {
@@ -180,6 +180,7 @@ impl Linter {
                     .iter()
                     .map(|arg| arg.replace("{{DRYRUN}}", dry_run))
                     .collect();
+                info!("the init commands are {:?}", init_commands);
                 let (program, arguments) = init_commands.split_at(1);
                 debug!(
                     "Running: {} {}",
@@ -194,6 +195,7 @@ impl Linter {
                     .args(arguments)
                     .current_dir(self.get_config_dir())
                     .status()?;
+                info!("the status is {:?}", status);
                 ensure!(
                     status.success(),
                     "lint initializer for '{}' failed with non-zero exit code",

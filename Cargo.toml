@@ -27,6 +27,7 @@ fern = { version = "0.6.1", features = ["colored"] }
 chrono = "0.4.19"
 dialoguer = "0.10.1"
 shell-words = "1.1.0"
+figment = { version = "0.10", features = ["toml", "env"] }
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

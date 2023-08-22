@@ -75,7 +75,7 @@ pub fn do_init(
     linters: Vec<Linter>,
     dry_run: bool,
     persistent_data_store: &PersistentDataStore,
-    config_path: &AbsPath,
+    config_paths: &Vec<std::string::String>,
 ) -> Result<i32> {
     debug!(
         "Initializing linters: {:?}",
@@ -85,9 +85,7 @@ pub fn do_init(
     for linter in linters {
         linter.init(dry_run)?;
     }
-
-    persistent_data_store.update_last_init(config_path)?;
-
+    persistent_data_store.update_last_init(config_paths)?;
     Ok(0)
 }
 

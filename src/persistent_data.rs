@@ -8,6 +8,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use directories::ProjectDirs;
+use figment::providers::{Format, Toml};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::path::AbsPath;
+use crate::{lint_config::LintRunnerConfig, path::AbsPath};
 
 const CONFIG_DATA_NAME: &str = ".lintrunner.toml";
 const RUNS_DIR_NAME: &str = "runs";
@@ -52,7 +53,10 @@ impl RunInfo {
 }
 
 impl PersistentDataStore {
-    pub fn new(config_path: &AbsPath, cur_run_info: RunInfo) -> Result<PersistentDataStore> {
+    pub fn new(
+        primary_config_path: &AbsPath,
+        cur_run_info: RunInfo,
+    ) -> Result<PersistentDataStore> {
         // Retrieve the lintrunner-wide data directory.
         let project_dirs = ProjectDirs::from("", "", "lintrunner");
         let project_dirs =
@@ -60,7 +64,8 @@ impl PersistentDataStore {
         let project_data_dir = project_dirs.data_dir();
 
         // Now compute one specific to this lintrunner config.
-        let config_path_hash = blake3::hash(config_path.to_string_lossy().as_bytes()).to_string();
+        let config_path_hash =
+            blake3::hash(primary_config_path.to_string_lossy().as_bytes()).to_string();
         let config_data_dir = project_data_dir.join(config_path_hash);
 
         // Create the runs dir as well.
@@ -231,17 +236,23 @@ impl PersistentDataStore {
         Ok(Some(std::fs::read_to_string(init_path)?))
     }
 
-    pub fn update_last_init(&self, config_path: &AbsPath) -> Result<()> {
+    pub fn update_last_init(&self, config_paths: &Vec<std::string::String>) -> Result<()> {
         debug!(
-            "Writing used config to {}/{}",
+            "Writing used config(s) to {}/{}",
             self.data_dir.display(),
             CONFIG_DATA_NAME
         );
 
-        let config_contents = std::fs::read_to_string(config_path)?;
-        let path = self.relative_path(CONFIG_DATA_NAME);
+        let mut config_contents = figment::Figment::new();
 
-        std::fs::write(path, &config_contents)?;
+        for path in config_paths {
+            config_contents = config_contents.join(Toml::file(path));
+        }
+
+        let config_contents = config_contents.extract::<LintRunnerConfig>()?;
+        let path = self.relative_path(CONFIG_DATA_NAME);
+        let serialized_contents = serde_json::to_string_pretty(&config_contents)?;
+        std::fs::write(path, &serialized_contents)?;
         Ok(())
     }
 

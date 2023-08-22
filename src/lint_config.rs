@@ -2,6 +2,10 @@ use std::{collections::HashSet, fs};
 
 use crate::{linter::Linter, path::AbsPath};
 use anyhow::{bail, ensure, Context, Result};
+use figment::{
+    providers::{Format, Toml},
+    Figment,
+};
 use glob::Pattern;
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -123,11 +127,11 @@ pub struct LintConfig {
 }
 
 /// Given options specified by the user, return a list of linters to run.
-pub fn get_linters_from_config(
+pub fn get_linters_from_configs(
     linter_configs: &[LintConfig],
     skipped_linters: Option<HashSet<String>>,
     taken_linters: Option<HashSet<String>>,
-    config_path: &AbsPath,
+    primary_config_path: &AbsPath,
 ) -> Result<Vec<Linter>> {
     let mut linters = Vec::new();
     let mut all_linters: HashSet<String> = HashSet::new();
@@ -160,7 +164,7 @@ pub fn get_linters_from_config(
             exclude_patterns,
             commands: lint_config.command.clone(),
             init_commands: lint_config.init_command.clone(),
-            config_path: config_path.clone(),
+            primary_config_path: primary_config_path.clone(),
         });
     }
 
@@ -198,15 +202,23 @@ pub fn get_linters_from_config(
 }
 
 impl LintRunnerConfig {
-    pub fn new(path: &AbsPath) -> Result<LintRunnerConfig> {
-        let lint_config = fs::read_to_string(&path)
-            .context(format!("Failed to read config file: '{}'.", path.display()))?;
-        LintRunnerConfig::new_from_string(&lint_config)
-    }
+    pub fn new(paths: &Vec<std::string::String>) -> Result<LintRunnerConfig> {
+        let mut config = Figment::new();
+        for path in paths {
+            let config_str = fs::read_to_string(path)
+                .context(format!("Could not read config file at {}", path))?;
 
-    pub fn new_from_string(config_str: &str) -> Result<LintRunnerConfig> {
-        let config: LintRunnerConfig =
-            toml::from_str(config_str).context("Config file had invalid schema")?;
+            // schema check
+            let _test_str = toml::from_str::<toml::Value>(&config_str)
+                .context(format!("Config file at {} had invalid schema", path))?;
+
+            config = config.merge(Toml::file(path));
+        }
+
+        let config = config
+            .extract::<LintRunnerConfig>()
+            .context("Config file had invalid schema")?;
+
         for linter in &config.linters {
             if let Some(init_args) = &linter.init_command {
                 if init_args.iter().all(|arg| !arg.contains("{{DRYRUN}}")) {
@@ -218,7 +230,6 @@ impl LintRunnerConfig {
                 }
             }
         }
-
         Ok(config)
     }
 }
