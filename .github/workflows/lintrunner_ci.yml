@@ -1,4 +1,4 @@
-name: CI
+name: Lintrunner CI
 
 on:
   pull_request:
