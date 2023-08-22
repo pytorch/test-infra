@@ -23,4 +23,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
-

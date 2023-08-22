@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 from enum import Enum
-from typing import Any, Dict, List, NamedTuple, Optional, Set, Pattern
+from typing import Any, Dict, List, NamedTuple, Optional, Pattern, Set
 
 
 IS_WINDOWS: bool = os.name == "nt"
@@ -176,7 +176,7 @@ def run_command(
             ):
                 raise err
             remaining_retries -= 1
-            logging.warning(
+            logging.warning(  # noqa: G200
                 "(%s/%s) Retrying because command failed with: %r",
                 retries - remaining_retries,
                 retries,

@@ -8,4 +8,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "error:        Unknown linter specified in --skip: MENOEXIST. These linters are available: {\"TESTLINTER\"}"
-

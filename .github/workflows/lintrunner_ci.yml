@@ -41,12 +41,13 @@ jobs:
         uses: nick-fields/retry@v2.8.2
         env:
           TMPDIR: ${{ runner.temp }}
-        timeout_minutes: 10
-        max_attempts: 10
-        retry_wait_seconds: 90
-        command: |
-          cd lintrunner
-          cargo test
+        with:
+          timeout_minutes: 10
+          max_attempts: 10
+          retry_wait_seconds: 90
+          command: |
+            cd lintrunner
+            cargo test
 
 
   linux:

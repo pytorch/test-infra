@@ -7,4 +7,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "error:        Invalid linter configuration: linter 'DUPE' is defined multiple times."
-

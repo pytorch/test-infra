@@ -67,9 +67,9 @@ hash or revspec. If this is specified, `lintrunner` will check:
 - All paths changed in the user's working tree.
 
 ### `--merge-base-with`
-Like `--revision`, except the revision is determined by computing the merge-base 
-of `HEAD` and the provided `<tree-ish>`. This is useful for linting all commits 
-in a specific pull request. For example, for a pull request targeting master, 
+Like `--revision`, except the revision is determined by computing the merge-base
+of `HEAD` and the provided `<tree-ish>`. This is useful for linting all commits
+in a specific pull request. For example, for a pull request targeting master,
 you can run:
 ```
 lintrunner -m master

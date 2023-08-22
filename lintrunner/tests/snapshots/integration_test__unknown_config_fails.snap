@@ -9,4 +9,3 @@ expression: output_lines
 - "STDERR:"
 - "error:        Could not read lintrunner config at: 'asdfasdfasdf'"
 - "caused_by:             No such file or directory (os error 2)"
-

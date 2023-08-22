@@ -9,4 +9,3 @@ expression: output_lines
 - "STDERR:"
 - "error:        Config file had invalid schema"
 - "caused_by:             missing field `linter` at line 1 column 1"
-

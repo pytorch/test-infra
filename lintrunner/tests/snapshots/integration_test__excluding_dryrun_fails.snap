@@ -8,4 +8,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "error:        Config for linter TESTLINTER defines init args but does not take a {{DRYRUN}} argument."
-

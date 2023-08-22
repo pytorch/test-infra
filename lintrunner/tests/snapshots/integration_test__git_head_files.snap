@@ -33,4 +33,3 @@ expression: output_lines
 - "    ]"
 - "[2021-11-15T23:53:41Z DEBUG lintrunner::linter] Running linter ECHOLINTER: python3 /raid/suo/lintrunner/tests/fixtures/echo_linter.py -- @/tmp/.tmpAvNutT"
 - "[2021-11-15T23:53:41Z DEBUG lintrunner::linter] Linter ECHOLINTER took: 36.505041ms"
-

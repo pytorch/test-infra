@@ -9,4 +9,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "WARNING: The init commands have changed since you last ran lintrunner. You may need to run `lintrunner init`."
-

@@ -8,4 +8,3 @@ expression: output_lines
 - ""
 - "STDERR:"
 - "error:        Invalid linter configuration: 'TESTLINTER' has an empty command list."
-

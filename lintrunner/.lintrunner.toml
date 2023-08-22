@@ -5,7 +5,7 @@ code = 'RUSTFMT'
 include_patterns = ['**/*.rs']
 command = [
     'python',
-    'examples/rustfmt_linter.py',
+    'lintrunner/examples/rustfmt_linter.py',
     '--binary=rustfmt',
     '--config-path=rustfmt.toml',
     '--',

@@ -13,4 +13,3 @@ expression: output_lines
 - "    lintrunner --config <CONFIG> --paths-cmd <PATHS_CMD>"
 - ""
 - For more information try --help
-

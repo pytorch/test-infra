@@ -32,4 +32,3 @@ expression: output_lines
 - "        },"
 - "    ]"
 - "[2021-11-15T22:37:14Z DEBUG lintrunner::linter] Running linter TESTLINTER: wont_be_run "
-
