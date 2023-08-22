@@ -132,17 +132,18 @@ impl version_control::System for Repo {
             .map(|s| s.to_string())
             .collect::<HashSet<_>>();
 
-        all_files
+        let filtered_files = all_files
             .difference(&deleted_working_tree_files)
-            // Git reports files relative to the root of git root directory, so retrieve
-            // that and prepend it to the file paths.
             .map(|f| format!("{}", self.root.join(f).display()))
-            .map(|f| {
-                AbsPath::try_from(&f).with_context(|| {
-                    format!("Failed to find file while gathering files to lint: {}", f)
-                })
+            .filter_map(|f| match AbsPath::try_from(&f) {
+                Ok(abs_path) => Some(abs_path),
+                Err(_) => {
+                    eprintln!("Failed to find file while gathering files to lint: {}", f);
+                    None
+                }
             })
-            .collect::<Result<_>>()
+            .collect::<Vec<AbsPath>>();
+        Ok(filtered_files)
     }
 }
 

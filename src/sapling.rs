@@ -1,7 +1,6 @@
 use crate::{log_utils, path, version_control};
 
 use anyhow;
-use anyhow::Context;
 
 pub struct Repo {
     root: path::AbsPath,
@@ -71,17 +70,19 @@ impl version_control::System for Repo {
 
         log_utils::log_files("Linting commit diff files: ", &commit_files);
 
-        commit_files
+        let filtered_commit_files = commit_files
             .into_iter()
-            // Git reports files relative to the root of git root directory, so retrieve
-            // that and prepend it to the file paths.
             .map(|f| format!("{}", self.root.join(f).display()))
-            .map(|f| {
-                path::AbsPath::try_from(&f).with_context(|| {
-                    format!("Failed to find file while gathering files to lint: {}", f)
-                })
+            .filter_map(|f| match path::AbsPath::try_from(&f) {
+                Ok(abs_path) => Some(abs_path),
+                Err(_) => {
+                    eprintln!("Failed to find file while gathering files to lint: {}", f);
+                    None
+                }
             })
-            .collect::<anyhow::Result<_>>()
+            .collect::<Vec<path::AbsPath>>();
+
+        Ok(filtered_commit_files)
     }
 }
 
