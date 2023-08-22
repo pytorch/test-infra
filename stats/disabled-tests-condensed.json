@@ -947,13 +947,6 @@
       "linux"
     ]
   ],
-  "test_masked_scatter_large_tensor_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "104365",
-    "https://github.com/pytorch/pytorch/issues/104365",
-    [
-      "rocm"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
@@ -1602,6 +1595,13 @@
   "test_vmapjvpvjp_svd_cuda_float32 (__main__.TestOperatorsCUDA)": [
     "97366",
     "https://github.com/pytorch/pytorch/issues/97366",
+    [
+      "rocm"
+    ]
+  ],
+  "test_vmapvjpvjp_linalg_householder_product_cuda_float32 (__main__.TestOperatorsCUDA)": [
+    "107659",
+    "https://github.com/pytorch/pytorch/issues/107659",
     [
       "rocm"
     ]
