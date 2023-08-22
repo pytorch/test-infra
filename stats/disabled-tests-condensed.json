@@ -926,6 +926,13 @@
       "inductor"
     ]
   ],
+  "test_make_fx_symbolic_exhaustive_special_airy_ai_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107739",
+    "https://github.com/pytorch/pytorch/issues/107739",
+    [
+      "linux"
+    ]
+  ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
@@ -1171,6 +1178,13 @@
       "linux"
     ]
   ],
+  "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
+    "101067",
+    "https://github.com/pytorch/pytorch/issues/101067",
+    [
+      "linux"
+    ]
+  ],
   "test_noncontiguous_samples_matmul_cuda_float32 (__main__.TestCommonCUDA)": [
     "101525",
     "https://github.com/pytorch/pytorch/issues/101525",
@@ -1383,6 +1397,13 @@
   "test_scatter_1d (__main__.DeviceMeshCollectiveTest)": [
     "98059",
     "https://github.com/pytorch/pytorch/issues/98059",
+    [
+      "linux"
+    ]
+  ],
+  "test_scatter_stress (__main__.ProcessGroupNCCLTest)": [
+    "107740",
+    "https://github.com/pytorch/pytorch/issues/107740",
     [
       "linux"
     ]
