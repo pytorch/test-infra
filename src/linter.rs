@@ -37,7 +37,7 @@ fn matches_relative_path(base: &Path, from: &Path, pattern: &Pattern) -> bool {
 }
 
 impl Linter {
-    fn get_config_dir(&self) -> &Path {
+    pub fn get_config_dir(&self) -> &Path {
         // Unwrap is fine here because we know this path is absolute and won't be `/`
         self.primary_config_path.parent().unwrap()
     }

@@ -85,6 +85,9 @@ lintrunner -m master
 ### `--all-files`
 This will run lint on all files specified in `.lintrunner.toml`.
 
+### `--only-lint-under-config-dir`
+If set, will only lint files under the directory where the configuration file is located and its subdirectories.
+
 ## Linter configuration
 `lintrunner` knows which linters to run and how by looking at a configuration
 file, conventionally named `.lintrunner.toml`.
