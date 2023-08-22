@@ -1170,13 +1170,6 @@
       "linux"
     ]
   ],
-  "test_noncontiguous_samples_linalg_matrix_power_cuda_float32 (__main__.TestCommonCUDA)": [
-    "94955",
-    "https://github.com/pytorch/pytorch/issues/94955",
-    [
-      "linux"
-    ]
-  ],
   "test_noncontiguous_samples_linalg_pinv_hermitian_cuda_float32 (__main__.TestCommonCUDA)": [
     "101067",
     "https://github.com/pytorch/pytorch/issues/101067",
@@ -1232,13 +1225,6 @@
     "https://github.com/pytorch/pytorch/issues/105123",
     [
       "rocm"
-    ]
-  ],
-  "test_op_has_batch_rule___getitem___functorch_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
-    "106753",
-    "https://github.com/pytorch/pytorch/issues/106753",
-    [
-      "dynamo"
     ]
   ],
   "test_op_has_batch_rule_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
