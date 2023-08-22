@@ -831,6 +831,13 @@
       "inductor"
     ]
   ],
+  "test_inplace_grad_index_put_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "93061",
+    "https://github.com/pytorch/pytorch/issues/93061",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -1232,13 +1239,6 @@
     "https://github.com/pytorch/pytorch/issues/105123",
     [
       "rocm"
-    ]
-  ],
-  "test_op_has_batch_rule_ZeroGradientsGenVmapAutogradFunction_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
-    "106729",
-    "https://github.com/pytorch/pytorch/issues/106729",
-    [
-      "dynamo"
     ]
   ],
   "test_op_has_batch_rule___getitem___functorch_cpu_float32 (__main__.TestVmapOperatorsOpInfoCPU)": [
