@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0] - 2023-08-23
+
+### Features\
+- Add command line argument `--only-lint-under-config-dir` ([a604812](https://github.com/suo/lintrunner/commit/a604812e11c5c5bf3c1160f9ee7ccd9a9680f43a))
+- Allow multiple toml files in config([49265e5](https://github.com/suo/lintrunner/commit/49265e5f544e8d7edf62bb6cf52af8a88573847b))
+- add sapling support to ci ([6e5bc4e](https://github.com/suo/lintrunner/commit/6e5bc4ee93920cae11a02bb35f7900cd06f64818))
+- implement sapling support in lintrunner ([1442962](https://github.com/suo/lintrunner/commit/1442962475b7065151656ae9629de23ef4f08ca3))
+
+### Bug Fixes
+
+- Skip linting nonexitent files ([5c65871](https://github.com/suo/lintrunner/commit/5c65871f90493fb2f92a1d05534e76260dcd7c23))
+
+### Documentation
+
+- Update README to include options and link to github action ([#55](https://github.com/suo/lintrunner/issues/55)) ([9efb969](https://github.com/suo/lintrunner/commit/9efb969e27f5775e619a3bbf51576a175557e3f8))
+
 ## [0.10.7] - 2023-03-02
 
 ### Bug Fixes
