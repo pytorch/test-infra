@@ -598,13 +598,6 @@
       "linux"
     ]
   ],
-  "test_fn_gradgrad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "93082",
-    "https://github.com/pytorch/pytorch/issues/93082",
-    [
-      "linux"
-    ]
-  ],
   "test_fn_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "101757",
     "https://github.com/pytorch/pytorch/issues/101757",
