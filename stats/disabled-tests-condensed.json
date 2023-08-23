@@ -577,6 +577,13 @@
       "inductor"
     ]
   ],
+  "test_fn_grad_fmod_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "95147",
+    "https://github.com/pytorch/pytorch/issues/95147",
+    [
+      "linux"
+    ]
+  ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "101755",
     "https://github.com/pytorch/pytorch/issues/101755",
@@ -943,6 +950,13 @@
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "107762",
     "https://github.com/pytorch/pytorch/issues/107762",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_y0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107767",
+    "https://github.com/pytorch/pytorch/issues/107767",
     [
       "linux"
     ]
@@ -1323,6 +1337,15 @@
       "rocm"
     ]
   ],
+  "test_profiler_experimental_tree (__main__.TestProfilerTree)": [
+    "100728",
+    "https://github.com/pytorch/pytorch/issues/100728",
+    [
+      "win",
+      "mac",
+      "rocm"
+    ]
+  ],
   "test_python_ir_utils (__main__.TestJit)": [
     "73474",
     "https://github.com/pytorch/pytorch/issues/73474",
@@ -1533,6 +1556,13 @@
     "https://github.com/pytorch/pytorch/issues/105119",
     [
       "rocm"
+    ]
+  ],
+  "test_unhandled_exception_in_dynamo2 (__main__.DynamicShapesMiscTests)": [
+    "101259",
+    "https://github.com/pytorch/pytorch/issues/101259",
+    [
+      "linux"
     ]
   ],
   "test_variant_consistency_jit_linalg_lstsq_cpu_complex64 (__main__.TestJitCPU)": [
