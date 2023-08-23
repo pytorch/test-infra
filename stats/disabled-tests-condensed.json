@@ -588,7 +588,8 @@
     "95147",
     "https://github.com/pytorch/pytorch/issues/95147",
     [
-      "linux"
+      "linux",
+      "inductor"
     ]
   ],
   "test_fn_grad_index_put_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
@@ -1000,7 +1001,8 @@
     "104244",
     "https://github.com/pytorch/pytorch/issues/104244",
     [
-      "linux"
+      "linux",
+      "win"
     ]
   ],
   "test_memory_format_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
