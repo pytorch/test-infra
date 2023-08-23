@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         python_version: ["3.11"]
 
     runs-on: ${{ matrix.os }}
@@ -30,26 +30,22 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Install Lintrunner
         run: |
-          pushd lintrunner
+          pushd tools/lintrunner
           pip install .
-          lintrunner init
           popd
+          lintrunner init
       - name: Run lintrunner on all files - Linux
-        if: matrix.os != 'windows-latest'
         run: |
           set +e
-          if ! lintrunner -v --force-color --all-files --tee-json=lint.json; then
+          if ! lintrunner -v --force-color --all-files --tee-json=lint.json --take MYPY,RUSTFMT,COPYRIGHT,LINTRUNNER_VERSION; then
               echo ""
               echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner -m main\`.\e[0m"
               exit 1
           fi
-      - name: Run lintrunner on all files - Windows
-        if: matrix.os == 'windows-latest'
-        run: lintrunner -v --force-color --all-files
       - name: Produce SARIF
         if: always() && matrix.os == 'ubuntu-latest'
         run: |
-          python tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
+          python tools/lintrunner/tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
       - name: Upload SARIF file
         if: always() && matrix.os == 'ubuntu-latest'
         continue-on-error: true

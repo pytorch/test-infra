@@ -2,11 +2,13 @@ name: Lintrunner CI
 
 on:
   pull_request:
+    paths:
+      - 'tools/lintrunner/**'
   push:
     branches:
       - main
     tags:
-      - v*
+      - lintrunner/v*
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
@@ -43,7 +45,7 @@ jobs:
           max_attempts: 10
           retry_wait_seconds: 90
           command: |
-            cd lintrunner
+            cd tools/lintrunner
             cargo test
 
 
@@ -59,13 +61,13 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o lintrunner/target/dist
-        working-directory: lintrunner
+        args: --release -o tools/lintrunner/target/dist
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: lintrunner/target/dist
+        path: tools/lintrunner/target/dist
 
   windows:
     runs-on: windows-latest
@@ -79,7 +81,7 @@ jobs:
       with:
         command: build
         args: --release -o dist
-        working-directory: lintrunner
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
@@ -97,8 +99,8 @@ jobs:
     - uses: messense/maturin-action@v1
       with:
         command: build
-        args: --release -o dist --universal2
-        working-directory: lintrunner
+        args: --release -o dist
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
@@ -108,7 +110,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
+    if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
     needs: [ macos, windows, linux, test ]
     steps:
       - uses: actions/download-artifact@v2
@@ -120,4 +122,5 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
+          working-directory: tools/lintrunner
           args: --skip-existing *
