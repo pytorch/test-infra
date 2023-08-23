@@ -45,7 +45,7 @@ jobs:
           max_attempts: 10
           retry_wait_seconds: 90
           command: |
-            cd lintrunner
+            cd tools/lintrunner
             cargo test
 
 
