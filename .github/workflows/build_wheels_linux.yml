@@ -88,6 +88,7 @@ jobs:
       ARCH: ${{ inputs.architecture }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
+    environment: pytorchbot-env
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
