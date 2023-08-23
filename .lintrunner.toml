@@ -314,9 +314,9 @@ code = 'RUSTFMT'
 include_patterns = ['**/*.rs']
 command = [
     'python',
-    'lintrunner/examples/rustfmt_linter.py',
+    'tools/lintrunner/examples/rustfmt_linter.py',
     '--binary=rustfmt',
-    '--config-path=lintrunner/rustfmt.toml',
+    '--config-path=tools/lintrunner/rustfmt.toml',
     '--',
     '@{{PATHSFILE}}'
 ]

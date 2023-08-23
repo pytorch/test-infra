@@ -108,7 +108,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
+    if: "startsWith(github.ref, 'refs/tags/lintrunner/v*')"
     needs: [ macos, windows, linux, test ]
     steps:
       - uses: actions/download-artifact@v2
@@ -120,4 +120,5 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: upload
+          working-directory: tools/lintrunner
           args: --skip-existing *
