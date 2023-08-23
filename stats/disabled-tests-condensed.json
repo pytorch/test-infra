@@ -1004,13 +1004,6 @@
       "linux"
     ]
   ],
-  "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
-    "95172",
-    "https://github.com/pytorch/pytorch/issues/95172",
-    [
-      "rocm"
-    ]
-  ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91481",
     "https://github.com/pytorch/pytorch/issues/91481",
