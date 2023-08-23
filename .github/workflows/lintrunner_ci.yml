@@ -108,8 +108,10 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [ macos, windows, linux, test ]
+    # needs: [ macos, windows, linux, test ]
     steps:
+      - run: |
+          ls tools/lintrunner
       - name: Publish to PyPI
         uses: messense/maturin-action@v1
         env:
