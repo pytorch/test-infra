@@ -29,10 +29,11 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
       - name: Install Lintrunner
-        working-directory: ./lintrunner
         run: |
+          pushd lintrunner
           pip install .
           lintrunner init
+          popd
       - name: Run lintrunner on all files - Linux
         if: matrix.os != 'windows-latest'
         run: |
