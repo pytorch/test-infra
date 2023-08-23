@@ -32,8 +32,8 @@ jobs:
         run: |
           pushd lintrunner
           pip install .
-          lintrunner init
           popd
+          lintrunner init
       - name: Run lintrunner on all files - Linux
         if: matrix.os != 'windows-latest'
         run: |
