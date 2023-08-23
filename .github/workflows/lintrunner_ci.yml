@@ -111,6 +111,7 @@ jobs:
     # needs: [ macos, windows, linux, test ]
     steps:
       - run: |
+          pwd
           ls tools/lintrunner
       - name: Publish to PyPI
         uses: messense/maturin-action@v1
