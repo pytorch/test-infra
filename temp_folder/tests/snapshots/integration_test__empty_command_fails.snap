@@ -1,0 +1,11 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error:        Invalid linter configuration: 'TESTLINTER' has an empty command list."
+

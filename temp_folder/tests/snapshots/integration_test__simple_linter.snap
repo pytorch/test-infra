@@ -1,0 +1,26 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- ">>> Lint for tests/fixtures/fake_source_file.rs:"
+- ""
+- "  Advice (DUMMY) dummy failure"
+- "    A dummy linter failure"
+- ""
+- "         6  |use std::io::Write;"
+- "         7  |"
+- "         8  |fn assert_output_snapshot(cmd: &mut Command) -> Result<()> {"
+- "    >>>  9  |    let re = Regex::new(\"<temp-config>\").unwrap();"
+- "        10  |    let output = cmd.output()?;"
+- "        11  |"
+- "        12  |    let output_string = format!("
+- ""
+- ""
+- ""
+- "STDERR:"
+- "WARNING: No previous init data found. If this is the first time you're running lintrunner, you should run `lintrunner init`."
+

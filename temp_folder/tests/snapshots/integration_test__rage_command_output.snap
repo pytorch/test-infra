@@ -1,0 +1,12 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+---
+- "STDOUT:"
+- "lintrunner rage report:"
+- "timestamp: 2022-05-09T23:43:21-07:00"
+- "args: <temp-config> '--data-path=/var/folders/by/9xrsv08s7ql0n9mzdf1dwlm80000gn/T/.tmp3uM2kH' 'README.md'"
+- "exit code: 1"
+- "err msg: None"
+- ""
+

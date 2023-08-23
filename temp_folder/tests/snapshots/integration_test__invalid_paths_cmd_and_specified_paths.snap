@@ -1,0 +1,15 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error: The argument '--paths-cmd <PATHS_CMD>' cannot be used with '<PATHS>...'"
+- ""
+- "USAGE:"
+- "    lintrunner --configs <CONFIGS>... --paths-cmd <PATHS_CMD>"
+- ""
+- For more information try --help
+

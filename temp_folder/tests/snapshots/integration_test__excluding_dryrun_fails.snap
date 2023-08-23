@@ -1,0 +1,11 @@
+---
+source: tests/integration_test.rs
+expression: output_lines
+
+---
+- "STDOUT:"
+- ""
+- ""
+- "STDERR:"
+- "error:        Config for linter TESTLINTER defines init args but does not take a {{DRYRUN}} argument."
+
