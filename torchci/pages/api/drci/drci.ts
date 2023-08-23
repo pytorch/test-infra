@@ -297,7 +297,8 @@ export function constructResultsComment(
     let unrelatedFailuresMsg = unrelatedFailures;
     if (title_messages.length == 0) {
       // If there are no other messages, reassure the user that things are looking good
-      unrelatedFailuresMsg = "You can merge normally! (" + unrelatedFailures + ")";
+      unrelatedFailuresMsg =
+        "You can merge normally! (" + unrelatedFailures + ")";
     }
 
     title_messages.push(unrelatedFailuresMsg);
