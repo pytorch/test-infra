@@ -30,10 +30,8 @@ jobs:
           python-version: ${{ matrix.python_version }}
       - name: Install Lintrunner
         run: |
-          # build lintrunner from source
           pushd lintrunner
           pip install .
-          # back to original directory
           popd
           lintrunner init
       - name: Run lintrunner on all files - Linux
