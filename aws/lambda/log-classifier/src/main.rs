@@ -14,11 +14,7 @@ use log_classifier::rule_match::SerializedMatch;
 
 struct ShouldWriteDynamo(bool);
 
-async fn handle(
-    job_id: usize,
-    repo: &str,
-    should_write_dynamo: ShouldWriteDynamo,
-) -> Result<String> {
+async fn handle(job_id: usize, repo: &str, should_write_dynamo: ShouldWriteDynamo) -> Result<String> {
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
@@ -60,9 +56,7 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     Ok(match query_string_parameters.first("job_id") {
         Some(job_id) => {
             let job_id = job_id.parse::<usize>()?;
-            let repo = query_string_parameters
-                .first("repo")
-                .unwrap_or_else(|| "pytorch/pytorch");
+            let repo = query_string_parameters.first("repo").unwrap_or_else(|| "pytorch/pytorch");
             handle(job_id, repo, ShouldWriteDynamo(true))
                 .await?
                 .into_response()

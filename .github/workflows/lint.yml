@@ -1,57 +1,34 @@
 name: Lint
 
 on:
+  pull_request:
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
   push:
     branches:
       - main
-    tags:
-      - v*
-  pull_request:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
-  cancel-in-progress: true
+    paths:
+      - mypy.ini
+      - '**.py'
+      - '**requirements.txt'
 
 jobs:
-  lintrunner:
-    name: lintrunner
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python_version: ["3.11"]
-
-    runs-on: ${{ matrix.os }}
+  mypy:
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python_version }}
-      - name: Install Lintrunner
+          python-version: '3.10'
+          architecture: 'x64'
+      - name: Install dependencies
         run: |
-          pushd tools/lintrunner
-          pip install .
-          popd
-          lintrunner init
-      - name: Run lintrunner on all files - Linux
+          pip install --requirement=.mypy_requirements.txt
+      - name: Run mypy
+        env:
+          MYPY_FORCE_COLOR: 1
         run: |
-          set +e
-          if ! lintrunner -v --force-color --all-files --tee-json=lint.json --take MYPY,RUSTFMT,COPYRIGHT,LINTRUNNER_VERSION; then
-              echo ""
-              echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner -m main\`.\e[0m"
-              exit 1
-          fi
-      - name: Produce SARIF
-        if: always() && matrix.os == 'ubuntu-latest'
-        run: |
-          python tools/lintrunner/tools/convert_to_sarif.py --input lint.json --output lintrunner.sarif
-      - name: Upload SARIF file
-        if: always() && matrix.os == 'ubuntu-latest'
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: lintrunner.sarif
-          category: lintrunner
-          checkout_path: ${{ github.workspace }}
+          mypy
