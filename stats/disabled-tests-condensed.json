@@ -135,6 +135,13 @@
       "windows"
     ]
   ],
+  "test_broadcast_1d (__main__.DeviceMeshCollectiveTest)": [
+    "98048",
+    "https://github.com/pytorch/pytorch/issues/98048",
+    [
+      "linux"
+    ]
+  ],
   "test_build_tuple_unpack (__main__.DynamicShapesMiscTests)": [
     "102071",
     "https://github.com/pytorch/pytorch/issues/102071",
@@ -929,6 +936,13 @@
   "test_make_fx_symbolic_exhaustive_special_bessel_j0_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
+    [
+      "linux"
+    ]
+  ],
+  "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
+    "107762",
+    "https://github.com/pytorch/pytorch/issues/107762",
     [
       "linux"
     ]
