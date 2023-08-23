@@ -1,9 +1,0 @@
----
-source: tests/integration_test.rs
-expression: output_lines
----
-- "STDOUT:"
-- ""
-- ""
-- "STDERR:"
-- "error:        Invalid linter configuration: linter 'DUPE' is defined multiple times."
