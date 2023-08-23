@@ -316,6 +316,13 @@
       "rocm"
     ]
   ],
+  "test_conv_stride_constraints (__main__.CPUReproTests)": [
+    "107774",
+    "https://github.com/pytorch/pytorch/issues/107774",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv_transpose (quantization.jit.test_quantize_jit.TestQuantizeJit)": [
     "105124",
     "https://github.com/pytorch/pytorch/issues/105124",
