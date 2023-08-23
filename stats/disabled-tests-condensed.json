@@ -672,7 +672,9 @@
     "106337",
     "https://github.com/pytorch/pytorch/issues/106337",
     [
-      "linux"
+      "linux",
+      "mac",
+      "macos"
     ]
   ],
   "test_fused_optimizers_with_large_tensors (__main__.TestOptim)": [
@@ -951,7 +953,11 @@
     "102775",
     "https://github.com/pytorch/pytorch/issues/102775",
     [
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "win",
+      "windows"
     ]
   ],
   "test_make_fx_symbolic_exhaustive_special_bessel_j1_cpu_float32 (__main__.TestProxyTensorOpInfoCPU)": [
@@ -1343,7 +1349,8 @@
     [
       "win",
       "mac",
-      "rocm"
+      "rocm",
+      "linux"
     ]
   ],
   "test_python_ir_utils (__main__.TestJit)": [
