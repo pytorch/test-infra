@@ -110,16 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     # needs: [ macos, windows, linux, test ]
     steps:
-      - run: |
-          pwd
-          cd tools
-          pwd
-          ls
-          cd lintrunner
-          pwd
-          ls
-          cd ..
-          cd ..
+      - uses: actions/checkout@v3
       - name: Publish to PyPI
         uses: messense/maturin-action@v1
         env:
