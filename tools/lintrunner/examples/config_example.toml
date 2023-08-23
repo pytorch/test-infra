@@ -1,0 +1,22 @@
+[[linter]]
+code = 'flake8'
+exclude_patterns = ['**/*.py']
+command = [
+    'python3',
+    'flake8_linter.py',
+    '--binary=flake8',
+    '--',
+    '@{{PATHSFILE}}'
+]
+
+[[linter]]
+code = 'rustfmt'
+include_patterns = ['**/*.rs']
+command = [
+    'python3',
+    'rustfmt_linter.py',
+    '--binary=rustfmt',
+    '--config-path=rustfmt.toml',
+    '--',
+    '@{{PATHSFILE}}'
+]

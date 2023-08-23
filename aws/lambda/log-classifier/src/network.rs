@@ -29,8 +29,8 @@ pub async fn get_dynamo_client() -> dynamodb::Client {
 /// Download a log for `job_id` from S3.
 pub async fn download_log(client: &s3::Client, repo: &str, job_id: usize) -> Result<String> {
     let key = match repo {
-       "pytorch/pytorch" => format!("log/{}", job_id),
-       _ => format!("log/{}/{}", repo, job_id)
+        "pytorch/pytorch" => format!("log/{}", job_id),
+        _ => format!("log/{}/{}", repo, job_id),
     };
     let resp = client
         .get_object()
