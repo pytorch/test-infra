@@ -59,13 +59,13 @@ jobs:
       with:
         manylinux: auto
         command: build
-        args: --release -o lintrunner/target/dist
-        working-directory: lintrunner
+        args: --release -o tools/lintrunner/target/dist
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: lintrunner/target/dist
+        path: tools/lintrunner/target/dist
 
   windows:
     runs-on: windows-latest
