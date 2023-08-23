@@ -10,6 +10,9 @@ which is useful on large polyglot projects.
 
 The design of `lintrunner` is heavily inspired by `linttool`, a project that exists internally at Meta.
 
+> NOTE: Originally lintrunner was developed in @suo's account and was moved here. 
+> Original branch was based on this [commit](https://github.com/suo/lintrunner/commit/a604812e11c5c5bf3c1160f9ee7ccd9a9680f43a)
+
 ## Installation
 ```
 pip install lintrunner
