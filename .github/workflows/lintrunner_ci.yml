@@ -112,14 +112,14 @@ jobs:
     steps:
       - run: |
           pwd
-          pushd tools
+          cd tools
           pwd
           ls
-          pushd lintrunner
+          cd lintrunner
           pwd
           ls
-          popd
-          popd
+          cd ..
+          cd ..
       - name: Publish to PyPI
         uses: messense/maturin-action@v1
         env:
