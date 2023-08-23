@@ -32,13 +32,13 @@ jobs:
         run: |
           pushd lintrunner
           pip install .
-          popd
           lintrunner init
+          popd
       - name: Run lintrunner on all files - Linux
         if: matrix.os != 'windows-latest'
         run: |
           set +e
-          if ! lintrunner -v --force-color --merge-base-with origin/main --tee-json=lint.json; then
+          if ! lintrunner -v --force-color --all-files --tee-json=lint.json --take RUSTFMT,MYPY,COPYRIGHT,LINTRUNNER_VERSION; then
               echo ""
               echo -e "\e[1m\e[36mYou can reproduce these results locally by using \`lintrunner -m main\`.\e[0m"
               exit 1
