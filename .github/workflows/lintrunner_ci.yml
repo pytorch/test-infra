@@ -81,7 +81,7 @@ jobs:
       with:
         command: build
         args: --release -o dist
-        working-directory: lintrunner
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
@@ -100,7 +100,7 @@ jobs:
       with:
         command: build
         args: --release -o dist --universal2
-        working-directory: lintrunner
+        working-directory: tools/lintrunner
     - name: Upload wheels
       uses: actions/upload-artifact@v2
       with:
