@@ -1532,6 +1532,30 @@
       "mac"
     ]
   ],
+  "test_to_sparse_semi_structured_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106554",
+    "https://github.com/pytorch/pytorch/issues/106554",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_to_sparse_semi_structured_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106552",
+    "https://github.com/pytorch/pytorch/issues/106552",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_to_sparse_semi_structured_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106553",
+    "https://github.com/pytorch/pytorch/issues/106553",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
