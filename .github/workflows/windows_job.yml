@@ -141,9 +141,10 @@ jobs:
             # See https://github.com/conda/conda/issues/11503
             echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
             # Source conda so it's available to the script environment
-            echo "/c/Jenkins/Miniconda3/python.exe -m pip install openssl
             echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
             echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
+            # Workaround required see: https://github.com/AnacondaRecipes/openssl-feedstock/pull/23
+            export SSL_CERT_FILE="/c/Jenkins/Miniconda3/Library/ssl/cacert.pem"
           } > "${EXEC_SCRIPT}"
           if [[ ${{ inputs.gpu-arch-type }} == cuda ]]; then
             {
