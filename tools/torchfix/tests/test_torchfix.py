@@ -1,7 +1,8 @@
-from pathlib import Path
-from torchfix.torchfix import TorchChecker, TorchCodemod
 import logging
+from pathlib import Path
+
 import libcst.codemod as codemod
+from torchfix.torchfix import TorchChecker, TorchCodemod
 
 FIXTURES_PATH = Path(__file__).absolute().parent / "fixtures"
 LOGGER = logging.getLogger(__name__)

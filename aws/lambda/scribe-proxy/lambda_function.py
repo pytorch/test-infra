@@ -7,15 +7,17 @@ import os
 from typing import Any, Dict
 from urllib.request import Request, urlopen
 
-ALLOWED_EVENT_KEYS = set([
-    'logs',
-    'base64_bz2_logs',
-])
+ALLOWED_EVENT_KEYS = set(
+    [
+        "logs",
+        "base64_bz2_logs",
+    ]
+)
 
 
 def assert_valid(event: Dict[str, Any]) -> None:
     if not (ALLOWED_EVENT_KEYS.intersection(event.keys())):
-        raise Exception(f'invalid event:{event}')
+        raise Exception(f"invalid event:{event}")
 
 
 # This lambda function proxy the event to scribe with access_token attached.
@@ -46,12 +48,13 @@ def assert_valid(event: Dict[str, Any]) -> None:
 #
 def lambda_handler(event, context):
     assert_valid(event)
-    req = Request('https://graph.facebook.com/scribe_logs', method='POST')
-    req.add_header('Content-Type', 'application/json')
-    data = {'access_token': os.environ.get('SCRIBE_GRAPHQL_ACCESS_TOKEN')}
-    if event.get('logs', '') != '':
-        data['logs'] = event.get('logs')
-    elif event.get('base64_bz2_logs', '') != '':
-        data['logs'] = bz2.decompress(
-            base64.b64decode(event['base64_bz2_logs'])).decode()
+    req = Request("https://graph.facebook.com/scribe_logs", method="POST")
+    req.add_header("Content-Type", "application/json")
+    data = {"access_token": os.environ.get("SCRIBE_GRAPHQL_ACCESS_TOKEN")}
+    if event.get("logs", "") != "":
+        data["logs"] = event.get("logs")
+    elif event.get("base64_bz2_logs", "") != "":
+        data["logs"] = bz2.decompress(
+            base64.b64decode(event["base64_bz2_logs"])
+        ).decode()
     return urlopen(req, data=json.dumps(data).encode()).read()

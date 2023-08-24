@@ -1,4 +1,5 @@
 import torch
+
 torch.range(0, 1)
 torch.range(-4, -2)
 torch.range(0, 6, 2)

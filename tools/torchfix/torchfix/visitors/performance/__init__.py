@@ -1,8 +1,7 @@
 import libcst as cst
 import libcst.matchers as m
 
-
-from ...common import TorchVisitor, LintViolation
+from ...common import LintViolation, TorchVisitor
 
 
 class TorchSynchronizedDataLoaderVisitor(TorchVisitor):

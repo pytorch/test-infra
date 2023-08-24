@@ -1,5 +1,7 @@
-import libcst as cst
 from typing import Optional
+
+import libcst as cst
+
 from ...common import TorchVisitor
 
 

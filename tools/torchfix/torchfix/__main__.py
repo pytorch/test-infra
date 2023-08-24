@@ -1,12 +1,14 @@
 import argparse
-import libcst.codemod as codemod
 
 import contextlib
-import sys
 import io
+import sys
+
+import libcst.codemod as codemod
+
+from .common import CYAN, ENDC
 
 from .torchfix import TorchCodemod
-from .common import CYAN, ENDC
 
 
 def main() -> None:
@@ -46,7 +48,7 @@ def main() -> None:
     MARKER = "torch"  # this will catch import torch or functorch
     torch_files = []
     for file in files:
-        with open(file, errors='replace') as f:
+        with open(file, errors="replace") as f:
             for line in f:
                 if MARKER in line:
                     torch_files.append(file)

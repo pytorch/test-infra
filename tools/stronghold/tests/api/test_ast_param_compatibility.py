@@ -1,8 +1,7 @@
 """Tests of the parameter types compatibility"""
 
-from api.types import TypeName, Constant, Generic, Attribute, Unknown
-
 from api.compatibility import _check_type_compatibility
+from api.types import Attribute, Constant, Generic, TypeName, Unknown
 
 
 def test_none() -> None:

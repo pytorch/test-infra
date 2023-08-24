@@ -26,8 +26,10 @@ base_url = "https://download.pytorch.org/whl/nightly/torch/"
 def test_get_whl_links():
     wheels = parse_index(test_html, base_url)
     assert len(wheels) == 8
-    assert wheels[0].url == \
-        "https://download.pytorch.org/whl/nightly/cpu/torch-1.13.0.dev20220728%2Bcpu-cp310-cp310-linux_x86_64.whl"
+    assert (
+        wheels[0].url
+        == "https://download.pytorch.org/whl/nightly/cpu/torch-1.13.0.dev20220728%2Bcpu-cp310-cp310-linux_x86_64.whl"
+    )
 
 
 def test_include_exclude():

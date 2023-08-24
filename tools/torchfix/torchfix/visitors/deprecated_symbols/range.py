@@ -1,12 +1,14 @@
+from typing import Optional, Tuple
+
 import libcst as cst
 import libcst.matchers as m
-from typing import Optional, Tuple
 
 
 def call_replacement_range(node: cst.Call) -> Optional[cst.Call]:
     """Replace `range` with `arange`.
     Add `step` to the `end` argument as `arange` has the interval `[start, end)`.
     """
+
     # `torch.range` documented signature is not a valid Python signature,
     # so it's hard to generalize this.
     def _get_range_args(node: cst.Call) -> Tuple[cst.Arg, Optional[cst.Arg]]:

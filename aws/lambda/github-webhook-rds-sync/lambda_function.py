@@ -1,23 +1,23 @@
-import json
-import datetime
 import asyncio
-import os
-import boto3
-import hmac
+import datetime
 import hashlib
+import hmac
+import json
+import os
+
+import boto3
 from typing import *
-from sqlalchemy import insert, table, column
+from sqlalchemy import column, insert, table
+from existing_schema import existing_schema
 from sqlalchemy.dialects.mysql import insert
 
 from utils import (
+    connection_string,
     extract_github_objects,
     get_engine,
     transform_data,
-    connection_string,
     WEBHOOK_SECRET,
 )
-
-from existing_schema import existing_schema
 
 
 def upsert(engine, model, insert_dict):

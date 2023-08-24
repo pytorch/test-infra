@@ -1,6 +1,7 @@
-from typing import Dict, Any, List
 import subprocess
 from pathlib import Path
+from typing import Any, Dict, List
+
 from rockset_utils import query_rockset, upload_to_rockset
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent

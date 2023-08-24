@@ -2,15 +2,16 @@
 Aggregate usage logs on S3 GHA artifacts bucket for fun and profit!
 """
 import asyncio
-from json import JSONDecodeError
+import io
 
 import json
-import re
-import io
 import os
+import re
 import zipfile
+from json import JSONDecodeError
+from typing import Any, AsyncGenerator, Dict, List, Tuple
+
 import pandas as pd
-from typing import List, AsyncGenerator, Dict, Any, Tuple
 from aiobotocore.session import get_session
 
 ARTIFACTS_S3_BUCKET = "gha-artifacts"
@@ -32,12 +33,12 @@ RUN_ATTEMPT = 1
 
 
 async def get_usage_log(
-        s3_client: any,
-        owner: str,
-        repo: str,
-        prefix: str,
-        workflow_ids: List[str],
-        job_ids: List[str],
+    s3_client: any,
+    owner: str,
+    repo: str,
+    prefix: str,
+    workflow_ids: List[str],
+    job_ids: List[str],
 ) -> AsyncGenerator:
     """
     Get the usage log. The key is as follows OWNER/REPO/WORKFLOW_ID/RUN_ATTEMPT/artifact/PREFIX_JOB_ID.zip, for
@@ -47,7 +48,9 @@ async def get_usage_log(
         workflow_id = workflow_ids[i]
         job_id = job_ids[i]
 
-        s3_path = f"{owner}/{repo}/{workflow_id}/{RUN_ATTEMPT}/artifact/{prefix}_{job_id}.zip"
+        s3_path = (
+            f"{owner}/{repo}/{workflow_id}/{RUN_ATTEMPT}/artifact/{prefix}_{job_id}.zip"
+        )
         print(s3_path)
 
         try:
@@ -96,7 +99,7 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
     total_gpu_utilization = []
     total_gpu_mem_usage = []
 
-    for (workflow_id, job_id, usage_log) in raw_logs:
+    for workflow_id, job_id, usage_log in raw_logs:
         start_time = 0
         stop_time = 0
 
@@ -104,9 +107,9 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
             datapoint = json.loads(line)
 
             if (
-                "time" not in datapoint or
-                "total_cpu_percent" not in datapoint or
-                "per_process_cpu_info" not in datapoint
+                "time" not in datapoint
+                or "total_cpu_percent" not in datapoint
+                or "per_process_cpu_info" not in datapoint
             ):
                 continue
 
@@ -121,17 +124,35 @@ async def _process_raw_logs(raw_logs: List[Tuple[str, str, str]]) -> Dict[str, s
             if "per_process_cpu_info" not in datapoint:
                 total_mem_usage.append(0)
             else:
-                total_mem_usage.append(sum([e.get("rss_memory", 0) for e in datapoint["per_process_cpu_info"]]))
+                total_mem_usage.append(
+                    sum(
+                        [
+                            e.get("rss_memory", 0)
+                            for e in datapoint["per_process_cpu_info"]
+                        ]
+                    )
+                )
 
             # TODO: Remove this logic once https://github.com/pytorch/pytorch/pull/86250 has been running for a while.
             #  In the meantime, both keys can be presented in usage log
-            gpu_key = "total_gpu_utilization" if "total_gpu_utilization" in datapoint else "total_gpu_utilizaiton"
+            gpu_key = (
+                "total_gpu_utilization"
+                if "total_gpu_utilization" in datapoint
+                else "total_gpu_utilizaiton"
+            )
             total_gpu_utilization.append(datapoint.get(gpu_key, 0))
 
             if "per_process_gpu_info" not in datapoint:
                 total_gpu_mem_usage.append(0)
             else:
-                total_gpu_mem_usage.append(sum([e.get("gpu_memory", 0) for e in datapoint["per_process_gpu_info"]]))
+                total_gpu_mem_usage.append(
+                    sum(
+                        [
+                            e.get("gpu_memory", 0)
+                            for e in datapoint["per_process_gpu_info"]
+                        ]
+                    )
+                )
 
         uniq_id = f"{workflow_id} / {job_id}"
         # Let's also keep the starting time and ending time of the job run, so the usage can be mapped to
@@ -213,15 +234,20 @@ async def aggregate(body: str, context: Any) -> str:
 
     session = get_session()
     async with session.create_client(
-            "s3",
-            region_name="us-east-1",
+        "s3",
+        region_name="us-east-1",
     ) as s3_client:
-        raw_logs = [entry async for entry in get_usage_log(s3_client=s3_client,
-                                                           owner=owner,
-                                                           repo=repo,
-                                                           prefix=prefix,
-                                                           workflow_ids=workflow_ids,
-                                                           job_ids=jobs_ids)]
+        raw_logs = [
+            entry
+            async for entry in get_usage_log(
+                s3_client=s3_client,
+                owner=owner,
+                repo=repo,
+                prefix=prefix,
+                workflow_ids=workflow_ids,
+                job_ids=jobs_ids,
+            )
+        ]
 
     results = await _process_raw_logs(raw_logs=raw_logs)
     return json.dumps(results)
@@ -243,33 +269,65 @@ if os.getenv("DEBUG", "0") == "1":
             "3190793389",
             "3190721571",
             "3190637266",
-            "3190634736", "3190506239", "3190443293", "3189983758", "3189709206", "3189651768", "3189512294",
-            "3189428641", "3189345038", "3189314334", "3189282022", "3189125171", "3189013497", "3188150968",
-            "3188140050", "3188068038", "3188079769"
+            "3190634736",
+            "3190506239",
+            "3190443293",
+            "3189983758",
+            "3189709206",
+            "3189651768",
+            "3189512294",
+            "3189428641",
+            "3189345038",
+            "3189314334",
+            "3189282022",
+            "3189125171",
+            "3189013497",
+            "3188150968",
+            "3188140050",
+            "3188068038",
+            "3188079769",
         ],
         "jobIds": [
             8725009912,
             8724904966,
-            8724811861, 8724762262, 8724298558, 8724203742, 8722636066, 8721853447, 8721609722, 8721288973, 8720825008,
-            8720594880, 8720515505, 8720468097, 8720016748, 8719644525, 8717292485, 8717237728, 8716982768, 8717015257
-        ]
+            8724811861,
+            8724762262,
+            8724298558,
+            8724203742,
+            8722636066,
+            8721853447,
+            8721609722,
+            8721288973,
+            8720825008,
+            8720594880,
+            8720515505,
+            8720468097,
+            8720016748,
+            8719644525,
+            8717292485,
+            8717237728,
+            8716982768,
+            8717015257,
+        ],
     }
     # For local development
-    print(lambda_handler(
-        {
-            "resource": "/usage-log-aggregator",
-            "path": "/usage-log-aggregator",
-            "httpMethod": "POST",
-            "headers": {
-                "accept": "application/json",
-                "content-type": "application/json; charset=utf-8",
-                "Host": "0y7izelft6.execute-api.us-east-1.amazonaws.com",
-                "X-Amzn-Trace-Id": "Root=1-633d5d3c-455c3c8842a100cc4da9eb14",
-                "X-Forwarded-For": "IP",
-                "X-Forwarded-Port": "443",
-                "X-Forwarded-Proto": "https"
+    print(
+        lambda_handler(
+            {
+                "resource": "/usage-log-aggregator",
+                "path": "/usage-log-aggregator",
+                "httpMethod": "POST",
+                "headers": {
+                    "accept": "application/json",
+                    "content-type": "application/json; charset=utf-8",
+                    "Host": "0y7izelft6.execute-api.us-east-1.amazonaws.com",
+                    "X-Amzn-Trace-Id": "Root=1-633d5d3c-455c3c8842a100cc4da9eb14",
+                    "X-Forwarded-For": "IP",
+                    "X-Forwarded-Port": "443",
+                    "X-Forwarded-Proto": "https",
+                },
+                "body": json.dumps(mock_body),
             },
-            "body": json.dumps(mock_body),
-        },
-        None,
-    ))
+            None,
+        )
+    )

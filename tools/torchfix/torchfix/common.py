@@ -1,9 +1,10 @@
-from dataclasses import dataclass
 import sys
+from abc import ABC
+from dataclasses import dataclass
+from typing import List, Optional
+
 import libcst as cst
 from libcst.metadata import QualifiedNameProvider, WhitespaceInclusivePositionProvider
-from typing import Optional, List
-from abc import ABC
 
 IS_TTY = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 CYAN = "\033[96m" if IS_TTY else ""

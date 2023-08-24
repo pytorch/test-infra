@@ -2,13 +2,12 @@ import pathlib
 import textwrap
 from typing import Any, List
 
-import pytest
-
 import api.compatibility
 import api.violations
 
-from testing import git
-from testing import source
+import pytest
+
+from testing import git, source
 
 
 def test_deleted_function(tmp_path: pathlib.Path) -> None:

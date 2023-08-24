@@ -1,6 +1,6 @@
 import torch
 
-a = torch.tensor([[12., -51, 4], [6, 167, -68], [-4, 24, -41]])
+a = torch.tensor([[12.0, -51, 4], [6, 167, -68], [-4, 24, -41]])
 old_q, old_r = torch.qr(a)
 new_q, new_r = torch.linalg.qr(a)
 assert torch.allclose(old_q, new_q)

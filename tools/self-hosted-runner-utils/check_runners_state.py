@@ -1,8 +1,8 @@
-import os
 import argparse
+import os
 import re
-from dataclasses import dataclass, field
 from collections import defaultdict
+from dataclasses import dataclass, field
 from typing import Dict
 
 from github import Github

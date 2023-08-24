@@ -1,13 +1,12 @@
 """
 This adds a lambda to handle reading / writing to our RDS MySQL instance that we can access from the EC2 runners in CI. Similar to scribe-proxy, this means we can write on pull requests without a secret and also run queries to plan tests / etc.
 """
-import json
 import datetime
+import json
 import os
 from typing import *
-from contextlib import closing
 import re
-
+from contextlib import closing
 
 import mysql.connector
 
