@@ -1121,14 +1121,6 @@
       "slow"
     ]
   ],
-  "test_mobilenet_v2 (__main__.TestNumericSuiteEager)": [
-    "100439",
-    "https://github.com/pytorch/pytorch/issues/100439",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_module_attribute_mutation_violation_negative_1 (__main__.MutationExportTests)": [
     "88468",
     "https://github.com/pytorch/pytorch/issues/88468",
