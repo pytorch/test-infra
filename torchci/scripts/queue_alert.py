@@ -4,14 +4,10 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple
-from setuptools import distutils  # type: ignore[import]
+
 import rockset  # type: ignore[import]
-from check_alerts import (
-    clear_alerts,
-    fetch_alerts,
-    create_issue,
-    update_issue,
-)
+from check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
+from setuptools import distutils  # type: ignore[import]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 

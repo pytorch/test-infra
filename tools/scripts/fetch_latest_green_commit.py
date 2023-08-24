@@ -1,9 +1,9 @@
-import sys
 import os
 import re
-
-from typing import Any, Dict, List, NamedTuple, Tuple, cast
+import sys
 from argparse import ArgumentParser
+
+from typing import Any, cast, Dict, List, NamedTuple, Tuple
 
 import rockset  # type: ignore[import]
 from tools.scripts.gitutils import check_output
@@ -49,41 +49,43 @@ def query_commits(commits: List[str]) -> List[Dict[str, Any]]:
     rs = rockset.RocksetClient(
         host="api.usw2a1.rockset.com", api_key=os.environ["ROCKSET_API_KEY"]
     )
-    params = [{
-        "name": "shas",
-        "type": "string",
-        "value": ",".join(commits)
-    }]
+    params = [{"name": "shas", "type": "string", "value": ",".join(commits)}]
     res = rs.QueryLambdas.execute_query_lambda(
-        query_lambda='commit_jobs_batch_query',
-        version='8003fdfd18b64696',
-        workspace='commons',
-        parameters=params
+        query_lambda="commit_jobs_batch_query",
+        version="8003fdfd18b64696",
+        workspace="commons",
+        parameters=params,
     )
 
     return cast(List[Dict[str, Any]], res.results)
 
 
 def print_commit_status(commit: str, results: Dict[str, Any]) -> None:
-    for check in results['results']:
-        if check['sha'] == commit:
+    for check in results["results"]:
+        if check["sha"] == commit:
             print(f"\t{check['conclusion']:>10}: {check['name']}")
 
 
-def get_commit_results(commit: str, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def get_commit_results(
+    commit: str, results: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     workflow_checks = []
     for check in results:
-        if check['sha'] == commit:
-            workflow_checks.append(WorkflowCheck(
-                workflowName=check['workflowName'],
-                name=check['name'],
-                jobName=check['jobName'],
-                conclusion=check['conclusion'],
-            )._asdict())
+        if check["sha"] == commit:
+            workflow_checks.append(
+                WorkflowCheck(
+                    workflowName=check["workflowName"],
+                    name=check["name"],
+                    jobName=check["jobName"],
+                    conclusion=check["conclusion"],
+                )._asdict()
+            )
     return workflow_checks
 
 
-def is_green(commit: str, results: List[Dict[str, Any]], required_checks: List[str]) -> Tuple[bool, str]:
+def is_green(
+    commit: str, results: List[Dict[str, Any]], required_checks: List[str]
+) -> Tuple[bool, str]:
     workflow_checks = get_commit_results(commit, results)
     regex = {check: False for check in required_checks}
 
@@ -104,8 +106,10 @@ def is_green(commit: str, results: List[Dict[str, Any]], required_checks: List[s
     return True, ""
 
 
-def get_latest_green_commit(commits: List[str], results: List[Dict[str, Any]], required_checks: str) -> Any:
-    required_checks = required_checks.split(',')
+def get_latest_green_commit(
+    commits: List[str], results: List[Dict[str, Any]], required_checks: str
+) -> Any:
+    required_checks = required_checks.split(",")
 
     for commit in commits:
         eprint(f"Checking {commit}")
@@ -133,7 +137,9 @@ def main() -> None:
     commits = get_latest_commits(args.viable_strict_branch)
     results = query_commits(commits)
 
-    latest_viable_commit = get_latest_green_commit(commits, results, args.required_checks)
+    latest_viable_commit = get_latest_green_commit(
+        commits, results, args.required_checks
+    )
     print(latest_viable_commit)
 
 

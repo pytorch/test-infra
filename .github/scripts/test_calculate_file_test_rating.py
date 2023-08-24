@@ -1,5 +1,6 @@
-from calculate_file_test_rating import calculate_ratings, filter_tests
 from unittest import main, TestCase
+
+from calculate_file_test_rating import calculate_ratings, filter_tests
 
 
 class TestCalculateFileTestRating(TestCase):

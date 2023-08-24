@@ -1,9 +1,12 @@
-import rockset
 import os
-from time import sleep
 from datetime import datetime, time
+from time import sleep
 
-scale_down_time = datetime.strptime("5:00", "%H:%M").time()  # 5am UTC, which is 10pm PST
+import rockset
+
+scale_down_time = datetime.strptime(
+    "5:00", "%H:%M"
+).time()  # 5am UTC, which is 10pm PST
 scale_up_time = datetime.strptime("15:00", "%H:%M").time()  # 3pm UTC, which is 8am PST
 
 scale_down_size = "LARGE"
@@ -24,16 +27,18 @@ def setup_rockset_client():
 
 def get_virtual_instance_status():
     try:
-        vi_status = rs.VirtualInstances.get(
-                virtual_instance_id=virtual_instance_id
-            )
+        vi_status = rs.VirtualInstances.get(virtual_instance_id=virtual_instance_id)
     except rockset.ApiException as e:
         print(f"Exception when calling VirtualInstances->get: {e}\n")
         exit(1)
     return vi_status
 
 
-def get_desired_size_at_time(time: datetime, scale_up_time: time = scale_up_time, scale_down_time: time = scale_down_time) -> str:
+def get_desired_size_at_time(
+    time: datetime,
+    scale_up_time: time = scale_up_time,
+    scale_down_time: time = scale_down_time,
+) -> str:
     if time >= scale_down_time and time < scale_up_time:
         new_size = scale_down_size
     else:
@@ -81,7 +86,9 @@ def scale_virtual_instance(desired_size) -> None:
 
         vi_status = get_virtual_instance_status()
 
-    print(f"Virtual instance is now {vi_status.data.state} and scaled to {vi_status.data.current_size}")
+    print(
+        f"Virtual instance is now {vi_status.data.state} and scaled to {vi_status.data.current_size}"
+    )
 
 
 def main() -> None:

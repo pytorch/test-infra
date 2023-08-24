@@ -9,20 +9,15 @@ insert them into the database.
 This is intended to be run manually on DB migrations or for testing / restoring
 the database.
 """
-from collections import defaultdict
-import json
 import asyncio
+import json
+from collections import defaultdict
 from pathlib import Path
 from typing import *
 
 from sqlalchemy.orm import declarative_base
 
-from utils import (
-    extract_github_objects,
-    generate_orm,
-    get_engine,
-    connection_string,
-)
+from utils import connection_string, extract_github_objects, generate_orm, get_engine
 
 
 async def update_schema_for(payload: Dict[str, Any], webhook: str):

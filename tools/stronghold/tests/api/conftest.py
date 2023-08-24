@@ -1,8 +1,8 @@
 import pathlib
 
-import pytest
-
 import api.git
+
+import pytest
 
 
 @pytest.fixture

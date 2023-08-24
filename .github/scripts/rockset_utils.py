@@ -1,6 +1,7 @@
-from typing import Optional, Dict, Any, List
-import rockset  # type: ignore[import]
 import os
+from typing import Any, Dict, List, Optional
+
+import rockset  # type: ignore[import]
 
 
 def query_rockset(
