@@ -294,7 +294,14 @@ export function constructResultsComment(
     title_messages.push(pendingJobs);
   }
   if (hasUnrelatedFailures) {
-    title_messages.push(unrelatedFailures);
+    let unrelatedFailuresMsg = unrelatedFailures;
+    if (title_messages.length == 0) {
+      // If there are no other messages, reassure the user that things are looking good
+      unrelatedFailuresMsg =
+        "You can merge normally! (" + unrelatedFailures + ")";
+    }
+
+    title_messages.push(unrelatedFailuresMsg);
   }
 
   let title = headerPrefix + icon + " " + title_messages.join(", ");
