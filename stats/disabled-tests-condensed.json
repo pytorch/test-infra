@@ -217,14 +217,6 @@
       "linux"
     ]
   ],
-  "test_class_compile (__main__.TestRecursiveScript)": [
-    "96938",
-    "https://github.com/pytorch/pytorch/issues/96938",
-    [
-      "win",
-      "windows"
-    ]
-  ],
   "test_coalesce_reference_cycle_cpu_float64 (__main__.TestSparseCPU)": [
     "89395",
     "https://github.com/pytorch/pytorch/issues/89395",
