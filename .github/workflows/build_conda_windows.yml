@@ -78,6 +78,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
+    environment: pytorchbot-env
     defaults:
       run:
         shell: bash -l {0}
