@@ -51,10 +51,7 @@ def lambda_handler(event, context):
     event_type = event["headers"]["X-GitHub-Event"]
     body = json.loads(event["body"])
 
-    if (
-        event_type == "workflow_job"
-        and body["action"] == "completed"
-    ):
+    if event_type == "workflow_job" and body["action"] == "completed":
         try:
             full_name = body["repository"]["full_name"]
             conclusion = body[event_type]["conclusion"]

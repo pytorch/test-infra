@@ -1,10 +1,10 @@
 import pathlib
 
-import pytest
-
 import api.compatibility
 import api.github
 import api.violations
+
+import pytest
 
 
 @pytest.mark.parametrize('level', ['notice', 'warning'])

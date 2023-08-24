@@ -1,18 +1,15 @@
+from collections.abc import Sequence
+from typing import Optional
+
 import libcst as cst
 import yaml
-from typing import Optional
-from collections.abc import Sequence
 
-from ...common import (
-    TorchVisitor,
-    call_with_name_changes,
-    LintViolation,
-)
+from ...common import call_with_name_changes, LintViolation, TorchVisitor
+from .chain_matmul import call_replacement_chain_matmul
+from .cholesky import call_replacement_cholesky
+from .qr import call_replacement_qr
 
 from .range import call_replacement_range
-from .cholesky import call_replacement_cholesky
-from .chain_matmul import call_replacement_chain_matmul
-from .qr import call_replacement_qr
 
 
 class TorchDeprecatedSymbolsVisitor(TorchVisitor):

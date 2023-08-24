@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 import os.path
-from typing import List, Optional, Tuple, Dict, Union
+import shlex
+from pprint import pprint
+from subprocess import check_output
+from typing import Dict, List, Optional, Tuple, Union
+
 import boto3  # type: ignore[import]
 from botocore.exceptions import ClientError  # type: ignore[import]
-from pprint import pprint
-import shlex
-from subprocess import check_output
 
 TABLE_NAME_HISTORY = "torchci-tutorial-metadata"
 TABLE_NAME_FILENAMES = "torchci-tutorial-filenames"
-dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
+dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+
 
 def run_command(cmd: str, cwd: Optional[str] = None) -> str:
     """
@@ -90,7 +92,10 @@ def get_history(cwd: Optional[str] = None) -> List[List[str]]:
             title = line.split(";", 3)
     return rc
 
-def get_file_names(cwd: Optional[str] = None) -> List[Tuple[str, List[Tuple[str, int, int]]]]:
+
+def get_file_names(
+    cwd: Optional[str] = None,
+) -> List[Tuple[str, List[Tuple[str, int, int]]]]:
     lines = run_command("git log --pretty='format:%h' --numstat", cwd=cwd).split("\n")
     rc = []
     commit_hash = ""
@@ -105,7 +110,7 @@ def get_file_names(cwd: Optional[str] = None) -> List[Tuple[str, List[Tuple[str,
             commit_hash = line
         elif len(line.split("\t")) != 3:
             # Encountered an empty commit
-            assert(len(files) == 0)
+            assert len(files) == 0
             rc.append((commit_hash, files))
             commit_hash = line
         else:
@@ -117,6 +122,7 @@ def get_file_names(cwd: Optional[str] = None) -> List[Tuple[str, List[Tuple[str,
             else:
                 files.append((name, int(added), int(deleted)))
     return rc
+
 
 def table_exists(table_name: str) -> bool:
     """
@@ -137,12 +143,14 @@ def table_exists(table_name: str) -> bool:
             pprint(err.response)
     return exists
 
+
 def delete_table(table_name: str) -> None:
     table = dynamodb.Table(table_name)
     table.delete()
 
     print(f"Deleting {table.name}...")
     table.wait_until_not_exists()
+
 
 def create_table_history(table_name: str) -> None:
     """
@@ -153,20 +161,18 @@ def create_table_history(table_name: str) -> None:
         "TableName": table_name,
         "KeySchema": [
             {"AttributeName": "commit_id", "KeyType": "HASH"},
-            {"AttributeName": "date", "KeyType": "RANGE"}
+            {"AttributeName": "date", "KeyType": "RANGE"},
         ],
         "AttributeDefinitions": [
             {"AttributeName": "commit_id", "AttributeType": "S"},
-            {"AttributeName": "date", "AttributeType": "S"}
+            {"AttributeName": "date", "AttributeType": "S"},
         ],
-        "ProvisionedThroughput": {
-            "ReadCapacityUnits": 10,
-            "WriteCapacityUnits": 10
-        }
+        "ProvisionedThroughput": {"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
     }
     table = dynamodb.create_table(**params)
     print(f"Creating {table_name}...")
     table.wait_until_exists()
+
 
 def create_table_filenames(table_name: str) -> None:
     """
@@ -178,26 +184,32 @@ def create_table_filenames(table_name: str) -> None:
         "TableName": table_name,
         "KeySchema": [
             {"AttributeName": "commit_id", "KeyType": "HASH"},
-            {"AttributeName": "filename", "KeyType": "RANGE"}
+            {"AttributeName": "filename", "KeyType": "RANGE"},
         ],
         "AttributeDefinitions": [
             {"AttributeName": "commit_id", "AttributeType": "S"},
-            {"AttributeName": "filename", "AttributeType": "S"}
+            {"AttributeName": "filename", "AttributeType": "S"},
         ],
-        "ProvisionedThroughput": {
-            "ReadCapacityUnits": 10,
-            "WriteCapacityUnits": 10
-        }
+        "ProvisionedThroughput": {"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
     }
     table = dynamodb.create_table(**params)
     print(f"Creating {table_name}...")
     table.wait_until_exists()
 
-def convert_to_dict(entry: Tuple[str, List[Tuple[str, int, int]]]) -> List[Dict[str, Union[str, int]]]:
+
+def convert_to_dict(
+    entry: Tuple[str, List[Tuple[str, int, int]]]
+) -> List[Dict[str, Union[str, int]]]:
     return [
-        {"commit_id": entry[0], "filename": i[0], "lines_added": i[1], "lines_deleted": i[2]}
+        {
+            "commit_id": entry[0],
+            "filename": i[0],
+            "lines_added": i[1],
+            "lines_deleted": i[2],
+        }
         for i in entry[1]
     ]
+
 
 def main() -> None:
     tutorials_dir = os.path.expanduser("./tutorials")
@@ -211,15 +223,17 @@ def main() -> None:
         create_table_filenames(TABLE_NAME_FILENAMES)
     print(f"Uploading data to {TABLE_NAME_HISTORY}")
     for i in get_history_log:
-        table_history.put_item(Item={
-            "commit_id": i[0],
-            "author": i[1],
-            "date": i[2],
-            "title": i[3],
-            "number_of_changed_files": int(i[4]),
-            "lines_added": int(i[5]),
-            "lines_deleted": int(i[6])
-        })
+        table_history.put_item(
+            Item={
+                "commit_id": i[0],
+                "author": i[1],
+                "date": i[2],
+                "title": i[3],
+                "number_of_changed_files": int(i[4]),
+                "lines_added": int(i[5]),
+                "lines_deleted": int(i[6]),
+            }
+        )
     print(f"Finished uploading data to {TABLE_NAME_HISTORY}")
     print(f"Uploading data to {TABLE_NAME_FILENAMES}")
     for entry in commits_to_files:
@@ -228,6 +242,7 @@ def main() -> None:
             table_filenames.put_item(Item=item)
     print(f"Finished uploading data to {TABLE_NAME_FILENAMES}")
     print(f"Success!")
+
 
 if __name__ == "__main__":
     main()

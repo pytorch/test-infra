@@ -1,23 +1,25 @@
+import json
 import os
 import time
 import warnings
-import rockset
-import pandas as pd
-import json
-import boto3  # type: ignore[import]
-from botocore.exceptions import ClientError  # type: ignore[import]
 from decimal import Decimal
 
+import boto3  # type: ignore[import]
+import pandas as pd
+import rockset
+from botocore.exceptions import ClientError  # type: ignore[import]
+
 TABLE_NAME = "torchci-metrics-ci-wait-time"
-dynamodb = boto3.resource('dynamodb', region_name="us-east-1")
+dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+
 
 # Make the records more consistent, and ensure colums are proper typed
 def normalize_workflow_runs(records: pd.DataFrame) -> pd.DataFrame:
-    records['start_time'] = pd.to_datetime(records['start_time'])
-    records['end_time'] = pd.to_datetime(records['end_time'])
+    records["start_time"] = pd.to_datetime(records["start_time"])
+    records["end_time"] = pd.to_datetime(records["end_time"])
 
-    records['pr_number'] = records['pr_number'].astype(int)
-    records['workflow_run_id'] = records['workflow_run_id'].astype(int)
+    records["pr_number"] = records["pr_number"].astype(int)
+    records["workflow_run_id"] = records["workflow_run_id"].astype(int)
     return records
 
 
@@ -58,7 +60,7 @@ def query_workflows_from_rockset() -> pd.DataFrame:
             parameters=params,
             paginate=True,
             initial_paginate_response_doc_count=10000,
-        )
+        ),
     ):
         print(f"Got page {page_num}")
         page_num += 1
@@ -80,26 +82,33 @@ def remove_cancelled_jobs(df: pd.DataFrame) -> pd.DataFrame:
     # 3. The run was cancelled by a user's push after a job failed
 
     # Identify the cancellations that were timeouts. It's a timeout if the job was cancelled after 5hrs,
-    df['was_timeout'] = df.apply(
-        lambda row: row['was_cancelled'] and row['duration_mins'] >= 300, axis=1)
+    df["was_timeout"] = df.apply(
+        lambda row: row["was_cancelled"] and row["duration_mins"] >= 300, axis=1
+    )
 
     # Consider timeouts to be a type of failures.
-    df['conclusion'] = df.apply(
-        lambda row: 'failure' if row['was_timeout'] else row['conclusion'], axis=1)
-    
+    df["conclusion"] = df.apply(
+        lambda row: "failure" if row["was_timeout"] else row["conclusion"], axis=1
+    )
+
     # drop the temporary "was_timeout" column
-    df = df.drop(columns=['was_timeout'])
+    df = df.drop(columns=["was_timeout"])
 
     # For non-timeout cancellations, if the workflows were cancelled _after_ a job already failed, then
     # we say the failure signal gave the "end time" since it provided an actionable signal.
     # This means we can ignore the 'cancelled' jobs for such workflow runs.
     # Thus, if the job failed, and later it's workflow was cancelled then we ignore those cancelled jobs
-    df = df[~((df['conclusion'] == 'cancelled') & (df['sha'].isin(df[df['conclusion'] == 'failure']['sha'])))]
+    df = df[
+        ~(
+            (df["conclusion"] == "cancelled")
+            & (df["sha"].isin(df[df["conclusion"] == "failure"]["sha"]))
+        )
+    ]
 
     # Now the remaining cancelled jobs are the ones cancelled due to additional commits being pushed
     # _before_ a job failed. We can ignore these entire commits since they did't provide any actionable signal.
     # Thus we drop all shas that still contain a cancelled job
-    df = df[~df['sha'].isin(df[df['conclusion'] == 'cancelled']['sha'])]
+    df = df[~df["sha"].isin(df[df["conclusion"] == "cancelled"]["sha"])]
 
     return df
 
@@ -108,20 +117,25 @@ def remove_cancelled_jobs(df: pd.DataFrame) -> pd.DataFrame:
 # since the first job shows when the user started waiting on CI
 def normalize_start_times(df: pd.DataFrame) -> pd.DataFrame:
     # We track each run attempt in a workflow run separately.
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
 
     # Suppress warning "FutureWarning: Passing 'suffixes' which cause duplicate columns {'start_time_orig'} in the result is deprecated and will raise a MergeError in a future version."
     with warnings.catch_warnings():
-        warnings.simplefilter(action='ignore', category=FutureWarning)
-        df = df.merge(df_grouped['start_time'].min(), on=[
-                    'sha', 'run_attempt', 'workflow_run_id'], how='left', suffixes=('_orig', ''))
+        warnings.simplefilter(action="ignore", category=FutureWarning)
+        df = df.merge(
+            df_grouped["start_time"].min(),
+            on=["sha", "run_attempt", "workflow_run_id"],
+            how="left",
+            suffixes=("_orig", ""),
+        )
 
     # Update the duration accordingly
-    df['duration_mins'] = round(
-        (df['end_time'] - df['start_time']).dt.total_seconds() / 60)
-    
+    df["duration_mins"] = round(
+        (df["end_time"] - df["start_time"]).dt.total_seconds() / 60
+    )
+
     # Drop the temporary "start_time_orig" column
-    df = df.drop(columns=['start_time_orig'])
+    df = df.drop(columns=["start_time_orig"])
 
     return df
 
@@ -130,8 +144,12 @@ def ignore_failures_from_retried_jobs(df: pd.DataFrame) -> pd.DataFrame:
     # If this isn't the last run attempt, then the dev was blocked (unable to retry) until the last job completed.
     # Simulate that experience by having all conclusions for jobs that were retried to 'success', since
     # we don't want to stop the clock early
-    df['conclusion'] = df.apply(lambda row: 'success' if row['run_attempt']
-                                != row['total_attempts'] else row['conclusion'], axis=1)
+    df["conclusion"] = df.apply(
+        lambda row: "success"
+        if row["run_attempt"] != row["total_attempts"]
+        else row["conclusion"],
+        axis=1,
+    )
     return df
 
 
@@ -142,29 +160,49 @@ def remove_irrelevant_success_jobs(df: pd.DataFrame) -> pd.DataFrame:
 
     # If a sha has a failuring job, then remove 'success' jobs for that sha
     # since the failuring row will set the end time
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
-        if group[group['conclusion'] == 'failure'].shape[0] > 0:
-            df = df[~((df['sha'] == sha) & (df['run_attempt'] == run_attempt) & (
-                df['workflow_run_id'] == workflow_run_id) & (df['conclusion'] == 'success'))]
+        if group[group["conclusion"] == "failure"].shape[0] > 0:
+            df = df[
+                ~(
+                    (df["sha"] == sha)
+                    & (df["run_attempt"] == run_attempt)
+                    & (df["workflow_run_id"] == workflow_run_id)
+                    & (df["conclusion"] == "success")
+                )
+            ]
 
     # If a run attempt has multiple 'success' jobs, preserve the one that ended last
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
-        if group[group['conclusion'] == 'success'].shape[0] > 1:
-            df = df[~((df['sha'] == sha) & (df['run_attempt'] == run_attempt) & (df['workflow_run_id'] == workflow_run_id) & (
-                df['conclusion'] == 'success') & (df['end_time'] != group['end_time'].max()))]
+        if group[group["conclusion"] == "success"].shape[0] > 1:
+            df = df[
+                ~(
+                    (df["sha"] == sha)
+                    & (df["run_attempt"] == run_attempt)
+                    & (df["workflow_run_id"] == workflow_run_id)
+                    & (df["conclusion"] == "success")
+                    & (df["end_time"] != group["end_time"].max())
+                )
+            ]
 
     return df
 
 
 # Within a run, if there are multiple batches of failed jobs, the one that ends first gave the first signal
 def remove_irrelevant_failure_jobs(df: pd.DataFrame) -> pd.DataFrame:
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
-        if group[group['conclusion'] == 'failure'].shape[0] > 1:
-            df = df[~((df['sha'] == sha) & (df['run_attempt'] == run_attempt) & (df['workflow_run_id'] == workflow_run_id) & (
-                df['conclusion'] == 'failure') & (df['end_time'] != group['end_time'].min()))]
+        if group[group["conclusion"] == "failure"].shape[0] > 1:
+            df = df[
+                ~(
+                    (df["sha"] == sha)
+                    & (df["run_attempt"] == run_attempt)
+                    & (df["workflow_run_id"] == workflow_run_id)
+                    & (df["conclusion"] == "failure")
+                    & (df["end_time"] != group["end_time"].min())
+                )
+            ]
 
     return df
 
@@ -174,21 +212,27 @@ def discard_weird_cases(df: pd.DataFrame) -> pd.DataFrame:
     # Multiple PRs could potentially share the same commit in their history
     #  (this only affected 4 PRs over a 6 month window)
     # Discard those PRs.
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
     for _, group in df_grouped:
         if group.shape[0] > 1:
-            df = df[~df['pr_number'].isin(group['pr_number'])]
+            df = df[~df["pr_number"].isin(group["pr_number"])]
 
     # The same workflow can get accidentally triggered against the same commit more than
     #  once (I'm not talking about retries here).
     # We remove duplicate workflows that were run against the same commit, keeping only
     #  the workflow triggered first.
     # They'll have different workflow_run_ids but the same workflow name
-    df_grouped = df.groupby(['sha', 'workflow_name', 'run_attempt'])
+    df_grouped = df.groupby(["sha", "workflow_name", "run_attempt"])
     for (sha, workflow_name, run_attempt), group in df_grouped:
         if group.shape[0] > 1:
-            df = df[~((df['sha'] == sha) & (df['workflow_name'] == workflow_name) & (
-                df['run_attempt'] == run_attempt) & (df['start_time'] != group['start_time'].min()))]
+            df = df[
+                ~(
+                    (df["sha"] == sha)
+                    & (df["workflow_name"] == workflow_name)
+                    & (df["run_attempt"] == run_attempt)
+                    & (df["start_time"] != group["start_time"].min())
+                )
+            ]
 
     return df
 
@@ -199,7 +243,9 @@ class OverlapableTimeSpan:
         self.end_time = end_time
 
     def overlaps_with(self, timespan):
-        return self.start_time < timespan.end_time and self.end_time > timespan.start_time
+        return (
+            self.start_time < timespan.end_time and self.end_time > timespan.start_time
+        )
 
     def union_with(self, timespan):
         if self.overlaps_with(timespan):
@@ -218,11 +264,11 @@ class OverlapableTimeSpan:
 # spent waiting on them
 def get_duration_for_pr(pr_df_group) -> int:
     logged_timespans = []
-    pr_df_group = pr_df_group.sort_values(by=['start_time'])
+    pr_df_group = pr_df_group.sort_values(by=["start_time"])
 
     # Find the overlapping timespans and combine them
     for _, row in pr_df_group.iterrows():
-        timespan = OverlapableTimeSpan(row['start_time'], row['end_time'])
+        timespan = OverlapableTimeSpan(row["start_time"], row["end_time"])
         found_match = False
         for existing_span in logged_timespans:
             if existing_span.overlaps_with(timespan):
@@ -242,20 +288,20 @@ def get_duration_for_pr(pr_df_group) -> int:
 
 
 def validate_all_data_has_been_deduped(df: pd.DataFrame):
-    unduped_jobs = pd.DataFrame(
-        columns=['sha', 'run_attempt', 'workflow_run_id'])
+    unduped_jobs = pd.DataFrame(columns=["sha", "run_attempt", "workflow_run_id"])
 
-    df_grouped = df.groupby(['sha', 'run_attempt', 'workflow_run_id'])
+    df_grouped = df.groupby(["sha", "run_attempt", "workflow_run_id"])
     for (sha, run_attempt, workflow_run_id), group in df_grouped:
         if group.shape[0] > 1:
-            print("Found duplicate rows for sha: %s, run_attempt: %s, workflow_run_id: %s" % (
-                sha, run_attempt, workflow_run_id))
+            print(
+                "Found duplicate rows for sha: %s, run_attempt: %s, workflow_run_id: %s"
+                % (sha, run_attempt, workflow_run_id)
+            )
             print(group)
             unduped_jobs = unduped_jobs.append(group)
 
     if unduped_jobs.shape[0] > 0:
-        raise Exception("Found unduped jobs for records: %s" %
-                        unduped_jobs.to_string())
+        raise Exception("Found unduped jobs for records: %s" % unduped_jobs.to_string())
     else:
         print("All data has been deduped")
 
@@ -268,30 +314,38 @@ def get_pr_level_stats(df: pd.DataFrame) -> pd.DataFrame:
     # Now, all run attempts should have exactly one row. If not, we missed a corner case
     validate_all_data_has_been_deduped(df)
 
-    df_results = pd.DataFrame(
-        columns=['pr_number', 'duration_mins', 'end_time'])
+    df_results = pd.DataFrame(columns=["pr_number", "duration_mins", "end_time"])
 
-    df_grouped = df.groupby('pr_number')
+    df_grouped = df.groupby("pr_number")
     for (pr_number), group in df_grouped:
         pr_ci_duration = get_duration_for_pr(group)
-        num_commits = group['sha'].nunique()
-        pr_start_time = group['start_time'].min()
-        pr_end_time = group['end_time'].max()
+        num_commits = group["sha"].nunique()
+        pr_start_time = group["start_time"].min()
+        pr_end_time = group["end_time"].max()
 
         # Suppress warning "Converting to Period representation will drop timezone information."
         with warnings.catch_warnings():
-            warnings.simplefilter(action='ignore', category=UserWarning)
-            week = pr_end_time.to_period('W').start_time # The week that CI was last run against the PR. Usually the week it was merged.
+            warnings.simplefilter(action="ignore", category=UserWarning)
+            week = pr_end_time.to_period(
+                "W"
+            ).start_time  # The week that CI was last run against the PR. Usually the week it was merged.
 
         # Stats for this PR
-        df_results = pd.concat([df_results, pd.DataFrame({
-            'pr_number': [pr_number],
-            'duration_mins': [pr_ci_duration],
-            'start_time': [pr_start_time],
-            'end_time': [pr_end_time],
-            'num_commits': [num_commits],
-            'week': [week],
-        })])
+        df_results = pd.concat(
+            [
+                df_results,
+                pd.DataFrame(
+                    {
+                        "pr_number": [pr_number],
+                        "duration_mins": [pr_ci_duration],
+                        "start_time": [pr_start_time],
+                        "end_time": [pr_end_time],
+                        "num_commits": [num_commits],
+                        "week": [week],
+                    }
+                ),
+            ]
+        )
 
     return df_results
 
@@ -326,13 +380,16 @@ def get_pr_stats() -> pd.DataFrame:
     #       signal (i.e. sets the end time)
 
     runs = remove_cancelled_jobs(runs)
-    runs = normalize_start_times(runs) # Ensure all jobs from a workflow run have the same start time
+    runs = normalize_start_times(
+        runs
+    )  # Ensure all jobs from a workflow run have the same start time
     runs = ignore_failures_from_retried_jobs(runs)
     runs = remove_irrelevant_success_jobs(runs)
     runs = remove_irrelevant_failure_jobs(runs)
     runs = discard_weird_cases(runs)
 
     return get_pr_level_stats(runs)
+
 
 # Shares that the the last num_prs_updated PRs from pr_list have been updated
 def log_recently_updated_prs(pr_list, num_prs_updated):
@@ -351,21 +408,21 @@ def upload_stats(pr_stats):
     updated_prs = []
     start_time = time.time()
     for _, row in pr_stats.iterrows():
-        dynamoKey = str(row['pr_number'])
+        dynamoKey = str(row["pr_number"])
 
         statsTable.update_item(
             Key={
-                'dynamoKey': dynamoKey,
+                "dynamoKey": dynamoKey,
             },
             UpdateExpression="set pr_number=:p, duration_mins=:d, start_time=:s, end_time=:e, num_commits=:n, week=:w",
             ExpressionAttributeValues={
-                ':p': row['pr_number'],
-                ':d': int(row['duration_mins']),
-                ':s': row['start_time'].isoformat(),
-                ':e': row['end_time'].isoformat(),
-                ':n': int(row['num_commits']),
-                ':w': row['week'].isoformat(),
-            }
+                ":p": row["pr_number"],
+                ":d": int(row["duration_mins"]),
+                ":s": row["start_time"].isoformat(),
+                ":e": row["end_time"].isoformat(),
+                ":n": int(row["num_commits"]),
+                ":w": row["week"].isoformat(),
+            },
         )
 
         updated_prs.append(dynamoKey)
@@ -373,11 +430,15 @@ def upload_stats(pr_stats):
             log_recently_updated_prs(updated_prs, UPDATE_ANNOUNCEMENT_BATCH_SIZE)
 
     # print the last batch of prs updated (if any)
-    log_recently_updated_prs(updated_prs, len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE)
+    log_recently_updated_prs(
+        updated_prs, len(updated_prs) % UPDATE_ANNOUNCEMENT_BATCH_SIZE
+    )
 
     end_time = time.time()
 
-    print(f"Finished uploading data to {TABLE_NAME}, updated {pr_stats.shape[0]} rows in  {round((end_time - start_time)/60.0, 1)} minutes")
+    print(
+        f"Finished uploading data to {TABLE_NAME}, updated {pr_stats.shape[0]} rows in  {round((end_time - start_time)/60.0, 1)} minutes"
+    )
 
 
 def main() -> None:

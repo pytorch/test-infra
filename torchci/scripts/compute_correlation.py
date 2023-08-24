@@ -56,7 +56,7 @@ def compute():
             {
                 "name": "workflowNames",
                 "type": "string",
-                "value": "pull,trunk,periodic,windows-binary-libtorch-debug,windows-binary-libtorch-release"
+                "value": "pull,trunk,periodic,windows-binary-libtorch-debug,windows-binary-libtorch-release",
             },
         ],
     )

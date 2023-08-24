@@ -1,29 +1,24 @@
 # Check no crash on no-module import
-from . import residue_constants as rc
+import functorch
 
 import torch
-import functorch
-from functorch import (
-    vmap,
-    grad,
-    vjp,
-    jvp,
-    jacrev,
-    jacfwd,
-    hessian,
-    functionalize,
-)
+from functorch import functionalize, grad, hessian, jacfwd, jacrev, jvp, vjp, vmap
+
+from . import residue_constants as rc
 
 batch_size, feature_size = 3, 5
 weights = torch.randn(feature_size, requires_grad=True)
+
 
 def model(feature_vec):
     # Very simple linear model with activation
     return feature_vec.dot(weights).relu()
 
+
 examples = torch.randn(batch_size, feature_size)
 result = functorch.vmap(model)(examples)
 print(result)
+
 
 # Non-runnable, just to check name changes.
 def f():
@@ -37,6 +32,7 @@ def f():
     functorch.hessian()
     functorch.functionalize()
 
+
 # Don't modify these, change the imports in the beginning
 def f():
     td_out = vmap(tdmodule, (None, 0))(td, params)
@@ -49,9 +45,11 @@ def f():
     hessian()
     functionalize()
 
+
 # Don't modify, as some symbols are not in func.torch.
 from functorch import (
+    FunctionalModule,
+    FunctionalModuleWithBuffers,
     make_functional_with_buffers as make_functional_functorch,
     vmap,
 )
-from functorch import FunctionalModule, FunctionalModuleWithBuffers

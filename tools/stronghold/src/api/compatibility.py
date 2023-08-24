@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
 import difflib
 import pathlib
 import tempfile
+
+from collections.abc import Iterable, Mapping, Sequence
 
 import api
 import api.ast
@@ -49,18 +50,17 @@ def check_range(
         after = repo.get_contents(file, commit_id=head) or ''
         before = repo.get_contents(file, commit_id=base) or ''
 
-        with (
-            tempfile.NamedTemporaryFile() as before_file,
-            tempfile.NamedTemporaryFile() as after_file,
-        ):
+        with tempfile.NamedTemporaryFile() as before_file:
             before_path = pathlib.Path(before_file.name)
-            after_path = pathlib.Path(after_file.name)
             before_path.write_text(before)
-            after_path.write_text(after)
 
-            violations = api.compatibility.check(before_path, after_path)
-            if len(violations) > 0:
-                result[file] = violations
+            with tempfile.NamedTemporaryFile() as after_file:
+                after_path = pathlib.Path(after_file.name)
+                after_path.write_text(after)
+
+                violations = api.compatibility.check(before_path, after_path)
+                if len(violations) > 0:
+                    result[file] = violations
 
     return result
 
