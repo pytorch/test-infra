@@ -5,6 +5,8 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
+import rockset
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 PROD_VERSIONS_FILE = REPO_ROOT / "torchci" / "rockset" / "prodVersions.json"
