@@ -848,6 +848,13 @@
       "linux"
     ]
   ],
+  "test_inplace_grad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "94215",
+    "https://github.com/pytorch/pytorch/issues/94215",
+    [
+      "linux"
+    ]
+  ],
   "test_inplace_gradgrad_remainder_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
     "100675",
     "https://github.com/pytorch/pytorch/issues/100675",
@@ -1010,6 +1017,13 @@
     "https://github.com/pytorch/pytorch/issues/107426",
     [
       "linux"
+    ]
+  ],
+  "test_memory_format_nn_ConvTranspose2d_cuda_complex32 (__main__.TestModuleCUDA)": [
+    "95172",
+    "https://github.com/pytorch/pytorch/issues/95172",
+    [
+      "rocm"
     ]
   ],
   "test_merge_liveness (jit.test_freezing.TestMKLDNNReinplacing)": [
