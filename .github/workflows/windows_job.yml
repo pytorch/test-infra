@@ -134,16 +134,16 @@ jobs:
         working-directory: ${{ inputs.repository }}
         run: |
           EXEC_SCRIPT="${RUNNER_TEMP}/exec_script"
-          {
-            echo "#!/usr/bin/env bash";
-            echo "set -eou pipefail";
-            # Without this specific version of pywin32 conda the default conda installation does not work
-            # See https://github.com/conda/conda/issues/11503
-            echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
-            # Source conda so it's available to the script environment
-            echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
-            echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
-          } > "${EXEC_SCRIPT}"
+          #{
+          #  echo "#!/usr/bin/env bash";
+          #  echo "set -eou pipefail";
+          #  # Without this specific version of pywin32 conda the default conda installation does not work
+          #  # See https://github.com/conda/conda/issues/11503
+          #  echo "/c/Jenkins/Miniconda3/python.exe -m pip install --upgrade pywin32==300"
+          #  # Source conda so it's available to the script environment
+          #  echo "source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh";
+          #  echo 'export PATH="/c/Jenkins/Miniconda3/Scripts:${PATH}"'
+          #} > "${EXEC_SCRIPT}"
           if [[ ${{ inputs.gpu-arch-type }} == cuda ]]; then
             {
               echo 'export CUDA_HOME="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${{ inputs.gpu-arch-version }}"'
