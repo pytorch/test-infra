@@ -367,25 +367,9 @@
       "slow"
     ]
   ],
-  "test_conversions_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105545",
-    "https://github.com/pytorch/pytorch/issues/105545",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_conversions_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
     "105667",
     "https://github.com/pytorch/pytorch/issues/105667",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_conversions_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
-    "105543",
-    "https://github.com/pytorch/pytorch/issues/105543",
     [
       "linux",
       "slow"
@@ -553,13 +537,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_fn_fwgrad_bwgrad_linalg_lu_cuda_float64 (__main__.TestFwdGradientsCUDA)": [
-    "106530",
-    "https://github.com/pytorch/pytorch/issues/106530",
-    [
-      "linux"
     ]
   ],
   "test_fn_grad___rmod___cuda_float64 (__main__.TestBwdGradientsCUDA)": [
