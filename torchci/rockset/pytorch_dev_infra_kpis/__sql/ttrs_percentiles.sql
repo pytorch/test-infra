@@ -104,6 +104,7 @@ WITH
             AND js.conclusion = 'failure'
             AND j.run_attempt = 1 -- only look at the first run attempt since reruns will either 1) succeed, so are irrelevant or 2) repro the failure, biasing our data
             and j.name not like 'lintrunner%'
+            and j.name not like '%unstable%' -- The PR doesn't wait for unstable jobs, so they should be excluded when computing TTRS
             and js.name like 'Test%' -- Only consider test steps
     ),
     -- Refine our measurements to only collect the first red signal per workflow
