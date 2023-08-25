@@ -228,6 +228,46 @@ describe("retry-bot", () => {
     handleScope(rockset);
   });
 
+  test("dont rerun unstable jobs", async () => {
+    const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
+    event.payload.workflow_run.name = "pull";
+    const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
+    workflow_jobs.jobs[4].name = `${workflow_jobs.jobs[0].name} (unstable)`;
+    workflow_jobs.jobs[4].conclusion = "failure";
+    workflow_jobs.jobs[4].steps[0].conclusion = "failure";
+
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const attempt_number = event.payload.workflow_run.run_attempt;
+    const run_id = event.payload.workflow_run.id;
+
+    const scope = nock("https://api.github.com")
+      .get(
+        `/repos/${owner}/${repo}/actions/runs/${run_id}/attempts/${attempt_number}/jobs?page=1&per_page=100`
+      )
+      .reply(200, workflow_jobs)
+      .get(
+        `/repos/${owner}/${repo}/contents/${encodeURIComponent(
+          ".github/pytorch-probot.yml"
+        )}`
+      )
+      .reply(
+        200,
+        '{retryable_workflows: ["lint", "pull", "trunk", "linux-binary", "windows-binary"]}'
+      );
+
+    process.env.ROCKSET_API_KEY = "random key doesnt matter";
+    const rockset = nock("https://api.rs2.usw2.rockset.com")
+      .persist()
+      .post((uri) => true)
+      .reply(200, { results: [] });
+
+    await probot.receive(event);
+
+    handleScope(scope);
+    handleScope(rockset);
+  });
+
   test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";

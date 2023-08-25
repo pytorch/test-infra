@@ -79,7 +79,7 @@ jobs:
       REF: ${{ inputs.ref }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
-    environment: pytorchbot-env
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: 60

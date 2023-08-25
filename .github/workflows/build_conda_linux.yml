@@ -78,7 +78,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: ${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
-    environment: pytorchbot-env
+    environment: ${{(inputs.trigger-event == 'push' || startsWith(github.event.ref, 'refs/tags/')) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}

@@ -16,8 +16,8 @@ defaults:
   run:
     working-directory: torchci
 jobs:
-  update-slow-stats:
-    runs-on: ubuntu-20.04
+  update-test-time-stats:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
