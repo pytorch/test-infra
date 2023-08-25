@@ -42,7 +42,7 @@ WITH dedups AS (
     )
     AND job.name NOT LIKE '%mem_leak_check%'
     AND job.name NOT LIKE '%rerun_disabled_tests%'
-    AND job.name NOT LIKE :excludedJobName
+    AND job.name NOT LIKE '%unstable%'
 ),
 latest_attempts AS (
   -- Keep the latest run attempt to know if the job has already been retried

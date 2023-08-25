@@ -11,7 +11,7 @@
     "get_relevant_alerts": "727014a49bef2c20",
     "individual_test_stats_per_workflow_per_oncall": "559b6735965f1eb2",
     "individual_test_times_per_oncall_per_workflow": "6b63c3dde3032bea",
-    "flaky_workflows_jobs": "c981afe1305bc809",
+    "flaky_workflows_jobs": "3ac657ca40327f94",
     "failed_workflow_jobs": "6ec4fd3f36a72071",
     "get_workflow_jobs": "6ed2029b19691a4b",
     "slow_tests": "ef8d035d23aa8ab6",
