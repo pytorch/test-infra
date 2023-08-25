@@ -1743,20 +1743,6 @@
       "linux"
     ]
   ],
-  "test_wait_i_5 (__main__.TestMultiThreadedWait)": [
-    "107424",
-    "https://github.com/pytorch/pytorch/issues/107424",
-    [
-      "linux"
-    ]
-  ],
-  "test_wait_i_6 (__main__.TestMultiThreadedWait)": [
-    "107425",
-    "https://github.com/pytorch/pytorch/issues/107425",
-    [
-      "linux"
-    ]
-  ],
   "test_zero_model_parallel_parameters_as_bucket_view_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
     "75984",
     "https://github.com/pytorch/pytorch/issues/75984",
