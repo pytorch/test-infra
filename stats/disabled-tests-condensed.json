@@ -329,6 +329,13 @@
       "rocm"
     ]
   ],
+  "test_conv_weight_layout_convert_cuda (__main__.FreezingCudaTests)": [
+    "107925",
+    "https://github.com/pytorch/pytorch/issues/107925",
+    [
+      "rocm"
+    ]
+  ],
   "test_conv_with_as_strided_cpu (__main__.FreezingCpuTests)": [
     "107893",
     "https://github.com/pytorch/pytorch/issues/107893",
