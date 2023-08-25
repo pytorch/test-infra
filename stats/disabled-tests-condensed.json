@@ -238,13 +238,6 @@
       "rocm"
     ]
   ],
-  "test_complex_half_reference_testing_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestCommonCUDA)": [
-    "106913",
-    "https://github.com/pytorch/pytorch/issues/106913",
-    [
-      "rocm"
-    ]
-  ],
   "test_comprehensive_empty_strided_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "102033",
     "https://github.com/pytorch/pytorch/issues/102033",
@@ -322,13 +315,6 @@
       "rocm"
     ]
   ],
-  "test_conv_transposed_large_cuda (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "106909",
-    "https://github.com/pytorch/pytorch/issues/106909",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_weight_layout_convert_cuda (__main__.FreezingCudaTests)": [
     "107925",
     "https://github.com/pytorch/pytorch/issues/107925",
@@ -343,18 +329,35 @@
       "rocm"
     ]
   ],
-  "test_conv_with_as_strided_cuda (__main__.CudaTests)": [
-    "106918",
-    "https://github.com/pytorch/pytorch/issues/106918",
-    [
-      "rocm"
-    ]
-  ],
   "test_conv_with_as_strided_dynamic_shapes_cuda (__main__.DynamicShapesCudaTests)": [
     "105528",
     "https://github.com/pytorch/pytorch/issues/105528",
     [
       "rocm"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106793",
+    "https://github.com/pytorch/pytorch/issues/106793",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106796",
+    "https://github.com/pytorch/pytorch/issues/106796",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_all_patterns_backend_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106795",
+    "https://github.com/pytorch/pytorch/issues/106795",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_conversions_all_patterns_cuda_bfloat16 (__main__.TestSparseSemiStructuredCUDA)": [
@@ -376,6 +379,14 @@
   "test_conversions_all_patterns_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105540",
     "https://github.com/pytorch/pytorch/issues/105540",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_conversions_backend_cutlass_cuda_float16 (__main__.TestSparseSemiStructuredCUDA)": [
+    "106797",
+    "https://github.com/pytorch/pytorch/issues/106797",
     [
       "linux",
       "slow"
@@ -898,6 +909,14 @@
   "test_linear_cutlass_cuda_int8 (__main__.TestSparseSemiStructuredCUDA)": [
     "105932",
     "https://github.com/pytorch/pytorch/issues/105932",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_linear_inference_mode_False_backend_cutlass_cuda (__main__.TestSparseSemiStructuredCUDA)": [
+    "106794",
+    "https://github.com/pytorch/pytorch/issues/106794",
     [
       "linux",
       "slow"
