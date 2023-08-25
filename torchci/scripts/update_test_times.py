@@ -1,13 +1,14 @@
 import json
+import requests
+import rockset
 import os
 from collections import defaultdict
 from pathlib import Path
 
-import rockset
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 PROD_VERSIONS_FILE = REPO_ROOT / "torchci" / "rockset" / "prodVersions.json"
+TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
 
 
 def get_data_from_rockset():
@@ -30,8 +31,25 @@ def get_data_from_rockset():
     return rockset_result + periodic_rockset_result
 
 
-def gen_test_times(rockset_results):
-    test_times = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+def download_old_test_times():
+    return json.loads(requests.get(url=TEST_TIMES_URL).text)
+
+
+def convert_to_default_dict(d):
+    new_d = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    for env in d:
+        for config in d[env]:
+            for file in d[env][config]:
+                new_d[env][config][file] = d[env][config][file]
+    return new_d
+
+
+def gen_test_times(rockset_results, old_test_times):
+    # Use old test times because sometimes we want to manually edit the test
+    # times json and want those changes to persist.  Unfortunately this means
+    # that the test times json grows and never shrinks, but we can edit the json
+    # to make it smaller.  Defaults are always overriden.
+    test_times = convert_to_default_dict(old_test_times)
     test_times_no_build_env = defaultdict(lambda: defaultdict(list))
     test_times_no_test_config = defaultdict(list)
     for row in rockset_results:
@@ -46,15 +64,16 @@ def gen_test_times(rockset_results):
     for test, times in test_times_no_test_config.items():
         test_times_no_test_config[test] = sum(times) / len(times)
 
-    if "default" not in test_times:
-        test_times["default"] = test_times_no_build_env
-    if "default" not in test_times["default"]:
-        test_times["default"]["default"] = test_times_no_test_config
+    # Default should never be a build env
+    test_times["default"] = test_times_no_build_env
+    # Replace default's default with our own to account for tests that aren't
+    # usually in the default test config like distributed
+    test_times["default"]["default"] = test_times_no_test_config
     return test_times
 
 
 def main() -> None:
-    test_times = gen_test_times(get_data_from_rockset())
+    test_times = gen_test_times(get_data_from_rockset(), download_old_test_times())
 
     with open("test-times.json", "w") as f:
         f.write(json.dumps(test_times, indent=2, sort_keys=True))
